@@ -1,0 +1,54 @@
+run:
+  timeout: 5m
+
+linters:
+  enable-all: true
+  disable:
+    - errcheck
+    - wrapcheck
+    - varnamelen
+    - stylecheck
+    - nonamedreturns
+    - nlreturn
+    - ireturn
+    - gomnd
+    - exhaustivestruct
+    - ifshort
+    - goerr113
+    - gochecknoglobals
+    - forcetypeassert
+    - exhaustruct
+    - exhaustive
+    - cyclop
+    - containedctx
+    - wsl
+    - nestif
+    - lll
+    - funlen
+    - goconst
+    - godot
+    - gocognit
+    - golint
+    - goimports
+    - gochecknoinits
+    - maligned
+    - tagliatelle
+    - gocyclo
+    - maintidx
+    - gocritic
+    - nakedret
+
+linters-settings:
+  revive:
+    rules:
+      - name: var-naming
+        disabled: true
+  govet:
+    enable-all: true
+    disable:
+      - composites
+      - fieldalignment
+      - shadow
+  gosec:
+    excludes:
+      - G404
