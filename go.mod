@@ -5,8 +5,8 @@ go 1.18
 require (
 	github.com/database64128/tfo-go v1.0.4
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/sagernet/sing v0.0.0-20220701053004-e85528b42fb3
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220701010118-c2032fe11c46
+	github.com/sagernet/sing v0.0.0-20220701084654-2a0502dd664e
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.5.0
 )

@@ -15,7 +15,3 @@ type Outbound interface {
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error
 	N.Dialer
 }
-
-type OutboundInitializer interface {
-	Init(outbound Outbound) error
-}
