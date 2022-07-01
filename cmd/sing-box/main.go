@@ -2,17 +2,13 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
-	mRand "math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/sagernet/sing-box/box"
+	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/config"
-	"github.com/sagernet/sing/common"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -20,9 +16,6 @@ import (
 func init() {
 	logrus.StandardLogger().SetLevel(logrus.TraceLevel)
 	logrus.StandardLogger().Formatter.(*logrus.TextFormatter).ForceColors = true
-	var seed int64
-	common.Must(binary.Read(rand.Reader, binary.LittleEndian, &seed))
-	mRand.Seed(seed)
 }
 
 var configPath string

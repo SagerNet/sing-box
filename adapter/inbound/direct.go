@@ -1,4 +1,4 @@
-package direct
+package inbound
 
 import (
 	"context"
@@ -6,31 +6,35 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/udpnat"
 	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/udpnat"
 )
 
-var _ adapter.InboundHandler = (*Inbound)(nil)
+var _ adapter.Inbound = (*Direct)(nil)
 
-type Inbound struct {
-	router              adapter.Router
-	logger              log.Logger
-	network             []string
+type Direct struct {
+	myInboundAdapter
 	udpNat              *udpnat.Service[netip.AddrPort]
 	overrideOption      int
 	overrideDestination M.Socksaddr
 }
 
-func NewInbound(router adapter.Router, logger log.Logger, options *config.DirectInboundOptions) (inbound *Inbound) {
-	inbound = &Inbound{
-		router:  router,
-		logger:  logger,
-		network: options.Network.Build(),
+func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.DirectInboundOptions) *Direct {
+	inbound := &Direct{
+		myInboundAdapter: myInboundAdapter{
+			protocol:      C.TypeDirect,
+			network:       options.Network.Build(),
+			ctx:           ctx,
+			router:        router,
+			logger:        logger,
+			tag:           tag,
+			listenOptions: options.ListenOptions,
+		},
 	}
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		inbound.overrideOption = 1
@@ -42,19 +46,13 @@ func NewInbound(router adapter.Router, logger log.Logger, options *config.Direct
 		inbound.overrideOption = 3
 		inbound.overrideDestination = M.Socksaddr{Port: options.OverridePort}
 	}
-	inbound.udpNat = udpnat.New[netip.AddrPort](options.UDPTimeout, inbound)
-	return
+	inbound.udpNat = udpnat.New[netip.AddrPort](options.UDPTimeout, inbound.upstreamContextHandler())
+	inbound.connHandler = inbound
+	inbound.packetHandler = inbound
+	return inbound
 }
 
-func (d *Inbound) Type() string {
-	return C.TypeDirect
-}
-
-func (d *Inbound) Network() []string {
-	return d.network
-}
-
-func (d *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	switch d.overrideOption {
 	case 0:
 		metadata.Destination = d.overrideDestination
@@ -69,7 +67,7 @@ func (d *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata ada
 	return d.router.RouteConnection(ctx, conn, metadata)
 }
 
-func (d *Inbound) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
+func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
 	switch d.overrideOption {
 	case 0:
 		metadata.Destination = d.overrideDestination
@@ -80,15 +78,9 @@ func (d *Inbound) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.
 	case 2:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
-	d.udpNat.NewPacketDirect(ctx, metadata.Source, conn, buffer, metadata)
+	var upstreamMetadata M.Metadata
+	upstreamMetadata.Source = M.SocksaddrFromNetIP(metadata.Source)
+	upstreamMetadata.Destination = metadata.Destination
+	d.udpNat.NewPacketDirect(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, metadata.Source, conn, buffer, upstreamMetadata)
 	return nil
-}
-
-func (d *Inbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	d.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
-	return d.router.RoutePacketConnection(ctx, conn, metadata)
-}
-
-func (d *Inbound) NewError(ctx context.Context, err error) {
-	d.logger.WithContext(ctx).Error(err)
 }

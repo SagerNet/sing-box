@@ -2,18 +2,14 @@ package box
 
 import (
 	"context"
-	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/direct"
-	"github.com/sagernet/sing-box/adapter/http"
-	"github.com/sagernet/sing-box/adapter/mixed"
-	"github.com/sagernet/sing-box/adapter/shadowsocks"
-	"github.com/sagernet/sing-box/adapter/socks"
+	"github.com/sagernet/sing-box/adapter/inbound"
+	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/adapter/route"
 	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -56,39 +52,25 @@ func NewService(ctx context.Context, options *config.Config) (service *Service, 
 			}
 			prefix = F.ToString("inbound/", inboundOptions.Type, "[", prefix, "]: ")
 			inboundLogger := logrus.NewEntry(logger).WithFields(logrus.Fields{"prefix": prefix})
-			var inbound adapter.InboundHandler
-
-			var listenOptions config.ListenOptions
+			var inboundService adapter.Inbound
 			switch inboundOptions.Type {
 			case C.TypeDirect:
-				listenOptions = inboundOptions.DirectOptions.ListenOptions
-				inbound = direct.NewInbound(service.router, inboundLogger, inboundOptions.DirectOptions)
+				inboundService = inbound.NewDirect(ctx, service.router, inboundLogger, inboundOptions.Tag, inboundOptions.DirectOptions)
 			case C.TypeSocks:
-				listenOptions = inboundOptions.SocksOptions.ListenOptions
-				inbound = socks.NewInbound(service.router, inboundLogger, inboundOptions.SocksOptions)
+				inboundService = inbound.NewSocks(ctx, service.router, inboundLogger, inboundOptions.Tag, inboundOptions.SocksOptions)
 			case C.TypeHTTP:
-				listenOptions = inboundOptions.HTTPOptions.ListenOptions
-				inbound = http.NewInbound(service.router, inboundLogger, inboundOptions.HTTPOptions)
+				inboundService = inbound.NewHTTP(ctx, service.router, inboundLogger, inboundOptions.Tag, inboundOptions.HTTPOptions)
 			case C.TypeMixed:
-				listenOptions = inboundOptions.MixedOptions.ListenOptions
-				inbound = mixed.NewInbound(service.router, inboundLogger, inboundOptions.MixedOptions)
+				inboundService = inbound.NewMixed(ctx, service.router, inboundLogger, inboundOptions.Tag, inboundOptions.MixedOptions)
 			case C.TypeShadowsocks:
-				listenOptions = inboundOptions.ShadowsocksOptions.ListenOptions
-				inbound, err = shadowsocks.NewInbound(service.router, inboundLogger, inboundOptions.ShadowsocksOptions)
+				inboundService, err = inbound.NewShadowsocks(ctx, service.router, inboundLogger, inboundOptions.Tag, inboundOptions.ShadowsocksOptions)
 			default:
 				err = E.New("unknown inbound type: " + inboundOptions.Type)
 			}
 			if err != nil {
 				return
 			}
-			service.inbounds = append(service.inbounds, adapter.NewDefaultInboundService(
-				ctx,
-				inboundOptions.Tag,
-				inboundLogger,
-				netip.AddrPortFrom(netip.Addr(listenOptions.Listen), listenOptions.Port),
-				listenOptions.TCPFastOpen,
-				inbound,
-			))
+			service.inbounds = append(service.inbounds, inboundService)
 		}
 	}
 	for i, outboundOptions := range options.Outbounds {
@@ -100,23 +82,23 @@ func NewService(ctx context.Context, options *config.Config) (service *Service, 
 		}
 		prefix = F.ToString("outbound/", outboundOptions.Type, "[", prefix, "]: ")
 		outboundLogger := logrus.NewEntry(logger).WithFields(logrus.Fields{"prefix": prefix})
-		var outbound adapter.Outbound
+		var outboundHandler adapter.Outbound
 		switch outboundOptions.Type {
 		case C.TypeDirect:
-			outbound = direct.NewOutbound(outboundOptions.Tag, service.router, outboundLogger, outboundOptions.DirectOptions)
+			outboundHandler = outbound.NewDirect(service.router, outboundLogger, outboundOptions.Tag, outboundOptions.DirectOptions)
 		case C.TypeShadowsocks:
-			outbound, err = shadowsocks.NewOutbound(outboundOptions.Tag, service.router, outboundLogger, outboundOptions.ShadowsocksOptions)
+			outboundHandler, err = outbound.NewShadowsocks(service.router, outboundLogger, outboundOptions.Tag, outboundOptions.ShadowsocksOptions)
 		default:
 			err = E.New("unknown outbound type: " + outboundOptions.Type)
 		}
 		if err != nil {
 			return
 		}
-		service.outbounds = append(service.outbounds, outbound)
-		service.router.AddOutbound(outbound)
+		service.outbounds = append(service.outbounds, outboundHandler)
+		service.router.AddOutbound(outboundHandler)
 	}
 	if len(service.outbounds) == 0 {
-		service.outbounds = append(service.outbounds, direct.NewOutbound("direct", service.router, logger, &config.DirectOutboundOptions{}))
+		service.outbounds = append(service.outbounds, outbound.NewDirect(nil, logger, "direct", &config.DirectOutboundOptions{}))
 		service.router.AddOutbound(service.outbounds[0])
 	}
 	return

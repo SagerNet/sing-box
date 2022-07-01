@@ -1,11 +1,10 @@
-package direct
+package outbound
 
 import (
 	"context"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -14,21 +13,22 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*Outbound)(nil)
+var _ adapter.Outbound = (*Direct)(nil)
 
-type Outbound struct {
-	tag                 string
-	logger              log.Logger
-	dialer              N.Dialer
+type Direct struct {
+	myOutboundAdapter
 	overrideOption      int
 	overrideDestination M.Socksaddr
 }
 
-func NewOutbound(tag string, router adapter.Router, logger log.Logger, options *config.DirectOutboundOptions) (outbound *Outbound) {
-	outbound = &Outbound{
-		tag:    tag,
-		logger: logger,
-		dialer: dialer.NewDialer(router, options.DialerOptions),
+func NewDirect(router adapter.Router, logger log.Logger, tag string, options *config.DirectOutboundOptions) *Direct {
+	outbound := &Direct{
+		myOutboundAdapter: myOutboundAdapter{
+			protocol: C.TypeDirect,
+			logger:   logger,
+			tag:      tag,
+			dialer:   NewDialer(router, options.DialerOptions),
+		},
 	}
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		outbound.overrideOption = 1
@@ -40,18 +40,10 @@ func NewOutbound(tag string, router adapter.Router, logger log.Logger, options *
 		outbound.overrideOption = 3
 		outbound.overrideDestination = M.Socksaddr{Port: options.OverridePort}
 	}
-	return
+	return outbound
 }
 
-func (d *Outbound) Type() string {
-	return C.TypeDirect
-}
-
-func (d *Outbound) Tag() string {
-	return d.tag
-}
-
-func (d *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (d *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch d.overrideOption {
 	case 0:
 		destination = d.overrideDestination
@@ -71,12 +63,12 @@ func (d *Outbound) DialContext(ctx context.Context, network string, destination 
 	return d.dialer.DialContext(ctx, network, destination)
 }
 
-func (d *Outbound) ListenPacket(ctx context.Context) (net.PacketConn, error) {
+func (d *Direct) ListenPacket(ctx context.Context) (net.PacketConn, error) {
 	d.logger.WithContext(ctx).Debug("outbound packet connection")
 	return d.dialer.ListenPacket(ctx)
 }
 
-func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
+func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
 	outConn, err := d.DialContext(ctx, "tcp", destination)
 	if err != nil {
 		return err
@@ -84,7 +76,7 @@ func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, destination
 	return bufio.CopyConn(ctx, conn, outConn)
 }
 
-func (d *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+func (d *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
 	outConn, err := d.ListenPacket(ctx)
 	if err != nil {
 		return err

@@ -13,10 +13,10 @@ github.com/logrusorgru/aurora v2.0.3+incompatible/go.mod h1:7rIyQOR62GCctdiQpZ/z
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/sagernet/sing v0.0.0-20220701053004-e85528b42fb3 h1:N+I+g5md4NG7iwznCktg6N+sMPKMSEAG1Yq8rWNuQmE=
-github.com/sagernet/sing v0.0.0-20220701053004-e85528b42fb3/go.mod h1:3ZmoGNg/nNJTyHAZFNRSPaXpNIwpDvyIiAUd0KIWV5c=
-github.com/sagernet/sing-shadowsocks v0.0.0-20220701010118-c2032fe11c46 h1:LvMohGqz36YU9mst2BVpxdmbP+B3q3Jw3iu9Ni7ENZ4=
-github.com/sagernet/sing-shadowsocks v0.0.0-20220701010118-c2032fe11c46/go.mod h1:4N/34mC/YhclM/dlI7DA4/pPpXGZy360d4ofmLB5XX8=
+github.com/sagernet/sing v0.0.0-20220701084654-2a0502dd664e h1:GHT5FW/T8ckRe2BuHoCpzx9zrMPtUO7hvfjqs1Tak0I=
+github.com/sagernet/sing v0.0.0-20220701084654-2a0502dd664e/go.mod h1:3ZmoGNg/nNJTyHAZFNRSPaXpNIwpDvyIiAUd0KIWV5c=
+github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649 h1:whNDUGOAX5GPZkSy4G3Gv9QyIgk5SXRyjkRuP7ohF8k=
+github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649/go.mod h1:MuyT+9fEPjvauAv0fSE0a6Q+l0Tv2ZrAafTkYfnxBFw=
 github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE=
 github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/spf13/cobra v1.5.0 h1:X+jTBEBqF0bHN+9cSMgmfuvv2VHJ9ezmFNf9Y/XstYU=
