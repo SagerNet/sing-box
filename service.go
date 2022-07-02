@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var _ adapter.Service = (*Service)(nil)
@@ -24,11 +25,11 @@ type Service struct {
 func NewService(ctx context.Context, options option.Options) (*Service, error) {
 	logger, err := log.NewLogger(common.PtrValueOrDefault(options.Log))
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "parse log options")
 	}
 	router, err := route.NewRouter(ctx, logger, common.PtrValueOrDefault(options.Route))
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "parse route options")
 	}
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
@@ -36,7 +37,7 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 		var inboundService adapter.Inbound
 		inboundService, err = inbound.New(ctx, router, logger, i, inboundOptions)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "parse inbound[", i, "]")
 		}
 		inbounds = append(inbounds, inboundService)
 	}
@@ -44,7 +45,7 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 		var outboundService adapter.Outbound
 		outboundService, err = outbound.New(router, logger, i, outboundOptions)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
 		outbounds = append(outbounds, outboundService)
 	}
@@ -61,13 +62,19 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 }
 
 func (s *Service) Start() error {
+	err := s.logger.Start()
+	if err != nil {
+		return err
+	}
 	for _, in := range s.inbounds {
-		err := in.Start()
+		err = in.Start()
 		if err != nil {
 			return err
 		}
 	}
-	return nil
+	return common.AnyError(
+		s.router.Start(),
+	)
 }
 
 func (s *Service) Close() error {
@@ -77,7 +84,8 @@ func (s *Service) Close() error {
 	for _, out := range s.outbounds {
 		common.Close(out)
 	}
-	s.logger.Close()
-	s.router.Close()
-	return nil
+	return common.Close(
+		s.router,
+		s.logger,
+	)
 }

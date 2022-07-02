@@ -15,7 +15,8 @@ var _ Logger = (*logrusLogger)(nil)
 
 type logrusLogger struct {
 	abstractLogrusLogger
-	output *os.File
+	outputPath string
+	output     *os.File
 }
 
 type abstractLogrusLogger interface {
@@ -28,7 +29,6 @@ func NewLogrusLogger(options option.LogOption) (*logrusLogger, error) {
 	logger.SetLevel(logrus.TraceLevel)
 	logger.Formatter.(*logrus.TextFormatter).ForceColors = true
 	logger.AddHook(new(logrusHook))
-	var output *os.File
 	var err error
 	if options.Level != "" {
 		logger.Level, err = logrus.ParseLevel(options.Level)
@@ -36,18 +36,26 @@ func NewLogrusLogger(options option.LogOption) (*logrusLogger, error) {
 			return nil, err
 		}
 	}
-	if options.Output != "" {
-		output, err = os.OpenFile(options.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	return &logrusLogger{logger, options.Output, nil}, nil
+}
+
+func (l *logrusLogger) Start() error {
+	if l.outputPath != "" {
+		output, err := os.OpenFile(l.outputPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
-			return nil, E.Extend(err, "open log output")
+			return E.Cause(err, "open log output")
 		}
-		logger.SetOutput(output)
+		l.abstractLogrusLogger.(*logrus.Logger).SetOutput(output)
 	}
-	return &logrusLogger{logger, output}, nil
+	return nil
+}
+
+func (l *logrusLogger) Close() error {
+	return common.Close(common.PtrOrNil(l.output))
 }
 
 func (l *logrusLogger) WithContext(ctx context.Context) Logger {
-	return &logrusLogger{l.abstractLogrusLogger.WithContext(ctx), nil}
+	return &logrusLogger{abstractLogrusLogger: l.abstractLogrusLogger.WithContext(ctx)}
 }
 
 func (l *logrusLogger) WithPrefix(prefix string) Logger {
@@ -57,9 +65,5 @@ func (l *logrusLogger) WithPrefix(prefix string) Logger {
 			prefix = F.ToString(loadedPrefix, prefix)
 		}
 	}
-	return &logrusLogger{l.WithField("prefix", prefix), nil}
-}
-
-func (l *logrusLogger) Close() error {
-	return common.Close(common.PtrOrNil(l.output))
+	return &logrusLogger{abstractLogrusLogger: l.WithField("prefix", prefix)}
 }

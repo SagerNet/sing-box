@@ -3,52 +3,50 @@ package option
 import (
 	"encoding/json"
 
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-var ErrUnknownInboundType = E.New("unknown inbound type")
-
 type _Inbound struct {
-	Tag                string                     `json:"tag,omitempty"`
-	Type               string                     `json:"type,omitempty"`
-	DirectOptions      *DirectInboundOptions      `json:"directOptions,omitempty"`
-	SocksOptions       *SimpleInboundOptions      `json:"socksOptions,omitempty"`
-	HTTPOptions        *SimpleInboundOptions      `json:"httpOptions,omitempty"`
-	MixedOptions       *SimpleInboundOptions      `json:"mixedOptions,omitempty"`
-	ShadowsocksOptions *ShadowsocksInboundOptions `json:"shadowsocksOptions,omitempty"`
+	Tag                string                    `json:"tag,omitempty"`
+	Type               string                    `json:"type"`
+	DirectOptions      DirectInboundOptions      `json:"-"`
+	SocksOptions       SimpleInboundOptions      `json:"-"`
+	HTTPOptions        SimpleInboundOptions      `json:"-"`
+	MixedOptions       SimpleInboundOptions      `json:"-"`
+	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
 }
 
 type Inbound _Inbound
 
+func (i Inbound) Equals(other Inbound) bool {
+	return i.Type == other.Type &&
+		i.Tag == other.Tag &&
+		common.Equals(i.DirectOptions, other.DirectOptions) &&
+		common.Equals(i.SocksOptions, other.SocksOptions) &&
+		common.Equals(i.HTTPOptions, other.HTTPOptions) &&
+		common.Equals(i.MixedOptions, other.MixedOptions) &&
+		common.Equals(i.ShadowsocksOptions, other.ShadowsocksOptions)
+}
+
 func (i *Inbound) MarshalJSON() ([]byte, error) {
-	var options []byte
-	var err error
+	var v any
 	switch i.Type {
 	case "direct":
-		options, err = json.Marshal(i.DirectOptions)
+		v = i.DirectOptions
 	case "socks":
-		options, err = json.Marshal(i.SocksOptions)
+		v = i.SocksOptions
 	case "http":
-		options, err = json.Marshal(i.HTTPOptions)
+		v = i.HTTPOptions
 	case "mixed":
-		options, err = json.Marshal(i.MixedOptions)
+		v = i.MixedOptions
 	case "shadowsocks":
-		options, err = json.Marshal(i.ShadowsocksOptions)
+		v = i.ShadowsocksOptions
 	default:
-		return nil, E.Extend(ErrUnknownInboundType, i.Type)
+		return nil, E.New("unknown inbound type: ", i.Type)
 	}
-	if err != nil {
-		return nil, err
-	}
-	var content map[string]any
-	err = json.Unmarshal(options, &content)
-	if err != nil {
-		return nil, err
-	}
-	content["tag"] = i.Tag
-	content["type"] = i.Type
-	return json.Marshal(content)
+	return MarshallObjects(i, v)
 }
 
 func (i *Inbound) UnmarshalJSON(bytes []byte) error {
@@ -56,43 +54,29 @@ func (i *Inbound) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
+	var v any
 	switch i.Type {
 	case "direct":
-		if i.DirectOptions != nil {
-			break
-		}
-		err = json.Unmarshal(bytes, &i.DirectOptions)
+		v = &i.DirectOptions
 	case "socks":
-		if i.SocksOptions != nil {
-			break
-		}
-		err = json.Unmarshal(bytes, &i.SocksOptions)
+		v = &i.SocksOptions
 	case "http":
-		if i.HTTPOptions != nil {
-			break
-		}
-		err = json.Unmarshal(bytes, &i.HTTPOptions)
+		v = &i.HTTPOptions
 	case "mixed":
-		if i.MixedOptions != nil {
-			break
-		}
-		err = json.Unmarshal(bytes, &i.MixedOptions)
+		v = &i.MixedOptions
 	case "shadowsocks":
-		if i.ShadowsocksOptions != nil {
-			break
-		}
-		err = json.Unmarshal(bytes, &i.ShadowsocksOptions)
+		v = &i.ShadowsocksOptions
 	default:
-		return E.Extend(ErrUnknownInboundType, i.Type)
+		return nil
 	}
-	return err
+	return json.Unmarshal(bytes, v)
 }
 
 type ListenOptions struct {
 	Listen      ListenAddress `json:"listen"`
 	Port        uint16        `json:"listen_port"`
-	TCPFastOpen bool          `json:"tcpFastOpen,omitempty"`
-	UDPTimeout  int64         `json:"udpTimeout,omitempty"`
+	TCPFastOpen bool          `json:"tcp_fast_open,omitempty"`
+	UDPTimeout  int64         `json:"udp_timeout,omitempty"`
 }
 
 type SimpleInboundOptions struct {
@@ -100,11 +84,23 @@ type SimpleInboundOptions struct {
 	Users []auth.User `json:"users,omitempty"`
 }
 
+func (o SimpleInboundOptions) Equals(other SimpleInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		common.ComparableSliceEquals(o.Users, other.Users)
+}
+
 type DirectInboundOptions struct {
 	ListenOptions
 	Network         NetworkList `json:"network,omitempty"`
-	OverrideAddress string      `json:"overrideAddress,omitempty"`
-	OverridePort    uint16      `json:"overridePort,omitempty"`
+	OverrideAddress string      `json:"override_address,omitempty"`
+	OverridePort    uint16      `json:"override_port,omitempty"`
+}
+
+func (o DirectInboundOptions) Equals(other DirectInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		common.ComparableSliceEquals(o.Network, other.Network) &&
+		o.OverrideAddress == other.OverrideAddress &&
+		o.OverridePort == other.OverridePort
 }
 
 type ShadowsocksInboundOptions struct {
@@ -112,4 +108,11 @@ type ShadowsocksInboundOptions struct {
 	Network  NetworkList `json:"network,omitempty"`
 	Method   string      `json:"method"`
 	Password string      `json:"password"`
+}
+
+func (o ShadowsocksInboundOptions) Equals(other ShadowsocksInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		common.ComparableSliceEquals(o.Network, other.Network) &&
+		o.Method == other.Method &&
+		o.Password == other.Password
 }

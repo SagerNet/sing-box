@@ -18,7 +18,10 @@ func init() {
 	logrus.StandardLogger().Formatter.(*logrus.TextFormatter).ForceColors = true
 }
 
-var configPath string
+var (
+	configPath string
+	workingDir string
+)
 
 func main() {
 	command := &cobra.Command{
@@ -26,12 +29,19 @@ func main() {
 		Run: run,
 	}
 	command.Flags().StringVarP(&configPath, "config", "c", "config.json", "set configuration file path")
+	command.Flags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	if err := command.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
 }
 
 func run(cmd *cobra.Command, args []string) {
+	if workingDir != "" {
+		if err := os.Chdir(workingDir); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
 		logrus.Fatal("read config: ", err)

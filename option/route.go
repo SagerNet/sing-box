@@ -4,14 +4,18 @@ import (
 	"encoding/json"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
-
-var ErrUnknownRuleType = E.New("unknown rule type")
 
 type RouteOptions struct {
 	GeoIP *GeoIPOptions `json:"geoip,omitempty"`
 	Rules []Rule        `json:"rules,omitempty"`
+}
+
+func (o RouteOptions) Equals(other RouteOptions) bool {
+	return common.ComparablePtrEquals(o.GeoIP, other.GeoIP) &&
+		common.SliceEquals(o.Rules, other.Rules)
 }
 
 type GeoIPOptions struct {
@@ -28,25 +32,23 @@ type _Rule struct {
 
 type Rule _Rule
 
+func (r Rule) Equals(other Rule) bool {
+	return r.Type == other.Type &&
+		common.PtrEquals(r.DefaultOptions, other.DefaultOptions) &&
+		common.PtrEquals(r.LogicalOptions, other.LogicalOptions)
+}
+
 func (r *Rule) MarshalJSON() ([]byte, error) {
-	var content map[string]any
+	var v any
 	switch r.Type {
-	case "", C.RuleTypeDefault:
-		return json.Marshal(r.DefaultOptions)
+	case C.RuleTypeDefault:
+		v = r.DefaultOptions
 	case C.RuleTypeLogical:
-		options, err := json.Marshal(r.LogicalOptions)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(options, &content)
-		if err != nil {
-			return nil, err
-		}
-		content["type"] = r.Type
-		return json.Marshal(content)
+		v = r.LogicalOptions
 	default:
-		return nil, E.Extend(ErrUnknownRuleType, r.Type)
+		return nil, E.New("unknown rule type: " + r.Type)
 	}
+	return MarshallObjects(r, v)
 }
 
 func (r *Rule) UnmarshalJSON(bytes []byte) error {
@@ -54,21 +56,19 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	switch r.Type {
-	case "", C.RuleTypeDefault:
-		if r.DefaultOptions == nil {
-			break
-		}
-		err = json.Unmarshal(bytes, r.DefaultOptions)
-	case C.RuleTypeLogical:
-		if r.LogicalOptions == nil {
-			break
-		}
-		err = json.Unmarshal(bytes, r.LogicalOptions)
-	default:
-		err = E.Extend(ErrUnknownRuleType, r.Type)
+	if r.Type == "" {
+		r.Type = C.RuleTypeDefault
 	}
-	return err
+	var v any
+	switch r.Type {
+	case C.RuleTypeDefault:
+		v = &r.DefaultOptions
+	case C.RuleTypeLogical:
+		v = &r.LogicalOptions
+	default:
+		return E.New("unknown rule type: " + r.Type)
+	}
+	return json.Unmarshal(bytes, v)
 }
 
 type DefaultRule struct {
@@ -90,8 +90,41 @@ type DefaultRule struct {
 	Outbound string `json:"outbound,omitempty"`
 }
 
+func (r DefaultRule) IsValid() bool {
+	var defaultValue DefaultRule
+	defaultValue.Outbound = r.Outbound
+	return !r.Equals(defaultValue)
+}
+
+func (r DefaultRule) Equals(other DefaultRule) bool {
+	return common.ComparableSliceEquals(r.Inbound, other.Inbound) &&
+		r.IPVersion == other.IPVersion &&
+		r.Network == other.Network &&
+		common.ComparableSliceEquals(r.Protocol, other.Protocol) &&
+		common.ComparableSliceEquals(r.Domain, other.Domain) &&
+		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&
+		common.ComparableSliceEquals(r.DomainKeyword, other.DomainKeyword) &&
+		common.ComparableSliceEquals(r.SourceGeoIP, other.SourceGeoIP) &&
+		common.ComparableSliceEquals(r.GeoIP, other.GeoIP) &&
+		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&
+		common.ComparableSliceEquals(r.IPCIDR, other.IPCIDR) &&
+		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
+		common.ComparableSliceEquals(r.Port, other.Port) &&
+		r.Outbound == other.Outbound
+}
+
 type LogicalRule struct {
 	Mode     string        `json:"mode"`
 	Rules    []DefaultRule `json:"rules,omitempty"`
 	Outbound string        `json:"outbound,omitempty"`
+}
+
+func (r LogicalRule) IsValid() bool {
+	return len(r.Rules) > 0 && common.All(r.Rules, DefaultRule.IsValid)
+}
+
+func (r LogicalRule) Equals(other LogicalRule) bool {
+	return r.Mode == other.Mode &&
+		common.SliceEquals(r.Rules, other.Rules) &&
+		r.Outbound == other.Outbound
 }

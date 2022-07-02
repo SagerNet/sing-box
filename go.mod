@@ -6,7 +6,7 @@ require (
 	github.com/database64128/tfo-go v1.0.4
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/geoip2-golang v1.7.0
-	github.com/sagernet/sing v0.0.0-20220702141141-b3923d54845b
+	github.com/sagernet/sing v0.0.0-20220702174608-cb5bb5132de4
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.5.0
