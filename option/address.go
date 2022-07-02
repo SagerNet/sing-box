@@ -7,9 +7,12 @@ import (
 
 type ListenAddress netip.Addr
 
-func (a *ListenAddress) MarshalJSON() ([]byte, error) {
-	value := netip.Addr(*a).String()
-	return json.Marshal(value)
+func (a ListenAddress) MarshalJSON() ([]byte, error) {
+	addr := netip.Addr(a)
+	if !addr.IsValid() {
+		return json.Marshal("")
+	}
+	return json.Marshal(addr.String())
 }
 
 func (a *ListenAddress) UnmarshalJSON(bytes []byte) error {

@@ -4,8 +4,8 @@ import "encoding/json"
 
 type Listable[T comparable] []T
 
-func (l *Listable[T]) MarshalJSON() ([]byte, error) {
-	arrayList := []T(*l)
+func (l Listable[T]) MarshalJSON() ([]byte, error) {
+	arrayList := []T(l)
 	if len(arrayList) == 1 {
 		return json.Marshal(arrayList[0])
 	}

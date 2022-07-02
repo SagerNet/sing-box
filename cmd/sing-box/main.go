@@ -19,8 +19,9 @@ func init() {
 }
 
 var (
-	configPath string
-	workingDir string
+	configPath   string
+	workingDir   string
+	formatConfig bool
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 	}
 	command.Flags().StringVarP(&configPath, "config", "c", "config.json", "set configuration file path")
 	command.Flags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
+	command.Flags().BoolVarP(&formatConfig, "format", "f", false, "print formatted configuration file")
 	if err := command.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -57,6 +59,18 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Fatal("create service: ", err)
 	}
+
+	if formatConfig {
+		cancel()
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		err = encoder.Encode(options)
+		if err != nil {
+			logrus.Fatal("encode config: ", err)
+		}
+		return
+	}
+
 	err = service.Start()
 	if err != nil {
 		logrus.Fatal("start service: ", err)

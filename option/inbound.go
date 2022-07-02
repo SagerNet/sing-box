@@ -20,52 +20,52 @@ type _Inbound struct {
 
 type Inbound _Inbound
 
-func (i Inbound) Equals(other Inbound) bool {
-	return i.Type == other.Type &&
-		i.Tag == other.Tag &&
-		common.Equals(i.DirectOptions, other.DirectOptions) &&
-		common.Equals(i.SocksOptions, other.SocksOptions) &&
-		common.Equals(i.HTTPOptions, other.HTTPOptions) &&
-		common.Equals(i.MixedOptions, other.MixedOptions) &&
-		common.Equals(i.ShadowsocksOptions, other.ShadowsocksOptions)
+func (h Inbound) Equals(other Inbound) bool {
+	return h.Type == other.Type &&
+		h.Tag == other.Tag &&
+		common.Equals(h.DirectOptions, other.DirectOptions) &&
+		common.Equals(h.SocksOptions, other.SocksOptions) &&
+		common.Equals(h.HTTPOptions, other.HTTPOptions) &&
+		common.Equals(h.MixedOptions, other.MixedOptions) &&
+		common.Equals(h.ShadowsocksOptions, other.ShadowsocksOptions)
 }
 
-func (i *Inbound) MarshalJSON() ([]byte, error) {
+func (h Inbound) MarshalJSON() ([]byte, error) {
 	var v any
-	switch i.Type {
+	switch h.Type {
 	case "direct":
-		v = i.DirectOptions
+		v = h.DirectOptions
 	case "socks":
-		v = i.SocksOptions
+		v = h.SocksOptions
 	case "http":
-		v = i.HTTPOptions
+		v = h.HTTPOptions
 	case "mixed":
-		v = i.MixedOptions
+		v = h.MixedOptions
 	case "shadowsocks":
-		v = i.ShadowsocksOptions
+		v = h.ShadowsocksOptions
 	default:
-		return nil, E.New("unknown inbound type: ", i.Type)
+		return nil, E.New("unknown inbound type: ", h.Type)
 	}
-	return MarshallObjects(i, v)
+	return MarshallObjects((_Inbound)(h), v)
 }
 
-func (i *Inbound) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_Inbound)(i))
+func (h *Inbound) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_Inbound)(h))
 	if err != nil {
 		return err
 	}
 	var v any
-	switch i.Type {
+	switch h.Type {
 	case "direct":
-		v = &i.DirectOptions
+		v = &h.DirectOptions
 	case "socks":
-		v = &i.SocksOptions
+		v = &h.SocksOptions
 	case "http":
-		v = &i.HTTPOptions
+		v = &h.HTTPOptions
 	case "mixed":
-		v = &i.MixedOptions
+		v = &h.MixedOptions
 	case "shadowsocks":
-		v = &i.ShadowsocksOptions
+		v = &h.ShadowsocksOptions
 	default:
 		return nil
 	}
