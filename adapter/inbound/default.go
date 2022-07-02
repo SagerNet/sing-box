@@ -10,9 +10,9 @@ import (
 
 	"github.com/database64128/tfo-go"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -29,7 +29,7 @@ type myInboundAdapter struct {
 	router         adapter.Router
 	logger         log.Logger
 	tag            string
-	listenOptions  config.ListenOptions
+	listenOptions  option.ListenOptions
 	connHandler    adapter.ConnectionHandler
 	packetHandler  adapter.PacketHandler
 	packetUpstream any
@@ -101,7 +101,7 @@ func (a *myInboundAdapter) Close() error {
 }
 
 func (a *myInboundAdapter) upstreamHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {
-	return adapter.NewUpstreamHandler(metadata, a.newConnection, a.newPacketConnection, a)
+	return adapter.NewUpstreamHandler(metadata, a.newConnection, a.streamPacketConnection, a)
 }
 
 func (a *myInboundAdapter) upstreamContextHandler() adapter.UpstreamHandlerAdapter {
@@ -113,7 +113,14 @@ func (a *myInboundAdapter) newConnection(ctx context.Context, conn net.Conn, met
 	return a.router.RouteConnection(ctx, conn, metadata)
 }
 
+func (a *myInboundAdapter) streamPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	a.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
+	return a.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
 func (a *myInboundAdapter) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithID(ctx)
+	a.logger.WithContext(ctx).Info("inbound packet connection from ", metadata.Source)
 	a.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
 	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }
@@ -125,16 +132,16 @@ func (a *myInboundAdapter) loopTCPIn() {
 		if err != nil {
 			return
 		}
-		var metadata adapter.InboundContext
-		metadata.Inbound = a.tag
-		metadata.Source = M.AddrPortFromNet(conn.RemoteAddr())
 		go func() {
-			metadata.Network = "tcp"
 			ctx := log.ContextWithID(a.ctx)
-			a.logger.WithContext(ctx).Info("inbound connection from ", conn.RemoteAddr())
+			var metadata adapter.InboundContext
+			metadata.Inbound = a.tag
+			metadata.Network = "tcp"
+			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 			if hErr != nil {
-				a.NewError(ctx, E.Cause(hErr, "process connection from ", conn.RemoteAddr()))
+				a.NewError(ctx, E.Cause(hErr, "process connection from ", metadata.Source))
 			}
 		}()
 	}
@@ -149,9 +156,6 @@ func (a *myInboundAdapter) loopUDPIn() {
 	buffer.IncRef()
 	defer buffer.DecRef()
 	packetService := (*myInboundPacketAdapter)(a)
-	var metadata adapter.InboundContext
-	metadata.Inbound = a.tag
-	metadata.Network = "udp"
 	for {
 		buffer.Reset()
 		n, addr, err := a.udpConn.ReadFromUDPAddrPort(buffer.FreeBytes())
@@ -159,10 +163,13 @@ func (a *myInboundAdapter) loopUDPIn() {
 			return
 		}
 		buffer.Truncate(n)
-		metadata.Source = addr
+		var metadata adapter.InboundContext
+		metadata.Inbound = a.tag
+		metadata.Network = "udp"
+		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
-			a.newError(E.Cause(err, "process packet from ", addr))
+			a.newError(E.Cause(err, "process packet from ", metadata.Source))
 		}
 	}
 }
@@ -170,9 +177,6 @@ func (a *myInboundAdapter) loopUDPIn() {
 func (a *myInboundAdapter) loopUDPInThreadSafe() {
 	defer close(a.packetOutboundClosed)
 	packetService := (*myInboundPacketAdapter)(a)
-	var metadata adapter.InboundContext
-	metadata.Inbound = a.tag
-	metadata.Network = "udp"
 	for {
 		buffer := buf.NewPacket()
 		n, addr, err := a.udpConn.ReadFromUDPAddrPort(buffer.FreeBytes())
@@ -180,11 +184,14 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 			return
 		}
 		buffer.Truncate(n)
-		metadata.Source = addr
+		var metadata adapter.InboundContext
+		metadata.Inbound = a.tag
+		metadata.Network = "udp"
+		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
 			buffer.Release()
-			a.newError(E.Cause(err, "process packet from ", addr))
+			a.newError(E.Cause(err, "process packet from ", metadata.Source))
 		}
 	}
 }
@@ -212,7 +219,7 @@ func (a *myInboundAdapter) loopUDPOut() {
 }
 
 func (a *myInboundAdapter) newError(err error) {
-	a.logger.Warn(err)
+	a.logger.Error(err)
 }
 
 func (a *myInboundAdapter) NewError(ctx context.Context, err error) {

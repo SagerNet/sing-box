@@ -1,9 +1,10 @@
-package config
+package option
 
 import (
 	"encoding/json"
 
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 var ErrUnknownOutboundType = E.New("unknown outbound type")
@@ -81,10 +82,18 @@ type DirectOutboundOptions struct {
 	OverridePort    uint16 `json:"override_port,omitempty"`
 }
 
-type ShadowsocksOutboundOptions struct {
-	DialerOptions
+type ServerOptions struct {
 	Server     string `json:"server"`
 	ServerPort uint16 `json:"server_port"`
-	Method     string `json:"method"`
-	Password   string `json:"password"`
+}
+
+func (o ServerOptions) Build() M.Socksaddr {
+	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
+}
+
+type ShadowsocksOutboundOptions struct {
+	DialerOptions
+	ServerOptions
+	Method   string `json:"method"`
+	Password string `json:"password"`
 }

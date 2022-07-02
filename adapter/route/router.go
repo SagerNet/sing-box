@@ -4,8 +4,12 @@ import (
 	"context"
 	"net"
 
+	"github.com/oschwald/geoip2-golang"
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -15,21 +19,15 @@ type Router struct {
 	logger          log.Logger
 	defaultOutbound adapter.Outbound
 	outboundByTag   map[string]adapter.Outbound
+
+	rules     []adapter.Rule
+	geoReader *geoip2.Reader
 }
 
 func NewRouter(logger log.Logger) *Router {
 	return &Router{
-		logger:        logger,
+		logger:        logger.WithPrefix("router: "),
 		outboundByTag: make(map[string]adapter.Outbound),
-	}
-}
-
-func (r *Router) AddOutbound(outbound adapter.Outbound) {
-	if outbound.Tag() != "" {
-		r.outboundByTag[outbound.Tag()] = outbound
-	}
-	if r.defaultOutbound == nil {
-		r.defaultOutbound = outbound
 	}
 }
 
@@ -46,13 +44,60 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	r.logger.WithContext(ctx).Debug("no match")
-	r.logger.WithContext(ctx).Debug("route connection to default outbound")
+	for _, rule := range r.rules {
+		if rule.Match(metadata) {
+			r.logger.WithContext(ctx).Info("match ", rule.String())
+			if outbound, loaded := r.Outbound(rule.Outbound()); loaded {
+				return outbound.NewConnection(ctx, conn, metadata.Destination)
+			}
+			r.logger.WithContext(ctx).Error("outbound ", rule.Outbound(), " not found")
+		}
+	}
+	r.logger.WithContext(ctx).Info("no match => ", r.defaultOutbound.Tag())
 	return r.defaultOutbound.NewConnection(ctx, conn, metadata.Destination)
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	r.logger.WithContext(ctx).Debug("no match")
-	r.logger.WithContext(ctx).Debug("route packet connection to default outbound")
+	for _, rule := range r.rules {
+		if rule.Match(metadata) {
+			r.logger.WithContext(ctx).Info("match ", rule.String())
+			if outbound, loaded := r.Outbound(rule.Outbound()); loaded {
+				return outbound.NewPacketConnection(ctx, conn, metadata.Destination)
+			}
+			r.logger.WithContext(ctx).Error("outbound ", rule.Outbound(), " not found")
+		}
+	}
+	r.logger.WithContext(ctx).Info("no match => ", r.defaultOutbound.Tag())
 	return r.defaultOutbound.NewPacketConnection(ctx, conn, metadata.Destination)
+}
+
+func (r *Router) Close() error {
+	return common.Close(
+		common.PtrOrNil(r.geoReader),
+	)
+}
+
+func (r *Router) UpdateOutbounds(outbounds []adapter.Outbound) {
+	var defaultOutbound adapter.Outbound
+	outboundByTag := make(map[string]adapter.Outbound)
+	if len(outbounds) > 0 {
+		defaultOutbound = outbounds[0]
+	}
+	for _, outbound := range outbounds {
+		outboundByTag[outbound.Tag()] = outbound
+	}
+	r.defaultOutbound = defaultOutbound
+	r.outboundByTag = outboundByTag
+}
+
+func (r *Router) UpdateRules(options []option.Rule) error {
+	rules := make([]adapter.Rule, 0, len(options))
+	for i, rule := range options {
+		switch rule.Type {
+		case "", C.RuleTypeDefault:
+			rules = append(rules, NewDefaultRule(i, rule.DefaultOptions))
+		}
+	}
+	r.rules = rules
+	return nil
 }

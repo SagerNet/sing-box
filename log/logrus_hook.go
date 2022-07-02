@@ -6,13 +6,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Hook struct{}
+type logrusHook struct{}
 
-func (h *Hook) Levels() []logrus.Level {
+func (h *logrusHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
-func (h *Hook) Fire(entry *logrus.Entry) error {
+func (h *logrusHook) Fire(entry *logrus.Entry) error {
 	if prefix, loaded := entry.Data["prefix"]; loaded {
 		prefixStr := prefix.(string)
 		delete(entry.Data, "prefix")
@@ -20,7 +20,7 @@ func (h *Hook) Fire(entry *logrus.Entry) error {
 	}
 	var idCtx *idContext
 	if entry.Context != nil {
-		idCtx = entry.Context.Value(idType).(*idContext)
+		idCtx, _ = entry.Context.Value(idType).(*idContext)
 	}
 	if idCtx != nil {
 		var color aurora.Color

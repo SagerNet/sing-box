@@ -6,9 +6,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -27,7 +27,7 @@ type Mixed struct {
 	authenticator auth.Authenticator
 }
 
-func NewMixed(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.SimpleInboundOptions) *Mixed {
+func NewMixed(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.SimpleInboundOptions) *Mixed {
 	inbound := &Mixed{
 		myInboundAdapter{
 			protocol:      C.TypeMixed,
