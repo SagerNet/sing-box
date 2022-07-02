@@ -2,7 +2,6 @@ package option
 
 import (
 	"encoding/json"
-	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -11,19 +10,24 @@ import (
 type NetworkList []string
 
 func (v *NetworkList) UnmarshalJSON(data []byte) error {
-	var networkList string
+	var networkList []string
 	err := json.Unmarshal(data, &networkList)
 	if err != nil {
-		return err
+		var networkItem string
+		err = json.Unmarshal(data, &networkItem)
+		if err != nil {
+			return err
+		}
+		networkList = []string{networkItem}
 	}
-	for _, networkName := range strings.Split(networkList, ",") {
+	for _, networkName := range networkList {
 		switch networkName {
 		case "tcp", "udp":
-			*v = append(*v, networkName)
 		default:
 			return E.New("unknown network: " + networkName)
 		}
 	}
+	*v = networkList
 	return nil
 }
 

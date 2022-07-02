@@ -233,7 +233,7 @@ func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	if destination.Family().IsFqdn() {
+	if destination.IsFqdn() {
 		udpAddr, err := net.ResolveUDPAddr("udp", destination.String())
 		if err != nil {
 			return err

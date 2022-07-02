@@ -24,7 +24,7 @@ type Shadowsocks struct {
 	serverAddr M.Socksaddr
 }
 
-func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options *option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
+func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
 	outbound := &Shadowsocks{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
