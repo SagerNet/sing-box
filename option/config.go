@@ -3,7 +3,7 @@ package option
 import "github.com/sagernet/sing/common"
 
 type Options struct {
-	Log       *LogOption    `json:"log"`
+	Log       *LogOption    `json:"log,omitempty"`
 	Inbounds  []Inbound     `json:"inbounds,omitempty"`
 	Outbounds []Outbound    `json:"outbounds,omitempty"`
 	Route     *RouteOptions `json:"route,omitempty"`

@@ -16,30 +16,30 @@ type _Outbound struct {
 
 type Outbound _Outbound
 
-func (i *Outbound) MarshalJSON() ([]byte, error) {
+func (h Outbound) MarshalJSON() ([]byte, error) {
 	var v any
-	switch i.Type {
+	switch h.Type {
 	case "direct":
-		v = i.DirectOptions
+		v = h.DirectOptions
 	case "shadowsocks":
-		v = i.ShadowsocksOptions
+		v = h.ShadowsocksOptions
 	default:
-		return nil, E.New("unknown outbound type: ", i.Type)
+		return nil, E.New("unknown outbound type: ", h.Type)
 	}
-	return MarshallObjects(i, v)
+	return MarshallObjects((_Outbound)(h), v)
 }
 
-func (i *Outbound) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_Outbound)(i))
+func (h *Outbound) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_Outbound)(h))
 	if err != nil {
 		return err
 	}
 	var v any
-	switch i.Type {
+	switch h.Type {
 	case "direct":
-		v = &i.DirectOptions
+		v = &h.DirectOptions
 	case "shadowsocks":
-		v = &i.ShadowsocksOptions
+		v = &h.ShadowsocksOptions
 	default:
 		return nil
 	}

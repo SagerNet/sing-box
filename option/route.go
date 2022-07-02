@@ -26,8 +26,8 @@ type GeoIPOptions struct {
 
 type _Rule struct {
 	Type           string       `json:"type,omitempty"`
-	DefaultOptions *DefaultRule `json:"default_options,omitempty"`
-	LogicalOptions *LogicalRule `json:"logical_options,omitempty"`
+	DefaultOptions *DefaultRule `json:"-"`
+	LogicalOptions *LogicalRule `json:"-"`
 }
 
 type Rule _Rule
@@ -38,7 +38,7 @@ func (r Rule) Equals(other Rule) bool {
 		common.PtrEquals(r.LogicalOptions, other.LogicalOptions)
 }
 
-func (r *Rule) MarshalJSON() ([]byte, error) {
+func (r Rule) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Type {
 	case C.RuleTypeDefault:
@@ -48,7 +48,7 @@ func (r *Rule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return MarshallObjects(r, v)
+	return MarshallObjects((_Rule)(r), v)
 }
 
 func (r *Rule) UnmarshalJSON(bytes []byte) error {
