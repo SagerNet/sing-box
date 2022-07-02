@@ -9,8 +9,8 @@ import (
 
 	"github.com/database64128/tfo-go"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -48,7 +48,7 @@ func (d *defaultDialer) ListenPacket(ctx context.Context) (net.PacketConn, error
 	return d.ListenConfig.ListenPacket(ctx, "udp", "")
 }
 
-func newDialer(options config.DialerOptions) N.Dialer {
+func newDialer(options option.DialerOptions) N.Dialer {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
@@ -70,13 +70,13 @@ func newDialer(options config.DialerOptions) N.Dialer {
 
 type lazyDialer struct {
 	router   adapter.Router
-	options  config.DialerOptions
+	options  option.DialerOptions
 	dialer   N.Dialer
 	initOnce sync.Once
 	initErr  error
 }
 
-func NewDialer(router adapter.Router, options config.DialerOptions) N.Dialer {
+func NewDialer(router adapter.Router, options option.DialerOptions) N.Dialer {
 	if options.Detour == "" {
 		return newDialer(options)
 	}

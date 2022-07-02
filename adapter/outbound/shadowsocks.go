@@ -5,9 +5,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowimpl"
 	"github.com/sagernet/sing/common/bufio"
@@ -24,7 +24,7 @@ type Shadowsocks struct {
 	serverAddr M.Socksaddr
 }
 
-func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options *config.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
+func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options *option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
 	outbound := &Shadowsocks{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
@@ -66,14 +66,14 @@ func (o *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn
 func (o *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch network {
 	case C.NetworkTCP:
-		o.logger.WithContext(ctx).Debug("outbound connection to ", destination)
+		o.logger.WithContext(ctx).Info("outbound connection to ", destination)
 		outConn, err := o.dialer.DialContext(ctx, "tcp", o.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return o.method.DialEarlyConn(outConn, destination), nil
 	case C.NetworkUDP:
-		o.logger.WithContext(ctx).Debug("outbound packet connection to ", destination)
+		o.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
 		outConn, err := o.dialer.DialContext(ctx, "udp", o.serverAddr)
 		if err != nil {
 			return nil, err
@@ -85,7 +85,7 @@ func (o *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 }
 
 func (o *Shadowsocks) ListenPacket(ctx context.Context) (net.PacketConn, error) {
-	o.logger.WithContext(ctx).Debug("outbound packet connection to ", o.serverAddr)
+	o.logger.WithContext(ctx).Info("outbound packet connection to ", o.serverAddr)
 	outConn, err := o.dialer.ListenPacket(ctx)
 	if err != nil {
 		return nil, err

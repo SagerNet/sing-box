@@ -5,9 +5,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -21,7 +21,7 @@ type Direct struct {
 	overrideDestination M.Socksaddr
 }
 
-func NewDirect(router adapter.Router, logger log.Logger, tag string, options *config.DirectOutboundOptions) *Direct {
+func NewDirect(router adapter.Router, logger log.Logger, tag string, options *option.DirectOutboundOptions) *Direct {
 	outbound := &Direct{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
@@ -45,26 +45,26 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options *co
 
 func (d *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch d.overrideOption {
-	case 0:
-		destination = d.overrideDestination
 	case 1:
+		destination = d.overrideDestination
+	case 2:
 		newDestination := d.overrideDestination
 		newDestination.Port = destination.Port
 		destination = newDestination
-	case 2:
+	case 3:
 		destination.Port = d.overrideDestination.Port
 	}
 	switch network {
 	case C.NetworkTCP:
-		d.logger.WithContext(ctx).Debug("outbound connection to ", destination)
+		d.logger.WithContext(ctx).Info("outbound connection to ", destination)
 	case C.NetworkUDP:
-		d.logger.WithContext(ctx).Debug("outbound packet connection to ", destination)
+		d.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
 	}
 	return d.dialer.DialContext(ctx, network, destination)
 }
 
 func (d *Direct) ListenPacket(ctx context.Context) (net.PacketConn, error) {
-	d.logger.WithContext(ctx).Debug("outbound packet connection")
+	d.logger.WithContext(ctx).Info("outbound packet connection")
 	return d.dialer.ListenPacket(ctx)
 }
 

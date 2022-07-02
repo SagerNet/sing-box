@@ -5,9 +5,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/socks"
@@ -20,7 +20,7 @@ type Socks struct {
 	authenticator auth.Authenticator
 }
 
-func NewSocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.SimpleInboundOptions) *Socks {
+func NewSocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.SimpleInboundOptions) *Socks {
 	inbound := &Socks{
 		myInboundAdapter{
 			protocol:      C.TypeSocks,

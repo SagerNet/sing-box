@@ -6,9 +6,9 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -24,7 +24,7 @@ type Direct struct {
 	overrideDestination M.Socksaddr
 }
 
-func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.DirectInboundOptions) *Direct {
+func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.DirectInboundOptions) *Direct {
 	inbound := &Direct{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeDirect,
@@ -54,13 +54,13 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, ta
 
 func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	switch d.overrideOption {
-	case 0:
-		metadata.Destination = d.overrideDestination
 	case 1:
+		metadata.Destination = d.overrideDestination
+	case 2:
 		destination := d.overrideDestination
 		destination.Port = metadata.Destination.Port
 		metadata.Destination = destination
-	case 2:
+	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
 	d.logger.WithContext(ctx).Info("inbound connection to ", metadata.Destination)
@@ -69,18 +69,18 @@ func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 
 func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
 	switch d.overrideOption {
-	case 0:
-		metadata.Destination = d.overrideDestination
 	case 1:
+		metadata.Destination = d.overrideDestination
+	case 2:
 		destination := d.overrideDestination
 		destination.Port = metadata.Destination.Port
 		metadata.Destination = destination
-	case 2:
+	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
 	var upstreamMetadata M.Metadata
-	upstreamMetadata.Source = M.SocksaddrFromNetIP(metadata.Source)
+	upstreamMetadata.Source = metadata.Source
 	upstreamMetadata.Destination = metadata.Destination
-	d.udpNat.NewPacketDirect(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, metadata.Source, conn, buffer, upstreamMetadata)
+	d.udpNat.NewPacketDirect(&adapter.MetadataContext{Context: log.ContextWithID(ctx), Metadata: metadata}, metadata.Source.AddrPort(), conn, buffer, upstreamMetadata)
 	return nil
 }

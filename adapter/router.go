@@ -12,4 +12,11 @@ type Router interface {
 	Outbound(tag string) (Outbound, bool)
 	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
+	Close() error
+}
+
+type Rule interface {
+	Match(metadata InboundContext) bool
+	Outbound() string
+	String() string
 }

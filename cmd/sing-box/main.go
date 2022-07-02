@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/config"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -36,13 +36,14 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Fatal("read config: ", err)
 	}
-	var boxConfig config.Config
-	err = json.Unmarshal(configContent, &boxConfig)
+	var options option.Options
+	err = json.Unmarshal(configContent, &options)
 	if err != nil {
 		logrus.Fatal("parse config: ", err)
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	service, err := box.NewService(ctx, &boxConfig)
+	service, err := box.NewService(ctx, &options)
 	if err != nil {
 		logrus.Fatal("create service: ", err)
 	}

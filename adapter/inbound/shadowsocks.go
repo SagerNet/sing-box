@@ -5,9 +5,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowaead"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -25,7 +25,7 @@ type Shadowsocks struct {
 	service shadowsocks.Service
 }
 
-func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.ShadowsocksInboundOptions) (*Shadowsocks, error) {
+func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
 	inbound := &Shadowsocks{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,
@@ -39,7 +39,6 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logge
 	}
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
-	inbound.packetUpstream = true
 	var udpTimeout int64
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
@@ -57,17 +56,19 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logge
 	default:
 		err = E.New("shadowsocks: unsupported method: ", options.Method)
 	}
+	inbound.packetUpstream = inbound.service
 	return inbound, err
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	return h.service.NewConnection(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, conn, M.Metadata{
-		Source: M.SocksaddrFromNetIP(metadata.Source),
+		Source: metadata.Source,
 	})
 }
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
+	h.logger.Trace("inbound packet from ", metadata.Source)
 	return h.service.NewPacket(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, conn, buffer, M.Metadata{
-		Source: M.SocksaddrFromNetIP(metadata.Source),
+		Source: metadata.Source,
 	})
 }

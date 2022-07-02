@@ -6,9 +6,9 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/config"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/http"
@@ -21,7 +21,7 @@ type HTTP struct {
 	authenticator auth.Authenticator
 }
 
-func NewHTTP(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *config.SimpleInboundOptions) *HTTP {
+func NewHTTP(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.SimpleInboundOptions) *HTTP {
 	inbound := &HTTP{
 		myInboundAdapter{
 			protocol:      C.TypeHTTP,

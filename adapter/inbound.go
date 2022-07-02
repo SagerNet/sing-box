@@ -1,8 +1,6 @@
 package adapter
 
 import (
-	"net/netip"
-
 	M "github.com/sagernet/sing/common/metadata"
 )
 
@@ -13,10 +11,10 @@ type Inbound interface {
 }
 
 type InboundContext struct {
-	Source      netip.AddrPort
-	Destination M.Socksaddr
 	Inbound     string
 	Network     string
-	Protocol    string
+	Source      M.Socksaddr
+	Destination M.Socksaddr
 	Domain      string
+	Protocol    string
 }
