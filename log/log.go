@@ -7,6 +7,8 @@ import (
 )
 
 type Logger interface {
+	Start() error
+	Close() error
 	Trace(args ...interface{})
 	Debug(args ...interface{})
 	Info(args ...interface{})
@@ -18,7 +20,6 @@ type Logger interface {
 	Panic(args ...interface{})
 	WithContext(ctx context.Context) Logger
 	WithPrefix(prefix string) Logger
-	Close() error
 }
 
 func NewLogger(options option.LogOption) (Logger, error) {

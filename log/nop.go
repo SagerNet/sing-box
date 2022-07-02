@@ -10,6 +10,14 @@ func NewNopLogger() Logger {
 	return (*nopLogger)(nil)
 }
 
+func (l *nopLogger) Start() error {
+	return nil
+}
+
+func (l *nopLogger) Close() error {
+	return nil
+}
+
 func (l *nopLogger) Trace(args ...interface{}) {
 }
 
@@ -43,8 +51,4 @@ func (l *nopLogger) WithContext(ctx context.Context) Logger {
 
 func (l *nopLogger) WithPrefix(prefix string) Logger {
 	return l
-}
-
-func (l *nopLogger) Close() error {
-	return nil
 }

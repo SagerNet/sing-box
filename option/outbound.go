@@ -7,64 +7,43 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 )
 
-var ErrUnknownOutboundType = E.New("unknown outbound type")
-
 type _Outbound struct {
-	Tag                string                      `json:"tag,omitempty"`
-	Type               string                      `json:"type,omitempty"`
-	DirectOptions      *DirectOutboundOptions      `json:"directOptions,omitempty"`
-	ShadowsocksOptions *ShadowsocksOutboundOptions `json:"shadowsocksOptions,omitempty"`
+	Tag                string                     `json:"tag,omitempty"`
+	Type               string                     `json:"type,omitempty"`
+	DirectOptions      DirectOutboundOptions      `json:"-"`
+	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 }
 
 type Outbound _Outbound
 
 func (i *Outbound) MarshalJSON() ([]byte, error) {
-	var options []byte
-	var err error
+	var v any
 	switch i.Type {
 	case "direct":
-		options, err = json.Marshal(i.DirectOptions)
+		v = i.DirectOptions
 	case "shadowsocks":
-		options, err = json.Marshal(i.ShadowsocksOptions)
+		v = i.ShadowsocksOptions
 	default:
-		return nil, E.Extend(ErrUnknownOutboundType, i.Type)
+		return nil, E.New("unknown outbound type: ", i.Type)
 	}
-	if err != nil {
-		return nil, err
-	}
-	var content map[string]any
-	err = json.Unmarshal(options, &content)
-	if err != nil {
-		return nil, err
-	}
-	content["tag"] = i.Tag
-	content["type"] = i.Type
-	return json.Marshal(content)
+	return MarshallObjects(i, v)
 }
 
 func (i *Outbound) UnmarshalJSON(bytes []byte) error {
-	if err := json.Unmarshal(bytes, (*_Outbound)(i)); err != nil {
+	err := json.Unmarshal(bytes, (*_Outbound)(i))
+	if err != nil {
 		return err
 	}
+	var v any
 	switch i.Type {
 	case "direct":
-		if i.DirectOptions != nil {
-			break
-		}
-		if err := json.Unmarshal(bytes, &i.DirectOptions); err != nil {
-			return err
-		}
+		v = &i.DirectOptions
 	case "shadowsocks":
-		if i.ShadowsocksOptions != nil {
-			break
-		}
-		if err := json.Unmarshal(bytes, &i.ShadowsocksOptions); err != nil {
-			return err
-		}
+		v = &i.ShadowsocksOptions
 	default:
-		return E.Extend(ErrUnknownOutboundType, i.Type)
+		return nil
 	}
-	return nil
+	return json.Unmarshal(bytes, v)
 }
 
 type DialerOptions struct {

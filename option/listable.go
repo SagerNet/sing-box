@@ -2,7 +2,7 @@ package option
 
 import "encoding/json"
 
-type Listable[T any] []T
+type Listable[T comparable] []T
 
 func (l *Listable[T]) MarshalJSON() ([]byte, error) {
 	arrayList := []T(*l)

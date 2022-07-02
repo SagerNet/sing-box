@@ -13,10 +13,25 @@ import (
 )
 
 func NewRule(router adapter.Router, logger log.Logger, options option.Rule) (adapter.Rule, error) {
+	if common.IsEmptyByEquals(options) {
+		return nil, E.New("empty rule config")
+	}
 	switch options.Type {
 	case "", C.RuleTypeDefault:
+		if !options.DefaultOptions.IsValid() {
+			return nil, E.New("missing conditions")
+		}
+		if options.DefaultOptions.Outbound == "" {
+			return nil, E.New("missing outbound field")
+		}
 		return NewDefaultRule(router, logger, common.PtrValueOrDefault(options.DefaultOptions))
 	case C.RuleTypeLogical:
+		if !options.LogicalOptions.IsValid() {
+			return nil, E.New("missing conditions")
+		}
+		if options.LogicalOptions.Outbound == "" {
+			return nil, E.New("missing outbound field")
+		}
 		return NewLogicalRule(router, logger, common.PtrValueOrDefault(options.LogicalOptions))
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
