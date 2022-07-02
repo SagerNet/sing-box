@@ -25,7 +25,7 @@ type Shadowsocks struct {
 	service shadowsocks.Service
 }
 
-func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
+func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
 	inbound := &Shadowsocks{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,

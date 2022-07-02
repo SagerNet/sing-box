@@ -24,7 +24,7 @@ type Direct struct {
 	overrideDestination M.Socksaddr
 }
 
-func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options *option.DirectInboundOptions) *Direct {
+func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.DirectInboundOptions) *Direct {
 	inbound := &Direct{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeDirect,

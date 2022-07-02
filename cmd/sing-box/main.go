@@ -43,7 +43,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	service, err := box.NewService(ctx, &options)
+	service, err := box.NewService(ctx, options)
 	if err != nil {
 		logrus.Fatal("create service: ", err)
 	}

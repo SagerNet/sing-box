@@ -17,4 +17,10 @@ type InboundContext struct {
 	Destination M.Socksaddr
 	Domain      string
 	Protocol    string
+
+	// cache
+
+	SourceGeoIPCode string
+	GeoIPCode       string
+	ProcessPath     string
 }

@@ -1,10 +1,10 @@
 package option
 
 type Options struct {
-	Log       *LogOption `json:"log"`
-	Inbounds  []Inbound  `json:"inbounds,omitempty"`
-	Outbounds []Outbound `json:"outbounds,omitempty"`
-	Routes    []Rule     `json:"routes,omitempty"`
+	Log       *LogOption    `json:"log"`
+	Inbounds  []Inbound     `json:"inbounds,omitempty"`
+	Outbounds []Outbound    `json:"outbounds,omitempty"`
+	Route     *RouteOptions `json:"route,omitempty"`
 }
 
 type LogOption struct {

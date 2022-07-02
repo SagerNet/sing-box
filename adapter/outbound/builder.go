@@ -5,6 +5,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -18,9 +19,9 @@ func New(router adapter.Router, logger log.Logger, index int, options option.Out
 	outboundLogger := logger.WithPrefix(F.ToString("outbound/", options.Type, "[", tag, "]: "))
 	switch options.Type {
 	case C.TypeDirect:
-		return NewDirect(router, outboundLogger, options.Tag, options.DirectOptions), nil
+		return NewDirect(router, outboundLogger, options.Tag, common.PtrValueOrDefault(options.DirectOptions)), nil
 	case C.TypeShadowsocks:
-		return NewShadowsocks(router, outboundLogger, options.Tag, options.ShadowsocksOptions)
+		return NewShadowsocks(router, outboundLogger, options.Tag, common.PtrValueOrDefault(options.ShadowsocksOptions))
 	default:
 		panic(F.ToString("unknown outbound type: ", options.Type))
 	}
