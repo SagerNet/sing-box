@@ -181,6 +181,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		buffer := buf.NewPacket()
 		n, addr, err := a.udpConn.ReadFromUDPAddrPort(buffer.FreeBytes())
 		if err != nil {
+			buffer.Release()
 			return
 		}
 		buffer.Truncate(n)

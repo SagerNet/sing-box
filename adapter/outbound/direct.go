@@ -63,9 +63,9 @@ func (d *Direct) DialContext(ctx context.Context, network string, destination M.
 	return d.dialer.DialContext(ctx, network, destination)
 }
 
-func (d *Direct) ListenPacket(ctx context.Context) (net.PacketConn, error) {
+func (d *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	d.logger.WithContext(ctx).Info("outbound packet connection")
-	return d.dialer.ListenPacket(ctx)
+	return d.dialer.ListenPacket(ctx, destination)
 }
 
 func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
@@ -77,7 +77,7 @@ func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M
 }
 
 func (d *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	outConn, err := d.ListenPacket(ctx)
+	outConn, err := d.ListenPacket(ctx, destination)
 	if err != nil {
 		return err
 	}

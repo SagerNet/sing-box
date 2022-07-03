@@ -47,22 +47,6 @@ func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, option
 	return outbound, nil
 }
 
-func (o *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	serverConn, err := o.DialContext(ctx, "tcp", destination)
-	if err != nil {
-		return err
-	}
-	return CopyEarlyConn(ctx, conn, serverConn)
-}
-
-func (o *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	serverConn, err := o.ListenPacket(ctx)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(serverConn))
-}
-
 func (o *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch network {
 	case C.NetworkTCP:
@@ -84,11 +68,27 @@ func (o *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 	}
 }
 
-func (o *Shadowsocks) ListenPacket(ctx context.Context) (net.PacketConn, error) {
+func (o *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	o.logger.WithContext(ctx).Info("outbound packet connection to ", o.serverAddr)
-	outConn, err := o.dialer.ListenPacket(ctx)
+	outConn, err := o.dialer.ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
 	return o.method.DialPacketConn(&bufio.BindPacketConn{PacketConn: outConn, Addr: o.serverAddr.UDPAddr()}), nil
+}
+
+func (o *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
+	serverConn, err := o.DialContext(ctx, "tcp", destination)
+	if err != nil {
+		return err
+	}
+	return CopyEarlyConn(ctx, conn, serverConn)
+}
+
+func (o *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+	serverConn, err := o.ListenPacket(ctx, destination)
+	if err != nil {
+		return err
+	}
+	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(serverConn))
 }

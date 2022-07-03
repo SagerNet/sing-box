@@ -44,7 +44,7 @@ func (d *defaultDialer) DialContext(ctx context.Context, network string, address
 	return d.Dialer.DialContext(ctx, network, address.String())
 }
 
-func (d *defaultDialer) ListenPacket(ctx context.Context) (net.PacketConn, error) {
+func (d *defaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return d.ListenConfig.ListenPacket(ctx, "udp", "")
 }
 
@@ -105,12 +105,12 @@ func (d *lazyDialer) DialContext(ctx context.Context, network string, destinatio
 	return dialer.DialContext(ctx, network, destination)
 }
 
-func (d *lazyDialer) ListenPacket(ctx context.Context) (net.PacketConn, error) {
+func (d *lazyDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	dialer, err := d.Dialer()
 	if err != nil {
 		return nil, err
 	}
-	return dialer.ListenPacket(ctx)
+	return dialer.ListenPacket(ctx, destination)
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {

@@ -10,6 +10,7 @@ type _Outbound struct {
 	Tag                string                     `json:"tag,omitempty"`
 	Type               string                     `json:"type,omitempty"`
 	DirectOptions      DirectOutboundOptions      `json:"-"`
+	SocksOptions       SocksOutboundOptions       `json:"-"`
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 }
 
@@ -20,6 +21,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 	switch h.Type {
 	case "direct":
 		v = h.DirectOptions
+	case "socks":
+		v = h.SocksOptions
 	case "shadowsocks":
 		v = h.ShadowsocksOptions
 	default:
@@ -37,6 +40,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	switch h.Type {
 	case "direct":
 		v = &h.DirectOptions
+	case "socks":
+		v = &h.SocksOptions
 	case "shadowsocks":
 		v = &h.ShadowsocksOptions
 	default:
@@ -71,6 +76,14 @@ type ServerOptions struct {
 
 func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
+}
+
+type SocksOutboundOptions struct {
+	DialerOptions
+	ServerOptions
+	Version  string `json:"version,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type ShadowsocksOutboundOptions struct {
