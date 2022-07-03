@@ -22,5 +22,5 @@ type InboundContext struct {
 
 	SourceGeoIPCode string
 	GeoIPCode       string
-	ProcessPath     string
+	// ProcessPath     string
 }

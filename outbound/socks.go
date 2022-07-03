@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/outbound/dialer"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -22,7 +23,7 @@ type Socks struct {
 }
 
 func NewSocks(router adapter.Router, logger log.Logger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
-	dialer := NewDialer(router, options.DialerOptions)
+	dialer := dialer.New(router, options.DialerOptions)
 	var version socks.Version
 	var err error
 	if options.Version != "" {
@@ -62,7 +63,7 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 }
 
 func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := h.DialContext(ctx, "tcp", destination)
+	outConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
 	if err != nil {
 		return err
 	}

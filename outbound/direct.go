@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/outbound/dialer"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -27,7 +28,7 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options opt
 			protocol: C.TypeDirect,
 			logger:   logger,
 			tag:      tag,
-			dialer:   NewDialer(router, options.DialerOptions),
+			dialer:   dialer.New(router, options.DialerOptions),
 		},
 	}
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
@@ -69,7 +70,7 @@ func (d *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 }
 
 func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := d.DialContext(ctx, "tcp", destination)
+	outConn, err := d.DialContext(ctx, C.NetworkTCP, destination)
 	if err != nil {
 		return err
 	}

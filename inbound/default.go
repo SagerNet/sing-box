@@ -59,9 +59,9 @@ func (a *myInboundAdapter) Start() error {
 		var tcpListener *net.TCPListener
 		var err error
 		if !a.listenOptions.TCPFastOpen {
-			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr("tcp", bindAddr.Addr), bindAddr.TCPAddr())
+			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(C.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 		} else {
-			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr("tcp", bindAddr.Addr), bindAddr.TCPAddr())
+			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(C.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 		}
 		if err != nil {
 			return err
@@ -71,7 +71,7 @@ func (a *myInboundAdapter) Start() error {
 		listenAddr = tcpListener.Addr()
 	}
 	if common.Contains(a.network, C.NetworkUDP) {
-		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr("udp", bindAddr.Addr), bindAddr.UDPAddr())
+		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(C.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			ctx := log.ContextWithID(a.ctx)
 			var metadata adapter.InboundContext
 			metadata.Inbound = a.tag
-			metadata.Network = "tcp"
+			metadata.Network = C.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
@@ -165,7 +165,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
-		metadata.Network = "udp"
+		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -187,7 +187,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
-		metadata.Network = "udp"
+		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -235,7 +235,7 @@ func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
 	if destination.IsFqdn() {
-		udpAddr, err := net.ResolveUDPAddr("udp", destination.String())
+		udpAddr, err := net.ResolveUDPAddr(C.NetworkUDP, destination.String())
 		if err != nil {
 			return err
 		}
