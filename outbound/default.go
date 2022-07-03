@@ -11,14 +11,13 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
-	N "github.com/sagernet/sing/common/network"
 )
 
 type myOutboundAdapter struct {
 	protocol string
 	logger   log.Logger
 	tag      string
-	dialer   N.Dialer
+	network  []string
 }
 
 func (a *myOutboundAdapter) Type() string {
@@ -27,6 +26,10 @@ func (a *myOutboundAdapter) Type() string {
 
 func (a *myOutboundAdapter) Tag() string {
 	return a.tag
+}
+
+func (a *myOutboundAdapter) Network() []string {
+	return a.network
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {

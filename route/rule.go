@@ -24,7 +24,7 @@ func NewRule(router adapter.Router, logger log.Logger, options option.Rule) (ada
 		if options.DefaultOptions.Outbound == "" {
 			return nil, E.New("missing outbound field")
 		}
-		return NewDefaultRule(router, logger, common.PtrValueOrDefault(options.DefaultOptions))
+		return NewDefaultRule(router, logger, options.DefaultOptions)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
@@ -32,7 +32,7 @@ func NewRule(router adapter.Router, logger log.Logger, options option.Rule) (ada
 		if options.LogicalOptions.Outbound == "" {
 			return nil, E.New("missing outbound field")
 		}
-		return NewLogicalRule(router, logger, common.PtrValueOrDefault(options.LogicalOptions))
+		return NewLogicalRule(router, logger, options.LogicalOptions)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}

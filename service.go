@@ -7,7 +7,7 @@ import (
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	outbound2 "github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -34,25 +34,30 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
 	for i, inboundOptions := range options.Inbounds {
-		var inboundService adapter.Inbound
-		inboundService, err = inbound.New(ctx, router, logger, i, inboundOptions)
+		var in adapter.Inbound
+		in, err = inbound.New(ctx, router, logger, i, inboundOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse inbound[", i, "]")
 		}
-		inbounds = append(inbounds, inboundService)
+		inbounds = append(inbounds, in)
 	}
 	for i, outboundOptions := range options.Outbounds {
-		var outboundService adapter.Outbound
-		outboundService, err = outbound2.New(router, logger, i, outboundOptions)
+		var out adapter.Outbound
+		out, err = outbound.New(router, logger, i, outboundOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
-		outbounds = append(outbounds, outboundService)
+		outbounds = append(outbounds, out)
 	}
-	if len(outbounds) == 0 {
-		outbounds = append(outbounds, outbound2.NewDirect(nil, logger, "direct", option.DirectOutboundOptions{}))
+	err = router.Initialize(outbounds, func() adapter.Outbound {
+		out, oErr := outbound.New(router, logger, 0, option.Outbound{Type: "direct", Tag: "default"})
+		common.Must(oErr)
+		outbounds = append(outbounds, out)
+		return out
+	})
+	if err != nil {
+		return nil, err
 	}
-	router.UpdateOutbounds(outbounds)
 	return &Service{
 		router:    router,
 		logger:    logger,

@@ -2,14 +2,15 @@ package option
 
 import (
 	"github.com/goccy/go-json"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type _Inbound struct {
-	Tag                string                    `json:"tag,omitempty"`
 	Type               string                    `json:"type"`
+	Tag                string                    `json:"tag,omitempty"`
 	DirectOptions      DirectInboundOptions      `json:"-"`
 	SocksOptions       SimpleInboundOptions      `json:"-"`
 	HTTPOptions        SimpleInboundOptions      `json:"-"`
@@ -22,25 +23,25 @@ type Inbound _Inbound
 func (h Inbound) Equals(other Inbound) bool {
 	return h.Type == other.Type &&
 		h.Tag == other.Tag &&
-		common.Equals(h.DirectOptions, other.DirectOptions) &&
-		common.Equals(h.SocksOptions, other.SocksOptions) &&
-		common.Equals(h.HTTPOptions, other.HTTPOptions) &&
-		common.Equals(h.MixedOptions, other.MixedOptions) &&
-		common.Equals(h.ShadowsocksOptions, other.ShadowsocksOptions)
+		h.DirectOptions == other.DirectOptions &&
+		h.SocksOptions.Equals(other.SocksOptions) &&
+		h.HTTPOptions.Equals(other.HTTPOptions) &&
+		h.MixedOptions.Equals(other.MixedOptions) &&
+		h.ShadowsocksOptions == other.ShadowsocksOptions
 }
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
 	var v any
 	switch h.Type {
-	case "direct":
+	case C.TypeDirect:
 		v = h.DirectOptions
-	case "socks":
+	case C.TypeSocks:
 		v = h.SocksOptions
-	case "http":
+	case C.TypeHTTP:
 		v = h.HTTPOptions
-	case "mixed":
+	case C.TypeMixed:
 		v = h.MixedOptions
-	case "shadowsocks":
+	case C.TypeShadowsocks:
 		v = h.ShadowsocksOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
@@ -55,15 +56,15 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch h.Type {
-	case "direct":
+	case C.TypeDirect:
 		v = &h.DirectOptions
-	case "socks":
+	case C.TypeSocks:
 		v = &h.SocksOptions
-	case "http":
+	case C.TypeHTTP:
 		v = &h.HTTPOptions
-	case "mixed":
+	case C.TypeMixed:
 		v = &h.MixedOptions
-	case "shadowsocks":
+	case C.TypeShadowsocks:
 		v = &h.ShadowsocksOptions
 	default:
 		return nil
@@ -99,23 +100,9 @@ type DirectInboundOptions struct {
 	OverridePort    uint16      `json:"override_port,omitempty"`
 }
 
-func (o DirectInboundOptions) Equals(other DirectInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Network, other.Network) &&
-		o.OverrideAddress == other.OverrideAddress &&
-		o.OverridePort == other.OverridePort
-}
-
 type ShadowsocksInboundOptions struct {
 	ListenOptions
 	Network  NetworkList `json:"network,omitempty"`
 	Method   string      `json:"method"`
 	Password string      `json:"password"`
-}
-
-func (o ShadowsocksInboundOptions) Equals(other ShadowsocksInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Network, other.Network) &&
-		o.Method == other.Method &&
-		o.Password == other.Password
 }

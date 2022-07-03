@@ -12,7 +12,6 @@ type Router interface {
 	Start() error
 	Close() error
 
-	DefaultOutbound() Outbound
 	Outbound(tag string) (Outbound, bool)
 	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error

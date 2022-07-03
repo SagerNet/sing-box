@@ -24,8 +24,12 @@ func New(router adapter.Router, logger log.Logger, index int, options option.Out
 	switch options.Type {
 	case C.TypeDirect:
 		return NewDirect(router, outboundLogger, options.Tag, options.DirectOptions), nil
+	case C.TypeBlock:
+		return NewBlock(outboundLogger, options.Tag), nil
 	case C.TypeSocks:
 		return NewSocks(router, outboundLogger, options.Tag, options.SocksOptions)
+	case C.TypeHTTP:
+		return NewHTTP(router, outboundLogger, options.Tag, options.HTTPOptions), nil
 	case C.TypeShadowsocks:
 		return NewShadowsocks(router, outboundLogger, options.Tag, options.ShadowsocksOptions)
 	default:

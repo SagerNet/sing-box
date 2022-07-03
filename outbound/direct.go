@@ -18,6 +18,7 @@ var _ adapter.Outbound = (*Direct)(nil)
 
 type Direct struct {
 	myOutboundAdapter
+	dialer              N.Dialer
 	overrideOption      int
 	overrideDestination M.Socksaddr
 }
@@ -28,8 +29,9 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options opt
 			protocol: C.TypeDirect,
 			logger:   logger,
 			tag:      tag,
-			dialer:   dialer.New(router, options.DialerOptions),
+			network:  []string{C.NetworkTCP, C.NetworkUDP},
 		},
+		dialer: dialer.New(router, options.DialerOptions),
 	}
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		outbound.overrideOption = 1

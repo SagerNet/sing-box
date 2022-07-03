@@ -5,6 +5,8 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/sagernet/sing-box/common/badjson"
+	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func ToMap(v any) (*badjson.JSONObject, error) {
@@ -33,6 +35,12 @@ func MergeObjects(objects ...any) (*badjson.JSONObject, error) {
 }
 
 func MarshallObjects(objects ...any) ([]byte, error) {
+	objects = common.Filter(objects, func(v any) bool {
+		return v != nil
+	})
+	if len(objects) == 1 {
+		return json.Marshal(objects[0])
+	}
 	content, err := MergeObjects(objects...)
 	if err != nil {
 		return nil, err
@@ -52,6 +60,12 @@ func UnmarshallExcluded(inputContent []byte, parentObject any, object any) error
 	}
 	for _, key := range parentContent.Keys() {
 		content.Remove(key)
+	}
+	if object == nil {
+		if content.IsEmpty() {
+			return nil
+		}
+		return E.New("unexpected key: ", content.Keys()[0])
 	}
 	inputContent, err = content.MarshalJSON()
 	if err != nil {

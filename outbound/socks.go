@@ -23,7 +23,7 @@ type Socks struct {
 }
 
 func NewSocks(router adapter.Router, logger log.Logger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
-	dialer := dialer.New(router, options.DialerOptions)
+	detour := dialer.New(router, options.DialerOptions)
 	var version socks.Version
 	var err error
 	if options.Version != "" {
@@ -39,9 +39,9 @@ func NewSocks(router adapter.Router, logger log.Logger, tag string, options opti
 			protocol: C.TypeSocks,
 			logger:   logger,
 			tag:      tag,
-			dialer:   dialer,
+			network:  options.Network.Build(),
 		},
-		socks.NewClient(dialer, M.ParseSocksaddrHostPort(options.Server, options.ServerPort), version, options.Username, options.Password),
+		socks.NewClient(detour, M.ParseSocksaddrHostPort(options.Server, options.ServerPort), version, options.Username, options.Password),
 	}, nil
 }
 

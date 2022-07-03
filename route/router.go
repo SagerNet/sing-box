@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -23,11 +24,15 @@ import (
 var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
-	ctx             context.Context
-	logger          log.Logger
-	defaultOutbound adapter.Outbound
-	outboundByTag   map[string]adapter.Outbound
-	rules           []adapter.Rule
+	ctx    context.Context
+	logger log.Logger
+
+	outboundByTag map[string]adapter.Outbound
+	rules         []adapter.Rule
+
+	defaultDetour                      string
+	defaultOutboundForConnection       adapter.Outbound
+	defaultOutboundForPacketConnection adapter.Outbound
 
 	needGeoDatabase bool
 	geoOptions      option.GeoIPOptions
@@ -42,6 +47,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		rules:           make([]adapter.Rule, 0, len(options.Rules)),
 		needGeoDatabase: hasGeoRule(options.Rules),
 		geoOptions:      common.PtrValueOrDefault(options.GeoIP),
+		defaultDetour:   options.DefaultDetour,
 	}
 	for i, ruleOptions := range options.Rules {
 		rule, err := NewRule(router, logger, ruleOptions)
@@ -55,11 +61,12 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 
 func hasGeoRule(rules []option.Rule) bool {
 	for _, rule := range rules {
-		if rule.DefaultOptions != nil {
-			if isGeoRule(common.PtrValueOrDefault(rule.DefaultOptions)) {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if isGeoRule(rule.DefaultOptions) {
 				return true
 			}
-		} else if rule.LogicalOptions != nil {
+		case C.RuleTypeLogical:
 			for _, subRule := range rule.LogicalOptions.Rules {
 				if isGeoRule(subRule) {
 					return true
@@ -78,17 +85,73 @@ func notPrivateNode(code string) bool {
 	return code == "private"
 }
 
-func (r *Router) UpdateOutbounds(outbounds []adapter.Outbound) {
-	var defaultOutbound adapter.Outbound
+func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
 	outboundByTag := make(map[string]adapter.Outbound)
-	if len(outbounds) > 0 {
-		defaultOutbound = outbounds[0]
+	for _, detour := range outbounds {
+		outboundByTag[detour.Tag()] = detour
 	}
-	for _, outbound := range outbounds {
-		outboundByTag[outbound.Tag()] = outbound
+	var defaultOutboundForConnection adapter.Outbound
+	var defaultOutboundForPacketConnection adapter.Outbound
+	if r.defaultDetour != "" {
+		detour, loaded := outboundByTag[r.defaultDetour]
+		if !loaded {
+			return E.New("default detour not found: ", r.defaultDetour)
+		}
+		if common.Contains(detour.Network(), C.NetworkTCP) {
+			defaultOutboundForConnection = detour
+		}
+		if common.Contains(detour.Network(), C.NetworkUDP) {
+			defaultOutboundForPacketConnection = detour
+		}
 	}
-	r.defaultOutbound = defaultOutbound
+	var index, packetIndex int
+	if defaultOutboundForConnection == nil {
+		for i, detour := range outbounds {
+			if common.Contains(detour.Network(), C.NetworkTCP) {
+				index = i
+				defaultOutboundForConnection = detour
+				break
+			}
+		}
+	}
+	if defaultOutboundForPacketConnection == nil {
+		for i, detour := range outbounds {
+			if common.Contains(detour.Network(), C.NetworkUDP) {
+				packetIndex = i
+				defaultOutboundForPacketConnection = detour
+				break
+			}
+		}
+	}
+	if defaultOutboundForConnection == nil || defaultOutboundForPacketConnection == nil {
+		detour := defaultOutbound()
+		if defaultOutboundForConnection == nil {
+			defaultOutboundForConnection = detour
+		}
+		if defaultOutboundForPacketConnection == nil {
+			defaultOutboundForPacketConnection = detour
+		}
+	}
+	if defaultOutboundForConnection != defaultOutboundForPacketConnection {
+		var description string
+		if defaultOutboundForConnection.Tag() != "" {
+			description = defaultOutboundForConnection.Tag()
+		} else {
+			description = F.ToString(index)
+		}
+		var packetDescription string
+		if defaultOutboundForPacketConnection.Tag() != "" {
+			packetDescription = defaultOutboundForPacketConnection.Tag()
+		} else {
+			packetDescription = F.ToString(packetIndex)
+		}
+		r.logger.Info("using ", defaultOutboundForConnection.Type(), "[", description, "] as default outbound for connection")
+		r.logger.Info("using ", defaultOutboundForPacketConnection.Type(), "[", packetDescription, "] as default outbound for packet connection")
+	}
+	r.defaultOutboundForConnection = defaultOutboundForConnection
+	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
 	r.outboundByTag = outboundByTag
+	return nil
 }
 
 func (r *Router) Start() error {
@@ -158,7 +221,7 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 		}
 		detour = outbound
 	} else {
-		detour = r.defaultOutbound
+		detour = r.defaultOutboundForConnection
 	}
 
 	if parentDir := filepath.Dir(savePath); parentDir != "" {
@@ -190,27 +253,30 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	return err
 }
 
-func (r *Router) DefaultOutbound() adapter.Outbound {
-	if r.defaultOutbound == nil {
-		panic("missing default outbound")
-	}
-	return r.defaultOutbound
-}
-
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	outbound, loaded := r.outboundByTag[tag]
 	return outbound, loaded
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return r.match(ctx, metadata).NewConnection(ctx, conn, metadata.Destination)
+	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
+	if !common.Contains(detour.Network(), C.NetworkTCP) {
+		conn.Close()
+		return E.New("missing supported outbound, closing connection")
+	}
+	return detour.NewConnection(ctx, conn, metadata.Destination)
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return r.match(ctx, metadata).NewPacketConnection(ctx, conn, metadata.Destination)
+	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
+	if !common.Contains(detour.Network(), C.NetworkUDP) {
+		conn.Close()
+		return E.New("missing supported outbound, closing packet connection")
+	}
+	return detour.NewPacketConnection(ctx, conn, metadata.Destination)
 }
 
-func (r *Router) match(ctx context.Context, metadata adapter.InboundContext) adapter.Outbound {
+func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, defaultOutbound adapter.Outbound) adapter.Outbound {
 	for i, rule := range r.rules {
 		if rule.Match(&metadata) {
 			detour := rule.Outbound()
@@ -222,5 +288,5 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext) ada
 		}
 	}
 	r.logger.WithContext(ctx).Info("no match")
-	return r.defaultOutbound
+	return defaultOutbound
 }
