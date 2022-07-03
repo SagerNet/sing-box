@@ -11,7 +11,7 @@ import (
 type Outbound interface {
 	Type() string
 	Tag() string
+	N.Dialer
 	NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error
-	N.Dialer
 }
