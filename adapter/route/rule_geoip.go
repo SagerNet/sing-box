@@ -5,6 +5,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var _ RuleItem = (*GeoIPItem)(nil)
@@ -34,7 +35,7 @@ func NewGeoIPItem(router adapter.Router, logger log.Logger, isSource bool, codes
 func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 	geoReader := r.router.GeoIPReader()
 	if geoReader == nil {
-		return false
+		return r.match(metadata)
 	}
 	if r.isSource {
 		if metadata.SourceGeoIPCode == "" {
@@ -43,9 +44,8 @@ func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 				r.logger.Error("query geoip for ", metadata.Source.Addr, ": ", err)
 				return false
 			}
-			metadata.SourceGeoIPCode = country.Country.IsoCode
+			metadata.SourceGeoIPCode = strings.ToLower(country.Country.IsoCode)
 		}
-		return r.codeMap[metadata.SourceGeoIPCode]
 	} else {
 		if metadata.Destination.IsFqdn() {
 			return false
@@ -56,7 +56,28 @@ func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 				r.logger.Error("query geoip for ", metadata.Destination.Addr, ": ", err)
 				return false
 			}
-			metadata.GeoIPCode = country.Country.IsoCode
+			metadata.GeoIPCode = strings.ToLower(country.Country.IsoCode)
+		}
+	}
+	return r.match(metadata)
+}
+
+func (r *GeoIPItem) match(metadata *adapter.InboundContext) bool {
+	if r.isSource {
+		if metadata.SourceGeoIPCode == "" {
+			if !N.IsPublicAddr(metadata.Source.Addr) {
+				metadata.SourceGeoIPCode = "private"
+			}
+		}
+		return r.codeMap[metadata.SourceGeoIPCode]
+	} else {
+		if metadata.Destination.IsFqdn() {
+			return false
+		}
+		if metadata.GeoIPCode == "" {
+			if !N.IsPublicAddr(metadata.Destination.Addr) {
+				metadata.GeoIPCode = "private"
+			}
 		}
 		return r.codeMap[metadata.GeoIPCode]
 	}
