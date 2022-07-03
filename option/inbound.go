@@ -1,8 +1,7 @@
 package option
 
 import (
-	"encoding/json"
-
+	"github.com/goccy/go-json"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -69,7 +68,11 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	default:
 		return nil
 	}
-	return json.Unmarshal(bytes, v)
+	err = UnmarshallExcluded(bytes, (*_Inbound)(h), v)
+	if err != nil {
+		return E.Cause(err, "inbound options")
+	}
+	return nil
 }
 
 type ListenOptions struct {

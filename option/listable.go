@@ -1,6 +1,6 @@
 package option
 
-import "encoding/json"
+import "github.com/goccy/go-json"
 
 type Listable[T comparable] []T
 

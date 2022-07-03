@@ -1,8 +1,7 @@
 package option
 
 import (
-	"encoding/json"
-
+	"github.com/goccy/go-json"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -43,7 +42,11 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	default:
 		return nil
 	}
-	return json.Unmarshal(bytes, v)
+	err = UnmarshallExcluded(bytes, (*_Outbound)(h), v)
+	if err != nil {
+		return E.Cause(err, "outbound options")
+	}
+	return nil
 }
 
 type DialerOptions struct {

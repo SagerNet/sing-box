@@ -1,8 +1,7 @@
 package option
 
 import (
-	"encoding/json"
-
+	"github.com/goccy/go-json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -68,7 +67,11 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	return json.Unmarshal(bytes, v)
+	err = UnmarshallExcluded(bytes, (*_Rule)(r), v)
+	if err != nil {
+		return E.Cause(err, "route rule")
+	}
+	return nil
 }
 
 type DefaultRule struct {

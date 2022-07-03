@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/route/domain"
+	"github.com/sagernet/sing-box/common/domain"
 	"github.com/sagernet/sing/common"
 )
 
