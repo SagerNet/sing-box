@@ -1,8 +1,9 @@
 package option
 
 import (
-	"encoding/json"
 	"net/netip"
+
+	"github.com/goccy/go-json"
 )
 
 type ListenAddress netip.Addr

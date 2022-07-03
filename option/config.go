@@ -1,12 +1,25 @@
 package option
 
-import "github.com/sagernet/sing/common"
+import (
+	"bytes"
 
-type Options struct {
+	"github.com/goccy/go-json"
+	"github.com/sagernet/sing/common"
+)
+
+type _Options struct {
 	Log       *LogOption    `json:"log,omitempty"`
 	Inbounds  []Inbound     `json:"inbounds,omitempty"`
 	Outbounds []Outbound    `json:"outbounds,omitempty"`
 	Route     *RouteOptions `json:"route,omitempty"`
+}
+
+type Options _Options
+
+func (o *Options) UnmarshalJSON(content []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode((*_Options)(o))
 }
 
 func (o Options) Equals(other Options) bool {

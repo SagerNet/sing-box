@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/goccy/go-json"
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sirupsen/logrus"
@@ -51,7 +51,7 @@ func run(cmd *cobra.Command, args []string) {
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		logrus.Fatal("parse config: ", err)
+		logrus.Fatal("decode config: ", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
