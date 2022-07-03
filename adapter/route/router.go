@@ -71,7 +71,11 @@ func hasGeoRule(rules []option.Rule) bool {
 }
 
 func isGeoRule(rule option.DefaultRule) bool {
-	return len(rule.SourceGeoIP) > 0 || len(rule.GeoIP) > 0
+	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode) || len(rule.GeoIP) > 0 && common.Any(rule.GeoIP, notPrivateNode)
+}
+
+func notPrivateNode(code string) bool {
+	return code == "private"
 }
 
 func (r *Router) UpdateOutbounds(outbounds []adapter.Outbound) {
