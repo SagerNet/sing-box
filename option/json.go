@@ -4,15 +4,15 @@ import (
 	"bytes"
 
 	"github.com/goccy/go-json"
-	"github.com/sagernet/sing-box/common/linkedhashmap"
+	"github.com/sagernet/sing-box/common/badjson"
 )
 
-func ToMap(v any) (*linkedhashmap.Map[string, any], error) {
+func ToMap(v any) (*badjson.JSONObject, error) {
 	inputContent, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	var content linkedhashmap.Map[string, any]
+	var content badjson.JSONObject
 	err = content.UnmarshalJSON(inputContent)
 	if err != nil {
 		return nil, err
@@ -20,8 +20,8 @@ func ToMap(v any) (*linkedhashmap.Map[string, any], error) {
 	return &content, nil
 }
 
-func MergeObjects(objects ...any) (*linkedhashmap.Map[string, any], error) {
-	var content linkedhashmap.Map[string, any]
+func MergeObjects(objects ...any) (*badjson.JSONObject, error) {
+	var content badjson.JSONObject
 	for _, object := range objects {
 		objectMap, err := ToMap(object)
 		if err != nil {
@@ -45,12 +45,14 @@ func UnmarshallExcluded(inputContent []byte, parentObject any, object any) error
 	if err != nil {
 		return err
 	}
-	var content linkedhashmap.Map[string, any]
+	var content badjson.JSONObject
 	err = content.UnmarshalJSON(inputContent)
 	if err != nil {
 		return err
 	}
-	content.RemoveAll(parentContent.Keys())
+	for _, key := range parentContent.Keys() {
+		content.Remove(key)
+	}
 	inputContent, err = content.MarshalJSON()
 	if err != nil {
 		return err
