@@ -22,9 +22,6 @@ type overrideDialer struct {
 }
 
 func newOverride(upstream N.Dialer, options option.OverrideStreamOptions) N.Dialer {
-	if !options.TLS && !options.UDPOverTCP {
-		return upstream
-	}
 	return &overrideDialer{
 		upstream,
 		options.TLS,

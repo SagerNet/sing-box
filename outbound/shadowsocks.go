@@ -21,6 +21,7 @@ var _ adapter.Outbound = (*Shadowsocks)(nil)
 
 type Shadowsocks struct {
 	myOutboundAdapter
+	dialer     N.Dialer
 	method     shadowsocks.Method
 	serverAddr M.Socksaddr
 }
@@ -31,8 +32,9 @@ func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, option
 			protocol: C.TypeDirect,
 			logger:   logger,
 			tag:      tag,
-			dialer:   dialer.New(router, options.DialerOptions),
+			network:  options.Network.Build(),
 		},
+		dialer: dialer.New(router, options.DialerOptions),
 	}
 	var err error
 	outbound.method, err = shadowimpl.FetchMethod(options.Method, options.Password)

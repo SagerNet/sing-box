@@ -7,7 +7,7 @@ require (
 	github.com/goccy/go-json v0.9.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/geoip2-golang v1.7.0
-	github.com/sagernet/sing v0.0.0-20220703114149-368e41b67bc4
+	github.com/sagernet/sing v0.0.0-20220703122912-677c52f01aba
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.5.0

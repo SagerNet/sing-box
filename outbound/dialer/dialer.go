@@ -14,7 +14,7 @@ func New(router adapter.Router, options option.DialerOptions) N.Dialer {
 	} else {
 		dialer = newDetour(router, options)
 	}
-	if options.OverrideOptions != nil {
+	if options.OverrideOptions.IsValid() {
 		dialer = newOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))
 	}
 	return dialer

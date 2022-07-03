@@ -8,8 +8,9 @@ import (
 )
 
 type RouteOptions struct {
-	GeoIP *GeoIPOptions `json:"geoip,omitempty"`
-	Rules []Rule        `json:"rules,omitempty"`
+	GeoIP         *GeoIPOptions `json:"geoip,omitempty"`
+	Rules         []Rule        `json:"rules,omitempty"`
+	DefaultDetour string        `json:"default_detour,omitempty"`
 }
 
 func (o RouteOptions) Equals(other RouteOptions) bool {
@@ -24,17 +25,17 @@ type GeoIPOptions struct {
 }
 
 type _Rule struct {
-	Type           string       `json:"type,omitempty"`
-	DefaultOptions *DefaultRule `json:"-"`
-	LogicalOptions *LogicalRule `json:"-"`
+	Type           string      `json:"type,omitempty"`
+	DefaultOptions DefaultRule `json:"-"`
+	LogicalOptions LogicalRule `json:"-"`
 }
 
 type Rule _Rule
 
 func (r Rule) Equals(other Rule) bool {
 	return r.Type == other.Type &&
-		common.PtrEquals(r.DefaultOptions, other.DefaultOptions) &&
-		common.PtrEquals(r.LogicalOptions, other.LogicalOptions)
+		r.DefaultOptions.Equals(other.DefaultOptions) &&
+		r.LogicalOptions.Equals(other.LogicalOptions)
 }
 
 func (r Rule) MarshalJSON() ([]byte, error) {

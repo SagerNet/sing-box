@@ -2,6 +2,7 @@ package option
 
 import (
 	"github.com/goccy/go-json"
+	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -11,6 +12,7 @@ type _Outbound struct {
 	Type               string                     `json:"type,omitempty"`
 	DirectOptions      DirectOutboundOptions      `json:"-"`
 	SocksOptions       SocksOutboundOptions       `json:"-"`
+	HTTPOptions        HTTPOutboundOptions        `json:"-"`
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 }
 
@@ -19,12 +21,16 @@ type Outbound _Outbound
 func (h Outbound) MarshalJSON() ([]byte, error) {
 	var v any
 	switch h.Type {
-	case "direct":
+	case C.TypeDirect:
 		v = h.DirectOptions
-	case "socks":
+	case C.TypeSocks:
 		v = h.SocksOptions
-	case "shadowsocks":
+	case C.TypeHTTP:
+		v = h.HTTPOptions
+	case C.TypeShadowsocks:
 		v = h.ShadowsocksOptions
+	case C.TypeBlock:
+		v = nil
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -38,12 +44,16 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch h.Type {
-	case "direct":
+	case C.TypeDirect:
 		v = &h.DirectOptions
-	case "socks":
+	case C.TypeSocks:
 		v = &h.SocksOptions
-	case "shadowsocks":
+	case C.TypeHTTP:
+		v = &h.HTTPOptions
+	case C.TypeShadowsocks:
 		v = &h.ShadowsocksOptions
+	case C.TypeBlock:
+		v = nil
 	default:
 		return nil
 	}
@@ -71,10 +81,8 @@ type OverrideStreamOptions struct {
 	UDPOverTCP    bool   `json:"udp_over_tcp,omitempty"`
 }
 
-type DirectOutboundOptions struct {
-	DialerOptions
-	OverrideAddress string `json:"override_address,omitempty"`
-	OverridePort    uint16 `json:"override_port,omitempty"`
+func (o *OverrideStreamOptions) IsValid() bool {
+	return o != nil && (o.TLS || o.UDPOverTCP)
 }
 
 type ServerOptions struct {
@@ -86,10 +94,24 @@ func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
 }
 
+type DirectOutboundOptions struct {
+	DialerOptions
+	OverrideAddress string `json:"override_address,omitempty"`
+	OverridePort    uint16 `json:"override_port,omitempty"`
+}
+
 type SocksOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Version  string `json:"version,omitempty"`
+	Version  string      `json:"version,omitempty"`
+	Username string      `json:"username,omitempty"`
+	Password string      `json:"password,omitempty"`
+	Network  NetworkList `json:"network,omitempty"`
+}
+
+type HTTPOutboundOptions struct {
+	DialerOptions
+	ServerOptions
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 }
@@ -97,6 +119,7 @@ type SocksOutboundOptions struct {
 type ShadowsocksOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Method   string `json:"method"`
-	Password string `json:"password"`
+	Method   string      `json:"method"`
+	Password string      `json:"password"`
+	Network  NetworkList `json:"network,omitempty"`
 }
