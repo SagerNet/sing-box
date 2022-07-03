@@ -21,7 +21,8 @@ func (v *NetworkList) UnmarshalJSON(data []byte) error {
 	}
 	for _, networkName := range networkList {
 		switch networkName {
-		case "tcp", "udp":
+		case C.NetworkTCP, C.NetworkUDP:
+			break
 		default:
 			return E.New("unknown network: " + networkName)
 		}

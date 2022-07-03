@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/inbound"
-	"github.com/sagernet/sing-box/adapter/outbound"
-	"github.com/sagernet/sing-box/adapter/route"
+	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	outbound2 "github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -43,14 +43,14 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 	}
 	for i, outboundOptions := range options.Outbounds {
 		var outboundService adapter.Outbound
-		outboundService, err = outbound.New(router, logger, i, outboundOptions)
+		outboundService, err = outbound2.New(router, logger, i, outboundOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
 		outbounds = append(outbounds, outboundService)
 	}
 	if len(outbounds) == 0 {
-		outbounds = append(outbounds, outbound.NewDirect(nil, logger, "direct", option.DirectOutboundOptions{}))
+		outbounds = append(outbounds, outbound2.NewDirect(nil, logger, "direct", option.DirectOutboundOptions{}))
 	}
 	router.UpdateOutbounds(outbounds)
 	return &Service{

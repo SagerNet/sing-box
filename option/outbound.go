@@ -55,12 +55,20 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 }
 
 type DialerOptions struct {
-	Detour         string `json:"detour,omitempty"`
-	BindInterface  string `json:"bind_interface,omitempty"`
-	RoutingMark    int    `json:"routing_mark,omitempty"`
-	ReuseAddr      bool   `json:"reuse_addr,omitempty"`
-	ConnectTimeout int    `json:"connect_timeout,omitempty"`
-	TCPFastOpen    bool   `json:"tcp_fast_open,omitempty"`
+	Detour          string                 `json:"detour,omitempty"`
+	BindInterface   string                 `json:"bind_interface,omitempty"`
+	RoutingMark     int                    `json:"routing_mark,omitempty"`
+	ReuseAddr       bool                   `json:"reuse_addr,omitempty"`
+	ConnectTimeout  int                    `json:"connect_timeout,omitempty"`
+	TCPFastOpen     bool                   `json:"tcp_fast_open,omitempty"`
+	OverrideOptions *OverrideStreamOptions `json:"override,omitempty"`
+}
+
+type OverrideStreamOptions struct {
+	TLS           bool   `json:"tls,omitempty"`
+	TLSServerName string `json:"tls_servername,omitempty"`
+	TLSInsecure   bool   `json:"tls_insecure,omitempty"`
+	UDPOverTCP    bool   `json:"udp_over_tcp,omitempty"`
 }
 
 type DirectOutboundOptions struct {

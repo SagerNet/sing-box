@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/outbound/dialer"
 	"github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowimpl"
 	"github.com/sagernet/sing/common/bufio"
@@ -30,7 +31,7 @@ func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, option
 			protocol: C.TypeDirect,
 			logger:   logger,
 			tag:      tag,
-			dialer:   NewDialer(router, options.DialerOptions),
+			dialer:   dialer.New(router, options.DialerOptions),
 		},
 	}
 	var err error
@@ -51,14 +52,14 @@ func (o *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 	switch network {
 	case C.NetworkTCP:
 		o.logger.WithContext(ctx).Info("outbound connection to ", destination)
-		outConn, err := o.dialer.DialContext(ctx, "tcp", o.serverAddr)
+		outConn, err := o.dialer.DialContext(ctx, C.NetworkTCP, o.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return o.method.DialEarlyConn(outConn, destination), nil
 	case C.NetworkUDP:
 		o.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
-		outConn, err := o.dialer.DialContext(ctx, "udp", o.serverAddr)
+		outConn, err := o.dialer.DialContext(ctx, C.NetworkUDP, o.serverAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +79,7 @@ func (o *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 }
 
 func (o *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	serverConn, err := o.DialContext(ctx, "tcp", destination)
+	serverConn, err := o.DialContext(ctx, C.NetworkTCP, destination)
 	if err != nil {
 		return err
 	}
