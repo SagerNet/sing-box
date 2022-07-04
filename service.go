@@ -2,6 +2,7 @@ package box
 
 import (
 	"context"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/inbound"
@@ -11,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 )
 
 var _ adapter.Service = (*Service)(nil)
@@ -20,9 +22,11 @@ type Service struct {
 	logger    log.Logger
 	inbounds  []adapter.Inbound
 	outbounds []adapter.Outbound
+	createdAt time.Time
 }
 
 func NewService(ctx context.Context, options option.Options) (*Service, error) {
+	createdAt := time.Now()
 	logger, err := log.NewLogger(common.PtrValueOrDefault(options.Log))
 	if err != nil {
 		return nil, E.Cause(err, "parse log options")
@@ -63,11 +67,16 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 		logger:    logger,
 		inbounds:  inbounds,
 		outbounds: outbounds,
+		createdAt: createdAt,
 	}, nil
 }
 
 func (s *Service) Start() error {
 	err := s.logger.Start()
+	if err != nil {
+		return err
+	}
+	err = s.router.Start()
 	if err != nil {
 		return err
 	}
@@ -77,9 +86,8 @@ func (s *Service) Start() error {
 			return err
 		}
 	}
-	return common.AnyError(
-		s.router.Start(),
-	)
+	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
+	return nil
 }
 
 func (s *Service) Close() error {

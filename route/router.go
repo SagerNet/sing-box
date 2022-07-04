@@ -19,6 +19,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/rw"
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -82,7 +83,7 @@ func isGeoRule(rule option.DefaultRule) bool {
 }
 
 func notPrivateNode(code string) bool {
-	return code == "private"
+	return code != "private"
 }
 
 func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
@@ -156,7 +157,10 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 
 func (r *Router) Start() error {
 	if r.needGeoDatabase {
-		go r.prepareGeoIPDatabase()
+		err := r.prepareGeoIPDatabase()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -171,15 +175,17 @@ func (r *Router) GeoIPReader() *geoip2.Reader {
 	return r.geoReader
 }
 
-func (r *Router) prepareGeoIPDatabase() {
+func (r *Router) prepareGeoIPDatabase() error {
 	var geoPath string
 	if r.geoOptions.Path != "" {
 		geoPath = r.geoOptions.Path
 	} else {
 		geoPath = "Country.mmdb"
+		if foundPath, loaded := C.Find(geoPath); loaded {
+			geoPath = foundPath
+		}
 	}
-	geoPath, loaded := C.Find(geoPath)
-	if !loaded {
+	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geoip database not exists: ", geoPath)
 		var err error
 		for attempts := 0; attempts < 3; attempts++ {
@@ -192,7 +198,7 @@ func (r *Router) prepareGeoIPDatabase() {
 			time.Sleep(10 * time.Second)
 		}
 		if err != nil {
-			return
+			return err
 		}
 	}
 	geoReader, err := geoip2.Open(geoPath)
@@ -200,9 +206,9 @@ func (r *Router) prepareGeoIPDatabase() {
 		r.logger.Info("loaded geoip database")
 		r.geoReader = geoReader
 	} else {
-		r.logger.Error("open geoip database: ", err)
-		return
+		return E.Cause(err, "open geoip database")
 	}
+	return nil
 }
 
 func (r *Router) downloadGeoIPDatabase(savePath string) error {

@@ -41,9 +41,10 @@ func NewRule(router adapter.Router, logger log.Logger, options option.Rule) (ada
 var _ adapter.Rule = (*DefaultRule)(nil)
 
 type DefaultRule struct {
-	index    int
-	outbound string
-	items    []RuleItem
+	items                   []RuleItem
+	sourceAddressItems      []RuleItem
+	destinationAddressItems []RuleItem
+	outbound                string
 }
 
 type RuleItem interface {
@@ -78,37 +79,37 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 		rule.items = append(rule.items, NewProtocolItem(options.Protocol))
 	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
-		rule.items = append(rule.items, NewDomainItem(options.Domain, options.DomainSuffix))
+		rule.destinationAddressItems = append(rule.destinationAddressItems, NewDomainItem(options.Domain, options.DomainSuffix))
 	}
 	if len(options.DomainKeyword) > 0 {
-		rule.items = append(rule.items, NewDomainKeywordItem(options.DomainKeyword))
+		rule.destinationAddressItems = append(rule.destinationAddressItems, NewDomainKeywordItem(options.DomainKeyword))
 	}
 	if len(options.DomainRegex) > 0 {
 		item, err := NewDomainRegexItem(options.DomainRegex)
 		if err != nil {
 			return nil, E.Cause(err, "domain_regex")
 		}
-		rule.items = append(rule.items, item)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	}
 	if len(options.SourceGeoIP) > 0 {
-		rule.items = append(rule.items, NewGeoIPItem(router, logger, true, options.SourceGeoIP))
+		rule.sourceAddressItems = append(rule.sourceAddressItems, NewGeoIPItem(router, logger, true, options.SourceGeoIP))
 	}
 	if len(options.GeoIP) > 0 {
-		rule.items = append(rule.items, NewGeoIPItem(router, logger, false, options.GeoIP))
+		rule.destinationAddressItems = append(rule.destinationAddressItems, NewGeoIPItem(router, logger, false, options.GeoIP))
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
 		if err != nil {
 			return nil, E.Cause(err, "source_ipcidr")
 		}
-		rule.items = append(rule.items, item)
+		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 	}
 	if len(options.IPCIDR) > 0 {
 		item, err := NewIPCIDRItem(false, options.IPCIDR)
 		if err != nil {
 			return nil, E.Cause(err, "ipcidr")
 		}
-		rule.items = append(rule.items, item)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	}
 	if len(options.SourcePort) > 0 {
 		rule.items = append(rule.items, NewPortItem(true, options.SourcePort))
@@ -121,11 +122,38 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 
 func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 	for _, item := range r.items {
-		if item.Match(metadata) {
-			return true
+		if !item.Match(metadata) {
+			return false
 		}
 	}
-	return false
+
+	if len(r.sourceAddressItems) > 0 {
+		var sourceAddressMatch bool
+		for _, item := range r.sourceAddressItems {
+			if item.Match(metadata) {
+				sourceAddressMatch = true
+				break
+			}
+		}
+		if !sourceAddressMatch {
+			return false
+		}
+	}
+
+	if len(r.destinationAddressItems) > 0 {
+		var destinationAddressMatch bool
+		for _, item := range r.destinationAddressItems {
+			if item.Match(metadata) {
+				destinationAddressMatch = true
+				break
+			}
+		}
+		if !destinationAddressMatch {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (r *DefaultRule) Outbound() string {
