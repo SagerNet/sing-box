@@ -28,6 +28,8 @@ func main() {
 	command.PersistentFlags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	command.PersistentFlags().BoolVarP(&disableColor, "disable-color", "", false, "disable color output")
 	command.AddCommand(commandRun)
+	command.AddCommand(commandCheck)
+	command.AddCommand(commandFormat)
 	if err := command.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
