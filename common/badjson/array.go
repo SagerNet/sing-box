@@ -41,6 +41,7 @@ func (a *JSONArray[T]) decodeJSON(decoder *json.Decoder) error {
 		if err != nil {
 			return err
 		}
+		*a = append(*a, item)
 	}
 	return nil
 }

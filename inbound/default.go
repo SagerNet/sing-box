@@ -54,7 +54,6 @@ func (a *myInboundAdapter) Tag() string {
 
 func (a *myInboundAdapter) Start() error {
 	bindAddr := M.SocksaddrFromAddrPort(netip.Addr(a.listenOptions.Listen), a.listenOptions.Port)
-	var listenAddr net.Addr
 	if common.Contains(a.network, C.NetworkTCP) {
 		var tcpListener *net.TCPListener
 		var err error
@@ -68,7 +67,7 @@ func (a *myInboundAdapter) Start() error {
 		}
 		a.tcpListener = tcpListener
 		go a.loopTCPIn()
-		listenAddr = tcpListener.Addr()
+		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
 	if common.Contains(a.network, C.NetworkUDP) {
 		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(C.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
@@ -85,11 +84,8 @@ func (a *myInboundAdapter) Start() error {
 			go a.loopUDPInThreadSafe()
 		}
 		go a.loopUDPOut()
-		if listenAddr == nil {
-			listenAddr = udpConn.LocalAddr()
-		}
+		a.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
-	a.logger.Info("server started at ", listenAddr)
 	return nil
 }
 
@@ -229,7 +225,7 @@ func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 		a.logger.WithContext(ctx).Debug("connection closed")
 		return
 	}
-	a.logger.Error(err)
+	a.logger.WithContext(ctx).Error(err)
 }
 
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {

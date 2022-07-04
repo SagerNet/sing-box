@@ -27,7 +27,7 @@ func (h Inbound) Equals(other Inbound) bool {
 		h.SocksOptions.Equals(other.SocksOptions) &&
 		h.HTTPOptions.Equals(other.HTTPOptions) &&
 		h.MixedOptions.Equals(other.MixedOptions) &&
-		h.ShadowsocksOptions == other.ShadowsocksOptions
+		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions)
 }
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
@@ -102,7 +102,29 @@ type DirectInboundOptions struct {
 
 type ShadowsocksInboundOptions struct {
 	ListenOptions
-	Network  NetworkList `json:"network,omitempty"`
-	Method   string      `json:"method"`
-	Password string      `json:"password"`
+	Network      NetworkList              `json:"network,omitempty"`
+	Method       string                   `json:"method"`
+	Password     string                   `json:"password"`
+	Users        []ShadowsocksUser        `json:"users,omitempty"`
+	Destinations []ShadowsocksDestination `json:"destinations,omitempty"`
+}
+
+func (o ShadowsocksInboundOptions) Equals(other ShadowsocksInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		o.Network == other.Network &&
+		o.Method == other.Method &&
+		o.Password == other.Password &&
+		common.ComparableSliceEquals(o.Users, other.Users) &&
+		common.ComparableSliceEquals(o.Destinations, other.Destinations)
+}
+
+type ShadowsocksUser struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+type ShadowsocksDestination struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	ServerOptions
 }

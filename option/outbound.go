@@ -8,8 +8,8 @@ import (
 )
 
 type _Outbound struct {
+	Type               string                     `json:"type"`
 	Tag                string                     `json:"tag,omitempty"`
-	Type               string                     `json:"type,omitempty"`
 	DirectOptions      DirectOutboundOptions      `json:"-"`
 	SocksOptions       SocksOutboundOptions       `json:"-"`
 	HTTPOptions        HTTPOutboundOptions        `json:"-"`
