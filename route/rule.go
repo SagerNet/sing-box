@@ -83,6 +83,13 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 	if len(options.DomainKeyword) > 0 {
 		rule.items = append(rule.items, NewDomainKeywordItem(options.DomainKeyword))
 	}
+	if len(options.DomainRegex) > 0 {
+		item, err := NewDomainRegexItem(options.DomainRegex)
+		if err != nil {
+			return nil, E.Cause(err, "domain_regex")
+		}
+		rule.items = append(rule.items, item)
+	}
 	if len(options.SourceGeoIP) > 0 {
 		rule.items = append(rule.items, NewGeoIPItem(router, logger, true, options.SourceGeoIP))
 	}
@@ -92,14 +99,14 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "source_ipcidr")
 		}
 		rule.items = append(rule.items, item)
 	}
 	if len(options.IPCIDR) > 0 {
 		item, err := NewIPCIDRItem(false, options.IPCIDR)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "ipcidr")
 		}
 		rule.items = append(rule.items, item)
 	}

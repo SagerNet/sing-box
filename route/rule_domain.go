@@ -11,8 +11,8 @@ import (
 var _ RuleItem = (*DomainItem)(nil)
 
 type DomainItem struct {
-	description string
 	matcher     *domain.Matcher
+	description string
 }
 
 func NewDomainItem(domains []string, domainSuffixes []string) *DomainItem {
@@ -41,8 +41,8 @@ func NewDomainItem(domains []string, domainSuffixes []string) *DomainItem {
 		}
 	}
 	return &DomainItem{
-		description,
 		domain.NewMatcher(domains, domainSuffixes),
+		description,
 	}
 }
 
