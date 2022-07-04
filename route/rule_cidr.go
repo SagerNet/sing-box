@@ -6,6 +6,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -18,10 +19,10 @@ type IPCIDRItem struct {
 
 func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
 	prefixes := make([]netip.Prefix, 0, len(prefixStrings))
-	for _, prefixString := range prefixStrings {
+	for i, prefixString := range prefixStrings {
 		prefix, err := netip.ParsePrefix(prefixString)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "parse prefix [", i, "]")
 		}
 		prefixes = append(prefixes, prefix)
 	}
