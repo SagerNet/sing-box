@@ -78,9 +78,6 @@ func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.B
 	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
-	var upstreamMetadata M.Metadata
-	upstreamMetadata.Source = metadata.Source
-	upstreamMetadata.Destination = metadata.Destination
-	d.udpNat.NewPacketDirect(&adapter.MetadataContext{Context: log.ContextWithID(ctx), Metadata: metadata}, metadata.Source.AddrPort(), conn, buffer, upstreamMetadata)
+	d.udpNat.NewPacketDirect(adapter.ContextWithMetadata(log.ContextWithID(ctx), metadata), metadata.Source.AddrPort(), conn, buffer, adapter.UpstreamMetadata(metadata))
 	return nil
 }

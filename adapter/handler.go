@@ -80,6 +80,20 @@ func (c *MetadataContext) Value(key any) any {
 	return c.Context.Value(key)
 }
 
+func ContextWithMetadata(ctx context.Context, metadata InboundContext) context.Context {
+	return &MetadataContext{
+		Context:  ctx,
+		Metadata: metadata,
+	}
+}
+
+func UpstreamMetadata(metadata InboundContext) M.Metadata {
+	return M.Metadata{
+		Source:      metadata.Source,
+		Destination: metadata.Destination,
+	}
+}
+
 type myUpstreamContextHandlerWrapper struct {
 	connectionHandler ConnectionHandlerFunc
 	packetHandler     PacketConnectionHandlerFunc
@@ -100,14 +114,12 @@ func NewUpstreamContextHandler(
 
 func (w *myUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myCtx := ctx.Value(myContextType).(*MetadataContext)
-	ctx = myCtx.Context
 	myCtx.Metadata.Destination = metadata.Destination
 	return w.connectionHandler(ctx, conn, myCtx.Metadata)
 }
 
 func (w *myUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myCtx := ctx.Value(myContextType).(*MetadataContext)
-	ctx = myCtx.Context
 	myCtx.Metadata.Destination = metadata.Destination
 	return w.packetHandler(ctx, conn, myCtx.Metadata)
 }

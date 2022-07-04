@@ -14,9 +14,21 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
+
+func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {
+	if len(options.Users) > 0 && len(options.Destinations) > 0 {
+		return nil, E.New("users and destinations options must not be combined")
+	}
+	if len(options.Users) > 0 {
+		return newShadowsocksMulti(ctx, router, logger, tag, options)
+	} else if len(options.Destinations) > 0 {
+		return newShadowsocksRelay(ctx, router, logger, tag, options)
+	} else {
+		return newShadowsocks(ctx, router, logger, tag, options)
+	}
+}
 
 var _ adapter.Inbound = (*Shadowsocks)(nil)
 
@@ -25,7 +37,7 @@ type Shadowsocks struct {
 	service shadowsocks.Service
 }
 
-func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
+func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
 	inbound := &Shadowsocks{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,
@@ -61,14 +73,9 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logge
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, conn, M.Metadata{
-		Source: metadata.Source,
-	})
+	return h.service.NewConnection(adapter.ContextWithMetadata(log.ContextWithID(ctx), metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	h.logger.Trace("inbound packet from ", metadata.Source)
-	return h.service.NewPacket(&adapter.MetadataContext{Context: ctx, Metadata: metadata}, conn, buffer, M.Metadata{
-		Source: metadata.Source,
-	})
+	return h.service.NewPacket(adapter.ContextWithMetadata(log.ContextWithID(ctx), metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }
