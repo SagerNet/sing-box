@@ -15,7 +15,7 @@ var commandFormatFlagWrite bool
 
 var commandFormat = &cobra.Command{
 	Use:   "format",
-	Short: "format configuration",
+	Short: "Format configuration",
 	Run:   formatConfiguration,
 }
 
@@ -41,7 +41,7 @@ func formatConfiguration(cmd *cobra.Command, args []string) {
 		logrus.Fatal("encode config: ", err)
 	}
 	if !commandFormatFlagWrite {
-		os.Stdout.Write(buffer.Bytes())
+		os.Stdout.WriteString(buffer.String() + "\n")
 		return
 	}
 	if bytes.Compare(configContent, buffer.Bytes()) == 0 {
@@ -57,5 +57,5 @@ func formatConfiguration(cmd *cobra.Command, args []string) {
 		logrus.Fatal("write output: ", err)
 	}
 	outputPath, _ := filepath.Abs(configPath)
-	os.Stderr.WriteString(outputPath)
+	os.Stderr.WriteString(outputPath + "\n")
 }
