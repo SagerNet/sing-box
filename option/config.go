@@ -30,7 +30,9 @@ func (o Options) Equals(other Options) bool {
 }
 
 type LogOption struct {
-	Disabled bool   `json:"disabled,omitempty"`
-	Level    string `json:"level,omitempty"`
-	Output   string `json:"output,omitempty"`
+	Disabled     bool   `json:"disabled,omitempty"`
+	Level        string `json:"level,omitempty"`
+	Output       string `json:"output,omitempty"`
+	Timestamp    bool   `json:"timestamp,omitempty"`
+	DisableColor bool   `json:"-"`
 }
