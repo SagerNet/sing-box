@@ -15,7 +15,7 @@ import (
 
 var commandRun = &cobra.Command{
 	Use:   "run",
-	Short: "run service",
+	Short: "Run service",
 	Run:   run,
 }
 

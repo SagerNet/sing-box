@@ -13,7 +13,7 @@ import (
 
 var commandCheck = &cobra.Command{
 	Use:   "check",
-	Short: "check configuration",
+	Short: "Check configuration",
 	Run:   checkConfiguration,
 }
 
