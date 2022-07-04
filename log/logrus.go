@@ -27,7 +27,11 @@ type abstractLogrusLogger interface {
 func NewLogrusLogger(options option.LogOption) (*logrusLogger, error) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.TraceLevel)
-	logger.Formatter.(*logrus.TextFormatter).ForceColors = true
+	logger.SetFormatter(&LogrusTextFormatter{
+		DisableColors:    options.DisableColor || options.Output != "",
+		DisableTimestamp: !options.Timestamp && options.Output != "",
+		FullTimestamp:    options.Timestamp,
+	})
 	logger.AddHook(new(logrusHook))
 	var err error
 	if options.Level != "" {
