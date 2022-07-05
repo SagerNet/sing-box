@@ -14,10 +14,10 @@ type Reader struct {
 	domainLength map[string]int
 }
 
-func Open(path string) (*Reader, error) {
+func Open(path string) (*Reader, []string, error) {
 	content, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	reader := &Reader{
 		reader: content,
@@ -25,9 +25,13 @@ func Open(path string) (*Reader, error) {
 	err = reader.readMetadata()
 	if err != nil {
 		content.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	return reader, nil
+	codes := make([]string, 0, len(reader.domainIndex))
+	for code := range reader.domainIndex {
+		codes = append(codes, code)
+	}
+	return reader, codes, nil
 }
 
 func (r *Reader) readMetadata() error {

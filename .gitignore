@@ -1,5 +1,4 @@
 /.idea/
 /vendor/
 /*.json
-/Country.mmdb
-/geosite.db
+/*.db

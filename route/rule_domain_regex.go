@@ -28,11 +28,11 @@ func NewDomainRegexItem(expressions []string) (*DomainRegexItem, error) {
 	description := "domain_regex="
 	eLen := len(expressions)
 	if eLen == 1 {
-		description = expressions[0]
+		description += expressions[0]
 	} else if eLen > 3 {
-		description = F.ToString("[", strings.Join(expressions[:3], " "), "]")
+		description += F.ToString("[", strings.Join(expressions[:3], " "), "]")
 	} else {
-		description = F.ToString("[", strings.Join(expressions, " "), "]")
+		description += F.ToString("[", strings.Join(expressions, " "), "]")
 	}
 	return &DomainRegexItem{matchers, description}, nil
 }

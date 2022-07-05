@@ -39,24 +39,14 @@ func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 	}
 	if r.isSource {
 		if metadata.SourceGeoIPCode == "" {
-			country, err := geoReader.Country(metadata.Source.Addr.AsSlice())
-			if err != nil {
-				r.logger.Error("query geoip for ", metadata.Source.Addr, ": ", err)
-				return false
-			}
-			metadata.SourceGeoIPCode = strings.ToLower(country.Country.IsoCode)
+			metadata.SourceGeoIPCode = geoReader.Lookup(metadata.Source.Addr)
 		}
 	} else {
 		if metadata.Destination.IsFqdn() {
 			return false
 		}
 		if metadata.GeoIPCode == "" {
-			country, err := geoReader.Country(metadata.Destination.Addr.AsSlice())
-			if err != nil {
-				r.logger.Error("query geoip for ", metadata.Destination.Addr, ": ", err)
-				return false
-			}
-			metadata.GeoIPCode = strings.ToLower(country.Country.IsoCode)
+			metadata.GeoIPCode = geoReader.Lookup(metadata.Destination.Addr)
 		}
 	}
 	return r.match(metadata)
