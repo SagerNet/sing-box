@@ -35,7 +35,6 @@ func newSuccinctSet(keys []string) *succinctSet {
 			setBit(&ss.labelBitmap, lIdx, 0)
 			lIdx++
 		}
-
 		setBit(&ss.labelBitmap, lIdx, 1)
 		lIdx++
 	}

@@ -20,6 +20,26 @@ type LogicalRule struct {
 	outbound string
 }
 
+func (r *LogicalRule) Start() error {
+	for _, rule := range r.rules {
+		err := rule.Start()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *LogicalRule) Close() error {
+	for _, rule := range r.rules {
+		err := rule.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func NewLogicalRule(router adapter.Router, logger log.Logger, options option.LogicalRule) (*LogicalRule, error) {
 	r := &LogicalRule{
 		rules:    make([]*DefaultRule, len(options.Rules)),

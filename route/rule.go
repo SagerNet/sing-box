@@ -91,6 +91,9 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	}
+	if len(options.Geosite) > 0 {
+		rule.destinationAddressItems = append(rule.destinationAddressItems, NewGeositeItem(router, logger, options.Geosite))
+	}
 	if len(options.SourceGeoIP) > 0 {
 		rule.sourceAddressItems = append(rule.sourceAddressItems, NewGeoIPItem(router, logger, true, options.SourceGeoIP))
 	}
@@ -118,6 +121,50 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 		rule.items = append(rule.items, NewPortItem(false, options.Port))
 	}
 	return rule, nil
+}
+
+func (r *DefaultRule) Start() error {
+	for _, item := range r.items {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range r.sourceAddressItems {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range r.destinationAddressItems {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *DefaultRule) Close() error {
+	for _, item := range r.items {
+		err := common.Close(item)
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range r.sourceAddressItems {
+		err := common.Close(item)
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range r.destinationAddressItems {
+		err := common.Close(item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {

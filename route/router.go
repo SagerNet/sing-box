@@ -11,6 +11,7 @@ import (
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/geosite"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -35,20 +36,25 @@ type Router struct {
 	defaultOutboundForConnection       adapter.Outbound
 	defaultOutboundForPacketConnection adapter.Outbound
 
-	needGeoDatabase bool
-	geoOptions      option.GeoIPOptions
-	geoReader       *geoip2.Reader
+	needGeoIPDatabase bool
+	geoIPOptions      option.GeoIPOptions
+	geoIPReader       *geoip2.Reader
+
+	needGeositeDatabase bool
+	geositeOptions      option.GeositeOptions
+	geositeReader       *geosite.Reader
 }
 
 func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptions) (*Router, error) {
 	router := &Router{
-		ctx:             ctx,
-		logger:          logger.WithPrefix("router: "),
-		outboundByTag:   make(map[string]adapter.Outbound),
-		rules:           make([]adapter.Rule, 0, len(options.Rules)),
-		needGeoDatabase: hasGeoRule(options.Rules),
-		geoOptions:      common.PtrValueOrDefault(options.GeoIP),
-		defaultDetour:   options.DefaultDetour,
+		ctx:                 ctx,
+		logger:              logger.WithPrefix("router: "),
+		outboundByTag:       make(map[string]adapter.Outbound),
+		rules:               make([]adapter.Rule, 0, len(options.Rules)),
+		needGeoIPDatabase:   hasGeoRule(options.Rules, isGeoIPRule),
+		needGeositeDatabase: hasGeoRule(options.Rules, isGeositeRule),
+		geoIPOptions:        common.PtrValueOrDefault(options.GeoIP),
+		defaultDetour:       options.DefaultDetour,
 	}
 	for i, ruleOptions := range options.Rules {
 		rule, err := NewRule(router, logger, ruleOptions)
@@ -58,32 +64,6 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		router.rules = append(router.rules, rule)
 	}
 	return router, nil
-}
-
-func hasGeoRule(rules []option.Rule) bool {
-	for _, rule := range rules {
-		switch rule.Type {
-		case C.RuleTypeDefault:
-			if isGeoRule(rule.DefaultOptions) {
-				return true
-			}
-		case C.RuleTypeLogical:
-			for _, subRule := range rule.LogicalOptions.Rules {
-				if isGeoRule(subRule) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func isGeoRule(rule option.DefaultRule) bool {
-	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode) || len(rule.GeoIP) > 0 && common.Any(rule.GeoIP, notPrivateNode)
-}
-
-func notPrivateNode(code string) bool {
-	return code != "private"
 }
 
 func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
@@ -156,8 +136,20 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 }
 
 func (r *Router) Start() error {
-	if r.needGeoDatabase {
+	if r.needGeoIPDatabase {
 		err := r.prepareGeoIPDatabase()
+		if err != nil {
+			return err
+		}
+	}
+	if r.needGeositeDatabase {
+		err := r.prepareGeositeDatabase()
+		if err != nil {
+			return err
+		}
+	}
+	for _, rule := range r.rules {
+		err := rule.Start()
 		if err != nil {
 			return err
 		}
@@ -167,96 +159,17 @@ func (r *Router) Start() error {
 
 func (r *Router) Close() error {
 	return common.Close(
-		common.PtrOrNil(r.geoReader),
+		common.PtrOrNil(r.geoIPReader),
+		common.PtrOrNil(r.geositeReader),
 	)
 }
 
 func (r *Router) GeoIPReader() *geoip2.Reader {
-	return r.geoReader
+	return r.geoIPReader
 }
 
-func (r *Router) prepareGeoIPDatabase() error {
-	var geoPath string
-	if r.geoOptions.Path != "" {
-		geoPath = r.geoOptions.Path
-	} else {
-		geoPath = "Country.mmdb"
-		if foundPath, loaded := C.Find(geoPath); loaded {
-			geoPath = foundPath
-		}
-	}
-	if !rw.FileExists(geoPath) {
-		r.logger.Warn("geoip database not exists: ", geoPath)
-		var err error
-		for attempts := 0; attempts < 3; attempts++ {
-			err = r.downloadGeoIPDatabase(geoPath)
-			if err == nil {
-				break
-			}
-			r.logger.Error("download geoip database: ", err)
-			os.Remove(geoPath)
-			time.Sleep(10 * time.Second)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	geoReader, err := geoip2.Open(geoPath)
-	if err == nil {
-		r.logger.Info("loaded geoip database")
-		r.geoReader = geoReader
-	} else {
-		return E.Cause(err, "open geoip database")
-	}
-	return nil
-}
-
-func (r *Router) downloadGeoIPDatabase(savePath string) error {
-	var downloadURL string
-	if r.geoOptions.DownloadURL != "" {
-		downloadURL = r.geoOptions.DownloadURL
-	} else {
-		downloadURL = "https://cdn.jsdelivr.net/gh/Dreamacro/maxmind-geoip@release/Country.mmdb"
-	}
-	r.logger.Info("downloading geoip database")
-	var detour adapter.Outbound
-	if r.geoOptions.DownloadDetour != "" {
-		outbound, loaded := r.Outbound(r.geoOptions.DownloadDetour)
-		if !loaded {
-			return E.New("detour outbound not found: ", r.geoOptions.DownloadDetour)
-		}
-		detour = outbound
-	} else {
-		detour = r.defaultOutboundForConnection
-	}
-
-	if parentDir := filepath.Dir(savePath); parentDir != "" {
-		os.MkdirAll(parentDir, 0o755)
-	}
-
-	saveFile, err := os.OpenFile(savePath, os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return E.Cause(err, "open output file: ", downloadURL)
-	}
-	defer saveFile.Close()
-
-	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: 5 * time.Second,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-		},
-	}
-	response, err := httpClient.Get(downloadURL)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	_, err = io.Copy(saveFile, response.Body)
-	return err
+func (r *Router) GeositeReader() *geosite.Reader {
+	return r.geositeReader
 }
 
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
@@ -295,4 +208,202 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	}
 	r.logger.WithContext(ctx).Info("no match")
 	return defaultOutbound
+}
+
+func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if cond(rule.DefaultOptions) {
+				return true
+			}
+		case C.RuleTypeLogical:
+			for _, subRule := range rule.LogicalOptions.Rules {
+				if cond(subRule) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isGeoIPRule(rule option.DefaultRule) bool {
+	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode) || len(rule.GeoIP) > 0 && common.Any(rule.GeoIP, notPrivateNode)
+}
+
+func isGeositeRule(rule option.DefaultRule) bool {
+	return len(rule.Geosite) > 0
+}
+
+func notPrivateNode(code string) bool {
+	return code != "private"
+}
+
+func (r *Router) prepareGeoIPDatabase() error {
+	var geoPath string
+	if r.geoIPOptions.Path != "" {
+		geoPath = r.geoIPOptions.Path
+	} else {
+		geoPath = "Country.mmdb"
+		if foundPath, loaded := C.Find(geoPath); loaded {
+			geoPath = foundPath
+		}
+	}
+	if !rw.FileExists(geoPath) {
+		r.logger.Warn("geoip database not exists: ", geoPath)
+		var err error
+		for attempts := 0; attempts < 3; attempts++ {
+			err = r.downloadGeoIPDatabase(geoPath)
+			if err == nil {
+				break
+			}
+			r.logger.Error("download geoip database: ", err)
+			os.Remove(geoPath)
+			time.Sleep(10 * time.Second)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	geoReader, err := geoip2.Open(geoPath)
+	if err == nil {
+		r.logger.Info("loaded geoip database")
+		r.geoIPReader = geoReader
+	} else {
+		return E.Cause(err, "open geoip database")
+	}
+	return nil
+}
+
+func (r *Router) prepareGeositeDatabase() error {
+	var geoPath string
+	if r.geositeOptions.Path != "" {
+		geoPath = r.geoIPOptions.Path
+	} else {
+		geoPath = "geosite.db"
+		if foundPath, loaded := C.Find(geoPath); loaded {
+			geoPath = foundPath
+		}
+	}
+	if !rw.FileExists(geoPath) {
+		r.logger.Warn("geosite database not exists: ", geoPath)
+		var err error
+		for attempts := 0; attempts < 3; attempts++ {
+			err = r.downloadGeositeDatabase(geoPath)
+			if err == nil {
+				break
+			}
+			r.logger.Error("download geosite database: ", err)
+			os.Remove(geoPath)
+			time.Sleep(10 * time.Second)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	geoReader, err := geosite.Open(geoPath)
+	if err == nil {
+		r.logger.Info("loaded geosite database")
+		r.geositeReader = geoReader
+	} else {
+		return E.Cause(err, "open geosite database")
+	}
+	return nil
+}
+
+func (r *Router) downloadGeoIPDatabase(savePath string) error {
+	var downloadURL string
+	if r.geoIPOptions.DownloadURL != "" {
+		downloadURL = r.geoIPOptions.DownloadURL
+	} else {
+		downloadURL = "https://cdn.jsdelivr.net/gh/Dreamacro/maxmind-geoip@release/Country.mmdb"
+	}
+	r.logger.Info("downloading geoip database")
+	var detour adapter.Outbound
+	if r.geoIPOptions.DownloadDetour != "" {
+		outbound, loaded := r.Outbound(r.geoIPOptions.DownloadDetour)
+		if !loaded {
+			return E.New("detour outbound not found: ", r.geoIPOptions.DownloadDetour)
+		}
+		detour = outbound
+	} else {
+		detour = r.defaultOutboundForConnection
+	}
+
+	if parentDir := filepath.Dir(savePath); parentDir != "" {
+		os.MkdirAll(parentDir, 0o755)
+	}
+
+	saveFile, err := os.OpenFile(savePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return E.Cause(err, "open output file: ", downloadURL)
+	}
+	defer saveFile.Close()
+
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2:   true,
+			TLSHandshakeTimeout: 5 * time.Second,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+		},
+	}
+	response, err := httpClient.Get(downloadURL)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	_, err = io.Copy(saveFile, response.Body)
+	return err
+}
+
+func (r *Router) downloadGeositeDatabase(savePath string) error {
+	var downloadURL string
+	if r.geositeOptions.DownloadURL != "" {
+		downloadURL = r.geositeOptions.DownloadURL
+	} else {
+		downloadURL = "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+	}
+	r.logger.Info("downloading geoip database")
+	var detour adapter.Outbound
+	if r.geositeOptions.DownloadDetour != "" {
+		outbound, loaded := r.Outbound(r.geositeOptions.DownloadDetour)
+		if !loaded {
+			return E.New("detour outbound not found: ", r.geoIPOptions.DownloadDetour)
+		}
+		detour = outbound
+	} else {
+		detour = r.defaultOutboundForConnection
+	}
+
+	if parentDir := filepath.Dir(savePath); parentDir != "" {
+		os.MkdirAll(parentDir, 0o755)
+	}
+
+	saveFile, err := os.OpenFile(savePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return E.Cause(err, "open output file: ", downloadURL)
+	}
+	defer saveFile.Close()
+
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2:   true,
+			TLSHandshakeTimeout: 5 * time.Second,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+		},
+	}
+	response, err := httpClient.Get(downloadURL)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	_, err = io.Copy(saveFile, response.Body)
+	return err
 }

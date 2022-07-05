@@ -60,3 +60,44 @@ func Compile(code []Item) option.DefaultRule {
 	}
 	return codeRule
 }
+
+func Merge(rules []option.DefaultRule) option.DefaultRule {
+	var domainLength int
+	var domainSuffixLength int
+	var domainKeywordLength int
+	var domainRegexLength int
+	for _, subRule := range rules {
+		domainLength += len(subRule.Domain)
+		domainSuffixLength += len(subRule.DomainSuffix)
+		domainKeywordLength += len(subRule.DomainKeyword)
+		domainRegexLength += len(subRule.DomainRegex)
+	}
+	var rule option.DefaultRule
+	if domainLength > 0 {
+		rule.Domain = make([]string, 0, domainLength)
+	}
+	if domainSuffixLength > 0 {
+		rule.DomainSuffix = make([]string, 0, domainSuffixLength)
+	}
+	if domainKeywordLength > 0 {
+		rule.DomainKeyword = make([]string, 0, domainKeywordLength)
+	}
+	if domainRegexLength > 0 {
+		rule.DomainRegex = make([]string, 0, domainRegexLength)
+	}
+	for _, subRule := range rules {
+		if len(subRule.Domain) > 0 {
+			rule.Domain = append(rule.Domain, subRule.Domain...)
+		}
+		if len(subRule.DomainSuffix) > 0 {
+			rule.DomainSuffix = append(rule.DomainSuffix, subRule.DomainSuffix...)
+		}
+		if len(subRule.DomainKeyword) > 0 {
+			rule.DomainKeyword = append(rule.DomainKeyword, subRule.DomainKeyword...)
+		}
+		if len(subRule.DomainRegex) > 0 {
+			rule.DomainRegex = append(rule.DomainRegex, subRule.DomainRegex...)
+		}
+	}
+	return rule
+}
