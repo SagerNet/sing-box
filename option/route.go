@@ -8,17 +8,25 @@ import (
 )
 
 type RouteOptions struct {
-	GeoIP         *GeoIPOptions `json:"geoip,omitempty"`
-	Rules         []Rule        `json:"rules,omitempty"`
-	DefaultDetour string        `json:"default_detour,omitempty"`
+	GeoIP         *GeoIPOptions   `json:"geoip,omitempty"`
+	Geosite       *GeositeOptions `json:"geosite,omitempty"`
+	Rules         []Rule          `json:"rules,omitempty"`
+	DefaultDetour string          `json:"default_detour,omitempty"`
 }
 
 func (o RouteOptions) Equals(other RouteOptions) bool {
 	return common.ComparablePtrEquals(o.GeoIP, other.GeoIP) &&
+		common.ComparablePtrEquals(o.Geosite, other.Geosite) &&
 		common.SliceEquals(o.Rules, other.Rules)
 }
 
 type GeoIPOptions struct {
+	Path           string `json:"path,omitempty"`
+	DownloadURL    string `json:"download_url,omitempty"`
+	DownloadDetour string `json:"download_detour,omitempty"`
+}
+
+type GeositeOptions struct {
 	Path           string `json:"path,omitempty"`
 	DownloadURL    string `json:"download_url,omitempty"`
 	DownloadDetour string `json:"download_detour,omitempty"`
@@ -84,6 +92,7 @@ type DefaultRule struct {
 	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
 	DomainKeyword Listable[string] `json:"domain_keyword,omitempty"`
 	DomainRegex   Listable[string] `json:"domain_regex,omitempty"`
+	Geosite       Listable[string] `json:"geosite,omitempty"`
 	SourceGeoIP   Listable[string] `json:"source_geoip,omitempty"`
 	GeoIP         Listable[string] `json:"geoip,omitempty"`
 	SourceIPCIDR  Listable[string] `json:"source_ip_cidr,omitempty"`
@@ -110,6 +119,7 @@ func (r DefaultRule) Equals(other DefaultRule) bool {
 		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&
 		common.ComparableSliceEquals(r.DomainKeyword, other.DomainKeyword) &&
 		common.ComparableSliceEquals(r.DomainRegex, other.DomainRegex) &&
+		common.ComparableSliceEquals(r.Geosite, other.Geosite) &&
 		common.ComparableSliceEquals(r.SourceGeoIP, other.SourceGeoIP) &&
 		common.ComparableSliceEquals(r.GeoIP, other.GeoIP) &&
 		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&

@@ -1,19 +1,32 @@
 package domain
 
-import "unicode/utf8"
+import (
+	"sort"
+	"unicode/utf8"
+)
 
 type Matcher struct {
 	set *succinctSet
 }
 
 func NewMatcher(domains []string, domainSuffix []string) *Matcher {
-	var domainList []string
-	for _, domain := range domains {
-		domainList = append(domainList, reverseDomain(domain))
-	}
+	domainList := make([]string, 0, len(domains)+len(domainSuffix))
+	seen := make(map[string]bool, len(domainList))
 	for _, domain := range domainSuffix {
+		if seen[domain] {
+			continue
+		}
+		seen[domain] = true
 		domainList = append(domainList, reverseDomainSuffix(domain))
 	}
+	for _, domain := range domains {
+		if seen[domain] {
+			continue
+		}
+		seen[domain] = true
+		domainList = append(domainList, reverseDomain(domain))
+	}
+	sort.Strings(domainList)
 	return &Matcher{
 		newSuccinctSet(domainList),
 	}

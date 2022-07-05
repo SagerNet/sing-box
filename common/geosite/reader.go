@@ -2,7 +2,7 @@ package geosite
 
 import (
 	"io"
-	"sync"
+	"os"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
@@ -10,10 +10,24 @@ import (
 
 type Reader struct {
 	reader       io.ReadSeeker
-	access       sync.Mutex
-	metadataRead bool
 	domainIndex  map[string]int
 	domainLength map[string]int
+}
+
+func Open(path string) (*Reader, error) {
+	content, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	reader := &Reader{
+		reader: content,
+	}
+	err = reader.readMetadata()
+	if err != nil {
+		content.Close()
+		return nil, err
+	}
+	return reader, nil
 }
 
 func (r *Reader) readMetadata() error {
@@ -55,19 +69,10 @@ func (r *Reader) readMetadata() error {
 	}
 	r.domainIndex = domainIndex
 	r.domainLength = domainLength
-	r.metadataRead = true
 	return nil
 }
 
 func (r *Reader) Read(code string) ([]Item, error) {
-	r.access.Lock()
-	defer r.access.Unlock()
-	if !r.metadataRead {
-		err := r.readMetadata()
-		if err != nil {
-			return nil, err
-		}
-	}
 	if _, exists := r.domainIndex[code]; !exists {
 		return nil, E.New("code ", code, " not exists!")
 	}

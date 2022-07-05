@@ -2,3 +2,4 @@
 /vendor/
 /*.json
 /Country.mmdb
+/geosite.db
