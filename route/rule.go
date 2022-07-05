@@ -44,6 +44,7 @@ type DefaultRule struct {
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	destinationAddressItems []RuleItem
+	allItems                []RuleItem
 	outbound                string
 }
 
@@ -57,12 +58,16 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 		outbound: options.Outbound,
 	}
 	if len(options.Inbound) > 0 {
-		rule.items = append(rule.items, NewInboundRule(options.Inbound))
+		item := NewInboundRule(options.Inbound)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if options.IPVersion > 0 {
 		switch options.IPVersion {
 		case 4, 6:
-			rule.items = append(rule.items, NewIPVersionItem(options.IPVersion == 6))
+			item := NewIPVersionItem(options.IPVersion == 6)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
 		default:
 			return nil, E.New("invalid ip version: ", options.IPVersion)
 		}
@@ -70,19 +75,27 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 	if options.Network != "" {
 		switch options.Network {
 		case C.NetworkTCP, C.NetworkUDP:
-			rule.items = append(rule.items, NewNetworkItem(options.Network))
+			item := NewNetworkItem(options.Network)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
 		default:
 			return nil, E.New("invalid network: ", options.Network)
 		}
 	}
 	if len(options.Protocol) > 0 {
-		rule.items = append(rule.items, NewProtocolItem(options.Protocol))
+		item := NewProtocolItem(options.Protocol)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
-		rule.destinationAddressItems = append(rule.destinationAddressItems, NewDomainItem(options.Domain, options.DomainSuffix))
+		item := NewDomainItem(options.Domain, options.DomainSuffix)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainKeyword) > 0 {
-		rule.destinationAddressItems = append(rule.destinationAddressItems, NewDomainKeywordItem(options.DomainKeyword))
+		item := NewDomainKeywordItem(options.DomainKeyword)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainRegex) > 0 {
 		item, err := NewDomainRegexItem(options.DomainRegex)
@@ -90,15 +103,22 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 			return nil, E.Cause(err, "domain_regex")
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Geosite) > 0 {
-		rule.destinationAddressItems = append(rule.destinationAddressItems, NewGeositeItem(router, logger, options.Geosite))
+		item := NewGeositeItem(router, logger, options.Geosite)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceGeoIP) > 0 {
-		rule.sourceAddressItems = append(rule.sourceAddressItems, NewGeoIPItem(router, logger, true, options.SourceGeoIP))
+		item := NewGeoIPItem(router, logger, true, options.SourceGeoIP)
+		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.GeoIP) > 0 {
-		rule.destinationAddressItems = append(rule.destinationAddressItems, NewGeoIPItem(router, logger, false, options.GeoIP))
+		item := NewGeoIPItem(router, logger, false, options.GeoIP)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
@@ -106,6 +126,7 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 			return nil, E.Cause(err, "source_ipcidr")
 		}
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.IPCIDR) > 0 {
 		item, err := NewIPCIDRItem(false, options.IPCIDR)
@@ -113,30 +134,23 @@ func NewDefaultRule(router adapter.Router, logger log.Logger, options option.Def
 			return nil, E.Cause(err, "ipcidr")
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePort) > 0 {
-		rule.items = append(rule.items, NewPortItem(true, options.SourcePort))
+		item := NewPortItem(true, options.SourcePort)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Port) > 0 {
-		rule.items = append(rule.items, NewPortItem(false, options.Port))
+		item := NewPortItem(false, options.Port)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
 }
 
 func (r *DefaultRule) Start() error {
-	for _, item := range r.items {
-		err := common.Start(item)
-		if err != nil {
-			return err
-		}
-	}
-	for _, item := range r.sourceAddressItems {
-		err := common.Start(item)
-		if err != nil {
-			return err
-		}
-	}
-	for _, item := range r.destinationAddressItems {
+	for _, item := range r.allItems {
 		err := common.Start(item)
 		if err != nil {
 			return err
@@ -146,22 +160,22 @@ func (r *DefaultRule) Start() error {
 }
 
 func (r *DefaultRule) Close() error {
-	for _, item := range r.items {
+	for _, item := range r.allItems {
 		err := common.Close(item)
 		if err != nil {
 			return err
 		}
 	}
-	for _, item := range r.sourceAddressItems {
-		err := common.Close(item)
-		if err != nil {
-			return err
-		}
-	}
-	for _, item := range r.destinationAddressItems {
-		err := common.Close(item)
-		if err != nil {
-			return err
+	return nil
+}
+
+func (r *DefaultRule) UpdateGeosite() error {
+	for _, item := range r.allItems {
+		if geositeItem, isSite := item.(*GeositeItem); isSite {
+			err := geositeItem.Update()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -208,5 +222,5 @@ func (r *DefaultRule) Outbound() string {
 }
 
 func (r *DefaultRule) String() string {
-	return strings.Join(common.Map(r.items, F.ToString0[RuleItem]), " ")
+	return strings.Join(common.Map(r.allItems, F.ToString0[RuleItem]), " ")
 }

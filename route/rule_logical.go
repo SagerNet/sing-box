@@ -20,6 +20,16 @@ type LogicalRule struct {
 	outbound string
 }
 
+func (r *LogicalRule) UpdateGeosite() error {
+	for _, rule := range r.rules {
+		err := rule.UpdateGeosite()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *LogicalRule) Start() error {
 	for _, rule := range r.rules {
 		err := rule.Start()

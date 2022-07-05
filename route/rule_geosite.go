@@ -27,7 +27,7 @@ func NewGeositeItem(router adapter.Router, logger log.Logger, codes []string) *G
 	}
 }
 
-func (r *GeositeItem) Start() error {
+func (r *GeositeItem) Update() error {
 	geositeReader := r.router.GeositeReader()
 	if geositeReader == nil {
 		return E.New("geosite reader is not initialized")
@@ -50,6 +50,9 @@ func (r *GeositeItem) Start() error {
 }
 
 func (r *GeositeItem) Match(metadata *adapter.InboundContext) bool {
+	if r.matcher == nil {
+		return false
+	}
 	return r.matcher.Match(metadata)
 }
 
@@ -57,11 +60,11 @@ func (r *GeositeItem) String() string {
 	description := "geosite="
 	cLen := len(r.codes)
 	if cLen == 1 {
-		description = r.codes[0]
+		description += r.codes[0]
 	} else if cLen > 3 {
-		description = "[" + strings.Join(r.codes[:3], " ") + "...]"
+		description += "[" + strings.Join(r.codes[:3], " ") + "...]"
 	} else {
-		description = "[" + strings.Join(r.codes, " ") + "]"
+		description += "[" + strings.Join(r.codes, " ") + "]"
 	}
 	return description
 }

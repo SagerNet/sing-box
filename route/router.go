@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/oschwald/geoip2-golang"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -36,12 +36,11 @@ type Router struct {
 	defaultOutboundForConnection       adapter.Outbound
 	defaultOutboundForPacketConnection adapter.Outbound
 
-	needGeoIPDatabase bool
-	geoIPOptions      option.GeoIPOptions
-	geoIPReader       *geoip2.Reader
-
+	needGeoIPDatabase   bool
 	needGeositeDatabase bool
+	geoIPOptions        option.GeoIPOptions
 	geositeOptions      option.GeositeOptions
+	geoIPReader         *geoip.Reader
 	geositeReader       *geosite.Reader
 }
 
@@ -154,17 +153,28 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	if r.needGeositeDatabase {
+		for _, rule := range r.rules {
+			err := rule.UpdateGeosite()
+			if err != nil {
+				r.logger.Error("failed to initialize geosite: ", err)
+			}
+		}
+		err := common.Close(r.geositeReader)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (r *Router) Close() error {
 	return common.Close(
 		common.PtrOrNil(r.geoIPReader),
-		common.PtrOrNil(r.geositeReader),
 	)
 }
 
-func (r *Router) GeoIPReader() *geoip2.Reader {
+func (r *Router) GeoIPReader() *geoip.Reader {
 	return r.geoIPReader
 }
 
@@ -199,7 +209,7 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	for i, rule := range r.rules {
 		if rule.Match(&metadata) {
 			detour := rule.Outbound()
-			r.logger.WithContext(ctx).Info("match [", i, "]", rule.String(), " => ", detour)
+			r.logger.WithContext(ctx).Info("match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
 				return outbound
 			}
@@ -245,7 +255,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 	if r.geoIPOptions.Path != "" {
 		geoPath = r.geoIPOptions.Path
 	} else {
-		geoPath = "Country.mmdb"
+		geoPath = "geoip.db"
 		if foundPath, loaded := C.Find(geoPath); loaded {
 			geoPath = foundPath
 		}
@@ -266,13 +276,12 @@ func (r *Router) prepareGeoIPDatabase() error {
 			return err
 		}
 	}
-	geoReader, err := geoip2.Open(geoPath)
-	if err == nil {
-		r.logger.Info("loaded geoip database")
-		r.geoIPReader = geoReader
-	} else {
+	geoReader, codes, err := geoip.Open(geoPath)
+	if err != nil {
 		return E.Cause(err, "open geoip database")
 	}
+	r.logger.Info("loaded geoip database: ", len(codes), " codes")
+	r.geoIPReader = geoReader
 	return nil
 }
 
@@ -302,9 +311,9 @@ func (r *Router) prepareGeositeDatabase() error {
 			return err
 		}
 	}
-	geoReader, err := geosite.Open(geoPath)
+	geoReader, codes, err := geosite.Open(geoPath)
 	if err == nil {
-		r.logger.Info("loaded geosite database")
+		r.logger.Info("loaded geosite database: ", len(codes), " codes")
 		r.geositeReader = geoReader
 	} else {
 		return E.Cause(err, "open geosite database")
@@ -317,7 +326,7 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	if r.geoIPOptions.DownloadURL != "" {
 		downloadURL = r.geoIPOptions.DownloadURL
 	} else {
-		downloadURL = "https://cdn.jsdelivr.net/gh/Dreamacro/maxmind-geoip@release/Country.mmdb"
+		downloadURL = "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db"
 	}
 	r.logger.Info("downloading geoip database")
 	var detour adapter.Outbound
@@ -342,7 +351,6 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	defer saveFile.Close()
 
 	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
 			TLSHandshakeTimeout: 5 * time.Second,
@@ -390,7 +398,6 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	defer saveFile.Close()
 
 	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
 			TLSHandshakeTimeout: 5 * time.Second,
