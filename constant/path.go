@@ -11,7 +11,7 @@ const dirName = "sing-box"
 
 var resourcePaths []string
 
-func Find(name string) (string, bool) {
+func FindPath(name string) (string, bool) {
 	name = os.ExpandEnv(name)
 	if rw.FileExists(name) {
 		return name, true
