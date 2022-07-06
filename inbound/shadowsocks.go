@@ -4,17 +4,19 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-shadowsocks"
-	"github.com/sagernet/sing-shadowsocks/shadowaead"
-	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+
+	"github.com/sagernet/sing-shadowsocks"
+	"github.com/sagernet/sing-shadowsocks/shadowaead"
+	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+
+	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 )
 
 func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {

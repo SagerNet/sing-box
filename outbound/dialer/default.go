@@ -5,12 +5,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/database64128/tfo-go"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
+
+	"github.com/database64128/tfo-go"
 )
 
 type defaultDialer struct {

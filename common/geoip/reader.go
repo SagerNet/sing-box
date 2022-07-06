@@ -3,9 +3,10 @@ package geoip
 import (
 	"net/netip"
 
-	"github.com/oschwald/maxminddb-golang"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+
+	"github.com/oschwald/maxminddb-golang"
 )
 
 type Reader struct {

@@ -1,8 +1,9 @@
 package badjson
 
 import (
-	"github.com/goccy/go-json"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/goccy/go-json"
 )
 
 func decodeJSON(decoder *json.Decoder) (any, error) {

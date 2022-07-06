@@ -6,9 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/goccy/go-json"
 	"github.com/sagernet/sing-box"
+
 	"github.com/sagernet/sing-box/option"
+
+	"github.com/goccy/go-json"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

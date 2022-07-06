@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/sniff/internal/qtls"
 	C "github.com/sagernet/sing-box/constant"
+
 	"golang.org/x/crypto/hkdf"
 )
 

@@ -3,8 +3,9 @@ package badjson
 import (
 	"bytes"
 
-	"github.com/goccy/go-json"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/goccy/go-json"
 )
 
 type JSONArray[T any] []T

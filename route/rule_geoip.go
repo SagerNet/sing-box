@@ -3,9 +3,10 @@ package route
 import (
 	"strings"
 
+	N "github.com/sagernet/sing/common/network"
+
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
-	N "github.com/sagernet/sing/common/network"
 )
 
 var _ RuleItem = (*GeoIPItem)(nil)

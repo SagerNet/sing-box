@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/log"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
