@@ -307,7 +307,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 		geoPath = r.geoIPOptions.Path
 	} else {
 		geoPath = "geoip.db"
-		if foundPath, loaded := C.Find(geoPath); loaded {
+		if foundPath, loaded := C.FindPath(geoPath); loaded {
 			geoPath = foundPath
 		}
 	}
@@ -342,7 +342,7 @@ func (r *Router) prepareGeositeDatabase() error {
 		geoPath = r.geoIPOptions.Path
 	} else {
 		geoPath = "geosite.db"
-		if foundPath, loaded := C.Find(geoPath); loaded {
+		if foundPath, loaded := C.FindPath(geoPath); loaded {
 			geoPath = foundPath
 		}
 	}
