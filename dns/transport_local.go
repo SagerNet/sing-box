@@ -9,21 +9,22 @@ import (
 
 	"github.com/sagernet/sing/common"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var LocalTransportConstructor func() Transport
+var LocalTransportConstructor func() adapter.DNSTransport
 
-func NewLocalTransport() Transport {
+func NewLocalTransport() adapter.DNSTransport {
 	if LocalTransportConstructor != nil {
 		return LocalTransportConstructor()
 	}
 	return &LocalTransport{}
 }
 
-var _ Transport = (*LocalTransport)(nil)
+var _ adapter.DNSTransport = (*LocalTransport)(nil)
 
 type LocalTransport struct {
 	resolver net.Resolver

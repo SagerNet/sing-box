@@ -12,6 +12,7 @@ type _Options struct {
 	Log       *LogOption    `json:"log,omitempty"`
 	Inbounds  []Inbound     `json:"inbounds,omitempty"`
 	Outbounds []Outbound    `json:"outbounds,omitempty"`
+	DNS       *DNSOptions   `json:"dns,omitempty"`
 	Route     *RouteOptions `json:"route,omitempty"`
 }
 

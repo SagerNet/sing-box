@@ -5,7 +5,6 @@ package dialer
 import (
 	"syscall"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -42,6 +41,6 @@ func ProtectPath(protectPath string) control.Func {
 		err := conn.Control(func(fd uintptr) {
 			innerErr = sendAncillaryFileDescriptors(protectPath, []int{int(fd)})
 		})
-		return common.AnyError(innerErr, err)
+		return E.Errors(innerErr, err)
 	}
 }

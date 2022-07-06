@@ -13,6 +13,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -20,7 +21,7 @@ import (
 
 const dnsMimeType = "application/dns-message"
 
-var _ Transport = (*HTTPSTransport)(nil)
+var _ adapter.DNSTransport = (*HTTPSTransport)(nil)
 
 type HTTPSTransport struct {
 	destination string

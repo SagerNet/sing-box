@@ -20,7 +20,7 @@ type defaultDialer struct {
 	net.ListenConfig
 }
 
-func newDefault(options option.DialerOptions) N.Dialer {
+func NewDefault(options option.DialerOptions) N.Dialer {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {

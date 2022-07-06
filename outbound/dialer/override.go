@@ -22,7 +22,7 @@ type overrideDialer struct {
 	uotEnabled bool
 }
 
-func newOverride(upstream N.Dialer, options option.OverrideStreamOptions) N.Dialer {
+func NewOverride(upstream N.Dialer, options option.OverrideStreamOptions) N.Dialer {
 	return &overrideDialer{
 		upstream,
 		options.TLS,

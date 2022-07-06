@@ -2,17 +2,40 @@ package dns
 
 import (
 	"context"
-	"net/netip"
+	"net/url"
+
+	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
-
-	"golang.org/x/net/dns/dnsmessage"
+	"github.com/sagernet/sing-box/log"
 )
 
-type Transport interface {
-	adapter.Service
-	Raw() bool
-	Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error)
-	Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error)
+func NewTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, address string) (adapter.DNSTransport, error) {
+	if address == "local" {
+		return NewLocalTransport(), nil
+	}
+	serverURL, err := url.Parse(address)
+	if err != nil {
+		return nil, err
+	}
+	host := serverURL.Hostname()
+	port := serverURL.Port()
+	if port == "" {
+		port = "53"
+	}
+	destination := M.ParseSocksaddrHostPortStr(host, port)
+	switch serverURL.Scheme {
+	case "", "udp":
+		return NewUDPTransport(ctx, dialer, logger, destination), nil
+	case "tcp":
+		return NewTCPTransport(ctx, dialer, logger, destination), nil
+	case "tls":
+		return NewTLSTransport(ctx, dialer, logger, destination), nil
+	case "https":
+		return NewHTTPSTransport(dialer, serverURL.String()), nil
+	default:
+		return nil, E.New("unknown dns scheme: " + serverURL.Scheme)
+	}
 }

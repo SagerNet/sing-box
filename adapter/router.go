@@ -13,6 +13,7 @@ import (
 type Router interface {
 	Service
 	Outbound(tag string) (Outbound, bool)
+	DefaultOutbound(network string) Outbound
 	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 	GeoIPReader() *geoip.Reader
