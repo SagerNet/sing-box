@@ -87,7 +87,7 @@ func (t *UDPTransport) newConnection(conn *dnsConnection) {
 	cancel()
 	conn.err = err
 	if err != nil {
-		t.logger.Warn("connection closed: ", err)
+		t.logger.Debug("connection closed: ", err)
 	}
 }
 
