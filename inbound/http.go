@@ -5,13 +5,14 @@ import (
 	"context"
 	"net"
 
+	"github.com/sagernet/sing/common/auth"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/protocol/http"
+
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/auth"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.Inbound = (*HTTP)(nil)

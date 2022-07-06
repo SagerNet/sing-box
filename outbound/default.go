@@ -6,11 +6,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/sagernet/sing-box/log"
 )
 
 type myOutboundAdapter struct {

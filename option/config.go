@@ -3,8 +3,9 @@ package option
 import (
 	"bytes"
 
-	"github.com/goccy/go-json"
 	"github.com/sagernet/sing/common"
+
+	"github.com/goccy/go-json"
 )
 
 type _Options struct {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"net"
 
+	N "github.com/sagernet/sing/common/network"
+
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
-	N "github.com/sagernet/sing/common/network"
 )
 
 type Router interface {

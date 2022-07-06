@@ -4,8 +4,10 @@ import (
 	"os"
 	"runtime"
 
-	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
+
+	C "github.com/sagernet/sing-box/constant"
+
 	"github.com/spf13/cobra"
 )
 

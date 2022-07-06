@@ -1,8 +1,9 @@
 package log
 
 import (
-	"github.com/logrusorgru/aurora"
 	F "github.com/sagernet/sing/common/format"
+
+	"github.com/logrusorgru/aurora"
 	"github.com/sirupsen/logrus"
 )
 
