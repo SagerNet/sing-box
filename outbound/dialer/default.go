@@ -32,6 +32,10 @@ func newDefault(options option.DialerOptions) N.Dialer {
 	if options.ReuseAddr {
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	}
+	if options.ProtectPath != "" {
+		dialer.Control = control.Append(dialer.Control, ProtectPath(options.ProtectPath))
+		listener.Control = control.Append(listener.Control, ProtectPath(options.ProtectPath))
+	}
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout) * time.Second
 	}
