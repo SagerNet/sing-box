@@ -20,7 +20,9 @@ type InboundContext struct {
 
 	// cache
 
+	SniffEnabled             bool
+	SniffOverrideDestination bool
+
 	SourceGeoIPCode string
 	GeoIPCode       string
-	// ProcessPath     string
 }

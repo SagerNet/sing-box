@@ -132,6 +132,8 @@ func (a *myInboundAdapter) loopTCPIn() {
 			ctx := log.ContextWithID(a.ctx)
 			var metadata adapter.InboundContext
 			metadata.Inbound = a.tag
+			metadata.SniffEnabled = a.listenOptions.SniffEnabled
+			metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 			metadata.Network = C.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
@@ -161,6 +163,8 @@ func (a *myInboundAdapter) loopUDPIn() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.SniffEnabled = a.listenOptions.SniffEnabled
+		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -183,6 +187,8 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.SniffEnabled = a.listenOptions.SniffEnabled
+		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
