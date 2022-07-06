@@ -12,10 +12,13 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
+	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -188,6 +191,29 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if metadata.SniffEnabled {
+		_buffer := buf.StackNew()
+		defer common.KeepAlive(_buffer)
+		buffer := common.Dup(_buffer)
+		defer buffer.Release()
+		reader := io.TeeReader(conn, buffer)
+		sniffMetadata, err := sniff.PeekStream(ctx, reader, sniff.TLSClientHello, sniff.HTTPHost)
+		if err == nil {
+			metadata.Protocol = sniffMetadata.Protocol
+			metadata.Domain = sniffMetadata.Domain
+			if metadata.SniffOverrideDestination && sniff.IsDomainName(metadata.Domain) {
+				metadata.Destination.Fqdn = metadata.Domain
+			}
+			if metadata.Domain != "" {
+				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			} else {
+				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol)
+			}
+		}
+		if !buffer.IsEmpty() {
+			conn = bufio.NewCachedConn(conn, buffer)
+		}
+	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
 		conn.Close()
@@ -197,6 +223,31 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	if metadata.SniffEnabled {
+		_buffer := buf.StackNewPacket()
+		defer common.KeepAlive(_buffer)
+		buffer := common.Dup(_buffer)
+		defer buffer.Release()
+		_, err := conn.ReadPacket(buffer)
+		if err != nil {
+			return err
+		}
+		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.QUICClientHello)
+		originDestination := metadata.Destination
+		if err == nil {
+			metadata.Protocol = sniffMetadata.Protocol
+			metadata.Domain = sniffMetadata.Domain
+			if metadata.SniffOverrideDestination && sniff.IsDomainName(metadata.Domain) {
+				metadata.Destination.Fqdn = metadata.Domain
+			}
+			if metadata.Domain != "" {
+				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			} else {
+				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol)
+			}
+		}
+		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
+	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
 		conn.Close()
