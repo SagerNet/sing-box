@@ -191,6 +191,14 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	return outbound, loaded
 }
 
+func (r *Router) DefaultOutbound(network string) adapter.Outbound {
+	if network == C.NetworkTCP {
+		return r.defaultOutboundForConnection
+	} else {
+		return r.defaultOutboundForPacketConnection
+	}
+}
+
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if metadata.SniffEnabled {
 		_buffer := buf.StackNew()

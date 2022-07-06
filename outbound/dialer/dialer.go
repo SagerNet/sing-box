@@ -11,12 +11,12 @@ import (
 func New(router adapter.Router, options option.DialerOptions) N.Dialer {
 	var dialer N.Dialer
 	if options.Detour == "" {
-		dialer = newDefault(options)
+		dialer = NewDefault(options)
 	} else {
-		dialer = newDetour(router, options)
+		dialer = NewDetour(router, options.Detour)
 	}
 	if options.OverrideOptions.IsValid() {
-		dialer = newOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))
+		dialer = NewOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))
 	}
 	return dialer
 }

@@ -2,9 +2,7 @@ package dns
 
 import (
 	"context"
-	"net/netip"
 	"os"
-	"sync"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -12,50 +10,28 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var _ Transport = (*UDPTransport)(nil)
+var _ adapter.DNSTransport = (*UDPTransport)(nil)
 
 type UDPTransport struct {
-	ctx         context.Context
-	dialer      N.Dialer
-	logger      log.Logger
-	destination M.Socksaddr
-	done        chan struct{}
-	access      sync.RWMutex
-	connection  *dnsConnection
+	myTransportAdapter
 }
 
 func NewUDPTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, destination M.Socksaddr) *UDPTransport {
 	return &UDPTransport{
-		ctx:         ctx,
-		dialer:      dialer,
-		logger:      logger,
-		destination: destination,
-		done:        make(chan struct{}),
+		myTransportAdapter{
+			ctx:         ctx,
+			dialer:      dialer,
+			logger:      logger,
+			destination: destination,
+			done:        make(chan struct{}),
+		},
 	}
-}
-
-func (t *UDPTransport) Start() error {
-	return nil
-}
-
-func (t *UDPTransport) Close() error {
-	select {
-	case <-t.done:
-		return os.ErrClosed
-	default:
-	}
-	close(t.done)
-	return nil
-}
-
-func (t *UDPTransport) Raw() bool {
-	return true
 }
 
 func (t *UDPTransport) offer() (*dnsConnection, error) {
@@ -183,8 +159,4 @@ func (t *UDPTransport) Exchange(ctx context.Context, message *dnsmessage.Message
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-}
-
-func (t *UDPTransport) Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error) {
-	return nil, os.ErrInvalid
 }

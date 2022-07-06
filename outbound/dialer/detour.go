@@ -10,27 +10,31 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/option"
 )
 
 type detourDialer struct {
 	router   adapter.Router
-	options  option.DialerOptions
+	detour   string
 	dialer   N.Dialer
 	initOnce sync.Once
 	initErr  error
 }
 
-func newDetour(router adapter.Router, options option.DialerOptions) N.Dialer {
-	return &detourDialer{router: router, options: options}
+func NewDetour(router adapter.Router, detour string) N.Dialer {
+	return &detourDialer{router: router, detour: detour}
+}
+
+func (d *detourDialer) Start() error {
+	_, err := d.Dialer()
+	return err
 }
 
 func (d *detourDialer) Dialer() (N.Dialer, error) {
 	d.initOnce.Do(func() {
 		var loaded bool
-		d.dialer, loaded = d.router.Outbound(d.options.Detour)
+		d.dialer, loaded = d.router.Outbound(d.detour)
 		if !loaded {
-			d.initErr = E.New("outbound detour not found: ", d.options.Detour)
+			d.initErr = E.New("outbound detour not found: ", d.detour)
 		}
 	})
 	return d.dialer, d.initErr

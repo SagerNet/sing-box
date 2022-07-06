@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
-	"net/netip"
 	"os"
 	"sync"
 
@@ -15,50 +14,28 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var _ Transport = (*TCPTransport)(nil)
+var _ adapter.DNSTransport = (*TCPTransport)(nil)
 
 type TCPTransport struct {
-	ctx         context.Context
-	dialer      N.Dialer
-	logger      log.Logger
-	destination M.Socksaddr
-	done        chan struct{}
-	access      sync.RWMutex
-	connection  *dnsConnection
+	myTransportAdapter
 }
 
 func NewTCPTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, destination M.Socksaddr) *TCPTransport {
 	return &TCPTransport{
-		ctx:         ctx,
-		dialer:      dialer,
-		logger:      logger,
-		destination: destination,
-		done:        make(chan struct{}),
+		myTransportAdapter{
+			ctx:         ctx,
+			dialer:      dialer,
+			logger:      logger,
+			destination: destination,
+			done:        make(chan struct{}),
+		},
 	}
-}
-
-func (t *TCPTransport) Start() error {
-	return nil
-}
-
-func (t *TCPTransport) Close() error {
-	select {
-	case <-t.done:
-		return os.ErrClosed
-	default:
-	}
-	close(t.done)
-	return nil
-}
-
-func (t *TCPTransport) Raw() bool {
-	return true
 }
 
 func (t *TCPTransport) offer() (*dnsConnection, error) {
@@ -206,8 +183,4 @@ func (t *TCPTransport) Exchange(ctx context.Context, message *dnsmessage.Message
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-}
-
-func (t *TCPTransport) Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error) {
-	return nil, os.ErrInvalid
 }

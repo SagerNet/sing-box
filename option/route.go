@@ -101,9 +101,7 @@ type DefaultRule struct {
 	IPCIDR        Listable[string] `json:"ip_cidr,omitempty"`
 	SourcePort    Listable[uint16] `json:"source_port,omitempty"`
 	Port          Listable[uint16] `json:"port,omitempty"`
-	// ProcessName   Listable[string] `json:"process_name,omitempty"`
-	// ProcessPath   Listable[string] `json:"process_path,omitempty"`
-	Outbound string `json:"outbound,omitempty"`
+	Outbound      string           `json:"outbound,omitempty"`
 }
 
 func (r DefaultRule) IsValid() bool {
