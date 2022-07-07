@@ -5,8 +5,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing/common"
@@ -19,19 +21,24 @@ import (
 	"github.com/sagernet/sing/common/rw"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
-	ctx    context.Context
-	logger log.Logger
+	ctx       context.Context
+	logger    log.Logger
+	dnsLogger log.Logger
 
 	outboundByTag map[string]adapter.Outbound
 	rules         []adapter.Rule
@@ -46,26 +53,116 @@ type Router struct {
 	geositeOptions      option.GeositeOptions
 	geoIPReader         *geoip.Reader
 	geositeReader       *geosite.Reader
+
+	dnsClient             adapter.DNSClient
+	defaultDomainStrategy C.DomainStrategy
+
+	defaultTransport adapter.DNSTransport
+	transports       []adapter.DNSTransport
+	transportMap     map[string]adapter.DNSTransport
 }
 
-func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptions) (*Router, error) {
+func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
 	router := &Router{
-		ctx:                 ctx,
-		logger:              logger.WithPrefix("router: "),
-		outboundByTag:       make(map[string]adapter.Outbound),
-		rules:               make([]adapter.Rule, 0, len(options.Rules)),
-		needGeoIPDatabase:   hasGeoRule(options.Rules, isGeoIPRule),
-		needGeositeDatabase: hasGeoRule(options.Rules, isGeositeRule),
-		geoIPOptions:        common.PtrValueOrDefault(options.GeoIP),
-		defaultDetour:       options.DefaultDetour,
+		ctx:                   ctx,
+		logger:                logger.WithPrefix("router: "),
+		dnsLogger:             logger.WithPrefix("dns: "),
+		outboundByTag:         make(map[string]adapter.Outbound),
+		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
+		needGeoIPDatabase:     hasGeoRule(options.Rules, isGeoIPRule) || hasGeoDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
+		needGeositeDatabase:   hasGeoRule(options.Rules, isGeositeRule) || hasGeoDNSRule(dnsOptions.Rules, isGeositeDNSRule),
+		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
+		defaultDetour:         options.Final,
+		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions),
+		defaultDomainStrategy: C.DomainStrategy(dnsOptions.Strategy),
 	}
 	for i, ruleOptions := range options.Rules {
-		rule, err := NewRule(router, logger, ruleOptions)
+		routeRule, err := NewRule(router, logger, ruleOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule[", i, "]")
 		}
-		router.rules = append(router.rules, rule)
+		router.rules = append(router.rules, routeRule)
 	}
+	for i, dnsRuleOptions := range dnsOptions.Rules {
+		dnsRule, err := NewDNSRule(router, logger, dnsRuleOptions)
+		if err != nil {
+			return nil, E.Cause(err, "parse dns rule[", i, "]")
+		}
+		router.rules = append(router.rules, dnsRule)
+	}
+	transports := make([]adapter.DNSTransport, len(dnsOptions.Servers))
+	dummyTransportMap := make(map[string]adapter.DNSTransport)
+	transportMap := make(map[string]adapter.DNSTransport)
+	transportTags := make([]string, len(dnsOptions.Servers))
+	transportTagMap := make(map[string]bool)
+	for i, server := range dnsOptions.Servers {
+		var tag string
+		if server.Tag != "" {
+			tag = server.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		transportTags[i] = tag
+		transportTagMap[tag] = true
+	}
+	for {
+		lastLen := len(dummyTransportMap)
+		for i, server := range dnsOptions.Servers {
+			tag := transportTags[i]
+			if _, exists := dummyTransportMap[tag]; exists {
+				continue
+			}
+			detour := dialer.New(router, server.DialerOptions)
+			if server.AddressResolver != "" {
+				if !transportTagMap[server.AddressResolver] {
+					return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
+				}
+				if upstream, exists := dummyTransportMap[server.AddressResolver]; exists {
+					detour = dns.NewDialerWrapper(detour, C.DomainStrategy(server.AddressStrategy), router.dnsClient, upstream)
+				} else {
+					continue
+				}
+			}
+			transport, err := dns.NewTransport(ctx, detour, logger, server.Address)
+			if err != nil {
+				return nil, E.Cause(err, "parse dns server[", tag, "]")
+			}
+			transports[i] = transport
+			dummyTransportMap[tag] = transport
+			if server.Tag != "" {
+				transportMap[server.Tag] = transport
+			}
+		}
+		if len(transports) == len(dummyTransportMap) {
+			break
+		}
+		if lastLen != len(dummyTransportMap) {
+			continue
+		}
+		unresolvedTags := common.MapIndexed(common.FilterIndexed(dnsOptions.Servers, func(index int, server option.DNSServerOptions) bool {
+			_, exists := dummyTransportMap[transportTags[index]]
+			return !exists
+		}), func(index int, server option.DNSServerOptions) string {
+			return transportTags[index]
+		})
+		return nil, E.New("found circular reference in dns servers: ", strings.Join(unresolvedTags, " "))
+	}
+	var defaultTransport adapter.DNSTransport
+	if options.Final != "" {
+		defaultTransport = dummyTransportMap[options.Final]
+		if defaultTransport == nil {
+			return nil, E.New("default dns server not found: ", options.Final)
+		}
+	}
+	if defaultTransport == nil {
+		if len(transports) == 0 {
+			transports = append(transports, dns.NewLocalTransport())
+		}
+		defaultTransport = transports[0]
+	}
+	router.defaultTransport = defaultTransport
+	router.transports = transports
+	router.transportMap = transportMap
 	return router, nil
 }
 
@@ -135,6 +232,11 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 	r.defaultOutboundForConnection = defaultOutboundForConnection
 	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
 	r.outboundByTag = outboundByTag
+	for i, rule := range r.rules {
+		if _, loaded := outboundByTag[rule.Outbound()]; !loaded {
+			return E.New("outbound not found for rule[", i, "]: ", rule.Outbound())
+		}
+	}
 	return nil
 }
 
@@ -228,7 +330,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
 	}
-	return detour.NewConnection(ctx, conn, metadata.Destination)
+	return detour.NewConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Destination)
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
@@ -262,7 +364,19 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
 	}
-	return detour.NewPacketConnection(ctx, conn, metadata.Destination)
+	return detour.NewPacketConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Destination)
+}
+
+func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
+	return r.dnsClient.Exchange(ctx, r.matchDNS(ctx), message)
+}
+
+func (r *Router) Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error) {
+	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, strategy)
+}
+
+func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error) {
+	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, r.defaultDomainStrategy)
 }
 
 func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, defaultOutbound adapter.Outbound) adapter.Outbound {
@@ -280,7 +394,45 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	return defaultOutbound
 }
 
+func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
+	metadata := adapter.ContextFrom(ctx)
+	if metadata == nil {
+		r.dnsLogger.WithContext(ctx).Info("no context")
+		return r.defaultTransport
+	}
+	for i, rule := range r.rules {
+		if rule.Match(metadata) {
+			detour := rule.Outbound()
+			r.dnsLogger.WithContext(ctx).Info("match[", i, "] ", rule.String(), " => ", detour)
+			if transport, loaded := r.transportMap[detour]; loaded {
+				return transport
+			}
+			r.dnsLogger.WithContext(ctx).Error("transport not found: ", detour)
+		}
+	}
+	r.dnsLogger.WithContext(ctx).Info("no match")
+	return r.defaultTransport
+}
+
 func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if cond(rule.DefaultOptions) {
+				return true
+			}
+		case C.RuleTypeLogical:
+			for _, subRule := range rule.LogicalOptions.Rules {
+				if cond(subRule) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func hasGeoDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -302,7 +454,15 @@ func isGeoIPRule(rule option.DefaultRule) bool {
 	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode) || len(rule.GeoIP) > 0 && common.Any(rule.GeoIP, notPrivateNode)
 }
 
+func isGeoIPDNSRule(rule option.DefaultDNSRule) bool {
+	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode)
+}
+
 func isGeositeRule(rule option.DefaultRule) bool {
+	return len(rule.Geosite) > 0
+}
+
+func isGeositeDNSRule(rule option.DefaultDNSRule) bool {
 	return len(rule.Geosite) > 0
 }
 

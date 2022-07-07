@@ -38,11 +38,11 @@ func run(cmd *cobra.Command, args []string) {
 		options.Log.DisableColor = true
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	service, err := box.NewService(ctx, options)
+	instance, err := box.New(ctx, options)
 	if err != nil {
 		logrus.Fatal("create service: ", err)
 	}
-	err = service.Start()
+	err = instance.Start()
 	if err != nil {
 		logrus.Fatal("start service: ", err)
 	}
@@ -50,5 +50,5 @@ func run(cmd *cobra.Command, args []string) {
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
 	<-osSignals
 	cancel()
-	service.Close()
+	instance.Close()
 }

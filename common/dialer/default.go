@@ -7,7 +7,6 @@ import (
 
 	"github.com/sagernet/sing/common/control"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -15,12 +14,12 @@ import (
 	"github.com/database64128/tfo-go"
 )
 
-type defaultDialer struct {
+type DefaultDialer struct {
 	tfo.Dialer
 	net.ListenConfig
 }
 
-func NewDefault(options option.DialerOptions) N.Dialer {
+func NewDefault(options option.DialerOptions) *DefaultDialer {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
@@ -41,13 +40,17 @@ func NewDefault(options option.DialerOptions) N.Dialer {
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout) * time.Second
 	}
-	return &defaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
+	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
 }
 
-func (d *defaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
+func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
 	return d.Dialer.DialContext(ctx, network, address.String())
 }
 
-func (d *defaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return d.ListenConfig.ListenPacket(ctx, C.NetworkUDP, "")
+}
+
+func (d *DefaultDialer) Upstream() any {
+	return &d.Dialer
 }

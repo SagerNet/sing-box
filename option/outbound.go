@@ -75,6 +75,7 @@ type DialerOptions struct {
 	ConnectTimeout  int                    `json:"connect_timeout,omitempty"`
 	TCPFastOpen     bool                   `json:"tcp_fast_open,omitempty"`
 	OverrideOptions *OverrideStreamOptions `json:"override,omitempty"`
+	DomainStrategy  DomainStrategy         `json:"domain_strategy,omitempty"`
 }
 
 type OverrideStreamOptions struct {

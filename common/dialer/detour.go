@@ -12,7 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 )
 
-type detourDialer struct {
+type DetourDialer struct {
 	router   adapter.Router
 	detour   string
 	dialer   N.Dialer
@@ -21,15 +21,15 @@ type detourDialer struct {
 }
 
 func NewDetour(router adapter.Router, detour string) N.Dialer {
-	return &detourDialer{router: router, detour: detour}
+	return &DetourDialer{router: router, detour: detour}
 }
 
-func (d *detourDialer) Start() error {
+func (d *DetourDialer) Start() error {
 	_, err := d.Dialer()
 	return err
 }
 
-func (d *detourDialer) Dialer() (N.Dialer, error) {
+func (d *DetourDialer) Dialer() (N.Dialer, error) {
 	d.initOnce.Do(func() {
 		var loaded bool
 		d.dialer, loaded = d.router.Outbound(d.detour)
@@ -40,7 +40,7 @@ func (d *detourDialer) Dialer() (N.Dialer, error) {
 	return d.dialer, d.initErr
 }
 
-func (d *detourDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (d *DetourDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	dialer, err := d.Dialer()
 	if err != nil {
 		return nil, err
@@ -48,10 +48,15 @@ func (d *detourDialer) DialContext(ctx context.Context, network string, destinat
 	return dialer.DialContext(ctx, network, destination)
 }
 
-func (d *detourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	dialer, err := d.Dialer()
 	if err != nil {
 		return nil, err
 	}
 	return dialer.ListenPacket(ctx, destination)
+}
+
+func (d *DetourDialer) Upstream() any {
+	detour, _ := d.Dialer()
+	return detour
 }

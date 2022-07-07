@@ -10,10 +10,10 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound/dialer"
 )
 
 var _ adapter.Outbound = (*Socks)(nil)
@@ -42,11 +42,13 @@ func NewSocks(router adapter.Router, logger log.Logger, tag string, options opti
 			tag:      tag,
 			network:  options.Network.Build(),
 		},
-		socks.NewClient(detour, M.ParseSocksaddrHostPort(options.Server, options.ServerPort), version, options.Username, options.Password),
+		socks.NewClient(detour, options.ServerOptions.Build(), version, options.Username, options.Password),
 	}, nil
 }
 
 func (h *Socks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
 	switch network {
 	case C.NetworkTCP:
 		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
@@ -59,6 +61,8 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 }
 
 func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
 	h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
 }

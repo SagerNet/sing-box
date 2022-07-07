@@ -9,10 +9,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound/dialer"
 )
 
 var _ adapter.Outbound = (*Direct)(nil)
@@ -47,41 +47,45 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options opt
 	return outbound
 }
 
-func (d *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	switch d.overrideOption {
+func (h *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	switch h.overrideOption {
 	case 1:
-		destination = d.overrideDestination
+		destination = h.overrideDestination
 	case 2:
-		newDestination := d.overrideDestination
+		newDestination := h.overrideDestination
 		newDestination.Port = destination.Port
 		destination = newDestination
 	case 3:
-		destination.Port = d.overrideDestination.Port
+		destination.Port = h.overrideDestination.Port
 	}
 	switch network {
 	case C.NetworkTCP:
-		d.logger.WithContext(ctx).Info("outbound connection to ", destination)
+		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
 	case C.NetworkUDP:
-		d.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+		h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
 	}
-	return d.dialer.DialContext(ctx, network, destination)
+	return h.dialer.DialContext(ctx, network, destination)
 }
 
-func (d *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	d.logger.WithContext(ctx).Info("outbound packet connection")
-	return d.dialer.ListenPacket(ctx, destination)
+func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	h.logger.WithContext(ctx).Info("outbound packet connection")
+	return h.dialer.ListenPacket(ctx, destination)
 }
 
-func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := d.DialContext(ctx, C.NetworkTCP, destination)
+func (h *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
+	outConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
 	if err != nil {
 		return err
 	}
 	return bufio.CopyConn(ctx, conn, outConn)
 }
 
-func (d *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	outConn, err := d.ListenPacket(ctx, destination)
+func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+	outConn, err := h.ListenPacket(ctx, destination)
 	if err != nil {
 		return err
 	}
