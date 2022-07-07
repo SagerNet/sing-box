@@ -11,10 +11,10 @@ import (
 	"github.com/sagernet/sing/protocol/http"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound/dialer"
 )
 
 var _ adapter.Outbound = (*HTTP)(nil)
@@ -32,16 +32,20 @@ func NewHTTP(router adapter.Router, logger log.Logger, tag string, options optio
 			tag:      tag,
 			network:  []string{C.NetworkTCP},
 		},
-		http.NewClient(dialer.New(router, options.DialerOptions), M.ParseSocksaddrHostPort(options.Server, options.ServerPort), options.Username, options.Password),
+		http.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), options.Username, options.Password),
 	}
 }
 
 func (h *HTTP) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
 	h.logger.WithContext(ctx).Info("outbound connection to ", destination)
 	return h.client.DialContext(ctx, network, destination)
 }
 
 func (h *HTTP) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
 	return nil, os.ErrInvalid
 }
 

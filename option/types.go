@@ -97,7 +97,8 @@ func (s DomainStrategy) MarshalJSON() ([]byte, error) {
 	var value string
 	switch C.DomainStrategy(s) {
 	case C.DomainStrategyAsIS:
-		value = "AsIS"
+		value = ""
+		// value = "AsIS"
 	case C.DomainStrategyPreferIPv4:
 		value = "PreferIPv4"
 	case C.DomainStrategyPreferIPv6:
@@ -119,7 +120,7 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	switch value {
-	case "AsIS":
+	case "", "AsIS":
 		*s = DomainStrategy(C.DomainStrategyAsIS)
 	case "PreferIPv4":
 		*s = DomainStrategy(C.DomainStrategyPreferIPv4)

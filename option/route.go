@@ -10,10 +10,10 @@ import (
 )
 
 type RouteOptions struct {
-	GeoIP         *GeoIPOptions   `json:"geoip,omitempty"`
-	Geosite       *GeositeOptions `json:"geosite,omitempty"`
-	Rules         []Rule          `json:"rules,omitempty"`
-	DefaultDetour string          `json:"default_detour,omitempty"`
+	GeoIP   *GeoIPOptions   `json:"geoip,omitempty"`
+	Geosite *GeositeOptions `json:"geosite,omitempty"`
+	Rules   []Rule          `json:"rules,omitempty"`
+	Final   string          `json:"final,omitempty"`
 }
 
 func (o RouteOptions) Equals(other RouteOptions) bool {
@@ -52,6 +52,7 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Type {
 	case C.RuleTypeDefault:
+		r.Type = ""
 		v = r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = r.LogicalOptions
@@ -66,12 +67,10 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Type == "" {
-		r.Type = C.RuleTypeDefault
-	}
 	var v any
 	switch r.Type {
-	case C.RuleTypeDefault:
+	case "":
+		r.Type = C.RuleTypeDefault
 		v = &r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = &r.LogicalOptions

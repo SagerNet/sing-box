@@ -13,9 +13,9 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-var _ N.Dialer = (*overrideDialer)(nil)
+var _ N.Dialer = (*OverrideDialer)(nil)
 
-type overrideDialer struct {
+type OverrideDialer struct {
 	upstream   N.Dialer
 	tlsEnabled bool
 	tlsConfig  tls.Config
@@ -23,7 +23,7 @@ type overrideDialer struct {
 }
 
 func NewOverride(upstream N.Dialer, options option.OverrideStreamOptions) N.Dialer {
-	return &overrideDialer{
+	return &OverrideDialer{
 		upstream,
 		options.TLS,
 		tls.Config{
@@ -34,7 +34,7 @@ func NewOverride(upstream N.Dialer, options option.OverrideStreamOptions) N.Dial
 	}
 }
 
-func (d *overrideDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (d *OverrideDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch network {
 	case C.NetworkTCP:
 		conn, err := d.upstream.DialContext(ctx, C.NetworkTCP, destination)
@@ -54,7 +54,7 @@ func (d *overrideDialer) DialContext(ctx context.Context, network string, destin
 	return d.upstream.DialContext(ctx, network, destination)
 }
 
-func (d *overrideDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (d *OverrideDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if d.uotEnabled {
 		tcpConn, err := d.upstream.DialContext(ctx, C.NetworkTCP, destination)
 		if err != nil {
@@ -63,4 +63,8 @@ func (d *overrideDialer) ListenPacket(ctx context.Context, destination M.Socksad
 		return uot.NewClientConn(tcpConn), nil
 	}
 	return d.upstream.ListenPacket(ctx, destination)
+}
+
+func (d *OverrideDialer) Upstream() any {
+	return d.upstream
 }

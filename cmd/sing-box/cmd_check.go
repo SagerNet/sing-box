@@ -30,7 +30,7 @@ func checkConfiguration(cmd *cobra.Command, args []string) {
 		logrus.Fatal("decode config: ", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err = box.NewService(ctx, options)
+	_, err = box.New(ctx, options)
 	if err != nil {
 		logrus.Fatal("create service: ", err)
 	}

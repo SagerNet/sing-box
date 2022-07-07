@@ -3,11 +3,15 @@ package adapter
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
+	C "github.com/sagernet/sing-box/constant"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 type Router interface {
@@ -18,6 +22,9 @@ type Router interface {
 	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 	GeoIPReader() *geoip.Reader
 	GeositeReader() *geosite.Reader
+	Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error)
+	Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error)
+	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
 }
 
 type Rule interface {

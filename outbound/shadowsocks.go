@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/sagernet/sing/common/bufio"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -13,10 +12,10 @@ import (
 	"github.com/sagernet/sing-shadowsocks/shadowimpl"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound/dialer"
 )
 
 var _ adapter.Outbound = (*Shadowsocks)(nil)
@@ -29,69 +28,67 @@ type Shadowsocks struct {
 }
 
 func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
-	outbound := &Shadowsocks{
-		myOutboundAdapter: myOutboundAdapter{
+	method, err := shadowimpl.FetchMethod(options.Method, options.Password)
+	if err != nil {
+		return nil, err
+	}
+	return &Shadowsocks{
+		myOutboundAdapter{
 			protocol: C.TypeDirect,
 			logger:   logger,
 			tag:      tag,
 			network:  options.Network.Build(),
 		},
-		dialer: dialer.New(router, options.DialerOptions),
-	}
-	var err error
-	outbound.method, err = shadowimpl.FetchMethod(options.Method, options.Password)
-	if err != nil {
-		return nil, err
-	}
-	if options.Server == "" {
-		return nil, E.New("missing server address")
-	} else if options.ServerPort == 0 {
-		return nil, E.New("missing server port")
-	}
-	outbound.serverAddr = M.ParseSocksaddrHostPort(options.Server, options.ServerPort)
-	return outbound, nil
+		dialer.New(router, options.DialerOptions),
+		method,
+		options.ServerOptions.Build(),
+	}, nil
 }
 
-func (o *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (h *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
 	switch network {
 	case C.NetworkTCP:
-		o.logger.WithContext(ctx).Info("outbound connection to ", destination)
-		outConn, err := o.dialer.DialContext(ctx, C.NetworkTCP, o.serverAddr)
+		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
+		outConn, err := h.dialer.DialContext(ctx, C.NetworkTCP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
-		return o.method.DialEarlyConn(outConn, destination), nil
+		return h.method.DialEarlyConn(outConn, destination), nil
 	case C.NetworkUDP:
-		o.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
-		outConn, err := o.dialer.DialContext(ctx, C.NetworkUDP, o.serverAddr)
+		h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+		outConn, err := h.dialer.DialContext(ctx, C.NetworkUDP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
-		return &bufio.BindPacketConn{PacketConn: o.method.DialPacketConn(outConn), Addr: destination}, nil
+		return &bufio.BindPacketConn{PacketConn: h.method.DialPacketConn(outConn), Addr: destination}, nil
 	default:
 		panic("unknown network " + network)
 	}
 }
 
-func (o *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	o.logger.WithContext(ctx).Info("outbound packet connection to ", o.serverAddr)
-	outConn, err := o.dialer.ListenPacket(ctx, destination)
+func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	h.logger.WithContext(ctx).Info("outbound packet connection to ", h.serverAddr)
+	outConn, err := h.dialer.ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
-	return o.method.DialPacketConn(&bufio.BindPacketConn{PacketConn: outConn, Addr: o.serverAddr.UDPAddr()}), nil
+	return h.method.DialPacketConn(&bufio.BindPacketConn{PacketConn: outConn, Addr: h.serverAddr.UDPAddr()}), nil
 }
 
-func (o *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	serverConn, err := o.DialContext(ctx, C.NetworkTCP, destination)
+func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
+	serverConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
 	if err != nil {
 		return err
 	}
 	return CopyEarlyConn(ctx, conn, serverConn)
 }
 
-func (o *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	serverConn, err := o.ListenPacket(ctx, destination)
+func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+	serverConn, err := h.ListenPacket(ctx, destination)
 	if err != nil {
 		return err
 	}

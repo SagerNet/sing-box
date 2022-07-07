@@ -16,9 +16,9 @@ import (
 	"github.com/sagernet/sing-box/route"
 )
 
-var _ adapter.Service = (*Service)(nil)
+var _ adapter.Service = (*Box)(nil)
 
-type Service struct {
+type Box struct {
 	router    adapter.Router
 	logger    log.Logger
 	inbounds  []adapter.Inbound
@@ -26,13 +26,13 @@ type Service struct {
 	createdAt time.Time
 }
 
-func NewService(ctx context.Context, options option.Options) (*Service, error) {
+func New(ctx context.Context, options option.Options) (*Box, error) {
 	createdAt := time.Now()
 	logger, err := log.NewLogger(common.PtrValueOrDefault(options.Log))
 	if err != nil {
 		return nil, E.Cause(err, "parse log options")
 	}
-	router, err := route.NewRouter(ctx, logger, common.PtrValueOrDefault(options.Route))
+	router, err := route.NewRouter(ctx, logger, common.PtrValueOrDefault(options.Route), common.PtrValueOrDefault(options.DNS))
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
 	}
@@ -63,7 +63,7 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{
+	return &Box{
 		router:    router,
 		logger:    logger,
 		inbounds:  inbounds,
@@ -72,7 +72,7 @@ func NewService(ctx context.Context, options option.Options) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Start() error {
+func (s *Box) Start() error {
 	err := s.logger.Start()
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (s *Service) Start() error {
 	return nil
 }
 
-func (s *Service) Close() error {
+func (s *Box) Close() error {
 	for _, in := range s.inbounds {
 		in.Close()
 	}
