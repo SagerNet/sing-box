@@ -10,16 +10,18 @@ import (
 )
 
 func New(router adapter.Router, options option.DialerOptions) N.Dialer {
-	domainStrategy := C.DomainStrategy(options.DomainStrategy)
-	var dialer N.Dialer
 	if options.Detour == "" {
-		dialer = NewDefault(options)
-		dialer = NewResolveDialer(router, dialer, domainStrategy)
+		return NewDefault(options)
 	} else {
-		dialer = NewDetour(router, options.Detour)
-		if domainStrategy != C.DomainStrategyAsIS {
-			dialer = NewResolveDialer(router, dialer, domainStrategy)
-		}
+		return NewDetour(router, options.Detour)
+	}
+}
+
+func NewOutbound(router adapter.Router, options option.OutboundDialerOptions) N.Dialer {
+	dialer := New(router, options.DialerOptions)
+	domainStrategy := C.DomainStrategy(options.DomainStrategy)
+	if domainStrategy != C.DomainStrategyAsIS || options.Detour == "" && !C.CGO_ENABLED {
+		dialer = NewResolveDialer(router, dialer, domainStrategy)
 	}
 	if options.OverrideOptions.IsValid() {
 		dialer = NewOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))

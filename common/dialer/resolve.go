@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/netip"
 
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -41,16 +40,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	if err != nil {
 		return nil, err
 	}
-	var conn net.Conn
-	var connErrors []error
-	for _, address := range addresses {
-		conn, err = d.dialer.DialContext(ctx, network, M.SocksaddrFromAddrPort(address, destination.Port))
-		if err != nil {
-			connErrors = append(connErrors, err)
-		}
-		return conn, nil
-	}
-	return nil, E.Errors(connErrors...)
+	return DialSerial(ctx, d.dialer, network, destination, addresses)
 }
 
 func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -67,16 +57,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	var conn net.PacketConn
-	var connErrors []error
-	for _, address := range addresses {
-		conn, err = d.dialer.ListenPacket(ctx, M.SocksaddrFromAddrPort(address, destination.Port))
-		if err != nil {
-			connErrors = append(connErrors, err)
-		}
-		return conn, nil
-	}
-	return nil, E.Errors(connErrors...)
+	return ListenSerial(ctx, d.dialer, destination, addresses)
 }
 
 func (d *ResolveDialer) Upstream() any {

@@ -39,7 +39,7 @@ func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, option
 			tag:      tag,
 			network:  options.Network.Build(),
 		},
-		dialer.New(router, options.DialerOptions),
+		dialer.NewOutbound(router, options.OutboundDialerOptions),
 		method,
 		options.ServerOptions.Build(),
 	}, nil
@@ -48,6 +48,7 @@ func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, option
 func (h *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	switch network {
 	case C.NetworkTCP:
 		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
@@ -71,6 +72,7 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	h.logger.WithContext(ctx).Info("outbound packet connection to ", h.serverAddr)
 	outConn, err := h.dialer.ListenPacket(ctx, destination)
 	if err != nil {
@@ -79,18 +81,10 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	return h.method.DialPacketConn(&bufio.BindPacketConn{PacketConn: outConn, Addr: h.serverAddr.UDPAddr()}), nil
 }
 
-func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	serverConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
-	if err != nil {
-		return err
-	}
-	return CopyEarlyConn(ctx, conn, serverConn)
+func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return NewEarlyConnection(ctx, h, conn, metadata)
 }
 
-func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	serverConn, err := h.ListenPacket(ctx, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(serverConn))
+func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return NewPacketConnection(ctx, h, conn, metadata)
 }

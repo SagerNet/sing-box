@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
@@ -24,7 +23,7 @@ type Socks struct {
 }
 
 func NewSocks(router adapter.Router, logger log.Logger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
-	detour := dialer.New(router, options.DialerOptions)
+	detour := dialer.NewOutbound(router, options.OutboundDialerOptions)
 	var version socks.Version
 	var err error
 	if options.Version != "" {
@@ -49,6 +48,7 @@ func NewSocks(router adapter.Router, logger log.Logger, tag string, options opti
 func (h *Socks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	switch network {
 	case C.NetworkTCP:
 		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
@@ -63,22 +63,15 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
 }
 
-func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyConn(ctx, conn, outConn)
+func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return NewConnection(ctx, h, conn, metadata)
 }
 
-func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	outConn, err := h.ListenPacket(ctx, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
+func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return NewPacketConnection(ctx, h, conn, metadata)
 }

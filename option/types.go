@@ -100,13 +100,13 @@ func (s DomainStrategy) MarshalJSON() ([]byte, error) {
 		value = ""
 		// value = "AsIS"
 	case C.DomainStrategyPreferIPv4:
-		value = "PreferIPv4"
+		value = "prefer_ipv4"
 	case C.DomainStrategyPreferIPv6:
-		value = "PreferIPv6"
+		value = "prefer_ipv6"
 	case C.DomainStrategyUseIPv4:
-		value = "UseIPv4"
+		value = "ipv4_only"
 	case C.DomainStrategyUseIPv6:
-		value = "UseIPv6"
+		value = "ipv6_only"
 	default:
 		return nil, E.New("unknown domain strategy: ", s)
 	}
@@ -122,13 +122,13 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	switch value {
 	case "", "AsIS":
 		*s = DomainStrategy(C.DomainStrategyAsIS)
-	case "PreferIPv4":
+	case "prefer_ipv4":
 		*s = DomainStrategy(C.DomainStrategyPreferIPv4)
-	case "PreferIPv6":
+	case "prefer_ipv6":
 		*s = DomainStrategy(C.DomainStrategyPreferIPv6)
-	case "UseIPv4":
+	case "ipv4_only":
 		*s = DomainStrategy(C.DomainStrategyUseIPv4)
-	case "UseIPv6":
+	case "ipv6_only":
 		*s = DomainStrategy(C.DomainStrategyUseIPv6)
 	default:
 		return E.New("unknown domain strategy: ", value)

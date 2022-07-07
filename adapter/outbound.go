@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -13,6 +12,6 @@ type Outbound interface {
 	Tag() string
 	Network() []string
 	N.Dialer
-	NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error
-	NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error
+	NewConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
+	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 }

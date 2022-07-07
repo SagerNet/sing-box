@@ -77,8 +77,13 @@ func (r *Reader) readMetadata() error {
 }
 
 func (r *Reader) Read(code string) ([]Item, error) {
-	if _, exists := r.domainIndex[code]; !exists {
+	index, exists := r.domainIndex[code]
+	if !exists {
 		return nil, E.New("code ", code, " not exists!")
+	}
+	_, err := r.reader.Seek(int64(index), io.SeekCurrent)
+	if err != nil {
+		return nil, err
 	}
 	counter := &rw.ReadCounter{Reader: r.reader}
 	domain := make([]Item, r.domainLength[code])
@@ -97,7 +102,7 @@ func (r *Reader) Read(code string) ([]Item, error) {
 		}
 		domain[i] = item
 	}
-	_, err := r.reader.Seek(int64(r.domainIndex[code])-counter.Count(), io.SeekCurrent)
+	_, err = r.reader.Seek(int64(-index)-counter.Count(), io.SeekCurrent)
 	return domain, err
 }
 

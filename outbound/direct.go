@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -32,7 +31,7 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options opt
 			tag:      tag,
 			network:  []string{C.NetworkTCP, C.NetworkUDP},
 		},
-		dialer: dialer.New(router, options.DialerOptions),
+		dialer: dialer.NewOutbound(router, options.OutboundDialerOptions),
 	}
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		outbound.overrideOption = 1
@@ -50,6 +49,7 @@ func NewDirect(router adapter.Router, logger log.Logger, tag string, options opt
 func (h *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	switch h.overrideOption {
 	case 1:
 		destination = h.overrideDestination
@@ -72,22 +72,15 @@ func (h *Direct) DialContext(ctx context.Context, network string, destination M.
 func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	h.logger.WithContext(ctx).Info("outbound packet connection")
 	return h.dialer.ListenPacket(ctx, destination)
 }
 
-func (h *Direct) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyConn(ctx, conn, outConn)
+func (h *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return NewConnection(ctx, h, conn, metadata)
 }
 
-func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
-	outConn, err := h.ListenPacket(ctx, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
+func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return NewPacketConnection(ctx, h, conn, metadata)
 }

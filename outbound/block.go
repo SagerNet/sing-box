@@ -40,14 +40,14 @@ func (h *Block) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	return nil, io.EOF
 }
 
-func (h *Block) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
+func (h *Block) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	conn.Close()
-	h.logger.WithContext(ctx).Info("blocked connection to ", destination)
+	h.logger.WithContext(ctx).Info("blocked connection to ", metadata.Destination)
 	return nil
 }
 
-func (h *Block) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+func (h *Block) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	conn.Close()
-	h.logger.WithContext(ctx).Info("blocked packet connection to ", destination)
+	h.logger.WithContext(ctx).Info("blocked packet connection to ", metadata.Destination)
 	return nil
 }

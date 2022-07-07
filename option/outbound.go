@@ -67,13 +67,17 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 }
 
 type DialerOptions struct {
-	Detour          string                 `json:"detour,omitempty"`
-	BindInterface   string                 `json:"bind_interface,omitempty"`
-	ProtectPath     string                 `json:"protect_path,omitempty"`
-	RoutingMark     int                    `json:"routing_mark,omitempty"`
-	ReuseAddr       bool                   `json:"reuse_addr,omitempty"`
-	ConnectTimeout  int                    `json:"connect_timeout,omitempty"`
-	TCPFastOpen     bool                   `json:"tcp_fast_open,omitempty"`
+	Detour         string `json:"detour,omitempty"`
+	BindInterface  string `json:"bind_interface,omitempty"`
+	ProtectPath    string `json:"protect_path,omitempty"`
+	RoutingMark    int    `json:"routing_mark,omitempty"`
+	ReuseAddr      bool   `json:"reuse_addr,omitempty"`
+	ConnectTimeout int    `json:"connect_timeout,omitempty"`
+	TCPFastOpen    bool   `json:"tcp_fast_open,omitempty"`
+}
+
+type OutboundDialerOptions struct {
+	DialerOptions
 	OverrideOptions *OverrideStreamOptions `json:"override,omitempty"`
 	DomainStrategy  DomainStrategy         `json:"domain_strategy,omitempty"`
 }
@@ -99,13 +103,13 @@ func (o ServerOptions) Build() M.Socksaddr {
 }
 
 type DirectOutboundOptions struct {
-	DialerOptions
+	OutboundDialerOptions
 	OverrideAddress string `json:"override_address,omitempty"`
 	OverridePort    uint16 `json:"override_port,omitempty"`
 }
 
 type SocksOutboundOptions struct {
-	DialerOptions
+	OutboundDialerOptions
 	ServerOptions
 	Version  string      `json:"version,omitempty"`
 	Username string      `json:"username,omitempty"`
@@ -114,14 +118,14 @@ type SocksOutboundOptions struct {
 }
 
 type HTTPOutboundOptions struct {
-	DialerOptions
+	OutboundDialerOptions
 	ServerOptions
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
 type ShadowsocksOutboundOptions struct {
-	DialerOptions
+	OutboundDialerOptions
 	ServerOptions
 	Method   string      `json:"method"`
 	Password string      `json:"password"`

@@ -41,12 +41,19 @@ func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 			}
 		}
 	} else {
-		if metadata.Destination.IsFqdn() {
-			return false
-		}
-		for _, prefix := range r.prefixes {
-			if prefix.Contains(metadata.Destination.Addr) {
-				return true
+		if metadata.Destination.IsIP() {
+			for _, prefix := range r.prefixes {
+				if prefix.Contains(metadata.Destination.Addr) {
+					return true
+				}
+			}
+		} else {
+			for _, address := range metadata.DestinationAddresses {
+				for _, prefix := range r.prefixes {
+					if prefix.Contains(address) {
+						return true
+					}
+				}
 			}
 		}
 	}
