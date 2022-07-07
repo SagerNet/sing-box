@@ -56,6 +56,7 @@ type Router struct {
 
 	dnsClient             adapter.DNSClient
 	defaultDomainStrategy C.DomainStrategy
+	dnsRules              []adapter.Rule
 
 	defaultTransport adapter.DNSTransport
 	transports       []adapter.DNSTransport
@@ -69,9 +70,11 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		dnsLogger:             logger.WithPrefix("dns: "),
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
+		dnsRules:              make([]adapter.Rule, 0, len(dnsOptions.Rules)),
 		needGeoIPDatabase:     hasGeoRule(options.Rules, isGeoIPRule) || hasGeoDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasGeoRule(options.Rules, isGeositeRule) || hasGeoDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
+		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions),
 		defaultDomainStrategy: C.DomainStrategy(dnsOptions.Strategy),
@@ -88,7 +91,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		if err != nil {
 			return nil, E.Cause(err, "parse dns rule[", i, "]")
 		}
-		router.rules = append(router.rules, dnsRule)
+		router.dnsRules = append(router.dnsRules, dnsRule)
 	}
 	transports := make([]adapter.DNSTransport, len(dnsOptions.Servers))
 	dummyTransportMap := make(map[string]adapter.DNSTransport)
@@ -259,8 +262,20 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	for _, rule := range r.dnsRules {
+		err := rule.Start()
+		if err != nil {
+			return err
+		}
+	}
 	if r.needGeositeDatabase {
 		for _, rule := range r.rules {
+			err := rule.UpdateGeosite()
+			if err != nil {
+				r.logger.Error("failed to initialize geosite: ", err)
+			}
+		}
+		for _, rule := range r.dnsRules {
 			err := rule.UpdateGeosite()
 			if err != nil {
 				r.logger.Error("failed to initialize geosite: ", err)
@@ -275,6 +290,18 @@ func (r *Router) Start() error {
 }
 
 func (r *Router) Close() error {
+	for _, rule := range r.rules {
+		err := rule.Close()
+		if err != nil {
+			return err
+		}
+	}
+	for _, rule := range r.dnsRules {
+		err := rule.Close()
+		if err != nil {
+			return err
+		}
+	}
 	return common.Close(
 		common.PtrOrNil(r.geoIPReader),
 	)
@@ -325,12 +352,20 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			conn = bufio.NewCachedConn(conn, buffer)
 		}
 	}
+	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != C.DomainStrategyAsIS {
+		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
+		if err != nil {
+			return err
+		}
+		metadata.DestinationAddresses = addresses
+		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(common.Map(metadata.DestinationAddresses, F.ToString0[netip.Addr]), " "), "]")
+	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
 	}
-	return detour.NewConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Destination)
+	return detour.NewConnection(ctx, conn, metadata)
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
@@ -359,12 +394,20 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
 	}
+	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != C.DomainStrategyAsIS {
+		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
+		if err != nil {
+			return err
+		}
+		metadata.DestinationAddresses = addresses
+		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(common.Map(metadata.DestinationAddresses, F.ToString0[netip.Addr]), " "), "]")
+	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
 	}
-	return detour.NewPacketConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Destination)
+	return detour.NewPacketConnection(ctx, conn, metadata)
 }
 
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
@@ -397,10 +440,10 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
-		r.dnsLogger.WithContext(ctx).Info("no context")
+		r.dnsLogger.WithContext(ctx).Warn("no context")
 		return r.defaultTransport
 	}
-	for i, rule := range r.rules {
+	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.dnsLogger.WithContext(ctx).Info("match[", i, "] ", rule.String(), " => ", detour)

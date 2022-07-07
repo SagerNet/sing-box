@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/http"
@@ -32,13 +31,14 @@ func NewHTTP(router adapter.Router, logger log.Logger, tag string, options optio
 			tag:      tag,
 			network:  []string{C.NetworkTCP},
 		},
-		http.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), options.Username, options.Password),
+		http.NewClient(dialer.NewOutbound(router, options.OutboundDialerOptions), options.ServerOptions.Build(), options.Username, options.Password),
 	}
 }
 
 func (h *HTTP) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	h.logger.WithContext(ctx).Info("outbound connection to ", destination)
 	return h.client.DialContext(ctx, network, destination)
 }
@@ -46,17 +46,14 @@ func (h *HTTP) DialContext(ctx context.Context, network string, destination M.So
 func (h *HTTP) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	return nil, os.ErrInvalid
 }
 
-func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, destination M.Socksaddr) error {
-	outConn, err := h.DialContext(ctx, C.NetworkTCP, destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyConn(ctx, conn, outConn)
+func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return NewConnection(ctx, h, conn, metadata)
 }
 
-func (h *HTTP) NewPacketConnection(ctx context.Context, conn N.PacketConn, destination M.Socksaddr) error {
+func (h *HTTP) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return os.ErrInvalid
 }

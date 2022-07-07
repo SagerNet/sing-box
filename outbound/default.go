@@ -10,7 +10,11 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 )
 
@@ -31,6 +35,51 @@ func (a *myOutboundAdapter) Tag() string {
 
 func (a *myOutboundAdapter) Network() []string {
 	return a.network
+}
+
+func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {
+	ctx = adapter.WithContext(ctx, &metadata)
+	var outConn net.Conn
+	var err error
+	if len(metadata.DestinationAddresses) > 0 {
+		outConn, err = dialer.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+	} else {
+		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
+	}
+	if err != nil {
+		return err
+	}
+	return bufio.CopyConn(ctx, conn, outConn)
+}
+
+func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {
+	ctx = adapter.WithContext(ctx, &metadata)
+	var outConn net.Conn
+	var err error
+	if len(metadata.DestinationAddresses) > 0 {
+		outConn, err = dialer.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+	} else {
+		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
+	}
+	if err != nil {
+		return err
+	}
+	return CopyEarlyConn(ctx, conn, outConn)
+}
+
+func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = adapter.WithContext(ctx, &metadata)
+	var outConn net.PacketConn
+	var err error
+	if len(metadata.DestinationAddresses) > 0 {
+		outConn, err = dialer.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+	} else {
+		outConn, err = this.ListenPacket(ctx, metadata.Destination)
+	}
+	if err != nil {
+		return err
+	}
+	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {

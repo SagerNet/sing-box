@@ -2,8 +2,11 @@ package adapter
 
 import (
 	"context"
+	"net/netip"
 
 	M "github.com/sagernet/sing/common/metadata"
+
+	C "github.com/sagernet/sing-box/constant"
 )
 
 type Inbound interface {
@@ -23,8 +26,10 @@ type InboundContext struct {
 
 	// cache
 
+	DomainStrategy           C.DomainStrategy
 	SniffEnabled             bool
 	SniffOverrideDestination bool
+	DestinationAddresses     []netip.Addr
 
 	SourceGeoIPCode string
 	GeoIPCode       string
@@ -50,5 +55,5 @@ func AppendContext(ctx context.Context) (context.Context, *InboundContext) {
 		return ctx, metadata
 	}
 	metadata = new(InboundContext)
-	return WithContext(ctx, metadata), nil
+	return WithContext(ctx, metadata), metadata
 }
