@@ -2,7 +2,7 @@
 
 ```json
 {
-  "inbounds": [
+  "outbounds": [
     {
       "type": "",
       "tag": ""
@@ -16,11 +16,11 @@
 | Type          | Format                       |
 |---------------|------------------------------|
 | `direct`      | [Direct](./direct)           |
-| `mixed`       | [Mixed](./mixed)             |
+| `block`       | [Block](./block)             |
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
 
 #### tag
 
-The tag of the inbound.
+The tag of the outbound.

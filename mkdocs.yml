@@ -38,24 +38,34 @@ nav:
           - DNS Rule: configuration/dns/rule.md
       - Inbound:
           - configuration/inbound/index.md
+          - Direct: configuration/inbound/direct.md
           - Mixed: configuration/inbound/mixed.md
           - Socks: configuration/inbound/socks.md
           - HTTP: configuration/inbound/http.md
-          - Direct: configuration/inbound/direct.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
+      - Outbound:
+          - configuration/outbound/index.md
+          - Direct: configuration/outbound/direct.md
+          - Block: configuration/outbound/block.md
+          - Socks: configuration/outbound/socks.md
+          - HTTP: configuration/outbound/http.md
+          - Shadowsocks: configuration/outbound/shadowsocks.md
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
   - admonition
   - pymdownx.details
   - attr_list
   - md_in_html
   - footnotes
+  - def_list
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
 extra:
   social:
     - icon: fontawesome/brands/github
