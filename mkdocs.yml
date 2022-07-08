@@ -28,10 +28,7 @@ theme:
     - navigation.sections
     - header.autohide
 nav:
-  - Getting Started:
-      - index.md
-      - Installation: installation.md
-      - License: license.md
+  - Getting Started: index.md
   - Configuration:
       - configuration/index.md
       - Log: configuration/log.md
@@ -41,6 +38,11 @@ nav:
           - DNS Rule: configuration/dns/rule.md
       - Inbound:
           - configuration/inbound/index.md
+          - Mixed: configuration/inbound/mixed.md
+          - Socks: configuration/inbound/socks.md
+          - HTTP: configuration/inbound/http.md
+          - Direct: configuration/inbound/direct.md
+          - Shadowsocks: configuration/inbound/shadowsocks.md
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
