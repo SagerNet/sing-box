@@ -38,7 +38,7 @@ func NewDefault(options option.DialerOptions) *DefaultDialer {
 		listener.Control = control.Append(listener.Control, ProtectPath(options.ProtectPath))
 	}
 	if options.ConnectTimeout != 0 {
-		dialer.Timeout = time.Duration(options.ConnectTimeout) * time.Second
+		dialer.Timeout = time.Duration(options.ConnectTimeout)
 	}
 	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
 }

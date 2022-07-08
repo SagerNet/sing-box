@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"time"
 
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -13,16 +14,18 @@ import (
 )
 
 type ResolveDialer struct {
-	dialer   N.Dialer
-	router   adapter.Router
-	strategy C.DomainStrategy
+	dialer        N.Dialer
+	router        adapter.Router
+	strategy      C.DomainStrategy
+	fallbackDelay time.Duration
 }
 
-func NewResolveDialer(router adapter.Router, dialer N.Dialer, strategy C.DomainStrategy) *ResolveDialer {
+func NewResolveDialer(router adapter.Router, dialer N.Dialer, strategy C.DomainStrategy, fallbackDelay time.Duration) *ResolveDialer {
 	return &ResolveDialer{
 		dialer,
 		router,
 		strategy,
+		fallbackDelay,
 	}
 }
 
@@ -40,7 +43,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	if err != nil {
 		return nil, err
 	}
-	return DialSerial(ctx, d.dialer, network, destination, addresses)
+	return DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy, d.fallbackDelay)
 }
 
 func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -57,7 +60,11 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	return ListenSerial(ctx, d.dialer, destination, addresses)
+	conn, err := ListenSerial(ctx, d.dialer, destination, addresses)
+	if err != nil {
+		return nil, err
+	}
+	return NewResolvePacketConn(d.router, d.strategy, conn), nil
 }
 
 func (d *ResolveDialer) Upstream() any {

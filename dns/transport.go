@@ -22,8 +22,15 @@ func NewTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, addre
 	}
 	host := serverURL.Hostname()
 	port := serverURL.Port()
-	if port == "" {
-		port = "53"
+	switch serverURL.Scheme {
+	case "tls":
+		if port == "" {
+			port = "853"
+		}
+	default:
+		if port == "" {
+			port = "53"
+		}
 	}
 	destination := M.ParseSocksaddrHostPortStr(host, port)
 	switch serverURL.Scheme {

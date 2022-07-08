@@ -18,6 +18,7 @@ func DialSerial(ctx context.Context, dialer N.Dialer, network string, destinatio
 		conn, err = dialer.DialContext(ctx, network, M.SocksaddrFromAddrPort(address, destination.Port))
 		if err != nil {
 			connErrors = append(connErrors, err)
+			continue
 		}
 		return conn, nil
 	}

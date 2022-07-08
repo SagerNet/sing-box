@@ -73,10 +73,9 @@ func (t *UDPTransport) offer() (*dnsConnection, error) {
 func (t *UDPTransport) newConnection(conn *dnsConnection) {
 	defer close(conn.done)
 	defer conn.Close()
-	ctx, cancel := context.WithCancel(t.ctx)
-	err := task.Any(t.ctx, func() error {
+	err := task.Any(t.ctx, func(ctx context.Context) error {
 		return t.loopIn(conn)
-	}, func() error {
+	}, func(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
@@ -84,7 +83,6 @@ func (t *UDPTransport) newConnection(conn *dnsConnection) {
 			return os.ErrClosed
 		}
 	})
-	cancel()
 	conn.err = err
 	if err != nil {
 		t.logger.Debug("connection closed: ", err)

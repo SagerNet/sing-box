@@ -450,7 +450,6 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 			r.logger.WithContext(ctx).Error("outbound not found: ", detour)
 		}
 	}
-	r.logger.WithContext(ctx).Info("no match")
 	return defaultOutbound
 }
 
@@ -470,7 +469,6 @@ func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
 			r.dnsLogger.WithContext(ctx).Error("transport not found: ", detour)
 		}
 	}
-	r.dnsLogger.WithContext(ctx).Info("no match")
 	return r.defaultTransport
 }
 
