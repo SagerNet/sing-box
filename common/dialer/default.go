@@ -5,11 +5,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/sagernet/sing/common/control"
-	M "github.com/sagernet/sing/common/metadata"
-
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/control"
+	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/database64128/tfo-go"
 )

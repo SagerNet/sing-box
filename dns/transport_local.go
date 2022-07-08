@@ -7,10 +7,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/sagernet/sing/common"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 
 	"golang.org/x/net/dns/dnsmessage"
 )

@@ -5,10 +5,9 @@ import (
 	"crypto/tls"
 	"io"
 
-	"github.com/sagernet/sing/common/bufio"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common/bufio"
 )
 
 func TLSClientHello(ctx context.Context, reader io.Reader) (*adapter.InboundContext, error) {

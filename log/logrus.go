@@ -4,11 +4,10 @@ import (
 	"context"
 	"os"
 
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
-
-	"github.com/sagernet/sing-box/option"
 
 	"github.com/sirupsen/logrus"
 )

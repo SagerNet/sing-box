@@ -5,10 +5,9 @@ import (
 	"net"
 	"net/netip"
 
-	N "github.com/sagernet/sing/common/network"
-
 	"github.com/sagernet/sing-box/common/geoip"
 	C "github.com/sagernet/sing-box/constant"
+	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/net/dns/dnsmessage"
 )

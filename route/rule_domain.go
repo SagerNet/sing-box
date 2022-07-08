@@ -3,10 +3,9 @@ package route
 import (
 	"strings"
 
-	"github.com/sagernet/sing/common"
-
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/domain"
+	"github.com/sagernet/sing/common"
 )
 
 var _ RuleItem = (*DomainItem)(nil)

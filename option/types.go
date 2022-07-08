@@ -5,9 +5,8 @@ import (
 	"strings"
 	"time"
 
-	E "github.com/sagernet/sing/common/exceptions"
-
 	C "github.com/sagernet/sing-box/constant"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/goccy/go-json"
 )
