@@ -6,18 +6,16 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
 )
 
 var _ RuleItem = (*GeositeItem)(nil)
 
 type GeositeItem struct {
-	router  adapter.Router
-	logger  log.Logger
-	codes   []string
-	matcher *DefaultRule
+	router   adapter.Router
+	logger   log.Logger
+	codes    []string
+	matchers []adapter.Rule
 }
 
 func NewGeositeItem(router adapter.Router, logger log.Logger, codes []string) *GeositeItem {
@@ -29,32 +27,25 @@ func NewGeositeItem(router adapter.Router, logger log.Logger, codes []string) *G
 }
 
 func (r *GeositeItem) Update() error {
-	geositeReader := r.router.GeositeReader()
-	if geositeReader == nil {
-		return E.New("geosite reader is not initialized")
-	}
-	var subRules []option.DefaultRule
+	var matchers []adapter.Rule
 	for _, code := range r.codes {
-		items, err := geositeReader.Read(code)
+		matcher, err := r.router.LoadGeosite(code)
 		if err != nil {
 			return E.Cause(err, "read geosite")
 		}
-		subRules = append(subRules, geosite.Compile(items))
+		matchers = append(matchers, matcher)
 	}
-	matcherRule := geosite.Merge(subRules)
-	matcher, err := NewDefaultRule(r.router, r.logger, matcherRule)
-	if err != nil {
-		return E.Cause(err, "compile geosite")
-	}
-	r.matcher = matcher
+	r.matchers = matchers
 	return nil
 }
 
 func (r *GeositeItem) Match(metadata *adapter.InboundContext) bool {
-	if r.matcher == nil {
-		return false
+	for _, matcher := range r.matchers {
+		if matcher.Match(metadata) {
+			return true
+		}
 	}
-	return r.matcher.Match(metadata)
+	return false
 }
 
 func (r *GeositeItem) String() string {

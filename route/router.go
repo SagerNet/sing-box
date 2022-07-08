@@ -53,6 +53,7 @@ type Router struct {
 	geositeOptions      option.GeositeOptions
 	geoIPReader         *geoip.Reader
 	geositeReader       *geosite.Reader
+	geositeCache        map[string]adapter.Rule
 
 	dnsClient             adapter.DNSClient
 	defaultDomainStrategy C.DomainStrategy
@@ -75,6 +76,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		needGeositeDatabase:   hasGeoRule(options.Rules, isGeositeRule) || hasGeoDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
+		geositeCache:          make(map[string]adapter.Rule),
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions),
 		defaultDomainStrategy: C.DomainStrategy(dnsOptions.Strategy),
@@ -285,6 +287,8 @@ func (r *Router) Start() error {
 		if err != nil {
 			return err
 		}
+		r.geositeCache = nil
+		r.geositeReader = nil
 	}
 	return nil
 }
@@ -311,8 +315,21 @@ func (r *Router) GeoIPReader() *geoip.Reader {
 	return r.geoIPReader
 }
 
-func (r *Router) GeositeReader() *geosite.Reader {
-	return r.geositeReader
+func (r *Router) LoadGeosite(code string) (adapter.Rule, error) {
+	rule, cached := r.geositeCache[code]
+	if cached {
+		return rule, nil
+	}
+	items, err := r.geositeReader.Read(code)
+	if err != nil {
+		return nil, err
+	}
+	rule, err = NewDefaultRule(r, nil, geosite.Compile(items))
+	if err != nil {
+		return nil, err
+	}
+	r.geositeCache[code] = rule
+	return rule, nil
 }
 
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
