@@ -55,6 +55,10 @@ nav:
           - GeoIP: configuration/route/geoip.md
           - Geosite: configuration/route/geosite.md
           - Route Rule: configuration/route/rule.md
+  - Examples:
+      - examples/index.md
+      - Shadowsocks Server: examples/ss-server.md
+      - Shadowsocks Client: examples/ss-client.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
