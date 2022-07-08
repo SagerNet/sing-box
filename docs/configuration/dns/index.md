@@ -23,7 +23,7 @@
 
 #### final
 
-Default dns server tag, the first one will be used if it is empty.
+Default dns server tag. the first server will be used if empty.
 
 #### strategy
 
