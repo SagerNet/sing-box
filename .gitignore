@@ -2,3 +2,4 @@
 /vendor/
 /*.json
 /*.db
+/site/
