@@ -3,10 +3,9 @@ package route
 import (
 	"strings"
 
-	E "github.com/sagernet/sing/common/exceptions"
-
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var _ RuleItem = (*GeositeItem)(nil)

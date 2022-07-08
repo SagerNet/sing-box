@@ -4,9 +4,8 @@ import (
 	"context"
 	"net/netip"
 
-	M "github.com/sagernet/sing/common/metadata"
-
 	C "github.com/sagernet/sing-box/constant"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 type Inbound interface {

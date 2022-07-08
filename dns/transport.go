@@ -4,12 +4,11 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/log"
 )
 
 func NewTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, address string) (adapter.DNSTransport, error) {

@@ -3,10 +3,9 @@ package option
 import (
 	"bytes"
 
+	"github.com/sagernet/sing-box/common/badjson"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/sagernet/sing-box/common/badjson"
 
 	"github.com/goccy/go-json"
 )

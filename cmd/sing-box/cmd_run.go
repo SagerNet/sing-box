@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box"
-
 	"github.com/sagernet/sing-box/option"
 
 	"github.com/goccy/go-json"

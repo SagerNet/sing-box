@@ -3,9 +3,8 @@ package route
 import (
 	"strings"
 
-	F "github.com/sagernet/sing/common/format"
-
 	"github.com/sagernet/sing-box/adapter"
+	F "github.com/sagernet/sing/common/format"
 )
 
 var _ RuleItem = (*OutboundItem)(nil)

@@ -4,14 +4,13 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing/common/auth"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/auth"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/protocol/socks"
 )
 
 var _ adapter.Inbound = (*Socks)(nil)
