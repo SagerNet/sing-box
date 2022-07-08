@@ -24,6 +24,3 @@ func TLSClientHello(ctx context.Context, reader io.Reader) (*adapter.InboundCont
 	}
 	return nil, err
 }
-
-func Packet() {
-}
