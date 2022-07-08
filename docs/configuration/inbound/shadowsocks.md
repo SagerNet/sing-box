@@ -101,6 +101,7 @@ Both if empty.
 {
   "inbounds": [
     {
+      "type": "shadowsocks",
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg==",
       "users": [
@@ -120,6 +121,7 @@ Both if empty.
 {
   "inbounds": [
     {
+      "type": "shadowsocks",
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg==",
       "destinations": [

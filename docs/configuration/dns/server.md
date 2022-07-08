@@ -49,7 +49,7 @@ The domain strategy for resolving the domain name in the address.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-`dns.strategy` will be used if `address_strategy` is empty.
+`dns.strategy` will be used if empty.
 
 #### detour
 
