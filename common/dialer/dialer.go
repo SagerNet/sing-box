@@ -1,6 +1,8 @@
 package dialer
 
 import (
+	"time"
+
 	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
 
@@ -21,7 +23,11 @@ func NewOutbound(router adapter.Router, options option.OutboundDialerOptions) N.
 	dialer := New(router, options.DialerOptions)
 	domainStrategy := C.DomainStrategy(options.DomainStrategy)
 	if domainStrategy != C.DomainStrategyAsIS || options.Detour == "" && !C.CGO_ENABLED {
-		dialer = NewResolveDialer(router, dialer, domainStrategy)
+		fallbackDelay := time.Duration(options.FallbackDelay)
+		if fallbackDelay == 0 {
+			fallbackDelay = time.Millisecond * 300
+		}
+		dialer = NewResolveDialer(router, dialer, domainStrategy, fallbackDelay)
 	}
 	if options.OverrideOptions.IsValid() {
 		dialer = NewOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))

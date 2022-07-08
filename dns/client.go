@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing/common"
@@ -71,11 +72,14 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	if !c.disableCache {
 		c.storeCache(question, response)
 	}
-	return message, err
+	return response, err
 }
 
 func (c *Client) Lookup(ctx context.Context, transport adapter.DNSTransport, domain string, strategy C.DomainStrategy) ([]netip.Addr, error) {
-	dnsName, err := dnsmessage.NewName(domain)
+	if strings.HasPrefix(domain, ".") {
+		domain = domain[:len(domain)-1]
+	}
+	dnsName, err := dnsmessage.NewName(domain + ".")
 	if err != nil {
 		return nil, wrapError(err)
 	}

@@ -67,19 +67,20 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 }
 
 type DialerOptions struct {
-	Detour         string `json:"detour,omitempty"`
-	BindInterface  string `json:"bind_interface,omitempty"`
-	ProtectPath    string `json:"protect_path,omitempty"`
-	RoutingMark    int    `json:"routing_mark,omitempty"`
-	ReuseAddr      bool   `json:"reuse_addr,omitempty"`
-	ConnectTimeout int    `json:"connect_timeout,omitempty"`
-	TCPFastOpen    bool   `json:"tcp_fast_open,omitempty"`
+	Detour         string   `json:"detour,omitempty"`
+	BindInterface  string   `json:"bind_interface,omitempty"`
+	ProtectPath    string   `json:"protect_path,omitempty"`
+	RoutingMark    int      `json:"routing_mark,omitempty"`
+	ReuseAddr      bool     `json:"reuse_addr,omitempty"`
+	ConnectTimeout Duration `json:"connect_timeout,omitempty"`
+	TCPFastOpen    bool     `json:"tcp_fast_open,omitempty"`
 }
 
 type OutboundDialerOptions struct {
 	DialerOptions
 	OverrideOptions *OverrideStreamOptions `json:"override,omitempty"`
 	DomainStrategy  DomainStrategy         `json:"domain_strategy,omitempty"`
+	FallbackDelay   Duration               `json:"fallback_delay,omitempty"`
 }
 
 type OverrideStreamOptions struct {

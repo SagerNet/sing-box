@@ -142,6 +142,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 			if hErr != nil {
+				conn.Close()
 				a.NewError(ctx, E.Cause(hErr, "process connection from ", metadata.Source))
 			}
 		}()

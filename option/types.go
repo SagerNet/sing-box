@@ -3,6 +3,7 @@ package option
 import (
 	"net/netip"
 	"strings"
+	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -133,5 +134,25 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown domain strategy: ", value)
 	}
+	return nil
+}
+
+type Duration time.Duration
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal((time.Duration)(d).String())
+}
+
+func (d *Duration) UnmarshalJSON(bytes []byte) error {
+	var value string
+	err := json.Unmarshal(bytes, &value)
+	if err != nil {
+		return err
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return err
+	}
+	*d = Duration(duration)
 	return nil
 }
