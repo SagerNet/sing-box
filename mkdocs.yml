@@ -50,6 +50,11 @@ nav:
           - Socks: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
+      - Route:
+          - configuration/route/index.md
+          - GeoIP: configuration/route/geoip.md
+          - Geosite: configuration/route/geosite.md
+          - Route Rule: configuration/route/rule.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
