@@ -163,6 +163,9 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	}
 	decryptedReader := bytes.NewReader(decrypted)
 	frameType, err := decryptedReader.ReadByte()
+	if err != nil {
+		return nil, err
+	}
 	if frameType != 0x6 {
 		// not crypto frame
 		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, nil
