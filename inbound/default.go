@@ -54,7 +54,7 @@ func (a *myInboundAdapter) Tag() string {
 }
 
 func (a *myInboundAdapter) Start() error {
-	bindAddr := M.SocksaddrFromAddrPort(netip.Addr(a.listenOptions.Listen), a.listenOptions.Port)
+	bindAddr := M.SocksaddrFromAddrPort(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
 	if common.Contains(a.network, C.NetworkTCP) {
 		var tcpListener *net.TCPListener
 		var err error
