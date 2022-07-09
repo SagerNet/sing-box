@@ -49,6 +49,7 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, ta
 	inbound.udpNat = udpnat.New[netip.AddrPort](options.UDPTimeout, inbound.upstreamContextHandler())
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
+	inbound.packetUpstream = inbound.udpNat
 	return inbound
 }
 
