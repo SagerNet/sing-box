@@ -17,6 +17,7 @@ type _Inbound struct {
 	HTTPOptions        SimpleInboundOptions      `json:"-"`
 	MixedOptions       SimpleInboundOptions      `json:"-"`
 	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
+	TunOptions         TunInboundOptions         `json:"-"`
 }
 
 type Inbound _Inbound
@@ -28,7 +29,8 @@ func (h Inbound) Equals(other Inbound) bool {
 		h.SocksOptions.Equals(other.SocksOptions) &&
 		h.HTTPOptions.Equals(other.HTTPOptions) &&
 		h.MixedOptions.Equals(other.MixedOptions) &&
-		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions)
+		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions) &&
+		h.TunOptions == other.TunOptions
 }
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
@@ -44,6 +46,8 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.MixedOptions
 	case C.TypeShadowsocks:
 		v = h.ShadowsocksOptions
+	case C.TypeTun:
+		v = h.TunOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -67,6 +71,8 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.MixedOptions
 	case C.TypeShadowsocks:
 		v = &h.ShadowsocksOptions
+	case C.TypeTun:
+		v = &h.TunOptions
 	default:
 		return nil
 	}
@@ -131,4 +137,11 @@ type ShadowsocksDestination struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	ServerOptions
+}
+
+type TunInboundOptions struct {
+	InterfaceName string       `json:"interface_name"`
+	MTU           uint32       `json:"mtu,omitempty"`
+	Inet4Address  ListenPrefix `json:"inet4_address"`
+	Inet6Address  ListenPrefix `json:"inet6_address"`
 }

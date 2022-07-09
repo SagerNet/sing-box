@@ -34,6 +34,8 @@ func New(ctx context.Context, router adapter.Router, logger log.Logger, index in
 		return NewMixed(ctx, router, inboundLogger, options.Tag, options.MixedOptions), nil
 	case C.TypeShadowsocks:
 		return NewShadowsocks(ctx, router, inboundLogger, options.Tag, options.ShadowsocksOptions)
+	case C.TypeTun:
+		return NewTun(ctx, router, inboundLogger, options.Tag, options.TunOptions)
 	default:
 		return nil, E.New("unknown inbound type: ", options.Type)
 	}
