@@ -28,6 +28,7 @@ func PeekPacket(ctx context.Context, packet []byte, sniffers ...PacketSniffer) (
 	for _, sniffer := range sniffers {
 		sniffMetadata, err := sniffer(ctx, packet)
 		if err != nil {
+			println(err.Error())
 			return nil, err
 		}
 		return sniffMetadata, nil
