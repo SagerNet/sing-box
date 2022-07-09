@@ -59,6 +59,7 @@ nav:
       - examples/index.md
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
+  - Benchmark: benchmark.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
