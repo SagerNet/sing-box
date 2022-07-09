@@ -7,7 +7,7 @@ require (
 	github.com/goccy/go-json v0.9.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220708041648-04e100e91a92
+	github.com/sagernet/sing v0.0.0-20220709022704-8843420c7814
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.5.0
