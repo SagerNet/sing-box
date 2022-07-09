@@ -6,7 +6,7 @@
     "servers": [],
     "rules": [],
     "final": "",
-    "strategy": "prefer_ipv6",
+    "strategy": "",
     "disable_cache": false,
     "disable_expire": false
   }
@@ -23,7 +23,9 @@
 
 #### final
 
-Default dns server tag. the first server will be used if empty.
+Default dns server tag.
+
+The first server will be used if empty.
 
 #### strategy
 

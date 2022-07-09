@@ -34,7 +34,7 @@ type DNSServerOptions struct {
 	Address         string         `json:"address"`
 	AddressResolver string         `json:"address_resolver,omitempty"`
 	AddressStrategy DomainStrategy `json:"address_strategy,omitempty"`
-	DialerOptions
+	Detour          string         `json:"detour,omitempty"`
 }
 
 type _DNSRule struct {

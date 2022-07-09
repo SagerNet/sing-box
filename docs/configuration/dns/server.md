@@ -25,6 +25,8 @@ The tag of the dns server.
 
 #### address
 
+==Required==
+
 The address of the dns server.
 
 | Protocol | Format                      |
@@ -41,6 +43,8 @@ The address of the dns server.
 
 #### address_resolver
 
+==Required if address contains domain==
+
 Tag of a another server to resolve the domain name in the address.
 
 #### address_strategy
@@ -55,4 +59,4 @@ One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
 Tag of an outbound for connecting to the dns server.
 
-Requests will be sent directly if the empty.
+Default outbound will be used if empty.
