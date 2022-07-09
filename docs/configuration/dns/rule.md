@@ -140,4 +140,6 @@ Included default rules.
 
 #### server
 
+==Required==
+
 Tag of the target dns server.

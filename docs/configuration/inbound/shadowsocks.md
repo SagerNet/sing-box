@@ -29,9 +29,13 @@
 
 #### listen
 
+==Required==
+
 Listen address.
 
 #### listen_port
+
+==Required==
 
 Listen port.
 
@@ -75,6 +79,8 @@ Both if empty.
 
 #### method
 
+==Required==
+
 | Method                        | Key Length |
 |-------------------------------|------------|
 | 2022-blake3-aes-128-gcm       | 16         |
@@ -88,6 +94,8 @@ Both if empty.
 | xchacha20-ietf-poly1305       | /          |
 
 #### password
+
+==Required==
 
 | Method        | Password Format                     |
 |---------------|-------------------------------------|

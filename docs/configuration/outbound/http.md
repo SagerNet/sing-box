@@ -31,9 +31,13 @@
 
 #### server
 
+==Required==
+
 The server address.
 
 #### server_port
+
+==Required==
 
 The server port.
 

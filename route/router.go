@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +117,18 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 			if _, exists := dummyTransportMap[tag]; exists {
 				continue
 			}
-			detour := dialer.New(router, server.DialerOptions)
+			var detour N.Dialer
+			if server.Detour == "" {
+				detour = dialer.NewRouter(router)
+			} else {
+				detour = dialer.NewDetour(router, server.Detour)
+			}
+			serverURL, err := url.Parse(server.Address)
+			if err != nil {
+				return nil, err
+			}
+			serverAddress := serverURL.Hostname()
+			_, notIpAddress := netip.ParseAddr(serverAddress)
 			if server.AddressResolver != "" {
 				if !transportTagMap[server.AddressResolver] {
 					return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
@@ -126,6 +138,8 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 				} else {
 					continue
 				}
+			} else if notIpAddress != nil {
+				return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 			}
 			transport, err := dns.NewTransport(ctx, detour, logger, server.Address)
 			if err != nil {

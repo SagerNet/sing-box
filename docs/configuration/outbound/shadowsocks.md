@@ -32,13 +32,19 @@
 
 #### server
 
+==Required==
+
 The server address.
 
 #### server_port
 
+==Required==
+
 The server port.
 
 #### method
+
+==Required==
 
 Encryption methods:
 
@@ -65,6 +71,8 @@ Legacy encryption methods:
 * `xchacha20`
 
 #### password
+
+==Required==
 
 The shadowsocks password.
 
