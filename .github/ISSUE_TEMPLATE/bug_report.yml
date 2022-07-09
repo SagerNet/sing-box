@@ -1,0 +1,54 @@
+name: Bug Report
+description: "Create a report to help us improve."
+labels: [ bug ]
+body:
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Welcome
+      options:
+        - label: Yes, I'm using the latest major release. Only such installations are supported.
+          required: true
+        - label: Yes, I've searched similar issues on GitHub and didn't find any.
+          required: true
+        - label: Yes, I've included all information below (version, config, etc).
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Description of the problem
+      placeholder: Your problem description
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version of sing-box
+      value: |-
+        <details>
+
+        ```console
+        $ sing-box --version
+        # Paste output here
+        ```
+
+        </details>
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Server and client configuration file
+      value: |-
+        <details>
+
+        ```console
+        # paste json here
+        ```
+
+        </details>
+    validations:
+      required: true
