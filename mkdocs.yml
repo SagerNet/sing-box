@@ -2,7 +2,9 @@ site_name: sing-box
 site_author: nekohasekai
 repo_url: https://github.com/SagerNet/sing-box
 repo_name: SagerNet/sing-box
-copyright: Copyright &copy; 2021 nekohasekai
+copyright: Copyright &copy; 2022 nekohasekai
+site_description: The universal proxy platform.
+remote_branch: docs
 edit_uri: ""
 theme:
   name: material
