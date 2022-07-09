@@ -231,12 +231,16 @@ func (a *myInboundAdapter) newError(err error) {
 }
 
 func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
+	NewError(a.logger, ctx, err)
+}
+
+func NewError(logger log.Logger, ctx context.Context, err error) {
 	common.Close(err)
 	if E.IsClosed(err) {
-		a.logger.WithContext(ctx).Debug("connection closed")
+		logger.WithContext(ctx).Debug("connection closed")
 		return
 	}
-	a.logger.WithContext(ctx).Error(err)
+	logger.WithContext(ctx).Error(err)
 }
 
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {

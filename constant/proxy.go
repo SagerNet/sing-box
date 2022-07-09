@@ -7,4 +7,5 @@ const (
 	TypeHTTP        = "http"
 	TypeMixed       = "mixed"
 	TypeShadowsocks = "shadowsocks"
+	TypeTun         = "tun"
 )
