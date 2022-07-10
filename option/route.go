@@ -69,7 +69,7 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch r.Type {
-	case "":
+	case "", C.RuleTypeDefault:
 		r.Type = C.RuleTypeDefault
 		v = &r.DefaultOptions
 	case C.RuleTypeLogical:
