@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"testing"
+	"time"
 
 	F "github.com/sagernet/sing/common/format"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 type DockerOptions struct {
