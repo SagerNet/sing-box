@@ -36,6 +36,7 @@ func (m *monitor) Start() error {
 	if err != nil {
 		return err
 	}
+	go m.loopUpdate()
 	return nil
 }
 
@@ -72,8 +73,15 @@ func (m *monitor) checkUpdate() error {
 			continue
 		}
 
+		oldInterface := m.defaultInterfaceName
+		oldIndex := m.defaultInterfaceIndex
+
 		m.defaultInterfaceName = link.Attrs().Name
 		m.defaultInterfaceIndex = link.Attrs().Index
+
+		if oldInterface == m.defaultInterfaceName && oldIndex == m.defaultInterfaceIndex {
+			return nil
+		}
 
 		m.logger.Info("updated default interface ", m.defaultInterfaceName, ", index ", m.defaultInterfaceIndex)
 		return nil

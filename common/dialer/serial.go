@@ -33,6 +33,7 @@ func ListenSerial(ctx context.Context, dialer N.Dialer, destination M.Socksaddr,
 		conn, err = dialer.ListenPacket(ctx, M.SocksaddrFromAddrPort(address, destination.Port))
 		if err != nil {
 			connErrors = append(connErrors, err)
+			continue
 		}
 		return conn, nil
 	}

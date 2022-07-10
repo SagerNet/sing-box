@@ -183,7 +183,7 @@ func (r *DefaultDNSRule) Outbound() string {
 }
 
 func (r *DefaultDNSRule) String() string {
-	return strings.Join(common.Map(r.allItems, F.ToString0[RuleItem]), " ")
+	return strings.Join(F.MapToString(r.allItems), " ")
 }
 
 var _ adapter.Rule = (*LogicalRule)(nil)
@@ -271,5 +271,5 @@ func (r *LogicalDNSRule) String() string {
 	case C.LogicalTypeOr:
 		op = "||"
 	}
-	return "logical(" + strings.Join(common.Map(r.rules, F.ToString0[*DefaultDNSRule]), " "+op+" ") + ")"
+	return "logical(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
 }

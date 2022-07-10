@@ -414,7 +414,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(common.Map(metadata.DestinationAddresses, F.ToString0[netip.Addr]), " "), "]")
+		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
@@ -456,7 +456,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(common.Map(metadata.DestinationAddresses, F.ToString0[netip.Addr]), " "), "]")
+		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {

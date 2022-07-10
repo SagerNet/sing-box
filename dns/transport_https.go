@@ -63,11 +63,10 @@ func (t *HTTPSTransport) Exchange(ctx context.Context, message *dnsmessage.Messa
 		return nil, err
 	}
 	buffer.Truncate(len(rawMessage))
-	request, err := http.NewRequest(http.MethodPost, t.destination, bytes.NewReader(buffer.Bytes()))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.destination, bytes.NewReader(buffer.Bytes()))
 	if err != nil {
 		return nil, err
 	}
-	request.WithContext(ctx)
 	request.Header.Set("content-type", dnsMimeType)
 	request.Header.Set("accept", dnsMimeType)
 

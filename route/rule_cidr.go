@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -70,7 +69,7 @@ func (r *IPCIDRItem) String() string {
 	if pLen == 1 {
 		description += r.prefixes[0].String()
 	} else {
-		description += "[" + strings.Join(common.Map(r.prefixes, F.ToString0[netip.Prefix]), " ") + "]"
+		description += "[" + strings.Join(F.MapToString(r.prefixes), " ") + "]"
 	}
 	return description
 }

@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -47,7 +46,7 @@ func (r *PortItem) String() string {
 	if pLen == 1 {
 		description += F.ToString(r.ports[0])
 	} else {
-		description += "[" + strings.Join(common.Map(r.ports, F.ToString0[uint16]), " ") + "]"
+		description += "[" + strings.Join(F.MapToString(r.ports), " ") + "]"
 	}
 	return description
 }
