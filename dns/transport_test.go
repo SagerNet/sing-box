@@ -1,4 +1,4 @@
-package dns
+package dns_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -15,8 +16,9 @@ import (
 )
 
 func TestTCPDNS(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	transport := NewTCPTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:53"))
+	transport := dns.NewTCPTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:53"))
 	response, err := transport.Exchange(ctx, makeQuery())
 	cancel()
 	require.NoError(t, err)
@@ -27,8 +29,9 @@ func TestTCPDNS(t *testing.T) {
 }
 
 func TestTLSDNS(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	transport := NewTLSTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:853"))
+	transport := dns.NewTLSTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:853"))
 	response, err := transport.Exchange(ctx, makeQuery())
 	cancel()
 	require.NoError(t, err)
@@ -39,8 +42,9 @@ func TestTLSDNS(t *testing.T) {
 }
 
 func TestHTTPSDNS(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	transport := NewHTTPSTransport(N.SystemDialer, "https://1.0.0.1:443/dns-query")
+	transport := dns.NewHTTPSTransport(N.SystemDialer, "https://1.0.0.1:443/dns-query")
 	response, err := transport.Exchange(ctx, makeQuery())
 	cancel()
 	require.NoError(t, err)
@@ -51,8 +55,9 @@ func TestHTTPSDNS(t *testing.T) {
 }
 
 func TestUDPDNS(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	transport := NewUDPTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:53"))
+	transport := dns.NewUDPTransport(ctx, N.SystemDialer, log.NewNopLogger(), M.ParseSocksaddr("1.0.0.1:53"))
 	response, err := transport.Exchange(ctx, makeQuery())
 	cancel()
 	require.NoError(t, err)
@@ -63,8 +68,9 @@ func TestUDPDNS(t *testing.T) {
 }
 
 func TestLocalDNS(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	transport := NewLocalTransport()
+	transport := dns.NewLocalTransport()
 	response, err := transport.Lookup(ctx, "google.com", C.DomainStrategyAsIS)
 	cancel()
 	require.NoError(t, err)

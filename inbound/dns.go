@@ -101,7 +101,5 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger l
 }
 
 func formatDNSQuestion(question dnsmessage.Question) string {
-	domain := question.Name.String()
-	domain = domain[:len(domain)-1]
 	return string(question.Name.Data[:question.Name.Length-1]) + " " + question.Type.String()[4:] + " " + question.Class.String()[5:]
 }

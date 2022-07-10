@@ -26,7 +26,7 @@ func NewGeositeItem(router adapter.Router, logger log.Logger, codes []string) *G
 }
 
 func (r *GeositeItem) Update() error {
-	var matchers []adapter.Rule
+	matchers := make([]adapter.Rule, 0, len(r.codes))
 	for _, code := range r.codes {
 		matcher, err := r.router.LoadGeosite(code)
 		if err != nil {

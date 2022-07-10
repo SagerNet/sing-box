@@ -222,7 +222,7 @@ func (r *DefaultRule) Outbound() string {
 }
 
 func (r *DefaultRule) String() string {
-	return strings.Join(common.Map(r.allItems, F.ToString0[RuleItem]), " ")
+	return strings.Join(F.MapToString(r.allItems), " ")
 }
 
 var _ adapter.Rule = (*LogicalRule)(nil)
@@ -310,5 +310,5 @@ func (r *LogicalRule) String() string {
 	case C.LogicalTypeOr:
 		op = "||"
 	}
-	return "logical(" + strings.Join(common.Map(r.rules, F.ToString0[*DefaultRule]), " "+op+" ") + ")"
+	return "logical(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
 }

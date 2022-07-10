@@ -9,6 +9,7 @@ import (
 )
 
 func TestMatch(t *testing.T) {
+	t.Parallel()
 	r := require.New(t)
 	matcher := domain.NewMatcher([]string{"domain.com"}, []string{"suffix.com", ".suffix.org"})
 	r.True(matcher.Match("domain.com"))

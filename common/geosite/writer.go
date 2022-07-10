@@ -20,7 +20,7 @@ func Write(writer io.Writer, domains map[string][]Item) error {
 	for _, code := range keys {
 		index[code] = content.Len()
 		for _, domain := range domains[code] {
-			err := rw.WriteByte(content, byte(domain.Type))
+			err := rw.WriteByte(content, domain.Type)
 			if err != nil {
 				return err
 			}

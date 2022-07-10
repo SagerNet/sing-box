@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/sagernet/sing v0.0.0-20220709090827-3e39af603559
+	github.com/sagernet/sing v0.0.0-20220710135805-84be1c5eb67a
 	github.com/sagernet/sing-box v0.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.0

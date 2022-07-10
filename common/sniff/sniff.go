@@ -17,7 +17,7 @@ func PeekStream(ctx context.Context, reader io.Reader, sniffers ...StreamSniffer
 	for _, sniffer := range sniffers {
 		sniffMetadata, err := sniffer(ctx, reader)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		return sniffMetadata, nil
 	}
@@ -28,7 +28,7 @@ func PeekPacket(ctx context.Context, packet []byte, sniffers ...PacketSniffer) (
 	for _, sniffer := range sniffers {
 		sniffMetadata, err := sniffer(ctx, packet)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		return sniffMetadata, nil
 	}

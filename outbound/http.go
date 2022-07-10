@@ -43,9 +43,6 @@ func (h *HTTP) DialContext(ctx context.Context, network string, destination M.So
 }
 
 func (h *HTTP) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
-	metadata.Outbound = h.tag
-	metadata.Destination = destination
 	return nil, os.ErrInvalid
 }
 
