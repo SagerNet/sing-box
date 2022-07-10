@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 type DockerOptions struct {
@@ -64,6 +65,7 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	go func() {
 		attach.Reader.WriteTo(os.Stderr)
 	}()*/
+	time.Sleep(time.Second)
 }
 
 func cleanContainer(id string) error {

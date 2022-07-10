@@ -64,10 +64,12 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 		}
 		return nil, ErrNoRawSupport
 	}
+	messageId := message.ID
 	response, err := transport.Exchange(ctx, message)
 	if err != nil {
 		return nil, err
 	}
+	response.ID = messageId
 	if !c.disableCache {
 		c.storeCache(question, response)
 	}

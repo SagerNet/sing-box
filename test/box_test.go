@@ -7,14 +7,18 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/control"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 func mkPort(t *testing.T) uint16 {
+	var lc net.ListenConfig
+	lc.Control = control.ReuseAddr()
 	for {
 		tcpListener, err := net.ListenTCP("tcp", nil)
 		require.NoError(t, err)
@@ -36,6 +40,7 @@ func startInstance(t *testing.T, options option.Options) {
 	t.Cleanup(func() {
 		instance.Close()
 	})
+	time.Sleep(time.Second)
 }
 
 func testSuit(t *testing.T, clientPort uint16, testPort uint16) {

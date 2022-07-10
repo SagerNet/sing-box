@@ -482,7 +482,7 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	for i, rule := range r.rules {
 		if rule.Match(&metadata) {
 			detour := rule.Outbound()
-			r.logger.WithContext(ctx).Info("match[", i, "] ", rule.String(), " => ", detour)
+			r.logger.WithContext(ctx).Debug("match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
 				return outbound
 			}
@@ -501,7 +501,7 @@ func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
 	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
-			r.dnsLogger.WithContext(ctx).Info("match[", i, "] ", rule.String(), " => ", detour)
+			r.dnsLogger.WithContext(ctx).Debug("match[", i, "] ", rule.String(), " => ", detour)
 			if transport, loaded := r.transportMap[detour]; loaded {
 				return transport
 			}

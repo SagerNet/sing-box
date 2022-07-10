@@ -37,7 +37,7 @@ func (w *ResolveUDPConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
 
 func (w *ResolveUDPConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	if destination.Family().IsFqdn() {
+	if destination.IsFqdn() {
 		addresses, err := w.router.Lookup(context.Background(), destination.Fqdn, w.strategy)
 		if err != nil {
 			return err

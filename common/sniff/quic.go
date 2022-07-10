@@ -36,20 +36,9 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	if versionNumber != qtls.VersionDraft29 && versionNumber != qtls.Version1 && versionNumber != qtls.Version2 {
 		return nil, E.New("bad version")
 	}
-	if versionNumber == qtls.Version2 {
-		if (typeByte&0x30)>>4 == 0b01 {
-		} else if (typeByte&0x30)>>4 != 0b10 {
-			// 0-rtt
-		} else {
-			return nil, E.New("bad packet type")
-		}
-	} else {
-		if (typeByte&0x30)>>4 == 0x0 {
-		} else if (typeByte&0x30)>>4 != 0x01 {
-			// 0-rtt
-		} else {
-			return nil, E.New("bad packet type")
-		}
+	packetType := (typeByte & 0x30) >> 4
+	if packetType == 0 && versionNumber == qtls.Version2 || packetType == 2 && versionNumber != qtls.Version2 || packetType > 2 {
+		return nil, E.New("bad packet type")
 	}
 
 	destConnIDLen, err := reader.ReadByte()

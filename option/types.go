@@ -161,7 +161,7 @@ type ListenPrefix netip.Prefix
 func (p ListenPrefix) MarshalJSON() ([]byte, error) {
 	prefix := netip.Prefix(p)
 	if !prefix.IsValid() {
-		return json.Marshal("")
+		return json.Marshal(nil)
 	}
 	return json.Marshal(prefix.String())
 }
@@ -178,4 +178,11 @@ func (p *ListenPrefix) UnmarshalJSON(bytes []byte) error {
 	}
 	*p = ListenPrefix(prefix)
 	return nil
+}
+
+func (p *ListenPrefix) Build() netip.Prefix {
+	if p == nil {
+		return netip.Prefix{}
+	}
+	return netip.Prefix(*p)
 }

@@ -72,11 +72,11 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	h.logger.WithContext(ctx).Info("outbound packet connection to ", h.serverAddr)
-	outConn, err := h.dialer.ListenPacket(ctx, destination)
+	outConn, err := h.dialer.DialContext(ctx, "udp", h.serverAddr)
 	if err != nil {
 		return nil, err
 	}
-	return h.method.DialPacketConn(&bufio.BindPacketConn{PacketConn: outConn, Addr: h.serverAddr.UDPAddr()}), nil
+	return h.method.DialPacketConn(outConn), nil
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

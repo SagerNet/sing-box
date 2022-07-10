@@ -60,8 +60,8 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.Logger, tag s
 		inboundOptions: options.InboundOptions,
 		tunName:        tunName,
 		tunMTU:         tunMTU,
-		inet4Address:   netip.Prefix(options.Inet4Address),
-		inet6Address:   netip.Prefix(options.Inet6Address),
+		inet4Address:   options.Inet4Address.Build(),
+		inet6Address:   options.Inet6Address.Build(),
 		autoRoute:      options.AutoRoute,
 		hijackDNS:      options.HijackDNS,
 	}, nil
