@@ -6,7 +6,8 @@
     "geoip": {},
     "geosite": {},
     "rules": [],
-    "final": ""
+    "final": "",
+    "auto_detect_interface": false
   }
 }
 ```
@@ -22,3 +23,13 @@
 #### final
 
 Default outbound tag. the first outbound will be used if empty.
+
+#### auto_detect_interface
+
+!!! error ""
+
+    Linux only
+
+Bind outbound connections to the default NIC by default to prevent routing loops under Tun.
+
+Takes no effect if `outbound.bind_interface` is set.

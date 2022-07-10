@@ -40,6 +40,7 @@ nav:
           - DNS Rule: configuration/dns/rule.md
       - Inbound:
           - configuration/inbound/index.md
+          - Tun: configuration/inbound/tun.md
           - Direct: configuration/inbound/direct.md
           - Mixed: configuration/inbound/mixed.md
           - Socks: configuration/inbound/socks.md
@@ -61,6 +62,7 @@ nav:
       - examples/index.md
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
+      - Shadowsocks Tun: examples/ss-tun.md
   - Benchmark: benchmark.md
 markdown_extensions:
   - pymdownx.inlinehilite
