@@ -23,6 +23,9 @@ type Router interface {
 	Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error)
 	Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error)
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
+	AutoDetectInterface() bool
+	DefaultInterfaceName() string
+	DefaultInterfaceIndex() int
 }
 
 type Rule interface {

@@ -32,8 +32,9 @@ type Tun struct {
 	logger  log.Logger
 	options option.TunInboundOptions
 
-	tunFd uintptr
-	tun   *tun.GVisorTun
+	tunName string
+	tunFd   uintptr
+	tun     *tun.GVisorTun
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.TunInboundOptions) (*Tun, error) {
@@ -70,10 +71,11 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return E.Cause(err, "create tun interface")
 	}
-	err = tun.Configure(tunName, netip.Prefix(t.options.Inet4Address), netip.Prefix(t.options.Inet6Address), mtu)
+	err = tun.Configure(tunName, netip.Prefix(t.options.Inet4Address), netip.Prefix(t.options.Inet6Address), mtu, t.options.AutoRoute)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
+	t.tunName = tunName
 	t.tunFd = tunFd
 	t.tun = tun.NewGVisor(t.ctx, tunFd, mtu, t)
 	err = t.tun.Start()
@@ -85,6 +87,10 @@ func (t *Tun) Start() error {
 }
 
 func (t *Tun) Close() error {
+	err := tun.UnConfigure(t.tunName, netip.Prefix(t.options.Inet4Address), netip.Prefix(t.options.Inet6Address), t.options.AutoRoute)
+	if err != nil {
+		return err
+	}
 	return E.Errors(
 		t.tun.Close(),
 		os.NewFile(t.tunFd, "tun").Close(),
@@ -99,6 +105,9 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.Network = C.NetworkTCP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
+	metadata.SniffEnabled = t.options.SniffEnabled
+	metadata.SniffOverrideDestination = t.options.SniffOverrideDestination
+	metadata.DomainStrategy = C.DomainStrategy(t.options.DomainStrategy)
 	return t.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -110,6 +119,9 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	metadata.Network = C.NetworkUDP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
+	metadata.SniffEnabled = t.options.SniffEnabled
+	metadata.SniffOverrideDestination = t.options.SniffOverrideDestination
+	metadata.DomainStrategy = C.DomainStrategy(t.options.DomainStrategy)
 	return t.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
