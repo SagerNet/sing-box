@@ -20,6 +20,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/task"
 )
 
 var _ adapter.Inbound = (*Tun)(nil)
@@ -27,23 +28,42 @@ var _ adapter.Inbound = (*Tun)(nil)
 type Tun struct {
 	tag string
 
-	ctx     context.Context
-	router  adapter.Router
-	logger  log.Logger
-	options option.TunInboundOptions
+	ctx            context.Context
+	router         adapter.Router
+	logger         log.Logger
+	inboundOptions option.InboundOptions
+	tunName        string
+	tunMTU         uint32
+	inet4Address   netip.Prefix
+	inet6Address   netip.Prefix
+	autoRoute      bool
+	hijackDNS      bool
 
-	tunName string
-	tunFd   uintptr
-	tun     *tun.GVisorTun
+	tunFd uintptr
+	tun   *tun.GVisorTun
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.TunInboundOptions) (*Tun, error) {
+	tunName := options.InterfaceName
+	if tunName == "" {
+		tunName = mkInterfaceName()
+	}
+	tunMTU := options.MTU
+	if tunMTU == 0 {
+		tunMTU = 1500
+	}
 	return &Tun{
-		tag:     tag,
-		ctx:     ctx,
-		router:  router,
-		logger:  logger,
-		options: options,
+		tag:            tag,
+		ctx:            ctx,
+		router:         router,
+		logger:         logger,
+		inboundOptions: options.InboundOptions,
+		tunName:        tunName,
+		tunMTU:         tunMTU,
+		inet4Address:   netip.Prefix(options.Inet4Address),
+		inet6Address:   netip.Prefix(options.Inet6Address),
+		autoRoute:      options.AutoRoute,
+		hijackDNS:      options.HijackDNS,
 	}, nil
 }
 
@@ -56,38 +76,26 @@ func (t *Tun) Tag() string {
 }
 
 func (t *Tun) Start() error {
-	tunName := t.options.InterfaceName
-	if tunName == "" {
-		tunName = mkInterfaceName()
-	}
-	var mtu uint32
-	if t.options.MTU != 0 {
-		mtu = t.options.MTU
-	} else {
-		mtu = 1500
-	}
-
-	tunFd, err := tun.Open(tunName)
+	tunFd, err := tun.Open(t.tunName)
 	if err != nil {
 		return E.Cause(err, "create tun interface")
 	}
-	err = tun.Configure(tunName, netip.Prefix(t.options.Inet4Address), netip.Prefix(t.options.Inet6Address), mtu, t.options.AutoRoute)
+	err = tun.Configure(t.tunName, t.inet4Address, t.inet6Address, t.tunMTU, t.autoRoute)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
-	t.tunName = tunName
 	t.tunFd = tunFd
-	t.tun = tun.NewGVisor(t.ctx, tunFd, mtu, t)
+	t.tun = tun.NewGVisor(t.ctx, tunFd, t.tunMTU, t)
 	err = t.tun.Start()
 	if err != nil {
 		return err
 	}
-	t.logger.Info("started at ", tunName)
+	t.logger.Info("started at ", t.tunName)
 	return nil
 }
 
 func (t *Tun) Close() error {
-	err := tun.UnConfigure(t.tunName, netip.Prefix(t.options.Inet4Address), netip.Prefix(t.options.Inet6Address), t.options.AutoRoute)
+	err := tun.UnConfigure(t.tunName, t.inet4Address, t.inet6Address, t.autoRoute)
 	if err != nil {
 		return err
 	}
@@ -98,30 +106,40 @@ func (t *Tun) Close() error {
 }
 
 func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
-	t.logger.WithContext(ctx).Info("inbound connection from ", upstreamMetadata.Source)
-	t.logger.WithContext(ctx).Info("inbound connection to ", upstreamMetadata.Destination)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkTCP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
-	metadata.SniffEnabled = t.options.SniffEnabled
-	metadata.SniffOverrideDestination = t.options.SniffOverrideDestination
-	metadata.DomainStrategy = C.DomainStrategy(t.options.DomainStrategy)
+	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
+	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
+	metadata.DomainStrategy = C.DomainStrategy(t.inboundOptions.DomainStrategy)
+	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
+		return task.Run(ctx, func() error {
+			return NewDNSConnection(ctx, t.router, t.logger, conn, metadata)
+		})
+	}
+	t.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
+	t.logger.WithContext(ctx).Info("inbound connection to ", metadata.Destination)
 	return t.router.RouteConnection(ctx, conn, metadata)
 }
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
-	t.logger.WithContext(ctx).Info("inbound packet connection from ", upstreamMetadata.Source)
-	t.logger.WithContext(ctx).Info("inbound packet connection to ", upstreamMetadata.Destination)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkUDP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
-	metadata.SniffEnabled = t.options.SniffEnabled
-	metadata.SniffOverrideDestination = t.options.SniffOverrideDestination
-	metadata.DomainStrategy = C.DomainStrategy(t.options.DomainStrategy)
+	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
+	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
+	metadata.DomainStrategy = C.DomainStrategy(t.inboundOptions.DomainStrategy)
+	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
+		return task.Run(ctx, func() error {
+			return NewDNSPacketConnection(ctx, t.router, t.logger, conn, metadata)
+		})
+	}
+	t.logger.WithContext(ctx).Info("inbound packet connection from ", metadata.Source)
+	t.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
 	return t.router.RoutePacketConnection(ctx, conn, metadata)
 }
 

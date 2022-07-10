@@ -21,7 +21,7 @@ func New(router adapter.Router, options option.DialerOptions) N.Dialer {
 func NewOutbound(router adapter.Router, options option.OutboundDialerOptions) N.Dialer {
 	dialer := New(router, options.DialerOptions)
 	domainStrategy := C.DomainStrategy(options.DomainStrategy)
-	if domainStrategy != C.DomainStrategyAsIS || options.Detour == "" && !C.CGO_ENABLED {
+	if domainStrategy != C.DomainStrategyAsIS || options.Detour == "" {
 		fallbackDelay := time.Duration(options.FallbackDelay)
 		if fallbackDelay == 0 {
 			fallbackDelay = time.Millisecond * 300

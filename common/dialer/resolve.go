@@ -32,6 +32,9 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	if !destination.IsFqdn() {
 		return d.dialer.DialContext(ctx, network, destination)
 	}
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Destination = destination
+	metadata.Domain = ""
 	var addresses []netip.Addr
 	var err error
 	if d.strategy == C.DomainStrategyAsIS {
@@ -49,6 +52,9 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if !destination.IsFqdn() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Destination = destination
+	metadata.Domain = ""
 	var addresses []netip.Addr
 	var err error
 	if d.strategy == C.DomainStrategyAsIS {

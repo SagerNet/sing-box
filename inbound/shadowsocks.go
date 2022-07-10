@@ -73,9 +73,9 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Logge
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.ContextWithMetadata(log.ContextWithID(ctx), metadata), conn, adapter.UpstreamMetadata(metadata))
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.ContextWithMetadata(log.ContextWithID(ctx), metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }

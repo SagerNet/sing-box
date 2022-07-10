@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
@@ -83,7 +84,7 @@ func (t *UDPTransport) newConnection(conn *dnsConnection) {
 		}
 	})
 	conn.err = err
-	if err != nil {
+	if err != nil && !E.IsClosed(err) {
 		t.logger.Debug("connection closed: ", err)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -128,23 +129,28 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 			} else {
 				detour = dialer.NewDetour(router, server.Detour)
 			}
-			serverURL, err := url.Parse(server.Address)
-			if err != nil {
-				return nil, err
-			}
-			serverAddress := serverURL.Hostname()
-			_, notIpAddress := netip.ParseAddr(serverAddress)
-			if server.AddressResolver != "" {
-				if !transportTagMap[server.AddressResolver] {
-					return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
+			if server.Address != "local" {
+				serverURL, err := url.Parse(server.Address)
+				if err != nil {
+					return nil, err
 				}
-				if upstream, exists := dummyTransportMap[server.AddressResolver]; exists {
-					detour = dns.NewDialerWrapper(detour, C.DomainStrategy(server.AddressStrategy), router.dnsClient, upstream)
-				} else {
-					continue
+				serverAddress := serverURL.Hostname()
+				if serverAddress == "" {
+					serverAddress = server.Address
 				}
-			} else if notIpAddress != nil {
-				return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
+				_, notIpAddress := netip.ParseAddr(serverAddress)
+				if server.AddressResolver != "" {
+					if !transportTagMap[server.AddressResolver] {
+						return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
+					}
+					if upstream, exists := dummyTransportMap[server.AddressResolver]; exists {
+						detour = dns.NewDialerWrapper(detour, C.DomainStrategy(server.AddressStrategy), router.dnsClient, upstream)
+					} else {
+						continue
+					}
+				} else if notIpAddress != nil {
+					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
+				}
 			}
 			transport, err := dns.NewTransport(ctx, detour, logger, server.Address)
 			if err != nil {
@@ -419,7 +425,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	if metadata.SniffEnabled && metadata.Destination.Port == 443 {
+	if metadata.SniffEnabled {
 		_buffer := buf.StackNewPacket()
 		defer common.KeepAlive(_buffer)
 		buffer := common.Dup(_buffer)
@@ -489,7 +495,7 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
-		r.dnsLogger.WithContext(ctx).Warn("no context")
+		r.dnsLogger.WithContext(ctx).Warn("no context: ", reflect.TypeOf(ctx))
 		return r.defaultTransport
 	}
 	for i, rule := range r.dnsRules {
