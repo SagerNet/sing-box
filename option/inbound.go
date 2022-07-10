@@ -83,14 +83,18 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-type ListenOptions struct {
-	Listen                   ListenAddress  `json:"listen"`
-	ListenPort               uint16         `json:"listen_port"`
-	TCPFastOpen              bool           `json:"tcp_fast_open,omitempty"`
-	UDPTimeout               int64          `json:"udp_timeout,omitempty"`
+type InboundOptions struct {
 	SniffEnabled             bool           `json:"sniff,omitempty"`
 	SniffOverrideDestination bool           `json:"sniff_override_destination,omitempty"`
 	DomainStrategy           DomainStrategy `json:"domain_strategy,omitempty"`
+}
+
+type ListenOptions struct {
+	Listen      ListenAddress `json:"listen"`
+	ListenPort  uint16        `json:"listen_port"`
+	TCPFastOpen bool          `json:"tcp_fast_open,omitempty"`
+	UDPTimeout  int64         `json:"udp_timeout,omitempty"`
+	InboundOptions
 }
 
 type SimpleInboundOptions struct {
@@ -144,4 +148,6 @@ type TunInboundOptions struct {
 	MTU           uint32       `json:"mtu,omitempty"`
 	Inet4Address  ListenPrefix `json:"inet4_address"`
 	Inet6Address  ListenPrefix `json:"inet6_address"`
+	AutoRoute     bool         `json:"auto_route"`
+	InboundOptions
 }

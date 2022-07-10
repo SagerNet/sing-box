@@ -1,6 +1,7 @@
 package tun
 
 import (
+	"net"
 	"net/netip"
 
 	"github.com/vishvananda/netlink"
@@ -15,7 +16,7 @@ func Open(name string) (uintptr, error) {
 	return uintptr(tunFd), nil
 }
 
-func Configure(name string, inet4Address netip.Prefix, inet6Address netip.Prefix, mtu uint32) error {
+func Configure(name string, inet4Address netip.Prefix, inet6Address netip.Prefix, mtu uint32, autoRoute bool) error {
 	tunLink, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
@@ -47,5 +48,66 @@ func Configure(name string, inet4Address netip.Prefix, inet6Address netip.Prefix
 		return err
 	}
 
+	if autoRoute {
+		if inet4Address.IsValid() {
+			err = netlink.RouteAdd(&netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.IPv4zero,
+					Mask: net.CIDRMask(0, 32),
+				},
+				LinkIndex: tunLink.Attrs().Index,
+			})
+			if err != nil {
+				return err
+			}
+		}
+		if inet6Address.IsValid() {
+			err = netlink.RouteAdd(&netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.IPv6zero,
+					Mask: net.CIDRMask(0, 128),
+				},
+				LinkIndex: tunLink.Attrs().Index,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func UnConfigure(name string, inet4Address netip.Prefix, inet6Address netip.Prefix, autoRoute bool) error {
+	if autoRoute {
+		tunLink, err := netlink.LinkByName(name)
+		if err != nil {
+			return err
+		}
+		if inet4Address.IsValid() {
+			err = netlink.RouteDel(&netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.IPv4zero,
+					Mask: net.CIDRMask(0, 32),
+				},
+				LinkIndex: tunLink.Attrs().Index,
+			})
+			if err != nil {
+				return err
+			}
+		}
+		if inet6Address.IsValid() {
+			err = netlink.RouteDel(&netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.IPv6zero,
+					Mask: net.CIDRMask(0, 128),
+				},
+				LinkIndex: tunLink.Attrs().Index,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }

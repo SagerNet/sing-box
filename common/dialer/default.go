@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
@@ -18,12 +19,15 @@ type DefaultDialer struct {
 	net.ListenConfig
 }
 
-func NewDefault(options option.DialerOptions) *DefaultDialer {
+func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDialer {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
 		dialer.Control = control.Append(dialer.Control, control.BindToInterface(options.BindInterface))
 		listener.Control = control.Append(listener.Control, control.BindToInterface(options.BindInterface))
+	} else if router.AutoDetectInterface() {
+		dialer.Control = BindToInterface(router)
+		listener.Control = BindToInterface(router)
 	}
 	if options.RoutingMark != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))

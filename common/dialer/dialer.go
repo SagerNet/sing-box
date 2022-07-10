@@ -12,7 +12,7 @@ import (
 
 func New(router adapter.Router, options option.DialerOptions) N.Dialer {
 	if options.Detour == "" {
-		return NewDefault(options)
+		return NewDefault(router, options)
 	} else {
 		return NewDetour(router, options.Detour)
 	}

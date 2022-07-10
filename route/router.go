@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
+	"github.com/sagernet/sing-box/common/iffmonitor"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -62,6 +63,9 @@ type Router struct {
 	defaultTransport adapter.DNSTransport
 	transports       []adapter.DNSTransport
 	transportMap     map[string]adapter.DNSTransport
+
+	autoDetectInterface bool
+	interfaceMonitor    iffmonitor.InterfaceMonitor
 }
 
 func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -80,6 +84,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions),
 		defaultDomainStrategy: C.DomainStrategy(dnsOptions.Strategy),
+		autoDetectInterface:   options.AutoDetectInterface,
 	}
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, logger, ruleOptions)
@@ -181,6 +186,14 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 	router.defaultTransport = defaultTransport
 	router.transports = transports
 	router.transportMap = transportMap
+
+	if options.AutoDetectInterface {
+		monitor, err := iffmonitor.New(router.logger)
+		if err != nil {
+			return nil, E.Cause(err, "create default interface monitor")
+		}
+		router.interfaceMonitor = monitor
+	}
 	return router, nil
 }
 
@@ -303,6 +316,12 @@ func (r *Router) Start() error {
 		r.geositeCache = nil
 		r.geositeReader = nil
 	}
+	if r.interfaceMonitor != nil {
+		err := r.interfaceMonitor.Start()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -321,6 +340,7 @@ func (r *Router) Close() error {
 	}
 	return common.Close(
 		common.PtrOrNil(r.geoIPReader),
+		r.interfaceMonitor,
 	)
 }
 
@@ -399,7 +419,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	if metadata.SniffEnabled {
+	if metadata.SniffEnabled && metadata.Destination.Port == 443 {
 		_buffer := buf.StackNewPacket()
 		defer common.KeepAlive(_buffer)
 		buffer := common.Dup(_buffer)
@@ -417,9 +437,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				metadata.Destination.Fqdn = metadata.Domain
 			}
 			if metadata.Domain != "" {
-				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				r.logger.WithContext(ctx).Info("sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
 			} else {
-				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol)
+				r.logger.WithContext(ctx).Info("sniffed packet protocol: ", metadata.Protocol)
 			}
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
@@ -483,6 +503,24 @@ func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
 		}
 	}
 	return r.defaultTransport
+}
+
+func (r *Router) AutoDetectInterface() bool {
+	return r.autoDetectInterface
+}
+
+func (r *Router) DefaultInterfaceName() string {
+	if r.interfaceMonitor == nil {
+		return ""
+	}
+	return r.interfaceMonitor.DefaultInterfaceName()
+}
+
+func (r *Router) DefaultInterfaceIndex() int {
+	if r.interfaceMonitor == nil {
+		return 0
+	}
+	return r.interfaceMonitor.DefaultInterfaceIndex()
 }
 
 func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {
