@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
@@ -13,7 +14,6 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 func mkPort(t *testing.T) uint16 {
