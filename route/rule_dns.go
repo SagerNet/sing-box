@@ -41,8 +41,10 @@ func NewDNSRule(router adapter.Router, logger log.Logger, options option.DNSRule
 var _ adapter.Rule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
-	items    []RuleItem
-	outbound string
+	items        []RuleItem
+	addressItems []RuleItem
+	allItems     []RuleItem
+	outbound     string
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.Logger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
@@ -52,12 +54,14 @@ func NewDefaultDNSRule(router adapter.Router, logger log.Logger, options option.
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if options.Network != "" {
 		switch options.Network {
 		case C.NetworkTCP, C.NetworkUDP:
 			item := NewNetworkItem(options.Network)
 			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
 		default:
 			return nil, E.New("invalid network: ", options.Network)
 		}
@@ -65,29 +69,35 @@ func NewDefaultDNSRule(router adapter.Router, logger log.Logger, options option.
 	if len(options.Protocol) > 0 {
 		item := NewProtocolItem(options.Protocol)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
 		item := NewDomainItem(options.Domain, options.DomainSuffix)
-		rule.items = append(rule.items, item)
+		rule.addressItems = append(rule.addressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainKeyword) > 0 {
 		item := NewDomainKeywordItem(options.DomainKeyword)
-		rule.items = append(rule.items, item)
+		rule.addressItems = append(rule.addressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainRegex) > 0 {
 		item, err := NewDomainRegexItem(options.DomainRegex)
 		if err != nil {
 			return nil, E.Cause(err, "domain_regex")
 		}
-		rule.items = append(rule.items, item)
+		rule.addressItems = append(rule.addressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Geosite) > 0 {
 		item := NewGeositeItem(router, logger, options.Geosite)
-		rule.items = append(rule.items, item)
+		rule.addressItems = append(rule.addressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceGeoIP) > 0 {
 		item := NewGeoIPItem(router, logger, true, options.SourceGeoIP)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
@@ -95,24 +105,28 @@ func NewDefaultDNSRule(router adapter.Router, logger log.Logger, options option.
 			return nil, E.Cause(err, "source_ipcidr")
 		}
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Port) > 0 {
 		item := NewPortItem(false, options.Port)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Outbound) > 0 {
 		item := NewOutboundRule(options.Outbound)
 		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
 }
 
 func (r *DefaultDNSRule) Start() error {
-	for _, item := range r.items {
+	for _, item := range r.allItems {
 		err := common.Start(item)
 		if err != nil {
 			return err
@@ -122,7 +136,7 @@ func (r *DefaultDNSRule) Start() error {
 }
 
 func (r *DefaultDNSRule) Close() error {
-	for _, item := range r.items {
+	for _, item := range r.allItems {
 		err := common.Close(item)
 		if err != nil {
 			return err
@@ -132,7 +146,7 @@ func (r *DefaultDNSRule) Close() error {
 }
 
 func (r *DefaultDNSRule) UpdateGeosite() error {
-	for _, item := range r.items {
+	for _, item := range r.allItems {
 		if geositeItem, isSite := item.(*GeositeItem); isSite {
 			err := geositeItem.Update()
 			if err != nil {
@@ -149,6 +163,18 @@ func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
 			return false
 		}
 	}
+	if len(r.addressItems) > 0 {
+		var addressMatch bool
+		for _, item := range r.addressItems {
+			if item.Match(metadata) {
+				addressMatch = true
+				break
+			}
+		}
+		if !addressMatch {
+			return false
+		}
+	}
 	return true
 }
 
@@ -157,7 +183,7 @@ func (r *DefaultDNSRule) Outbound() string {
 }
 
 func (r *DefaultDNSRule) String() string {
-	return strings.Join(common.Map(r.items, F.ToString0[RuleItem]), " ")
+	return strings.Join(common.Map(r.allItems, F.ToString0[RuleItem]), " ")
 }
 
 var _ adapter.Rule = (*LogicalRule)(nil)
