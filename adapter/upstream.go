@@ -51,27 +51,6 @@ func (w *myUpstreamHandlerWrapper) NewError(ctx context.Context, err error) {
 	w.errorHandler.NewError(ctx, err)
 }
 
-var myContextType = (*MetadataContext)(nil)
-
-type MetadataContext struct {
-	context.Context
-	Metadata InboundContext
-}
-
-func (c *MetadataContext) Value(key any) any {
-	if key == myContextType {
-		return c
-	}
-	return c.Context.Value(key)
-}
-
-func ContextWithMetadata(ctx context.Context, metadata InboundContext) context.Context {
-	return &MetadataContext{
-		Context:  ctx,
-		Metadata: metadata,
-	}
-}
-
 func UpstreamMetadata(metadata InboundContext) M.Metadata {
 	return M.Metadata{
 		Source:      metadata.Source,
@@ -98,15 +77,15 @@ func NewUpstreamContextHandler(
 }
 
 func (w *myUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	myCtx := ctx.Value(myContextType).(*MetadataContext)
-	myCtx.Metadata.Destination = metadata.Destination
-	return w.connectionHandler(ctx, conn, myCtx.Metadata)
+	myMetadata := ContextFrom(ctx)
+	myMetadata.Destination = metadata.Destination
+	return w.connectionHandler(ctx, conn, *myMetadata)
 }
 
 func (w *myUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
-	myCtx := ctx.Value(myContextType).(*MetadataContext)
-	myCtx.Metadata.Destination = metadata.Destination
-	return w.packetHandler(ctx, conn, myCtx.Metadata)
+	myMetadata := ContextFrom(ctx)
+	myMetadata.Destination = metadata.Destination
+	return w.packetHandler(ctx, conn, *myMetadata)
 }
 
 func (w *myUpstreamContextHandlerWrapper) NewError(ctx context.Context, err error) {

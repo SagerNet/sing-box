@@ -95,7 +95,7 @@ func (t *TLSTransport) newConnection(conn *dnsConnection) {
 		}
 	})
 	conn.err = err
-	if err != nil {
+	if err != nil && !E.IsClosed(err) {
 		t.logger.Debug("connection closed: ", err)
 	}
 }

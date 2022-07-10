@@ -20,6 +20,9 @@ func NewTransport(ctx context.Context, dialer N.Dialer, logger log.Logger, addre
 		return nil, err
 	}
 	host := serverURL.Hostname()
+	if host == "" {
+		host = address
+	}
 	port := serverURL.Port()
 	switch serverURL.Scheme {
 	case "tls":
