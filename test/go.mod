@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/sagernet/sing v0.0.0-20220710135805-84be1c5eb67a
+	github.com/sagernet/sing v0.0.0-20220711103842-d3fb2260ef61
 	github.com/sagernet/sing-box v0.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.0
@@ -33,14 +33,16 @@ require (
 	github.com/oschwald/maxminddb-golang v1.9.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619 // indirect
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649 // indirect
-	github.com/vishvananda/netlink v1.0.1-0.20190930145447-2ec5bdc52b86 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220711091522-4f7247190c96 // indirect
+	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.3.0 // indirect
-	gvisor.dev/gvisor v0.0.0-20220708233959-72bdef768f07 // indirect
+	gvisor.dev/gvisor v0.0.0-20220711011657-cecae2f4234d // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )

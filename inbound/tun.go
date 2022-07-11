@@ -12,10 +12,11 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/tun"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -106,6 +107,7 @@ func (t *Tun) Close() error {
 }
 
 func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
+	ctx = log.ContextWithID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkTCP
@@ -113,7 +115,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
 	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
-	metadata.DomainStrategy = C.DomainStrategy(t.inboundOptions.DomainStrategy)
+	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
 	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
 		return task.Run(ctx, func() error {
 			return NewDNSConnection(ctx, t.router, t.logger, conn, metadata)
@@ -125,6 +127,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 }
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
+	ctx = log.ContextWithID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkUDP
@@ -132,7 +135,7 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
 	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
-	metadata.DomainStrategy = C.DomainStrategy(t.inboundOptions.DomainStrategy)
+	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
 	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
 		return task.Run(ctx, func() error {
 			return NewDNSPacketConnection(ctx, t.router, t.logger, conn, metadata)

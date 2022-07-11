@@ -6,6 +6,7 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/goccy/go-json"
@@ -91,21 +92,21 @@ func (l *Listable[T]) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
-type DomainStrategy C.DomainStrategy
+type DomainStrategy dns.DomainStrategy
 
 func (s DomainStrategy) MarshalJSON() ([]byte, error) {
 	var value string
-	switch C.DomainStrategy(s) {
-	case C.DomainStrategyAsIS:
+	switch dns.DomainStrategy(s) {
+	case dns.DomainStrategyAsIS:
 		value = ""
 		// value = "AsIS"
-	case C.DomainStrategyPreferIPv4:
+	case dns.DomainStrategyPreferIPv4:
 		value = "prefer_ipv4"
-	case C.DomainStrategyPreferIPv6:
+	case dns.DomainStrategyPreferIPv6:
 		value = "prefer_ipv6"
-	case C.DomainStrategyUseIPv4:
+	case dns.DomainStrategyUseIPv4:
 		value = "ipv4_only"
-	case C.DomainStrategyUseIPv6:
+	case dns.DomainStrategyUseIPv6:
 		value = "ipv6_only"
 	default:
 		return nil, E.New("unknown domain strategy: ", s)
@@ -121,15 +122,15 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	}
 	switch value {
 	case "", "AsIS":
-		*s = DomainStrategy(C.DomainStrategyAsIS)
+		*s = DomainStrategy(dns.DomainStrategyAsIS)
 	case "prefer_ipv4":
-		*s = DomainStrategy(C.DomainStrategyPreferIPv4)
+		*s = DomainStrategy(dns.DomainStrategyPreferIPv4)
 	case "prefer_ipv6":
-		*s = DomainStrategy(C.DomainStrategyPreferIPv6)
+		*s = DomainStrategy(dns.DomainStrategyPreferIPv6)
 	case "ipv4_only":
-		*s = DomainStrategy(C.DomainStrategyUseIPv4)
+		*s = DomainStrategy(dns.DomainStrategyUseIPv4)
 	case "ipv6_only":
-		*s = DomainStrategy(C.DomainStrategyUseIPv6)
+		*s = DomainStrategy(dns.DomainStrategyUseIPv6)
 	default:
 		return E.New("unknown domain strategy: ", value)
 	}

@@ -37,8 +37,8 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	}
 	if options.ProtectPath != "" {
-		dialer.Control = control.Append(dialer.Control, ProtectPath(options.ProtectPath))
-		listener.Control = control.Append(listener.Control, ProtectPath(options.ProtectPath))
+		dialer.Control = control.Append(dialer.Control, control.ProtectPath(options.ProtectPath))
+		listener.Control = control.Append(listener.Control, control.ProtectPath(options.ProtectPath))
 	}
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
