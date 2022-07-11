@@ -81,9 +81,19 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {
+	if cachedReader, isCached := serverConn.(N.CachedReader); isCached {
+		payload := cachedReader.ReadCached()
+		if payload != nil && !payload.IsEmpty() {
+			_, err := serverConn.Write(payload.Bytes())
+			if err != nil {
+				return err
+			}
+			return bufio.CopyConn(ctx, conn, serverConn)
+		}
+	}
 	_payload := buf.StackNew()
 	payload := common.Dup(_payload)
-	err := conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	err := conn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
 	if err != nil {
 		return err
 	}
