@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/netip"
 
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 )
 
@@ -25,7 +25,7 @@ type InboundContext struct {
 
 	// cache
 
-	DomainStrategy           C.DomainStrategy
+	DomainStrategy           dns.DomainStrategy
 	SniffEnabled             bool
 	SniffOverrideDestination bool
 	DestinationAddresses     []netip.Addr

@@ -29,11 +29,12 @@ type DNSClientOptions struct {
 }
 
 type DNSServerOptions struct {
-	Tag             string         `json:"tag,omitempty"`
-	Address         string         `json:"address"`
-	AddressResolver string         `json:"address_resolver,omitempty"`
-	AddressStrategy DomainStrategy `json:"address_strategy,omitempty"`
-	Detour          string         `json:"detour,omitempty"`
+	Tag                  string         `json:"tag,omitempty"`
+	Address              string         `json:"address"`
+	AddressResolver      string         `json:"address_resolver,omitempty"`
+	AddressStrategy      DomainStrategy `json:"address_strategy,omitempty"`
+	AddressFallbackDelay Duration       `json:"address_fallback_delay,omitempty"`
+	Detour               string         `json:"detour,omitempty"`
 }
 
 type _DNSRule struct {

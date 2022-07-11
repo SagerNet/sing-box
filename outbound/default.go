@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
@@ -41,7 +40,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = dialer.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
 		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
 	}
@@ -56,7 +55,7 @@ func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metad
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = dialer.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
 		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
 	}
@@ -71,7 +70,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	var outConn net.PacketConn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = dialer.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
 	} else {
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}

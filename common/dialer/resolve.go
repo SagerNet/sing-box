@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -15,11 +15,11 @@ import (
 type ResolveDialer struct {
 	dialer        N.Dialer
 	router        adapter.Router
-	strategy      C.DomainStrategy
+	strategy      dns.DomainStrategy
 	fallbackDelay time.Duration
 }
 
-func NewResolveDialer(router adapter.Router, dialer N.Dialer, strategy C.DomainStrategy, fallbackDelay time.Duration) *ResolveDialer {
+func NewResolveDialer(router adapter.Router, dialer N.Dialer, strategy dns.DomainStrategy, fallbackDelay time.Duration) *ResolveDialer {
 	return &ResolveDialer{
 		dialer,
 		router,
@@ -37,7 +37,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	metadata.Domain = ""
 	var addresses []netip.Addr
 	var err error
-	if d.strategy == C.DomainStrategyAsIS {
+	if d.strategy == dns.DomainStrategyAsIS {
 		addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
 	} else {
 		addresses, err = d.router.Lookup(ctx, destination.Fqdn, d.strategy)
@@ -45,7 +45,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	if err != nil {
 		return nil, err
 	}
-	return DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy, d.fallbackDelay)
+	return N.DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy == dns.DomainStrategyPreferIPv6, d.fallbackDelay)
 }
 
 func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -57,7 +57,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	metadata.Domain = ""
 	var addresses []netip.Addr
 	var err error
-	if d.strategy == C.DomainStrategyAsIS {
+	if d.strategy == dns.DomainStrategyAsIS {
 		addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
 	} else {
 		addresses, err = d.router.Lookup(ctx, destination.Fqdn, d.strategy)
@@ -65,7 +65,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	conn, err := ListenSerial(ctx, d.dialer, destination, addresses)
+	conn, err := N.ListenSerial(ctx, d.dialer, destination, addresses)
 	if err != nil {
 		return nil, err
 	}

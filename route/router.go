@@ -20,9 +20,9 @@ import (
 	"github.com/sagernet/sing-box/common/iffmonitor"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -57,13 +57,12 @@ type Router struct {
 	geositeReader       *geosite.Reader
 	geositeCache        map[string]adapter.Rule
 
-	dnsClient             adapter.DNSClient
-	defaultDomainStrategy C.DomainStrategy
+	dnsClient             *dns.Client
+	defaultDomainStrategy dns.DomainStrategy
 	dnsRules              []adapter.Rule
-
-	defaultTransport adapter.DNSTransport
-	transports       []adapter.DNSTransport
-	transportMap     map[string]adapter.DNSTransport
+	defaultTransport      dns.Transport
+	transports            []dns.Transport
+	transportMap          map[string]dns.Transport
 
 	autoDetectInterface bool
 	interfaceMonitor    iffmonitor.InterfaceMonitor
@@ -83,8 +82,8 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
 		defaultDetour:         options.Final,
-		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions),
-		defaultDomainStrategy: C.DomainStrategy(dnsOptions.Strategy),
+		dnsClient:             dns.NewClient(dns.DomainStrategy(dnsOptions.DNSClientOptions.Strategy), dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
+		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
 		autoDetectInterface:   options.AutoDetectInterface,
 	}
 	for i, ruleOptions := range options.Rules {
@@ -101,9 +100,9 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		}
 		router.dnsRules = append(router.dnsRules, dnsRule)
 	}
-	transports := make([]adapter.DNSTransport, len(dnsOptions.Servers))
-	dummyTransportMap := make(map[string]adapter.DNSTransport)
-	transportMap := make(map[string]adapter.DNSTransport)
+	transports := make([]dns.Transport, len(dnsOptions.Servers))
+	dummyTransportMap := make(map[string]dns.Transport)
+	transportMap := make(map[string]dns.Transport)
 	transportTags := make([]string, len(dnsOptions.Servers))
 	transportTagMap := make(map[string]bool)
 	for i, server := range dnsOptions.Servers {
@@ -144,7 +143,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 						return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
 					}
 					if upstream, exists := dummyTransportMap[server.AddressResolver]; exists {
-						detour = dns.NewDialerWrapper(detour, C.DomainStrategy(server.AddressStrategy), router.dnsClient, upstream)
+						detour = dns.NewDialerWrapper(detour, router.dnsClient, upstream, dns.DomainStrategy(server.AddressStrategy), time.Duration(server.AddressFallbackDelay))
 					} else {
 						continue
 					}
@@ -152,7 +151,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
-			transport, err := dns.NewTransport(ctx, detour, logger, server.Address)
+			transport, err := dns.NewTransport(ctx, detour, server.Address)
 			if err != nil {
 				return nil, E.Cause(err, "parse dns server[", tag, "]")
 			}
@@ -176,7 +175,7 @@ func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptio
 		})
 		return nil, E.New("found circular reference in dns servers: ", strings.Join(unresolvedTags, " "))
 	}
-	var defaultTransport adapter.DNSTransport
+	var defaultTransport dns.Transport
 	if options.Final != "" {
 		defaultTransport = dummyTransportMap[options.Final]
 		if defaultTransport == nil {
@@ -408,7 +407,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			conn = bufio.NewCachedConn(conn, buffer)
 		}
 	}
-	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != C.DomainStrategyAsIS {
+	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
 		if err != nil {
 			return err
@@ -450,7 +449,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
 	}
-	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != C.DomainStrategyAsIS {
+	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
 		if err != nil {
 			return err
@@ -470,7 +469,7 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 	return r.dnsClient.Exchange(ctx, r.matchDNS(ctx), message)
 }
 
-func (r *Router) Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error) {
+func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, strategy)
 }
 
@@ -492,7 +491,7 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	return defaultOutbound
 }
 
-func (r *Router) matchDNS(ctx context.Context) adapter.DNSTransport {
+func (r *Router) matchDNS(ctx context.Context) dns.Transport {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		r.dnsLogger.WithContext(ctx).Warn("no context: ", reflect.TypeOf(ctx))

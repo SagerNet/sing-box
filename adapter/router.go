@@ -6,7 +6,7 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/geoip"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-dns"
 	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -21,7 +21,7 @@ type Router interface {
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
 	Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error)
-	Lookup(ctx context.Context, domain string, strategy C.DomainStrategy) ([]netip.Addr, error)
+	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
 	AutoDetectInterface() bool
 	DefaultInterfaceName() string

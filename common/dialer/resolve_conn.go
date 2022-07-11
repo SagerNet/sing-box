@@ -5,14 +5,14 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewResolvePacketConn(router adapter.Router, strategy C.DomainStrategy, conn net.PacketConn) N.NetPacketConn {
+func NewResolvePacketConn(router adapter.Router, strategy dns.DomainStrategy, conn net.PacketConn) N.NetPacketConn {
 	if udpConn, ok := conn.(*net.UDPConn); ok {
 		return &ResolveUDPConn{udpConn, router, strategy}
 	} else {
@@ -23,7 +23,7 @@ func NewResolvePacketConn(router adapter.Router, strategy C.DomainStrategy, conn
 type ResolveUDPConn struct {
 	*net.UDPConn
 	router   adapter.Router
-	strategy C.DomainStrategy
+	strategy dns.DomainStrategy
 }
 
 func (w *ResolveUDPConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
@@ -54,7 +54,7 @@ func (w *ResolveUDPConn) Upstream() any {
 type ResolvePacketConn struct {
 	net.PacketConn
 	router   adapter.Router
-	strategy C.DomainStrategy
+	strategy dns.DomainStrategy
 }
 
 func (w *ResolvePacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {

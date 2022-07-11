@@ -12,6 +12,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -135,7 +136,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			metadata.Inbound = a.tag
 			metadata.SniffEnabled = a.listenOptions.SniffEnabled
 			metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-			metadata.DomainStrategy = C.DomainStrategy(a.listenOptions.DomainStrategy)
+			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 			metadata.Network = C.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
@@ -168,7 +169,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.Inbound = a.tag
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = C.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -193,7 +194,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.Inbound = a.tag
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = C.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = C.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
