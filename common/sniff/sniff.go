@@ -1,11 +1,16 @@
 package sniff
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type (
@@ -13,13 +18,23 @@ type (
 	PacketSniffer = func(ctx context.Context, packet []byte) (*adapter.InboundContext, error)
 )
 
-func PeekStream(ctx context.Context, reader io.Reader, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
+func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
+	err := conn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	if err != nil {
+		return nil, err
+	}
+	_, err = buffer.ReadFrom(conn)
+	err = E.Errors(err, conn.SetReadDeadline(time.Time{}))
+	if err != nil {
+		return nil, err
+	}
+	var metadata *adapter.InboundContext
 	for _, sniffer := range sniffers {
-		sniffMetadata, err := sniffer(ctx, reader)
+		metadata, err = sniffer(ctx, bytes.NewReader(buffer.Bytes()))
 		if err != nil {
 			continue
 		}
-		return sniffMetadata, nil
+		return metadata, nil
 	}
 	return nil, os.ErrInvalid
 }
