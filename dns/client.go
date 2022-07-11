@@ -31,24 +31,32 @@ type Client struct {
 	cache         *cache.LruCache[dnsmessage.Question, *dnsmessage.Message]
 	disableCache  bool
 	disableExpire bool
+	strategy      C.DomainStrategy
 }
 
 func NewClient(options option.DNSClientOptions) *Client {
-	if options.DisableCache {
-		return &Client{
-			disableCache: true,
-		}
-	} else {
-		return &Client{
-			cache:         cache.New[dnsmessage.Question, *dnsmessage.Message](),
-			disableExpire: options.DisableExpire,
-		}
+	client := &Client{
+		disableCache:  options.DisableCache,
+		disableExpire: options.DisableExpire,
+		strategy:      C.DomainStrategy(options.Strategy),
 	}
+	if !options.DisableCache {
+		client.cache = cache.New[dnsmessage.Question, *dnsmessage.Message]()
+	}
+	return client
 }
 
 func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, message *dnsmessage.Message) (*dnsmessage.Message, error) {
-	if len(message.Questions) == 0 {
-		return nil, E.New("empty query")
+	if len(message.Questions) != 1 {
+		responseMessage := dnsmessage.Message{
+			Header: dnsmessage.Header{
+				ID:               message.ID,
+				RCode:            dnsmessage.RCodeFormatError,
+				Response:         true,
+				RecursionDesired: true,
+			},
+		}
+		return &responseMessage, nil
 	}
 	question := message.Questions[0]
 	if !c.disableCache {
@@ -63,6 +71,18 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return c.exchangeToLookup(ctx, transport, message, question)
 		}
 		return nil, ErrNoRawSupport
+	}
+	if question.Type == dnsmessage.TypeA && c.strategy == C.DomainStrategyUseIPv6 || question.Type == dnsmessage.TypeAAAA && c.strategy == C.DomainStrategyUseIPv4 {
+		responseMessage := dnsmessage.Message{
+			Header: dnsmessage.Header{
+				ID:               message.ID,
+				RCode:            dnsmessage.RCodeNameError,
+				Response:         true,
+				RecursionDesired: true,
+			},
+			Questions: []dnsmessage.Question{question},
+		}
+		return &responseMessage, nil
 	}
 	messageId := message.ID
 	response, err := transport.Exchange(ctx, message)

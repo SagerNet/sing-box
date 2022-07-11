@@ -9,10 +9,9 @@ import (
 )
 
 type DNSOptions struct {
-	Servers  []DNSServerOptions `json:"servers,omitempty"`
-	Rules    []DNSRule          `json:"rules,omitempty"`
-	Final    string             `json:"final,omitempty"`
-	Strategy DomainStrategy     `json:"strategy,omitempty"`
+	Servers []DNSServerOptions `json:"servers,omitempty"`
+	Rules   []DNSRule          `json:"rules,omitempty"`
+	Final   string             `json:"final,omitempty"`
 	DNSClientOptions
 }
 
@@ -20,13 +19,13 @@ func (o DNSOptions) Equals(other DNSOptions) bool {
 	return common.ComparableSliceEquals(o.Servers, other.Servers) &&
 		common.SliceEquals(o.Rules, other.Rules) &&
 		o.Final == other.Final &&
-		o.Strategy == other.Strategy &&
 		o.DNSClientOptions == other.DNSClientOptions
 }
 
 type DNSClientOptions struct {
-	DisableCache  bool `json:"disable_cache,omitempty"`
-	DisableExpire bool `json:"disable_expire,omitempty"`
+	Strategy      DomainStrategy `json:"strategy,omitempty"`
+	DisableCache  bool           `json:"disable_cache,omitempty"`
+	DisableExpire bool           `json:"disable_expire,omitempty"`
 }
 
 type DNSServerOptions struct {
