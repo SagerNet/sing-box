@@ -389,8 +389,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		defer common.KeepAlive(_buffer)
 		buffer := common.Dup(_buffer)
 		defer buffer.Release()
-		reader := io.TeeReader(conn, buffer)
-		sniffMetadata, err := sniff.PeekStream(ctx, reader, sniff.TLSClientHello, sniff.HTTPHost)
+		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, sniff.TLSClientHello, sniff.HTTPHost)
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
@@ -398,9 +397,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 				metadata.Destination.Fqdn = metadata.Domain
 			}
 			if metadata.Domain != "" {
-				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				r.logger.WithContext(ctx).Debug("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
 			} else {
-				r.logger.WithContext(ctx).Info("sniffed protocol: ", metadata.Protocol)
+				r.logger.WithContext(ctx).Debug("sniffed protocol: ", metadata.Protocol)
 			}
 		}
 		if !buffer.IsEmpty() {
@@ -413,7 +412,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		r.dnsLogger.WithContext(ctx).Debug("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
@@ -442,9 +441,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				metadata.Destination.Fqdn = metadata.Domain
 			}
 			if metadata.Domain != "" {
-				r.logger.WithContext(ctx).Info("sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				r.logger.WithContext(ctx).Debug("sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
 			} else {
-				r.logger.WithContext(ctx).Info("sniffed packet protocol: ", metadata.Protocol)
+				r.logger.WithContext(ctx).Debug("sniffed packet protocol: ", metadata.Protocol)
 			}
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
@@ -455,7 +454,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Info("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		r.dnsLogger.WithContext(ctx).Debug("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
