@@ -2,6 +2,8 @@ package box
 
 import (
 	"context"
+	"io"
+	"os"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -18,20 +20,54 @@ import (
 var _ adapter.Service = (*Box)(nil)
 
 type Box struct {
-	router    adapter.Router
-	logger    log.Logger
-	inbounds  []adapter.Inbound
-	outbounds []adapter.Outbound
-	createdAt time.Time
+	createdAt  time.Time
+	router     adapter.Router
+	inbounds   []adapter.Inbound
+	outbounds  []adapter.Outbound
+	logFactory log.Factory
+	logger     log.ContextLogger
+	logFile    *os.File
 }
 
 func New(ctx context.Context, options option.Options) (*Box, error) {
 	createdAt := time.Now()
-	logger, err := log.NewLogger(common.PtrValueOrDefault(options.Log))
-	if err != nil {
-		return nil, E.Cause(err, "parse log options")
+	logOptions := common.PtrValueOrDefault(options.Log)
+
+	var logFactory log.Factory
+	var logFile *os.File
+	if logOptions.Disabled {
+		logFactory = log.NewNOPFactory()
+	} else {
+		var logWriter io.Writer
+		switch logOptions.Output {
+		case "", "stderr":
+			logWriter = os.Stderr
+		case "stdout":
+			logWriter = os.Stdout
+		default:
+			var err error
+			logFile, err = os.OpenFile(logOptions.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+			if err != nil {
+				return nil, err
+			}
+		}
+		logFormatter := log.Formatter{
+			BaseTime:         createdAt,
+			DisableColors:    logOptions.DisableColor || logFile != nil,
+			DisableTimestamp: !logOptions.Timestamp && logFile != nil,
+			FullTimestamp:    logOptions.Timestamp,
+			TimestampFormat:  "-0700 2006-01-02 15:04:05",
+		}
+		logFactory = log.NewFactory(logFormatter, logWriter)
 	}
-	router, err := route.NewRouter(ctx, logger, common.PtrValueOrDefault(options.Route), common.PtrValueOrDefault(options.DNS))
+
+	router, err := route.NewRouter(
+		ctx,
+		logFactory.NewLogger("router"),
+		logFactory.NewLogger("dns"),
+		common.PtrValueOrDefault(options.Route),
+		common.PtrValueOrDefault(options.DNS),
+	)
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
 	}
@@ -39,7 +75,18 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
 	for i, inboundOptions := range options.Inbounds {
 		var in adapter.Inbound
-		in, err = inbound.New(ctx, router, logger, i, inboundOptions)
+		var tag string
+		if inboundOptions.Tag != "" {
+			tag = inboundOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		in, err = inbound.New(
+			ctx,
+			router,
+			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
+			inboundOptions,
+		)
 		if err != nil {
 			return nil, E.Cause(err, "parse inbound[", i, "]")
 		}
@@ -47,14 +94,23 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	}
 	for i, outboundOptions := range options.Outbounds {
 		var out adapter.Outbound
-		out, err = outbound.New(router, logger, i, outboundOptions)
+		var tag string
+		if outboundOptions.Tag != "" {
+			tag = outboundOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		out, err = outbound.New(
+			router,
+			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
+			outboundOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
 		outbounds = append(outbounds, out)
 	}
 	err = router.Initialize(outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(router, logger, 0, option.Outbound{Type: "direct", Tag: "default"})
+		out, oErr := outbound.New(router, logFactory.NewLogger("outbound/direct"), option.Outbound{Type: "direct", Tag: "default"})
 		common.Must(oErr)
 		outbounds = append(outbounds, out)
 		return out
@@ -63,20 +119,18 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		return nil, err
 	}
 	return &Box{
-		router:    router,
-		logger:    logger,
-		inbounds:  inbounds,
-		outbounds: outbounds,
-		createdAt: createdAt,
+		router:     router,
+		inbounds:   inbounds,
+		outbounds:  outbounds,
+		createdAt:  createdAt,
+		logFactory: logFactory,
+		logger:     logFactory.NewLogger(""),
+		logFile:    logFile,
 	}, nil
 }
 
 func (s *Box) Start() error {
-	err := s.logger.Start()
-	if err != nil {
-		return err
-	}
-	err = s.router.Start()
+	err := s.router.Start()
 	if err != nil {
 		return err
 	}
@@ -99,6 +153,6 @@ func (s *Box) Close() error {
 	}
 	return common.Close(
 		s.router,
-		s.logger,
+		common.PtrOrNil(s.logFile),
 	)
 }

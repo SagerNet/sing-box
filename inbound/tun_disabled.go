@@ -11,6 +11,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func NewTun(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.TunInboundOptions) (adapter.Inbound, error) {
+func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (adapter.Inbound, error) {
 	return nil, E.New("tun disabled in this build")
 }

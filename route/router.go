@@ -39,8 +39,8 @@ var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
 	ctx       context.Context
-	logger    log.Logger
-	dnsLogger log.Logger
+	logger    log.ContextLogger
+	dnsLogger log.ContextLogger
 
 	outboundByTag map[string]adapter.Outbound
 	rules         []adapter.Rule
@@ -68,11 +68,11 @@ type Router struct {
 	interfaceMonitor    iffmonitor.InterfaceMonitor
 }
 
-func NewRouter(ctx context.Context, logger log.Logger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
+func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
 	router := &Router{
 		ctx:                   ctx,
-		logger:                logger.WithPrefix("router: "),
-		dnsLogger:             logger.WithPrefix("dns: "),
+		logger:                logger,
+		dnsLogger:             dnsLogger,
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.Rule, 0, len(dnsOptions.Rules)),
@@ -397,9 +397,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 				metadata.Destination.Fqdn = metadata.Domain
 			}
 			if metadata.Domain != "" {
-				r.logger.WithContext(ctx).Debug("sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
 			} else {
-				r.logger.WithContext(ctx).Debug("sniffed protocol: ", metadata.Protocol)
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
 			}
 		}
 		if !buffer.IsEmpty() {
@@ -412,7 +412,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Debug("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
@@ -441,9 +441,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				metadata.Destination.Fqdn = metadata.Domain
 			}
 			if metadata.Domain != "" {
-				r.logger.WithContext(ctx).Debug("sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
 			} else {
-				r.logger.WithContext(ctx).Debug("sniffed packet protocol: ", metadata.Protocol)
+				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
 			}
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
@@ -454,7 +454,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			return err
 		}
 		metadata.DestinationAddresses = addresses
-		r.dnsLogger.WithContext(ctx).Debug("resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
@@ -480,11 +480,11 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 	for i, rule := range r.rules {
 		if rule.Match(&metadata) {
 			detour := rule.Outbound()
-			r.logger.WithContext(ctx).Debug("match[", i, "] ", rule.String(), " => ", detour)
+			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
 				return outbound
 			}
-			r.logger.WithContext(ctx).Error("outbound not found: ", detour)
+			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
 	}
 	return defaultOutbound
@@ -493,17 +493,17 @@ func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, def
 func (r *Router) matchDNS(ctx context.Context) dns.Transport {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
-		r.dnsLogger.WithContext(ctx).Warn("no context: ", reflect.TypeOf(ctx))
+		r.dnsLogger.WarnContext(ctx, "no context: ", reflect.TypeOf(ctx))
 		return r.defaultTransport
 	}
 	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
-			r.dnsLogger.WithContext(ctx).Debug("match[", i, "] ", rule.String(), " => ", detour)
+			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if transport, loaded := r.transportMap[detour]; loaded {
 				return transport
 			}
-			r.dnsLogger.WithContext(ctx).Error("transport not found: ", detour)
+			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 		}
 	}
 	return r.defaultTransport

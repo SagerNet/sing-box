@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 
 	"github.com/goccy/go-json"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -21,17 +21,17 @@ var commandCheck = &cobra.Command{
 func checkConfiguration(cmd *cobra.Command, args []string) {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
-		logrus.Fatal("read config: ", err)
+		log.Fatal("read config: ", err)
 	}
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		logrus.Fatal("decode config: ", err)
+		log.Fatal("decode config: ", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	_, err = box.New(ctx, options)
 	if err != nil {
-		logrus.Fatal("create service: ", err)
+		log.Fatal("create service: ", err)
 	}
 	cancel()
 }

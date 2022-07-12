@@ -25,7 +25,7 @@ type Shadowsocks struct {
 	serverAddr M.Socksaddr
 }
 
-func NewShadowsocks(router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
+func NewShadowsocks(router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
 	method, err := shadowimpl.FetchMethod(options.Method, options.Password)
 	if err != nil {
 		return nil, err
@@ -49,14 +49,14 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 	metadata.Destination = destination
 	switch network {
 	case C.NetworkTCP:
-		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 		outConn, err := h.dialer.DialContext(ctx, C.NetworkTCP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return h.method.DialEarlyConn(outConn, destination), nil
 	case C.NetworkUDP:
-		h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		outConn, err := h.dialer.DialContext(ctx, C.NetworkUDP, h.serverAddr)
 		if err != nil {
 			return nil, err
@@ -71,7 +71,7 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.WithContext(ctx).Info("outbound packet connection to ", h.serverAddr)
+	h.logger.InfoContext(ctx, "outbound packet connection to ", h.serverAddr)
 	outConn, err := h.dialer.DialContext(ctx, "udp", h.serverAddr)
 	if err != nil {
 		return nil, err

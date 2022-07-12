@@ -17,7 +17,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {
+func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {
 	if len(options.Users) > 0 && len(options.Destinations) > 0 {
 		return nil, E.New("users and destinations options must not be combined")
 	}
@@ -37,7 +37,7 @@ type Shadowsocks struct {
 	service shadowsocks.Service
 }
 
-func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
+func newShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*Shadowsocks, error) {
 	inbound := &Shadowsocks{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,
@@ -73,9 +73,9 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Logge
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }

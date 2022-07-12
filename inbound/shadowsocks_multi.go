@@ -24,7 +24,7 @@ type ShadowsocksMulti struct {
 	users   []option.ShadowsocksUser
 }
 
-func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksMulti, error) {
+func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksMulti, error) {
 	inbound := &ShadowsocksMulti{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,
@@ -68,11 +68,11 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 }
 
 func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksMulti) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -81,7 +81,7 @@ func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, met
 	if user == "" {
 		user = F.ToString(userCtx.User)
 	}
-	h.logger.WithContext(ctx).Info("[", user, "] inbound connection to ", metadata.Destination)
+	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -91,8 +91,8 @@ func (h *ShadowsocksMulti) newPacketConnection(ctx context.Context, conn N.Packe
 	if user == "" {
 		user = F.ToString(userCtx.User)
 	}
-	ctx = log.ContextWithID(ctx)
-	h.logger.WithContext(ctx).Info("[", user, "] inbound packet connection from ", metadata.Source)
-	h.logger.WithContext(ctx).Info("[", user, "] inbound packet connection to ", metadata.Destination)
+	ctx = log.ContextWithNewID(ctx)
+	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection from ", metadata.Source)
+	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }

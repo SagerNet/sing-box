@@ -5,14 +5,8 @@ import (
 
 	"github.com/sagernet/sing-box/log"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-func init() {
-	logrus.StandardLogger().SetLevel(logrus.TraceLevel)
-	logrus.StandardLogger().SetFormatter(&log.LogrusTextFormatter{})
-}
 
 var (
 	configPath   string
@@ -38,17 +32,14 @@ func init() {
 
 func main() {
 	if err := mainCommand.Execute(); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
 func preRun(cmd *cobra.Command, args []string) {
-	if disableColor {
-		logrus.StandardLogger().SetFormatter(&log.LogrusTextFormatter{DisableColors: true})
-	}
 	if workingDir != "" {
 		if err := os.Chdir(workingDir); err != nil {
-			logrus.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 }

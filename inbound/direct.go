@@ -24,7 +24,7 @@ type Direct struct {
 	overrideDestination M.Socksaddr
 }
 
-func NewDirect(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.DirectInboundOptions) *Direct {
+func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectInboundOptions) *Direct {
 	inbound := &Direct{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeDirect,
@@ -64,7 +64,7 @@ func (d *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
-	d.logger.WithContext(ctx).Info("inbound connection to ", metadata.Destination)
+	d.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	return d.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -79,6 +79,6 @@ func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.B
 	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
-	d.udpNat.NewPacketDirect(adapter.WithContext(log.ContextWithID(ctx), &metadata), metadata.Source.AddrPort(), conn, buffer, adapter.UpstreamMetadata(metadata))
+	d.udpNat.NewPacketDirect(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), metadata.Source.AddrPort(), conn, buffer, adapter.UpstreamMetadata(metadata))
 	return nil
 }

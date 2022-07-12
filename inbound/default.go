@@ -29,7 +29,7 @@ type myInboundAdapter struct {
 	network        []string
 	ctx            context.Context
 	router         adapter.Router
-	logger         log.Logger
+	logger         log.ContextLogger
 	tag            string
 	listenOptions  option.ListenOptions
 	connHandler    adapter.ConnectionHandler
@@ -107,19 +107,19 @@ func (a *myInboundAdapter) upstreamContextHandler() adapter.UpstreamHandlerAdapt
 }
 
 func (a *myInboundAdapter) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	a.logger.WithContext(ctx).Info("inbound connection to ", metadata.Destination)
+	a.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	return a.router.RouteConnection(ctx, conn, metadata)
 }
 
 func (a *myInboundAdapter) streamPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	a.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
+	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
 func (a *myInboundAdapter) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	ctx = log.ContextWithID(ctx)
-	a.logger.WithContext(ctx).Info("inbound packet connection from ", metadata.Source)
-	a.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
+	ctx = log.ContextWithNewID(ctx)
+	a.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
@@ -131,7 +131,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			return
 		}
 		go func() {
-			ctx := log.ContextWithID(a.ctx)
+			ctx := log.ContextWithNewID(a.ctx)
 			var metadata adapter.InboundContext
 			metadata.Inbound = a.tag
 			metadata.SniffEnabled = a.listenOptions.SniffEnabled
@@ -139,7 +139,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 			metadata.Network = C.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
-			a.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
+			a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 			if hErr != nil {
 				conn.Close()
@@ -235,13 +235,13 @@ func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 	NewError(a.logger, ctx, err)
 }
 
-func NewError(logger log.Logger, ctx context.Context, err error) {
+func NewError(logger log.ContextLogger, ctx context.Context, err error) {
 	common.Close(err)
 	if E.IsClosed(err) || E.IsCanceled(err) {
-		logger.WithContext(ctx).Debug("connection closed")
+		logger.DebugContext(ctx, "connection closed")
 		return
 	}
-	logger.WithContext(ctx).Error(err)
+	logger.ErrorContext(ctx, err)
 }
 
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {

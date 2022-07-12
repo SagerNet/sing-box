@@ -12,12 +12,12 @@ var _ RuleItem = (*GeositeItem)(nil)
 
 type GeositeItem struct {
 	router   adapter.Router
-	logger   log.Logger
+	logger   log.ContextLogger
 	codes    []string
 	matchers []adapter.Rule
 }
 
-func NewGeositeItem(router adapter.Router, logger log.Logger, codes []string) *GeositeItem {
+func NewGeositeItem(router adapter.Router, logger log.ContextLogger, codes []string) *GeositeItem {
 	return &GeositeItem{
 		router: router,
 		logger: logger,

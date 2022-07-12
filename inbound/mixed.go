@@ -27,7 +27,7 @@ type Mixed struct {
 	authenticator auth.Authenticator
 }
 
-func NewMixed(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.SimpleInboundOptions) *Mixed {
+func NewMixed(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SimpleInboundOptions) *Mixed {
 	inbound := &Mixed{
 		myInboundAdapter{
 			protocol:      C.TypeMixed,

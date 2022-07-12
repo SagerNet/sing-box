@@ -24,7 +24,7 @@ type ShadowsocksRelay struct {
 	destinations []option.ShadowsocksDestination
 }
 
-func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksRelay, error) {
+func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksRelay, error) {
 	inbound := &ShadowsocksRelay{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowsocks,
@@ -68,11 +68,11 @@ func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.
 }
 
 func (h *ShadowsocksRelay) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksRelay) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(log.ContextWithID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksRelay) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -81,7 +81,7 @@ func (h *ShadowsocksRelay) newConnection(ctx context.Context, conn net.Conn, met
 	if destination == "" {
 		destination = F.ToString(userCtx.User)
 	}
-	h.logger.WithContext(ctx).Info("[", destination, "] inbound connection to ", metadata.Destination)
+	h.logger.InfoContext(ctx, "[", destination, "] inbound connection to ", metadata.Destination)
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -91,8 +91,8 @@ func (h *ShadowsocksRelay) newPacketConnection(ctx context.Context, conn N.Packe
 	if destination == "" {
 		destination = F.ToString(userCtx.User)
 	}
-	ctx = log.ContextWithID(ctx)
-	h.logger.WithContext(ctx).Info("[", destination, "] inbound packet connection from ", metadata.Source)
-	h.logger.WithContext(ctx).Info("[", destination, "] inbound packet connection to ", metadata.Destination)
+	ctx = log.ContextWithNewID(ctx)
+	h.logger.InfoContext(ctx, "[", destination, "] inbound packet connection from ", metadata.Source)
+	h.logger.InfoContext(ctx, "[", destination, "] inbound packet connection to ", metadata.Destination)
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }
