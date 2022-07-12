@@ -12,7 +12,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
-func NewDNSRule(router adapter.Router, logger log.Logger, options option.DNSRule) (adapter.Rule, error) {
+func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.Rule, error) {
 	if common.IsEmptyByEquals(options) {
 		return nil, E.New("empty rule config")
 	}
@@ -47,7 +47,7 @@ type DefaultDNSRule struct {
 	outbound     string
 }
 
-func NewDefaultDNSRule(router adapter.Router, logger log.Logger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		outbound: options.Server,
 	}
@@ -224,7 +224,7 @@ func (r *LogicalDNSRule) Close() error {
 	return nil
 }
 
-func NewLogicalDNSRule(router adapter.Router, logger log.Logger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		rules:    make([]*DefaultDNSRule, len(options.Rules)),
 		outbound: options.Server,

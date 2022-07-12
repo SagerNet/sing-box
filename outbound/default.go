@@ -18,7 +18,7 @@ import (
 
 type myOutboundAdapter struct {
 	protocol string
-	logger   log.Logger
+	logger   log.ContextLogger
 	tag      string
 	network  []string
 }

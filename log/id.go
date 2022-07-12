@@ -11,23 +11,13 @@ func init() {
 	random.InitializeSeed()
 }
 
-var idType = (*idContext)(nil)
+type idKey struct{}
 
-type idContext struct {
-	context.Context
-	id uint32
+func ContextWithNewID(ctx context.Context) context.Context {
+	return context.WithValue(ctx, (*idKey)(nil), rand.Uint32())
 }
 
-func (c *idContext) Value(key any) any {
-	if key == idType {
-		return c
-	}
-	return c.Context.Value(key)
-}
-
-func ContextWithID(ctx context.Context) context.Context {
-	if ctx.Value(idType) != nil {
-		return ctx
-	}
-	return &idContext{ctx, rand.Uint32()}
+func IDFromContext(ctx context.Context) (uint32, bool) {
+	id, loaded := ctx.Value((*idKey)(nil)).(uint32)
+	return id, loaded
 }

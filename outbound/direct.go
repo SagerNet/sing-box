@@ -23,7 +23,7 @@ type Direct struct {
 	overrideDestination M.Socksaddr
 }
 
-func NewDirect(router adapter.Router, logger log.Logger, tag string, options option.DirectOutboundOptions) *Direct {
+func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) *Direct {
 	outbound := &Direct{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
@@ -62,9 +62,9 @@ func (h *Direct) DialContext(ctx context.Context, network string, destination M.
 	}
 	switch network {
 	case C.NetworkTCP:
-		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 	case C.NetworkUDP:
-		h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	return h.dialer.DialContext(ctx, network, destination)
 }
@@ -73,7 +73,7 @@ func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.WithContext(ctx).Info("outbound packet connection")
+	h.logger.InfoContext(ctx, "outbound packet connection")
 	return h.dialer.ListenPacket(ctx, destination)
 }
 

@@ -22,7 +22,7 @@ type HTTP struct {
 	client *http.Client
 }
 
-func NewHTTP(router adapter.Router, logger log.Logger, tag string, options option.HTTPOutboundOptions) *HTTP {
+func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) *HTTP {
 	return &HTTP{
 		myOutboundAdapter{
 			protocol: C.TypeHTTP,
@@ -38,7 +38,7 @@ func (h *HTTP) DialContext(ctx context.Context, network string, destination M.So
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.WithContext(ctx).Info("outbound connection to ", destination)
+	h.logger.InfoContext(ctx, "outbound connection to ", destination)
 	return h.client.DialContext(ctx, network, destination)
 }
 

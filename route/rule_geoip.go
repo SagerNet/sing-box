@@ -11,13 +11,13 @@ var _ RuleItem = (*GeoIPItem)(nil)
 
 type GeoIPItem struct {
 	router   adapter.Router
-	logger   log.Logger
+	logger   log.ContextLogger
 	isSource bool
 	codes    []string
 	codeMap  map[string]bool
 }
 
-func NewGeoIPItem(router adapter.Router, logger log.Logger, isSource bool, codes []string) *GeoIPItem {
+func NewGeoIPItem(router adapter.Router, logger log.ContextLogger, isSource bool, codes []string) *GeoIPItem {
 	codeMap := make(map[string]bool)
 	for _, code := range codes {
 		codeMap[code] = true

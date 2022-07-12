@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.Logger, conn net.Conn, metadata adapter.InboundContext) error {
+func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.ContextLogger, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	_buffer := buf.StackNewSize(1024)
 	defer common.KeepAlive(_buffer)
@@ -43,7 +43,7 @@ func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.Log
 		if len(message.Questions) > 0 {
 			question := message.Questions[0]
 			metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			logger.WithContext(ctx).Debug("inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
+			logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 		}
 		go func() error {
 			response, err := router.Exchange(ctx, &message)
@@ -67,7 +67,7 @@ func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.Log
 	}
 }
 
-func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger log.Logger, conn N.PacketConn, metadata adapter.InboundContext) error {
+func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger log.ContextLogger, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	_buffer := buf.StackNewSize(1024)
 	defer common.KeepAlive(_buffer)
@@ -87,7 +87,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger l
 		if len(message.Questions) > 0 {
 			question := message.Questions[0]
 			metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			logger.WithContext(ctx).Debug("inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
+			logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 		}
 		go func() error {
 			response, err := router.Exchange(ctx, &message)

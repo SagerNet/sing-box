@@ -2,53 +2,67 @@ package log
 
 import "context"
 
-var _ Logger = (*nopLogger)(nil)
+var _ Factory = (*nopFactory)(nil)
 
-type nopLogger struct{}
+type nopFactory struct{}
 
-func NewNopLogger() Logger {
-	return (*nopLogger)(nil)
+func NewNOPFactory() Factory {
+	return (*nopFactory)(nil)
 }
 
-func (l *nopLogger) Start() error {
-	return nil
+func (f *nopFactory) Level() Level {
+	return LevelTrace
 }
 
-func (l *nopLogger) Close() error {
-	return nil
+func (f *nopFactory) SetLevel(level Level) {
 }
 
-func (l *nopLogger) Trace(args ...interface{}) {
+func (f *nopFactory) Logger() ContextLogger {
+	return f
 }
 
-func (l *nopLogger) Debug(args ...interface{}) {
+func (f *nopFactory) NewLogger(tag string) ContextLogger {
+	return f
 }
 
-func (l *nopLogger) Info(args ...interface{}) {
+func (f *nopFactory) Trace(args ...any) {
 }
 
-func (l *nopLogger) Print(args ...interface{}) {
+func (f *nopFactory) Debug(args ...any) {
 }
 
-func (l *nopLogger) Warn(args ...interface{}) {
+func (f *nopFactory) Info(args ...any) {
 }
 
-func (l *nopLogger) Warning(args ...interface{}) {
+func (f *nopFactory) Warn(args ...any) {
 }
 
-func (l *nopLogger) Error(args ...interface{}) {
+func (f *nopFactory) Error(args ...any) {
 }
 
-func (l *nopLogger) Fatal(args ...interface{}) {
+func (f *nopFactory) Fatal(args ...any) {
 }
 
-func (l *nopLogger) Panic(args ...interface{}) {
+func (f *nopFactory) Panic(args ...any) {
 }
 
-func (l *nopLogger) WithContext(ctx context.Context) Logger {
-	return l
+func (f *nopFactory) TraceContext(ctx context.Context, args ...any) {
 }
 
-func (l *nopLogger) WithPrefix(prefix string) Logger {
-	return l
+func (f *nopFactory) DebugContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) InfoContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) WarnContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) ErrorContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) FatalContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) PanicContext(ctx context.Context, args ...any) {
 }

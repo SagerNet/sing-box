@@ -31,7 +31,7 @@ type Tun struct {
 
 	ctx            context.Context
 	router         adapter.Router
-	logger         log.Logger
+	logger         log.ContextLogger
 	inboundOptions option.InboundOptions
 	tunName        string
 	tunMTU         uint32
@@ -44,7 +44,7 @@ type Tun struct {
 	tun   *tun.GVisorTun
 }
 
-func NewTun(ctx context.Context, router adapter.Router, logger log.Logger, tag string, options option.TunInboundOptions) (*Tun, error) {
+func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
 	tunName := options.InterfaceName
 	if tunName == "" {
 		tunName = mkInterfaceName()
@@ -107,7 +107,7 @@ func (t *Tun) Close() error {
 }
 
 func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
-	ctx = log.ContextWithID(ctx)
+	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkTCP
@@ -121,13 +121,13 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 			return NewDNSConnection(ctx, t.router, t.logger, conn, metadata)
 		})
 	}
-	t.logger.WithContext(ctx).Info("inbound connection from ", metadata.Source)
-	t.logger.WithContext(ctx).Info("inbound connection to ", metadata.Destination)
+	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	return t.router.RouteConnection(ctx, conn, metadata)
 }
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
-	ctx = log.ContextWithID(ctx)
+	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.Network = C.NetworkUDP
@@ -141,8 +141,8 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 			return NewDNSPacketConnection(ctx, t.router, t.logger, conn, metadata)
 		})
 	}
-	t.logger.WithContext(ctx).Info("inbound packet connection from ", metadata.Source)
-	t.logger.WithContext(ctx).Info("inbound packet connection to ", metadata.Destination)
+	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	return t.router.RoutePacketConnection(ctx, conn, metadata)
 }
 

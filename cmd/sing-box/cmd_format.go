@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 
 	"github.com/goccy/go-json"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -27,19 +27,19 @@ func init() {
 func formatConfiguration(cmd *cobra.Command, args []string) {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
-		logrus.Fatal("read config: ", err)
+		log.Fatal("read config: ", err)
 	}
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		logrus.Fatal("decode config: ", err)
+		log.Fatal("decode config: ", err)
 	}
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(options)
 	if err != nil {
-		logrus.Fatal("encode config: ", err)
+		log.Fatal("encode config: ", err)
 	}
 	if !commandFormatFlagWrite {
 		os.Stdout.WriteString(buffer.String() + "\n")
@@ -50,12 +50,12 @@ func formatConfiguration(cmd *cobra.Command, args []string) {
 	}
 	output, err := os.Create(configPath)
 	if err != nil {
-		logrus.Fatal("open output: ", err)
+		log.Fatal("open output: ", err)
 	}
 	_, err = output.Write(buffer.Bytes())
 	output.Close()
 	if err != nil {
-		logrus.Fatal("write output: ", err)
+		log.Fatal("write output: ", err)
 	}
 	outputPath, _ := filepath.Abs(configPath)
 	os.Stderr.WriteString(outputPath + "\n")

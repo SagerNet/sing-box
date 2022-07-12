@@ -12,7 +12,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
-func NewRule(router adapter.Router, logger log.Logger, options option.Rule) (adapter.Rule, error) {
+func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rule) (adapter.Rule, error) {
 	if common.IsEmptyByEquals(options) {
 		return nil, E.New("empty rule config")
 	}
@@ -53,7 +53,7 @@ type RuleItem interface {
 	String() string
 }
 
-func NewDefaultRule(router adapter.Router, logger log.Logger, options option.DefaultRule) (*DefaultRule, error) {
+func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
 	rule := &DefaultRule{
 		outbound: options.Outbound,
 	}
@@ -263,7 +263,7 @@ func (r *LogicalRule) Close() error {
 	return nil
 }
 
-func NewLogicalRule(router adapter.Router, logger log.Logger, options option.LogicalRule) (*LogicalRule, error) {
+func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
 	r := &LogicalRule{
 		rules:    make([]*DefaultRule, len(options.Rules)),
 		outbound: options.Outbound,

@@ -21,7 +21,7 @@ type Socks struct {
 	client *socks.Client
 }
 
-func NewSocks(router adapter.Router, logger log.Logger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
+func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
 	detour := dialer.NewOutbound(router, options.OutboundDialerOptions)
 	var version socks.Version
 	var err error
@@ -50,9 +50,9 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 	metadata.Destination = destination
 	switch network {
 	case C.NetworkTCP:
-		h.logger.WithContext(ctx).Info("outbound connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 	case C.NetworkUDP:
-		h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
 		panic("unknown network " + network)
 	}
@@ -63,7 +63,7 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.WithContext(ctx).Info("outbound packet connection to ", destination)
+	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
 }
 
