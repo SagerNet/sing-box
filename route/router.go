@@ -17,12 +17,12 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
-	"github.com/sagernet/sing-box/common/iffmonitor"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -65,7 +65,7 @@ type Router struct {
 	transportMap          map[string]dns.Transport
 
 	autoDetectInterface bool
-	interfaceMonitor    iffmonitor.InterfaceMonitor
+	interfaceMonitor    tun.InterfaceMonitor
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -176,7 +176,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		return nil, E.New("found circular reference in dns servers: ", strings.Join(unresolvedTags, " "))
 	}
 	var defaultTransport dns.Transport
-	if options.Final != "" {
+	if dnsOptions.Final != "" {
 		defaultTransport = dummyTransportMap[options.Final]
 		if defaultTransport == nil {
 			return nil, E.New("default dns server not found: ", options.Final)
@@ -193,9 +193,11 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.transportMap = transportMap
 
 	if options.AutoDetectInterface {
-		monitor, err := iffmonitor.New(router.logger)
+		monitor, err := tun.NewMonitor(func() {
+			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
+		})
 		if err != nil {
-			return nil, E.Cause(err, "create default interface monitor")
+			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
 		router.interfaceMonitor = monitor
 	}

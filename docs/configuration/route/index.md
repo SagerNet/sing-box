@@ -28,7 +28,7 @@ Default outbound tag. the first outbound will be used if empty.
 
 !!! error ""
 
-    Linux only
+    Linux and Windows only
 
 Bind outbound connections to the default NIC by default to prevent routing loops under Tun.
 

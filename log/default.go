@@ -63,31 +63,31 @@ func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
 }
 
 func (l *simpleLogger) Trace(args ...any) {
-	l.Log(nil, LevelTrace, args)
+	l.TraceContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Debug(args ...any) {
-	l.Log(nil, LevelDebug, args)
+	l.DebugContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Info(args ...any) {
-	l.Log(nil, LevelInfo, args)
+	l.InfoContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Warn(args ...any) {
-	l.Log(nil, LevelWarn, args)
+	l.WarnContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Error(args ...any) {
-	l.Log(nil, LevelError, args)
+	l.ErrorContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Fatal(args ...any) {
-	l.Log(nil, LevelFatal, args)
+	l.FatalContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) Panic(args ...any) {
-	l.Log(nil, LevelPanic, args)
+	l.PanicContext(context.Background(), args...)
 }
 
 func (l *simpleLogger) TraceContext(ctx context.Context, args ...any) {

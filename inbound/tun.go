@@ -1,12 +1,9 @@
-//go:build !no_tun
-
 package inbound
 
 import (
 	"context"
 	"net"
 	"net/netip"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -40,8 +38,8 @@ type Tun struct {
 	autoRoute      bool
 	hijackDNS      bool
 
-	tunFd uintptr
-	tun   *tun.GVisorTun
+	tunIf    tun.Tun
+	tunStack *tun.GVisorTun
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
@@ -77,17 +75,13 @@ func (t *Tun) Tag() string {
 }
 
 func (t *Tun) Start() error {
-	tunFd, err := tun.Open(t.tunName)
-	if err != nil {
-		return E.Cause(err, "create tun interface")
-	}
-	err = tun.Configure(t.tunName, t.inet4Address, t.inet6Address, t.tunMTU, t.autoRoute)
+	tunIf, err := tun.Open(t.tunName, t.inet4Address, t.inet6Address, t.tunMTU, t.autoRoute)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
-	t.tunFd = tunFd
-	t.tun = tun.NewGVisor(t.ctx, tunFd, t.tunMTU, t)
-	err = t.tun.Start()
+	t.tunIf = tunIf
+	t.tunStack = tun.NewGVisor(t.ctx, tunIf, t.tunMTU, t)
+	err = t.tunStack.Start()
 	if err != nil {
 		return err
 	}
@@ -96,13 +90,9 @@ func (t *Tun) Start() error {
 }
 
 func (t *Tun) Close() error {
-	err := tun.UnConfigure(t.tunName, t.inet4Address, t.inet6Address, t.autoRoute)
-	if err != nil {
-		return err
-	}
-	return E.Errors(
-		t.tun.Close(),
-		os.NewFile(t.tunFd, "tun").Close(),
+	return common.Close(
+		t.tunStack,
+		t.tunIf,
 	)
 }
 

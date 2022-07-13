@@ -80,31 +80,31 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 }
 
 func (l *observableLogger) Trace(args ...any) {
-	l.Log(nil, LevelTrace, args)
+	l.TraceContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Debug(args ...any) {
-	l.Log(nil, LevelDebug, args)
+	l.DebugContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Info(args ...any) {
-	l.Log(nil, LevelInfo, args)
+	l.InfoContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Warn(args ...any) {
-	l.Log(nil, LevelWarn, args)
+	l.WarnContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Error(args ...any) {
-	l.Log(nil, LevelError, args)
+	l.ErrorContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Fatal(args ...any) {
-	l.Log(nil, LevelFatal, args)
+	l.FatalContext(context.Background(), args...)
 }
 
 func (l *observableLogger) Panic(args ...any) {
-	l.Log(nil, LevelPanic, args)
+	l.PanicContext(context.Background(), args...)
 }
 
 func (l *observableLogger) TraceContext(ctx context.Context, args ...any) {
