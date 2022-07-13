@@ -1,6 +1,6 @@
 !!! error ""
 
-    Linux only
+    Linux and Windows only
 
 ### Structure
 
