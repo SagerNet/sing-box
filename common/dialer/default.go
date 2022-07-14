@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"runtime"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -23,11 +24,24 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
-		dialer.Control = control.Append(dialer.Control, control.BindToInterface(options.BindInterface))
-		listener.Control = control.Append(listener.Control, control.BindToInterface(options.BindInterface))
+		dialer.Control = control.Append(dialer.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
+		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
 	} else if router.AutoDetectInterface() {
-		dialer.Control = BindToInterface(router)
-		listener.Control = BindToInterface(router)
+		if runtime.GOOS == "windows" {
+			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceIndexFunc(func() int {
+				return router.DefaultInterfaceIndex()
+			}))
+			listener.Control = control.Append(listener.Control, control.BindToInterfaceIndexFunc(func() int {
+				return router.DefaultInterfaceIndex()
+			}))
+		} else {
+			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
+				return router.DefaultInterfaceName()
+			}))
+			listener.Control = control.Append(listener.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
+				return router.DefaultInterfaceName()
+			}))
+		}
 	}
 	if options.RoutingMark != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
