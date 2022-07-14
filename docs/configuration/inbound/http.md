@@ -21,7 +21,9 @@
           "username": "admin",
           "password": "admin"
         }
-      ]
+      ],
+      
+      "set_system_proxy": false
     }
   ]
 }
@@ -66,6 +68,14 @@ One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
+
+#### set_system_proxy
+
+!!! error ""
+
+    Windows only
+
+Automatically set system proxy configuration when start and clean up when stop.
 
 ### HTTP Fields
 
