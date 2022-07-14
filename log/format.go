@@ -42,26 +42,30 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 		id, hasId = IDFromContext(ctx)
 	}
 	if hasId {
-		var color aurora.Color
-		color = aurora.Color(uint8(id))
-		color %= 215
-		row := uint(color / 36)
-		column := uint(color % 36)
+		if !f.DisableColors {
+			var color aurora.Color
+			color = aurora.Color(uint8(id))
+			color %= 215
+			row := uint(color / 36)
+			column := uint(color % 36)
 
-		var r, g, b float32
-		r = float32(row * 51)
-		g = float32(column / 6 * 51)
-		b = float32((column % 6) * 51)
-		luma := 0.2126*r + 0.7152*g + 0.0722*b
-		if luma < 60 {
-			row = 5 - row
-			column = 35 - column
-			color = aurora.Color(row*36 + column)
+			var r, g, b float32
+			r = float32(row * 51)
+			g = float32(column / 6 * 51)
+			b = float32((column % 6) * 51)
+			luma := 0.2126*r + 0.7152*g + 0.0722*b
+			if luma < 60 {
+				row = 5 - row
+				column = 35 - column
+				color = aurora.Color(row*36 + column)
+			}
+			color += 16
+			color = color << 16
+			color |= 1 << 14
+			message = F.ToString("[", aurora.Colorize(id, color).String(), "] ", message)
+		} else {
+			message = F.ToString("[", id, "] ", message)
 		}
-		color += 16
-		color = color << 16
-		color |= 1 << 14
-		message = F.ToString("[", aurora.Colorize(id, color).String(), "] ", message)
 	}
 	switch {
 	case f.DisableTimestamp:

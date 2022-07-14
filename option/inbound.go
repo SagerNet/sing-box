@@ -13,9 +13,9 @@ type _Inbound struct {
 	Type               string                    `json:"type"`
 	Tag                string                    `json:"tag,omitempty"`
 	DirectOptions      DirectInboundOptions      `json:"-"`
-	SocksOptions       SimpleInboundOptions      `json:"-"`
-	HTTPOptions        SimpleInboundOptions      `json:"-"`
-	MixedOptions       SimpleInboundOptions      `json:"-"`
+	SocksOptions       SocksInboundOptions       `json:"-"`
+	HTTPOptions        HTTPMixedInboundOptions   `json:"-"`
+	MixedOptions       HTTPMixedInboundOptions   `json:"-"`
 	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
 	TunOptions         TunInboundOptions         `json:"-"`
 }
@@ -97,14 +97,26 @@ type ListenOptions struct {
 	InboundOptions
 }
 
-type SimpleInboundOptions struct {
+type SocksInboundOptions struct {
 	ListenOptions
 	Users []auth.User `json:"users,omitempty"`
 }
 
-func (o SimpleInboundOptions) Equals(other SimpleInboundOptions) bool {
+func (o SocksInboundOptions) Equals(other SocksInboundOptions) bool {
 	return o.ListenOptions == other.ListenOptions &&
 		common.ComparableSliceEquals(o.Users, other.Users)
+}
+
+type HTTPMixedInboundOptions struct {
+	ListenOptions
+	Users          []auth.User `json:"users,omitempty"`
+	SetSystemProxy bool        `json:"set_system_proxy,omitempty"`
+}
+
+func (o HTTPMixedInboundOptions) Equals(other HTTPMixedInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		common.ComparableSliceEquals(o.Users, other.Users) &&
+		o.SetSystemProxy == other.SetSystemProxy
 }
 
 type DirectInboundOptions struct {

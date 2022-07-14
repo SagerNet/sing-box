@@ -20,7 +20,7 @@ type Socks struct {
 	authenticator auth.Authenticator
 }
 
-func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SimpleInboundOptions) *Socks {
+func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SocksInboundOptions) *Socks {
 	inbound := &Socks{
 		myInboundAdapter{
 			protocol:      C.TypeSocks,
