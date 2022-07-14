@@ -20,12 +20,18 @@ func FindPath(name string) (string, bool) {
 		if path := filepath.Join(dir, dirName, name); rw.FileExists(path) {
 			return path, true
 		}
+		if path := filepath.Join(dir, name); rw.FileExists(path) {
+			return path, true
+		}
 	}
 	return name, false
 }
 
 func init() {
 	resourcePaths = append(resourcePaths, ".")
+	if home := os.Getenv("HOME"); home != "" {
+		resourcePaths = append(resourcePaths, home)
+	}
 	if userConfigDir, err := os.UserConfigDir(); err == nil {
 		resourcePaths = append(resourcePaths, userConfigDir)
 	}

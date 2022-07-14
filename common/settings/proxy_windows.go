@@ -1,15 +1,17 @@
-package wininet
+package settings
 
 import (
 	"os"
 	"syscall"
 	"unsafe"
 
+	F "github.com/sagernet/sing/common/format"
+
 	"golang.org/x/sys/windows"
 )
 
 var (
-	modwininet             = windows.NewLazySystemDLL("wininet.dll")
+	modwininet             = windows.NewLazySystemDLL("settings.dll")
 	procInternetSetOptionW = modwininet.NewProc("InternetSetOptionW")
 )
 
@@ -95,15 +97,15 @@ func ClearSystemProxy() error {
 	return setOptions(flagsOption)
 }
 
-func SetSystemProxy(proxy string, bypass string) error {
+func SetSystemProxy(port uint16, mixed bool) error {
 	var flagsOption internetPerConnOption
 	flagsOption.dwOption = internetPerConnFlags
 	*((*uint32)(unsafe.Pointer(&flagsOption.value))) = proxyTypeProxy | proxyTypeDirect
 	var proxyOption internetPerConnOption
 	proxyOption.dwOption = internetPerConnProxyServer
-	*((*uintptr)(unsafe.Pointer(&proxyOption.value))) = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(proxy)))
+	*((*uintptr)(unsafe.Pointer(&proxyOption.value))) = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(F.ToString("http://127.0.0.1:", port))))
 	var bypassOption internetPerConnOption
 	bypassOption.dwOption = internetPerConnProxyBypass
-	*((*uintptr)(unsafe.Pointer(&bypassOption.value))) = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(bypass)))
+	*((*uintptr)(unsafe.Pointer(&bypassOption.value))) = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("local")))
 	return setOptions(flagsOption, proxyOption, bypassOption)
 }
