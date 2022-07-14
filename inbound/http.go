@@ -21,16 +21,17 @@ type HTTP struct {
 	authenticator auth.Authenticator
 }
 
-func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SimpleInboundOptions) *HTTP {
+func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) *HTTP {
 	inbound := &HTTP{
 		myInboundAdapter{
-			protocol:      C.TypeHTTP,
-			network:       []string{C.NetworkTCP},
-			ctx:           ctx,
-			router:        router,
-			logger:        logger,
-			tag:           tag,
-			listenOptions: options.ListenOptions,
+			protocol:       C.TypeHTTP,
+			network:        []string{C.NetworkTCP},
+			ctx:            ctx,
+			router:         router,
+			logger:         logger,
+			tag:            tag,
+			listenOptions:  options.ListenOptions,
+			setSystemProxy: options.SetSystemProxy,
 		},
 		auth.NewAuthenticator(options.Users),
 	}

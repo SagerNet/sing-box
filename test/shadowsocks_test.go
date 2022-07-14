@@ -93,7 +93,7 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.SimpleInboundOptions{
+				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
@@ -131,7 +131,7 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.SimpleInboundOptions{
+				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,

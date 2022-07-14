@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/wininet"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -16,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -35,6 +37,10 @@ type myInboundAdapter struct {
 	connHandler    adapter.ConnectionHandler
 	packetHandler  adapter.PacketHandler
 	packetUpstream any
+
+	// http mixed
+
+	setSystemProxy bool
 
 	// internal
 
@@ -88,14 +94,24 @@ func (a *myInboundAdapter) Start() error {
 		go a.loopUDPOut()
 		a.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
+	if a.setSystemProxy {
+		err := wininet.SetSystemProxy(F.ToString("http://127.0.0.1:", M.SocksaddrFromNet(a.tcpListener.Addr()).Port), "local")
+		if err != nil {
+			return E.Cause(err, "set system proxy")
+		}
+	}
 	return nil
 }
 
 func (a *myInboundAdapter) Close() error {
-	return common.Close(
+	var err error
+	if a.setSystemProxy {
+		err = wininet.ClearSystemProxy()
+	}
+	return E.Errors(err, common.Close(
 		common.PtrOrNil(a.tcpListener),
 		common.PtrOrNil(a.udpConn),
-	)
+	))
 }
 
 func (a *myInboundAdapter) upstreamHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {
