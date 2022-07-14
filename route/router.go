@@ -22,10 +22,11 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
-	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -64,8 +65,10 @@ type Router struct {
 	transports            []dns.Transport
 	transportMap          map[string]dns.Transport
 
-	autoDetectInterface bool
-	interfaceMonitor    tun.InterfaceMonitor
+	interfaceBindManager control.BindManager
+	networkMonitor       tun.NetworkUpdateMonitor
+	autoDetectInterface  bool
+	interfaceMonitor     tun.DefaultInterfaceMonitor
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -84,6 +87,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dns.DomainStrategy(dnsOptions.DNSClientOptions.Strategy), dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
+		interfaceBindManager:  control.NewBindManager(),
 		autoDetectInterface:   options.AutoDetectInterface,
 	}
 	for i, ruleOptions := range options.Rules {
@@ -192,14 +196,24 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.transports = transports
 	router.transportMap = transportMap
 
-	if options.AutoDetectInterface {
-		monitor, err := tun.NewMonitor(func() {
+	if router.interfaceBindManager != nil || options.AutoDetectInterface {
+		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
+		if err == nil {
+			router.networkMonitor = networkMonitor
+			if router.interfaceBindManager != nil {
+				networkMonitor.RegisterCallback(router.interfaceBindManager.Update)
+			}
+		}
+	}
+
+	if router.networkMonitor != nil && options.AutoDetectInterface {
+		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, func() {
 			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
 		})
 		if err != nil {
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
-		router.interfaceMonitor = monitor
+		router.interfaceMonitor = interfaceMonitor
 	}
 	return router, nil
 }
@@ -329,6 +343,12 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	if r.networkMonitor != nil {
+		err := r.networkMonitor.Start()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -348,6 +368,7 @@ func (r *Router) Close() error {
 	return common.Close(
 		common.PtrOrNil(r.geoIPReader),
 		r.interfaceMonitor,
+		r.networkMonitor,
 	)
 }
 
@@ -511,6 +532,10 @@ func (r *Router) matchDNS(ctx context.Context) dns.Transport {
 	return r.defaultTransport
 }
 
+func (r *Router) InterfaceBindManager() control.BindManager {
+	return r.interfaceBindManager
+}
+
 func (r *Router) AutoDetectInterface() bool {
 	return r.autoDetectInterface
 }
@@ -524,7 +549,7 @@ func (r *Router) DefaultInterfaceName() string {
 
 func (r *Router) DefaultInterfaceIndex() int {
 	if r.interfaceMonitor == nil {
-		return 0
+		return -1
 	}
 	return r.interfaceMonitor.DefaultInterfaceIndex()
 }
@@ -748,4 +773,8 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	defer response.Body.Close()
 	_, err = io.Copy(saveFile, response.Body)
 	return err
+}
+
+func (r *Router) NewError(ctx context.Context, err error) {
+	r.logger.ErrorContext(ctx, err)
 }

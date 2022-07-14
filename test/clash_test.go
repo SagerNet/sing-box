@@ -17,9 +17,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/sagernet/sing-box/log"
 )
 
 // kanged from clash
@@ -75,7 +75,7 @@ func init() {
 			continue
 		}
 
-		logrus.Info("pulling image: ", image)
+		log.Info("pulling image: ", image)
 		imageStream, err := dockerClient.ImagePull(context.Background(), image, types.ImagePullOptions{})
 		if err != nil {
 			panic(err)
