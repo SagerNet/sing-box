@@ -5,9 +5,8 @@ go 1.18
 require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/sagernet/sing v0.0.0-20220714062657-6685f65aac21
+	github.com/sagernet/sing v0.0.0-20220714121943-f8c0f71a89f5
 	github.com/sagernet/sing-box v0.0.0
-	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 )
@@ -16,7 +15,7 @@ replace github.com/sagernet/sing-box => ../
 
 require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
-	github.com/database64128/tfo-go v1.0.4 // indirect
+	github.com/database64128/tfo-go v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-units v0.4.0 // indirect
@@ -34,8 +33,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619 // indirect
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220713125153-6c2c28da9d76 // indirect
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220714111527-a6fa7ada6e81 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220714105342-455aba7939ae // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect

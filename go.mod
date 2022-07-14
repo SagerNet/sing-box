@@ -3,14 +3,14 @@ module github.com/sagernet/sing-box
 go 1.18
 
 require (
-	github.com/database64128/tfo-go v1.0.4
+	github.com/database64128/tfo-go v1.1.0
 	github.com/goccy/go-json v0.9.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220712060558-029ab1ce4f91
+	github.com/sagernet/sing v0.0.0-20220714121943-f8c0f71a89f5
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220701084835-2208da1d8649
-	github.com/sagernet/sing-tun v0.0.0-20220713125153-6c2c28da9d76
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220714111527-a6fa7ada6e81
+	github.com/sagernet/sing-tun v0.0.0-20220714105342-455aba7939ae
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d

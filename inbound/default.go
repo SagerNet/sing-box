@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/wininet"
+	"github.com/sagernet/sing-box/common/settings"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -17,7 +17,6 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -95,7 +94,7 @@ func (a *myInboundAdapter) Start() error {
 		a.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
 	if a.setSystemProxy {
-		err := wininet.SetSystemProxy(F.ToString("http://127.0.0.1:", M.SocksaddrFromNet(a.tcpListener.Addr()).Port), "local")
+		err := settings.SetSystemProxy(M.SocksaddrFromNet(a.tcpListener.Addr()).Port, a.protocol == C.TypeMixed)
 		if err != nil {
 			return E.Cause(err, "set system proxy")
 		}
@@ -106,7 +105,7 @@ func (a *myInboundAdapter) Start() error {
 func (a *myInboundAdapter) Close() error {
 	var err error
 	if a.setSystemProxy {
-		err = wininet.ClearSystemProxy()
+		err = settings.ClearSystemProxy()
 	}
 	return E.Errors(err, common.Close(
 		common.PtrOrNil(a.tcpListener),
