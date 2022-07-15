@@ -47,7 +47,7 @@ Set the default route to the Tun.
 
 !!! error ""
 
-    To avoid traffic loopback, set `route.auto_delect_interface` or `outbound.bind_interface`
+    To avoid traffic loopback, set `route.auto_detect_interface` or `route.default_interface` or `outbound.bind_interface`
 
 #### hijack_dns
 

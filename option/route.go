@@ -14,6 +14,7 @@ type RouteOptions struct {
 	Rules               []Rule          `json:"rules,omitempty"`
 	Final               string          `json:"final,omitempty"`
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
+	DefaultInterface    string          `json:"default_interface,omitempty"`
 }
 
 func (o RouteOptions) Equals(other RouteOptions) bool {

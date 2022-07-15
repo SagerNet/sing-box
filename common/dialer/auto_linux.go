@@ -10,7 +10,7 @@ import (
 
 func BindToInterface(router adapter.Router) control.Func {
 	return func(network, address string, conn syscall.RawConn) error {
-		interfaceName := router.DefaultInterfaceName()
+		interfaceName := router.AutoDetectInterfaceName()
 		if interfaceName == "" {
 			return nil
 		}
