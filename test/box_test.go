@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
+	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
@@ -20,11 +21,11 @@ func mkPort(t *testing.T) uint16 {
 	var lc net.ListenConfig
 	lc.Control = control.ReuseAddr()
 	for {
-		tcpListener, err := net.ListenTCP("tcp", nil)
+		tcpListener, err := lc.Listen(context.Background(), "tcp", ":0")
 		require.NoError(t, err)
 		listenPort := M.SocksaddrFromNet(tcpListener.Addr()).Port
 		tcpListener.Close()
-		udpListener, err := net.ListenUDP("udp", &net.UDPAddr{Port: int(listenPort)})
+		udpListener, err := lc.Listen(context.Background(), "tcp", F.ToString(":", listenPort))
 		if err != nil {
 			continue
 		}

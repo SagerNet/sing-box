@@ -14,6 +14,24 @@ import (
 )
 
 func TestShadowsocks(t *testing.T) {
+	for _, method := range []string{
+		"aes-128-gcm",
+		"aes-256-gcm",
+		"chacha20-ietf-poly1305",
+	} {
+		t.Run(method+"-inbound", func(t *testing.T) {
+			testShadowsocksInboundWithShadowsocksRust(t, method, mkBase64(t, 16))
+		})
+		t.Run(method+"-outbound", func(t *testing.T) {
+			testShadowsocksOutboundWithShadowsocksRust(t, method, mkBase64(t, 16))
+		})
+		t.Run(method+"-self", func(t *testing.T) {
+			testShadowsocksSelf(t, method, mkBase64(t, 16))
+		})
+	}
+}
+
+func TestShadowsocks2022(t *testing.T) {
 	for _, method16 := range []string{
 		"2022-blake3-aes-128-gcm",
 	} {
