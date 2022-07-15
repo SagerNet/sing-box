@@ -10,7 +10,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4
-	github.com/sagernet/sing-tun v0.0.0-20220715102759-3bdb60b93f16
+	github.com/sagernet/sing-tun v0.0.0-20220715143949-9968d2c8e92e
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
