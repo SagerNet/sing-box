@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/log"
 	F "github.com/sagernet/sing/common/format"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/sagernet/sing-box/log"
 )
 
 // kanged from clash

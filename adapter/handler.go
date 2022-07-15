@@ -17,6 +17,10 @@ type PacketHandler interface {
 	NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata InboundContext) error
 }
 
+type OOBPacketHandler interface {
+	NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, oob []byte, metadata InboundContext) error
+}
+
 type PacketConnectionHandler interface {
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 }
