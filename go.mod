@@ -9,7 +9,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.9.0
 	github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220714111527-a6fa7ada6e81
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4
 	github.com/sagernet/sing-tun v0.0.0-20220714151007-c0d248af0361
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
