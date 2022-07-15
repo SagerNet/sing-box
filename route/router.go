@@ -68,6 +68,7 @@ type Router struct {
 	interfaceBindManager control.BindManager
 	networkMonitor       tun.NetworkUpdateMonitor
 	autoDetectInterface  bool
+	defaultInterface     string
 	interfaceMonitor     tun.DefaultInterfaceMonitor
 }
 
@@ -89,6 +90,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
 		interfaceBindManager:  control.NewBindManager(),
 		autoDetectInterface:   options.AutoDetectInterface,
+		defaultInterface:      options.DefaultInterface,
 	}
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, logger, ruleOptions)
@@ -540,14 +542,18 @@ func (r *Router) AutoDetectInterface() bool {
 	return r.autoDetectInterface
 }
 
-func (r *Router) DefaultInterfaceName() string {
+func (r *Router) DefaultInterface() string {
+	return r.defaultInterface
+}
+
+func (r *Router) AutoDetectInterfaceName() string {
 	if r.interfaceMonitor == nil {
 		return ""
 	}
 	return r.interfaceMonitor.DefaultInterfaceName()
 }
 
-func (r *Router) DefaultInterfaceIndex() int {
+func (r *Router) AutoDetectInterfaceIndex() int {
 	if r.interfaceMonitor == nil {
 		return -1
 	}

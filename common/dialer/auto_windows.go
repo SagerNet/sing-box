@@ -32,7 +32,7 @@ func bind6(handle windows.Handle, ifaceIdx int) error {
 
 func BindToInterface(router adapter.Router) control.Func {
 	return func(network, address string, conn syscall.RawConn) error {
-		interfaceName := router.DefaultInterfaceName()
+		interfaceName := router.AutoDetectInterfaceName()
 		if interfaceName == "" {
 			return nil
 		}
@@ -47,20 +47,20 @@ func BindToInterface(router adapter.Router) control.Func {
 			handle := windows.Handle(fd)
 			// handle ip empty, e.g. net.Listen("udp", ":0")
 			if ipStr == "" {
-				innerErr = bind4(handle, router.DefaultInterfaceIndex())
+				innerErr = bind4(handle, router.AutoDetectInterfaceIndex())
 				if innerErr != nil {
 					return
 				}
 				// try bind ipv6, if failed, ignore. it's a workaround for windows disable interface ipv6
-				bind6(handle, router.DefaultInterfaceIndex())
+				bind6(handle, router.AutoDetectInterfaceIndex())
 				return
 			}
 
 			switch network {
 			case "tcp4", "udp4", "ip4":
-				innerErr = bind4(handle, router.DefaultInterfaceIndex())
+				innerErr = bind4(handle, router.AutoDetectInterfaceIndex())
 			case "tcp6", "udp6":
-				innerErr = bind6(handle, router.DefaultInterfaceIndex())
+				innerErr = bind6(handle, router.AutoDetectInterfaceIndex())
 			}
 		})
 		return E.Errors(innerErr, err)

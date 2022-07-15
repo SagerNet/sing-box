@@ -29,19 +29,22 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	} else if router.AutoDetectInterface() {
 		if runtime.GOOS == "windows" {
 			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceIndexFunc(func() int {
-				return router.DefaultInterfaceIndex()
+				return router.AutoDetectInterfaceIndex()
 			}))
 			listener.Control = control.Append(listener.Control, control.BindToInterfaceIndexFunc(func() int {
-				return router.DefaultInterfaceIndex()
+				return router.AutoDetectInterfaceIndex()
 			}))
 		} else {
 			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
-				return router.DefaultInterfaceName()
+				return router.AutoDetectInterfaceName()
 			}))
 			listener.Control = control.Append(listener.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
-				return router.DefaultInterfaceName()
+				return router.AutoDetectInterfaceName()
 			}))
 		}
+	} else if router.DefaultInterface() != "" {
+		dialer.Control = control.Append(dialer.Control, control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
+		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
 	}
 	if options.RoutingMark != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))

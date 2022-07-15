@@ -30,9 +30,10 @@ type Router interface {
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
 
 	InterfaceBindManager() control.BindManager
+	DefaultInterface() string
 	AutoDetectInterface() bool
-	DefaultInterfaceName() string
-	DefaultInterfaceIndex() int
+	AutoDetectInterfaceName() string
+	AutoDetectInterfaceIndex() int
 }
 
 type Rule interface {
