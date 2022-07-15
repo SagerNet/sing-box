@@ -8,4 +8,7 @@ const (
 	TypeMixed       = "mixed"
 	TypeShadowsocks = "shadowsocks"
 	TypeTun         = "tun"
+	TypeRedirect    = "redirect"
+	TypeTProxy      = "tproxy"
+	TypeDNS         = "dns"
 )

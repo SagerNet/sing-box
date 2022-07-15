@@ -1,0 +1,61 @@
+`redirect` inbound is a linux Redirect server.
+
+### Structure
+
+```json
+{
+  "inbounds": [
+    {
+      "type": "redirect",
+      "tag": "redirect-in",
+      
+      "listen": "::",
+      "listen_port": 5353,
+      "sniff": false,
+      "sniff_override_destination": false,
+      "domain_strategy": "prefer_ipv6",
+      "udp_timeout": 300
+    }
+  ]
+}
+```
+
+### Listen Fields
+
+#### listen
+
+==Required==
+
+Listen address.
+
+#### listen_port
+
+==Required==
+
+Listen port.
+
+#### sniff
+
+Enable sniffing.
+
+Reads domain names for routing, supports HTTP TLS for TCP, QUIC for UDP.
+
+This does not break zero copy, like splice.
+
+#### sniff_override_destination
+
+Override the connection destination address with the sniffed domain.
+
+If the domain name is invalid (like tor), this will not work.
+
+#### domain_strategy
+
+One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+
+If set, the requested domain name will be resolved to IP before routing.
+
+If `sniff_override_destination` is in effect, its value will be taken as a fallback.
+
+#### udp_timeout
+
+UDP NAT expiration time in seconds, default is 300 (5 minutes).

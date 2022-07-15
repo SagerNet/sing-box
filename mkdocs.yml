@@ -40,12 +40,15 @@ nav:
           - DNS Rule: configuration/dns/rule.md
       - Inbound:
           - configuration/inbound/index.md
-          - Tun: configuration/inbound/tun.md
           - Direct: configuration/inbound/direct.md
           - Mixed: configuration/inbound/mixed.md
           - Socks: configuration/inbound/socks.md
           - HTTP: configuration/inbound/http.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
+          - Tun: configuration/inbound/tun.md
+          - Redirect: configuration/inbound/redirect.md
+          - TProxy: configuration/inbound/tproxy.md
+          - DNS: configuration/inbound/dns.md
       - Outbound:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md

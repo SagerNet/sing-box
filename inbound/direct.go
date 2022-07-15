@@ -46,7 +46,13 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLog
 		inbound.overrideOption = 3
 		inbound.overrideDestination = M.Socksaddr{Port: options.OverridePort}
 	}
-	inbound.udpNat = udpnat.New[netip.AddrPort](options.UDPTimeout, inbound.upstreamContextHandler())
+	var udpTimeout int64
+	if options.UDPTimeout != 0 {
+		udpTimeout = options.UDPTimeout
+	} else {
+		udpTimeout = 300
+	}
+	inbound.udpNat = udpnat.New[netip.AddrPort](udpTimeout, inbound.upstreamContextHandler())
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
 	inbound.packetUpstream = inbound.udpNat
@@ -79,6 +85,8 @@ func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.B
 	case 3:
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
-	d.udpNat.NewPacketDirect(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), metadata.Source.AddrPort(), conn, buffer, adapter.UpstreamMetadata(metadata))
+	d.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
+		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), natConn
+	})
 	return nil
 }

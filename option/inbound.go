@@ -18,6 +18,9 @@ type _Inbound struct {
 	MixedOptions       HTTPMixedInboundOptions   `json:"-"`
 	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
 	TunOptions         TunInboundOptions         `json:"-"`
+	RedirectOptions    RedirectInboundOptions    `json:"-"`
+	TProxyOptions      TProxyInboundOptions      `json:"-"`
+	DNSOptions         DNSInboundOptions         `json:"-"`
 }
 
 type Inbound _Inbound
@@ -30,7 +33,10 @@ func (h Inbound) Equals(other Inbound) bool {
 		h.HTTPOptions.Equals(other.HTTPOptions) &&
 		h.MixedOptions.Equals(other.MixedOptions) &&
 		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions) &&
-		h.TunOptions == other.TunOptions
+		h.TunOptions == other.TunOptions &&
+		h.RedirectOptions == other.RedirectOptions &&
+		h.TProxyOptions == other.TProxyOptions &&
+		h.DNSOptions == other.DNSOptions
 }
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
@@ -48,6 +54,12 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowsocksOptions
 	case C.TypeTun:
 		v = h.TunOptions
+	case C.TypeRedirect:
+		v = h.RedirectOptions
+	case C.TypeTProxy:
+		v = h.TProxyOptions
+	case C.TypeDNS:
+		v = h.DNSOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -73,6 +85,12 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowsocksOptions
 	case C.TypeTun:
 		v = &h.TunOptions
+	case C.TypeRedirect:
+		v = &h.RedirectOptions
+	case C.TypeTProxy:
+		v = &h.TProxyOptions
+	case C.TypeDNS:
+		v = &h.DNSOptions
 	default:
 		return nil
 	}
@@ -163,4 +181,18 @@ type TunInboundOptions struct {
 	AutoRoute     bool          `json:"auto_route,omitempty"`
 	HijackDNS     bool          `json:"hijack_dns,omitempty"`
 	InboundOptions
+}
+
+type RedirectInboundOptions struct {
+	ListenOptions
+}
+
+type TProxyInboundOptions struct {
+	ListenOptions
+	Network NetworkList `json:"network,omitempty"`
+}
+
+type DNSInboundOptions struct {
+	ListenOptions
+	Network NetworkList `json:"network,omitempty"`
 }
