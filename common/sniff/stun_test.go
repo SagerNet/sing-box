@@ -12,6 +12,7 @@ import (
 )
 
 func TestSniffSTUN(t *testing.T) {
+	t.Parallel()
 	packet, err := hex.DecodeString("000100002112a44224b1a025d0c180c484341306")
 	require.NoError(t, err)
 	metadata, err := sniff.STUNMessage(context.Background(), packet)
