@@ -5,4 +5,5 @@ const (
 	ProtocolHTTP = "http"
 	ProtocolQUIC = "quic"
 	ProtocolDNS  = "dns"
+	ProtocolSTUN = "stun"
 )
