@@ -25,12 +25,12 @@ github.com/oschwald/maxminddb-golang v1.9.0/go.mod h1:TK+s/Z2oZq0rSl4PSeAEoP0bgm
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0 h1:8tnMLN6jdqKkjPXwgEekwloPaAmvbxQAMMHdWYOiMj8=
-github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0/go.mod h1:3ZmoGNg/nNJTyHAZFNRSPaXpNIwpDvyIiAUd0KIWV5c=
+github.com/sagernet/sing v0.0.0-20220716021830-bd79d31e3b10 h1:CQSsVgvVT6KcYNQASP4jnPTg7epSxHGI3MS011LIXkA=
+github.com/sagernet/sing v0.0.0-20220716021830-bd79d31e3b10/go.mod h1:3ZmoGNg/nNJTyHAZFNRSPaXpNIwpDvyIiAUd0KIWV5c=
 github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619 h1:oHbOmq1WS0XaZmXp6WpxzyB2xeyRIA1/L8EJKuNntfY=
 github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619/go.mod h1:y2fpvoxukw3G7eApIZwkcpcG/NE4AB8pCQI0Qd8rMqk=
-github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4 h1:s3yKbPfiNwFFGfcNUs8NcKYzor78HWmZuDl5B0dsVQI=
-github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4/go.mod h1:MuyT+9fEPjvauAv0fSE0a6Q+l0Tv2ZrAafTkYfnxBFw=
+github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7 h1:7xQvlMSxNWphQ4t+7fHfR4OnkH23GukLIjImnM1CMLA=
+github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7/go.mod h1:NtHwPOk1wEOPdjjsjtrYoaQuXtlDCrx0mrcWBrNE0sA=
 github.com/sagernet/sing-tun v0.0.0-20220715143949-9968d2c8e92e h1:6j7bHbIAKD8c4f32xbOb2Kj1EFk6IJ+gvmqMHGzgaY0=
 github.com/sagernet/sing-tun v0.0.0-20220715143949-9968d2c8e92e/go.mod h1:p7QbUBs2ejf6UQsiHyy1xGAWOk9JWQjZTHy8pOmkWmo=
 github.com/spf13/cobra v1.5.0 h1:X+jTBEBqF0bHN+9cSMgmfuvv2VHJ9ezmFNf9Y/XstYU=
