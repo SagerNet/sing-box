@@ -457,7 +457,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if err != nil {
 			return err
 		}
-		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.QUICClientHello)
+		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.QUICClientHello, sniff.STUNMessage)
 		originDestination := metadata.Destination
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
