@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0
+	github.com/sagernet/sing v0.0.0-20220716021830-bd79d31e3b10
 	github.com/sagernet/sing-box v0.0.0
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
@@ -33,7 +33,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619 // indirect
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4 // indirect
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7 // indirect
 	github.com/sagernet/sing-tun v0.0.0-20220715143949-9968d2c8e92e // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect

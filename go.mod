@@ -7,9 +7,9 @@ require (
 	github.com/goccy/go-json v0.9.8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220714145306-09b55ce4b6d0
+	github.com/sagernet/sing v0.0.0-20220716021830-bd79d31e3b10
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220715031600-dacfbcd606f4
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7
 	github.com/sagernet/sing-tun v0.0.0-20220715143949-9968d2c8e92e
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
