@@ -20,6 +20,6 @@ func GetOriginalDestinationFromOOB(oob []byte) (netip.AddrPort, error) {
 	return netip.AddrPort{}, os.ErrInvalid
 }
 
-func DialUDP(network string, lAddr *net.UDPAddr, rAddr *net.UDPAddr) (*net.UDPConn, error) {
+func DialUDP(lAddr *net.UDPAddr, rAddr *net.UDPAddr) (*net.UDPConn, error) {
 	return nil, os.ErrInvalid
 }
