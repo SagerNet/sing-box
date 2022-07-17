@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/database64128/tfo-go v1.1.0
-	github.com/goccy/go-json v0.9.8
+	github.com/goccy/go-json v0.9.10
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
 	github.com/sagernet/sing v0.0.0-20220716021830-bd79d31e3b10
@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
-	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 )
 
 require (
