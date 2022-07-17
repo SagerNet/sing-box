@@ -58,8 +58,8 @@ github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619 h1:oHbOmq1WS0XaZ
 github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619/go.mod h1:y2fpvoxukw3G7eApIZwkcpcG/NE4AB8pCQI0Qd8rMqk=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7 h1:7xQvlMSxNWphQ4t+7fHfR4OnkH23GukLIjImnM1CMLA=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220716012931-952ae62e05d7/go.mod h1:NtHwPOk1wEOPdjjsjtrYoaQuXtlDCrx0mrcWBrNE0sA=
-github.com/sagernet/sing-tun v0.0.0-20220717004507-6ed4a688f1bc h1:vB7wVPiGR8nEjwOLhCpCLZrrOOu3JmzupGN2lFoQkwU=
-github.com/sagernet/sing-tun v0.0.0-20220717004507-6ed4a688f1bc/go.mod h1:p7QbUBs2ejf6UQsiHyy1xGAWOk9JWQjZTHy8pOmkWmo=
+github.com/sagernet/sing-tun v0.0.0-20220717030718-f53aabff275f h1:o3YN4sFC7lQznAwutagPqBb23hal7MkgVq/VEvd7Vug=
+github.com/sagernet/sing-tun v0.0.0-20220717030718-f53aabff275f/go.mod h1:p7QbUBs2ejf6UQsiHyy1xGAWOk9JWQjZTHy8pOmkWmo=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE=
 github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
