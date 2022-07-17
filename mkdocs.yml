@@ -61,6 +61,7 @@ nav:
           - GeoIP: configuration/route/geoip.md
           - Geosite: configuration/route/geosite.md
           - Route Rule: configuration/route/rule.md
+          - Protocol Sniff: configuration/route/sniff.md
   - Examples:
       - examples/index.md
       - Shadowsocks Server: examples/ss-server.md

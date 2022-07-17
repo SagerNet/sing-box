@@ -59,9 +59,7 @@ Hijack TCP/UDP DNS requests to the built-in DNS adapter.
 
 Enable sniffing.
 
-Reads domain names for routing, supports HTTP TLS for TCP, QUIC for UDP.
-
-This does not break zero copy, like splice.
+See [Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

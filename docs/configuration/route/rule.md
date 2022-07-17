@@ -9,6 +9,10 @@
           "mixed-in"
         ],
         "network": "tcp",
+        "user": [
+          "usera",
+          "userb"
+        ],
         "protocol": [
           "tls",
           "http",
@@ -78,6 +82,14 @@
 #### inbound
 
 Tags of [inbound](../inbound).
+
+#### user
+
+Username, see each inbound for details.
+
+#### protocol
+
+Sniffed protocol, see [Sniff](/configuration/route/sniff/) for details.
 
 #### network
 

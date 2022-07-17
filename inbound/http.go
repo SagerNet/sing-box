@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/http"
 )
 
@@ -40,5 +41,25 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 }
 
 func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamHandler(metadata), M.Metadata{})
+	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
+}
+
+func (a *myInboundAdapter) upstreamUserHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {
+	return adapter.NewUpstreamHandler(metadata, a.newUserConnection, a.streamUserPacketConnection, a)
+}
+
+func (a *myInboundAdapter) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	user, loaded := auth.UserFromContext[string](ctx)
+	if !loaded {
+		a.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+		return a.router.RouteConnection(ctx, conn, metadata)
+	}
+	metadata.User = user
+	a.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
+	return a.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (a *myInboundAdapter) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }

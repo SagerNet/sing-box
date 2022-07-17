@@ -21,6 +21,7 @@ type InboundContext struct {
 	Destination M.Socksaddr
 	Domain      string
 	Protocol    string
+	User        string
 	Outbound    string
 
 	// cache

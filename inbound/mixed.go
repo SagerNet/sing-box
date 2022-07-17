@@ -52,8 +52,8 @@ func (h *Mixed) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	}
 	switch headerType {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnection0(ctx, conn, headerType, h.authenticator, h.upstreamHandler(metadata), M.Metadata{})
+		return socks.HandleConnection0(ctx, conn, headerType, h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
 	}
 	reader := std_bufio.NewReader(bufio.NewCachedReader(conn, buf.As([]byte{headerType})))
-	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamHandler(metadata), M.Metadata{})
+	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
 }

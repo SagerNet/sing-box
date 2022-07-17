@@ -89,6 +89,7 @@ type DefaultRule struct {
 	Inbound       Listable[string] `json:"inbound,omitempty"`
 	IPVersion     int              `json:"ip_version,omitempty"`
 	Network       string           `json:"network,omitempty"`
+	User          Listable[string] `json:"user,omitempty"`
 	Protocol      Listable[string] `json:"protocol,omitempty"`
 	Domain        Listable[string] `json:"domain,omitempty"`
 	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
@@ -114,6 +115,7 @@ func (r DefaultRule) Equals(other DefaultRule) bool {
 	return common.ComparableSliceEquals(r.Inbound, other.Inbound) &&
 		r.IPVersion == other.IPVersion &&
 		r.Network == other.Network &&
+		common.ComparableSliceEquals(r.User, other.User) &&
 		common.ComparableSliceEquals(r.Protocol, other.Protocol) &&
 		common.ComparableSliceEquals(r.Domain, other.Domain) &&
 		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&

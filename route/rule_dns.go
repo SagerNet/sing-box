@@ -66,8 +66,13 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 			return nil, E.New("invalid network: ", options.Network)
 		}
 	}
+	if len(options.User) > 0 {
+		item := NewUserItem(options.User)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.Protocol) > 0 {
-		item := NewProtocolItem(options.Protocol)
+		item := NewUserItem(options.Protocol)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
