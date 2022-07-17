@@ -77,5 +77,17 @@ func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata
 }
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Shadowsocks) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	return h.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (h *Shadowsocks) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithNewID(ctx)
+	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }

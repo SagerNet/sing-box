@@ -91,6 +91,7 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 type DefaultDNSRule struct {
 	Inbound       Listable[string] `json:"inbound,omitempty"`
 	Network       string           `json:"network,omitempty"`
+	User          Listable[string] `json:"user,omitempty"`
 	Protocol      Listable[string] `json:"protocol,omitempty"`
 	Domain        Listable[string] `json:"domain,omitempty"`
 	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
@@ -114,6 +115,7 @@ func (r DefaultDNSRule) IsValid() bool {
 func (r DefaultDNSRule) Equals(other DefaultDNSRule) bool {
 	return common.ComparableSliceEquals(r.Inbound, other.Inbound) &&
 		r.Network == other.Network &&
+		common.ComparableSliceEquals(r.User, other.User) &&
 		common.ComparableSliceEquals(r.Protocol, other.Protocol) &&
 		common.ComparableSliceEquals(r.Domain, other.Domain) &&
 		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&

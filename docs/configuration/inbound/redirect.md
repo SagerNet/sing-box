@@ -8,6 +8,7 @@
     {
       "type": "redirect",
       "tag": "redirect-in",
+      
       "listen": "::",
       "listen_port": 5353,
       "sniff": false,
@@ -36,9 +37,7 @@ Listen port.
 
 Enable sniffing.
 
-Reads domain names for routing, supports HTTP TLS for TCP, QUIC for UDP.
-
-This does not break zero copy, like splice.
+See [Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

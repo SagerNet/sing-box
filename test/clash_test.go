@@ -152,14 +152,15 @@ func newLargeDataPair() (chan hashPair, chan hashPair, func(t *testing.T) error)
 	return pingCh, pongCh, test
 }
 
-func testPingPongWithConn(t *testing.T, port uint16, cc func() (net.Conn, error)) error {
+func testPingPongWithConn(t *testing.T, cc func(port uint16) (net.Conn, error)) error {
+	port := mkPort(t)
 	l, err := listen("tcp", ":"+F.ToString(port))
 	if err != nil {
 		return err
 	}
 	defer l.Close()
 
-	c, err := cc()
+	c, err := cc(port)
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,9 @@ func testPingPongWithConn(t *testing.T, port uint16, cc func() (net.Conn, error)
 	return test(t)
 }
 
-func testPingPongWithPacketConn(t *testing.T, port uint16, pcc func() (net.PacketConn, error)) error {
+func testPingPongWithPacketConn(t *testing.T, pcc func(port uint16) (net.PacketConn, error)) error {
+	port := mkPort(t)
+
 	l, err := listenPacket("udp", ":"+F.ToString(port))
 	require.NoError(t, err)
 	defer l.Close()
@@ -219,7 +222,7 @@ func testPingPongWithPacketConn(t *testing.T, port uint16, pcc func() (net.Packe
 		}
 	}()
 
-	pc, err := pcc()
+	pc, err := pcc(port)
 	if err != nil {
 		return err
 	}
@@ -246,7 +249,8 @@ type hashPair struct {
 	recvHash map[int][]byte
 }
 
-func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error)) error {
+func testLargeDataWithConn(t *testing.T, cc func(port uint16) (net.Conn, error)) error {
+	port := mkPort(t)
 	l, err := listen("tcp", ":"+F.ToString(port))
 	require.NoError(t, err)
 	defer l.Close()
@@ -275,7 +279,7 @@ func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error
 		return hashMap, nil
 	}
 
-	c, err := cc()
+	c, err := cc(port)
 	if err != nil {
 		return err
 	}
@@ -343,7 +347,8 @@ func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error
 	return test(t)
 }
 
-func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.PacketConn, error)) error {
+func testLargeDataWithPacketConn(t *testing.T, pcc func(port uint16) (net.PacketConn, error)) error {
+	port := mkPort(t)
 	l, err := listenPacket("udp", ":"+F.ToString(port))
 	require.NoError(t, err)
 	defer l.Close()
@@ -409,7 +414,7 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 		}
 	}()
 
-	pc, err := pcc()
+	pc, err := pcc(port)
 	if err != nil {
 		return err
 	}
@@ -444,8 +449,8 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 	return test(t)
 }
 
-func testPacketConnTimeout(t *testing.T, pcc func() (net.PacketConn, error)) error {
-	pc, err := pcc()
+func testPacketConnTimeout(t *testing.T, pcc func(port uint16) (net.PacketConn, error)) error {
+	pc, err := pcc(mkPort(t))
 	if err != nil {
 		return err
 	}

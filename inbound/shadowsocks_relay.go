@@ -3,14 +3,15 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
@@ -72,24 +73,34 @@ func (h *ShadowsocksRelay) NewConnection(ctx context.Context, conn net.Conn, met
 }
 
 func (h *ShadowsocksRelay) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksRelay) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	userCtx := ctx.(*shadowsocks.UserContext[int])
-	destination := h.destinations[userCtx.User].Name
+	destinationIndex, loaded := auth.UserFromContext[int](ctx)
+	if !loaded {
+		return os.ErrInvalid
+	}
+	destination := h.destinations[destinationIndex].Name
 	if destination == "" {
-		destination = F.ToString(userCtx.User)
+		destination = F.ToString(destinationIndex)
+	} else {
+		metadata.User = destination
 	}
 	h.logger.InfoContext(ctx, "[", destination, "] inbound connection to ", metadata.Destination)
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
 func (h *ShadowsocksRelay) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	userCtx := ctx.(*shadowsocks.UserContext[int])
-	destination := h.destinations[userCtx.User].Name
+	destinationIndex, loaded := auth.UserFromContext[int](ctx)
+	if !loaded {
+		return os.ErrInvalid
+	}
+	destination := h.destinations[destinationIndex].Name
 	if destination == "" {
-		destination = F.ToString(userCtx.User)
+		destination = F.ToString(destinationIndex)
+	} else {
+		metadata.User = destination
 	}
 	ctx = log.ContextWithNewID(ctx)
 	h.logger.InfoContext(ctx, "[", destination, "] inbound packet connection from ", metadata.Source)
