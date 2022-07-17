@@ -39,8 +39,7 @@ jobs:
         with:
           path: |
             ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: go-${{ hashFiles('**/go.sum') }}
       - name: Add cache to Go proxy
         run: |
           version=`git rev-parse HEAD`
@@ -53,6 +52,149 @@ jobs:
         run: |
           cd test
           go test -v ./...
-      - name: Build all arch
+  cross:
+    strategy:
+      matrix:
+        include:
+          # windows
+          - name: windows-amd64
+            goos: windows
+            goarch: amd64
+            goamd64: v1
+          - name: windows-amd64-v3
+            goos: windows
+            goarch: amd64
+            goamd64: v3
+          - name: windows-386
+            goos: windows
+            goarch: 386
+          - name: windows-arm64
+            goos: windows
+            goarch: arm64
+          - name: windows-arm32v7
+            goos: windows
+            goarch: arm
+            goarm: 7
+          
+          # linux
+          - name: linux-amd64
+            goos: linux
+            goarch: amd64
+            goamd64: v1
+          - name: linux-amd64-v3
+            goos: linux
+            goarch: amd64
+            goamd64: v3
+          - name: linux-386
+            goos: linux
+            goarch: 386
+          - name: linux-arm64
+            goos: linux
+            goarch: arm64
+          - name: linux-armv5
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - name: linux-armv6
+            goos: linux
+            goarch: arm
+            goarm: 6
+          - name: linux-armv7
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - name: linux-mips-softfloat
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - name: linux-mips-hardfloat
+            goos: linux
+            goarch: mips
+            gomips: hardfloat
+          - name: linux-mipsel-softfloat
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+          - name: linux-mipsel-hardfloat
+            goos: linux
+            goarch: mipsle
+            gomips: hardfloat
+          - name: linux-mips64
+            goos: linux
+            goarch: mips64
+          - name: linux-mips64el
+            goos: linux
+            goarch: mips64le
+          # darwin
+          - name: darwin-amd64
+            goos: darwin
+            goarch: amd64
+            goamd64: v1
+          - name: darwin-amd64-v3
+            goos: darwin
+            goarch: amd64
+            goamd64: v3
+          - name: darwin-arm64
+            goos: darwin
+            goarch: arm64
+          # freebsd
+          - name: freebsd-amd64
+            goos: freebsd
+            goarch: amd64
+            goamd64: v1
+          - name: freebsd-amd64-v3
+            goos: freebsd
+            goarch: amd64
+            goamd64: v3
+          - name: freebsd-386
+            goos: freebsd
+            goarch: 386
+          - name: freebsd-arm64
+            goos: freebsd
+            goarch: arm64
+
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM: ${{ matrix.goarm }}
+      GOMIPS: ${{ matrix.gomips }}
+      CGO_ENABLED: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get latest go version
+        id: version
         run: |
-          make all-arch
+          echo ::set-output name=go_version::$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g')
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.version.outputs.go_version }}
+      - name: Cache go module
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+          key: go-${{ hashFiles('**/go.sum') }}
+      - name: Build
+        id: build
+        run: |
+          VERSION="$(date +%Y%m%d).$(git rev-parse --short HEAD)"
+          BUILDTIME="$(LANG=en_US.UTF-8 date -u)"
+          
+          go build -v -trimpath -ldflags '\
+            -X "github.com/sagernet/sing-box/constant.Version=$VERSION" \
+          	-X "github.com/sagernet/sing-box/constant.BuildTime=$BUILDTIME" \
+          	-s -w -buildid=' ./cmd/sing-box
+          
+          echo "::set-output name=VERSION::$VERSION"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: sing-box-${{ matrix.name }}-${{ steps.build.outputs.VERSION }}
+          path: sing-box*
