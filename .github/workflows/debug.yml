@@ -30,7 +30,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ steps.version.outputs.go_version }}
-      - name: Build
+      - name: Cache go module
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Add cache to Go proxy
         run: |
           version=`git rev-parse HEAD`
           mkdir build
@@ -38,9 +45,10 @@ jobs:
           go mod init build
           go get -v github.com/sagernet/sing-box@$version
           popd
-          go build -v ./...
-          go test -v ./...
       - name: Run Test
         run: |
           cd test
           go test -v ./...
+      - name: Build all arch
+        run: |
+          make all-arch
