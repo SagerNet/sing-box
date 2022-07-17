@@ -22,7 +22,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -66,10 +65,10 @@ type Router struct {
 	transportMap          map[string]dns.Transport
 
 	interfaceBindManager control.BindManager
-	networkMonitor       tun.NetworkUpdateMonitor
+	networkMonitor       NetworkUpdateMonitor
 	autoDetectInterface  bool
 	defaultInterface     string
-	interfaceMonitor     tun.DefaultInterfaceMonitor
+	interfaceMonitor     DefaultInterfaceMonitor
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -199,7 +198,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.transportMap = transportMap
 
 	if router.interfaceBindManager != nil || options.AutoDetectInterface {
-		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
+		networkMonitor, err := NewNetworkUpdateMonitor(router)
 		if err == nil {
 			router.networkMonitor = networkMonitor
 			if router.interfaceBindManager != nil {
@@ -209,7 +208,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 
 	if router.networkMonitor != nil && options.AutoDetectInterface {
-		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, func() {
+		interfaceMonitor, err := NewDefaultInterfaceMonitor(router.networkMonitor, func() {
 			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
 		})
 		if err != nil {
