@@ -19,10 +19,14 @@ func decodeJSON(decoder *json.Decoder) (any, error) {
 			err = object.decodeJSON(decoder)
 			if err != nil {
 				return nil, err
+			}
+			rawToken, err = decoder.Token()
+			if err != nil {
+				return nil, err
 			} else if rawToken != json.Delim('}') {
 				return nil, E.New("excepted object end, but got ", rawToken)
 			}
-			return object, nil
+			return &object, nil
 		case '[':
 			var array JSONArray[any]
 			err = array.decodeJSON(decoder)
@@ -35,7 +39,7 @@ func decodeJSON(decoder *json.Decoder) (any, error) {
 			} else if rawToken != json.Delim(']') {
 				return nil, E.New("excepted array end, but got ", rawToken)
 			}
-			return &array, nil
+			return array, nil
 		default:
 			return nil, E.New("excepted object or array end: ", token)
 		}

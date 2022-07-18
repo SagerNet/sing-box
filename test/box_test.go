@@ -54,11 +54,25 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 	}
 	t.Run("tcp", func(t *testing.T) {
 		t.Parallel()
-		require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
+		var err error
+		for retry := 0; retry < 3; retry++ {
+			err = testLargeDataWithConn(t, testPort, dialTCP)
+			if err == nil {
+				break
+			}
+		}
+		require.NoError(t, err)
 	})
 	t.Run("udp", func(t *testing.T) {
 		t.Parallel()
-		require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
+		var err error
+		for retry := 0; retry < 3; retry++ {
+			err = testLargeDataWithPacketConn(t, testPort, dialUDP)
+			if err == nil {
+				break
+			}
+		}
+		require.NoError(t, err)
 	})
 	// require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
 	// require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
