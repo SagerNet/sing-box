@@ -7,7 +7,7 @@ require (
 	github.com/goccy/go-json v0.9.10
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220717063925-00f98eb6bc34
+	github.com/sagernet/sing v0.0.0-20220718035659-3d74b823ed56
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220717063942-45a2ad9cd41f
 	github.com/sagernet/sing-tun v0.0.0-20220717030718-f53aabff275f
@@ -18,8 +18,11 @@ require (
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 )
 
+require github.com/sagernet/sing-vmess v0.0.0-20220718031323-07c377156e4a
+
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect; indirectg
+	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect

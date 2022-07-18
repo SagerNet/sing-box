@@ -24,6 +24,8 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 		return NewHTTP(router, logger, options.Tag, options.HTTPOptions), nil
 	case C.TypeShadowsocks:
 		return NewShadowsocks(router, logger, options.Tag, options.ShadowsocksOptions)
+	case C.TypeVMess:
+		return NewVMess(router, logger, options.Tag, options.VMessOptions)
 	default:
 		return nil, E.New("unknown outbound type: ", options.Type)
 	}

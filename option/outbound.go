@@ -15,6 +15,7 @@ type _Outbound struct {
 	SocksOptions       SocksOutboundOptions       `json:"-"`
 	HTTPOptions        HTTPOutboundOptions        `json:"-"`
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
+	VMessOptions       VMessOutboundOptions       `json:"-"`
 }
 
 type Outbound _Outbound
@@ -24,14 +25,16 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 	switch h.Type {
 	case C.TypeDirect:
 		v = h.DirectOptions
+	case C.TypeBlock:
+		v = nil
 	case C.TypeSocks:
 		v = h.SocksOptions
 	case C.TypeHTTP:
 		v = h.HTTPOptions
 	case C.TypeShadowsocks:
 		v = h.ShadowsocksOptions
-	case C.TypeBlock:
-		v = nil
+	case C.TypeVMess:
+		v = h.VMessOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -47,14 +50,16 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	switch h.Type {
 	case C.TypeDirect:
 		v = &h.DirectOptions
+	case C.TypeBlock:
+		v = nil
 	case C.TypeSocks:
 		v = &h.SocksOptions
 	case C.TypeHTTP:
 		v = &h.HTTPOptions
 	case C.TypeShadowsocks:
 		v = &h.ShadowsocksOptions
-	case C.TypeBlock:
-		v = nil
+	case C.TypeVMess:
+		v = &h.VMessOptions
 	default:
 		return nil
 	}
@@ -130,4 +135,15 @@ type ShadowsocksOutboundOptions struct {
 	Method   string      `json:"method"`
 	Password string      `json:"password"`
 	Network  NetworkList `json:"network,omitempty"`
+}
+
+type VMessOutboundOptions struct {
+	OutboundDialerOptions
+	ServerOptions
+	UUID                string      `json:"uuid"`
+	Security            string      `json:"security"`
+	AlterId             int         `json:"alter_id,omitempty"`
+	GlobalPadding       bool        `json:"global_padding,omitempty"`
+	AuthenticatedLength bool        `json:"authenticated_length,omitempty"`
+	Network             NetworkList `json:"network,omitempty"`
 }
