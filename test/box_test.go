@@ -35,13 +35,20 @@ func mkPort(t *testing.T) uint16 {
 }
 
 func startInstance(t *testing.T, options option.Options) {
-	instance, err := box.New(context.Background(), options)
+	var err error
+	for retry := 0; retry < 3; retry++ {
+		instance, err := box.New(context.Background(), options)
+		require.NoError(t, err)
+		err = instance.Start()
+		if err != nil {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		t.Cleanup(func() {
+			instance.Close()
+		})
+	}
 	require.NoError(t, err)
-	require.NoError(t, instance.Start())
-	t.Cleanup(func() {
-		instance.Close()
-	})
-	time.Sleep(time.Second)
 }
 
 func testSuit(t *testing.T, clientPort uint16, testPort uint16) {

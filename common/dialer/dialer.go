@@ -6,7 +6,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -23,9 +22,6 @@ func NewOutbound(router adapter.Router, options option.OutboundDialerOptions) N.
 	domainStrategy := dns.DomainStrategy(options.DomainStrategy)
 	if domainStrategy != dns.DomainStrategyAsIS || options.Detour == "" {
 		dialer = NewResolveDialer(router, dialer, domainStrategy, time.Duration(options.FallbackDelay))
-	}
-	if options.OverrideOptions.IsValid() {
-		dialer = NewOverride(dialer, common.PtrValueOrDefault(options.OverrideOptions))
 	}
 	return dialer
 }

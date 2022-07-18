@@ -82,20 +82,8 @@ type DialerOptions struct {
 
 type OutboundDialerOptions struct {
 	DialerOptions
-	OverrideOptions *OverrideStreamOptions `json:"override,omitempty"`
-	DomainStrategy  DomainStrategy         `json:"domain_strategy,omitempty"`
-	FallbackDelay   Duration               `json:"fallback_delay,omitempty"`
-}
-
-type OverrideStreamOptions struct {
-	TLS           bool   `json:"tls,omitempty"`
-	TLSServerName string `json:"tls_servername,omitempty"`
-	TLSInsecure   bool   `json:"tls_insecure,omitempty"`
-	UDPOverTCP    bool   `json:"udp_over_tcp,omitempty"`
-}
-
-func (o *OverrideStreamOptions) IsValid() bool {
-	return o != nil && (o.TLS || o.UDPOverTCP)
+	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`
+	FallbackDelay  Duration       `json:"fallback_delay,omitempty"`
 }
 
 type ServerOptions struct {
@@ -125,8 +113,16 @@ type SocksOutboundOptions struct {
 type HTTPOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+	Username   string              `json:"username,omitempty"`
+	Password   string              `json:"password,omitempty"`
+	TLSOptions *OutboundTLSOptions `json:"tls,omitempty"`
+}
+
+type OutboundTLSOptions struct {
+	Enabled    bool   `json:"enabled,omitempty"`
+	DisableSNI bool   `json:"disable_sni,omitempty"`
+	ServerName string `json:"server_name,omitempty"`
+	Insecure   bool   `json:"insecure,omitempty"`
 }
 
 type ShadowsocksOutboundOptions struct {
@@ -140,10 +136,11 @@ type ShadowsocksOutboundOptions struct {
 type VMessOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
-	UUID                string      `json:"uuid"`
-	Security            string      `json:"security"`
-	AlterId             int         `json:"alter_id,omitempty"`
-	GlobalPadding       bool        `json:"global_padding,omitempty"`
-	AuthenticatedLength bool        `json:"authenticated_length,omitempty"`
-	Network             NetworkList `json:"network,omitempty"`
+	UUID                string              `json:"uuid"`
+	Security            string              `json:"security"`
+	AlterId             int                 `json:"alter_id,omitempty"`
+	GlobalPadding       bool                `json:"global_padding,omitempty"`
+	AuthenticatedLength bool                `json:"authenticated_length,omitempty"`
+	Network             NetworkList         `json:"network,omitempty"`
+	TLSOptions          *OutboundTLSOptions `json:"tls,omitempty"`
 }
