@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-vmess"
+	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -35,6 +36,10 @@ func NewVMess(router adapter.Router, logger log.ContextLogger, tag string, optio
 	if err != nil {
 		return nil, err
 	}
+	detour, err := dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
+	if err != nil {
+		return nil, err
+	}
 	return &VMess{
 		myOutboundAdapter{
 			protocol: C.TypeDirect,
@@ -42,7 +47,7 @@ func NewVMess(router adapter.Router, logger log.ContextLogger, tag string, optio
 			tag:      tag,
 			network:  options.Network.Build(),
 		},
-		dialer.NewOutbound(router, options.OutboundDialerOptions),
+		detour,
 		client,
 		options.ServerOptions.Build(),
 	}, nil

@@ -93,7 +93,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 	}
 	_payload := buf.StackNew()
 	payload := common.Dup(_payload)
-	err := conn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
 	if err != nil {
 		return err
 	}

@@ -484,7 +484,7 @@ func listen(network, address string) (net.Listener, error) {
 		}
 
 		lastErr = err
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(5 * time.Millisecond)
 	}
 	return nil, lastErr
 }
@@ -500,7 +500,7 @@ func listenPacket(network, address string) (net.PacketConn, error) {
 		}
 
 		lastErr = err
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(5 * time.Millisecond)
 	}
 	return nil, lastErr
 }

@@ -143,9 +143,12 @@ func (s *Box) Start() error {
 	if err != nil {
 		return err
 	}
-	for _, in := range s.inbounds {
+	for i, in := range s.inbounds {
 		err = in.Start()
 		if err != nil {
+			for g := 0; g < i; g++ {
+				s.inbounds[g].Close()
+			}
 			return err
 		}
 	}

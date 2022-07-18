@@ -21,7 +21,7 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 	case C.TypeSocks:
 		return NewSocks(router, logger, options.Tag, options.SocksOptions)
 	case C.TypeHTTP:
-		return NewHTTP(router, logger, options.Tag, options.HTTPOptions), nil
+		return NewHTTP(router, logger, options.Tag, options.HTTPOptions)
 	case C.TypeShadowsocks:
 		return NewShadowsocks(router, logger, options.Tag, options.ShadowsocksOptions)
 	case C.TypeVMess:

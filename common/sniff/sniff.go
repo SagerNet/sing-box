@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -19,7 +20,7 @@ type (
 )
 
 func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
-	err := conn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
 	if err != nil {
 		return nil, err
 	}

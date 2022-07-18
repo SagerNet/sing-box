@@ -59,6 +59,8 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	}
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
+	} else {
+		dialer.Timeout = C.DefaultTCPTimeout
 	}
 	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
 }
