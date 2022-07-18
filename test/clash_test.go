@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common/control"
 	F "github.com/sagernet/sing/common/format"
 
 	"github.com/docker/docker/api/types"
@@ -27,11 +28,13 @@ import (
 const (
 	ImageShadowsocksRustServer = "ghcr.io/shadowsocks/ssserver-rust:latest"
 	ImageShadowsocksRustClient = "ghcr.io/shadowsocks/sslocal-rust:latest"
+	ImageV2RayCore             = "v2fly/v2fly-core:latest"
 )
 
 var allImages = []string{
 	ImageShadowsocksRustServer,
 	ImageShadowsocksRustClient,
+	ImageV2RayCore,
 }
 
 var (
@@ -200,7 +203,9 @@ func testPingPongWithConn(t *testing.T, port uint16, cc func() (net.Conn, error)
 
 func testPingPongWithPacketConn(t *testing.T, port uint16, pcc func() (net.PacketConn, error)) error {
 	l, err := listenPacket("udp", ":"+F.ToString(port))
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
 	defer l.Close()
 
 	rAddr := &net.UDPAddr{IP: localIP.AsSlice(), Port: int(port)}
@@ -345,7 +350,9 @@ func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error
 
 func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.PacketConn, error)) error {
 	l, err := listenPacket("udp", ":"+F.ToString(port))
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
 	defer l.Close()
 
 	rAddr := &net.UDPAddr{IP: localIP.AsSlice(), Port: int(port)}
@@ -467,8 +474,8 @@ func testPacketConnTimeout(t *testing.T, pcc func() (net.PacketConn, error)) err
 }
 
 func listen(network, address string) (net.Listener, error) {
-	lc := net.ListenConfig{}
-
+	var lc net.ListenConfig
+	lc.Control = control.ReuseAddr()
 	var lastErr error
 	for i := 0; i < 5; i++ {
 		l, err := lc.Listen(context.Background(), network, address)
@@ -483,9 +490,11 @@ func listen(network, address string) (net.Listener, error) {
 }
 
 func listenPacket(network, address string) (net.PacketConn, error) {
+	var lc net.ListenConfig
+	lc.Control = control.ReuseAddr()
 	var lastErr error
 	for i := 0; i < 5; i++ {
-		l, err := net.ListenPacket(network, address)
+		l, err := lc.ListenPacket(context.Background(), network, address)
 		if err == nil {
 			return l, nil
 		}

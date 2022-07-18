@@ -21,6 +21,7 @@ type DockerOptions struct {
 	Cmd        []string
 	Env        []string
 	Bind       []string
+	Stdin      []byte
 }
 
 func startDockerContainer(t *testing.T, options DockerOptions) {
@@ -28,9 +29,19 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	require.NoError(t, err)
 	defer dockerClient.Close()
 
+	writeStdin := len(options.Stdin) > 0
+
 	var containerOptions container.Config
+
+	if writeStdin {
+		containerOptions.OpenStdin = true
+		containerOptions.StdinOnce = true
+	}
+
 	containerOptions.Image = options.Image
-	containerOptions.Entrypoint = []string{options.EntryPoint}
+	if options.EntryPoint != "" {
+		containerOptions.Entrypoint = []string{options.EntryPoint}
+	}
 	containerOptions.Cmd = options.Cmd
 	containerOptions.Env = options.Env
 	containerOptions.ExposedPorts = make(nat.PortSet)
@@ -57,13 +68,29 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	t.Cleanup(func() {
 		cleanContainer(dockerContainer.ID)
 	})
+
 	require.NoError(t, dockerClient.ContainerStart(context.Background(), dockerContainer.ID, types.ContainerStartOptions{}))
+
+	if writeStdin {
+		stdinAttach, err := dockerClient.ContainerAttach(context.Background(), dockerContainer.ID, types.ContainerAttachOptions{
+			Stdin:  writeStdin,
+			Stream: true,
+		})
+		require.NoError(t, err)
+		_, err = stdinAttach.Conn.Write(options.Stdin)
+		require.NoError(t, err)
+		stdinAttach.Close()
+	}
+
 	/*attach, err := dockerClient.ContainerAttach(context.Background(), dockerContainer.ID, types.ContainerAttachOptions{
-		Logs: true, Stream: true, Stdout: true, Stderr: true,
+		Stdout: true,
+		Stderr: true,
+		Logs:   true,
+		Stream: true,
 	})
 	require.NoError(t, err)
 	go func() {
-		attach.Reader.WriteTo(os.Stderr)
+		stdcopy.StdCopy(os.Stderr, os.Stderr, attach.Reader)
 	}()*/
 	time.Sleep(time.Second)
 }
