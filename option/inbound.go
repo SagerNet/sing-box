@@ -12,15 +12,16 @@ import (
 type _Inbound struct {
 	Type               string                    `json:"type"`
 	Tag                string                    `json:"tag,omitempty"`
+	TunOptions         TunInboundOptions         `json:"-"`
+	RedirectOptions    RedirectInboundOptions    `json:"-"`
+	TProxyOptions      TProxyInboundOptions      `json:"-"`
+	DNSOptions         DNSInboundOptions         `json:"-"`
 	DirectOptions      DirectInboundOptions      `json:"-"`
 	SocksOptions       SocksInboundOptions       `json:"-"`
 	HTTPOptions        HTTPMixedInboundOptions   `json:"-"`
 	MixedOptions       HTTPMixedInboundOptions   `json:"-"`
 	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
-	TunOptions         TunInboundOptions         `json:"-"`
-	RedirectOptions    RedirectInboundOptions    `json:"-"`
-	TProxyOptions      TProxyInboundOptions      `json:"-"`
-	DNSOptions         DNSInboundOptions         `json:"-"`
+	VMessOptions       VMessInboundOptions       `json:"-"`
 }
 
 type Inbound _Inbound
@@ -28,20 +29,29 @@ type Inbound _Inbound
 func (h Inbound) Equals(other Inbound) bool {
 	return h.Type == other.Type &&
 		h.Tag == other.Tag &&
+		h.TunOptions == other.TunOptions &&
+		h.RedirectOptions == other.RedirectOptions &&
+		h.TProxyOptions == other.TProxyOptions &&
+		h.DNSOptions == other.DNSOptions &&
 		h.DirectOptions == other.DirectOptions &&
 		h.SocksOptions.Equals(other.SocksOptions) &&
 		h.HTTPOptions.Equals(other.HTTPOptions) &&
 		h.MixedOptions.Equals(other.MixedOptions) &&
 		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions) &&
-		h.TunOptions == other.TunOptions &&
-		h.RedirectOptions == other.RedirectOptions &&
-		h.TProxyOptions == other.TProxyOptions &&
-		h.DNSOptions == other.DNSOptions
+		h.VMessOptions.Equals(other.VMessOptions)
 }
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
 	var v any
 	switch h.Type {
+	case C.TypeTun:
+		v = h.TunOptions
+	case C.TypeRedirect:
+		v = h.RedirectOptions
+	case C.TypeTProxy:
+		v = h.TProxyOptions
+	case C.TypeDNS:
+		v = h.DNSOptions
 	case C.TypeDirect:
 		v = h.DirectOptions
 	case C.TypeSocks:
@@ -52,14 +62,8 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.MixedOptions
 	case C.TypeShadowsocks:
 		v = h.ShadowsocksOptions
-	case C.TypeTun:
-		v = h.TunOptions
-	case C.TypeRedirect:
-		v = h.RedirectOptions
-	case C.TypeTProxy:
-		v = h.TProxyOptions
-	case C.TypeDNS:
-		v = h.DNSOptions
+	case C.TypeVMess:
+		v = h.VMessOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -73,6 +77,14 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch h.Type {
+	case C.TypeTun:
+		v = &h.TunOptions
+	case C.TypeRedirect:
+		v = &h.RedirectOptions
+	case C.TypeTProxy:
+		v = &h.TProxyOptions
+	case C.TypeDNS:
+		v = &h.DNSOptions
 	case C.TypeDirect:
 		v = &h.DirectOptions
 	case C.TypeSocks:
@@ -83,16 +95,10 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.MixedOptions
 	case C.TypeShadowsocks:
 		v = &h.ShadowsocksOptions
-	case C.TypeTun:
-		v = &h.TunOptions
-	case C.TypeRedirect:
-		v = &h.RedirectOptions
-	case C.TypeTProxy:
-		v = &h.TProxyOptions
-	case C.TypeDNS:
-		v = &h.DNSOptions
+	case C.TypeVMess:
+		v = &h.VMessOptions
 	default:
-		return nil
+		return E.New("unknown inbound type: ", h.Type)
 	}
 	err = UnmarshallExcluded(bytes, (*_Inbound)(h), v)
 	if err != nil {
@@ -171,6 +177,21 @@ type ShadowsocksDestination struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	ServerOptions
+}
+
+type VMessInboundOptions struct {
+	ListenOptions
+	Users []VMessUser `json:"users,omitempty"`
+}
+
+func (o VMessInboundOptions) Equals(other VMessInboundOptions) bool {
+	return o.ListenOptions == other.ListenOptions &&
+		common.ComparableSliceEquals(o.Users, other.Users)
+}
+
+type VMessUser struct {
+	Name string `json:"name"`
+	UUID string `json:"uuid"`
 }
 
 type TunInboundOptions struct {

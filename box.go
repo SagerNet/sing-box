@@ -59,6 +59,15 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			TimestampFormat:  "-0700 2006-01-02 15:04:05",
 		}
 		logFactory = log.NewFactory(logFormatter, logWriter)
+		if logOptions.Level != "" {
+			logLevel, err := log.ParseLevel(logOptions.Level)
+			if err != nil {
+				return nil, E.Cause(err, "parse log level")
+			}
+			logFactory.SetLevel(logLevel)
+		} else {
+			logFactory.SetLevel(log.LevelTrace)
+		}
 	}
 
 	router, err := route.NewRouter(

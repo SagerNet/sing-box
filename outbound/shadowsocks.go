@@ -71,7 +71,7 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.InfoContext(ctx, "outbound packet connection to ", h.serverAddr)
+	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	outConn, err := h.dialer.DialContext(ctx, "udp", h.serverAddr)
 	if err != nil {
 		return nil, err
