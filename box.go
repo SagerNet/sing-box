@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/experimental/clashapi"
+	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -28,7 +28,7 @@ type Box struct {
 	logFactory  log.Factory
 	logger      log.ContextLogger
 	logFile     *os.File
-	clashServer *clashapi.Server
+	clashServer adapter.ClashServer
 }
 
 func New(ctx context.Context, options option.Options) (*Box, error) {
@@ -141,9 +141,12 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		return nil, err
 	}
 
-	var clashServer *clashapi.Server
+	var clashServer adapter.ClashServer
 	if needClashAPI {
-		clashServer = clashapi.NewServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		clashServer, err = experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		if err != nil {
+			return nil, E.Cause(err, "create clash api server")
+		}
 		router.SetTrafficController(clashServer)
 	}
 	return &Box{
@@ -175,7 +178,7 @@ func (s *Box) Start() error {
 	if s.clashServer != nil {
 		err = s.clashServer.Start()
 		if err != nil {
-			return E.Cause(err, "start clash api")
+			return E.Cause(err, "start clash api server")
 		}
 	}
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
@@ -191,7 +194,7 @@ func (s *Box) Close() error {
 	}
 	return common.Close(
 		s.router,
+		s.clashServer,
 		common.PtrOrNil(s.logFile),
-		common.PtrOrNil(s.clashServer),
 	)
 }
