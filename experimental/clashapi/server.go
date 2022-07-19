@@ -58,7 +58,15 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Mount("/profile", profileRouter())
 		r.Mount("/cache", cacheRouter())
 	})
-
+	if options.ExternalUI != "" {
+		chiRouter.Group(func(r chi.Router) {
+			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(options.ExternalUI)))
+			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
+			r.Get("/ui/*", func(w http.ResponseWriter, r *http.Request) {
+				fs.ServeHTTP(w, r)
+			})
+		})
+	}
 	return &Server{
 		logFactory.NewLogger("clash-api"),
 		&http.Server{
