@@ -11,11 +11,12 @@ import (
 )
 
 type _Options struct {
-	Log       *LogOption    `json:"log,omitempty"`
-	DNS       *DNSOptions   `json:"dns,omitempty"`
-	Inbounds  []Inbound     `json:"inbounds,omitempty"`
-	Outbounds []Outbound    `json:"outbounds,omitempty"`
-	Route     *RouteOptions `json:"route,omitempty"`
+	Log          *LogOptions          `json:"log,omitempty"`
+	DNS          *DNSOptions          `json:"dns,omitempty"`
+	Inbounds     []Inbound            `json:"inbounds,omitempty"`
+	Outbounds    []Outbound           `json:"outbounds,omitempty"`
+	Route        *RouteOptions        `json:"route,omitempty"`
+	Experimental *ExperimentalOptions `json:"experimental,omitempty"`
 }
 
 type Options _Options
@@ -41,10 +42,11 @@ func (o Options) Equals(other Options) bool {
 		common.PtrEquals(o.DNS, other.DNS) &&
 		common.SliceEquals(o.Inbounds, other.Inbounds) &&
 		common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
-		common.PtrEquals(o.Route, other.Route)
+		common.PtrEquals(o.Route, other.Route) &&
+		common.ComparablePtrEquals(o.Experimental, other.Experimental)
 }
 
-type LogOption struct {
+type LogOptions struct {
 	Disabled     bool   `json:"disabled,omitempty"`
 	Level        string `json:"level,omitempty"`
 	Output       string `json:"output,omitempty"`

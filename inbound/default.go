@@ -158,6 +158,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			ctx := log.ContextWithNewID(a.ctx)
 			var metadata adapter.InboundContext
 			metadata.Inbound = a.tag
+			metadata.InboundType = a.protocol
 			metadata.SniffEnabled = a.listenOptions.SniffEnabled
 			metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
@@ -191,6 +192,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.InboundType = a.protocol
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
@@ -222,6 +224,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.InboundType = a.protocol
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
@@ -247,6 +250,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.InboundType = a.protocol
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
@@ -274,6 +278,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		buffer.Truncate(n)
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
+		metadata.InboundType = a.protocol
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)

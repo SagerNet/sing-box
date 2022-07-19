@@ -102,6 +102,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
 	metadata.Network = C.NetworkTCP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
@@ -122,6 +123,7 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
 	metadata.Network = C.NetworkUDP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination

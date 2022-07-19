@@ -66,17 +66,16 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 	if level > l.level {
 		return
 	}
-	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), time.Now()) + "\n"
+	message, messageSimple := l.formatter.FormatWithSimple(ctx, level, l.tag, F.ToString(args...), time.Now())
 	if level == LevelPanic {
 		panic(message)
 	}
 	l.writer.Write([]byte(message))
+	l.writer.Write([]byte{'\n'})
 	if level == LevelFatal {
 		os.Exit(1)
 	}
-	if l.subscriber != nil {
-		l.subscriber.Emit(Entry{level, message})
-	}
+	l.subscriber.Emit(Entry{level, messageSimple})
 }
 
 func (l *observableLogger) Trace(args ...any) {

@@ -32,7 +32,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 	if disableColor {
 		if options.Log == nil {
-			options.Log = &option.LogOption{}
+			options.Log = &option.LogOptions{}
 		}
 		options.Log.DisableColor = true
 	}

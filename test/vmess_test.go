@@ -139,7 +139,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, au
 	})
 
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{
@@ -193,7 +193,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 	})
 
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{
@@ -233,7 +233,7 @@ func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, globalPadding 
 	clientPort := mkPort(t)
 	testPort := mkPort(t)
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{
