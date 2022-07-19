@@ -24,10 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var (
-	_ adapter.Service           = (*Server)(nil)
-	_ adapter.TrafficController = (*Server)(nil)
-)
+var _ adapter.ClashServer = (*Server)(nil)
 
 type Server struct {
 	logger         log.Logger
@@ -81,7 +78,7 @@ func (s *Server) Start() error {
 	go func() {
 		err = s.httpServer.Serve(listener)
 		if err != nil && !E.IsClosed(err) {
-			log.Error("external controller serve error: ", err)
+			s.logger.Error("external controller serve error: ", err)
 		}
 	}()
 	return nil
@@ -294,5 +291,5 @@ func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *ht
 }
 
 func version(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, render.M{"version": "sing-box " + C.Version, "premium": false})
+	render.JSON(w, r, render.M{"version": "sing-box " + C.Version, "premium": true})
 }
