@@ -69,6 +69,8 @@ type Router struct {
 	autoDetectInterface  bool
 	defaultInterface     string
 	interfaceMonitor     DefaultInterfaceMonitor
+
+	trafficController adapter.TrafficController
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -438,10 +440,13 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
+	matchedRule, detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
+	}
+	if r.trafficController != nil {
+		conn = r.trafficController.RoutedConnection(ctx, conn, metadata, matchedRule)
 	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
@@ -480,10 +485,13 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
+	matchedRule, detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
+	}
+	if r.trafficController != nil {
+		conn = r.trafficController.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
@@ -500,18 +508,18 @@ func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr
 	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, r.defaultDomainStrategy)
 }
 
-func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, defaultOutbound adapter.Outbound) adapter.Outbound {
+func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
 	for i, rule := range r.rules {
 		if rule.Match(&metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
-				return outbound
+				return rule, outbound
 			}
 			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
 	}
-	return defaultOutbound
+	return nil, defaultOutbound
 }
 
 func (r *Router) matchDNS(ctx context.Context) dns.Transport {
@@ -557,6 +565,14 @@ func (r *Router) AutoDetectInterfaceIndex() int {
 		return -1
 	}
 	return r.interfaceMonitor.DefaultInterfaceIndex()
+}
+
+func (r *Router) Rules() []adapter.Rule {
+	return r.rules
+}
+
+func (r *Router) SetTrafficController(controller adapter.TrafficController) {
+	r.trafficController = controller
 }
 
 func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

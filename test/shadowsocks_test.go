@@ -75,7 +75,7 @@ func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, pass
 		Cmd:        []string{"-s", F.ToString("127.0.0.1:", serverPort), "-b", F.ToString("0.0.0.0:", clientPort), "-m", method, "-k", password, "-U"},
 	})
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{
@@ -107,7 +107,7 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 		Cmd:        []string{"-s", F.ToString("0.0.0.0:", serverPort), "-m", method, "-k", password, "-U"},
 	})
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{
@@ -144,7 +144,7 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 	clientPort := mkPort(t)
 	testPort := mkPort(t)
 	startInstance(t, option.Options{
-		Log: &option.LogOption{
+		Log: &option.LogOptions{
 			Level: "error",
 		},
 		Inbounds: []option.Inbound{

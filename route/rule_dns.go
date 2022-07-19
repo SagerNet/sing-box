@@ -47,6 +47,10 @@ type DefaultDNSRule struct {
 	outbound     string
 }
 
+func (r *DefaultDNSRule) Type() string {
+	return C.RuleTypeDefault
+}
+
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		outbound: options.Server,
@@ -197,6 +201,10 @@ type LogicalDNSRule struct {
 	mode     string
 	rules    []*DefaultDNSRule
 	outbound string
+}
+
+func (r *LogicalDNSRule) Type() string {
+	return C.RuleTypeLogical
 }
 
 func (r *LogicalDNSRule) UpdateGeosite() error {

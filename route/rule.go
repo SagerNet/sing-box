@@ -48,6 +48,10 @@ type DefaultRule struct {
 	outbound                string
 }
 
+func (r *DefaultRule) Type() string {
+	return C.RuleTypeDefault
+}
+
 type RuleItem interface {
 	Match(metadata *adapter.InboundContext) bool
 	String() string
@@ -236,6 +240,10 @@ type LogicalRule struct {
 	mode     string
 	rules    []*DefaultRule
 	outbound string
+}
+
+func (r *LogicalRule) Type() string {
+	return C.RuleTypeLogical
 }
 
 func (r *LogicalRule) UpdateGeosite() error {

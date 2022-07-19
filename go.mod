@@ -4,25 +4,29 @@ go 1.18
 
 require (
 	github.com/database64128/tfo-go v1.1.0
+	github.com/go-chi/chi/v5 v5.0.7
+	github.com/go-chi/cors v1.2.1
+	github.com/go-chi/render v1.0.1
 	github.com/goccy/go-json v0.9.10
+	github.com/gorilla/websocket v1.5.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
 	github.com/sagernet/sing v0.0.0-20220718035659-3d74b823ed56
 	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220717063942-45a2ad9cd41f
 	github.com/sagernet/sing-tun v0.0.0-20220717030718-f53aabff275f
+	github.com/sagernet/sing-vmess v0.0.0-20220718031323-07c377156e4a
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
+	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 )
 
-require github.com/sagernet/sing-vmess v0.0.0-20220718031323-07c377156e4a
-
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect; indirectg
-	github.com/gofrs/uuid v4.2.0+incompatible // indirect
+	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect

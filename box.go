@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -20,20 +21,27 @@ import (
 var _ adapter.Service = (*Box)(nil)
 
 type Box struct {
-	createdAt  time.Time
-	router     adapter.Router
-	inbounds   []adapter.Inbound
-	outbounds  []adapter.Outbound
-	logFactory log.Factory
-	logger     log.ContextLogger
-	logFile    *os.File
+	createdAt   time.Time
+	router      adapter.Router
+	inbounds    []adapter.Inbound
+	outbounds   []adapter.Outbound
+	logFactory  log.Factory
+	logger      log.ContextLogger
+	logFile     *os.File
+	clashServer *clashapi.Server
 }
 
 func New(ctx context.Context, options option.Options) (*Box, error) {
 	createdAt := time.Now()
 	logOptions := common.PtrValueOrDefault(options.Log)
 
+	var needClashAPI bool
+	if options.Experimental != nil && options.Experimental.ClashAPI != nil && options.Experimental.ClashAPI.ExternalController != "" {
+		needClashAPI = true
+	}
+
 	var logFactory log.Factory
+	var observableLogFactory log.ObservableFactory
 	var logFile *os.File
 	if logOptions.Disabled {
 		logFactory = log.NewNOPFactory()
@@ -58,7 +66,12 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			FullTimestamp:    logOptions.Timestamp,
 			TimestampFormat:  "-0700 2006-01-02 15:04:05",
 		}
-		logFactory = log.NewFactory(logFormatter, logWriter)
+		if needClashAPI {
+			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter)
+			logFactory = observableLogFactory
+		} else {
+			logFactory = log.NewFactory(logFormatter, logWriter)
+		}
 		if logOptions.Level != "" {
 			logLevel, err := log.ParseLevel(logOptions.Level)
 			if err != nil {
@@ -127,14 +140,21 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var clashServer *clashapi.Server
+	if needClashAPI {
+		clashServer = clashapi.NewServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		router.SetTrafficController(clashServer)
+	}
 	return &Box{
-		router:     router,
-		inbounds:   inbounds,
-		outbounds:  outbounds,
-		createdAt:  createdAt,
-		logFactory: logFactory,
-		logger:     logFactory.NewLogger(""),
-		logFile:    logFile,
+		router:      router,
+		inbounds:    inbounds,
+		outbounds:   outbounds,
+		createdAt:   createdAt,
+		logFactory:  logFactory,
+		logger:      logFactory.NewLogger(""),
+		logFile:     logFile,
+		clashServer: clashServer,
 	}, nil
 }
 
@@ -152,6 +172,12 @@ func (s *Box) Start() error {
 			return err
 		}
 	}
+	if s.clashServer != nil {
+		err = s.clashServer.Start()
+		if err != nil {
+			return E.Cause(err, "start clash api")
+		}
+	}
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
 	return nil
 }
@@ -166,5 +192,6 @@ func (s *Box) Close() error {
 	return common.Close(
 		s.router,
 		common.PtrOrNil(s.logFile),
+		common.PtrOrNil(s.clashServer),
 	)
 }

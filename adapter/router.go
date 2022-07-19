@@ -34,10 +34,14 @@ type Router interface {
 	AutoDetectInterface() bool
 	AutoDetectInterfaceName() string
 	AutoDetectInterfaceIndex() int
+
+	Rules() []Rule
+	SetTrafficController(controller TrafficController)
 }
 
 type Rule interface {
 	Service
+	Type() string
 	UpdateGeosite() error
 	Match(metadata *InboundContext) bool
 	Outbound() string
