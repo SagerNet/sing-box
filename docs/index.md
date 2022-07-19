@@ -9,8 +9,19 @@ The universal proxy platform.
 sing-box requires Golang 1.18 or a higher version.
 
 ```bash
-go install github.com/sagernet/sing-box/cmd/sing-box@latest
+go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
+
+Install with options:
+
+```bash
+go install -v -tags "with_clash_api,no_gvisor" github.com/sagernet/sing-box/cmd/sing-box@latest
+```
+
+| Build Tag        | Description                                                                             |
+|------------------|-----------------------------------------------------------------------------------------|
+| `with_clash_api` | Build with clash api support, see [Experimental](./configuration/experimental).         |
+| `no_gvisor`      | Build without gVisor, which required by the [Tun](./configuration/inbound/tun) inbound. |
 
 The binary is built under $GOPATH/bin
 
