@@ -14,7 +14,6 @@ import (
 )
 
 func TestVMess(t *testing.T) {
-	t.Parallel()
 	for _, security := range []string{
 		"zero",
 	} {
@@ -32,7 +31,6 @@ func TestVMess(t *testing.T) {
 }
 
 func testVMess0(t *testing.T, security string) {
-	t.Parallel()
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
@@ -56,7 +54,6 @@ func testVMess0(t *testing.T, security string) {
 }
 
 func testVMess1(t *testing.T, security string) {
-	t.Parallel()
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
@@ -104,16 +101,10 @@ func testVMess1(t *testing.T, security string) {
 }
 
 func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, authenticatedLength bool) {
-	t.Parallel()
-
 	content, err := os.ReadFile("config/vmess-client.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
 	require.NoError(t, err)
-
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 
 	config.MustKey("inbounds").MustIndex(0).MustKey("port").SetNumeric(float64(clientPort))
 	outbound := config.MustKey("outbounds").MustIndex(0).MustKey("settings").MustKey("vnext").MustIndex(0)
@@ -165,16 +156,10 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, au
 }
 
 func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, globalPadding bool, authenticatedLength bool, alterId int) {
-	t.Parallel()
-
 	content, err := os.ReadFile("config/vmess-server.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
 	require.NoError(t, err)
-
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 
 	inbound := config.MustKey("inbounds").MustIndex(0)
 	inbound.MustKey("port").SetNumeric(float64(serverPort))
@@ -228,10 +213,6 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 }
 
 func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, globalPadding bool, authenticatedLength bool) {
-	t.Parallel()
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
 			Level: "error",

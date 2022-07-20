@@ -1,12 +1,17 @@
 package log
 
-import "context"
+import (
+	"context"
+	"os"
 
-var _ Factory = (*nopFactory)(nil)
+	"github.com/sagernet/sing/common/observable"
+)
+
+var _ ObservableFactory = (*nopFactory)(nil)
 
 type nopFactory struct{}
 
-func NewNOPFactory() Factory {
+func NewNOPFactory() ObservableFactory {
 	return (*nopFactory)(nil)
 }
 
@@ -65,4 +70,11 @@ func (f *nopFactory) FatalContext(ctx context.Context, args ...any) {
 }
 
 func (f *nopFactory) PanicContext(ctx context.Context, args ...any) {
+}
+
+func (f *nopFactory) Subscribe() (subscription observable.Subscription[Entry], done <-chan struct{}, err error) {
+	return nil, nil, os.ErrInvalid
+}
+
+func (f *nopFactory) UnSubscribe(subscription observable.Subscription[Entry]) {
 }

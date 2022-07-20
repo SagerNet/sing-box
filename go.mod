@@ -11,10 +11,10 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220718035659-3d74b823ed56
-	github.com/sagernet/sing-dns v0.0.0-20220711062726-c64e938e4619
+	github.com/sagernet/sing v0.0.0-20220720054545-2af19486bb1f
+	github.com/sagernet/sing-dns v0.0.0-20220720045209-c44590ebeb0f
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220717063942-45a2ad9cd41f
-	github.com/sagernet/sing-tun v0.0.0-20220717030718-f53aabff275f
+	github.com/sagernet/sing-tun v0.0.0-20220720051454-d35c334b46c9
 	github.com/sagernet/sing-vmess v0.0.0-20220718031323-07c377156e4a
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0

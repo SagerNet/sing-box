@@ -324,7 +324,7 @@ func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 
 func NewError(logger log.ContextLogger, ctx context.Context, err error) {
 	common.Close(err)
-	if E.IsClosed(err) || E.IsCanceled(err) {
+	if E.IsClosedOrCanceled(err) {
 		logger.DebugContext(ctx, "connection closed")
 		return
 	}

@@ -92,7 +92,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Protocol) > 0 {
-		item := NewUserItem(options.Protocol)
+		item := NewProtocolItem(options.Protocol)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}

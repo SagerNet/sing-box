@@ -44,7 +44,8 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	var observableLogFactory log.ObservableFactory
 	var logFile *os.File
 	if logOptions.Disabled {
-		logFactory = log.NewNOPFactory()
+		observableLogFactory = log.NewNOPFactory()
+		logFactory = observableLogFactory
 	} else {
 		var logWriter io.Writer
 		switch logOptions.Output {

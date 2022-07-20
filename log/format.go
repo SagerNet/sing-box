@@ -75,7 +75,7 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
-	return message
+	return message + "\n"
 }
 
 func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string, message string, timestamp time.Time) (string, string) {
@@ -126,6 +126,8 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 		} else {
 			message = F.ToString("[", id, "] ", message)
 		}
+		messageSimple = F.ToString("[", id, "] ", messageSimple)
+
 	}
 	switch {
 	case f.DisableTimestamp:
@@ -135,7 +137,7 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
-	return message, messageSimple
+	return message + "\n", messageSimple
 }
 
 func xd(value int, x int) string {
