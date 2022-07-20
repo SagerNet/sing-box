@@ -67,7 +67,7 @@ func (w *ResolvePacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) 
 
 func (w *ResolvePacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	if destination.Family().IsFqdn() {
+	if destination.IsFqdn() {
 		addresses, err := w.router.Lookup(context.Background(), destination.Fqdn, w.strategy)
 		if err != nil {
 			return err
