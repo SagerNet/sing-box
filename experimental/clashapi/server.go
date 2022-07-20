@@ -3,6 +3,7 @@ package clashapi
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -85,7 +86,7 @@ func (s *Server) Start() error {
 	s.logger.Info("restful api listening at ", listener.Addr())
 	go func() {
 		err = s.httpServer.Serve(listener)
-		if err != nil && !E.IsClosed(err) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("external controller serve error: ", err)
 		}
 	}()
@@ -243,6 +244,13 @@ func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *ht
 			return
 		}
 
+		subscription, done, err := logFactory.Subscribe()
+		if err != nil {
+			render.Status(r, http.StatusNoContent)
+			return
+		}
+		defer logFactory.UnSubscribe(subscription)
+
 		var wsConn *websocket.Conn
 		if websocket.IsWebSocketUpgrade(r) {
 			var err error
@@ -256,14 +264,6 @@ func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *ht
 			w.Header().Set("Content-Type", "application/json")
 			render.Status(r, http.StatusOK)
 		}
-
-		subscription, done, err := logFactory.Subscribe()
-		if err != nil {
-			log.Warn(err)
-			render.Status(r, http.StatusInternalServerError)
-			return
-		}
-		defer logFactory.UnSubscribe(subscription)
 
 		buf := &bytes.Buffer{}
 		var logEntry log.Entry

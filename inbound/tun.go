@@ -116,7 +116,11 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	}
 	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-	return t.router.RouteConnection(ctx, conn, metadata)
+	err := t.router.RouteConnection(ctx, conn, metadata)
+	if err != nil {
+		t.NewError(ctx, err)
+	}
+	return err
 }
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
@@ -137,7 +141,11 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	}
 	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
-	return t.router.RoutePacketConnection(ctx, conn, metadata)
+	err := t.router.RoutePacketConnection(ctx, conn, metadata)
+	if err != nil {
+		t.NewError(ctx, err)
+	}
+	return err
 }
 
 func (t *Tun) NewError(ctx context.Context, err error) {

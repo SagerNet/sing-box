@@ -71,7 +71,6 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 		panic(message)
 	}
 	l.writer.Write([]byte(message))
-	l.writer.Write([]byte{'\n'})
 	if level == LevelFatal {
 		os.Exit(1)
 	}

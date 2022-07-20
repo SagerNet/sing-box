@@ -13,8 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	serverPort uint16 = 10000 + iota
+	clientPort
+	testPort
+)
+
 func TestShadowsocks(t *testing.T) {
-	t.Parallel()
 	for _, method := range []string{
 		"aes-128-gcm",
 		"aes-256-gcm",
@@ -33,7 +38,6 @@ func TestShadowsocks(t *testing.T) {
 }
 
 func TestShadowsocks2022(t *testing.T) {
-	t.Parallel()
 	for _, method16 := range []string{
 		"2022-blake3-aes-128-gcm",
 	} {
@@ -64,10 +68,6 @@ func TestShadowsocks2022(t *testing.T) {
 }
 
 func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, password string) {
-	t.Parallel()
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 	startDockerContainer(t, DockerOptions{
 		Image:      ImageShadowsocksRustClient,
 		EntryPoint: "sslocal",
@@ -96,10 +96,6 @@ func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, pass
 }
 
 func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, password string) {
-	t.Parallel()
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 	startDockerContainer(t, DockerOptions{
 		Image:      ImageShadowsocksRustServer,
 		EntryPoint: "ssserver",
@@ -139,10 +135,6 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 }
 
 func testShadowsocksSelf(t *testing.T, method string, password string) {
-	t.Parallel()
-	serverPort := mkPort(t)
-	clientPort := mkPort(t)
-	testPort := mkPort(t)
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
 			Level: "error",
