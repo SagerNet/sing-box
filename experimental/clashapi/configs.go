@@ -18,24 +18,31 @@ func configRouter(logFactory log.Factory) http.Handler {
 }
 
 type configSchema struct {
-	Port        *int    `json:"port"`
-	SocksPort   *int    `json:"socks-port"`
-	RedirPort   *int    `json:"redir-port"`
-	TProxyPort  *int    `json:"tproxy-port"`
-	MixedPort   *int    `json:"mixed-port"`
-	AllowLan    *bool   `json:"allow-lan"`
-	BindAddress *string `json:"bind-address"`
-	Mode        string  `json:"mode"`
-	LogLevel    string  `json:"log-level"`
-	IPv6        *bool   `json:"ipv6"`
-	Tun         any     `json:"tun"`
+	Port        int            `json:"port"`
+	SocksPort   int            `json:"socks-port"`
+	RedirPort   int            `json:"redir-port"`
+	TProxyPort  int            `json:"tproxy-port"`
+	MixedPort   int            `json:"mixed-port"`
+	AllowLan    bool           `json:"allow-lan"`
+	BindAddress string         `json:"bind-address"`
+	Mode        string         `json:"mode"`
+	LogLevel    string         `json:"log-level"`
+	IPv6        bool           `json:"ipv6"`
+	Tun         map[string]any `json:"tun"`
 }
 
 func getConfigs(logFactory log.Factory) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		logLevel := logFactory.Level()
+		if logLevel == log.LevelTrace {
+			logLevel = log.LevelDebug
+		} else if logLevel > log.LevelError {
+			logLevel = log.LevelError
+		}
 		render.JSON(w, r, &configSchema{
-			Mode:     "Rule",
-			LogLevel: log.FormatLevel(logFactory.Level()),
+			Mode:        "rule",
+			BindAddress: "*",
+			LogLevel:    log.FormatLevel(logLevel),
 		})
 	}
 }

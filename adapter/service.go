@@ -1,6 +1,12 @@
 package adapter
 
-type Service interface {
+import "io"
+
+type Starter interface {
 	Start() error
-	Close() error
+}
+
+type Service interface {
+	Starter
+	io.Closer
 }

@@ -31,11 +31,26 @@ type Server struct {
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficontroll.Manager
+	delayHistory   map[string]*DelayHistory
+}
+
+type DelayHistory struct {
+	Time  time.Time `json:"time"`
+	Delay uint16    `json:"delay"`
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
 	trafficManager := trafficontroll.NewManager()
 	chiRouter := chi.NewRouter()
+	server := &Server{
+		logFactory.NewLogger("clash-api"),
+		&http.Server{
+			Addr:    options.ExternalController,
+			Handler: chiRouter,
+		},
+		trafficManager,
+		make(map[string]*DelayHistory),
+	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
@@ -50,10 +65,10 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Get("/traffic", traffic(trafficManager))
 		r.Get("/version", version)
 		r.Mount("/configs", configRouter(logFactory))
-		r.Mount("/proxies", proxyRouter())
+		r.Mount("/proxies", proxyRouter(server, router))
 		r.Mount("/rules", ruleRouter(router))
 		r.Mount("/connections", connectionRouter(trafficManager))
-		r.Mount("/providers/proxies", proxyProviderRouter())
+		r.Mount("/providers/proxies", proxyProviderRouter(server, router))
 		r.Mount("/providers/rules", ruleProviderRouter())
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
@@ -68,14 +83,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 			})
 		})
 	}
-	return &Server{
-		logFactory.NewLogger("clash-api"),
-		&http.Server{
-			Addr:    options.ExternalController,
-			Handler: chiRouter,
-		},
-		trafficManager,
-	}
+	return server
 }
 
 func (s *Server) Start() error {

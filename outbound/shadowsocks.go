@@ -32,7 +32,7 @@ func NewShadowsocks(router adapter.Router, logger log.ContextLogger, tag string,
 	}
 	return &Shadowsocks{
 		myOutboundAdapter{
-			protocol: C.TypeDirect,
+			protocol: C.TypeShadowsocks,
 			logger:   logger,
 			tag:      tag,
 			network:  options.Network.Build(),
