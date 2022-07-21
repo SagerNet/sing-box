@@ -10,7 +10,7 @@ import (
 )
 
 func New(router adapter.Router, logger log.ContextLogger, options option.Outbound) (adapter.Outbound, error) {
-	if common.IsEmpty(options) {
+	if common.IsEmptyByEquals(options) {
 		return nil, E.New("empty outbound config")
 	}
 	switch options.Type {
@@ -26,6 +26,8 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 		return NewShadowsocks(router, logger, options.Tag, options.ShadowsocksOptions)
 	case C.TypeVMess:
 		return NewVMess(router, logger, options.Tag, options.VMessOptions)
+	case C.TypeSelector:
+		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:
 		return nil, E.New("unknown outbound type: ", options.Type)
 	}

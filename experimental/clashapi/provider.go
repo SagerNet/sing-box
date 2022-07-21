@@ -4,13 +4,15 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/sagernet/sing-box/adapter"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
-func proxyProviderRouter() http.Handler {
+func proxyProviderRouter(server *Server, router adapter.Router) http.Handler {
 	r := chi.NewRouter()
-	r.Get("/", getProviders)
+	r.Get("/", getProviders(server, router))
 
 	r.Route("/{name}", func(r chi.Router) {
 		r.Use(parseProviderName, findProviderByName)
@@ -21,10 +23,35 @@ func proxyProviderRouter() http.Handler {
 	return r
 }
 
-func getProviders(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, render.M{
-		"providers": []string{},
-	})
+func getProviders(server *Server, router adapter.Router) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var proxies []any
+		proxies = append(proxies, render.M{
+			"history": []*DelayHistory{},
+			"name":    "DIRECT",
+			"type":    "Direct",
+			"udp":     true,
+		})
+		proxies = append(proxies, render.M{
+			"history": []*DelayHistory{},
+			"name":    "REJECT",
+			"type":    "Reject",
+			"udp":     true,
+		})
+		for _, detour := range router.Outbounds() {
+			proxies = append(proxies, proxyInfo(server, detour))
+		}
+		render.JSON(w, r, render.M{
+			"providers": render.M{
+				"default": render.M{
+					"name":        "default",
+					"type":        "Proxy",
+					"proxies":     proxies,
+					"vehicleType": "Compatible",
+				},
+			},
+		})
+	}
 }
 
 func getProvider(w http.ResponseWriter, r *http.Request) {

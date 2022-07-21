@@ -2,6 +2,7 @@ package option
 
 import (
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 
@@ -16,9 +17,21 @@ type _Outbound struct {
 	HTTPOptions        HTTPOutboundOptions        `json:"-"`
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 	VMessOptions       VMessOutboundOptions       `json:"-"`
+	SelectorOptions    SelectorOutboundOptions    `json:"-"`
 }
 
 type Outbound _Outbound
+
+func (h Outbound) Equals(other Outbound) bool {
+	return h.Type == other.Type &&
+		h.Tag == other.Tag &&
+		h.DirectOptions == other.DirectOptions &&
+		h.SocksOptions == other.SocksOptions &&
+		h.HTTPOptions == other.HTTPOptions &&
+		h.ShadowsocksOptions == other.ShadowsocksOptions &&
+		h.VMessOptions == other.VMessOptions &&
+		common.Equals(h.SelectorOptions, other.SelectorOptions)
+}
 
 func (h Outbound) MarshalJSON() ([]byte, error) {
 	var v any
@@ -35,6 +48,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowsocksOptions
 	case C.TypeVMess:
 		v = h.VMessOptions
+	case C.TypeSelector:
+		v = h.SelectorOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -60,6 +75,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowsocksOptions
 	case C.TypeVMess:
 		v = &h.VMessOptions
+	case C.TypeSelector:
+		v = &h.SelectorOptions
 	default:
 		return nil
 	}
@@ -143,4 +160,14 @@ type VMessOutboundOptions struct {
 	AuthenticatedLength bool                `json:"authenticated_length,omitempty"`
 	Network             NetworkList         `json:"network,omitempty"`
 	TLSOptions          *OutboundTLSOptions `json:"tls,omitempty"`
+}
+
+type SelectorOutboundOptions struct {
+	Outbounds []string `json:"outbounds"`
+	Default   string   `json:"default,omitempty"`
+}
+
+func (o SelectorOutboundOptions) Equals(other SelectorOutboundOptions) bool {
+	return common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
+		o.Default == other.Default
 }

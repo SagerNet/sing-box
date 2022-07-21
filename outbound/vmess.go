@@ -42,7 +42,7 @@ func NewVMess(router adapter.Router, logger log.ContextLogger, tag string, optio
 	}
 	return &VMess{
 		myOutboundAdapter{
-			protocol: C.TypeDirect,
+			protocol: C.TypeVMess,
 			logger:   logger,
 			tag:      tag,
 			network:  options.Network.Build(),

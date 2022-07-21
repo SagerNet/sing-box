@@ -13,3 +13,7 @@ const (
 	TypeShadowsocks = "shadowsocks"
 	TypeVMess       = "vmess"
 )
+
+const (
+	TypeSelector = "selector"
+)

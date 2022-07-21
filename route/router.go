@@ -42,6 +42,7 @@ type Router struct {
 	logger    log.ContextLogger
 	dnsLogger log.ContextLogger
 
+	outbounds     []adapter.Outbound
 	outboundByTag map[string]adapter.Outbound
 	rules         []adapter.Rule
 
@@ -267,6 +268,8 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 		if defaultOutboundForPacketConnection == nil {
 			defaultOutboundForPacketConnection = detour
 		}
+		outbounds = append(outbounds, detour)
+		outboundByTag[detour.Tag()] = detour
 	}
 	if defaultOutboundForConnection != defaultOutboundForPacketConnection {
 		var description string
@@ -284,6 +287,7 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 		r.logger.Info("using ", defaultOutboundForConnection.Type(), "[", description, "] as default outbound for connection")
 		r.logger.Info("using ", defaultOutboundForPacketConnection.Type(), "[", packetDescription, "] as default outbound for packet connection")
 	}
+	r.outbounds = outbounds
 	r.defaultOutboundForConnection = defaultOutboundForConnection
 	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
 	r.outboundByTag = outboundByTag
@@ -292,7 +296,25 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 			return E.New("outbound not found for rule[", i, "]: ", rule.Outbound())
 		}
 	}
+	for i, detour := range r.outbounds {
+		if starter, isStarter := detour.(adapter.Starter); isStarter {
+			err := starter.Start()
+			if err != nil {
+				var tag string
+				if detour.Tag() == "" {
+					tag = F.ToString(i)
+				} else {
+					tag = detour.Tag()
+				}
+				return E.Cause(err, "initialize outbound/", detour.Type(), "[", tag, "]")
+			}
+		}
+	}
 	return nil
+}
+
+func (r *Router) Outbounds() []adapter.Outbound {
+	return r.outbounds
 }
 
 func (r *Router) Start() error {

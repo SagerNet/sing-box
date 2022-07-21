@@ -16,6 +16,7 @@ import (
 type Router interface {
 	Service
 
+	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
 	DefaultOutbound(network string) Outbound
 

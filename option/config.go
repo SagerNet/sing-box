@@ -41,7 +41,7 @@ func (o Options) Equals(other Options) bool {
 	return common.ComparablePtrEquals(o.Log, other.Log) &&
 		common.PtrEquals(o.DNS, other.DNS) &&
 		common.SliceEquals(o.Inbounds, other.Inbounds) &&
-		common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
+		common.SliceEquals(o.Outbounds, other.Outbounds) &&
 		common.PtrEquals(o.Route, other.Route) &&
 		common.ComparablePtrEquals(o.Experimental, other.Experimental)
 }
