@@ -42,7 +42,7 @@ func (w *ResolveUDPConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr
 		if err != nil {
 			return err
 		}
-		return common.Error(w.UDPConn.WriteTo(buffer.Bytes(), M.SocksaddrFromAddrPort(addresses[0], destination.Port).UDPAddr()))
+		return common.Error(w.UDPConn.WriteTo(buffer.Bytes(), M.SocksaddrFrom(addresses[0], destination.Port).UDPAddr()))
 	}
 	return common.Error(w.UDPConn.WriteToUDP(buffer.Bytes(), destination.UDPAddr()))
 }
@@ -72,7 +72,7 @@ func (w *ResolvePacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksa
 		if err != nil {
 			return err
 		}
-		return common.Error(w.WriteTo(buffer.Bytes(), M.SocksaddrFromAddrPort(addresses[0], destination.Port).UDPAddr()))
+		return common.Error(w.WriteTo(buffer.Bytes(), M.SocksaddrFrom(addresses[0], destination.Port).UDPAddr()))
 	}
 	return common.Error(w.WriteTo(buffer.Bytes(), destination.UDPAddr()))
 }
