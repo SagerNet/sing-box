@@ -75,7 +75,10 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
-	return message + "\n"
+	if message[len(message)-1] != '\n' {
+		message += "\n"
+	}
+	return message
 }
 
 func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string, message string, timestamp time.Time) (string, string) {
@@ -137,7 +140,10 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
-	return message + "\n", messageSimple
+	if message[len(message)-1] != '\n' {
+		message += "\n"
+	}
+	return message, messageSimple
 }
 
 func xd(value int, x int) string {

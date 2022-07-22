@@ -52,7 +52,7 @@ func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
 	if level > l.level {
 		return
 	}
-	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), time.Now()) + "\n"
+	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), time.Now())
 	if level == LevelPanic {
 		panic(message)
 	}
