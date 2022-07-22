@@ -66,7 +66,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
-	return d.Dialer.DialContext(ctx, network, address.String())
+	return d.Dialer.DialContext(ctx, network, address.Unwrap().String())
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
