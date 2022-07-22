@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"sort"
 )
 
 func proxyRouter(server *Server, router adapter.Router) http.Handler {
@@ -85,17 +86,20 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	info.Put("name", detour.Tag())
 	info.Put("udp", common.Contains(detour.Network(), C.NetworkUDP))
 
-	delayHistory, loaded := server.delayHistory[detour.Tag()]
-	if loaded {
-		info.Put("history", []*DelayHistory{delayHistory, delayHistory})
-	} else {
-		info.Put("history", []*DelayHistory{{Time: time.Now()}, {Time: time.Now()}})
-	}
-
+	var delayHistory *DelayHistory
+	var loaded bool
 	if isSelector {
 		selector := detour.(*outbound.Selector)
 		info.Put("now", selector.Now())
 		info.Put("all", selector.All())
+		delayHistory, loaded = server.delayHistory[selector.Now()]
+	} else {
+		delayHistory, loaded = server.delayHistory[detour.Tag()]
+	}
+	if loaded {
+		info.Put("history", []*DelayHistory{delayHistory})
+	} else {
+		info.Put("history", []*DelayHistory{})
 	}
 	return &info
 }
@@ -103,30 +107,39 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 func getProxies(server *Server, router adapter.Router) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var proxyMap badjson.JSONObject
+		outbounds := common.Filter(router.Outbounds(), func(detour adapter.Outbound) bool {
+			return detour.Tag() != ""
+		})
+
+		allProxies := make([]string, 0, len(outbounds))
+
+		for _, detour := range outbounds {
+			switch detour.Type() {
+			case C.TypeDirect, C.TypeBlock:
+				continue
+			}
+			allProxies = append(allProxies, detour.Tag())
+		}
+
+		defaultTag := router.DefaultOutbound(C.NetworkTCP).Tag()
+		if defaultTag == "" {
+			defaultTag = allProxies[0]
+		}
+
+		sort.Slice(allProxies, func(i, j int) bool {
+			return allProxies[i] == defaultTag
+		})
 
 		// fix clash dashboard
-		proxyMap.Put("DIRECT", map[string]any{
-			"type":    "Direct",
-			"name":    "DIRECT",
-			"udp":     true,
-			"history": []*DelayHistory{},
-		})
 		proxyMap.Put("GLOBAL", map[string]any{
-			"type":    "Selector",
+			"type":    "Fallback",
 			"name":    "GLOBAL",
 			"udp":     true,
 			"history": []*DelayHistory{},
-			"all":     []string{},
-			"now":     "",
-		})
-		proxyMap.Put("REJECT", map[string]any{
-			"type":    "Reject",
-			"name":    "REJECT",
-			"udp":     true,
-			"history": []*DelayHistory{},
+			"all":     allProxies,
+			"now":     defaultTag,
 		})
 
-		outbounds := router.Outbounds()
 		for i, detour := range outbounds {
 			var tag string
 			if detour.Tag() == "" {

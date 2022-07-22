@@ -11,7 +11,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/clashapi/trafficontroll"
+	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -30,7 +30,7 @@ var _ adapter.ClashServer = (*Server)(nil)
 type Server struct {
 	logger         log.Logger
 	httpServer     *http.Server
-	trafficManager *trafficontroll.Manager
+	trafficManager *trafficontrol.Manager
 	delayHistory   map[string]*DelayHistory
 }
 
@@ -40,7 +40,7 @@ type DelayHistory struct {
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
-	trafficManager := trafficontroll.NewManager()
+	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
 		logFactory.NewLogger("clash-api"),
@@ -68,7 +68,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Mount("/proxies", proxyRouter(server, router))
 		r.Mount("/rules", ruleRouter(router))
 		r.Mount("/connections", connectionRouter(trafficManager))
-		r.Mount("/providers/proxies", proxyProviderRouter(server, router))
+		r.Mount("/providers/proxies", proxyProviderRouter())
 		r.Mount("/providers/rules", ruleProviderRouter())
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
@@ -106,14 +106,14 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) net.Conn {
-	return trafficontroll.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
+	return trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
 }
 
 func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule) N.PacketConn {
-	return trafficontroll.NewUDPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
+	return trafficontrol.NewUDPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
 }
 
-func castMetadata(metadata adapter.InboundContext) trafficontroll.Metadata {
+func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 	var inbound string
 	if metadata.Inbound != "" {
 		inbound = metadata.InboundType + "/" + metadata.Inbound
@@ -126,7 +126,7 @@ func castMetadata(metadata adapter.InboundContext) trafficontroll.Metadata {
 	} else {
 		domain = metadata.Destination.Fqdn
 	}
-	return trafficontroll.Metadata{
+	return trafficontrol.Metadata{
 		NetWork: metadata.Network,
 		Type:    inbound,
 		SrcIP:   metadata.Source.Addr,
@@ -189,7 +189,7 @@ type Traffic struct {
 	Down int64 `json:"down"`
 }
 
-func traffic(trafficManager *trafficontroll.Manager) func(w http.ResponseWriter, r *http.Request) {
+func traffic(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var wsConn *websocket.Conn
 		if websocket.IsWebSocketUpgrade(r) {

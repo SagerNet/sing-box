@@ -1,4 +1,4 @@
-package trafficontroll
+package trafficontrol
 
 import (
 	"net"
