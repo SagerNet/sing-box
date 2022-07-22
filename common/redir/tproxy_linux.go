@@ -16,28 +16,20 @@ import (
 )
 
 func TProxy(fd uintptr, isIPv6 bool) error {
-	err := syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_TRANSPARENT, 1)
-	if err != nil {
-		return err
+	err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err == nil {
+		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_TRANSPARENT, 1)
 	}
-	if isIPv6 {
+	if err == nil && isIPv6 {
 		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
 	}
-	return err
-}
-
-func TProxyUDP(fd uintptr, isIPv6 bool) error {
-	err := syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_RECVORIGDSTADDR, 1)
-	if err != nil {
-		return err
+	if err == nil {
+		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_RECVORIGDSTADDR, 1)
 	}
-	if isIPv6 {
+	if err == nil && isIPv6 {
 		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return err
 }
 
 func GetOriginalDestinationFromOOB(oob []byte) (netip.AddrPort, error) {

@@ -12,10 +12,6 @@ func TProxy(fd uintptr, isIPv6 bool) error {
 	return os.ErrInvalid
 }
 
-func TProxyUDP(fd uintptr, isIPv6 bool) error {
-	return os.ErrInvalid
-}
-
 func GetOriginalDestinationFromOOB(oob []byte) (netip.AddrPort, error) {
 	return netip.AddrPort{}, os.ErrInvalid
 }

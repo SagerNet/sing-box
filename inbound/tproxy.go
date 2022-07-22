@@ -68,7 +68,7 @@ func (t *TProxy) Start() error {
 		if err != nil {
 			return err
 		}
-		err = redir.TProxyUDP(udpFd, M.SocksaddrFromNet(t.udpConn.LocalAddr()).Addr.Is6())
+		err = redir.TProxy(udpFd, M.SocksaddrFromNet(t.udpConn.LocalAddr()).Addr.Is6())
 		if err != nil {
 			return E.Cause(err, "configure tproxy UDP listener")
 		}
