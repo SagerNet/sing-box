@@ -20,6 +20,8 @@
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
+| `selector`    | [Selector](./selector)       |
+| `urltest`     | [URLTest](./urltest)         |
 
 #### tag
 
