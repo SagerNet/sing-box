@@ -23,6 +23,7 @@ import (
 	"github.com/go-chi/render"
 	"github.com/goccy/go-json"
 	"github.com/gorilla/websocket"
+	"os"
 )
 
 var _ adapter.ClashServer = (*Server)(nil)
@@ -76,7 +77,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 	})
 	if options.ExternalUI != "" {
 		chiRouter.Group(func(r chi.Router) {
-			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(options.ExternalUI)))
+			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(os.ExpandEnv(options.ExternalUI))))
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
 			r.Get("/ui/*", func(w http.ResponseWriter, r *http.Request) {
 				fs.ServeHTTP(w, r)
