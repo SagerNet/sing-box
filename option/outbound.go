@@ -18,6 +18,7 @@ type _Outbound struct {
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 	VMessOptions       VMessOutboundOptions       `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
+	URLTestOptions     URLTestOutboundOptions     `json:"-"`
 }
 
 type Outbound _Outbound
@@ -30,7 +31,8 @@ func (h Outbound) Equals(other Outbound) bool {
 		h.HTTPOptions == other.HTTPOptions &&
 		h.ShadowsocksOptions == other.ShadowsocksOptions &&
 		h.VMessOptions == other.VMessOptions &&
-		common.Equals(h.SelectorOptions, other.SelectorOptions)
+		common.Equals(h.SelectorOptions, other.SelectorOptions) &&
+		common.Equals(h.URLTestOptions, other.URLTestOptions)
 }
 
 func (h Outbound) MarshalJSON() ([]byte, error) {
@@ -50,6 +52,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.VMessOptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
+	case C.TypeURLTest:
+		v = h.URLTestOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -77,6 +81,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.VMessOptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
+	case C.TypeURLTest:
+		v = &h.URLTestOptions
 	default:
 		return nil
 	}
@@ -170,4 +176,18 @@ type SelectorOutboundOptions struct {
 func (o SelectorOutboundOptions) Equals(other SelectorOutboundOptions) bool {
 	return common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
 		o.Default == other.Default
+}
+
+type URLTestOutboundOptions struct {
+	Outbounds []string `json:"outbounds"`
+	URL       string   `json:"url,omitempty"`
+	Interval  Duration `json:"interval,omitempty"`
+	Tolerance uint16   `json:"tolerance,omitempty"`
+}
+
+func (o URLTestOutboundOptions) Equals(other URLTestOutboundOptions) bool {
+	return common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
+		o.URL == other.URL &&
+		o.Interval == other.Interval &&
+		o.Tolerance == other.Tolerance
 }

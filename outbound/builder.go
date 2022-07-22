@@ -28,6 +28,8 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 		return NewVMess(router, logger, options.Tag, options.VMessOptions)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
+	case C.TypeURLTest:
+		return NewURLTest(router, logger, options.Tag, options.URLTestOptions)
 	default:
 		return nil, E.New("unknown outbound type: ", options.Type)
 	}

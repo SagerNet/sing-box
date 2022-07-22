@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/sniff"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -71,7 +72,8 @@ type Router struct {
 	defaultInterface     string
 	interfaceMonitor     DefaultInterfaceMonitor
 
-	trafficController adapter.TrafficController
+	trafficController     adapter.TrafficController
+	urlTestHistoryStorage *urltest.HistoryStorage
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -595,6 +597,13 @@ func (r *Router) Rules() []adapter.Rule {
 
 func (r *Router) SetTrafficController(controller adapter.TrafficController) {
 	r.trafficController = controller
+}
+
+func (r *Router) URLTestHistoryStorage(create bool) *urltest.HistoryStorage {
+	if r.urlTestHistoryStorage == nil && create {
+		r.urlTestHistoryStorage = urltest.NewHistoryStorage()
+	}
+	return r.urlTestHistoryStorage
 }
 
 func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

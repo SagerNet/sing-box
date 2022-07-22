@@ -16,4 +16,5 @@ const (
 
 const (
 	TypeSelector = "selector"
+	TypeURLTest  = "urltest"
 )
