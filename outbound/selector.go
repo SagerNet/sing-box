@@ -13,7 +13,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*Selector)(nil)
+var (
+	_ adapter.Outbound      = (*Selector)(nil)
+	_ adapter.OutboundGroup = (*Selector)(nil)
+)
 
 type Selector struct {
 	myOutboundAdapter

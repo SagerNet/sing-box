@@ -16,3 +16,8 @@ type TrafficController interface {
 	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) net.Conn
 	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) N.PacketConn
 }
+
+type OutboundGroup interface {
+	Now() string
+	All() []string
+}

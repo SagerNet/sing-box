@@ -3,23 +3,21 @@ package clashapi
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/badjson"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
-	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
-	"sort"
 )
 
 func proxyRouter(server *Server, router adapter.Router) http.Handler {
@@ -62,7 +60,7 @@ func findProxyByName(router adapter.Router) func(next http.Handler) http.Handler
 func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	var info badjson.JSONObject
 	var clashType string
-	var isSelector bool
+	var isGroup bool
 	switch detour.Type() {
 	case C.TypeDirect:
 		clashType = "Direct"
@@ -78,28 +76,26 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 		clashType = "Vmess"
 	case C.TypeSelector:
 		clashType = "Selector"
-		isSelector = true
+		isGroup = true
+	case C.TypeURLTest:
+		clashType = "URLTest"
+		isGroup = true
 	default:
 		clashType = "Unknown"
 	}
 	info.Put("type", clashType)
 	info.Put("name", detour.Tag())
 	info.Put("udp", common.Contains(detour.Network(), C.NetworkUDP))
-
-	var delayHistory *DelayHistory
-	var loaded bool
-	if isSelector {
-		selector := detour.(*outbound.Selector)
+	delayHistory := server.router.URLTestHistoryStorage(false).LoadURLTestHistory(outbound.RealTag(detour))
+	if delayHistory != nil {
+		info.Put("history", []*urltest.History{delayHistory})
+	} else {
+		info.Put("history", []*urltest.History{})
+	}
+	if isGroup {
+		selector := detour.(adapter.OutboundGroup)
 		info.Put("now", selector.Now())
 		info.Put("all", selector.All())
-		delayHistory, loaded = server.delayHistory[selector.Now()]
-	} else {
-		delayHistory, loaded = server.delayHistory[detour.Tag()]
-	}
-	if loaded {
-		info.Put("history", []*DelayHistory{delayHistory})
-	} else {
-		info.Put("history", []*DelayHistory{})
 	}
 	return &info
 }
@@ -135,7 +131,7 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			"type":    "Fallback",
 			"name":    "GLOBAL",
 			"udp":     true,
-			"history": []*DelayHistory{},
+			"history": []*urltest.History{},
 			"all":     allProxies,
 			"now":     defaultTag,
 		})
@@ -218,7 +214,19 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(timeout))
 		defer cancel()
 
-		delay, err := URLTest(ctx, url, proxy)
+		delay, err := urltest.URLTest(ctx, url, proxy)
+		defer func() {
+			realTag := outbound.RealTag(proxy)
+			if err != nil {
+				server.router.URLTestHistoryStorage(true).DeleteURLTestHistory(realTag)
+			} else {
+				server.router.URLTestHistoryStorage(true).StoreURLTestHistory(realTag, &urltest.History{
+					Time:  time.Now(),
+					Delay: delay,
+				})
+			}
+		}()
+
 		if ctx.Err() != nil {
 			render.Status(r, http.StatusGatewayTimeout)
 			render.JSON(w, r, ErrRequestTimeout)
@@ -231,70 +239,8 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		server.delayHistory[proxy.Tag()] = &DelayHistory{
-			Time:  time.Now(),
-			Delay: delay,
-		}
-
 		render.JSON(w, r, render.M{
 			"delay": delay,
 		})
 	}
-}
-
-func URLTest(ctx context.Context, link string, detour adapter.Outbound) (t uint16, err error) {
-	linkURL, err := url.Parse(link)
-	if err != nil {
-		return
-	}
-	hostname := linkURL.Hostname()
-	port := linkURL.Port()
-	if port == "" {
-		switch linkURL.Scheme {
-		case "http":
-			port = "80"
-		case "https":
-			port = "443"
-		}
-	}
-
-	start := time.Now()
-	instance, err := detour.DialContext(ctx, "tcp", M.ParseSocksaddrHostPortStr(hostname, port))
-	if err != nil {
-		return
-	}
-	defer instance.Close()
-
-	req, err := http.NewRequest(http.MethodHead, link, nil)
-	if err != nil {
-		return
-	}
-	req = req.WithContext(ctx)
-
-	transport := &http.Transport{
-		Dial: func(string, string) (net.Conn, error) {
-			return instance, nil
-		},
-		// from http.DefaultTransport
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	client := http.Client{
-		Transport: transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	defer client.CloseIdleConnections()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	resp.Body.Close()
-	t = uint16(time.Since(start) / time.Millisecond)
-	return
 }

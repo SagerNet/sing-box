@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -73,8 +75,28 @@ func (tt *tcpTracker) Close() error {
 	return tt.Conn.Close()
 }
 
-func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, rule adapter.Rule) *tcpTracker {
+func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *tcpTracker {
 	uuid, _ := uuid.NewV4()
+
+	var chain []string
+	var next string
+	if rule == nil {
+		next = router.DefaultOutbound(C.NetworkTCP).Tag()
+	} else {
+		next = rule.Outbound()
+	}
+	for {
+		chain = append(chain, next)
+		detour, loaded := router.Outbound(next)
+		if !loaded {
+			break
+		}
+		group, isGroup := detour.(adapter.OutboundGroup)
+		if !isGroup {
+			break
+		}
+		next = group.Now()
+	}
 
 	t := &tcpTracker{
 		Conn:    conn,
@@ -83,7 +105,7 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, rule adap
 			UUID:          uuid,
 			Start:         time.Now(),
 			Metadata:      metadata,
-			Chain:         []string{},
+			Chain:         common.Reverse(chain),
 			Rule:          "",
 			UploadTotal:   atomic.NewInt64(0),
 			DownloadTotal: atomic.NewInt64(0),
@@ -91,8 +113,9 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, rule adap
 	}
 
 	if rule != nil {
-		t.trackerInfo.Rule = rule.Outbound()
-		t.trackerInfo.RulePayload = rule.String()
+		t.trackerInfo.Rule = rule.String() + " => " + rule.Outbound()
+	} else {
+		t.trackerInfo.Rule = "final"
 	}
 
 	manager.Join(t)
@@ -135,8 +158,28 @@ func (ut *udpTracker) Close() error {
 	return ut.PacketConn.Close()
 }
 
-func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, rule adapter.Rule) *udpTracker {
+func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *udpTracker {
 	uuid, _ := uuid.NewV4()
+
+	var chain []string
+	var next string
+	if rule == nil {
+		next = router.DefaultOutbound(C.NetworkUDP).Tag()
+	} else {
+		next = rule.Outbound()
+	}
+	for {
+		chain = append(chain, next)
+		detour, loaded := router.Outbound(next)
+		if !loaded {
+			break
+		}
+		group, isGroup := detour.(adapter.OutboundGroup)
+		if !isGroup {
+			break
+		}
+		next = group.Now()
+	}
 
 	ut := &udpTracker{
 		PacketConn: conn,
@@ -145,7 +188,7 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, rule 
 			UUID:          uuid,
 			Start:         time.Now(),
 			Metadata:      metadata,
-			Chain:         []string{},
+			Chain:         common.Reverse(chain),
 			Rule:          "",
 			UploadTotal:   atomic.NewInt64(0),
 			DownloadTotal: atomic.NewInt64(0),
@@ -153,8 +196,9 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, rule 
 	}
 
 	if rule != nil {
-		ut.trackerInfo.Rule = rule.Outbound()
-		ut.trackerInfo.RulePayload = rule.String()
+		ut.trackerInfo.Rule = rule.String() + " => " + rule.Outbound()
+	} else {
+		ut.trackerInfo.Rule = "final"
 	}
 
 	manager.Join(ut)

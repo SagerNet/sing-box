@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -23,34 +24,28 @@ import (
 	"github.com/go-chi/render"
 	"github.com/goccy/go-json"
 	"github.com/gorilla/websocket"
-	"os"
 )
 
 var _ adapter.ClashServer = (*Server)(nil)
 
 type Server struct {
+	router         adapter.Router
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
-	delayHistory   map[string]*DelayHistory
-}
-
-type DelayHistory struct {
-	Time  time.Time `json:"time"`
-	Delay uint16    `json:"delay"`
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
+		router,
 		logFactory.NewLogger("clash-api"),
 		&http.Server{
 			Addr:    options.ExternalController,
 			Handler: chiRouter,
 		},
 		trafficManager,
-		make(map[string]*DelayHistory),
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -107,11 +102,11 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) net.Conn {
-	return trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
+	return trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
 }
 
 func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule) N.PacketConn {
-	return trafficontrol.NewUDPTracker(conn, s.trafficManager, castMetadata(metadata), matchedRule)
+	return trafficontrol.NewUDPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
 }
 
 func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
