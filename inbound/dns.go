@@ -49,7 +49,10 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 
 func (d *DNS) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
 	d.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
-		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), natConn
+		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &udpnat.DirectBackWriter{
+			Source: conn,
+			Nat:    natConn,
+		}
 	})
 	return nil
 }
