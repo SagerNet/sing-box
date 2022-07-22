@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sagernet/sing-box/experimental/clashapi/trafficontroll"
+	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/gorilla/websocket"
 )
 
-func connectionRouter(trafficManager *trafficontroll.Manager) http.Handler {
+func connectionRouter(trafficManager *trafficontrol.Manager) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConnections(trafficManager))
 	r.Delete("/", closeAllConnections(trafficManager))
@@ -22,7 +22,7 @@ func connectionRouter(trafficManager *trafficontroll.Manager) http.Handler {
 	return r
 }
 
-func getConnections(trafficManager *trafficontroll.Manager) func(w http.ResponseWriter, r *http.Request) {
+func getConnections(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !websocket.IsWebSocketUpgrade(r) {
 			snapshot := trafficManager.Snapshot()
@@ -72,7 +72,7 @@ func getConnections(trafficManager *trafficontroll.Manager) func(w http.Response
 	}
 }
 
-func closeConnection(trafficManager *trafficontroll.Manager) func(w http.ResponseWriter, r *http.Request) {
+func closeConnection(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		snapshot := trafficManager.Snapshot()
@@ -86,7 +86,7 @@ func closeConnection(trafficManager *trafficontroll.Manager) func(w http.Respons
 	}
 }
 
-func closeAllConnections(trafficManager *trafficontroll.Manager) func(w http.ResponseWriter, r *http.Request) {
+func closeAllConnections(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshot := trafficManager.Snapshot()
 		for _, c := range snapshot.Connections {
