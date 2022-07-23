@@ -48,7 +48,6 @@ nav:
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
-          - DNS: configuration/inbound/dns.md
       - Outbound:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md
@@ -56,6 +55,7 @@ nav:
           - Socks: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
+          - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
       - Route:
@@ -70,6 +70,7 @@ nav:
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
+      - DNS Hijack: examples/dns-hijack.md
   - Benchmark: benchmark.md
 markdown_extensions:
   - pymdownx.inlinehilite

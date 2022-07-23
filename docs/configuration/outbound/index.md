@@ -20,6 +20,7 @@
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
+| `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 | `urltest`     | [URLTest](./urltest)         |
 
