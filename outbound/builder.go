@@ -18,6 +18,8 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 		return NewDirect(router, logger, options.Tag, options.DirectOptions), nil
 	case C.TypeBlock:
 		return NewBlock(logger, options.Tag), nil
+	case C.TypeDNS:
+		return NewDNS(router, logger, options.Tag), nil
 	case C.TypeSocks:
 		return NewSocks(router, logger, options.Tag, options.SocksOptions)
 	case C.TypeHTTP:

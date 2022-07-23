@@ -24,7 +24,6 @@ var (
 
 type URLTest struct {
 	myOutboundAdapter
-	router    adapter.Router
 	tags      []string
 	link      string
 	interval  time.Duration
@@ -36,10 +35,10 @@ func NewURLTest(router adapter.Router, logger log.ContextLogger, tag string, opt
 	outbound := &URLTest{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeURLTest,
+			router:   router,
 			logger:   logger,
 			tag:      tag,
 		},
-		router:    router,
 		tags:      options.Outbounds,
 		link:      options.URL,
 		interval:  time.Duration(options.Interval),

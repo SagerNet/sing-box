@@ -439,7 +439,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		defer common.KeepAlive(_buffer)
 		buffer := common.Dup(_buffer)
 		defer buffer.Release()
-		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, sniff.TLSClientHello, sniff.HTTPHost)
+		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
@@ -485,7 +485,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if err != nil {
 			return err
 		}
-		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.QUICClientHello, sniff.STUNMessage)
+		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.DomainNameQuery, sniff.QUICClientHello, sniff.STUNMessage)
 		originDestination := metadata.Destination
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol

@@ -22,9 +22,9 @@ func NewBlock(logger log.ContextLogger, tag string) *Block {
 	return &Block{
 		myOutboundAdapter{
 			protocol: C.TypeBlock,
+			network:  []string{C.NetworkTCP, C.NetworkUDP},
 			logger:   logger,
 			tag:      tag,
-			network:  []string{C.NetworkTCP, C.NetworkUDP},
 		},
 	}
 }

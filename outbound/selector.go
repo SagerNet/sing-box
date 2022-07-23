@@ -20,7 +20,6 @@ var (
 
 type Selector struct {
 	myOutboundAdapter
-	router     adapter.Router
 	tags       []string
 	defaultTag string
 	outbounds  map[string]adapter.Outbound
@@ -31,10 +30,10 @@ func NewSelector(router adapter.Router, logger log.ContextLogger, tag string, op
 	outbound := &Selector{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeSelector,
+			router:   router,
 			logger:   logger,
 			tag:      tag,
 		},
-		router:     router,
 		tags:       options.Outbounds,
 		defaultTag: options.Default,
 		outbounds:  make(map[string]adapter.Outbound),
