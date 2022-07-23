@@ -86,8 +86,8 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 			return nil, E.New("invalid network: ", options.Network)
 		}
 	}
-	if len(options.User) > 0 {
-		item := NewUserItem(options.User)
+	if len(options.AuthUser) > 0 {
+		item := NewAuthUserItem(options.AuthUser)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -152,6 +152,26 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	}
 	if len(options.Port) > 0 {
 		item := NewPortItem(false, options.Port)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ProcessName) > 0 {
+		item := NewProcessItem(options.ProcessName)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.PackageName) > 0 {
+		item := NewPackageNameItem(options.PackageName)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.User) > 0 {
+		item := NewUserItem(options.User)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.UserID) > 0 {
+		item := NewUserIDItem(options.UserID)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}

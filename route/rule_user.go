@@ -26,7 +26,10 @@ func NewUserItem(users []string) *UserItem {
 }
 
 func (r *UserItem) Match(metadata *adapter.InboundContext) bool {
-	return r.userMap[metadata.User]
+	if metadata.ProcessInfo == nil || metadata.ProcessInfo.User == "" {
+		return false
+	}
+	return r.userMap[metadata.ProcessInfo.User]
 }
 
 func (r *UserItem) String() string {

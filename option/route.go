@@ -13,6 +13,7 @@ type RouteOptions struct {
 	Geosite             *GeositeOptions `json:"geosite,omitempty"`
 	Rules               []Rule          `json:"rules,omitempty"`
 	Final               string          `json:"final,omitempty"`
+	FindProcess         bool            `json:"find_process,omitempty"`
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
 }
@@ -89,7 +90,7 @@ type DefaultRule struct {
 	Inbound       Listable[string] `json:"inbound,omitempty"`
 	IPVersion     int              `json:"ip_version,omitempty"`
 	Network       string           `json:"network,omitempty"`
-	User          Listable[string] `json:"user,omitempty"`
+	AuthUser      Listable[string] `json:"auth_user,omitempty"`
 	Protocol      Listable[string] `json:"protocol,omitempty"`
 	Domain        Listable[string] `json:"domain,omitempty"`
 	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
@@ -102,6 +103,10 @@ type DefaultRule struct {
 	IPCIDR        Listable[string] `json:"ip_cidr,omitempty"`
 	SourcePort    Listable[uint16] `json:"source_port,omitempty"`
 	Port          Listable[uint16] `json:"port,omitempty"`
+	ProcessName   Listable[string] `json:"process_name,omitempty"`
+	PackageName   Listable[string] `json:"package_name,omitempty"`
+	User          Listable[string] `json:"user,omitempty"`
+	UserID        Listable[int32]  `json:"user_id,omitempty"`
 	Outbound      string           `json:"outbound,omitempty"`
 }
 
@@ -128,6 +133,10 @@ func (r DefaultRule) Equals(other DefaultRule) bool {
 		common.ComparableSliceEquals(r.IPCIDR, other.IPCIDR) &&
 		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
 		common.ComparableSliceEquals(r.Port, other.Port) &&
+		common.ComparableSliceEquals(r.ProcessName, other.ProcessName) &&
+		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
+		common.ComparableSliceEquals(r.User, other.User) &&
+		common.ComparableSliceEquals(r.UserID, other.UserID) &&
 		r.Outbound == other.Outbound
 }
 

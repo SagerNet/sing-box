@@ -91,7 +91,7 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 type DefaultDNSRule struct {
 	Inbound       Listable[string] `json:"inbound,omitempty"`
 	Network       string           `json:"network,omitempty"`
-	User          Listable[string] `json:"user,omitempty"`
+	AuthUser      Listable[string] `json:"auth_user,omitempty"`
 	Protocol      Listable[string] `json:"protocol,omitempty"`
 	Domain        Listable[string] `json:"domain,omitempty"`
 	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
@@ -102,6 +102,10 @@ type DefaultDNSRule struct {
 	SourceIPCIDR  Listable[string] `json:"source_ip_cidr,omitempty"`
 	SourcePort    Listable[uint16] `json:"source_port,omitempty"`
 	Port          Listable[uint16] `json:"port,omitempty"`
+	ProcessName   Listable[string] `json:"process_name,omitempty"`
+	PackageName   Listable[string] `json:"package_name,omitempty"`
+	User          Listable[string] `json:"user,omitempty"`
+	UserID        Listable[int32]  `json:"user_id,omitempty"`
 	Outbound      Listable[string] `json:"outbound,omitempty"`
 	Server        string           `json:"server,omitempty"`
 }
@@ -126,6 +130,9 @@ func (r DefaultDNSRule) Equals(other DefaultDNSRule) bool {
 		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&
 		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
 		common.ComparableSliceEquals(r.Port, other.Port) &&
+		common.ComparableSliceEquals(r.ProcessName, other.ProcessName) &&
+		common.ComparableSliceEquals(r.UserID, other.UserID) &&
+		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
 		common.ComparableSliceEquals(r.Outbound, other.Outbound) &&
 		r.Server == other.Server
 }
