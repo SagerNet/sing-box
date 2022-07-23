@@ -27,9 +27,10 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 	outbound := &Direct{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
+			network:  []string{C.NetworkTCP, C.NetworkUDP},
+			router:   router,
 			logger:   logger,
 			tag:      tag,
-			network:  []string{C.NetworkTCP, C.NetworkUDP},
 		},
 		dialer: dialer.NewOutbound(router, options.OutboundDialerOptions),
 	}

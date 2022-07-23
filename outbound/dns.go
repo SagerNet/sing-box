@@ -1,67 +1,50 @@
-package inbound
+package outbound
 
 import (
 	"context"
 	"encoding/binary"
 	"io"
 	"net"
-	"net/netip"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/udpnat"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+var _ adapter.Outbound = (*DNS)(nil)
+
 type DNS struct {
-	myInboundAdapter
-	udpNat *udpnat.Service[netip.AddrPort]
+	myOutboundAdapter
 }
 
-func NewDNS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DNSInboundOptions) *DNS {
-	dns := &DNS{
-		myInboundAdapter: myInboundAdapter{
-			protocol:      C.TypeTProxy,
-			network:       options.Network.Build(),
-			ctx:           ctx,
-			router:        router,
-			logger:        logger,
-			tag:           tag,
-			listenOptions: options.ListenOptions,
+func NewDNS(router adapter.Router, logger log.ContextLogger, tag string) *DNS {
+	return &DNS{
+		myOutboundAdapter{
+			protocol: C.TypeDNS,
+			network:  []string{C.NetworkTCP, C.NetworkUDP},
+			router:   router,
+			logger:   logger,
+			tag:      tag,
 		},
 	}
-	dns.connHandler = dns
-	dns.packetHandler = dns
-	dns.udpNat = udpnat.New[netip.AddrPort](10, adapter.NewUpstreamContextHandler(nil, dns.newPacketConnection, dns))
-	dns.packetUpstream = dns.udpNat
-	return dns
+}
+
+func (d *DNS) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	return nil, os.ErrInvalid
+}
+
+func (d *DNS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, os.ErrInvalid
 }
 
 func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewDNSConnection(ctx, d.router, d.logger, conn, metadata)
-}
-
-func (d *DNS) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	d.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
-		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &udpnat.DirectBackWriter{
-			Source: conn,
-			Nat:    natConn,
-		}
-	})
-	return nil
-}
-
-func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewDNSPacketConnection(ctx, d.router, d.logger, conn, metadata)
-}
-
-func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.ContextLogger, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	_buffer := buf.StackNewSize(1024)
 	defer common.KeepAlive(_buffer)
@@ -89,10 +72,10 @@ func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.Con
 		if len(message.Questions) > 0 {
 			question := message.Questions[0]
 			metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
+			d.logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 		}
 		go func() error {
-			response, err := router.Exchange(ctx, &message)
+			response, err := d.router.Exchange(ctx, &message)
 			if err != nil {
 				return err
 			}
@@ -113,7 +96,7 @@ func NewDNSConnection(ctx context.Context, router adapter.Router, logger log.Con
 	}
 }
 
-func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger log.ContextLogger, conn N.PacketConn, metadata adapter.InboundContext) error {
+func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	_buffer := buf.StackNewSize(1024)
 	defer common.KeepAlive(_buffer)
@@ -133,10 +116,10 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.Router, logger l
 		if len(message.Questions) > 0 {
 			question := message.Questions[0]
 			metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
+			d.logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 		}
 		go func() error {
-			response, err := router.Exchange(ctx, &message)
+			response, err := d.router.Exchange(ctx, &message)
 			if err != nil {
 				return err
 			}

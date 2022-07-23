@@ -15,7 +15,6 @@ type _Inbound struct {
 	TunOptions         TunInboundOptions         `json:"-"`
 	RedirectOptions    RedirectInboundOptions    `json:"-"`
 	TProxyOptions      TProxyInboundOptions      `json:"-"`
-	DNSOptions         DNSInboundOptions         `json:"-"`
 	DirectOptions      DirectInboundOptions      `json:"-"`
 	SocksOptions       SocksInboundOptions       `json:"-"`
 	HTTPOptions        HTTPMixedInboundOptions   `json:"-"`
@@ -32,7 +31,6 @@ func (h Inbound) Equals(other Inbound) bool {
 		h.TunOptions == other.TunOptions &&
 		h.RedirectOptions == other.RedirectOptions &&
 		h.TProxyOptions == other.TProxyOptions &&
-		h.DNSOptions == other.DNSOptions &&
 		h.DirectOptions == other.DirectOptions &&
 		h.SocksOptions.Equals(other.SocksOptions) &&
 		h.HTTPOptions.Equals(other.HTTPOptions) &&
@@ -50,8 +48,6 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.RedirectOptions
 	case C.TypeTProxy:
 		v = h.TProxyOptions
-	case C.TypeDNS:
-		v = h.DNSOptions
 	case C.TypeDirect:
 		v = h.DirectOptions
 	case C.TypeSocks:
@@ -83,8 +79,6 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.RedirectOptions
 	case C.TypeTProxy:
 		v = &h.TProxyOptions
-	case C.TypeDNS:
-		v = &h.DNSOptions
 	case C.TypeDirect:
 		v = &h.DirectOptions
 	case C.TypeSocks:
@@ -200,7 +194,6 @@ type TunInboundOptions struct {
 	Inet4Address  *ListenPrefix `json:"inet4_address,omitempty"`
 	Inet6Address  *ListenPrefix `json:"inet6_address,omitempty"`
 	AutoRoute     bool          `json:"auto_route,omitempty"`
-	HijackDNS     bool          `json:"hijack_dns,omitempty"`
 	InboundOptions
 }
 

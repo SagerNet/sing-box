@@ -18,9 +18,10 @@ import (
 
 type myOutboundAdapter struct {
 	protocol string
+	network  []string
+	router   adapter.Router
 	logger   log.ContextLogger
 	tag      string
-	network  []string
 }
 
 func (a *myOutboundAdapter) Type() string {

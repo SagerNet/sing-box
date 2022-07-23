@@ -33,9 +33,10 @@ func NewShadowsocks(router adapter.Router, logger log.ContextLogger, tag string,
 	return &Shadowsocks{
 		myOutboundAdapter{
 			protocol: C.TypeShadowsocks,
+			network:  options.Network.Build(),
+			router:   router,
 			logger:   logger,
 			tag:      tag,
-			network:  options.Network.Build(),
 		},
 		dialer.NewOutbound(router, options.OutboundDialerOptions),
 		method,

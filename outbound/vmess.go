@@ -43,9 +43,10 @@ func NewVMess(router adapter.Router, logger log.ContextLogger, tag string, optio
 	return &VMess{
 		myOutboundAdapter{
 			protocol: C.TypeVMess,
+			network:  options.Network.Build(),
+			router:   router,
 			logger:   logger,
 			tag:      tag,
-			network:  options.Network.Build(),
 		},
 		detour,
 		client,

@@ -21,7 +21,6 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/task"
 )
 
 var _ adapter.Inbound = (*Tun)(nil)
@@ -38,7 +37,6 @@ type Tun struct {
 	inet4Address   netip.Prefix
 	inet6Address   netip.Prefix
 	autoRoute      bool
-	hijackDNS      bool
 
 	tunIf    tun.Tun
 	tunStack *tun.GVisorTun
@@ -64,7 +62,6 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		inet4Address:   options.Inet4Address.Build(),
 		inet6Address:   options.Inet6Address.Build(),
 		autoRoute:      options.AutoRoute,
-		hijackDNS:      options.HijackDNS,
 	}, nil
 }
 
@@ -109,11 +106,6 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
 	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
-	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
-		return task.Run(ctx, func() error {
-			return NewDNSConnection(ctx, t.router, t.logger, conn, metadata)
-		})
-	}
 	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	err := t.router.RouteConnection(ctx, conn, metadata)
@@ -134,11 +126,6 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
 	metadata.SniffOverrideDestination = t.inboundOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(t.inboundOptions.DomainStrategy)
-	if t.hijackDNS && upstreamMetadata.Destination.Port == 53 {
-		return task.Run(ctx, func() error {
-			return NewDNSPacketConnection(ctx, t.router, t.logger, conn, metadata)
-		})
-	}
 	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	err := t.router.RoutePacketConnection(ctx, conn, metadata)
