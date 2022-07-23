@@ -183,6 +183,7 @@ func (g *URLTestGroup) checkOutbounds() {
 	b, _ := batch.New(context.Background(), batch.WithConcurrencyNum[any](10))
 	checked := make(map[string]bool)
 	for _, detour := range g.outbounds {
+		tag := detour.Tag()
 		realTag := RealTag(detour)
 		if checked[realTag] {
 			continue
@@ -201,10 +202,10 @@ func (g *URLTestGroup) checkOutbounds() {
 			defer cancel()
 			t, err := urltest.URLTest(ctx, g.link, p)
 			if err != nil {
-				g.logger.Debug("outbound ", detour.Tag(), " unavailable: ", err)
+				g.logger.Debug("outbound ", tag, " unavailable: ", err)
 				g.router.URLTestHistoryStorage(true).DeleteURLTestHistory(realTag)
 			} else {
-				g.logger.Debug("outbound ", detour.Tag(), " available: ", t, "ms")
+				g.logger.Debug("outbound ", tag, " available: ", t, "ms")
 				g.router.URLTestHistoryStorage(true).StoreURLTestHistory(realTag, &urltest.History{
 					Time:  time.Now(),
 					Delay: t,
