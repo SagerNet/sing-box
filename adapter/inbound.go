@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -34,6 +35,7 @@ type InboundContext struct {
 
 	SourceGeoIPCode string
 	GeoIPCode       string
+	ProcessInfo     *process.Info
 }
 
 type inboundContextKey struct{}

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
+	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
@@ -39,41 +41,36 @@ import (
 var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
-	ctx       context.Context
-	logger    log.ContextLogger
-	dnsLogger log.ContextLogger
-
-	outbounds     []adapter.Outbound
-	outboundByTag map[string]adapter.Outbound
-	rules         []adapter.Rule
-
+	ctx                                context.Context
+	logger                             log.ContextLogger
+	dnsLogger                          log.ContextLogger
+	outbounds                          []adapter.Outbound
+	outboundByTag                      map[string]adapter.Outbound
+	rules                              []adapter.Rule
 	defaultDetour                      string
 	defaultOutboundForConnection       adapter.Outbound
 	defaultOutboundForPacketConnection adapter.Outbound
-
-	needGeoIPDatabase   bool
-	needGeositeDatabase bool
-	geoIPOptions        option.GeoIPOptions
-	geositeOptions      option.GeositeOptions
-	geoIPReader         *geoip.Reader
-	geositeReader       *geosite.Reader
-	geositeCache        map[string]adapter.Rule
-
-	dnsClient             *dns.Client
-	defaultDomainStrategy dns.DomainStrategy
-	dnsRules              []adapter.Rule
-	defaultTransport      dns.Transport
-	transports            []dns.Transport
-	transportMap          map[string]dns.Transport
-
-	interfaceBindManager control.BindManager
-	networkMonitor       NetworkUpdateMonitor
-	autoDetectInterface  bool
-	defaultInterface     string
-	interfaceMonitor     DefaultInterfaceMonitor
-
-	trafficController     adapter.TrafficController
-	urlTestHistoryStorage *urltest.HistoryStorage
+	needGeoIPDatabase                  bool
+	needGeositeDatabase                bool
+	geoIPOptions                       option.GeoIPOptions
+	geositeOptions                     option.GeositeOptions
+	geoIPReader                        *geoip.Reader
+	geositeReader                      *geosite.Reader
+	geositeCache                       map[string]adapter.Rule
+	dnsClient                          *dns.Client
+	defaultDomainStrategy              dns.DomainStrategy
+	dnsRules                           []adapter.Rule
+	defaultTransport                   dns.Transport
+	transports                         []dns.Transport
+	transportMap                       map[string]dns.Transport
+	interfaceBindManager               control.BindManager
+	networkMonitor                     NetworkUpdateMonitor
+	autoDetectInterface                bool
+	defaultInterface                   string
+	interfaceMonitor                   DefaultInterfaceMonitor
+	trafficController                  adapter.TrafficController
+	urlTestHistoryStorage              *urltest.HistoryStorage
+	processSearcher                    process.Searcher
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -84,8 +81,8 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.Rule, 0, len(dnsOptions.Rules)),
-		needGeoIPDatabase:     hasGeoRule(options.Rules, isGeoIPRule) || hasGeoDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
-		needGeositeDatabase:   hasGeoRule(options.Rules, isGeositeRule) || hasGeoDNSRule(dnsOptions.Rules, isGeositeDNSRule),
+		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
+		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
@@ -220,6 +217,13 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
 		router.interfaceMonitor = interfaceMonitor
+	}
+	if hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess {
+		searcher, err := process.NewSearcher(logger)
+		if err != nil {
+			return nil, E.Cause(err, "create process searcher")
+		}
+		router.processSearcher = searcher
 	}
 	return router, nil
 }
@@ -376,6 +380,14 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	if r.processSearcher != nil {
+		if starter, isStarter := r.processSearcher.(common.Starter); isStarter {
+			err := starter.Start()
+			if err != nil {
+				return E.Cause(err, "initialize process searcher")
+			}
+		}
+	}
 	return nil
 }
 
@@ -396,6 +408,7 @@ func (r *Router) Close() error {
 		common.PtrOrNil(r.geoIPReader),
 		r.interfaceMonitor,
 		r.networkMonitor,
+		r.processSearcher,
 	)
 }
 
@@ -464,7 +477,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	matchedRule, detour := r.match(ctx, metadata, r.defaultOutboundForConnection)
+	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForConnection)
 	if !common.Contains(detour.Network(), C.NetworkTCP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
@@ -509,7 +522,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	matchedRule, detour := r.match(ctx, metadata, r.defaultOutboundForPacketConnection)
+	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
 	if !common.Contains(detour.Network(), C.NetworkUDP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
@@ -532,9 +545,34 @@ func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr
 	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, r.defaultDomainStrategy)
 }
 
-func (r *Router) match(ctx context.Context, metadata adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
+func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
+	if r.processSearcher != nil {
+		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.Addr, int(metadata.Source.Port))
+		if err != nil {
+			r.logger.DebugContext(ctx, "failed to search process: ", err)
+		} else {
+			if processInfo.ProcessPath != "" {
+				r.logger.DebugContext(ctx, "found process path: ", processInfo.ProcessPath)
+			} else if processInfo.PackageName != "" {
+				r.logger.DebugContext(ctx, "found package name: ", processInfo.PackageName)
+			} else if processInfo.UserId != -1 {
+				if /*needUserName &&*/ true {
+					osUser, _ := user.LookupId(F.ToString(processInfo.UserId))
+					if osUser != nil {
+						processInfo.User = osUser.Username
+					}
+				}
+				if processInfo.User != "" {
+					r.logger.DebugContext(ctx, "found user: ", processInfo.User)
+				} else {
+					r.logger.DebugContext(ctx, "found user id: ", processInfo.UserId)
+				}
+			}
+			metadata.ProcessInfo = processInfo
+		}
+	}
 	for i, rule := range r.rules {
-		if rule.Match(&metadata) {
+		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
@@ -606,7 +644,7 @@ func (r *Router) URLTestHistoryStorage(create bool) *urltest.HistoryStorage {
 	return r.urlTestHistoryStorage
 }
 
-func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {
+func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -624,7 +662,7 @@ func hasGeoRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bo
 	return false
 }
 
-func hasGeoDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bool) bool {
+func hasDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -656,6 +694,14 @@ func isGeositeRule(rule option.DefaultRule) bool {
 
 func isGeositeDNSRule(rule option.DefaultDNSRule) bool {
 	return len(rule.Geosite) > 0
+}
+
+func isProcessRule(rule option.DefaultRule) bool {
+	return len(rule.ProcessName) > 0
+}
+
+func isProcessDNSRule(rule option.DefaultDNSRule) bool {
+	return len(rule.ProcessName) > 0
 }
 
 func notPrivateNode(code string) bool {

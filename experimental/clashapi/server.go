@@ -122,15 +122,33 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 	} else {
 		domain = metadata.Destination.Fqdn
 	}
+	var processPath string
+	if metadata.ProcessInfo != nil {
+		if metadata.ProcessInfo.ProcessPath != "" {
+			processPath = metadata.ProcessInfo.ProcessPath
+		} else if metadata.ProcessInfo.PackageName != "" {
+			processPath = metadata.ProcessInfo.PackageName
+		}
+		if processPath == "" {
+			if metadata.ProcessInfo.UserId != -1 {
+				processPath = F.ToString(metadata.ProcessInfo.UserId)
+			}
+		} else if metadata.ProcessInfo.User != "" {
+			processPath = F.ToString(processPath, " (", metadata.ProcessInfo.User, ")")
+		} else if metadata.ProcessInfo.UserId != -1 {
+			processPath = F.ToString(processPath, " (", metadata.ProcessInfo.UserId, ")")
+		}
+	}
 	return trafficontrol.Metadata{
-		NetWork: metadata.Network,
-		Type:    inbound,
-		SrcIP:   metadata.Source.Addr,
-		DstIP:   metadata.Destination.Addr,
-		SrcPort: F.ToString(metadata.Source.Port),
-		DstPort: F.ToString(metadata.Destination.Port),
-		Host:    domain,
-		DNSMode: "normal",
+		NetWork:     metadata.Network,
+		Type:        inbound,
+		SrcIP:       metadata.Source.Addr,
+		DstIP:       metadata.Destination.Addr,
+		SrcPort:     F.ToString(metadata.Source.Port),
+		DstPort:     F.ToString(metadata.Destination.Port),
+		Host:        domain,
+		DNSMode:     "normal",
+		ProcessPath: processPath,
 	}
 }
 
