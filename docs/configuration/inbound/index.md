@@ -23,7 +23,6 @@
 | `tun`         | [Tun](./tun)                 |
 | `redirect`    | [Redirect](./redirect)       |
 | `tproxy`      | [TProxy](./tproxy)           |
-| `dns`         | [DNS](./dns)                 |
 
 #### tag
 

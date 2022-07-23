@@ -26,7 +26,6 @@
       "type": "tun",
       "inet4_address": "172.19.0.1/30",
       "auto_route": true,
-      "hijack_dns": true,
       "sniff": true
     }
   ],
@@ -46,10 +45,18 @@
     {
       "type": "block",
       "tag": "block"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
     }
   ],
   "route": {
     "rules": [
+      {
+        "protocol": "dns",
+        "outbound": "dns-out"
+      },
       {
         "geosite": "category-ads-all",
         "outbound": "block"

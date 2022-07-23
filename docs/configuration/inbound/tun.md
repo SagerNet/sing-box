@@ -15,7 +15,6 @@
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
-      "hijack_dns": true,
       
       "sniff": true,
       "sniff_override_destination": false,
@@ -48,10 +47,6 @@ Set the default route to the Tun.
 !!! error ""
 
     To avoid traffic loopback, set `route.auto_detect_interface` or `route.default_interface` or `outbound.bind_interface`
-
-#### hijack_dns
-
-Hijack TCP/UDP DNS requests to the built-in DNS adapter.
 
 ### Listen Fields
 
