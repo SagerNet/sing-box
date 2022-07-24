@@ -50,3 +50,8 @@ type Rule interface {
 	Outbound() string
 	String() string
 }
+
+type DNSRule interface {
+	Rule
+	DisableCache() bool
+}

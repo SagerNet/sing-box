@@ -49,10 +49,6 @@ type DefaultRule struct {
 	outbound                string
 }
 
-func (r *DefaultRule) Type() string {
-	return C.RuleTypeDefault
-}
-
 type RuleItem interface {
 	Match(metadata *adapter.InboundContext) bool
 	String() string
@@ -180,6 +176,10 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	return rule, nil
 }
 
+func (r *DefaultRule) Type() string {
+	return C.RuleTypeDefault
+}
+
 func (r *DefaultRule) Start() error {
 	for _, item := range r.allItems {
 		err := common.Start(item)
@@ -261,7 +261,32 @@ var _ adapter.Rule = (*LogicalRule)(nil)
 type LogicalRule struct {
 	mode     string
 	rules    []*DefaultRule
+	invert   bool
 	outbound string
+}
+
+func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
+	r := &LogicalRule{
+		rules:    make([]*DefaultRule, len(options.Rules)),
+		invert:   options.Invert,
+		outbound: options.Outbound,
+	}
+	switch options.Mode {
+	case C.LogicalTypeAnd:
+		r.mode = C.LogicalTypeAnd
+	case C.LogicalTypeOr:
+		r.mode = C.LogicalTypeOr
+	default:
+		return nil, E.New("unknown logical mode: ", options.Mode)
+	}
+	for i, subRule := range options.Rules {
+		rule, err := NewDefaultRule(router, logger, subRule)
+		if err != nil {
+			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
+		r.rules[i] = rule
+	}
+	return r, nil
 }
 
 func (r *LogicalRule) Type() string {
@@ -298,38 +323,15 @@ func (r *LogicalRule) Close() error {
 	return nil
 }
 
-func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
-	r := &LogicalRule{
-		rules:    make([]*DefaultRule, len(options.Rules)),
-		outbound: options.Outbound,
-	}
-	switch options.Mode {
-	case C.LogicalTypeAnd:
-		r.mode = C.LogicalTypeAnd
-	case C.LogicalTypeOr:
-		r.mode = C.LogicalTypeOr
-	default:
-		return nil, E.New("unknown logical mode: ", options.Mode)
-	}
-	for i, subRule := range options.Rules {
-		rule, err := NewDefaultRule(router, logger, subRule)
-		if err != nil {
-			return nil, E.Cause(err, "sub rule[", i, "]")
-		}
-		r.rules[i] = rule
-	}
-	return r, nil
-}
-
 func (r *LogicalRule) Match(metadata *adapter.InboundContext) bool {
 	if r.mode == C.LogicalTypeAnd {
 		return common.All(r.rules, func(it *DefaultRule) bool {
 			return it.Match(metadata)
-		})
+		}) != r.invert
 	} else {
 		return common.Any(r.rules, func(it *DefaultRule) bool {
 			return it.Match(metadata)
-		})
+		}) != r.invert
 	}
 }
 
@@ -345,5 +347,9 @@ func (r *LogicalRule) String() string {
 	case C.LogicalTypeOr:
 		op = "||"
 	}
-	return "logical(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+	if !r.invert {
+		return strings.Join(F.MapToString(r.rules), " "+op+" ")
+	} else {
+		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+	}
 }
