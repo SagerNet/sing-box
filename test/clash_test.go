@@ -8,11 +8,11 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/control"
 	F "github.com/sagernet/sing/common/format"
@@ -37,13 +37,10 @@ var allImages = []string{
 	ImageV2RayCore,
 }
 
-var (
-	localIP  = netip.MustParseAddr("127.0.0.1")
-	isDarwin = runtime.GOOS == "darwin"
-)
+var localIP = netip.MustParseAddr("127.0.0.1")
 
 func init() {
-	if isDarwin {
+	if C.IsDarwin {
 		var err error
 		localIP, err = defaultRouteIP()
 		if err != nil {
