@@ -107,6 +107,7 @@ type DefaultDNSRule struct {
 	User          Listable[string] `json:"user,omitempty"`
 	UserID        Listable[int32]  `json:"user_id,omitempty"`
 	Outbound      Listable[string] `json:"outbound,omitempty"`
+	Invert        bool             `json:"invert,omitempty"`
 	Server        string           `json:"server,omitempty"`
 }
 

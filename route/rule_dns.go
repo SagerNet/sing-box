@@ -44,6 +44,7 @@ type DefaultDNSRule struct {
 	items        []RuleItem
 	addressItems []RuleItem
 	allItems     []RuleItem
+	invert       bool
 	outbound     string
 }
 
@@ -53,6 +54,7 @@ func (r *DefaultDNSRule) Type() string {
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
+		invert:   true,
 		outbound: options.Server,
 	}
 	if len(options.Inbound) > 0 {
@@ -189,7 +191,7 @@ func (r *DefaultDNSRule) UpdateGeosite() error {
 func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
 	for _, item := range r.items {
 		if !item.Match(metadata) {
-			return false
+			return r.invert
 		}
 	}
 	if len(r.addressItems) > 0 {
@@ -201,10 +203,10 @@ func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
 			}
 		}
 		if !addressMatch {
-			return false
+			return r.invert
 		}
 	}
-	return true
+	return !r.invert
 }
 
 func (r *DefaultDNSRule) Outbound() string {

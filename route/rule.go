@@ -45,6 +45,7 @@ type DefaultRule struct {
 	sourceAddressItems      []RuleItem
 	destinationAddressItems []RuleItem
 	allItems                []RuleItem
+	invert                  bool
 	outbound                string
 }
 
@@ -59,6 +60,7 @@ type RuleItem interface {
 
 func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
 	rule := &DefaultRule{
+		invert:   options.Invert,
 		outbound: options.Outbound,
 	}
 	if len(options.Inbound) > 0 {
@@ -213,7 +215,7 @@ func (r *DefaultRule) UpdateGeosite() error {
 func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 	for _, item := range r.items {
 		if !item.Match(metadata) {
-			return false
+			return r.invert
 		}
 	}
 
@@ -226,7 +228,7 @@ func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 			}
 		}
 		if !sourceAddressMatch {
-			return false
+			return r.invert
 		}
 	}
 
@@ -239,11 +241,11 @@ func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 			}
 		}
 		if !destinationAddressMatch {
-			return false
+			return r.invert
 		}
 	}
 
-	return true
+	return !r.invert
 }
 
 func (r *DefaultRule) Outbound() string {
