@@ -90,27 +90,29 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 }
 
 type DefaultDNSRule struct {
-	Inbound       Listable[string] `json:"inbound,omitempty"`
-	Network       string           `json:"network,omitempty"`
-	AuthUser      Listable[string] `json:"auth_user,omitempty"`
-	Protocol      Listable[string] `json:"protocol,omitempty"`
-	Domain        Listable[string] `json:"domain,omitempty"`
-	DomainSuffix  Listable[string] `json:"domain_suffix,omitempty"`
-	DomainKeyword Listable[string] `json:"domain_keyword,omitempty"`
-	DomainRegex   Listable[string] `json:"domain_regex,omitempty"`
-	Geosite       Listable[string] `json:"geosite,omitempty"`
-	SourceGeoIP   Listable[string] `json:"source_geoip,omitempty"`
-	SourceIPCIDR  Listable[string] `json:"source_ip_cidr,omitempty"`
-	SourcePort    Listable[uint16] `json:"source_port,omitempty"`
-	Port          Listable[uint16] `json:"port,omitempty"`
-	ProcessName   Listable[string] `json:"process_name,omitempty"`
-	PackageName   Listable[string] `json:"package_name,omitempty"`
-	User          Listable[string] `json:"user,omitempty"`
-	UserID        Listable[int32]  `json:"user_id,omitempty"`
-	Outbound      Listable[string] `json:"outbound,omitempty"`
-	Invert        bool             `json:"invert,omitempty"`
-	Server        string           `json:"server,omitempty"`
-	DisableCache  bool             `json:"disable_cache,omitempty"`
+	Inbound         Listable[string] `json:"inbound,omitempty"`
+	Network         string           `json:"network,omitempty"`
+	AuthUser        Listable[string] `json:"auth_user,omitempty"`
+	Protocol        Listable[string] `json:"protocol,omitempty"`
+	Domain          Listable[string] `json:"domain,omitempty"`
+	DomainSuffix    Listable[string] `json:"domain_suffix,omitempty"`
+	DomainKeyword   Listable[string] `json:"domain_keyword,omitempty"`
+	DomainRegex     Listable[string] `json:"domain_regex,omitempty"`
+	Geosite         Listable[string] `json:"geosite,omitempty"`
+	SourceGeoIP     Listable[string] `json:"source_geoip,omitempty"`
+	SourceIPCIDR    Listable[string] `json:"source_ip_cidr,omitempty"`
+	SourcePort      Listable[uint16] `json:"source_port,omitempty"`
+	SourcePortRange Listable[string] `json:"source_port_range,omitempty"`
+	Port            Listable[uint16] `json:"port,omitempty"`
+	PortRange       Listable[string] `json:"port_range,omitempty"`
+	ProcessName     Listable[string] `json:"process_name,omitempty"`
+	PackageName     Listable[string] `json:"package_name,omitempty"`
+	User            Listable[string] `json:"user,omitempty"`
+	UserID          Listable[int32]  `json:"user_id,omitempty"`
+	Outbound        Listable[string] `json:"outbound,omitempty"`
+	Invert          bool             `json:"invert,omitempty"`
+	Server          string           `json:"server,omitempty"`
+	DisableCache    bool             `json:"disable_cache,omitempty"`
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -132,7 +134,9 @@ func (r DefaultDNSRule) Equals(other DefaultDNSRule) bool {
 		common.ComparableSliceEquals(r.SourceGeoIP, other.SourceGeoIP) &&
 		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&
 		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
+		common.ComparableSliceEquals(r.SourcePortRange, other.SourcePortRange) &&
 		common.ComparableSliceEquals(r.Port, other.Port) &&
+		common.ComparableSliceEquals(r.PortRange, other.PortRange) &&
 		common.ComparableSliceEquals(r.ProcessName, other.ProcessName) &&
 		common.ComparableSliceEquals(r.UserID, other.UserID) &&
 		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
