@@ -3,9 +3,12 @@ linters:
   enable:
     - gofumpt
     - govet
-    - gci
+#    - gci
     - staticcheck
     - paralleltest
+
+issues:
+  fix: true
 
 linters-settings:
   gci:
