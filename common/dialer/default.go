@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	M "github.com/sagernet/sing/common/metadata"
 
@@ -69,7 +70,15 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
-	return d.Dialer.DialContext(ctx, network, address.Unwrap().String())
+	conn, err := d.Dialer.DialContext(ctx, network, address.Unwrap().String())
+	if err != nil {
+		return nil, err
+	}
+	if tcpConn, isTCP := common.Cast[*net.TCPConn](conn); isTCP {
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetKeepAlivePeriod(C.DefaultTCPKeepAlivePeriod)
+	}
+	return conn, nil
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
