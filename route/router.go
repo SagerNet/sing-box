@@ -68,6 +68,7 @@ type Router struct {
 	autoDetectInterface                bool
 	defaultInterface                   string
 	interfaceMonitor                   DefaultInterfaceMonitor
+	defaultMark                        int
 	trafficController                  adapter.TrafficController
 	urlTestHistoryStorage              *urltest.HistoryStorage
 	processSearcher                    process.Searcher
@@ -92,6 +93,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		interfaceBindManager:  control.NewBindManager(),
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
+		defaultMark:           options.DefaultMark,
 	}
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, logger, ruleOptions)
@@ -635,6 +637,10 @@ func (r *Router) AutoDetectInterfaceIndex() int {
 		return -1
 	}
 	return r.interfaceMonitor.DefaultInterfaceIndex()
+}
+
+func (r *Router) DefaultMark() int {
+	return r.defaultMark
 }
 
 func (r *Router) Rules() []adapter.Rule {

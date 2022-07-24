@@ -49,6 +49,9 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	if options.RoutingMark != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(options.RoutingMark))
+	} else if router.DefaultMark() != 0 {
+		dialer.Control = control.Append(dialer.Control, control.RoutingMark(router.DefaultMark()))
+		listener.Control = control.Append(listener.Control, control.RoutingMark(router.DefaultMark()))
 	}
 	if options.ReuseAddr {
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())

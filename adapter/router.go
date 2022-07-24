@@ -36,6 +36,7 @@ type Router interface {
 	AutoDetectInterface() bool
 	AutoDetectInterfaceName() string
 	AutoDetectInterfaceIndex() int
+	DefaultMark() int
 
 	Rules() []Rule
 	SetTrafficController(controller TrafficController)
