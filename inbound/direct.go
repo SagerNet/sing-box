@@ -52,7 +52,7 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLog
 	} else {
 		udpTimeout = 300
 	}
-	inbound.udpNat = udpnat.New[netip.AddrPort](udpTimeout, inbound.upstreamContextHandler())
+	inbound.udpNat = udpnat.New[netip.AddrPort](udpTimeout, adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
 	inbound.packetUpstream = inbound.udpNat
@@ -86,7 +86,17 @@ func (d *Direct) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.B
 		metadata.Destination.Port = d.overrideDestination.Port
 	}
 	d.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
-		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), natConn
+		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &udpnat.DirectBackWriter{Source: conn, Nat: natConn}
 	})
 	return nil
+}
+
+func (d *Direct) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return d.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (d *Direct) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithNewID(ctx)
+	d.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	return d.router.RoutePacketConnection(ctx, conn, metadata)
 }
