@@ -2,11 +2,11 @@ package clashapi
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 
 	"github.com/go-chi/chi/v5"

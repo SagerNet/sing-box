@@ -7,10 +7,10 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 
-	"github.com/goccy/go-json"
 	"github.com/spf13/cobra"
 )
 

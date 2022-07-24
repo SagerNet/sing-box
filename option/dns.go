@@ -1,11 +1,10 @@
 package option
 
 import (
+	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/goccy/go-json"
 )
 
 type DNSOptions struct {

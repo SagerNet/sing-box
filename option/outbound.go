@@ -1,12 +1,11 @@
 package option
 
 import (
+	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
-
-	"github.com/goccy/go-json"
 )
 
 type _Outbound struct {
