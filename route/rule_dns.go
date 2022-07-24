@@ -121,8 +121,24 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.SourcePortRange) > 0 {
+		item, err := NewPortRangeItem(true, options.SourcePortRange)
+		if err != nil {
+			return nil, E.Cause(err, "source_port_range")
+		}
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.Port) > 0 {
 		item := NewPortItem(false, options.Port)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.PortRange) > 0 {
+		item, err := NewPortRangeItem(false, options.PortRange)
+		if err != nil {
+			return nil, E.Cause(err, "port_range")
+		}
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
