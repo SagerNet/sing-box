@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
 
 	"github.com/docker/docker/api/types"
@@ -47,7 +48,7 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	containerOptions.ExposedPorts = make(nat.PortSet)
 
 	var hostOptions container.HostConfig
-	if !isDarwin {
+	if !C.IsDarwin {
 		hostOptions.NetworkMode = "host"
 	}
 	hostOptions.PortBindings = make(nat.PortMap)

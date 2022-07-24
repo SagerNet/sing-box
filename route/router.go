@@ -21,6 +21,7 @@ import (
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	"github.com/sagernet/sing-box/common/urltest"
+	"github.com/sagernet/sing-box/common/warning"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -36,6 +37,27 @@ import (
 	"github.com/sagernet/sing/common/rw"
 
 	"golang.org/x/net/dns/dnsmessage"
+)
+
+var warnDefaultInterfaceOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !(C.IsLinux || C.IsWindows)
+	},
+	"route option `default_mark` is only supported on Linux and Windows",
+)
+
+var warnDefaultMarkOnNonLinux = warning.New(
+	func() bool {
+		return !C.IsLinux
+	},
+	"route option `default_mark` is only supported on Linux",
+)
+
+var warnFindProcessOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
+	},
+	"route option `find_process` is only supported on Linux, Windows, and Mac OS X",
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -75,6 +97,16 @@ type Router struct {
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
+	if options.DefaultInterface != "" {
+		warnDefaultInterfaceOnUnsupportedPlatform.Check()
+	}
+	if options.DefaultMark != 0 {
+		warnDefaultMarkOnNonLinux.Check()
+	}
+	if options.FindProcess {
+		warnFindProcessOnUnsupportedPlatform.Check()
+	}
+
 	router := &Router{
 		ctx:                   ctx,
 		logger:                logger,
@@ -225,9 +257,12 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	if hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess {
 		searcher, err := process.NewSearcher(logger)
 		if err != nil {
-			return nil, E.Cause(err, "create process searcher")
+			if err != os.ErrInvalid {
+				logger.Warn(E.Cause(err, "create process searcher"))
+			}
+		} else {
+			router.processSearcher = searcher
 		}
-		router.processSearcher = searcher
 	}
 	return router, nil
 }
@@ -388,7 +423,8 @@ func (r *Router) Start() error {
 		if starter, isStarter := r.processSearcher.(common.Starter); isStarter {
 			err := starter.Start()
 			if err != nil {
-				return E.Cause(err, "initialize process searcher")
+				r.logger.Error(E.Cause(err, "initialize process searcher"))
+				r.processSearcher = nil
 			}
 		}
 	}

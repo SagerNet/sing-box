@@ -5,6 +5,13 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/warning"
+	C "github.com/sagernet/sing-box/constant"
+)
+
+var warnProcessNameOnNonSupportedPlatform = warning.New(
+	func() bool { return !(C.IsLinux || C.IsWindows || C.IsDarwin) },
+	"rule item `process_item` is only supported on Linux, Windows, and Mac OS X",
 )
 
 var _ RuleItem = (*ProcessItem)(nil)
@@ -15,6 +22,7 @@ type ProcessItem struct {
 }
 
 func NewProcessItem(processNameList []string) *ProcessItem {
+	warnProcessNameOnNonSupportedPlatform.Check()
 	rule := &ProcessItem{
 		processes:  processNameList,
 		processMap: make(map[string]bool),

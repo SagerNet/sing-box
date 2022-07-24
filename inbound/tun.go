@@ -6,7 +6,6 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -140,10 +139,9 @@ func (t *Tun) NewError(ctx context.Context, err error) {
 }
 
 func mkInterfaceName() (tunName string) {
-	switch runtime.GOOS {
-	case "darwin":
+	if C.IsDarwin {
 		tunName = "utun"
-	default:
+	} else {
 		tunName = "tun"
 	}
 	interfaces, err := net.Interfaces()

@@ -3,10 +3,10 @@ package dialer
 import (
 	"context"
 	"net"
-	"runtime"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/warning"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -14,6 +14,41 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/database64128/tfo-go"
+)
+
+var warnBindInterfaceOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !(C.IsLinux || C.IsWindows)
+	},
+	"outbound option `bind_interface` is only supported on Linux and Windows",
+)
+
+var warnRoutingMarkOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !C.IsLinux
+	},
+	"outbound option `routing_mark` is only supported on Linux",
+)
+
+var warnReuseAdderOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !(C.IsDarwin || C.IsDragonfly || C.IsFreebsd || C.IsLinux || C.IsNetbsd || C.IsOpenbsd || C.IsSolaris || C.IsWindows)
+	},
+	"outbound option `reuse_addr` is unsupported on current platform",
+)
+
+var warnProtectPathOnNonAndroid = warning.New(
+	func() bool {
+		return !C.IsAndroid
+	},
+	"outbound option `protect_path` is only supported on Android",
+)
+
+var warnTFOOnUnsupportedPlatform = warning.New(
+	func() bool {
+		return !(C.IsDarwin || C.IsFreebsd || C.IsLinux || C.IsWindows)
+	},
+	"outbound option `tcp_fast_open` is unsupported on current platform",
 )
 
 type DefaultDialer struct {
@@ -25,10 +60,11 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
+		warnBindInterfaceOnUnsupportedPlatform.Check()
 		dialer.Control = control.Append(dialer.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
 		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
 	} else if router.AutoDetectInterface() {
-		if runtime.GOOS == "windows" {
+		if C.IsWindows {
 			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceIndexFunc(func() int {
 				return router.AutoDetectInterfaceIndex()
 			}))
@@ -48,6 +84,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
 	}
 	if options.RoutingMark != 0 {
+		warnRoutingMarkOnUnsupportedPlatform.Check()
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(options.RoutingMark))
 	} else if router.DefaultMark() != 0 {
@@ -55,9 +92,11 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		listener.Control = control.Append(listener.Control, control.RoutingMark(router.DefaultMark()))
 	}
 	if options.ReuseAddr {
+		warnReuseAdderOnUnsupportedPlatform.Check()
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	}
 	if options.ProtectPath != "" {
+		warnProtectPathOnNonAndroid.Check()
 		dialer.Control = control.Append(dialer.Control, control.ProtectPath(options.ProtectPath))
 		listener.Control = control.Append(listener.Control, control.ProtectPath(options.ProtectPath))
 	}
@@ -65,6 +104,9 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
 	} else {
 		dialer.Timeout = C.DefaultTCPTimeout
+	}
+	if options.TCPFastOpen {
+		warnTFOOnUnsupportedPlatform.Check()
 	}
 	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
 }
