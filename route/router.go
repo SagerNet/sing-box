@@ -135,7 +135,9 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 			} else {
 				detour = dialer.NewDetour(router, server.Detour)
 			}
-			if server.Address != "local" {
+			switch server.Address {
+			case "local", "rcode":
+			default:
 				serverURL, err := url.Parse(server.Address)
 				if err != nil {
 					return nil, err
@@ -154,7 +156,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 					} else {
 						continue
 					}
-				} else if notIpAddress != nil {
+				} else if notIpAddress != nil && (serverURL == nil || serverURL.Scheme != "rcode") {
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}

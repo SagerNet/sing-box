@@ -13,7 +13,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220722081142-8311d6e9709c
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
-	golang.org/x/net v0.0.0-20220708220712-1185a9018129
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 )
 
 require (
@@ -22,6 +22,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-chi/chi/v5 v5.0.7 // indirect
 	github.com/go-chi/cors v1.2.1 // indirect
 	github.com/go-chi/render v1.0.1 // indirect
@@ -39,7 +40,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.9.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sagernet/sing-dns v0.0.0-20220720045209-c44590ebeb0f // indirect
+	github.com/sagernet/sing-dns v0.0.0-20220724053927-eb8d0d542175 // indirect
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220717063942-45a2ad9cd41f // indirect
 	github.com/sagernet/sing-tun v0.0.0-20220720051454-d35c334b46c9 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220718031323-07c377156e4a // indirect
@@ -47,8 +48,8 @@ require (
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.3.0 // indirect
