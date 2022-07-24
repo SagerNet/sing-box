@@ -59,7 +59,7 @@ type Router struct {
 	geositeCache                       map[string]adapter.Rule
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
-	dnsRules                           []adapter.Rule
+	dnsRules                           []adapter.DNSRule
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
@@ -80,7 +80,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		dnsLogger:             dnsLogger,
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
-		dnsRules:              make([]adapter.Rule, 0, len(dnsOptions.Rules)),
+		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
@@ -536,15 +536,18 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 }
 
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
-	return r.dnsClient.Exchange(ctx, r.matchDNS(ctx), message)
+	ctx, transport := r.matchDNS(ctx)
+	return r.dnsClient.Exchange(ctx, transport, message)
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
-	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, strategy)
+	ctx, transport := r.matchDNS(ctx)
+	return r.dnsClient.Lookup(ctx, transport, domain, strategy)
 }
 
 func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error) {
-	return r.dnsClient.Lookup(ctx, r.matchDNS(ctx), domain, r.defaultDomainStrategy)
+	ctx, transport := r.matchDNS(ctx)
+	return r.dnsClient.Lookup(ctx, transport, domain, r.defaultDomainStrategy)
 }
 
 func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
@@ -586,23 +589,26 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 	return nil, defaultOutbound
 }
 
-func (r *Router) matchDNS(ctx context.Context) dns.Transport {
+func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		r.dnsLogger.WarnContext(ctx, "no context: ", reflect.TypeOf(ctx))
-		return r.defaultTransport
+		return ctx, r.defaultTransport
 	}
 	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {
+			if rule.DisableCache() {
+				ctx = dns.ContextWithDisableCache(ctx, true)
+			}
 			detour := rule.Outbound()
 			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if transport, loaded := r.transportMap[detour]; loaded {
-				return transport
+				return ctx, transport
 			}
 			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 		}
 	}
-	return r.defaultTransport
+	return ctx, r.defaultTransport
 }
 
 func (r *Router) InterfaceBindManager() control.BindManager {

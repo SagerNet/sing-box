@@ -145,6 +145,7 @@ func (r DefaultRule) Equals(other DefaultRule) bool {
 type LogicalRule struct {
 	Mode     string        `json:"mode"`
 	Rules    []DefaultRule `json:"rules,omitempty"`
+	Invert   bool          `json:"invert,omitempty"`
 	Outbound string        `json:"outbound,omitempty"`
 }
 
@@ -155,5 +156,6 @@ func (r LogicalRule) IsValid() bool {
 func (r LogicalRule) Equals(other LogicalRule) bool {
 	return r.Mode == other.Mode &&
 		common.SliceEquals(r.Rules, other.Rules) &&
+		r.Invert == other.Invert &&
 		r.Outbound == other.Outbound
 }

@@ -12,7 +12,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
-func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.Rule, error) {
+func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.DNSRule, error) {
 	if common.IsEmptyByEquals(options) {
 		return nil, E.New("empty rule config")
 	}
@@ -38,7 +38,7 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 	}
 }
 
-var _ adapter.Rule = (*DefaultDNSRule)(nil)
+var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
 	items        []RuleItem
@@ -46,16 +46,14 @@ type DefaultDNSRule struct {
 	allItems     []RuleItem
 	invert       bool
 	outbound     string
-}
-
-func (r *DefaultDNSRule) Type() string {
-	return C.RuleTypeDefault
+	disableCache bool
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
-		invert:   true,
-		outbound: options.Server,
+		invert:       options.Invert,
+		outbound:     options.Server,
+		disableCache: options.DisableCache,
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -156,6 +154,10 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	return rule, nil
 }
 
+func (r *DefaultDNSRule) Type() string {
+	return C.RuleTypeDefault
+}
+
 func (r *DefaultDNSRule) Start() error {
 	for _, item := range r.allItems {
 		err := common.Start(item)
@@ -213,16 +215,47 @@ func (r *DefaultDNSRule) Outbound() string {
 	return r.outbound
 }
 
+func (r *DefaultDNSRule) DisableCache() bool {
+	return r.disableCache
+}
+
 func (r *DefaultDNSRule) String() string {
 	return strings.Join(F.MapToString(r.allItems), " ")
 }
 
-var _ adapter.Rule = (*LogicalRule)(nil)
+var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
-	mode     string
-	rules    []*DefaultDNSRule
-	outbound string
+	mode         string
+	rules        []*DefaultDNSRule
+	invert       bool
+	outbound     string
+	disableCache bool
+}
+
+func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+	r := &LogicalDNSRule{
+		rules:        make([]*DefaultDNSRule, len(options.Rules)),
+		invert:       options.Invert,
+		outbound:     options.Server,
+		disableCache: options.DisableCache,
+	}
+	switch options.Mode {
+	case C.LogicalTypeAnd:
+		r.mode = C.LogicalTypeAnd
+	case C.LogicalTypeOr:
+		r.mode = C.LogicalTypeOr
+	default:
+		return nil, E.New("unknown logical mode: ", options.Mode)
+	}
+	for i, subRule := range options.Rules {
+		rule, err := NewDefaultDNSRule(router, logger, subRule)
+		if err != nil {
+			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
+		r.rules[i] = rule
+	}
+	return r, nil
 }
 
 func (r *LogicalDNSRule) Type() string {
@@ -259,43 +292,24 @@ func (r *LogicalDNSRule) Close() error {
 	return nil
 }
 
-func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
-	r := &LogicalDNSRule{
-		rules:    make([]*DefaultDNSRule, len(options.Rules)),
-		outbound: options.Server,
-	}
-	switch options.Mode {
-	case C.LogicalTypeAnd:
-		r.mode = C.LogicalTypeAnd
-	case C.LogicalTypeOr:
-		r.mode = C.LogicalTypeOr
-	default:
-		return nil, E.New("unknown logical mode: ", options.Mode)
-	}
-	for i, subRule := range options.Rules {
-		rule, err := NewDefaultDNSRule(router, logger, subRule)
-		if err != nil {
-			return nil, E.Cause(err, "sub rule[", i, "]")
-		}
-		r.rules[i] = rule
-	}
-	return r, nil
-}
-
 func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
 	if r.mode == C.LogicalTypeAnd {
 		return common.All(r.rules, func(it *DefaultDNSRule) bool {
 			return it.Match(metadata)
-		})
+		}) != r.invert
 	} else {
 		return common.Any(r.rules, func(it *DefaultDNSRule) bool {
 			return it.Match(metadata)
-		})
+		}) != r.invert
 	}
 }
 
 func (r *LogicalDNSRule) Outbound() string {
 	return r.outbound
+}
+
+func (r *LogicalDNSRule) DisableCache() bool {
+	return r.disableCache
 }
 
 func (r *LogicalDNSRule) String() string {
@@ -306,5 +320,9 @@ func (r *LogicalDNSRule) String() string {
 	case C.LogicalTypeOr:
 		op = "||"
 	}
-	return "logical(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+	if !r.invert {
+		return strings.Join(F.MapToString(r.rules), " "+op+" ")
+	} else {
+		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+	}
 }

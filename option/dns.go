@@ -55,6 +55,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Type {
 	case C.RuleTypeDefault:
+		r.Type = ""
 		v = r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = r.LogicalOptions
@@ -109,6 +110,7 @@ type DefaultDNSRule struct {
 	Outbound      Listable[string] `json:"outbound,omitempty"`
 	Invert        bool             `json:"invert,omitempty"`
 	Server        string           `json:"server,omitempty"`
+	DisableCache  bool             `json:"disable_cache,omitempty"`
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -135,13 +137,17 @@ func (r DefaultDNSRule) Equals(other DefaultDNSRule) bool {
 		common.ComparableSliceEquals(r.UserID, other.UserID) &&
 		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
 		common.ComparableSliceEquals(r.Outbound, other.Outbound) &&
-		r.Server == other.Server
+		r.Invert == other.Invert &&
+		r.Server == other.Server &&
+		r.DisableCache == other.DisableCache
 }
 
 type LogicalDNSRule struct {
-	Mode   string           `json:"mode"`
-	Rules  []DefaultDNSRule `json:"rules,omitempty"`
-	Server string           `json:"server,omitempty"`
+	Mode         string           `json:"mode"`
+	Rules        []DefaultDNSRule `json:"rules,omitempty"`
+	Invert       bool             `json:"invert,omitempty"`
+	Server       string           `json:"server,omitempty"`
+	DisableCache bool             `json:"disable_cache,omitempty"`
 }
 
 func (r LogicalDNSRule) IsValid() bool {
@@ -151,5 +157,7 @@ func (r LogicalDNSRule) IsValid() bool {
 func (r LogicalDNSRule) Equals(other LogicalDNSRule) bool {
 	return r.Mode == other.Mode &&
 		common.SliceEquals(r.Rules, other.Rules) &&
-		r.Server == other.Server
+		r.Invert == other.Invert &&
+		r.Server == other.Server &&
+		r.DisableCache == other.DisableCache
 }
