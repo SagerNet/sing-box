@@ -107,6 +107,7 @@ type DefaultRule struct {
 	PackageName   Listable[string] `json:"package_name,omitempty"`
 	User          Listable[string] `json:"user,omitempty"`
 	UserID        Listable[int32]  `json:"user_id,omitempty"`
+	Invert        bool             `json:"invert,omitempty"`
 	Outbound      string           `json:"outbound,omitempty"`
 }
 
@@ -137,6 +138,7 @@ func (r DefaultRule) Equals(other DefaultRule) bool {
 		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
 		common.ComparableSliceEquals(r.User, other.User) &&
 		common.ComparableSliceEquals(r.UserID, other.UserID) &&
+		r.Invert == other.Invert &&
 		r.Outbound == other.Outbound
 }
 
