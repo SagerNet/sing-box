@@ -16,12 +16,18 @@ type RouteOptions struct {
 	FindProcess         bool            `json:"find_process,omitempty"`
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
+	DefaultMark         int             `json:"default_mark,omitempty"`
 }
 
 func (o RouteOptions) Equals(other RouteOptions) bool {
 	return common.ComparablePtrEquals(o.GeoIP, other.GeoIP) &&
 		common.ComparablePtrEquals(o.Geosite, other.Geosite) &&
-		common.SliceEquals(o.Rules, other.Rules)
+		common.SliceEquals(o.Rules, other.Rules) &&
+		o.Final == other.Final &&
+		o.FindProcess == other.FindProcess &&
+		o.AutoDetectInterface == other.AutoDetectInterface &&
+		o.DefaultInterface == other.DefaultInterface &&
+		o.DefaultMark == other.DefaultMark
 }
 
 type GeoIPOptions struct {
