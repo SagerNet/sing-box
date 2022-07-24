@@ -38,6 +38,16 @@ const (
 )
 
 func resolveSocketByNetlink(network string, ip netip.Addr, srcPort int) (inode int32, uid int32, err error) {
+	for attempts := 0; attempts < 3; attempts++ {
+		inode, uid, err = resolveSocketByNetlink0(network, ip, srcPort)
+		if err == nil {
+			return
+		}
+	}
+	return
+}
+
+func resolveSocketByNetlink0(network string, ip netip.Addr, srcPort int) (inode int32, uid int32, err error) {
 	var family byte
 	var protocol byte
 
