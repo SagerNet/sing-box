@@ -3,7 +3,6 @@ name: Debug build
 on:
   push:
     branches:
-      - main
       - dev
     paths-ignore:
       - '**.md'
