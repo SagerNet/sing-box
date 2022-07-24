@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/goccy/go-json"
 )
 
 type _Options struct {

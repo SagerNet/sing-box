@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/goccy/go-json"
 )
 
 type ListenAddress netip.Addr

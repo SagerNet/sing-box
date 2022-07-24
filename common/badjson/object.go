@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/sagernet/sing-box/common/json"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/x/linkedhashmap"
-
-	"github.com/goccy/go-json"
 )
 
 type JSONObject struct {
