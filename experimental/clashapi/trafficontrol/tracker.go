@@ -31,6 +31,7 @@ type Metadata struct {
 type tracker interface {
 	ID() string
 	Close() error
+	Leave()
 }
 
 type trackerInfo struct {
@@ -73,6 +74,10 @@ func (tt *tcpTracker) Write(b []byte) (int, error) {
 func (tt *tcpTracker) Close() error {
 	tt.manager.Leave(tt)
 	return tt.Conn.Close()
+}
+
+func (tt *tcpTracker) Leave() {
+	tt.manager.Leave(tt)
 }
 
 func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *tcpTracker {
@@ -156,6 +161,10 @@ func (ut *udpTracker) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) e
 func (ut *udpTracker) Close() error {
 	ut.manager.Leave(ut)
 	return ut.PacketConn.Close()
+}
+
+func (ut *udpTracker) Leave() {
+	ut.manager.Leave(ut)
 }
 
 func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *udpTracker {

@@ -12,9 +12,13 @@ type ClashServer interface {
 	TrafficController
 }
 
+type Tracker interface {
+	Leave()
+}
+
 type TrafficController interface {
-	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) net.Conn
-	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) N.PacketConn
+	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
+	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) (N.PacketConn, Tracker)
 }
 
 type OutboundGroup interface {

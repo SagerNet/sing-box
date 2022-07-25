@@ -524,7 +524,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		return E.New("missing supported outbound, closing connection")
 	}
 	if r.trafficController != nil {
-		conn = r.trafficController.RoutedConnection(ctx, conn, metadata, matchedRule)
+		trackerConn, tracker := r.trafficController.RoutedConnection(ctx, conn, metadata, matchedRule)
+		defer tracker.Leave()
+		conn = trackerConn
 	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
@@ -569,7 +571,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		return E.New("missing supported outbound, closing packet connection")
 	}
 	if r.trafficController != nil {
-		conn = r.trafficController.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
+		trackerConn, tracker := r.trafficController.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
+		defer tracker.Leave()
+		conn = trackerConn
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
