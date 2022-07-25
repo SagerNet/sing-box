@@ -70,7 +70,7 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	case C.TypeURLTest:
 		v = &h.URLTestOptions
 	default:
-		return nil
+		return E.New("unknown outbound type: ", h.Type)
 	}
 	err = UnmarshallExcluded(bytes, (*_Outbound)(h), v)
 	if err != nil {

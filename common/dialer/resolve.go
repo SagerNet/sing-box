@@ -69,7 +69,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	return NewResolvePacketConn(d.router, d.strategy, conn), nil
+	return NewResolvePacketConn(ctx, d.router, d.strategy, conn), nil
 }
 
 func (d *ResolveDialer) Upstream() any {

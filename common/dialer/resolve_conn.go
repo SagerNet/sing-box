@@ -12,16 +12,17 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewResolvePacketConn(router adapter.Router, strategy dns.DomainStrategy, conn net.PacketConn) N.NetPacketConn {
+func NewResolvePacketConn(ctx context.Context, router adapter.Router, strategy dns.DomainStrategy, conn net.PacketConn) N.NetPacketConn {
 	if udpConn, ok := conn.(*net.UDPConn); ok {
-		return &ResolveUDPConn{udpConn, router, strategy}
+		return &ResolveUDPConn{udpConn, ctx, router, strategy}
 	} else {
-		return &ResolvePacketConn{conn, router, strategy}
+		return &ResolvePacketConn{conn, ctx, router, strategy}
 	}
 }
 
 type ResolveUDPConn struct {
 	*net.UDPConn
+	ctx      context.Context
 	router   adapter.Router
 	strategy dns.DomainStrategy
 }
@@ -38,7 +39,7 @@ func (w *ResolveUDPConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
 func (w *ResolveUDPConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
 	if destination.IsFqdn() {
-		addresses, err := w.router.Lookup(context.Background(), destination.Fqdn, w.strategy)
+		addresses, err := w.router.Lookup(w.ctx, destination.Fqdn, w.strategy)
 		if err != nil {
 			return err
 		}
@@ -53,6 +54,7 @@ func (w *ResolveUDPConn) Upstream() any {
 
 type ResolvePacketConn struct {
 	net.PacketConn
+	ctx      context.Context
 	router   adapter.Router
 	strategy dns.DomainStrategy
 }
@@ -68,7 +70,7 @@ func (w *ResolvePacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) 
 func (w *ResolvePacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
 	if destination.IsFqdn() {
-		addresses, err := w.router.Lookup(context.Background(), destination.Fqdn, w.strategy)
+		addresses, err := w.router.Lookup(w.ctx, destination.Fqdn, w.strategy)
 		if err != nil {
 			return err
 		}
