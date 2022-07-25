@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -165,6 +166,29 @@ func (g *URLTestGroup) Select() adapter.Outbound {
 		minOutbound = g.outbounds[0]
 	}
 	return minOutbound
+}
+
+func (g *URLTestGroup) Fallback(used adapter.Outbound) []adapter.Outbound {
+	outbounds := make([]adapter.Outbound, 0, len(g.outbounds)-1)
+	for _, detour := range g.outbounds {
+		if detour != used {
+			outbounds = append(outbounds, detour)
+		}
+	}
+	sort.Slice(outbounds, func(i, j int) bool {
+		oi := outbounds[i]
+		oj := outbounds[j]
+		hi := g.router.URLTestHistoryStorage(false).LoadURLTestHistory(RealTag(oi))
+		if hi == nil {
+			return false
+		}
+		hj := g.router.URLTestHistoryStorage(false).LoadURLTestHistory(RealTag(oj))
+		if hj == nil {
+			return false
+		}
+		return hi.Delay < hj.Delay
+	})
+	return outbounds
 }
 
 func (g *URLTestGroup) loopCheck() {

@@ -103,7 +103,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
 	} else {
-		dialer.Timeout = C.DefaultTCPTimeout
+		dialer.Timeout = C.TCPTimeout
 	}
 	if options.TCPFastOpen {
 		warnTFOOnUnsupportedPlatform.Check()
@@ -118,7 +118,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 	}
 	if tcpConn, isTCP := common.Cast[*net.TCPConn](conn); isTCP {
 		tcpConn.SetKeepAlive(true)
-		tcpConn.SetKeepAlivePeriod(C.DefaultTCPKeepAlivePeriod)
+		tcpConn.SetKeepAlivePeriod(C.TCPKeepAlivePeriod)
 	}
 	return conn, nil
 }

@@ -576,16 +576,22 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
 	ctx, transport := r.matchDNS(ctx)
+	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
+	defer cancel()
 	return r.dnsClient.Exchange(ctx, transport, message)
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	ctx, transport := r.matchDNS(ctx)
+	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
+	defer cancel()
 	return r.dnsClient.Lookup(ctx, transport, domain, strategy)
 }
 
 func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error) {
 	ctx, transport := r.matchDNS(ctx)
+	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
+	defer cancel()
 	return r.dnsClient.Lookup(ctx, transport, domain, r.defaultDomainStrategy)
 }
 

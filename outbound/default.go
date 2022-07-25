@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
@@ -77,6 +78,16 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	}
 	if err != nil {
 		return err
+	}
+	if metadata.Protocol != "" {
+		switch metadata.Protocol {
+		case C.ProtocolQUIC:
+			ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
+		case C.ProtocolDNS:
+			ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
+		case C.ProtocolSTUN:
+			ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
+		}
 	}
 	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
 }

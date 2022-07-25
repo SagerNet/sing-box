@@ -6,10 +6,9 @@ import (
 	"io"
 	"net"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
@@ -103,14 +102,14 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	defer conn.Close()
 	ctx = adapter.WithContext(ctx, &metadata)
-	_buffer := buf.StackNewSize(1024)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
-	defer buffer.Release()
-	var wg sync.WaitGroup
 	fastClose, cancel := context.WithCancel(ctx)
-	err := task.Run(fastClose, func() error {
-		var count int
+	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
+	return task.Run(fastClose, func() error {
+		defer cancel()
+		_buffer := buf.StackNewSize(1024)
+		defer common.KeepAlive(_buffer)
+		buffer := common.Dup(_buffer)
+		defer buffer.Release()
 		for {
 			buffer.FullReset()
 			destination, err := conn.ReadPacket(buffer)
@@ -127,13 +126,13 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 				metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
 				d.logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 			}
-			wg.Add(1)
+			timeout.Update()
 			go func() error {
-				defer wg.Done()
 				response, err := d.router.Exchange(ctx, &message)
 				if err != nil {
 					return err
 				}
+				timeout.Update()
 				_responseBuffer := buf.StackNewSize(1024)
 				defer common.KeepAlive(_responseBuffer)
 				responseBuffer := common.Dup(_responseBuffer)
@@ -146,24 +145,8 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 				err = conn.WritePacket(responseBuffer, destination)
 				return err
 			}()
-			count++
-			if count == 2 {
-				break
-			}
 		}
-		cancel()
-		return nil
-	}, func() error {
-		timer := time.NewTimer(5 * time.Second)
-		select {
-		case <-timer.C:
-			cancel()
-		case <-fastClose.Done():
-		}
-		return nil
 	})
-	wg.Wait()
-	return err
 }
 
 func formatDNSQuestion(question dnsmessage.Question) string {
