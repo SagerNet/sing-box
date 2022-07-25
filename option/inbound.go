@@ -3,8 +3,6 @@ package option
 import (
 	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -23,20 +21,6 @@ type _Inbound struct {
 }
 
 type Inbound _Inbound
-
-func (h Inbound) Equals(other Inbound) bool {
-	return h.Type == other.Type &&
-		h.Tag == other.Tag &&
-		h.TunOptions == other.TunOptions &&
-		h.RedirectOptions == other.RedirectOptions &&
-		h.TProxyOptions == other.TProxyOptions &&
-		h.DirectOptions == other.DirectOptions &&
-		h.SocksOptions.Equals(other.SocksOptions) &&
-		h.HTTPOptions.Equals(other.HTTPOptions) &&
-		h.MixedOptions.Equals(other.MixedOptions) &&
-		h.ShadowsocksOptions.Equals(other.ShadowsocksOptions) &&
-		h.VMessOptions.Equals(other.VMessOptions)
-}
 
 func (h Inbound) MarshalJSON() ([]byte, error) {
 	var v any
@@ -112,104 +96,4 @@ type ListenOptions struct {
 	TCPFastOpen bool          `json:"tcp_fast_open,omitempty"`
 	UDPTimeout  int64         `json:"udp_timeout,omitempty"`
 	InboundOptions
-}
-
-type SocksInboundOptions struct {
-	ListenOptions
-	Users []auth.User `json:"users,omitempty"`
-}
-
-func (o SocksInboundOptions) Equals(other SocksInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Users, other.Users)
-}
-
-type HTTPMixedInboundOptions struct {
-	ListenOptions
-	Users          []auth.User        `json:"users,omitempty"`
-	SetSystemProxy bool               `json:"set_system_proxy,omitempty"`
-	TLS            *InboundTLSOptions `json:"tls,omitempty"`
-}
-
-func (o HTTPMixedInboundOptions) Equals(other HTTPMixedInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Users, other.Users) &&
-		o.SetSystemProxy == other.SetSystemProxy &&
-		common.PtrEquals(o.TLS, other.TLS)
-}
-
-type DirectInboundOptions struct {
-	ListenOptions
-	Network         NetworkList `json:"network,omitempty"`
-	OverrideAddress string      `json:"override_address,omitempty"`
-	OverridePort    uint16      `json:"override_port,omitempty"`
-}
-
-type ShadowsocksInboundOptions struct {
-	ListenOptions
-	Network      NetworkList              `json:"network,omitempty"`
-	Method       string                   `json:"method"`
-	Password     string                   `json:"password"`
-	Users        []ShadowsocksUser        `json:"users,omitempty"`
-	Destinations []ShadowsocksDestination `json:"destinations,omitempty"`
-}
-
-func (o ShadowsocksInboundOptions) Equals(other ShadowsocksInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		o.Network == other.Network &&
-		o.Method == other.Method &&
-		o.Password == other.Password &&
-		common.ComparableSliceEquals(o.Users, other.Users) &&
-		common.ComparableSliceEquals(o.Destinations, other.Destinations)
-}
-
-type ShadowsocksUser struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
-}
-
-type ShadowsocksDestination struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
-	ServerOptions
-}
-
-type VMessInboundOptions struct {
-	ListenOptions
-	Users []VMessUser        `json:"users,omitempty"`
-	TLS   *InboundTLSOptions `json:"tls,omitempty"`
-}
-
-func (o VMessInboundOptions) Equals(other VMessInboundOptions) bool {
-	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Users, other.Users) &&
-		common.PtrEquals(o.TLS, other.TLS)
-}
-
-type VMessUser struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
-}
-
-type TunInboundOptions struct {
-	InterfaceName string        `json:"interface_name,omitempty"`
-	MTU           uint32        `json:"mtu,omitempty"`
-	Inet4Address  *ListenPrefix `json:"inet4_address,omitempty"`
-	Inet6Address  *ListenPrefix `json:"inet6_address,omitempty"`
-	AutoRoute     bool          `json:"auto_route,omitempty"`
-	InboundOptions
-}
-
-type RedirectInboundOptions struct {
-	ListenOptions
-}
-
-type TProxyInboundOptions struct {
-	ListenOptions
-	Network NetworkList `json:"network,omitempty"`
-}
-
-type DNSInboundOptions struct {
-	ListenOptions
-	Network NetworkList `json:"network,omitempty"`
 }

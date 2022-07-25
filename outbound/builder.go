@@ -5,13 +5,12 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func New(router adapter.Router, logger log.ContextLogger, options option.Outbound) (adapter.Outbound, error) {
-	if common.IsEmptyByEquals(options) {
-		return nil, E.New("empty outbound config")
+	if options.Type == "" {
+		return nil, E.New("missing outbound type")
 	}
 	switch options.Type {
 	case C.TypeDirect:

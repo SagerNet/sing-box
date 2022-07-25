@@ -7,13 +7,12 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.Inbound) (adapter.Inbound, error) {
-	if common.IsEmptyByEquals(options) {
-		return nil, E.New("empty inbound config")
+	if options.Type == "" {
+		return nil, E.New("missing inbound type")
 	}
 	switch options.Type {
 	case C.TypeTun:

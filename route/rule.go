@@ -13,9 +13,6 @@ import (
 )
 
 func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rule) (adapter.Rule, error) {
-	if common.IsEmptyByEquals(options) {
-		return nil, E.New("empty rule config")
-	}
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {

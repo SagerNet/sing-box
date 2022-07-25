@@ -3,7 +3,6 @@ package option
 import (
 	"crypto/tls"
 
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -20,19 +19,6 @@ type InboundTLSOptions struct {
 	KeyPath         string   `json:"key_path,omitempty"`
 }
 
-func (o InboundTLSOptions) Equals(other InboundTLSOptions) bool {
-	return o.Enabled == other.Enabled &&
-		o.ServerName == other.ServerName &&
-		common.ComparableSliceEquals(o.ALPN, other.ALPN) &&
-		o.MinVersion == other.MinVersion &&
-		o.MaxVersion == other.MaxVersion &&
-		common.ComparableSliceEquals(o.CipherSuites, other.CipherSuites) &&
-		o.Certificate == other.Certificate &&
-		o.CertificatePath == other.CertificatePath &&
-		o.Key == other.Key &&
-		o.KeyPath == other.KeyPath
-}
-
 type OutboundTLSOptions struct {
 	Enabled           bool     `json:"enabled,omitempty"`
 	DisableSNI        bool     `json:"disable_sni,omitempty"`
@@ -45,20 +31,6 @@ type OutboundTLSOptions struct {
 	DisableSystemRoot bool     `json:"disable_system_root,omitempty"`
 	Certificate       string   `json:"certificate,omitempty"`
 	CertificatePath   string   `json:"certificate_path,omitempty"`
-}
-
-func (o OutboundTLSOptions) Equals(other OutboundTLSOptions) bool {
-	return o.Enabled == other.Enabled &&
-		o.DisableSNI == other.DisableSNI &&
-		o.ServerName == other.ServerName &&
-		o.Insecure == other.Insecure &&
-		common.ComparableSliceEquals(o.ALPN, other.ALPN) &&
-		o.MinVersion == other.MinVersion &&
-		o.MaxVersion == other.MaxVersion &&
-		common.ComparableSliceEquals(o.CipherSuites, other.CipherSuites) &&
-		o.DisableSystemRoot == other.DisableSystemRoot &&
-		o.Certificate == other.Certificate &&
-		o.CertificatePath == other.CertificatePath
 }
 
 func ParseTLSVersion(version string) (uint16, error) {
