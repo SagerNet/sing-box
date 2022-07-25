@@ -9,7 +9,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -79,12 +78,7 @@ func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 }
 
 func (h *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	ctx = adapter.WithContext(ctx, &metadata)
-	outConn, err := h.DialContext(ctx, C.NetworkTCP, metadata.Destination)
-	if err != nil {
-		return err
-	}
-	return bufio.CopyConn(ctx, conn, outConn)
+	return NewConnection(ctx, h, conn, metadata)
 }
 
 func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
