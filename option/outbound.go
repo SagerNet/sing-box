@@ -140,13 +140,6 @@ type HTTPOutboundOptions struct {
 	TLSOptions *OutboundTLSOptions `json:"tls,omitempty"`
 }
 
-type OutboundTLSOptions struct {
-	Enabled    bool   `json:"enabled,omitempty"`
-	DisableSNI bool   `json:"disable_sni,omitempty"`
-	ServerName string `json:"server_name,omitempty"`
-	Insecure   bool   `json:"insecure,omitempty"`
-}
-
 type ShadowsocksOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
@@ -158,13 +151,18 @@ type ShadowsocksOutboundOptions struct {
 type VMessOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
-	UUID                string              `json:"uuid"`
-	Security            string              `json:"security"`
-	AlterId             int                 `json:"alter_id,omitempty"`
-	GlobalPadding       bool                `json:"global_padding,omitempty"`
-	AuthenticatedLength bool                `json:"authenticated_length,omitempty"`
-	Network             NetworkList         `json:"network,omitempty"`
-	TLSOptions          *OutboundTLSOptions `json:"tls,omitempty"`
+	UUID                string                 `json:"uuid"`
+	Security            string                 `json:"security"`
+	AlterId             int                    `json:"alter_id,omitempty"`
+	GlobalPadding       bool                   `json:"global_padding,omitempty"`
+	AuthenticatedLength bool                   `json:"authenticated_length,omitempty"`
+	Network             NetworkList            `json:"network,omitempty"`
+	TLSOptions          *OutboundTLSOptions    `json:"tls,omitempty"`
+	TransportOptions    *VMessTransportOptions `json:"transport,omitempty"`
+}
+
+type VMessTransportOptions struct {
+	Network string `json:"network,omitempty"`
 }
 
 type SelectorOutboundOptions struct {

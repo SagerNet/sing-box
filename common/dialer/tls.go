@@ -59,7 +59,61 @@ func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOpt
 			return err
 		}
 	}
-
+	if len(options.ALPN) > 0 {
+		tlsConfig.NextProtos = options.ALPN
+	}
+	if options.MinVersion != "" {
+		minVersion, err := option.ParseTLSVersion(options.MinVersion)
+		if err != nil {
+			return nil, E.Cause(err, "parse min_version")
+		}
+		tlsConfig.MinVersion = minVersion
+	}
+	if options.MaxVersion != "" {
+		maxVersion, err := option.ParseTLSVersion(options.MaxVersion)
+		if err != nil {
+			return nil, E.Cause(err, "parse max_version")
+		}
+		tlsConfig.MaxVersion = maxVersion
+	}
+	if options.CipherSuites != nil {
+	find:
+		for _, cipherSuite := range options.CipherSuites {
+			for _, tlsCipherSuite := range tls.CipherSuites() {
+				if cipherSuite == tlsCipherSuite.Name {
+					tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, tlsCipherSuite.ID)
+					continue find
+				}
+			}
+			return nil, E.New("unknown cipher_suite: ", cipherSuite)
+		}
+	}
+	var certificate []byte
+	if options.Certificate != "" {
+		certificate = []byte(options.Certificate)
+	} else if options.CertificatePath != "" {
+		content, err := os.ReadFile(options.CertificatePath)
+		if err != nil {
+			return nil, E.Cause(err, "read certificate")
+		}
+		certificate = content
+	}
+	if len(certificate) > 0 {
+		var certPool *x509.CertPool
+		if options.DisableSystemRoot {
+			certPool = x509.NewCertPool()
+		} else {
+			var err error
+			certPool, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, E.Cause(err, "load system cert pool")
+			}
+		}
+		if !certPool.AppendCertsFromPEM([]byte(options.Certificate)) {
+			return nil, E.New("failed to parse certificate:\n\n", options.Certificate)
+		}
+		tlsConfig.RootCAs = certPool
+	}
 	return &TLSDialer{
 		dialer: dialer,
 		config: &tlsConfig,
@@ -75,7 +129,7 @@ func (d *TLSDialer) DialContext(ctx context.Context, network string, destination
 		return nil, err
 	}
 	tlsConn := tls.Client(conn, d.config)
-	ctx, cancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
+	ctx, cancel := context.WithTimeout(ctx, C.DefaultTCPTimeout)
 	defer cancel()
 	err = tlsConn.HandshakeContext(ctx)
 	return tlsConn, err
