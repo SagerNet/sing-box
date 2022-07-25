@@ -3,7 +3,6 @@ package option
 import (
 	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -21,18 +20,6 @@ type _Outbound struct {
 }
 
 type Outbound _Outbound
-
-func (h Outbound) Equals(other Outbound) bool {
-	return h.Type == other.Type &&
-		h.Tag == other.Tag &&
-		h.DirectOptions == other.DirectOptions &&
-		h.SocksOptions == other.SocksOptions &&
-		h.HTTPOptions == other.HTTPOptions &&
-		h.ShadowsocksOptions == other.ShadowsocksOptions &&
-		h.VMessOptions == other.VMessOptions &&
-		common.Equals(h.SelectorOptions, other.SelectorOptions) &&
-		common.Equals(h.URLTestOptions, other.URLTestOptions)
-}
 
 func (h Outbound) MarshalJSON() ([]byte, error) {
 	var v any
@@ -115,76 +102,4 @@ type ServerOptions struct {
 
 func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
-}
-
-type DirectOutboundOptions struct {
-	OutboundDialerOptions
-	OverrideAddress string `json:"override_address,omitempty"`
-	OverridePort    uint16 `json:"override_port,omitempty"`
-}
-
-type SocksOutboundOptions struct {
-	OutboundDialerOptions
-	ServerOptions
-	Version  string      `json:"version,omitempty"`
-	Username string      `json:"username,omitempty"`
-	Password string      `json:"password,omitempty"`
-	Network  NetworkList `json:"network,omitempty"`
-}
-
-type HTTPOutboundOptions struct {
-	OutboundDialerOptions
-	ServerOptions
-	Username   string              `json:"username,omitempty"`
-	Password   string              `json:"password,omitempty"`
-	TLSOptions *OutboundTLSOptions `json:"tls,omitempty"`
-}
-
-type ShadowsocksOutboundOptions struct {
-	OutboundDialerOptions
-	ServerOptions
-	Method   string      `json:"method"`
-	Password string      `json:"password"`
-	Network  NetworkList `json:"network,omitempty"`
-}
-
-type VMessOutboundOptions struct {
-	OutboundDialerOptions
-	ServerOptions
-	UUID                string                 `json:"uuid"`
-	Security            string                 `json:"security"`
-	AlterId             int                    `json:"alter_id,omitempty"`
-	GlobalPadding       bool                   `json:"global_padding,omitempty"`
-	AuthenticatedLength bool                   `json:"authenticated_length,omitempty"`
-	Network             NetworkList            `json:"network,omitempty"`
-	TLSOptions          *OutboundTLSOptions    `json:"tls,omitempty"`
-	TransportOptions    *VMessTransportOptions `json:"transport,omitempty"`
-}
-
-type VMessTransportOptions struct {
-	Network string `json:"network,omitempty"`
-}
-
-type SelectorOutboundOptions struct {
-	Outbounds []string `json:"outbounds"`
-	Default   string   `json:"default,omitempty"`
-}
-
-func (o SelectorOutboundOptions) Equals(other SelectorOutboundOptions) bool {
-	return common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
-		o.Default == other.Default
-}
-
-type URLTestOutboundOptions struct {
-	Outbounds []string `json:"outbounds"`
-	URL       string   `json:"url,omitempty"`
-	Interval  Duration `json:"interval,omitempty"`
-	Tolerance uint16   `json:"tolerance,omitempty"`
-}
-
-func (o URLTestOutboundOptions) Equals(other URLTestOutboundOptions) bool {
-	return common.ComparableSliceEquals(o.Outbounds, other.Outbounds) &&
-		o.URL == other.URL &&
-		o.Interval == other.Interval &&
-		o.Tolerance == other.Tolerance
 }

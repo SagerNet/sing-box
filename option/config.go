@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/common/json"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -34,15 +33,6 @@ func (o *Options) UnmarshalJSON(content []byte) error {
 		return E.Extend(syntaxError, "row ", row, ", column ", column)
 	}
 	return err
-}
-
-func (o Options) Equals(other Options) bool {
-	return common.ComparablePtrEquals(o.Log, other.Log) &&
-		common.PtrEquals(o.DNS, other.DNS) &&
-		common.SliceEquals(o.Inbounds, other.Inbounds) &&
-		common.SliceEquals(o.Outbounds, other.Outbounds) &&
-		common.PtrEquals(o.Route, other.Route) &&
-		common.ComparablePtrEquals(o.Experimental, other.Experimental)
 }
 
 type LogOptions struct {

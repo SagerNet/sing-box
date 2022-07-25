@@ -1,6 +1,8 @@
 package option
 
 import (
+	"reflect"
+
 	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
@@ -16,17 +18,6 @@ type RouteOptions struct {
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
 	DefaultMark         int             `json:"default_mark,omitempty"`
-}
-
-func (o RouteOptions) Equals(other RouteOptions) bool {
-	return common.ComparablePtrEquals(o.GeoIP, other.GeoIP) &&
-		common.ComparablePtrEquals(o.Geosite, other.Geosite) &&
-		common.SliceEquals(o.Rules, other.Rules) &&
-		o.Final == other.Final &&
-		o.FindProcess == other.FindProcess &&
-		o.AutoDetectInterface == other.AutoDetectInterface &&
-		o.DefaultInterface == other.DefaultInterface &&
-		o.DefaultMark == other.DefaultMark
 }
 
 type GeoIPOptions struct {
@@ -48,12 +39,6 @@ type _Rule struct {
 }
 
 type Rule _Rule
-
-func (r Rule) Equals(other Rule) bool {
-	return r.Type == other.Type &&
-		r.DefaultOptions.Equals(other.DefaultOptions) &&
-		r.LogicalOptions.Equals(other.LogicalOptions)
-}
 
 func (r Rule) MarshalJSON() ([]byte, error) {
 	var v any
@@ -120,35 +105,9 @@ type DefaultRule struct {
 
 func (r DefaultRule) IsValid() bool {
 	var defaultValue DefaultRule
+	defaultValue.Invert = r.Invert
 	defaultValue.Outbound = r.Outbound
-	return !r.Equals(defaultValue)
-}
-
-func (r DefaultRule) Equals(other DefaultRule) bool {
-	return common.ComparableSliceEquals(r.Inbound, other.Inbound) &&
-		r.IPVersion == other.IPVersion &&
-		r.Network == other.Network &&
-		common.ComparableSliceEquals(r.User, other.User) &&
-		common.ComparableSliceEquals(r.Protocol, other.Protocol) &&
-		common.ComparableSliceEquals(r.Domain, other.Domain) &&
-		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&
-		common.ComparableSliceEquals(r.DomainKeyword, other.DomainKeyword) &&
-		common.ComparableSliceEquals(r.DomainRegex, other.DomainRegex) &&
-		common.ComparableSliceEquals(r.Geosite, other.Geosite) &&
-		common.ComparableSliceEquals(r.SourceGeoIP, other.SourceGeoIP) &&
-		common.ComparableSliceEquals(r.GeoIP, other.GeoIP) &&
-		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&
-		common.ComparableSliceEquals(r.IPCIDR, other.IPCIDR) &&
-		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
-		common.ComparableSliceEquals(r.SourcePortRange, other.SourcePortRange) &&
-		common.ComparableSliceEquals(r.Port, other.Port) &&
-		common.ComparableSliceEquals(r.PortRange, other.PortRange) &&
-		common.ComparableSliceEquals(r.ProcessName, other.ProcessName) &&
-		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
-		common.ComparableSliceEquals(r.User, other.User) &&
-		common.ComparableSliceEquals(r.UserID, other.UserID) &&
-		r.Invert == other.Invert &&
-		r.Outbound == other.Outbound
+	return !reflect.DeepEqual(r, defaultValue)
 }
 
 type LogicalRule struct {
@@ -160,11 +119,4 @@ type LogicalRule struct {
 
 func (r LogicalRule) IsValid() bool {
 	return len(r.Rules) > 0 && common.All(r.Rules, DefaultRule.IsValid)
-}
-
-func (r LogicalRule) Equals(other LogicalRule) bool {
-	return r.Mode == other.Mode &&
-		common.SliceEquals(r.Rules, other.Rules) &&
-		r.Invert == other.Invert &&
-		r.Outbound == other.Outbound
 }

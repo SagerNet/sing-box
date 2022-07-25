@@ -1,6 +1,8 @@
 package option
 
 import (
+	"reflect"
+
 	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
@@ -12,13 +14,6 @@ type DNSOptions struct {
 	Rules   []DNSRule          `json:"rules,omitempty"`
 	Final   string             `json:"final,omitempty"`
 	DNSClientOptions
-}
-
-func (o DNSOptions) Equals(other DNSOptions) bool {
-	return common.ComparableSliceEquals(o.Servers, other.Servers) &&
-		common.SliceEquals(o.Rules, other.Rules) &&
-		o.Final == other.Final &&
-		o.DNSClientOptions == other.DNSClientOptions
 }
 
 type DNSClientOptions struct {
@@ -43,12 +38,6 @@ type _DNSRule struct {
 }
 
 type DNSRule _DNSRule
-
-func (r DNSRule) Equals(other DNSRule) bool {
-	return r.Type == other.Type &&
-		r.DefaultOptions.Equals(other.DefaultOptions) &&
-		r.LogicalOptions.Equals(other.LogicalOptions)
-}
 
 func (r DNSRule) MarshalJSON() ([]byte, error) {
 	var v any
@@ -116,33 +105,10 @@ type DefaultDNSRule struct {
 
 func (r DefaultDNSRule) IsValid() bool {
 	var defaultValue DefaultDNSRule
+	defaultValue.Invert = r.Invert
 	defaultValue.Server = r.Server
-	return !r.Equals(defaultValue)
-}
-
-func (r DefaultDNSRule) Equals(other DefaultDNSRule) bool {
-	return common.ComparableSliceEquals(r.Inbound, other.Inbound) &&
-		r.Network == other.Network &&
-		common.ComparableSliceEquals(r.User, other.User) &&
-		common.ComparableSliceEquals(r.Protocol, other.Protocol) &&
-		common.ComparableSliceEquals(r.Domain, other.Domain) &&
-		common.ComparableSliceEquals(r.DomainSuffix, other.DomainSuffix) &&
-		common.ComparableSliceEquals(r.DomainKeyword, other.DomainKeyword) &&
-		common.ComparableSliceEquals(r.DomainRegex, other.DomainRegex) &&
-		common.ComparableSliceEquals(r.Geosite, other.Geosite) &&
-		common.ComparableSliceEquals(r.SourceGeoIP, other.SourceGeoIP) &&
-		common.ComparableSliceEquals(r.SourceIPCIDR, other.SourceIPCIDR) &&
-		common.ComparableSliceEquals(r.SourcePort, other.SourcePort) &&
-		common.ComparableSliceEquals(r.SourcePortRange, other.SourcePortRange) &&
-		common.ComparableSliceEquals(r.Port, other.Port) &&
-		common.ComparableSliceEquals(r.PortRange, other.PortRange) &&
-		common.ComparableSliceEquals(r.ProcessName, other.ProcessName) &&
-		common.ComparableSliceEquals(r.UserID, other.UserID) &&
-		common.ComparableSliceEquals(r.PackageName, other.PackageName) &&
-		common.ComparableSliceEquals(r.Outbound, other.Outbound) &&
-		r.Invert == other.Invert &&
-		r.Server == other.Server &&
-		r.DisableCache == other.DisableCache
+	defaultValue.DisableCache = r.DisableCache
+	return !reflect.DeepEqual(r, defaultValue)
 }
 
 type LogicalDNSRule struct {
@@ -155,12 +121,4 @@ type LogicalDNSRule struct {
 
 func (r LogicalDNSRule) IsValid() bool {
 	return len(r.Rules) > 0 && common.All(r.Rules, DefaultDNSRule.IsValid)
-}
-
-func (r LogicalDNSRule) Equals(other LogicalDNSRule) bool {
-	return r.Mode == other.Mode &&
-		common.SliceEquals(r.Rules, other.Rules) &&
-		r.Invert == other.Invert &&
-		r.Server == other.Server &&
-		r.DisableCache == other.DisableCache
 }
