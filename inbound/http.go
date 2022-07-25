@@ -3,12 +3,14 @@ package inbound
 import (
 	std_bufio "bufio"
 	"context"
+	"crypto/tls"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -20,11 +22,12 @@ var _ adapter.Inbound = (*HTTP)(nil)
 type HTTP struct {
 	myInboundAdapter
 	authenticator auth.Authenticator
+	tlsConfig     *tls.Config
 }
 
-func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) *HTTP {
+func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) (*HTTP, error) {
 	inbound := &HTTP{
-		myInboundAdapter{
+		myInboundAdapter: myInboundAdapter{
 			protocol:       C.TypeHTTP,
 			network:        []string{C.NetworkTCP},
 			ctx:            ctx,
@@ -34,13 +37,23 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			listenOptions:  options.ListenOptions,
 			setSystemProxy: options.SetSystemProxy,
 		},
-		auth.NewAuthenticator(options.Users),
+		authenticator: auth.NewAuthenticator(options.Users),
+	}
+	if options.TLS != nil {
+		tlsConfig, err := NewTLSConfig(common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+		inbound.tlsConfig = tlsConfig
 	}
 	inbound.connHandler = inbound
-	return inbound
+	return inbound, nil
 }
 
 func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if h.tlsConfig != nil {
+		conn = tls.Server(conn, h.tlsConfig)
+	}
 	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
 }
 

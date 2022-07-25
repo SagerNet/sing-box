@@ -2,6 +2,7 @@ package inbound
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"os"
 
@@ -20,8 +21,9 @@ var _ adapter.Inbound = (*VMess)(nil)
 
 type VMess struct {
 	myInboundAdapter
-	service *vmess.Service[int]
-	users   []option.VMessUser
+	service   *vmess.Service[int]
+	users     []option.VMessUser
+	tlsConfig *tls.Config
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessInboundOptions) (*VMess, error) {
@@ -46,12 +48,21 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
+	if options.TLS != nil {
+		inbound.tlsConfig, err = NewTLSConfig(common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+	}
 	inbound.service = service
 	inbound.connHandler = inbound
 	return inbound, nil
 }
 
 func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if h.tlsConfig != nil {
+		conn = tls.Server(conn, h.tlsConfig)
+	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

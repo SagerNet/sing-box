@@ -126,14 +126,16 @@ func (o SocksInboundOptions) Equals(other SocksInboundOptions) bool {
 
 type HTTPMixedInboundOptions struct {
 	ListenOptions
-	Users          []auth.User `json:"users,omitempty"`
-	SetSystemProxy bool        `json:"set_system_proxy,omitempty"`
+	Users          []auth.User        `json:"users,omitempty"`
+	SetSystemProxy bool               `json:"set_system_proxy,omitempty"`
+	TLS            *InboundTLSOptions `json:"tls,omitempty"`
 }
 
 func (o HTTPMixedInboundOptions) Equals(other HTTPMixedInboundOptions) bool {
 	return o.ListenOptions == other.ListenOptions &&
 		common.ComparableSliceEquals(o.Users, other.Users) &&
-		o.SetSystemProxy == other.SetSystemProxy
+		o.SetSystemProxy == other.SetSystemProxy &&
+		common.PtrEquals(o.TLS, other.TLS)
 }
 
 type DirectInboundOptions struct {
@@ -174,12 +176,14 @@ type ShadowsocksDestination struct {
 
 type VMessInboundOptions struct {
 	ListenOptions
-	Users []VMessUser `json:"users,omitempty"`
+	Users []VMessUser        `json:"users,omitempty"`
+	TLS   *InboundTLSOptions `json:"tls,omitempty"`
 }
 
 func (o VMessInboundOptions) Equals(other VMessInboundOptions) bool {
 	return o.ListenOptions == other.ListenOptions &&
-		common.ComparableSliceEquals(o.Users, other.Users)
+		common.ComparableSliceEquals(o.Users, other.Users) &&
+		common.PtrEquals(o.TLS, other.TLS)
 }
 
 type VMessUser struct {
