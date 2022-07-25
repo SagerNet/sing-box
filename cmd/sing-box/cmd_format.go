@@ -45,7 +45,7 @@ func formatConfiguration(cmd *cobra.Command, args []string) {
 		os.Stdout.WriteString(buffer.String() + "\n")
 		return
 	}
-	if !bytes.Equal(configContent, buffer.Bytes()) {
+	if bytes.Equal(configContent, buffer.Bytes()) {
 		return
 	}
 	output, err := os.Create(configPath)
