@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -631,6 +632,7 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport) 
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		r.dnsLogger.WarnContext(ctx, "no context: ", reflect.TypeOf(ctx))
+		debug.PrintStack()
 		return ctx, r.defaultTransport
 	}
 	for i, rule := range r.dnsRules {
