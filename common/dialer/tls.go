@@ -129,7 +129,7 @@ func (d *TLSDialer) DialContext(ctx context.Context, network string, destination
 		return nil, err
 	}
 	tlsConn := tls.Client(conn, d.config)
-	ctx, cancel := context.WithTimeout(ctx, C.DefaultTCPTimeout)
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
 	err = tlsConn.HandshakeContext(ctx)
 	return tlsConn, err
