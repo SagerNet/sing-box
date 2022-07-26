@@ -8,8 +8,10 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -27,15 +29,17 @@ var _ adapter.Inbound = (*Tun)(nil)
 type Tun struct {
 	tag string
 
-	ctx            context.Context
-	router         adapter.Router
-	logger         log.ContextLogger
-	inboundOptions option.InboundOptions
-	tunName        string
-	tunMTU         uint32
-	inet4Address   netip.Prefix
-	inet6Address   netip.Prefix
-	autoRoute      bool
+	ctx                    context.Context
+	router                 adapter.Router
+	logger                 log.ContextLogger
+	inboundOptions         option.InboundOptions
+	tunName                string
+	tunMTU                 uint32
+	inet4Address           netip.Prefix
+	inet6Address           netip.Prefix
+	autoRoute              bool
+	endpointIndependentNat bool
+	udpTimeout             int64
 
 	tunIf    tun.Tun
 	tunStack *tun.GVisorTun
@@ -50,17 +54,25 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if tunMTU == 0 {
 		tunMTU = 1500
 	}
+	var udpTimeout int64
+	if options.UDPTimeout != 0 {
+		udpTimeout = options.UDPTimeout
+	} else {
+		udpTimeout = int64(C.UDPTimeout.Seconds())
+	}
 	return &Tun{
-		tag:            tag,
-		ctx:            ctx,
-		router:         router,
-		logger:         logger,
-		inboundOptions: options.InboundOptions,
-		tunName:        tunName,
-		tunMTU:         tunMTU,
-		inet4Address:   options.Inet4Address.Build(),
-		inet6Address:   options.Inet6Address.Build(),
-		autoRoute:      options.AutoRoute,
+		tag:                    tag,
+		ctx:                    ctx,
+		router:                 router,
+		logger:                 logger,
+		inboundOptions:         options.InboundOptions,
+		tunName:                tunName,
+		tunMTU:                 tunMTU,
+		inet4Address:           options.Inet4Address.Build(),
+		inet6Address:           options.Inet6Address.Build(),
+		autoRoute:              options.AutoRoute,
+		endpointIndependentNat: options.EndpointIndependentNat,
+		udpTimeout:             udpTimeout,
 	}, nil
 }
 
@@ -78,7 +90,7 @@ func (t *Tun) Start() error {
 		return E.Cause(err, "configure tun interface")
 	}
 	t.tunIf = tunIf
-	t.tunStack = tun.NewGVisor(t.ctx, tunIf, t.tunMTU, t)
+	t.tunStack = tun.NewGVisor(t.ctx, tunIf, t.tunMTU, t.endpointIndependentNat, t.udpTimeout, t)
 	err = t.tunStack.Start()
 	if err != nil {
 		return err
@@ -116,6 +128,9 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
 	ctx = log.ContextWithNewID(ctx)
+	if tun.NeedTimeoutFromContext(ctx) {
+		ctx, conn = canceler.NewPacketConn(ctx, conn, time.Duration(t.udpTimeout)*time.Second)
+	}
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.InboundType = C.TypeTun

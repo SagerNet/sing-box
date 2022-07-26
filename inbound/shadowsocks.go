@@ -55,7 +55,7 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
 	} else {
-		udpTimeout = 300
+		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
 	var err error
 	switch {

@@ -51,7 +51,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220726044716-2b8c696b09f5 // indirect
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220726034922-ebbaadcae06b // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220725225208-3b0c717db3f5 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220726111504-b4bded886e01 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220726034841-4dae776653e5 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
