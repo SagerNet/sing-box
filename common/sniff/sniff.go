@@ -24,7 +24,7 @@ func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, sniffers
 	if err != nil {
 		return nil, err
 	}
-	_, err = buffer.ReadFrom(conn)
+	_, err = buffer.ReadOnceFrom(conn)
 	err = E.Errors(err, conn.SetReadDeadline(time.Time{}))
 	if err != nil {
 		return nil, err
