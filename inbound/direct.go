@@ -50,7 +50,7 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLog
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
 	} else {
-		udpTimeout = 300
+		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
 	inbound.udpNat = udpnat.New[netip.AddrPort](udpTimeout, adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
 	inbound.connHandler = inbound

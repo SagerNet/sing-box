@@ -44,7 +44,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
 	} else {
-		udpTimeout = 300
+		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
 	service, err := shadowaead_2022.NewMultiServiceWithPassword[int](
 		options.Method,
