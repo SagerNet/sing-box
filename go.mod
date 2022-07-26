@@ -8,7 +8,6 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.1
-	github.com/goccy/go-json v0.9.10
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gorilla/websocket v1.5.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible

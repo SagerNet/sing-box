@@ -49,7 +49,7 @@ func (m *JSONObject) UnmarshalJSON(content []byte) error {
 	}
 	err = m.decodeJSON(decoder)
 	if err != nil {
-		return err
+		return E.Cause(err, "decode json object content")
 	}
 	objectEnd, err := decoder.Token()
 	if err != nil {
@@ -63,14 +63,15 @@ func (m *JSONObject) UnmarshalJSON(content []byte) error {
 func (m *JSONObject) decodeJSON(decoder *json.Decoder) error {
 	for decoder.More() {
 		var entryKey string
-		err := decoder.Decode(&entryKey)
+		keyToken, err := decoder.Token()
 		if err != nil {
 			return err
 		}
+		entryKey = keyToken.(string)
 		var entryValue any
 		entryValue, err = decodeJSON(decoder)
 		if err != nil {
-			return err
+			return E.Cause(err, "decode value for ", entryKey)
 		}
 		m.Put(entryKey, entryValue)
 	}

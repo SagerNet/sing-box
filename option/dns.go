@@ -58,12 +58,10 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Type == "" {
-		r.Type = C.RuleTypeDefault
-	}
 	var v any
 	switch r.Type {
-	case C.RuleTypeDefault:
+	case "", C.RuleTypeDefault:
+		r.Type = C.RuleTypeDefault
 		v = &r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = &r.LogicalOptions
