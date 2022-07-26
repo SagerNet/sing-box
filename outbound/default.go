@@ -109,7 +109,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 	if err != nil {
 		return err
 	}
-	_, err = payload.ReadFrom(conn)
+	_, err = payload.ReadOnceFrom(conn)
 	if err != nil && !E.IsTimeout(err) {
 		return E.Cause(err, "read payload")
 	}
