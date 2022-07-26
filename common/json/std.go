@@ -1,5 +1,3 @@
-//go:build with_std_json
-
 package json
 
 import "encoding/json"

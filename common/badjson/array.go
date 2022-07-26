@@ -2,6 +2,7 @@ package badjson
 
 import (
 	"bytes"
+	"reflect"
 
 	"github.com/sagernet/sing-box/common/json"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -36,10 +37,14 @@ func (a *JSONArray[T]) UnmarshalJSON(content []byte) error {
 
 func (a *JSONArray[T]) decodeJSON(decoder *json.Decoder) error {
 	for decoder.More() {
-		var item T
-		err := decoder.Decode(&item)
+		value, err := decodeJSON(decoder)
 		if err != nil {
 			return err
+		}
+		item, ok := value.(T)
+		if !ok {
+			var defValue T
+			return E.New("can't cast ", value, " to ", reflect.TypeOf(defValue))
 		}
 		*a = append(*a, item)
 	}

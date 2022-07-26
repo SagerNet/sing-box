@@ -35,9 +35,7 @@ func MergeObjects(objects ...any) (*badjson.JSONObject, error) {
 }
 
 func MarshallObjects(objects ...any) ([]byte, error) {
-	objects = common.Filter(objects, func(v any) bool {
-		return v != nil
-	})
+	objects = common.FilterNotNil(objects)
 	if len(objects) == 1 {
 		return json.Marshal(objects[0])
 	}
