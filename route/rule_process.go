@@ -11,7 +11,7 @@ import (
 
 var warnProcessNameOnNonSupportedPlatform = warning.New(
 	func() bool { return !(C.IsLinux || C.IsWindows || C.IsDarwin) },
-	"rule item `process_item` is only supported on Linux, Windows, and Mac OS X",
+	"rule item `process_item` is only supported on Linux, Windows, and macOS",
 )
 
 var _ RuleItem = (*ProcessItem)(nil)

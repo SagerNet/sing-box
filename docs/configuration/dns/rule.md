@@ -9,7 +9,7 @@
           "mixed-in"
         ],
         "network": "tcp",
-        "user": [
+        "auth_user": [
           "usera",
           "userb"
         ],
@@ -42,20 +42,45 @@
         "source_port": [
           12345
         ],
+        "source_port_range": [
+          "1000:2000",
+          ":3000",
+          "4000:"
+        ],
         "port": [
           80,
           443
         ],
+        "port_range": [
+          "1000:2000",
+          ":3000",
+          "4000:"
+        ],
+        "process_name": [
+          "curl"
+        ],
+        "package_name": [
+          "com.termux"
+        ],
+        "user": [
+          "sekai"
+        ],
+        "user_id": [
+          1000
+        ],
+        "invert": false,
         "outbound": [
           "direct"
         ],
-        "server": "local"
+        "server": "local",
+        "disable_cache": false
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
-        "server": "local"
+        "server": "local",
+        "disable_cache": false
       }
     ]
   }
@@ -124,9 +149,49 @@ Match source ip cidr.
 
 Match source port.
 
+#### source_port_range
+
+Match source port range.
+
 #### port
 
 Match port.
+
+#### port_range
+
+Match port range.
+
+#### process_name
+
+!!! error ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process name.
+
+#### package_name
+
+Match android package name.
+
+#### user
+
+!!! error ""
+
+    Only supported on Linux with CGO enabled.
+
+Match user name.
+
+#### user_id
+
+!!! error ""
+
+    Only supported on Linux.
+
+Match user id.
+
+#### invert
+
+Invert match result.
 
 #### outbound
 
@@ -134,7 +199,13 @@ Match outbound.
 
 #### server
 
+==Required==
+
 Tag of the target dns server.
+
+#### disable_cache
+
+Disable cache and save cache in this query.
 
 ### Logical Fields
 
@@ -150,8 +221,16 @@ Tag of the target dns server.
 
 Included default rules.
 
+#### invert
+
+Invert match result.
+
 #### server
 
 ==Required==
 
 Tag of the target dns server.
+
+#### disable_cache
+
+Disable cache and save cache in this query.

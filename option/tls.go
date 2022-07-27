@@ -20,17 +20,16 @@ type InboundTLSOptions struct {
 }
 
 type OutboundTLSOptions struct {
-	Enabled           bool     `json:"enabled,omitempty"`
-	DisableSNI        bool     `json:"disable_sni,omitempty"`
-	ServerName        string   `json:"server_name,omitempty"`
-	Insecure          bool     `json:"insecure,omitempty"`
-	ALPN              []string `json:"alpn,omitempty"`
-	MinVersion        string   `json:"min_version,omitempty"`
-	MaxVersion        string   `json:"max_version,omitempty"`
-	CipherSuites      []string `json:"cipher_suites,omitempty"`
-	DisableSystemRoot bool     `json:"disable_system_root,omitempty"`
-	Certificate       string   `json:"certificate,omitempty"`
-	CertificatePath   string   `json:"certificate_path,omitempty"`
+	Enabled         bool     `json:"enabled,omitempty"`
+	DisableSNI      bool     `json:"disable_sni,omitempty"`
+	ServerName      string   `json:"server_name,omitempty"`
+	Insecure        bool     `json:"insecure,omitempty"`
+	ALPN            []string `json:"alpn,omitempty"`
+	MinVersion      string   `json:"min_version,omitempty"`
+	MaxVersion      string   `json:"max_version,omitempty"`
+	CipherSuites    []string `json:"cipher_suites,omitempty"`
+	Certificate     string   `json:"certificate,omitempty"`
+	CertificatePath string   `json:"certificate_path,omitempty"`
 }
 
 func ParseTLSVersion(version string) (uint16, error) {

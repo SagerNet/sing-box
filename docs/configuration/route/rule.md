@@ -9,7 +9,7 @@
           "mixed-in"
         ],
         "network": "tcp",
-        "user": [
+        "auth_user": [
           "usera",
           "userb"
         ],
@@ -48,16 +48,40 @@
         "source_port": [
           12345
         ],
+        "source_port_range": [
+          "1000:2000",
+          ":3000",
+          "4000:"
+        ],
         "port": [
           80,
           443
         ],
+        "port_range": [
+          "1000:2000",
+          ":3000",
+          "4000:"
+        ],
+        "process_name": [
+          "curl"
+        ],
+        "package_name": [
+          "com.termux"
+        ],
+        "user": [
+          "sekai"
+        ],
+        "user_id": [
+          1000
+        ],
+        "invert": false,
         "outbound": "direct"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "invert": false,
         "outbound": "direct"
       }
     ]
@@ -83,7 +107,7 @@
 
 Tags of [inbound](../inbound).
 
-#### user
+#### auth_user
 
 Username, see each inbound for details.
 
@@ -135,11 +159,53 @@ Match ip cidr.
 
 Match source port.
 
+#### source_port_range
+
+Match source port range.
+
 #### port
 
 Match port.
 
+#### port_range
+
+Match port range.
+
+#### process_name
+
+!!! error ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process name.
+
+#### package_name
+
+Match android package name.
+
+#### user
+
+!!! error ""
+
+    Only supported on Linux with CGO enabled.
+
+Match user name.
+
+#### user_id
+
+!!! error ""
+
+    Only supported on Linux.
+
+Match user id.
+
+#### invert
+
+Invert match result.
+
 #### outbound
+
+==Required==
 
 Tag of the target outbound.
 
@@ -157,6 +223,12 @@ Tag of the target outbound.
 
 Included default rules.
 
+#### invert
+
+Invert match result.
+
 #### outbound
+
+==Required==
 
 Tag of the target outbound.

@@ -15,14 +15,14 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      
+
+      "tls": {},
       "users": [
         {
           "username": "admin",
           "password": "admin"
         }
       ],
-      
       "set_system_proxy": false
     }
   ]
@@ -76,6 +76,10 @@ If `sniff_override_destination` is in effect, its value will be taken as a fallb
 Automatically set system proxy configuration when start and clean up when stop.
 
 ### HTTP Fields
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
 
 #### users
 

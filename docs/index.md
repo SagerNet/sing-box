@@ -18,10 +18,11 @@ Install with options:
 go install -v -tags "with_clash_api,no_gvisor" github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
-| Build Tag        | Description                                                                                      |
-|------------------|--------------------------------------------------------------------------------------------------|
-| `with_clash_api` | Build with clash api support, see [Experimental](./configuration/experimental#clash-api-fields). |
-| `no_gvisor`      | Build without gVisor, which required by the [Tun](./configuration/inbound/tun) inbound.          |
+| Build Tag        | Description                                                                                             |
+|------------------|---------------------------------------------------------------------------------------------------------|
+| `with_quic`      | Build with quic support, which required by [QUIC and HTTP3](./configuration/dns/server) dns transports. |
+| `with_clash_api` | Build with clash api support, see [Experimental](./configuration/experimental#clash-api-fields).        |
+| `no_gvisor`      | Build without gVisor, which required by the [Tun](./configuration/inbound/tun) inbound.                 |
 
 The binary is built under $GOPATH/bin
 
