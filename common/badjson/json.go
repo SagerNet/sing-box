@@ -1,9 +1,16 @@
 package badjson
 
 import (
+	"bytes"
+
 	"github.com/sagernet/sing-box/common/json"
 	E "github.com/sagernet/sing/common/exceptions"
 )
+
+func Decode(content []byte) (any, error) {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	return decodeJSON(decoder)
+}
 
 func decodeJSON(decoder *json.Decoder) (any, error) {
 	rawToken, err := decoder.Token()
@@ -27,7 +34,7 @@ func decodeJSON(decoder *json.Decoder) (any, error) {
 			}
 			return &object, nil
 		case '[':
-			var array JSONArray[any]
+			var array JSONArray
 			err = array.decodeJSON(decoder)
 			if err != nil {
 				return nil, err
