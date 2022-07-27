@@ -65,6 +65,8 @@ nav:
           - Route Rule: configuration/route/rule.md
           - Protocol Sniff: configuration/route/sniff.md
       - Experimental: configuration/experimental.md
+      - Shared:
+          - TLS: configuration/shared/tls.md
   - Examples:
       - examples/index.md
       - Shadowsocks Server: examples/ss-server.md

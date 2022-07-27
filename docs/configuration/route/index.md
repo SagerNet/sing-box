@@ -8,7 +8,8 @@
     "rules": [],
     "final": "",
     "auto_detect_interface": false,
-    "default_interface": "en0"
+    "default_interface": "en0",
+    "default_mark": 233
   }
 }
 ```
@@ -44,3 +45,13 @@ Takes no effect if `outbound.bind_interface` is set.
 Bind outbound connections to the specified NIC by default to prevent routing loops under Tun.
 
 Takes no effect if `auto_detect_interface` is set.
+
+#### default_mark
+
+!!! error ""
+
+    Linux only
+
+Set iptables routing mark by default.
+
+Takes no effect if `outbound.routing_mark` is set.

@@ -58,7 +58,7 @@ var warnFindProcessOnUnsupportedPlatform = warning.New(
 	func() bool {
 		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
 	},
-	"route option `find_process` is only supported on Linux, Windows, and Mac OS X",
+	"route option `find_process` is only supported on Linux, Windows, and macOS",
 )
 
 var _ adapter.Router = (*Router)(nil)

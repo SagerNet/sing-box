@@ -13,6 +13,7 @@
       "server_port": 1080,
       "username": "sekai",
       "password": "admin",
+      "tls": {},
       
       "detour": "upstream-out",
       "bind_interface": "en0",
@@ -49,6 +50,10 @@ Basic authorization username.
 
 Basic authorization password.
 
+#### tls
+
+TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound-structure).
+
 ### Dial Fields
 
 #### detour
@@ -63,9 +68,11 @@ The network interface to bind to.
 
 #### routing_mark
 
-The iptables routing mark.
+!!! error ""
 
-Only available in linux.
+    Linux only
+
+The iptables routing mark.
 
 #### reuse_addr
 

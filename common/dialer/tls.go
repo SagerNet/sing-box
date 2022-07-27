@@ -99,16 +99,7 @@ func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOpt
 		certificate = content
 	}
 	if len(certificate) > 0 {
-		var certPool *x509.CertPool
-		if options.DisableSystemRoot {
-			certPool = x509.NewCertPool()
-		} else {
-			var err error
-			certPool, err = x509.SystemCertPool()
-			if err != nil {
-				return nil, E.Cause(err, "load system cert pool")
-			}
-		}
+		certPool := x509.NewCertPool()
 		if !certPool.AppendCertsFromPEM([]byte(options.Certificate)) {
 			return nil, E.New("failed to parse certificate:\n\n", options.Certificate)
 		}

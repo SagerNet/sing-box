@@ -36,10 +36,29 @@ The address of the dns server.
 | `UDP`    | `8.8.8.8` `udp://8.8.4.4`   |
 | `TLS`    | `tls://dns.google`          |
 | `HTTPS`  | `https://1.1.1.1/dns-query` |
+| `QUIC`   | `quic://dns.adguard.com`    |
+| `HTTP3`  | `h3://8.8.8.8/dns-query`    |
+| `RCode`  | `rcode://refused`           |
 
 !!! warning ""
 
     To ensure that system DNS is in effect, rather than go's built-in default resolver, enable CGO at compile time.
+
+!!! warning ""
+
+    QUIC and HTTP3 transport is not included by default, see [Installation](/#Installation).
+
+!!! info ""
+
+    the RCode transport is often used to block queries. Use with rules and the `disable_cache` rule option.
+
+| RCode             | Description           | 
+|-------------------|-----------------------|
+| `success`         | `No error`            |
+| `format_error`    | `Format error`        |
+| `server_failure`  | `Server failure`      |
+| `name_error`      | `Non-existent domain` |
+| `not_implemented` | `Not implemented`     |
 
 #### address_resolver
 

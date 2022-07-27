@@ -10,12 +10,12 @@
     {
       "type": "tun",
       "tag": "tun-in",
-      
       "inet4_address": "172.19.0.1/30",
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
-      
+      "endpoint_independent_nat": false,
+      "udp_timeout": 300,
       "sniff": true,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv4"
@@ -47,6 +47,16 @@ Set the default route to the Tun.
 !!! error ""
 
     To avoid traffic loopback, set `route.auto_detect_interface` or `route.default_interface` or `outbound.bind_interface`
+
+#### endpoint_independent_nat
+
+Enabled endpoint-independent NAT.
+
+Performance may degrade slightly, so it is not recommended to enable on when it is not needed.
+
+#### udp_timeout
+
+UDP NAT expiration time in seconds, default is 300 (5 minutes).
 
 ### Listen Fields
 

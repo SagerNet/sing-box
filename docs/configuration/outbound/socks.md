@@ -8,14 +8,12 @@
     {
       "type": "socks",
       "tag": "socks-out",
-
       "server": "127.0.0.1",
       "server_port": 1080,
       "version": "5",
       "username": "sekai",
       "password": "admin",
       "network": "udp",
-      
       "detour": "upstream-out",
       "bind_interface": "en0",
       "routing_mark": 1234,
@@ -79,9 +77,11 @@ The network interface to bind to.
 
 #### routing_mark
 
-The iptables routing mark.
+!!! error ""
 
-Only available in linux.
+    Linux only
+
+The iptables routing mark.
 
 #### reuse_addr
 

@@ -49,9 +49,11 @@ The network interface to bind to.
 
 #### routing_mark
 
-The iptables routing mark.
+!!! error ""
 
-Only available in linux.
+    Linux only
+
+The iptables routing mark.
 
 #### reuse_addr
 
