@@ -57,7 +57,6 @@ nav:
           - Shadowsocks: configuration/outbound/shadowsocks.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
-          - URLTest: configuration/outbound/urltest.md
       - Route:
           - configuration/route/index.md
           - GeoIP: configuration/route/geoip.md

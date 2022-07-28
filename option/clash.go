@@ -10,10 +10,3 @@ type SelectorOutboundOptions struct {
 	Outbounds []string `json:"outbounds"`
 	Default   string   `json:"default,omitempty"`
 }
-
-type URLTestOutboundOptions struct {
-	Outbounds []string `json:"outbounds"`
-	URL       string   `json:"url,omitempty"`
-	Interval  Duration `json:"interval,omitempty"`
-	Tolerance uint16   `json:"tolerance,omitempty"`
-}

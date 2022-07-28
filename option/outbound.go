@@ -16,7 +16,6 @@ type _Outbound struct {
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 	VMessOptions       VMessOutboundOptions       `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
-	URLTestOptions     URLTestOutboundOptions     `json:"-"`
 }
 
 type Outbound _Outbound
@@ -38,8 +37,6 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.VMessOptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
-	case C.TypeURLTest:
-		v = h.URLTestOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -67,8 +64,6 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.VMessOptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
-	case C.TypeURLTest:
-		v = &h.URLTestOptions
 	default:
 		return E.New("unknown outbound type: ", h.Type)
 	}
