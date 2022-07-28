@@ -108,7 +108,7 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 
 		for _, detour := range outbounds {
 			switch detour.Type() {
-			case C.TypeDirect, C.TypeBlock:
+			case C.TypeDirect, C.TypeBlock, C.TypeDNS:
 				continue
 			}
 			allProxies = append(allProxies, detour.Tag())
