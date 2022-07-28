@@ -103,3 +103,10 @@ func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return s.selected.NewPacketConnection(ctx, conn, metadata)
 }
+
+func RealTag(detour adapter.Outbound) string {
+	if group, isGroup := detour.(adapter.OutboundGroup); isGroup {
+		return group.Now()
+	}
+	return detour.Tag()
+}

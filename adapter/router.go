@@ -6,7 +6,6 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/geoip"
-	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
@@ -40,7 +39,6 @@ type Router interface {
 
 	Rules() []Rule
 	SetTrafficController(controller TrafficController)
-	URLTestHistoryStorage(create bool) *urltest.HistoryStorage
 }
 
 type Rule interface {

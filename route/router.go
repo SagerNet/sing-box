@@ -21,7 +21,6 @@ import (
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
-	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/common/warning"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -93,7 +92,6 @@ type Router struct {
 	interfaceMonitor                   DefaultInterfaceMonitor
 	defaultMark                        int
 	trafficController                  adapter.TrafficController
-	urlTestHistoryStorage              *urltest.HistoryStorage
 	processSearcher                    process.Searcher
 }
 
@@ -697,13 +695,6 @@ func (r *Router) Rules() []adapter.Rule {
 
 func (r *Router) SetTrafficController(controller adapter.TrafficController) {
 	r.trafficController = controller
-}
-
-func (r *Router) URLTestHistoryStorage(create bool) *urltest.HistoryStorage {
-	if r.urlTestHistoryStorage == nil && create {
-		r.urlTestHistoryStorage = urltest.NewHistoryStorage()
-	}
-	return r.urlTestHistoryStorage
 }
 
 func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

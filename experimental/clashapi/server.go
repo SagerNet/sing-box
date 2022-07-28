@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/json"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
@@ -33,6 +34,7 @@ type Server struct {
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
+	urlTestHistory *urltest.HistoryStorage
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
@@ -46,6 +48,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 			Handler: chiRouter,
 		},
 		trafficManager,
+		urltest.NewHistoryStorage(),
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
