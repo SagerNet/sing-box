@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 )
 
@@ -24,7 +25,7 @@ func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	inbound := &Socks{
 		myInboundAdapter{
 			protocol:      C.TypeSocks,
-			network:       []string{C.NetworkTCP},
+			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
 			router:        router,
 			logger:        logger,

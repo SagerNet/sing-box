@@ -3,7 +3,7 @@ linters:
   enable:
     - gofumpt
     - govet
-#    - gci
+    - gci
     - staticcheck
     - paralleltest
 

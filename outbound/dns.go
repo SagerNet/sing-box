@@ -30,7 +30,7 @@ func NewDNS(router adapter.Router, logger log.ContextLogger, tag string) *DNS {
 	return &DNS{
 		myOutboundAdapter{
 			protocol: C.TypeDNS,
-			network:  []string{C.NetworkTCP, C.NetworkUDP},
+			network:  []string{N.NetworkTCP, N.NetworkUDP},
 			router:   router,
 			logger:   logger,
 			tag:      tag,

@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -23,7 +22,7 @@ func (d *RouterDialer) DialContext(ctx context.Context, network string, destinat
 }
 
 func (d *RouterDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return d.router.DefaultOutbound(C.NetworkUDP).ListenPacket(ctx, destination)
+	return d.router.DefaultOutbound(N.NetworkUDP).ListenPacket(ctx, destination)
 }
 
 func (d *RouterDialer) Upstream() any {

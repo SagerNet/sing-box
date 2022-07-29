@@ -26,7 +26,7 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 	outbound := &Direct{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeDirect,
-			network:  []string{C.NetworkTCP, C.NetworkUDP},
+			network:  []string{N.NetworkTCP, N.NetworkUDP},
 			router:   router,
 			logger:   logger,
 			tag:      tag,
@@ -61,9 +61,9 @@ func (h *Direct) DialContext(ctx context.Context, network string, destination M.
 		destination.Port = h.overrideDestination.Port
 	}
 	switch network {
-	case C.NetworkTCP:
+	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	return h.dialer.DialContext(ctx, network, destination)

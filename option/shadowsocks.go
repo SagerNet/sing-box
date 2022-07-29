@@ -24,7 +24,8 @@ type ShadowsocksDestination struct {
 type ShadowsocksOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
-	Method   string      `json:"method"`
-	Password string      `json:"password"`
-	Network  NetworkList `json:"network,omitempty"`
+	Method    string            `json:"method"`
+	Password  string            `json:"password"`
+	Network   NetworkList       `json:"network,omitempty"`
+	Multiplex *MultiplexOptions `json:"multiplex,omitempty"`
 }

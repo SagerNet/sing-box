@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	N "github.com/sagernet/sing/common/network"
 )
 
 func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.DNSRule, error) {
@@ -59,7 +60,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	}
 	if options.Network != "" {
 		switch options.Network {
-		case C.NetworkTCP, C.NetworkUDP:
+		case N.NetworkTCP, N.NetworkUDP:
 			item := NewNetworkItem(options.Network)
 			rule.items = append(rule.items, item)
 			rule.allItems = append(rule.allItems, item)

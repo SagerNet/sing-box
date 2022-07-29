@@ -1,6 +1,8 @@
 package outbound
 
 import (
+	"context"
+
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -8,7 +10,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func New(router adapter.Router, logger log.ContextLogger, options option.Outbound) (adapter.Outbound, error) {
+func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.Outbound) (adapter.Outbound, error) {
 	if options.Type == "" {
 		return nil, E.New("missing outbound type")
 	}
@@ -24,7 +26,7 @@ func New(router adapter.Router, logger log.ContextLogger, options option.Outboun
 	case C.TypeHTTP:
 		return NewHTTP(router, logger, options.Tag, options.HTTPOptions)
 	case C.TypeShadowsocks:
-		return NewShadowsocks(router, logger, options.Tag, options.ShadowsocksOptions)
+		return NewShadowsocks(ctx, router, logger, options.Tag, options.ShadowsocksOptions)
 	case C.TypeVMess:
 		return NewVMess(router, logger, options.Tag, options.VMessOptions)
 	case C.TypeSelector:

@@ -46,7 +46,7 @@ func NewSelector(router adapter.Router, logger log.ContextLogger, tag string, op
 
 func (s *Selector) Network() []string {
 	if s.selected == nil {
-		return []string{C.NetworkTCP, C.NetworkUDP}
+		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
 	return s.selected.Network()
 }

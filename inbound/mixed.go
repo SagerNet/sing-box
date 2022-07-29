@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/protocol/http"
 	"github.com/sagernet/sing/protocol/socks"
@@ -31,7 +32,7 @@ func NewMixed(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	inbound := &Mixed{
 		myInboundAdapter{
 			protocol:       C.TypeMixed,
-			network:        []string{C.NetworkTCP},
+			network:        []string{N.NetworkTCP},
 			ctx:            ctx,
 			router:         router,
 			logger:         logger,

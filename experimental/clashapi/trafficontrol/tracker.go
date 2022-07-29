@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
@@ -86,7 +85,7 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 	var chain []string
 	var next string
 	if rule == nil {
-		next = router.DefaultOutbound(C.NetworkTCP).Tag()
+		next = router.DefaultOutbound(N.NetworkTCP).Tag()
 	} else {
 		next = rule.Outbound()
 	}
@@ -173,7 +172,7 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, route
 	var chain []string
 	var next string
 	if rule == nil {
-		next = router.DefaultOutbound(C.NetworkUDP).Tag()
+		next = router.DefaultOutbound(N.NetworkUDP).Tag()
 	} else {
 		next = rule.Outbound()
 	}

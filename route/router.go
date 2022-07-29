@@ -19,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
+	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	"github.com/sagernet/sing-box/common/warning"
@@ -278,17 +279,17 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 		if !loaded {
 			return E.New("default detour not found: ", r.defaultDetour)
 		}
-		if common.Contains(detour.Network(), C.NetworkTCP) {
+		if common.Contains(detour.Network(), N.NetworkTCP) {
 			defaultOutboundForConnection = detour
 		}
-		if common.Contains(detour.Network(), C.NetworkUDP) {
+		if common.Contains(detour.Network(), N.NetworkUDP) {
 			defaultOutboundForPacketConnection = detour
 		}
 	}
 	var index, packetIndex int
 	if defaultOutboundForConnection == nil {
 		for i, detour := range outbounds {
-			if common.Contains(detour.Network(), C.NetworkTCP) {
+			if common.Contains(detour.Network(), N.NetworkTCP) {
 				index = i
 				defaultOutboundForConnection = detour
 				break
@@ -297,7 +298,7 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 	}
 	if defaultOutboundForPacketConnection == nil {
 		for i, detour := range outbounds {
-			if common.Contains(detour.Network(), C.NetworkUDP) {
+			if common.Contains(detour.Network(), N.NetworkUDP) {
 				packetIndex = i
 				defaultOutboundForPacketConnection = detour
 				break
@@ -478,7 +479,7 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 }
 
 func (r *Router) DefaultOutbound(network string) adapter.Outbound {
-	if network == C.NetworkTCP {
+	if network == N.NetworkTCP {
 		return r.defaultOutboundForConnection
 	} else {
 		return r.defaultOutboundForPacketConnection
@@ -486,6 +487,10 @@ func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if metadata.Destination.Fqdn == mux.Destination.Fqdn {
+		r.logger.InfoContext(ctx, "inbound multiplex connection")
+		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
+	}
 	if metadata.SniffEnabled {
 		_buffer := buf.StackNew()
 		defer common.KeepAlive(_buffer)
@@ -517,7 +522,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForConnection)
-	if !common.Contains(detour.Network(), C.NetworkTCP) {
+	if !common.Contains(detour.Network(), N.NetworkTCP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
 	}
@@ -564,7 +569,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
-	if !common.Contains(detour.Network(), C.NetworkUDP) {
+	if !common.Contains(detour.Network(), N.NetworkUDP) {
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
 	}
@@ -927,5 +932,10 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 }
 
 func (r *Router) NewError(ctx context.Context, err error) {
+	common.Close(err)
+	if E.IsClosedOrCanceled(err) {
+		r.logger.TraceContext(ctx, "connection closed: ", err)
+		return
+	}
 	r.logger.ErrorContext(ctx, err)
 }

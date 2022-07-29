@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/database64128/tfo-go"
 )
@@ -124,7 +125,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return d.ListenConfig.ListenPacket(ctx, C.NetworkUDP, "")
+	return d.ListenConfig.ListenPacket(ctx, N.NetworkUDP, "")
 }
 
 func (d *DefaultDialer) Upstream() any {

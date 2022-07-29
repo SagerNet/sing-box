@@ -7,25 +7,27 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.1
-	github.com/go-chi/render v1.0.1
+	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gorilla/websocket v1.5.0
+	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220726034811-bc109486f14e
-	github.com/sagernet/sing-dns v0.0.0-20220726044716-2b8c696b09f5
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220726034922-ebbaadcae06b
+	github.com/sagernet/sing v0.0.0-20220729120910-4376f188c512
+	github.com/sagernet/sing-dns v0.0.0-20220729120941-109c0a7aabb1
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220729155919-91d2780bfc80
 	github.com/sagernet/sing-tun v0.0.0-20220726111504-b4bded886e01
 	github.com/sagernet/sing-vmess v0.0.0-20220726034841-4dae776653e5
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/net v0.0.0-20220725212005-46097bf591d3
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
+	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
+	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
 )
 
 require (
+	github.com/ajg/form v1.5.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect

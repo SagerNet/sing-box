@@ -9,6 +9,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
@@ -49,13 +50,13 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	switch network {
-	case C.NetworkTCP:
+	switch N.NetworkName(network) {
+	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
-		panic("unknown network " + network)
+		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 	return h.client.DialContext(ctx, network, destination)
 }

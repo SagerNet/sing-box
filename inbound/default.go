@@ -62,13 +62,13 @@ func (a *myInboundAdapter) Tag() string {
 
 func (a *myInboundAdapter) Start() error {
 	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
-	if common.Contains(a.network, C.NetworkTCP) {
+	if common.Contains(a.network, N.NetworkTCP) {
 		var tcpListener *net.TCPListener
 		var err error
 		if !a.listenOptions.TCPFastOpen {
-			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(C.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 		} else {
-			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(C.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 		}
 		if err != nil {
 			return err
@@ -77,8 +77,8 @@ func (a *myInboundAdapter) Start() error {
 		go a.loopTCPIn()
 		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
-	if common.Contains(a.network, C.NetworkUDP) {
-		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(C.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
+	if common.Contains(a.network, N.NetworkUDP) {
+		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			metadata.SniffEnabled = a.listenOptions.SniffEnabled
 			metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-			metadata.Network = C.NetworkTCP
+			metadata.Network = N.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 			a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
@@ -196,7 +196,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = C.NetworkUDP
+		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -228,7 +228,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = C.NetworkUDP
+		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
@@ -254,7 +254,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = C.NetworkUDP
+		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -282,7 +282,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = C.NetworkUDP
+		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
@@ -334,7 +334,7 @@ func NewError(logger log.ContextLogger, ctx context.Context, err error) {
 func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
 	if destination.IsFqdn() {
-		udpAddr, err := net.ResolveUDPAddr(C.NetworkUDP, destination.String())
+		udpAddr, err := net.ResolveUDPAddr(N.NetworkUDP, destination.String())
 		if err != nil {
 			return err
 		}
