@@ -112,7 +112,7 @@ func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOpt
 }
 
 func (d *TLSDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	if network != C.NetworkTCP {
+	if network != N.NetworkTCP {
 		return nil, os.ErrInvalid
 	}
 	conn, err := d.dialer.DialContext(ctx, network, destination)

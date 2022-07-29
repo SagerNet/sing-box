@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 )
 
 type Redirect struct {
@@ -21,7 +22,7 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 	redirect := &Redirect{
 		myInboundAdapter{
 			protocol:      C.TypeRedirect,
-			network:       []string{C.NetworkTCP},
+			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
 			router:        router,
 			logger:        logger,

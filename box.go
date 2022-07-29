@@ -124,6 +124,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			tag = F.ToString(i)
 		}
 		out, err = outbound.New(
+			ctx,
 			router,
 			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
 			outboundOptions)
@@ -133,7 +134,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		outbounds = append(outbounds, out)
 	}
 	err = router.Initialize(outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(router, logFactory.NewLogger("outbound/direct"), option.Outbound{Type: "direct", Tag: "default"})
+		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), option.Outbound{Type: "direct", Tag: "default"})
 		common.Must(oErr)
 		outbounds = append(outbounds, out)
 		return out

@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/sys/unix"
 )
@@ -33,9 +33,9 @@ func (d *darwinSearcher) FindProcessInfo(ctx context.Context, network string, sr
 func findProcessName(network string, ip netip.Addr, port int) (string, error) {
 	var spath string
 	switch network {
-	case C.NetworkTCP:
+	case N.NetworkTCP:
 		spath = "net.inet.tcp.pcblist_n"
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		spath = "net.inet.udp.pcblist_n"
 	default:
 		return "", os.ErrInvalid
@@ -55,7 +55,7 @@ func findProcessName(network string, ip netip.Addr, port int) (string, error) {
 	// rup8(sizeof(xinpcb_n)) + rup8(sizeof(xsocket_n)) +
 	// 2 * rup8(sizeof(xsockbuf_n)) + rup8(sizeof(xsockstat_n))
 	itemSize := 384
-	if network == C.NetworkTCP {
+	if network == N.NetworkTCP {
 		// rup8(sizeof(xtcpcb_n))
 		itemSize += 208
 	}

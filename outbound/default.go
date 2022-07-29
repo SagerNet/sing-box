@@ -42,12 +42,12 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
-		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
+		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
 	if err != nil {
-		return err
+		return N.HandshakeFailure(conn, err)
 	}
 	return bufio.CopyConn(ctx, conn, outConn)
 }
@@ -57,12 +57,12 @@ func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metad
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, C.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
-		outConn, err = this.DialContext(ctx, C.NetworkTCP, metadata.Destination)
+		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
 	if err != nil {
-		return err
+		return N.HandshakeFailure(conn, err)
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
 }
@@ -77,7 +77,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}
 	if err != nil {
-		return err
+		return N.HandshakeFailure(conn, err)
 	}
 	if metadata.Protocol != "" {
 		switch metadata.Protocol {
@@ -120,7 +120,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 	}
 	_, err = serverConn.Write(payload.Bytes())
 	if err != nil {
-		return E.Cause(err, "client handshake")
+		return N.HandshakeFailure(conn, err)
 	}
 	runtime.KeepAlive(_payload)
 	return bufio.CopyConn(ctx, conn, serverConn)

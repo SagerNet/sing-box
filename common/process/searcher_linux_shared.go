@@ -15,10 +15,10 @@ import (
 	"unicode"
 	"unsafe"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 )
 
 // from https://github.com/vishvananda/netlink/blob/bca67dfc8220b44ef582c9da4e9172bf1c9ec973/nl/nl_linux.go#L52-L62
@@ -52,9 +52,9 @@ func resolveSocketByNetlink0(network string, ip netip.Addr, srcPort int) (inode 
 	var protocol byte
 
 	switch network {
-	case C.NetworkTCP:
+	case N.NetworkTCP:
 		protocol = syscall.IPPROTO_TCP
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		protocol = syscall.IPPROTO_UDP
 	default:
 		return 0, 0, os.ErrInvalid

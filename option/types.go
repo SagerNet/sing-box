@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/json"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 )
 
 type ListenAddress netip.Addr
@@ -50,7 +50,7 @@ func (v *NetworkList) UnmarshalJSON(content []byte) error {
 	}
 	for _, networkName := range networkList {
 		switch networkName {
-		case C.NetworkTCP, C.NetworkUDP:
+		case N.NetworkTCP, N.NetworkUDP:
 			break
 		default:
 			return E.New("unknown network: " + networkName)
@@ -62,7 +62,7 @@ func (v *NetworkList) UnmarshalJSON(content []byte) error {
 
 func (v NetworkList) Build() []string {
 	if v == "" {
-		return []string{C.NetworkTCP, C.NetworkUDP}
+		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
 	return strings.Split(string(v), "\n")
 }

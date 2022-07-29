@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -82,7 +83,7 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	}
 	info.Put("type", clashType)
 	info.Put("name", detour.Tag())
-	info.Put("udp", common.Contains(detour.Network(), C.NetworkUDP))
+	info.Put("udp", common.Contains(detour.Network(), N.NetworkUDP))
 	delayHistory := server.urlTestHistory.LoadURLTestHistory(adapter.OutboundTag(detour))
 	if delayHistory != nil {
 		info.Put("history", []*urltest.History{delayHistory})
@@ -114,7 +115,7 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			allProxies = append(allProxies, detour.Tag())
 		}
 
-		defaultTag := router.DefaultOutbound(C.NetworkTCP).Tag()
+		defaultTag := router.DefaultOutbound(N.NetworkTCP).Tag()
 		if defaultTag == "" {
 			defaultTag = allProxies[0]
 		}

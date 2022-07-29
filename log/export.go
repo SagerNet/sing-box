@@ -12,6 +12,10 @@ func init() {
 	std = NewFactory(Formatter{BaseTime: time.Now()}, os.Stderr).Logger()
 }
 
+func StdLogger() ContextLogger {
+	return std
+}
+
 func Trace(args ...any) {
 	std.Trace(args...)
 }

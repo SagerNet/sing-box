@@ -30,7 +30,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	inbound := &VMess{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeVMess,
-			network:       []string{C.NetworkTCP},
+			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
 			router:        router,
 			logger:        logger,

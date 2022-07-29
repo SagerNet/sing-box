@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/sys/windows"
 )
@@ -86,10 +86,10 @@ func findProcessName(network string, ip netip.Addr, srcPort int) (string, error)
 	var class int
 	var fn uintptr
 	switch network {
-	case C.NetworkTCP:
+	case N.NetworkTCP:
 		fn = procGetExtendedTcpTable.Addr()
 		class = tcpTablePidConn
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		fn = procGetExtendedUdpTable.Addr()
 		class = udpTablePid
 	default:
@@ -101,7 +101,7 @@ func findProcessName(network string, ip netip.Addr, srcPort int) (string, error)
 		return "", err
 	}
 
-	s := newSearcher(family == windows.AF_INET, network == C.NetworkTCP)
+	s := newSearcher(family == windows.AF_INET, network == N.NetworkTCP)
 
 	pid, err := s.Search(buf, ip, uint16(srcPort))
 	if err != nil {

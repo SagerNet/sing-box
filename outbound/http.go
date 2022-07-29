@@ -31,7 +31,7 @@ func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, option
 	return &HTTP{
 		myOutboundAdapter{
 			protocol: C.TypeHTTP,
-			network:  []string{C.NetworkTCP},
+			network:  []string{N.NetworkTCP},
 			router:   router,
 			logger:   logger,
 			tag:      tag,

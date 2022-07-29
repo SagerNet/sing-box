@@ -29,7 +29,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 	inbound := &HTTP{
 		myInboundAdapter: myInboundAdapter{
 			protocol:       C.TypeHTTP,
-			network:        []string{C.NetworkTCP},
+			network:        []string{N.NetworkTCP},
 			ctx:            ctx,
 			router:         router,
 			logger:         logger,

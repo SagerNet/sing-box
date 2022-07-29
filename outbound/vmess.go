@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -58,28 +59,28 @@ func (h *VMess) DialContext(ctx context.Context, network string, destination M.S
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	switch network {
-	case C.NetworkTCP:
+	switch N.NetworkName(network) {
+	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		outConn, err := h.dialer.DialContext(ctx, C.NetworkTCP, h.serverAddr)
+		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return h.client.DialEarlyConn(outConn, destination), nil
-	case C.NetworkUDP:
+	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-		outConn, err := h.dialer.DialContext(ctx, C.NetworkTCP, h.serverAddr)
+		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return h.client.DialEarlyPacketConn(outConn, destination), nil
 	default:
-		panic("unknown network " + network)
+		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 }
 
 func (h *VMess) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	conn, err := h.DialContext(ctx, C.NetworkUDP, destination)
+	conn, err := h.DialContext(ctx, N.NetworkUDP, destination)
 	if err != nil {
 		return nil, err
 	}
