@@ -13,11 +13,11 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220730061053-a21e329a2698
+	github.com/sagernet/sing v0.0.0-20220730132230-401581b13944
 	github.com/sagernet/sing-dns v0.0.0-20220730061139-c8e0fb296da9
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220729155919-91d2780bfc80
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220730132258-5c45f99276b8
 	github.com/sagernet/sing-tun v0.0.0-20220730061211-d5dd3b3bb14a
-	github.com/sagernet/sing-vmess v0.0.0-20220726034841-4dae776653e5
+	github.com/sagernet/sing-vmess v0.0.0-20220730132251-bb961241a5d0
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.9.0

@@ -112,6 +112,17 @@ func (c *ServerConn) WriteBuffer(buffer *buf.Buffer) error {
 	return c.ExtendedConn.WriteBuffer(buffer)
 }
 
+func (c *ServerConn) Headroom() int {
+	if !c.responseWrite {
+		return 1
+	}
+	return 0
+}
+
+func (c *ServerConn) Upstream() any {
+	return c.ExtendedConn
+}
+
 var (
 	_ N.HandshakeConn = (*ServerPacketConn)(nil)
 	_ N.PacketConn    = (*ServerPacketConn)(nil)
@@ -158,6 +169,17 @@ func (c *ServerPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksad
 		c.responseWrite = true
 	}
 	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *ServerPacketConn) Upstream() any {
+	return c.ExtendedConn
+}
+
+func (c *ServerPacketConn) Headroom() int {
+	if !c.responseWrite {
+		return 3
+	}
+	return 2
 }
 
 var (
@@ -209,4 +231,15 @@ func (c *ServerPacketAddrConn) WritePacket(buffer *buf.Buffer, destination M.Soc
 		c.responseWrite = true
 	}
 	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *ServerPacketAddrConn) Upstream() any {
+	return c.ExtendedConn
+}
+
+func (c *ServerPacketAddrConn) Headroom() int {
+	if !c.responseWrite {
+		return 3 + M.MaxSocksaddrLength
+	}
+	return 2 + M.MaxSocksaddrLength
 }
