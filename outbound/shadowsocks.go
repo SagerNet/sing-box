@@ -66,6 +66,10 @@ func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
+func (h *Shadowsocks) Close() error {
+	return common.Close(h.multiplexDialer)
+}
+
 var _ N.Dialer = (*shadowsocksDialer)(nil)
 
 type shadowsocksDialer Shadowsocks

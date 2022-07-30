@@ -28,6 +28,7 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 		if err != nil {
 			return err
 		}
+		stream = &wrapStream{stream}
 		request, err := ReadRequest(stream)
 		if err != nil {
 			return err
@@ -37,7 +38,6 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 			go func() {
 				logger.InfoContext(ctx, "inbound multiplex connection to ", metadata.Destination)
 				hErr := router.RouteConnection(ctx, &ServerConn{ExtendedConn: bufio.NewExtendedConn(stream)}, metadata)
-				// hErr := router.RouteConnection(ctx, &ServerConn{ExtendedConn: bufio.NewExtendedConn(stream)}, metadata)
 				if hErr != nil {
 					errorHandler.NewError(ctx, hErr)
 				}
