@@ -196,6 +196,7 @@ func (s *Box) Close() error {
 	}
 	return common.Close(
 		s.router,
+		s.logFactory,
 		s.clashServer,
 		common.PtrOrNil(s.logFile),
 	)

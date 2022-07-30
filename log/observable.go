@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/observable"
 )
@@ -53,6 +54,13 @@ func (f *observableFactory) Subscribe() (subscription observable.Subscription[En
 
 func (f *observableFactory) UnSubscribe(sub observable.Subscription[Entry]) {
 	f.observer.UnSubscribe(sub)
+}
+
+func (f *observableFactory) Close() error {
+	return common.Close(
+		f.writer,
+		f.observer,
+	)
 }
 
 var _ ContextLogger = (*observableLogger)(nil)

@@ -101,7 +101,9 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Close() error {
-	return s.httpServer.Close()
+	s.httpServer.Close()
+	s.trafficManager.Close()
+	return nil
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {

@@ -39,6 +39,7 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 				logger.InfoContext(ctx, "inbound multiplex connection to ", metadata.Destination)
 				hErr := router.RouteConnection(ctx, &ServerConn{ExtendedConn: bufio.NewExtendedConn(stream)}, metadata)
 				if hErr != nil {
+					stream.Close()
 					errorHandler.NewError(ctx, hErr)
 				}
 			}()
@@ -54,6 +55,7 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 				}
 				hErr := router.RoutePacketConnection(ctx, packetConn, metadata)
 				if hErr != nil {
+					stream.Close()
 					errorHandler.NewError(ctx, hErr)
 				}
 			}()
