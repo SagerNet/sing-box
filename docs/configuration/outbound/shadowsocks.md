@@ -14,6 +14,7 @@
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg==",
       "network": "udp",
+      "multiplex": {},
       
       "detour": "upstream-out",
       "bind_interface": "en0",
@@ -83,6 +84,10 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### multiplex
+
+Multiplex configuration, see [Multiplex structure](/configuration/shared/multiplex).
 
 ### Dial Fields
 

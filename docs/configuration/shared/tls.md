@@ -63,7 +63,7 @@ Cipher suite values:
 
 #### enabled
 
-Enabled TLS.
+Enable TLS.
 
 #### server_name
 

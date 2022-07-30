@@ -66,6 +66,7 @@ nav:
       - Experimental: configuration/experimental.md
       - Shared:
           - TLS: configuration/shared/tls.md
+          - Multiplex: configuration/shared/multiplex.md
   - Examples:
       - examples/index.md
       - Shadowsocks Server: examples/ss-server.md
