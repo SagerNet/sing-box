@@ -36,7 +36,7 @@ func (s *androidSearcher) Start() error {
 	}
 	err = s.startWatcher()
 	if err != nil {
-		s.logger.Debug("create fsnotify watcher: ", err)
+		s.logger.Warn("create fsnotify watcher: ", err)
 	}
 	return nil
 }
@@ -56,20 +56,22 @@ func (s *androidSearcher) startWatcher() error {
 }
 
 func (s *androidSearcher) loopUpdate() {
-	select {
-	case _, ok := <-s.watcher.Events:
-		if !ok {
-			return
+	for {
+		select {
+		case _, ok := <-s.watcher.Events:
+			if !ok {
+				return
+			}
+			err := s.updatePackages()
+			if err != nil {
+				s.logger.Error(E.Cause(err, "update packages list"))
+			}
+		case err, ok := <-s.watcher.Errors:
+			if !ok {
+				return
+			}
+			s.logger.Error(E.Cause(err, "fsnotify error"))
 		}
-		err := s.updatePackages()
-		if err != nil {
-			s.logger.Error(E.Cause(err, "update packages list"))
-		}
-	case err, ok := <-s.watcher.Errors:
-		if !ok {
-			return
-		}
-		s.logger.Error(E.Cause(err, "fsnotify error"))
 	}
 }
 
