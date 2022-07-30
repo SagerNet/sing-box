@@ -150,10 +150,12 @@ func (a *myInboundAdapter) newPacketConnection(ctx context.Context, conn N.Packe
 func (a *myInboundAdapter) loopTCPIn() {
 	tcpListener := a.tcpListener
 	for {
-		conn, err := tcpListener.Accept()
+		conn, err := tcpListener.AcceptTCP()
 		if err != nil {
 			return
 		}
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(C.TCPKeepAlivePeriod)
 		go func() {
 			ctx := log.ContextWithNewID(a.ctx)
 			var metadata adapter.InboundContext

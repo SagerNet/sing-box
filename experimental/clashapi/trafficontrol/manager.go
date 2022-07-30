@@ -16,6 +16,8 @@ type Manager struct {
 	downloadBlip  *atomic.Int64
 	uploadTotal   *atomic.Int64
 	downloadTotal *atomic.Int64
+	ticker        *time.Ticker
+	done          chan struct{}
 }
 
 func NewManager() *Manager {
@@ -26,6 +28,8 @@ func NewManager() *Manager {
 		downloadBlip:  atomic.NewInt64(0),
 		uploadTotal:   atomic.NewInt64(0),
 		downloadTotal: atomic.NewInt64(0),
+		ticker:        time.NewTicker(time.Second),
+		done:          make(chan struct{}),
 	}
 	go manager.handle()
 	return manager
@@ -54,7 +58,7 @@ func (m *Manager) Now() (up int64, down int64) {
 }
 
 func (m *Manager) Snapshot() *Snapshot {
-	connections := []tracker{}
+	var connections []tracker
 	m.connections.Range(func(_ string, value tracker) bool {
 		connections = append(connections, value)
 		return true
@@ -77,14 +81,23 @@ func (m *Manager) ResetStatistic() {
 }
 
 func (m *Manager) handle() {
-	ticker := time.NewTicker(time.Second)
-
-	for range ticker.C {
+	for {
+		select {
+		case <-m.done:
+			return
+		case <-m.ticker.C:
+		}
 		m.uploadBlip.Store(m.uploadTemp.Load())
 		m.uploadTemp.Store(0)
 		m.downloadBlip.Store(m.downloadTemp.Load())
 		m.downloadTemp.Store(0)
 	}
+}
+
+func (m *Manager) Close() error {
+	m.ticker.Stop()
+	close(m.done)
+	return nil
 }
 
 type Snapshot struct {
