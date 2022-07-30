@@ -134,3 +134,7 @@ The server private key, in PEM format.
 ==Server only==
 
 The path to the server private key, in PEM format.
+
+### Reload
+
+For server configuration, certificate and key will be automatically reloaded if modified.

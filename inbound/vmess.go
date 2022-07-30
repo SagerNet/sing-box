@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -23,7 +24,7 @@ type VMess struct {
 	myInboundAdapter
 	service   *vmess.Service[int]
 	users     []option.VMessUser
-	tlsConfig *tls.Config
+	tlsConfig *TLSConfig
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessInboundOptions) (*VMess, error) {
@@ -49,19 +50,37 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, err
 	}
 	if options.TLS != nil {
-		inbound.tlsConfig, err = NewTLSConfig(common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := NewTLSConfig(logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
+		inbound.tlsConfig = tlsConfig
 	}
 	inbound.service = service
 	inbound.connHandler = inbound
 	return inbound, nil
 }
 
+func (h *VMess) Start() error {
+	if h.tlsConfig != nil {
+		err := h.tlsConfig.Start()
+		if err != nil {
+			return E.Cause(err, "create TLS config")
+		}
+	}
+	return h.myInboundAdapter.Start()
+}
+
+func (h *VMess) Close() error {
+	return common.Close(
+		&h.myInboundAdapter,
+		common.PtrOrNil(h.tlsConfig),
+	)
+}
+
 func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if h.tlsConfig != nil {
-		conn = tls.Server(conn, h.tlsConfig)
+		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
