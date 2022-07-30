@@ -88,7 +88,7 @@ func (c *Client) openStream() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return conn, nil
+	return &wrapStream{conn}, nil
 }
 
 func (c *Client) offer() (*yamux.Session, error) {

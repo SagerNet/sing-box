@@ -3,6 +3,7 @@ package mux
 import (
 	"encoding/binary"
 	"io"
+	"net"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
@@ -116,4 +117,29 @@ func ReadResponse(reader io.Reader) (*Response, error) {
 		}
 	}
 	return &response, nil
+}
+
+type wrapStream struct {
+	net.Conn
+}
+
+func (w *wrapStream) Read(p []byte) (n int, err error) {
+	n, err = w.Conn.Read(p)
+	err = wrapError(err)
+	return
+}
+
+func (w *wrapStream) Write(p []byte) (n int, err error) {
+	n, err = w.Conn.Write(p)
+	err = wrapError(err)
+	return
+}
+
+func wrapError(err error) error {
+	switch err {
+	case yamux.ErrStreamClosed:
+		return io.EOF
+	default:
+		return err
+	}
 }
