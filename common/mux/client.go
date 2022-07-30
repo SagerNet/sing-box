@@ -323,6 +323,10 @@ func (c *ClientPacketConn) WriteBuffer(buffer *buf.Buffer) error {
 	return c.ExtendedConn.WriteBuffer(buffer)
 }
 
+func (c *ClientPacketConn) Headroom() int {
+	return 2
+}
+
 func (c *ClientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	return c.WriteBuffer(buffer)
 }
@@ -469,6 +473,10 @@ func (c *ClientPacketAddrConn) WritePacket(buffer *buf.Buffer, destination M.Soc
 
 func (c *ClientPacketAddrConn) LocalAddr() net.Addr {
 	return c.ExtendedConn.LocalAddr()
+}
+
+func (c *ClientPacketAddrConn) Headroom() int {
+	return 2 + M.MaxSocksaddrLength
 }
 
 func (c *ClientPacketAddrConn) Upstream() any {
