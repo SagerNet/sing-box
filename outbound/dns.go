@@ -82,7 +82,7 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 			if err != nil {
 				return err
 			}
-			_responseBuffer := buf.StackNewSize(1024)
+			_responseBuffer := buf.StackNewPacket()
 			defer common.KeepAlive(_responseBuffer)
 			responseBuffer := common.Dup(_responseBuffer)
 			defer responseBuffer.Release()
@@ -133,7 +133,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 					return err
 				}
 				timeout.Update()
-				_responseBuffer := buf.StackNewSize(1024)
+				_responseBuffer := buf.StackNewPacket()
 				defer common.KeepAlive(_responseBuffer)
 				responseBuffer := common.Dup(_responseBuffer)
 				defer responseBuffer.Release()

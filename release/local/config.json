@@ -2,13 +2,38 @@
   "log": {
     "level": "info"
   },
+  "dns": {
+    "servers": [
+      {
+        "address": "tls://8.8.8.8"
+      }
+    ]
+  },
   "inbounds": [
     {
       "type": "shadowsocks",
       "listen": "::",
       "listen_port": 8080,
+      "sniff": true,
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg=="
     }
-  ]
+  ],
+  "outbounds": [
+    {
+      "type": "direct"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "protocol": "dns",
+        "outbound": "dns-out"
+      }
+    ]
+  }
 }
