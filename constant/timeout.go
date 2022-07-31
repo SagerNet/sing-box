@@ -4,7 +4,6 @@ import "time"
 
 const (
 	TCPTimeout         = 5 * time.Second
-	TCPKeepAlivePeriod = 30 * time.Second
 	ReadPayloadTimeout = 300 * time.Millisecond
 	DNSTimeout         = 10 * time.Second
 	QUICTimeout        = 30 * time.Second
