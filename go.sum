@@ -153,8 +153,8 @@ github.com/sagernet/sing-dns v0.0.0-20220730061139-c8e0fb296da9 h1:2xg2bzELWQyaD
 github.com/sagernet/sing-dns v0.0.0-20220730061139-c8e0fb296da9/go.mod h1:ZSslb2fc27A1Tk3WM5yootwWLSglsxqRZv3noam5pso=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220730132258-5c45f99276b8 h1:d6Sda+GXFRvKwRlE9fiwC32p1/vEVArZ7PgvyCg9TAI=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220730132258-5c45f99276b8/go.mod h1:aNTIkd+bCIUgr5C43aZBGXDxIc0Y9NOozLLzH2vUydM=
-github.com/sagernet/sing-tun v0.0.0-20220730061211-d5dd3b3bb14a h1:ULsuxdirFkCUNmcDENQCjfWl/28G6rzgs2xiZFSBSZc=
-github.com/sagernet/sing-tun v0.0.0-20220730061211-d5dd3b3bb14a/go.mod h1:1V/Scct3DGHi925AasPCj1k+6SRWIcg0TvRHM0ZXB8I=
+github.com/sagernet/sing-tun v0.0.0-20220731115551-4a805410a2e8 h1:xXpkIml1GbkNlQwlmdLWvXBmOBPHDEIjv/QSrKPsLgY=
+github.com/sagernet/sing-tun v0.0.0-20220731115551-4a805410a2e8/go.mod h1:1V/Scct3DGHi925AasPCj1k+6SRWIcg0TvRHM0ZXB8I=
 github.com/sagernet/sing-vmess v0.0.0-20220730132251-bb961241a5d0 h1:BE+4nxv3zXp+BLmnkWyZRKo5fpoADZKRSw095FgdH3M=
 github.com/sagernet/sing-vmess v0.0.0-20220730132251-bb961241a5d0/go.mod h1:NnKMgOr0WvyHsLICWTIz4xW3+yd3Ft2BtU8N5ycT4OU=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
