@@ -75,20 +75,30 @@ func (c *Client) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 	if err != nil {
 		return nil, err
 	}
-	// return bufio.NewUnbindPacketConn(&ClientPacketConn{ExtendedConn: bufio.NewExtendedConn(stream), destination: destination}), nil
 	return &ClientPacketAddrConn{ExtendedConn: bufio.NewExtendedConn(stream), destination: destination}, nil
 }
 
 func (c *Client) openStream() (net.Conn, error) {
-	session, err := c.offer()
+	var (
+		session *yamux.Session
+		stream  *yamux.Stream
+		err     error
+	)
+	for attempts := 0; attempts < 2; attempts++ {
+		session, err = c.offer()
+		if err != nil {
+			continue
+		}
+		stream, err = session.OpenStream()
+		if err != nil {
+			continue
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
-	conn, err := session.Open()
-	if err != nil {
-		return nil, err
-	}
-	return &wrapStream{conn}, nil
+	return &wrapStream{stream}, nil
 }
 
 func (c *Client) offer() (*yamux.Session, error) {
