@@ -26,6 +26,10 @@ require (
 	golang.org/x/sys v0.0.0-20220730100132-1609e554cd39
 )
 
+// TODO: remove after upstream fixed
+// https://github.com/vishvananda/netlink/issues/792
+replace github.com/vishvananda/netlink v1.1.0 => github.com/nekohasekai/netlink v0.0.0-20220731114124-553085ab1b31
+
 require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
