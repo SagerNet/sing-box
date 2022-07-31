@@ -154,8 +154,6 @@ func (a *myInboundAdapter) loopTCPIn() {
 		if err != nil {
 			return
 		}
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(C.TCPKeepAlivePeriod)
 		go func() {
 			ctx := log.ContextWithNewID(a.ctx)
 			var metadata adapter.InboundContext
