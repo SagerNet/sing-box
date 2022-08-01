@@ -45,6 +45,7 @@ nav:
           - Socks: configuration/inbound/socks.md
           - HTTP: configuration/inbound/http.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
+          - VMess: configuration/inbound/vmess.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -55,6 +56,7 @@ nav:
           - Socks: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
+          - VMess: configuration/outbound/vmess.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:

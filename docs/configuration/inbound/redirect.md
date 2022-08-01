@@ -1,4 +1,4 @@
-`redirect` inbound is a linux Redirect server.
+`redirect` inbound is a linux redirect server.
 
 ### Structure
 

@@ -10,12 +10,14 @@
     {
       "type": "tun",
       "tag": "tun-in",
+
       "inet4_address": "172.19.0.1/30",
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
       "endpoint_independent_nat": false,
       "udp_timeout": 300,
+      
       "sniff": true,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv4"

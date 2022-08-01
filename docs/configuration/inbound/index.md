@@ -20,6 +20,7 @@
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
+| `vmess`       | [VMess](./vmess)             |
 | `tun`         | [Tun](./tun)                 |
 | `redirect`    | [Redirect](./redirect)       |
 | `tproxy`      | [TProxy](./tproxy)           |

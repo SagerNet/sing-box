@@ -20,6 +20,7 @@
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
+ | `vmess`       | [VMess](./vmess)             |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 
