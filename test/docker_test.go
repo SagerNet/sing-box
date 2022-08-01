@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common/debug"
 	F "github.com/sagernet/sing/common/format"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
 )
@@ -82,17 +85,18 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 		require.NoError(t, err)
 		stdinAttach.Close()
 	}
-
-	/*attach, err := dockerClient.ContainerAttach(context.Background(), dockerContainer.ID, types.ContainerAttachOptions{
-		Stdout: true,
-		Stderr: true,
-		Logs:   true,
-		Stream: true,
-	})
-	require.NoError(t, err)
-	go func() {
-		stdcopy.StdCopy(os.Stderr, os.Stderr, attach.Reader)
-	}()*/
+	if debug.Enabled {
+		attach, err := dockerClient.ContainerAttach(context.Background(), dockerContainer.ID, types.ContainerAttachOptions{
+			Stdout: true,
+			Stderr: true,
+			Logs:   true,
+			Stream: true,
+		})
+		require.NoError(t, err)
+		go func() {
+			stdcopy.StdCopy(os.Stderr, os.Stderr, attach.Reader)
+		}()
+	}
 	time.Sleep(time.Second)
 }
 

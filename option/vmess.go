@@ -7,8 +7,9 @@ type VMessInboundOptions struct {
 }
 
 type VMessUser struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
+	Name    string `json:"name"`
+	UUID    string `json:"uuid"`
+	AlterId int    `json:"alterId,omitempty"`
 }
 
 type VMessOutboundOptions struct {

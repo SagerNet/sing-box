@@ -41,10 +41,12 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		users: options.Users,
 	}
 	service := vmess.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
-	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, user option.VMessUser) int {
+	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.VMessUser) int {
 		return index
-	}), common.Map(options.Users, func(user option.VMessUser) string {
-		return user.UUID
+	}), common.Map(options.Users, func(it option.VMessUser) string {
+		return it.UUID
+	}), common.Map(options.Users, func(it option.VMessUser) int {
+		return it.AlterId
 	}))
 	if err != nil {
 		return nil, err
@@ -68,11 +70,15 @@ func (h *VMess) Start() error {
 			return E.Cause(err, "create TLS config")
 		}
 	}
-	return h.myInboundAdapter.Start()
+	return common.Start(
+		h.service,
+		&h.myInboundAdapter,
+	)
 }
 
 func (h *VMess) Close() error {
 	return common.Close(
+		h.service,
 		&h.myInboundAdapter,
 		common.PtrOrNil(h.tlsConfig),
 	)
