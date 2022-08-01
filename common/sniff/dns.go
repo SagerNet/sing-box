@@ -52,7 +52,7 @@ func DomainNameQuery(ctx context.Context, packet []byte) (*adapter.InboundContex
 		return nil, os.ErrInvalid
 	}
 	domain := question.Name.String()
-	if question.Class == dnsmessage.ClassINET && (question.Type == dnsmessage.TypeA || question.Type == dnsmessage.TypeAAAA) && IsDomainName(domain) {
+	if question.Class == dnsmessage.ClassINET && IsDomainName(domain) {
 		return &adapter.InboundContext{Protocol: C.ProtocolDNS /*, Domain: domain*/}, nil
 	}
 	return nil, os.ErrInvalid
