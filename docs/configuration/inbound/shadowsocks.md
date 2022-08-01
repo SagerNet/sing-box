@@ -1,5 +1,3 @@
-`shadowsocks` inbound is a shadowsocks server.
-
 ### Structure
 
 ```json

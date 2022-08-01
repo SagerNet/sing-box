@@ -4,17 +4,24 @@
 {
   "inbounds": [
     {
-      "type": "tproxy",
-      "tag": "tproxy-in",
+      "type": "vmess",
+      "tag": "vmess-in",
       
       "listen": "::",
-      "listen_port": 5353,
+      "listen_port": 2080,
+      "tcp_fast_open": false,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      "udp_timeout": 300,
       
-      "network": "udp"
+      "users": [
+        {
+          "name": "sekai",
+          "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+          "alterId": 0
+        }
+      ],
+      "tls": {}
     }
   ]
 }
@@ -33,6 +40,10 @@ Listen address.
 ==Required==
 
 Listen port.
+
+#### tcp_fast_open
+
+Enable tcp fast open for listener.
 
 #### sniff
 
@@ -54,14 +65,21 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-#### udp_timeout
+### VMess Fields
 
-UDP NAT expiration time in seconds, default is 300 (5 minutes).
+#### users
 
-### TProxy Fields
+VMess users.
 
-#### network
+| Alter ID | Description             |
+|----------|-------------------------|
+| 0        | Disable legacy protocol |
+| > 0      | Enable legacy protocol  |
 
-Listen network, one of `tcp` `udp`.
+!!! warning ""
 
-Both if empty.
+    Legacy protocol support (VMess MD5 Authentication) is provided for compatibility purposes only, use of alterId > 1 is not recommended.
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).

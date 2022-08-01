@@ -1,20 +1,21 @@
-`socks` outbound is a socks4/socks4a/socks5 client.
-
 ### Structure
 
 ```json
 {
   "outbounds": [
     {
-      "type": "socks",
-      "tag": "socks-out",
+      "type": "vmess",
+      "tag": "vmess-out",
       
       "server": "127.0.0.1",
       "server_port": 1080,
-      "version": "5",
-      "username": "sekai",
-      "password": "admin",
-      "network": "udp",
+      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "network": "tcp",
+      "tls": {},
       
       "detour": "upstream-out",
       "bind_interface": "en0",
@@ -29,7 +30,7 @@
 }
 ```
 
-### Socks Fields
+### VMess Fields
 
 #### server
 
@@ -43,19 +44,41 @@ The server address.
 
 The server port.
 
-#### version
+#### uuid
 
-The Socks version, one of `4` `4a` `5`.
+==Required==
 
-Socks5 used by default.
+The VMess user id.
 
-#### username
+#### security
 
-Socks username.
+Encryption methods:
 
-#### password
+* `auto`
+* `none`
+* `zero`
+* `aes-128-gcm`
+* `chancha20-poly1305`
 
-Socks5 password.
+Legacy encryption methods:
+
+* `aes-128-ctr`
+
+#### alter_id
+
+| Alter ID | Description         |
+|----------|---------------------|
+| 0        | Use AEAD protocol   |
+| 1        | Use legacy protocol |
+| > 1      | Unused, same as 1   |
+
+#### global_padding
+
+Protocol parameter. Will waste traffic randomly if enabled (enabled by default in v2ray and cannot be disabled).
+
+#### authenticated_length
+
+Protocol parameter. Enable length block encryption.
 
 #### network
 
@@ -64,6 +87,10 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### tls
+
+TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound-structure).
 
 ### Dial Fields
 
