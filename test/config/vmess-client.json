@@ -25,6 +25,7 @@
             "users": [
               {
                 "id": "",
+                "alterId": 0,
                 "security": "",
                 "experiments": ""
               }

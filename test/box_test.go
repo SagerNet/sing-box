@@ -35,20 +35,23 @@ func mkPort(t *testing.T) uint16 {
 }
 
 func startInstance(t *testing.T, options option.Options) {
+	var instance *box.Box
 	var err error
 	for retry := 0; retry < 3; retry++ {
-		instance, err := box.New(context.Background(), options)
+		instance, err = box.New(context.Background(), options)
 		require.NoError(t, err)
 		err = instance.Start()
 		if err != nil {
 			time.Sleep(5 * time.Millisecond)
 			continue
 		}
-		t.Cleanup(func() {
-			instance.Close()
-		})
+		break
 	}
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		time.Sleep(500 * time.Millisecond)
+		instance.Close()
+	})
 }
 
 func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
@@ -59,7 +62,7 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 	dialUDP := func() (net.PacketConn, error) {
 		return dialer.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("127.0.0.1", testPort))
 	}
-	t.Run("tcp", func(t *testing.T) {
+	/*t.Run("tcp", func(t *testing.T) {
 		t.Parallel()
 		var err error
 		for retry := 0; retry < 3; retry++ {
@@ -80,7 +83,9 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 			}
 		}
 		require.NoError(t, err)
-	})
+	})*/
+	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
+	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
 	// require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
 	// require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
 	// require.NoError(t, testPacketConnTimeout(t, dialUDP))
