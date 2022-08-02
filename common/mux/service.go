@@ -28,37 +28,38 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 		if err != nil {
 			return err
 		}
-		stream = &wrapStream{stream}
-		request, err := ReadRequest(stream)
-		if err != nil {
-			return err
+		go newConnection(ctx, router, errorHandler, logger, stream, metadata)
+	}
+}
+
+func newConnection(ctx context.Context, router adapter.Router, errorHandler E.Handler, logger log.ContextLogger, stream net.Conn, metadata adapter.InboundContext) {
+	stream = &wrapStream{stream}
+	request, err := ReadRequest(stream)
+	if err != nil {
+		logger.ErrorContext(ctx, err)
+		return
+	}
+	metadata.Destination = request.Destination
+	if request.Network == N.NetworkTCP {
+		logger.InfoContext(ctx, "inbound multiplex connection to ", metadata.Destination)
+		hErr := router.RouteConnection(ctx, &ServerConn{ExtendedConn: bufio.NewExtendedConn(stream)}, metadata)
+		stream.Close()
+		if hErr != nil {
+			errorHandler.NewError(ctx, hErr)
 		}
-		metadata.Destination = request.Destination
-		if request.Network == N.NetworkTCP {
-			go func() {
-				logger.InfoContext(ctx, "inbound multiplex connection to ", metadata.Destination)
-				hErr := router.RouteConnection(ctx, &ServerConn{ExtendedConn: bufio.NewExtendedConn(stream)}, metadata)
-				stream.Close()
-				if hErr != nil {
-					errorHandler.NewError(ctx, hErr)
-				}
-			}()
+	} else {
+		var packetConn N.PacketConn
+		if !request.PacketAddr {
+			logger.InfoContext(ctx, "inbound multiplex packet connection to ", metadata.Destination)
+			packetConn = &ServerPacketConn{ExtendedConn: bufio.NewExtendedConn(stream), destination: request.Destination}
 		} else {
-			go func() {
-				var packetConn N.PacketConn
-				if !request.PacketAddr {
-					logger.InfoContext(ctx, "inbound multiplex packet connection to ", metadata.Destination)
-					packetConn = &ServerPacketConn{ExtendedConn: bufio.NewExtendedConn(stream), destination: request.Destination}
-				} else {
-					logger.InfoContext(ctx, "inbound multiplex packet connection")
-					packetConn = &ServerPacketAddrConn{ExtendedConn: bufio.NewExtendedConn(stream)}
-				}
-				hErr := router.RoutePacketConnection(ctx, packetConn, metadata)
-				stream.Close()
-				if hErr != nil {
-					errorHandler.NewError(ctx, hErr)
-				}
-			}()
+			logger.InfoContext(ctx, "inbound multiplex packet connection")
+			packetConn = &ServerPacketAddrConn{ExtendedConn: bufio.NewExtendedConn(stream)}
+		}
+		hErr := router.RoutePacketConnection(ctx, packetConn, metadata)
+		stream.Close()
+		if hErr != nil {
+			errorHandler.NewError(ctx, hErr)
 		}
 	}
 }
