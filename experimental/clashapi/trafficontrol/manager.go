@@ -81,16 +81,18 @@ func (m *Manager) ResetStatistic() {
 }
 
 func (m *Manager) handle() {
+	var uploadTemp int64
+	var downloadTemp int64
 	for {
 		select {
 		case <-m.done:
 			return
 		case <-m.ticker.C:
 		}
-		m.uploadBlip.Store(m.uploadTemp.Load())
-		m.uploadTemp.Store(0)
-		m.downloadBlip.Store(m.downloadTemp.Load())
-		m.downloadTemp.Store(0)
+		uploadTemp = m.uploadTemp.Swap(0)
+		downloadTemp = m.downloadTemp.Swap(0)
+		m.uploadBlip.Store(uploadTemp)
+		m.downloadBlip.Store(downloadTemp)
 	}
 }
 

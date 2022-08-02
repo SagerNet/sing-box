@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -34,6 +35,13 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 		c.instance.Update()
 	}
 	return err
+}
+
+func (c *PacketConn) Close() error {
+	return common.Close(
+		c.PacketConn,
+		c.instance,
+	)
 }
 
 func (c *PacketConn) Upstream() any {
