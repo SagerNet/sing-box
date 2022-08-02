@@ -13,17 +13,17 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220731103035-5ea209cbb795
-	github.com/sagernet/sing-dns v0.0.0-20220730061139-c8e0fb296da9
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220730132258-5c45f99276b8
-	github.com/sagernet/sing-tun v0.0.0-20220731115551-4a805410a2e8
-	github.com/sagernet/sing-vmess v0.0.0-20220801082718-0b96d703437a
+	github.com/sagernet/sing v0.0.0-20220802021749-842fd713ff94
+	github.com/sagernet/sing-dns v0.0.0-20220801112436-b9e99d83271e
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
+	github.com/sagernet/sing-tun v0.0.0-20220801125145-69bc471e19ac
+	github.com/sagernet/sing-vmess v0.0.0-20220802053753-a38d3b22e6b9
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
-	golang.org/x/sys v0.0.0-20220730100132-1609e554cd39
+	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 )
 
 // TODO: remove after upstream fixed

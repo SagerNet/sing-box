@@ -36,26 +36,14 @@ func testVMess0(t *testing.T, security string) {
 	t.Run("self", func(t *testing.T) {
 		testVMessSelf(t, security, user, 0, false, false)
 	})
-	t.Run("self-padding", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, true, false)
-	})
 	t.Run("self-legacy", func(t *testing.T) {
 		testVMessSelf(t, security, user, 1, false, false)
-	})
-	t.Run("self-legacy-padding", func(t *testing.T) {
-		testVMessSelf(t, security, user, 1, true, false)
 	})
 	t.Run("outbound", func(t *testing.T) {
 		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
 	})
-	t.Run("outbound-padding", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, true, false, 0)
-	})
 	t.Run("outbound-legacy", func(t *testing.T) {
 		testVMessOutboundWithV2Ray(t, security, user, false, false, 1)
-	})
-	t.Run("outbound-legacy-padding", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, true, false, 1)
 	})
 }
 
