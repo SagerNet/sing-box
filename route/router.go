@@ -492,10 +492,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
 	}
 	if metadata.SniffEnabled {
-		_buffer := buf.StackNew()
-		defer common.KeepAlive(_buffer)
-		buffer := common.Dup(_buffer)
-		defer buffer.Release()
+		buffer := buf.NewPacket()
+		buffer.FullReset()
 		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
@@ -511,6 +509,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 		if !buffer.IsEmpty() {
 			conn = bufio.NewCachedConn(conn, buffer)
+		} else {
+			buffer.Release()
 		}
 	}
 	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != dns.DomainStrategyAsIS {
@@ -536,12 +536,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	if metadata.SniffEnabled {
-		_buffer := buf.StackNewPacket()
-		defer common.KeepAlive(_buffer)
-		buffer := common.Dup(_buffer)
-		defer buffer.Release()
+		buffer := buf.NewPacket()
+		buffer.FullReset()
 		_, err := conn.ReadPacket(buffer)
 		if err != nil {
+			buffer.Release()
 			return err
 		}
 		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.DomainNameQuery, sniff.QUICClientHello, sniff.STUNMessage)

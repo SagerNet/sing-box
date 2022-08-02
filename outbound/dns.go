@@ -133,12 +133,10 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 					return err
 				}
 				timeout.Update()
-				_responseBuffer := buf.StackNewPacket()
-				defer common.KeepAlive(_responseBuffer)
-				responseBuffer := common.Dup(_responseBuffer)
-				defer responseBuffer.Release()
+				responseBuffer := buf.NewPacket()
 				n, err := response.AppendPack(responseBuffer.Index(0))
 				if err != nil {
+					responseBuffer.Release()
 					return err
 				}
 				responseBuffer.Truncate(len(n))

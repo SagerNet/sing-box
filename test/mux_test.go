@@ -14,7 +14,7 @@ func TestShadowsocksMux(t *testing.T) {
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "debug",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
