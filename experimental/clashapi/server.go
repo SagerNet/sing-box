@@ -35,20 +35,21 @@ type Server struct {
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
+	tcpListener    net.Listener
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
-		router,
-		logFactory.NewLogger("clash-api"),
-		&http.Server{
+		router: router,
+		logger: logFactory.NewLogger("clash-api"),
+		httpServer: &http.Server{
 			Addr:    options.ExternalController,
 			Handler: chiRouter,
 		},
-		trafficManager,
-		urltest.NewHistoryStorage(),
+		trafficManager: trafficManager,
+		urlTestHistory: urltest.NewHistoryStorage(),
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -91,6 +92,7 @@ func (s *Server) Start() error {
 		return E.Cause(err, "external controller listen error")
 	}
 	s.logger.Info("restful api listening at ", listener.Addr())
+	s.tcpListener = listener
 	go func() {
 		err = s.httpServer.Serve(listener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -102,6 +104,7 @@ func (s *Server) Start() error {
 
 func (s *Server) Close() error {
 	s.httpServer.Close()
+	s.tcpListener.Close()
 	s.trafficManager.Close()
 	return nil
 }
