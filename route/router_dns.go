@@ -32,13 +32,13 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
-	r.dnsLogger.Debug(ctx, "lookup domain ", domain)
+	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, transport := r.matchDNS(ctx)
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 	defer cancel()
 	addrs, err := r.dnsClient.Lookup(ctx, transport, domain, strategy)
 	if len(addrs) > 0 {
-		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", F.MapToString(addrs))
+		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(addrs), " "))
 	} else {
 		r.logger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 	}

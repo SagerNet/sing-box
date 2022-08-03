@@ -4,12 +4,24 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/sagernet/sing-box/common/mux"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 )
 
 func TestShadowsocksMux(t *testing.T) {
+	for _, protocol := range []mux.Protocol{
+		mux.ProtocolYAMux,
+		mux.ProtocolSMux,
+	} {
+		t.Run(protocol.String(), func(t *testing.T) {
+			testShadowsocksMux(t, protocol.String())
+		})
+	}
+}
+
+func testShadowsocksMux(t *testing.T, protocol string) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
@@ -54,7 +66,8 @@ func TestShadowsocksMux(t *testing.T) {
 					Method:   method,
 					Password: password,
 					Multiplex: &option.MultiplexOptions{
-						Enabled: true,
+						Enabled:  true,
+						Protocol: protocol,
 					},
 				},
 			},
