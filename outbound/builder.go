@@ -20,7 +20,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 	case C.TypeBlock:
 		return NewBlock(logger, options.Tag), nil
 	case C.TypeDNS:
-		return NewDNS(router, logger, options.Tag), nil
+		return NewDNS(router, options.Tag), nil
 	case C.TypeSocks:
 		return NewSocks(router, logger, options.Tag, options.SocksOptions)
 	case C.TypeHTTP:

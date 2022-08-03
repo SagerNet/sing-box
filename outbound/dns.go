@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
@@ -26,13 +25,12 @@ type DNS struct {
 	myOutboundAdapter
 }
 
-func NewDNS(router adapter.Router, logger log.ContextLogger, tag string) *DNS {
+func NewDNS(router adapter.Router, tag string) *DNS {
 	return &DNS{
 		myOutboundAdapter{
 			protocol: C.TypeDNS,
 			network:  []string{N.NetworkTCP, N.NetworkUDP},
 			router:   router,
-			logger:   logger,
 			tag:      tag,
 		},
 	}
@@ -75,7 +73,6 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 		if len(message.Questions) > 0 {
 			question := message.Questions[0]
 			metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			d.logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 		}
 		go func() error {
 			response, err := d.router.Exchange(ctx, &message)
@@ -124,7 +121,6 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			if len(message.Questions) > 0 {
 				question := message.Questions[0]
 				metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-				d.logger.DebugContext(ctx, "inbound dns query ", formatDNSQuestion(question), " from ", metadata.Source)
 			}
 			timeout.Update()
 			go func() error {
@@ -149,18 +145,4 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 		conn.Close()
 	})
 	return group.Run(ctx)
-}
-
-func formatDNSQuestion(question dnsmessage.Question) string {
-	var qType string
-	qType = question.Type.String()
-	if len(qType) > 4 {
-		qType = qType[4:]
-	}
-	var qClass string
-	qClass = question.Class.String()
-	if len(qClass) > 5 {
-		qClass = qClass[5:]
-	}
-	return string(question.Name.Data[:question.Name.Length-1]) + " " + qType + " " + qClass
 }

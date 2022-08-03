@@ -14,15 +14,15 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
 	github.com/sagernet/sing v0.0.0-20220803094243-d9ca259bec6a
-	github.com/sagernet/sing-dns v0.0.0-20220801112436-b9e99d83271e
+	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
-	github.com/sagernet/sing-tun v0.0.0-20220803073114-9fad6b0cf330
+	github.com/sagernet/sing-tun v0.0.0-20220803112223-a8fd6450d4ed
 	github.com/sagernet/sing-vmess v0.0.0-20220802053753-a38d3b22e6b9
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
+	golang.org/x/net v0.0.0-20220802222814-0bcc04d9c69b
 	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 )
 
