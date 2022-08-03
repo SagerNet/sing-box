@@ -10,8 +10,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -36,8 +34,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
-
-	"golang.org/x/net/dns/dnsmessage"
 )
 
 var warnDefaultInterfaceOnUnsupportedPlatform = warning.New(
@@ -580,27 +576,6 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
 
-func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
-	ctx, transport := r.matchDNS(ctx)
-	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
-	defer cancel()
-	return r.dnsClient.Exchange(ctx, transport, message)
-}
-
-func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
-	ctx, transport := r.matchDNS(ctx)
-	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
-	defer cancel()
-	return r.dnsClient.Lookup(ctx, transport, domain, strategy)
-}
-
-func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error) {
-	ctx, transport := r.matchDNS(ctx)
-	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
-	defer cancel()
-	return r.dnsClient.Lookup(ctx, transport, domain, r.defaultDomainStrategy)
-}
-
 func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
 	if r.processSearcher != nil {
 		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.Addr, int(metadata.Source.Port))
@@ -643,9 +618,7 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
-		r.dnsLogger.WarnContext(ctx, "no context: ", reflect.TypeOf(ctx))
-		debug.PrintStack()
-		return ctx, r.defaultTransport
+		panic("no context")
 	}
 	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {

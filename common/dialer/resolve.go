@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -33,6 +34,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 		return d.dialer.DialContext(ctx, network, destination)
 	}
 	ctx, metadata := adapter.AppendContext(ctx)
+	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
 	metadata.Destination = destination
 	metadata.Domain = ""
 	var addresses []netip.Addr
@@ -53,6 +55,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 		return d.dialer.ListenPacket(ctx, destination)
 	}
 	ctx, metadata := adapter.AppendContext(ctx)
+	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
 	metadata.Destination = destination
 	metadata.Domain = ""
 	var addresses []netip.Addr

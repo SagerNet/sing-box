@@ -71,6 +71,7 @@ type observableLogger struct {
 }
 
 func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
+	level = OverrideLevelFromContext(level, ctx)
 	if level > l.level {
 		return
 	}

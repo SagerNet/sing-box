@@ -54,6 +54,7 @@ type simpleLogger struct {
 }
 
 func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
+	level = OverrideLevelFromContext(level, ctx)
 	if level > l.level {
 		return
 	}
