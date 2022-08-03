@@ -46,7 +46,6 @@ type myInboundAdapter struct {
 
 	tcpListener          *net.TCPListener
 	udpConn              *net.UDPConn
-	packetForce6         bool
 	packetAccess         sync.RWMutex
 	packetOutboundClosed chan struct{}
 	packetOutbound       chan *myInboundPacket
@@ -83,7 +82,6 @@ func (a *myInboundAdapter) Start() error {
 			return err
 		}
 		a.udpConn = udpConn
-		a.packetForce6 = M.SocksaddrFromNet(udpConn.LocalAddr()).Addr.Is6()
 		a.packetOutboundClosed = make(chan struct{})
 		a.packetOutbound = make(chan *myInboundPacket)
 		if a.oobPacketHandler != nil {
@@ -339,9 +337,6 @@ func (a *myInboundAdapter) writePacket(buffer *buf.Buffer, destination M.Socksad
 			return err
 		}
 		return common.Error(a.udpConn.WriteTo(buffer.Bytes(), udpAddr))
-	}
-	if a.packetForce6 && destination.Addr.Is4() {
-		destination.Addr = netip.AddrFrom16(destination.Addr.As16())
 	}
 	return common.Error(a.udpConn.WriteToUDPAddrPort(buffer.Bytes(), destination.AddrPort()))
 }
