@@ -31,9 +31,11 @@ func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.
 	defer buffer.Release()
 
 	readCtx, cancel := context.WithTimeout(readCtx, time.Millisecond*100)
-	err = task.Run(readCtx, func() error {
+	var readTask task.Group
+	readTask.Append0(func(ctx context.Context) error {
 		return common.Error(buffer.ReadFullFrom(reader, buffer.FreeLen()))
 	})
+	err = readTask.Run(readCtx)
 	cancel()
 	if err != nil {
 		return nil, err

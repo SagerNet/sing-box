@@ -100,11 +100,11 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 }
 
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	defer conn.Close()
 	ctx = adapter.WithContext(ctx, &metadata)
 	fastClose, cancel := context.WithCancel(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
-	return task.Run(fastClose, func() error {
+	var group task.Group
+	group.Append0(func(ctx context.Context) error {
 		defer cancel()
 		_buffer := buf.StackNewSize(1024)
 		defer common.KeepAlive(_buffer)
@@ -145,8 +145,22 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			}()
 		}
 	})
+	group.Cleanup(func() {
+		conn.Close()
+	})
+	return group.Run(ctx)
 }
 
 func formatDNSQuestion(question dnsmessage.Question) string {
-	return string(question.Name.Data[:question.Name.Length-1]) + " " + question.Type.String()[4:] + " " + question.Class.String()[5:]
+	var qType string
+	qType = question.Type.String()
+	if len(qType) > 4 {
+		qType = qType[4:]
+	}
+	var qClass string
+	qClass = question.Class.String()
+	if len(qClass) > 5 {
+		qClass = qClass[5:]
+	}
+	return string(question.Name.Data[:question.Name.Length-1]) + " " + qType + " " + qClass
 }
