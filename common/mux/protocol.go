@@ -217,6 +217,13 @@ func (w *wrapStream) Write(p []byte) (n int, err error) {
 	return
 }
 
+func (w *wrapStream) WriteIsThreadUnsafe() {
+}
+
+func (w *wrapStream) Upstream() any {
+	return w.Conn
+}
+
 func wrapError(err error) error {
 	switch err {
 	case yamux.ErrStreamClosed:
