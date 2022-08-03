@@ -43,9 +43,9 @@ func (w *ResolveUDPConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr
 		if err != nil {
 			return err
 		}
-		return common.Error(w.UDPConn.WriteTo(buffer.Bytes(), M.SocksaddrFrom(addresses[0], destination.Port).UDPAddr()))
+		return common.Error(w.UDPConn.WriteToUDPAddrPort(buffer.Bytes(), M.SocksaddrFrom(addresses[0], destination.Port).AddrPort()))
 	}
-	return common.Error(w.UDPConn.WriteToUDP(buffer.Bytes(), destination.UDPAddr()))
+	return common.Error(w.UDPConn.WriteToUDPAddrPort(buffer.Bytes(), destination.AddrPort()))
 }
 
 func (w *ResolveUDPConn) Upstream() any {
