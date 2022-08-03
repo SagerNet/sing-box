@@ -71,6 +71,7 @@ nav:
           - Multiplex: configuration/shared/multiplex.md
   - Examples:
       - examples/index.md
+      - Linux Server Install: examples/linux-server-install.md
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
