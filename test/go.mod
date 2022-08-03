@@ -52,11 +52,11 @@ require (
 	github.com/oschwald/maxminddb-golang v1.9.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/netlink v0.0.0-20220803035756-f7f6ab71902a // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220801112436-b9e99d83271e // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220803020747-2895f49fd260 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220803040044-e738a97f2f8a // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220802053753-a38d3b22e6b9 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
-	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect

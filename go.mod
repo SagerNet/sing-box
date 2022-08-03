@@ -16,7 +16,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220802021749-842fd713ff94
 	github.com/sagernet/sing-dns v0.0.0-20220801112436-b9e99d83271e
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
-	github.com/sagernet/sing-tun v0.0.0-20220803020747-2895f49fd260
+	github.com/sagernet/sing-tun v0.0.0-20220803040044-e738a97f2f8a
 	github.com/sagernet/sing-vmess v0.0.0-20220802053753-a38d3b22e6b9
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
@@ -25,10 +25,6 @@ require (
 	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
 	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 )
-
-// TODO: remove after upstream fixed
-// https://github.com/vishvananda/netlink/issues/792
-replace github.com/vishvananda/netlink v1.1.0 => github.com/nekohasekai/netlink v0.0.0-20220731114124-553085ab1b31
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
@@ -47,8 +43,8 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/netlink v0.0.0-20220803035756-f7f6ab71902a // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/text v0.3.7 // indirect
