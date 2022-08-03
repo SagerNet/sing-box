@@ -14,12 +14,14 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
-
-	"github.com/hashicorp/yamux"
 )
 
 func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Handler, logger log.ContextLogger, conn net.Conn, metadata adapter.InboundContext) error {
-	session, err := yamux.Server(conn, newMuxConfig())
+	request, err := ReadRequest(conn)
+	if err != nil {
+		return err
+	}
+	session, err := request.Protocol.newServer(conn)
 	if err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 
 func newConnection(ctx context.Context, router adapter.Router, errorHandler E.Handler, logger log.ContextLogger, stream net.Conn, metadata adapter.InboundContext) {
 	stream = &wrapStream{stream}
-	request, err := ReadRequest(stream)
+	request, err := ReadStreamRequest(stream)
 	if err != nil {
 		logger.ErrorContext(ctx, err)
 		return

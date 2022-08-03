@@ -7,6 +7,7 @@
 ```json
 {
   "enabled": true,
+  "protocol": "yamux",
   "max_connections": 4,
   "min_streams": 4,
   "max_streams": 0
@@ -18,6 +19,17 @@
 #### enabled
 
 Enable multiplex.
+
+#### protocol
+
+Multiplex protocol.
+
+| Protocol | Description                        |
+|----------|------------------------------------|
+| yamux    | https://github.com/hashicorp/yamux |
+| smux     | https://github.com/xtaci/smux      |
+
+YAMux is used by default.
 
 #### max_connections
 

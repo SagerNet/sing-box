@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing/common/rw"
 
 	"github.com/hashicorp/yamux"
+	"github.com/xtaci/smux"
 )
 
 var Destination = M.Socksaddr{
@@ -21,7 +22,55 @@ var Destination = M.Socksaddr{
 	Port: 444,
 }
 
-func newMuxConfig() *yamux.Config {
+const (
+	ProtocolYAMux Protocol = 0
+	ProtocolSMux  Protocol = 1
+)
+
+type Protocol byte
+
+func ParseProtocol(name string) (Protocol, error) {
+	switch name {
+	case "", "yamux":
+		return ProtocolYAMux, nil
+	case "smux":
+		return ProtocolSMux, nil
+	default:
+		return ProtocolYAMux, E.New("unknown multiplex protocol: ", name)
+	}
+}
+
+func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
+	switch p {
+	case ProtocolYAMux:
+		return yamux.Server(conn, yaMuxConfig())
+	case ProtocolSMux:
+		session, err := smux.Server(conn, nil)
+		if err != nil {
+			return nil, err
+		}
+		return &smuxSession{session}, nil
+	default:
+		panic("unknown protocol")
+	}
+}
+
+func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
+	switch p {
+	case ProtocolYAMux:
+		return yamux.Client(conn, yaMuxConfig())
+	case ProtocolSMux:
+		session, err := smux.Client(conn, nil)
+		if err != nil {
+			return nil, err
+		}
+		return &smuxSession{session}, nil
+	default:
+		panic("unknown protocol")
+	}
+}
+
+func yaMuxConfig() *yamux.Config {
 	config := yamux.DefaultConfig()
 	config.LogOutput = io.Discard
 	config.StreamCloseTimeout = C.TCPTimeout
@@ -29,18 +78,23 @@ func newMuxConfig() *yamux.Config {
 	return config
 }
 
+func (p Protocol) String() string {
+	switch p {
+	case ProtocolYAMux:
+		return "yamux"
+	case ProtocolSMux:
+		return "smux"
+	default:
+		return "unknown"
+	}
+}
+
 const (
-	version0      = 0
-	flagUDP       = 1
-	flagAddr      = 2
-	statusSuccess = 0
-	statusError   = 1
+	version0 = 0
 )
 
 type Request struct {
-	Network     string
-	Destination M.Socksaddr
-	PacketAddr  bool
+	Protocol Protocol
 }
 
 func ReadRequest(reader io.Reader) (*Request, error) {
@@ -51,8 +105,37 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 	if version != version0 {
 		return nil, E.New("unsupported version: ", version)
 	}
+	protocol, err := rw.ReadByte(reader)
+	if err != nil {
+		return nil, err
+	}
+	if protocol > byte(ProtocolSMux) {
+		return nil, E.New("unsupported protocol: ", protocol)
+	}
+	return &Request{Protocol: Protocol(protocol)}, nil
+}
+
+func EncodeRequest(buffer *buf.Buffer, request Request) {
+	buffer.WriteByte(version0)
+	buffer.WriteByte(byte(request.Protocol))
+}
+
+const (
+	flagUDP       = 1
+	flagAddr      = 2
+	statusSuccess = 0
+	statusError   = 1
+)
+
+type StreamRequest struct {
+	Network     string
+	Destination M.Socksaddr
+	PacketAddr  bool
+}
+
+func ReadStreamRequest(reader io.Reader) (*StreamRequest, error) {
 	var flags uint16
-	err = binary.Read(reader, binary.BigEndian, &flags)
+	err := binary.Read(reader, binary.BigEndian, &flags)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +151,10 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 		network = N.NetworkUDP
 		udpAddr = flags&flagAddr != 0
 	}
-	return &Request{network, destination, udpAddr}, nil
+	return &StreamRequest{network, destination, udpAddr}, nil
 }
 
-func requestLen(request Request) int {
+func requestLen(request StreamRequest) int {
 	var rLen int
 	rLen += 1 // version
 	rLen += 2 // flags
@@ -79,7 +162,7 @@ func requestLen(request Request) int {
 	return rLen
 }
 
-func EncodeRequest(request Request, buffer *buf.Buffer) {
+func EncodeStreamRequest(request StreamRequest, buffer *buf.Buffer) {
 	destination := request.Destination
 	var flags uint16
 	if request.Network == N.NetworkUDP {
@@ -92,19 +175,18 @@ func EncodeRequest(request Request, buffer *buf.Buffer) {
 		}
 	}
 	common.Must(
-		buffer.WriteByte(version0),
 		binary.Write(buffer, binary.BigEndian, flags),
 		M.SocksaddrSerializer.WriteAddrPort(buffer, destination),
 	)
 }
 
-type Response struct {
+type StreamResponse struct {
 	Status  uint8
 	Message string
 }
 
-func ReadResponse(reader io.Reader) (*Response, error) {
-	var response Response
+func ReadStreamResponse(reader io.Reader) (*StreamResponse, error) {
+	var response StreamResponse
 	status, err := rw.ReadByte(reader)
 	if err != nil {
 		return nil, err

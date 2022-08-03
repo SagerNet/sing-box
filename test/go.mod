@@ -58,6 +58,7 @@ require (
 	github.com/sagernet/sing-vmess v0.0.0-20220802053753-a38d3b22e6b9 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	github.com/xtaci/smux v1.5.16 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/mod v0.5.1 // indirect
