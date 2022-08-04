@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
 
@@ -33,10 +34,9 @@ type Router interface {
 	InterfaceBindManager() control.BindManager
 	DefaultInterface() string
 	AutoDetectInterface() bool
-	AutoDetectInterfaceName() string
-	AutoDetectInterfaceIndex() int
 	DefaultMark() int
-
+	NetworkMonitor() tun.NetworkUpdateMonitor
+	InterfaceMonitor() tun.DefaultInterfaceMonitor
 	Rules() []Rule
 	SetTrafficController(controller TrafficController)
 }

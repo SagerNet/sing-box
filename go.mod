@@ -16,7 +16,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220804023557-9c64b40e7050
 	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
-	github.com/sagernet/sing-tun v0.0.0-20220803112223-a8fd6450d4ed
+	github.com/sagernet/sing-tun v0.0.0-20220804154459-7ee0d19103d2
 	github.com/sagernet/sing-vmess v0.0.0-20220804023624-e829b41c84c2
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
@@ -24,7 +24,7 @@ require (
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/net v0.0.0-20220802222814-0bcc04d9c69b
-	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
+	golang.org/x/sys v0.0.0-20220803195053-6e608f9ce704
 )
 
 require (

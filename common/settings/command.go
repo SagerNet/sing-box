@@ -13,3 +13,9 @@ func runCommand(name string, args ...string) error {
 	command.Stderr = os.Stderr
 	return command.Run()
 }
+
+func readCommand(name string, args ...string) ([]byte, error) {
+	command := exec.Command(name, args...)
+	command.Env = os.Environ()
+	return command.CombinedOutput()
+}

@@ -30,7 +30,7 @@ Default outbound tag. the first outbound will be used if empty.
 
 !!! error ""
 
-    Linux and Windows only
+    Only supported on Linux and Windows.
 
 Bind outbound connections to the default NIC by default to prevent routing loops under Tun.
 
@@ -40,7 +40,7 @@ Takes no effect if `outbound.bind_interface` is set.
 
 !!! error ""
 
-    Linux and Windows only
+    Only supported on Linux and Windows.
 
 Bind outbound connections to the specified NIC by default to prevent routing loops under Tun.
 
@@ -50,7 +50,7 @@ Takes no effect if `auto_detect_interface` is set.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
 Set iptables routing mark by default.
 

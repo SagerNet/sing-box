@@ -90,6 +90,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		logFactory.NewLogger("dns"),
 		common.PtrValueOrDefault(options.Route),
 		common.PtrValueOrDefault(options.DNS),
+		options.Inbounds,
 	)
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")

@@ -71,7 +71,7 @@ If `sniff_override_destination` is in effect, its value will be taken as a fallb
 
 !!! error ""
 
-    Windows only
+    Only supported on Linux, Android, Windows, and macOS.
 
 Automatically set system proxy configuration when start and clean up when stop.
 
