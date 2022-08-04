@@ -43,7 +43,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, protocol Protocol, maxConne
 
 func NewClientWithOptions(ctx context.Context, dialer N.Dialer, options option.MultiplexOptions) (N.Dialer, error) {
 	if !options.Enabled {
-		return dialer, nil
+		return nil, nil
 	}
 	if options.MaxConnections == 0 && options.MaxStreams == 0 {
 		options.MinStreams = 8
