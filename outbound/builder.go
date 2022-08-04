@@ -28,7 +28,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 	case C.TypeShadowsocks:
 		return NewShadowsocks(ctx, router, logger, options.Tag, options.ShadowsocksOptions)
 	case C.TypeVMess:
-		return NewVMess(router, logger, options.Tag, options.VMessOptions)
+		return NewVMess(ctx, router, logger, options.Tag, options.VMessOptions)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:

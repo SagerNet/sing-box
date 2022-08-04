@@ -46,7 +46,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		method:     method,
 		serverAddr: options.ServerOptions.Build(),
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
 	if err != nil {
 		return nil, err
 	}
