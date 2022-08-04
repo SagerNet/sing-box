@@ -109,7 +109,7 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	if protocol > byte(ProtocolSMux) {
+	if protocol > byte(ProtocolYAMux) {
 		return nil, E.New("unsupported protocol: ", protocol)
 	}
 	return &Request{Protocol: Protocol(protocol)}, nil

@@ -16,7 +16,8 @@
       "authenticated_length": true,
       "network": "tcp",
       "tls": {},
-      
+      "multiplex": {},
+
       "detour": "upstream-out",
       "bind_interface": "en0",
       "routing_mark": 1234,
@@ -91,6 +92,10 @@ Both is enabled by default.
 #### tls
 
 TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound-structure).
+
+#### multiplex
+
+Multiplex configuration, see [Multiplex structure](/configuration/shared/multiplex).
 
 ### Dial Fields
 

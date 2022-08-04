@@ -22,4 +22,5 @@ type VMessOutboundOptions struct {
 	AuthenticatedLength bool                `json:"authenticated_length,omitempty"`
 	Network             NetworkList         `json:"network,omitempty"`
 	TLSOptions          *OutboundTLSOptions `json:"tls,omitempty"`
+	MultiplexOptions    *MultiplexOptions   `json:"multiplex,omitempty"`
 }
