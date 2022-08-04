@@ -38,9 +38,9 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	defer cancel()
 	addrs, err := r.dnsClient.Lookup(ctx, transport, domain, strategy)
 	if len(addrs) > 0 {
-		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(addrs), " "))
+		r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(addrs), " "))
 	} else {
-		r.logger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
+		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 	}
 	return addrs, err
 }

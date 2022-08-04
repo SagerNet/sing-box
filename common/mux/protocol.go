@@ -23,18 +23,18 @@ var Destination = M.Socksaddr{
 }
 
 const (
-	ProtocolYAMux Protocol = 0
-	ProtocolSMux  Protocol = 1
+	ProtocolSMux Protocol = iota
+	ProtocolYAMux
 )
 
 type Protocol byte
 
 func ParseProtocol(name string) (Protocol, error) {
 	switch name {
-	case "", "yamux":
-		return ProtocolYAMux, nil
-	case "smux":
+	case "", "smux":
 		return ProtocolSMux, nil
+	case "yamux":
+		return ProtocolYAMux, nil
 	default:
 		return ProtocolYAMux, E.New("unknown multiplex protocol: ", name)
 	}
@@ -42,14 +42,14 @@ func ParseProtocol(name string) (Protocol, error) {
 
 func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 	switch p {
-	case ProtocolYAMux:
-		return yamux.Server(conn, yaMuxConfig())
 	case ProtocolSMux:
 		session, err := smux.Server(conn, nil)
 		if err != nil {
 			return nil, err
 		}
 		return &smuxSession{session}, nil
+	case ProtocolYAMux:
+		return yamux.Server(conn, yaMuxConfig())
 	default:
 		panic("unknown protocol")
 	}
@@ -57,14 +57,14 @@ func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 
 func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
 	switch p {
-	case ProtocolYAMux:
-		return yamux.Client(conn, yaMuxConfig())
 	case ProtocolSMux:
 		session, err := smux.Client(conn, nil)
 		if err != nil {
 			return nil, err
 		}
 		return &smuxSession{session}, nil
+	case ProtocolYAMux:
+		return yamux.Client(conn, yaMuxConfig())
 	default:
 		panic("unknown protocol")
 	}
@@ -80,10 +80,10 @@ func yaMuxConfig() *yamux.Config {
 
 func (p Protocol) String() string {
 	switch p {
-	case ProtocolYAMux:
-		return "yamux"
 	case ProtocolSMux:
 		return "smux"
+	case ProtocolYAMux:
+		return "yamux"
 	default:
 		return "unknown"
 	}

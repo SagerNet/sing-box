@@ -54,11 +54,33 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 }
 
 func (h *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return h.multiplexDialer.DialContext(ctx, network, destination)
+	if h.multiplexDialer == nil {
+		switch N.NetworkName(network) {
+		case N.NetworkTCP:
+			h.logger.InfoContext(ctx, "outbound connection to ", destination)
+		case N.NetworkUDP:
+			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+		}
+		return (*shadowsocksDialer)(h).DialContext(ctx, network, destination)
+	} else {
+		switch N.NetworkName(network) {
+		case N.NetworkTCP:
+			h.logger.InfoContext(ctx, "outbound multiplex connection to ", destination)
+		case N.NetworkUDP:
+			h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
+		}
+		return h.multiplexDialer.DialContext(ctx, network, destination)
+	}
 }
 
 func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return h.multiplexDialer.ListenPacket(ctx, destination)
+	if h.multiplexDialer == nil {
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+		return (*shadowsocksDialer)(h).ListenPacket(ctx, destination)
+	} else {
+		h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
+		return h.multiplexDialer.ListenPacket(ctx, destination)
+	}
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -83,14 +105,12 @@ func (h *shadowsocksDialer) DialContext(ctx context.Context, network string, des
 	metadata.Destination = destination
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
 		if err != nil {
 			return nil, err
 		}
 		return h.method.DialEarlyConn(outConn, destination), nil
 	case N.NetworkUDP:
-		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		outConn, err := h.dialer.DialContext(ctx, N.NetworkUDP, h.serverAddr)
 		if err != nil {
 			return nil, err
@@ -105,7 +125,6 @@ func (h *shadowsocksDialer) ListenPacket(ctx context.Context, destination M.Sock
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	outConn, err := h.dialer.DialContext(ctx, N.NetworkUDP, h.serverAddr)
 	if err != nil {
 		return nil, err
