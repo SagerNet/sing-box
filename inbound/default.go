@@ -40,7 +40,8 @@ type myInboundAdapter struct {
 
 	// http mixed
 
-	setSystemProxy bool
+	setSystemProxy   bool
+	clearSystemProxy func() error
 
 	// internal
 
@@ -60,10 +61,10 @@ func (a *myInboundAdapter) Tag() string {
 }
 
 func (a *myInboundAdapter) Start() error {
+	var err error
 	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
 	if common.Contains(a.network, N.NetworkTCP) {
 		var tcpListener *net.TCPListener
-		var err error
 		if !a.listenOptions.TCPFastOpen {
 			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 		} else {
@@ -77,7 +78,8 @@ func (a *myInboundAdapter) Start() error {
 		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
 	if common.Contains(a.network, N.NetworkUDP) {
-		udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
+		var udpConn *net.UDPConn
+		udpConn, err = net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
 		if err != nil {
 			return err
 		}
@@ -101,7 +103,7 @@ func (a *myInboundAdapter) Start() error {
 		a.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
 	if a.setSystemProxy {
-		err := settings.SetSystemProxy(M.SocksaddrFromNet(a.tcpListener.Addr()).Port, a.protocol == C.TypeMixed)
+		a.clearSystemProxy, err = settings.SetSystemProxy(a.router, M.SocksaddrFromNet(a.tcpListener.Addr()).Port, a.protocol == C.TypeMixed)
 		if err != nil {
 			return E.Cause(err, "set system proxy")
 		}
@@ -111,8 +113,8 @@ func (a *myInboundAdapter) Start() error {
 
 func (a *myInboundAdapter) Close() error {
 	var err error
-	if a.setSystemProxy {
-		err = settings.ClearSystemProxy()
+	if a.clearSystemProxy != nil {
+		err = a.clearSystemProxy()
 	}
 	return E.Errors(err, common.Close(
 		common.PtrOrNil(a.tcpListener),

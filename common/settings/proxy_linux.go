@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -35,42 +35,33 @@ func runAsUser(name string, args ...string) error {
 	}
 }
 
-func ClearSystemProxy() error {
-	if hasGSettings {
-		return runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "none")
+func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {
+	if !hasGSettings {
+		return nil, E.New("unsupported desktop environment")
 	}
-	return nil
-}
-
-func SetSystemProxy(port uint16, mixed bool) error {
-	if hasGSettings {
-		err := runAsUser("gsettings", "set", "org.gnome.system.proxy.http", "enabled", "true")
-		if err != nil {
-			return err
-		}
-		if mixed {
-			err = setGnomeProxy(port, "ftp", "http", "https", "socks")
-			if err != nil {
-				return err
-			}
-		} else {
-			err = setGnomeProxy(port, "http", "https")
-			if err != nil {
-				return err
-			}
-		}
-		err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "use-same-proxy", F.ToString(mixed))
-		if err != nil {
-			return err
-		}
-		err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "manual")
-		if err != nil {
-			return err
-		}
+	err := runAsUser("gsettings", "set", "org.gnome.system.proxy.http", "enabled", "true")
+	if err != nil {
+		return nil, err
+	}
+	if isMixed {
+		err = setGnomeProxy(port, "ftp", "http", "https", "socks")
 	} else {
-		log.Warn("set system proxy: unsupported desktop environment")
+		err = setGnomeProxy(port, "http", "https")
 	}
-	return nil
+	if err != nil {
+		return nil, err
+	}
+	err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "use-same-proxy", F.ToString(isMixed))
+	if err != nil {
+		return nil, err
+	}
+	err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "manual")
+	if err != nil {
+		return nil, err
+	}
+	return func() error {
+		return runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "none")
+	}, nil
 }
 
 func setGnomeProxy(port uint16, proxyTypes ...string) error {

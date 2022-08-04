@@ -1,14 +1,13 @@
-//go:build !windows && !linux
+//go:build !(windows || linux || darwin)
 
 package settings
 
-import "github.com/sagernet/sing-box/log"
+import (
+	"os"
 
-func ClearSystemProxy() error {
-	return nil
-}
+	"github.com/sagernet/sing-box/adapter"
+)
 
-func SetSystemProxy(port uint16, mixed bool) error {
-	log.Warn("set system proxy: unsupported operating system")
-	return nil
+func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {
+	return nil, os.ErrInvalid
 }

@@ -61,27 +61,27 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
 		warnBindInterfaceOnUnsupportedPlatform.Check()
-		dialer.Control = control.Append(dialer.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
-		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
+		bindFunc := control.BindToInterface(router.InterfaceBindManager(), options.BindInterface)
+		dialer.Control = control.Append(dialer.Control, bindFunc)
+		listener.Control = control.Append(listener.Control, bindFunc)
 	} else if router.AutoDetectInterface() {
 		if C.IsWindows {
-			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceIndexFunc(func() int {
-				return router.AutoDetectInterfaceIndex()
-			}))
-			listener.Control = control.Append(listener.Control, control.BindToInterfaceIndexFunc(func() int {
-				return router.AutoDetectInterfaceIndex()
-			}))
+			bindFunc := control.BindToInterfaceIndexFunc(func() int {
+				return router.InterfaceMonitor().DefaultInterfaceIndex()
+			})
+			dialer.Control = control.Append(dialer.Control, bindFunc)
+			listener.Control = control.Append(listener.Control, bindFunc)
 		} else {
-			dialer.Control = control.Append(dialer.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
-				return router.AutoDetectInterfaceName()
-			}))
-			listener.Control = control.Append(listener.Control, control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
-				return router.AutoDetectInterfaceName()
-			}))
+			bindFunc := control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
+				return router.InterfaceMonitor().DefaultInterfaceName()
+			})
+			dialer.Control = control.Append(dialer.Control, bindFunc)
+			listener.Control = control.Append(listener.Control, bindFunc)
 		}
 	} else if router.DefaultInterface() != "" {
-		dialer.Control = control.Append(dialer.Control, control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
-		listener.Control = control.Append(listener.Control, control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
+		bindFunc := control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface())
+		dialer.Control = control.Append(dialer.Control, bindFunc)
+		listener.Control = control.Append(listener.Control, bindFunc)
 	}
 	if options.RoutingMark != 0 {
 		warnRoutingMarkOnUnsupportedPlatform.Check()

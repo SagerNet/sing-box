@@ -25,6 +25,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -83,16 +84,16 @@ type Router struct {
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
 	interfaceBindManager               control.BindManager
-	networkMonitor                     NetworkUpdateMonitor
 	autoDetectInterface                bool
 	defaultInterface                   string
-	interfaceMonitor                   DefaultInterfaceMonitor
 	defaultMark                        int
+	networkMonitor                     tun.NetworkUpdateMonitor
+	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	trafficController                  adapter.TrafficController
 	processSearcher                    process.Searcher
 }
 
-func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
+func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
 	if options.DefaultInterface != "" {
 		warnDefaultInterfaceOnUnsupportedPlatform.Check()
 	}
@@ -231,8 +232,13 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.transports = transports
 	router.transportMap = transportMap
 
-	if router.interfaceBindManager != nil || options.AutoDetectInterface {
-		networkMonitor, err := NewNetworkUpdateMonitor(router)
+	needInterfaceMonitor := options.AutoDetectInterface ||
+		C.IsDarwin && common.Any(inbounds, func(inbound option.Inbound) bool {
+			return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy
+		})
+
+	if router.interfaceBindManager != nil || needInterfaceMonitor {
+		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
 		if err == nil {
 			router.networkMonitor = networkMonitor
 			if router.interfaceBindManager != nil {
@@ -241,15 +247,18 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		}
 	}
 
-	if router.networkMonitor != nil && options.AutoDetectInterface {
-		interfaceMonitor, err := NewDefaultInterfaceMonitor(router.networkMonitor, func() {
-			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
-		})
+	if router.networkMonitor != nil && needInterfaceMonitor {
+		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor)
 		if err != nil {
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
+		interfaceMonitor.RegisterCallback(func() error {
+			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
+			return nil
+		})
 		router.interfaceMonitor = interfaceMonitor
 	}
+
 	if hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess {
 		searcher, err := process.NewSearcher(logger)
 		if err != nil {
@@ -648,26 +657,20 @@ func (r *Router) DefaultInterface() string {
 	return r.defaultInterface
 }
 
-func (r *Router) AutoDetectInterfaceName() string {
-	if r.interfaceMonitor == nil {
-		return ""
-	}
-	return r.interfaceMonitor.DefaultInterfaceName()
-}
-
-func (r *Router) AutoDetectInterfaceIndex() int {
-	if r.interfaceMonitor == nil {
-		return -1
-	}
-	return r.interfaceMonitor.DefaultInterfaceIndex()
-}
-
 func (r *Router) DefaultMark() int {
 	return r.defaultMark
 }
 
 func (r *Router) Rules() []adapter.Rule {
 	return r.rules
+}
+
+func (r *Router) NetworkMonitor() tun.NetworkUpdateMonitor {
+	return r.networkMonitor
+}
+
+func (r *Router) InterfaceMonitor() tun.DefaultInterfaceMonitor {
+	return r.interfaceMonitor
 }
 
 func (r *Router) SetTrafficController(controller adapter.TrafficController) {

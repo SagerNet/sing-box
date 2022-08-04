@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -30,10 +31,12 @@ func runAndroidShell(name string, args ...string) error {
 	}
 }
 
-func ClearSystemProxy() error {
-	return runAndroidShell("settings", "put", "global", "http_proxy", ":0")
-}
-
-func SetSystemProxy(port uint16, mixed bool) error {
-	return runAndroidShell("settings", "put", "global", "http_proxy", F.ToString("127.0.0.1:", port))
+func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {
+	err := runAndroidShell("settings", "put", "global", "http_proxy", F.ToString("127.0.0.1:", port))
+	if err != nil {
+		return nil, err
+	}
+	return func() error {
+		return runAndroidShell("settings", "put", "global", "http_proxy", ":0")
+	}, nil
 }
