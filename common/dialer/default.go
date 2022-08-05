@@ -18,7 +18,7 @@ import (
 
 var warnBindInterfaceOnUnsupportedPlatform = warning.New(
 	func() bool {
-		return !(C.IsLinux || C.IsWindows)
+		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
 	},
 	"outbound option `bind_interface` is only supported on Linux and Windows",
 )

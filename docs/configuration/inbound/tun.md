@@ -1,6 +1,6 @@
 !!! error ""
 
-    Linux and Windows only
+    Only supported on Linux, Windows and macOS.
 
 ### Structure
 
@@ -52,7 +52,7 @@ Set the default route to the Tun.
 
 #### endpoint_independent_nat
 
-Enabled endpoint-independent NAT.
+Enable endpoint-independent NAT.
 
 Performance may degrade slightly, so it is not recommended to enable on when it is not needed.
 

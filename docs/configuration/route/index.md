@@ -30,7 +30,7 @@ Default outbound tag. the first outbound will be used if empty.
 
 !!! error ""
 
-    Only supported on Linux and Windows.
+    Only supported on Linux, Windows and macOS.
 
 Bind outbound connections to the default NIC by default to prevent routing loops under Tun.
 
@@ -40,7 +40,7 @@ Takes no effect if `outbound.bind_interface` is set.
 
 !!! error ""
 
-    Only supported on Linux and Windows.
+    Only supported on Linux, Windows and macOS.
 
 Bind outbound connections to the specified NIC by default to prevent routing loops under Tun.
 
