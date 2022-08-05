@@ -1,4 +1,4 @@
-//go:build !(linux || windows) || no_gvisor
+//go:build !(linux || windows || darwin) || no_gvisor
 
 package inbound
 

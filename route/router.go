@@ -39,7 +39,7 @@ import (
 
 var warnDefaultInterfaceOnUnsupportedPlatform = warning.New(
 	func() bool {
-		return !(C.IsLinux || C.IsWindows)
+		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
 	},
 	"route option `default_mark` is only supported on Linux and Windows",
 )

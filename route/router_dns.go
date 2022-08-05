@@ -25,7 +25,7 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 	if err != nil && len(message.Questions) > 0 {
 		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", message.Questions[0].Name.String()))
 	}
-	if response != nil {
+	if len(message.Questions) > 0 && response != nil {
 		LogDNSAnswers(r.dnsLogger, ctx, message.Questions[0].Name.String(), response.Answers)
 	}
 	return response, err
