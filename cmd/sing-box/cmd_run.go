@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
 )
@@ -21,14 +22,21 @@ var commandRun = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, args []string) {
+	err := run0()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run0() error {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("read config: ", err)
+		return E.Cause(err, "read config")
 	}
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		log.Fatal("decode config: ", err)
+		return E.Cause(err, "decode config")
 	}
 	if disableColor {
 		if options.Log == nil {
@@ -39,15 +47,18 @@ func run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	instance, err := box.New(ctx, options)
 	if err != nil {
-		log.Fatal("create service: ", err)
+		cancel()
+		return E.Cause(err, "create service")
 	}
 	err = instance.Start()
 	if err != nil {
-		log.Fatal("start service: ", err)
+		cancel()
+		return E.Cause(err, "start service")
 	}
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
 	<-osSignals
 	cancel()
 	instance.Close()
+	return nil
 }
