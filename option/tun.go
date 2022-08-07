@@ -8,5 +8,6 @@ type TunInboundOptions struct {
 	AutoRoute              bool          `json:"auto_route,omitempty"`
 	EndpointIndependentNat bool          `json:"endpoint_independent_nat,omitempty"`
 	UDPTimeout             int64         `json:"udp_timeout,omitempty"`
+	Stack                  string        `json:"stack,omitempty"`
 	InboundOptions
 }
