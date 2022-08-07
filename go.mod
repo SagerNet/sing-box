@@ -13,10 +13,10 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220806092702-709cbebba71b
+	github.com/sagernet/sing v0.0.0-20220807085721-583e78e0b86a
 	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
-	github.com/sagernet/sing-tun v0.0.0-20220807065253-4c11eaac3683
+	github.com/sagernet/sing-tun v0.0.0-20220807091540-0fd822f913d9
 	github.com/sagernet/sing-vmess v0.0.0-20220804023624-e829b41c84c2
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
@@ -31,6 +31,7 @@ require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/eycorsican/go-tun2socks v1.16.11 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect

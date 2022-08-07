@@ -1,5 +1,3 @@
-//go:build (linux || windows || darwin) && !no_gvisor
-
 package inbound
 
 import (
@@ -27,8 +25,7 @@ import (
 var _ adapter.Inbound = (*Tun)(nil)
 
 type Tun struct {
-	tag string
-
+	tag                    string
 	ctx                    context.Context
 	router                 adapter.Router
 	logger                 log.ContextLogger
@@ -40,9 +37,9 @@ type Tun struct {
 	autoRoute              bool
 	endpointIndependentNat bool
 	udpTimeout             int64
-
-	tunIf    tun.Tun
-	tunStack *tun.GVisorTun
+	stack                  string
+	tunIf                  tun.Tun
+	tunStack               tun.Stack
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
@@ -73,6 +70,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		autoRoute:              options.AutoRoute,
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
+		stack:                  options.Stack,
 	}, nil
 }
 
@@ -90,7 +88,10 @@ func (t *Tun) Start() error {
 		return E.Cause(err, "configure tun interface")
 	}
 	t.tunIf = tunIf
-	t.tunStack = tun.NewGVisor(t.ctx, tunIf, t.tunMTU, t.endpointIndependentNat, t.udpTimeout, t)
+	t.tunStack, err = tun.NewStack(t.ctx, t.stack, tunIf, t.tunMTU, t.endpointIndependentNat, t.udpTimeout, t)
+	if err != nil {
+		return err
+	}
 	err = t.tunStack.Start()
 	if err != nil {
 		return err
