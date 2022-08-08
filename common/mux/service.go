@@ -3,6 +3,7 @@ package mux
 import (
 	"context"
 	"encoding/binary"
+	"io"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -156,6 +157,9 @@ func (c *ServerPacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksad
 	if err != nil {
 		return
 	}
+	if buffer.FreeLen() < int(length) {
+		return destination, io.ErrShortBuffer
+	}
 	_, err = buffer.ReadFullFrom(c.ExtendedConn, int(length))
 	if err != nil {
 		return
@@ -217,6 +221,9 @@ func (c *ServerPacketAddrConn) ReadPacket(buffer *buf.Buffer) (destination M.Soc
 	err = binary.Read(c.ExtendedConn, binary.BigEndian, &length)
 	if err != nil {
 		return
+	}
+	if buffer.FreeLen() < int(length) {
+		return destination, io.ErrShortBuffer
 	}
 	_, err = buffer.ReadFullFrom(c.ExtendedConn, int(length))
 	if err != nil {
