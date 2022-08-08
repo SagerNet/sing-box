@@ -30,7 +30,9 @@ theme:
     - navigation.sections
     - header.autohide
 nav:
-  - Getting Started: index.md
+  - Getting Started:
+      - index.md
+      - Change Log: changelog.md
   - Configuration:
       - configuration/index.md
       - Log: configuration/log.md
@@ -46,6 +48,7 @@ nav:
           - HTTP: configuration/inbound/http.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
           - VMess: configuration/inbound/vmess.md
+          - Trojan: configuration/inbound/trojan.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -57,6 +60,7 @@ nav:
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
           - VMess: configuration/outbound/vmess.md
+          - Trojan: configuration/outbound/trojan.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:
@@ -71,7 +75,7 @@ nav:
           - Multiplex: configuration/shared/multiplex.md
   - Examples:
       - examples/index.md
-      - Linux Server Install: examples/linux-server-install.md
+      - Linux Server Installation: examples/linux-server-installation.md
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
