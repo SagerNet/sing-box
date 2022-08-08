@@ -49,6 +49,15 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
 	}
+	if cachedReader, isCached := conn.(N.CachedReader); isCached {
+		payload := cachedReader.ReadCached()
+		if payload != nil && !payload.IsEmpty() {
+			_, err = outConn.Write(payload.Bytes())
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return bufio.CopyConn(ctx, conn, outConn)
 }
 
@@ -122,7 +131,7 @@ func connectPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketCo
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {
-	if cachedReader, isCached := serverConn.(N.CachedReader); isCached {
+	if cachedReader, isCached := conn.(N.CachedReader); isCached {
 		payload := cachedReader.ReadCached()
 		if payload != nil && !payload.IsEmpty() {
 			_, err := serverConn.Write(payload.Bytes())

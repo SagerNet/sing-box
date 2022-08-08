@@ -79,6 +79,10 @@ func (tt *tcpTracker) Leave() {
 	tt.manager.Leave(tt)
 }
 
+func (tt *tcpTracker) Upstream() any {
+	return tt.Conn
+}
+
 func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *tcpTracker {
 	uuid, _ := uuid.NewV4()
 
@@ -164,6 +168,10 @@ func (ut *udpTracker) Close() error {
 
 func (ut *udpTracker) Leave() {
 	ut.manager.Leave(ut)
+}
+
+func (ut *udpTracker) Upstream() any {
+	return ut.PacketConn
 }
 
 func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *udpTracker {
