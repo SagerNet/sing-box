@@ -29,12 +29,14 @@ const (
 	ImageShadowsocksRustServer = "ghcr.io/shadowsocks/ssserver-rust:latest"
 	ImageShadowsocksRustClient = "ghcr.io/shadowsocks/sslocal-rust:latest"
 	ImageV2RayCore             = "v2fly/v2fly-core:latest"
+	ImageTrojan                = "trojangfw/trojan:latest"
 )
 
 var allImages = []string{
 	ImageShadowsocksRustServer,
 	ImageShadowsocksRustClient,
 	ImageV2RayCore,
+	ImageTrojan,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")

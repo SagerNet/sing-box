@@ -12,6 +12,7 @@ const (
 	TypeMixed       = "mixed"
 	TypeShadowsocks = "shadowsocks"
 	TypeVMess       = "vmess"
+	TypeTrojan      = "trojan"
 )
 
 const (
