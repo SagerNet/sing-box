@@ -14,6 +14,21 @@ import (
 )
 
 func TestVMess(t *testing.T) {
+	security := "auto"
+	user, err := uuid.DefaultGenerator.NewV4()
+	require.NoError(t, err)
+	t.Run("self", func(t *testing.T) {
+		testVMessSelf(t, security, user, 0, false, false)
+	})
+	t.Run("inbound", func(t *testing.T) {
+		testVMessInboundWithV2Ray(t, security, user, 0, false)
+	})
+	t.Run("outbound", func(t *testing.T) {
+		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+	})
+}
+
+func _TestVMess(t *testing.T) {
 	for _, security := range []string{
 		"zero",
 	} {
