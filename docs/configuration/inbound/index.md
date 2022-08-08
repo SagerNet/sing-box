@@ -21,6 +21,7 @@
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
 | `vmess`       | [VMess](./vmess)             |
+| `trojan`      | [Trojan](./trojan)           |
 | `tun`         | [Tun](./tun)                 |
 | `redirect`    | [Redirect](./redirect)       |
 | `tproxy`      | [TProxy](./tproxy)           |

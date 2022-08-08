@@ -10,13 +10,15 @@
     {
       "type": "tun",
       "tag": "tun-in",
-
+      
+      "interface_name": "tun0",
       "inet4_address": "172.19.0.1/30",
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
       "endpoint_independent_nat": false,
       "udp_timeout": 300,
+      "stack": "gvisor",
       
       "sniff": true,
       "sniff_override_destination": false,
@@ -26,7 +28,15 @@
 }
 ```
 
+!!! warning ""
+
+    If tun is running in non-privileged mode, the address and MTU will not be configured automatically, please make sure the settings are accurate.
+
 ### Tun Fields
+
+#### interface_name
+
+Virtual device name, automatically selected if empty.
 
 #### inet4_address
 
@@ -59,6 +69,19 @@ Performance may degrade slightly, so it is not recommended to enable on when it 
 #### udp_timeout
 
 UDP NAT expiration time in seconds, default is 300 (5 minutes).
+
+#### stack
+
+TCP/IP stack.
+
+| Stack            | Upstream                                                              | Status            |
+|------------------|-----------------------------------------------------------------------|-------------------|
+| gVisor (default) | [google/gvisor](https://github.com/google/gvisor)                     | recommended       |
+| LWIP             | [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks) | upstream archived |
+
+!!! warning ""
+
+    The LWIP stack is not included by default, see [Installation](/#Installation).
 
 ### Listen Fields
 

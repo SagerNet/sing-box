@@ -6,7 +6,7 @@ The universal proxy platform.
 
 ## Installation
 
-sing-box requires Golang 1.18 or a higher version.
+sing-box requires Golang **1.18.5** or a higher version.
 
 ```bash
 go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
@@ -15,20 +15,23 @@ go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 Install with options:
 
 ```bash
-go install -v -tags "with_clash_api,no_gvisor" github.com/sagernet/sing-box/cmd/sing-box@latest
+go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
-| Build Tag        | Description                                                                                             |
-|------------------|---------------------------------------------------------------------------------------------------------|
-| `with_quic`      | Build with quic support, which required by [QUIC and HTTP3](./configuration/dns/server) dns transports. |
-| `with_clash_api` | Build with clash api support, see [Experimental](./configuration/experimental#clash-api-fields).        |
-| `no_gvisor`      | Build without gVisor, which required by the [Tun](./configuration/inbound/tun) inbound.                 |
+| Build Tag                  | Description                                                                                      |
+|----------------------------|--------------------------------------------------------------------------------------------------|
+| `with_quic`                | Build with QUIC support, see [QUIC and HTTP3](./configuration/dns/server) dns transports.        |
+| `with_clash_api`           | Build with Clash api support, see [Experimental](./configuration/experimental#clash-api-fields). |
+| `no_gvisor`                | Build without gVisor tun stack support, see [Tun](./configuration/inbound/tun#stack).            |
+| `with_lwip` (CGO required) | Build with LWIP tun stack support, see [Tun](./configuration/inbound/tun#stack).                 |
 
 The binary is built under $GOPATH/bin
 
 ```bash
 sing-box version
 ```
+
+It is also recommended to use systemd to manage sing-box service, see [Linux server installation example](./examples/linux-server-installation).
 
 ## License
 

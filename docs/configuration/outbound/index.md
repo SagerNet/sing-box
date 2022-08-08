@@ -21,6 +21,7 @@
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
  | `vmess`       | [VMess](./vmess)             |
+  | `trojan`      | [Trojan](./trojan)           |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 
