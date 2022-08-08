@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ type DockerOptions struct {
 	Ports      []uint16
 	Cmd        []string
 	Env        []string
-	Bind       []string
+	Bind       map[string]string
 	Stdin      []byte
 }
 
@@ -64,6 +65,15 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 		}
 		hostOptions.PortBindings[nat.Port(F.ToString(port, "/udp"))] = []nat.PortBinding{
 			{HostPort: F.ToString(port), HostIP: "0.0.0.0"},
+		}
+	}
+
+	if len(options.Bind) > 0 {
+		hostOptions.Binds = []string{}
+		for path, internalPath := range options.Bind {
+			path = filepath.Join("config", path)
+			path, _ = filepath.Abs(path)
+			hostOptions.Binds = append(hostOptions.Binds, path+":"+internalPath)
 		}
 	}
 

@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.9.0
-	github.com/sagernet/sing v0.0.0-20220807085721-583e78e0b86a
+	github.com/sagernet/sing v0.0.0-20220808004927-21369d10810d
 	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
 	github.com/sagernet/sing-tun v0.0.0-20220807091540-0fd822f913d9

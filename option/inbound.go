@@ -18,6 +18,7 @@ type _Inbound struct {
 	MixedOptions       HTTPMixedInboundOptions   `json:"-"`
 	ShadowsocksOptions ShadowsocksInboundOptions `json:"-"`
 	VMessOptions       VMessInboundOptions       `json:"-"`
+	TrojanOptions      TrojanInboundOptions      `json:"-"`
 }
 
 type Inbound _Inbound
@@ -43,6 +44,8 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowsocksOptions
 	case C.TypeVMess:
 		v = h.VMessOptions
+	case C.TypeTrojan:
+		v = h.TrojanOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -74,6 +77,8 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowsocksOptions
 	case C.TypeVMess:
 		v = &h.VMessOptions
+	case C.TypeTrojan:
+		v = &h.TrojanOptions
 	default:
 		return E.New("unknown inbound type: ", h.Type)
 	}
