@@ -110,9 +110,9 @@ func connectPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketCo
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+		outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
-		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
+		outConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
 	}
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
