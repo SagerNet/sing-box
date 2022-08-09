@@ -187,7 +187,7 @@ Match android package name.
 
 !!! error ""
 
-    Only supported on Linux with CGO enabled.
+    Only supported on Linux.
 
 Match user name.
 
