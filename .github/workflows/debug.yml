@@ -49,7 +49,6 @@ jobs:
           popd
       - name: Run Test
         run: |
-          cd test
           go test -v ./...
   cross:
     strategy:
