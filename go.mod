@@ -12,7 +12,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/oschwald/maxminddb-golang v1.9.0
+	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/sagernet/sing v0.0.0-20220808004927-21369d10810d
 	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
@@ -23,8 +23,8 @@ require (
 	github.com/xtaci/smux v1.5.16
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
-	golang.org/x/sys v0.0.0-20220804214406-8e32c043e418
+	golang.org/x/net v0.0.0-20220809012201-f428fae20770
+	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664
 )
 
 require (
