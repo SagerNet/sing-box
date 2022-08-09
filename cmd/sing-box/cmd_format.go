@@ -18,6 +18,7 @@ var commandFormat = &cobra.Command{
 	Use:   "format",
 	Short: "Format configuration",
 	Run:   formatConfiguration,
+	Args:  cobra.NoArgs,
 }
 
 func init() {

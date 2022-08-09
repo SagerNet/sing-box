@@ -14,6 +14,7 @@ var commandVersion = &cobra.Command{
 	Use:   "version",
 	Short: "Print current version of sing-box",
 	Run:   printVersion,
+	Args:  cobra.NoArgs,
 }
 
 func printVersion(cmd *cobra.Command, args []string) {
