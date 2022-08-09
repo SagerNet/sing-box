@@ -16,6 +16,7 @@ var commandCheck = &cobra.Command{
 	Use:   "check",
 	Short: "Check configuration",
 	Run:   checkConfiguration,
+	Args:  cobra.NoArgs,
 }
 
 func checkConfiguration(cmd *cobra.Command, args []string) {
