@@ -217,9 +217,9 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 	var defaultTransport dns.Transport
 	if dnsOptions.Final != "" {
-		defaultTransport = dummyTransportMap[options.Final]
+		defaultTransport = dummyTransportMap[dnsOptions.Final]
 		if defaultTransport == nil {
-			return nil, E.New("default dns server not found: ", options.Final)
+			return nil, E.New("default dns server not found: ", dnsOptions.Final)
 		}
 	}
 	if defaultTransport == nil {
