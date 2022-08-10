@@ -22,6 +22,7 @@
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
 | `vmess`       | [VMess](./vmess)             |
 | `trojan`      | [Trojan](./trojan)           |
+| `naive`       | [Naive](./naive)             |
 | `tun`         | [Tun](./tun)                 |
 | `redirect`    | [Redirect](./redirect)       |
 | `tproxy`      | [TProxy](./tproxy)           |

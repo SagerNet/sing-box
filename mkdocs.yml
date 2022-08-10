@@ -49,6 +49,7 @@ nav:
           - Shadowsocks: configuration/inbound/shadowsocks.md
           - VMess: configuration/inbound/vmess.md
           - Trojan: configuration/inbound/trojan.md
+          - Naive: configuration/inbound/naive.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
