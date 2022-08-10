@@ -10,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/debug"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/rw"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -71,7 +72,9 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	if len(options.Bind) > 0 {
 		hostOptions.Binds = []string{}
 		for path, internalPath := range options.Bind {
-			path = filepath.Join("config", path)
+			if !rw.FileExists(path) {
+				path = filepath.Join("config", path)
+			}
 			path, _ = filepath.Abs(path)
 			hostOptions.Binds = append(hostOptions.Binds, path+":"+internalPath)
 		}

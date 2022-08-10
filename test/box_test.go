@@ -8,31 +8,12 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/control"
-	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 
 	"github.com/stretchr/testify/require"
 )
-
-func mkPort(t *testing.T) uint16 {
-	var lc net.ListenConfig
-	lc.Control = control.ReuseAddr()
-	for {
-		tcpListener, err := lc.Listen(context.Background(), "tcp", ":0")
-		require.NoError(t, err)
-		listenPort := M.SocksaddrFromNet(tcpListener.Addr()).Port
-		tcpListener.Close()
-		udpListener, err := lc.Listen(context.Background(), "tcp", F.ToString(":", listenPort))
-		if err != nil {
-			continue
-		}
-		udpListener.Close()
-		return listenPort
-	}
-}
 
 func startInstance(t *testing.T, options option.Options) {
 	var instance *box.Box
@@ -52,6 +33,14 @@ func startInstance(t *testing.T, options option.Options) {
 		time.Sleep(500 * time.Millisecond)
 		instance.Close()
 	})
+}
+
+func testTCP(t *testing.T, clientPort uint16, testPort uint16) {
+	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
+	dialTCP := func() (net.Conn, error) {
+		return dialer.DialContext(context.Background(), "tcp", M.ParseSocksaddrHostPort("127.0.0.1", testPort))
+	}
+	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
 }
 
 func testSuit(t *testing.T, clientPort uint16, testPort uint16) {

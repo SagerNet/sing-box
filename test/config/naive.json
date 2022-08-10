@@ -1,0 +1,6 @@
+{
+  "listen": "socks://127.0.0.1:10001",
+  "proxy": "https://sekai:password@example.org:10000",
+  "host-resolver-rules": "MAP example.org 127.0.0.1",
+  "log": ""
+}

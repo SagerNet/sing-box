@@ -35,6 +35,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewVMess(ctx, router, logger, options.Tag, options.VMessOptions)
 	case C.TypeTrojan:
 		return NewTrojan(ctx, router, logger, options.Tag, options.TrojanOptions)
+	case C.TypeNaive:
+		return NewNaive(ctx, router, logger, options.Tag, options.NaiveOptions)
 	default:
 		return nil, E.New("unknown inbound type: ", options.Type)
 	}
