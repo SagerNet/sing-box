@@ -9,13 +9,14 @@ import (
 )
 
 func TestTrojanOutbound(t *testing.T) {
+	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startDockerContainer(t, DockerOptions{
 		Image: ImageTrojan,
 		Ports: []uint16{serverPort, testPort},
 		Bind: map[string]string{
-			"trojan.json":         "/config/config.json",
-			"example.org.pem":     "/path/to/certificate.crt",
-			"example.org-key.pem": "/path/to/private.key",
+			"trojan.json": "/config/config.json",
+			certPem:       "/path/to/certificate.crt",
+			keyPem:        "/path/to/private.key",
 		},
 	})
 	startInstance(t, option.Options{
@@ -45,7 +46,7 @@ func TestTrojanOutbound(t *testing.T) {
 					TLSOptions: &option.OutboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
-						CertificatePath: "config/example.org.pem",
+						CertificatePath: certPem,
 					},
 				},
 			},
@@ -55,6 +56,7 @@ func TestTrojanOutbound(t *testing.T) {
 }
 
 func TestTrojanSelf(t *testing.T) {
+	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
 			Level:  "error",
@@ -87,8 +89,8 @@ func TestTrojanSelf(t *testing.T) {
 					TLS: &option.InboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
-						CertificatePath: "config/example.org.pem",
-						KeyPath:         "config/example.org-key.pem",
+						CertificatePath: certPem,
+						KeyPath:         keyPem,
 					},
 				},
 			},
@@ -109,7 +111,7 @@ func TestTrojanSelf(t *testing.T) {
 					TLSOptions: &option.OutboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
-						CertificatePath: "config/example.org.pem",
+						CertificatePath: certPem,
 					},
 				},
 			},
