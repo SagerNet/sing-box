@@ -1,33 +1,35 @@
-`socks` inbound is a http server.
-
 ### Structure
 
 ```json
 {
   "inbounds": [
     {
-      "type": "http",
-      "tag": "http-in",
+      "type": "naive",
+      "tag": "naive-in",
       
       "listen": "::",
-      "listen_port": 2080,
+      "listen_port": 443,
       "tcp_fast_open": false,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
 
+      "network": "udp",
       "users": [
         {
-          "username": "admin",
-          "password": "admin"
+          "username": "sekai",
+          "password": "password"
         }
       ],
-      "tls": {},
-      "set_system_proxy": false
+      "tls": {}
     }
   ]
 }
 ```
+
+!!! warning ""
+
+    HTTP3 transport is not included by default, see [Installation](/#Installation).
 
 ### Listen Fields
 
@@ -67,22 +69,22 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-#### set_system_proxy
-
-!!! error ""
-
-    Only supported on Linux, Android, Windows, and macOS.
-
-Automatically set system proxy configuration when start and clean up when stop.
-
-### HTTP Fields
+### Naive Fields
 
 #### tls
+
+==Required==
 
 TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
 
 #### users
 
-HTTP users.
+==Required==
 
-No authentication required if empty.
+Naive users.
+
+#### network
+
+Listen network, one of `tcp` `udp`.
+
+Both if empty.

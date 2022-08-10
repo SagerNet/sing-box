@@ -18,12 +18,12 @@ Install with options:
 go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
-| Build Tag                  | Description                                                                                      |
-|----------------------------|--------------------------------------------------------------------------------------------------|
-| `with_quic`                | Build with QUIC support, see [QUIC and HTTP3](./configuration/dns/server) dns transports.        |
-| `with_clash_api`           | Build with Clash api support, see [Experimental](./configuration/experimental#clash-api-fields). |
-| `no_gvisor`                | Build without gVisor tun stack support, see [Tun](./configuration/inbound/tun#stack).            |
-| `with_lwip` (CGO required) | Build with LWIP tun stack support, see [Tun](./configuration/inbound/tun#stack).                 |
+| Build Tag                  | Description                                                                                                                                  |
+|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `with_quic`                | Build with QUIC support, see [QUIC and HTTP3 dns transports](./configuration/dns/server) and [Naive inbound](./configuration/inbound/naive). |
+| `with_clash_api`           | Build with Clash api support, see [Experimental](./configuration/experimental#clash-api-fields).                                             |
+| `no_gvisor`                | Build without gVisor tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                |
+| `with_lwip` (CGO required) | Build with LWIP tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                     |
 
 The binary is built under $GOPATH/bin
 
@@ -31,7 +31,12 @@ The binary is built under $GOPATH/bin
 sing-box version
 ```
 
-It is also recommended to use systemd to manage sing-box service, see [Linux server installation example](./examples/linux-server-installation).
+It is also recommended to use systemd to manage sing-box service,
+see [Linux server installation example](./examples/linux-server-installation).
+
+## Contributors
+
+[![](https://opencollective.com/sagernet/contributors.svg?width=740&button=false)](https://github.com/sagernet/sing-box/graphs/contributors)
 
 ## License
 
