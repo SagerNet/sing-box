@@ -3,16 +3,16 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
+	"runtime/debug"
 
+	"github.com/sagernet/sing-box/common/badjson"
 	"github.com/sagernet/sing-box/log"
 
 	"github.com/dustin/go-humanize"
-	"runtime/debug"
-	"encoding/json"
-	"github.com/sagernet/sing-box/common/badjson"
 )
 
 func init() {

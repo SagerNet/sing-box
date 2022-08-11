@@ -29,6 +29,7 @@ func (n *Naive) configureHTTP3Listener(listenAddr string) error {
 	go func() {
 		sErr := h3Server.Serve(udpListener)
 		if sErr == quic.ErrServerClosed {
+			udpListener.Close()
 			return
 		} else if sErr != nil {
 			n.logger.Error("http3 server serve error: ", sErr)

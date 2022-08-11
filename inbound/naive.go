@@ -88,11 +88,6 @@ func (n *Naive) Start() error {
 		return E.Cause(err, "create TLS config")
 	}
 
-	n.httpServer = &http.Server{
-		Handler:   n,
-		TLSConfig: n.tlsConfig.Config(),
-	}
-
 	var listenAddr string
 	if nAddr := netip.Addr(n.listenOptions.Listen); nAddr.IsValid() {
 		if n.listenOptions.ListenPort != 0 {
@@ -107,6 +102,10 @@ func (n *Naive) Start() error {
 	}
 
 	if common.Contains(n.network, N.NetworkTCP) {
+		n.httpServer = &http.Server{
+			Handler:   n,
+			TLSConfig: n.tlsConfig.Config(),
+		}
 		tcpListener, err := net.Listen(M.NetworkFromNetAddr("tcp", netip.Addr(n.listenOptions.Listen)), listenAddr)
 		if err != nil {
 			return err
@@ -325,6 +324,13 @@ func (c *naivePaddingConn) write(p []byte) (n int, err error) {
 	return c.writer.Write(p)
 }
 
+func (c *naivePaddingConn) FrontHeadroom() int {
+	if c.writePadding < kFirstPaddings {
+		return 3 + 255
+	}
+	return 0
+}
+
 func (c *naivePaddingConn) WriteBuffer(buffer *buf.Buffer) error {
 	defer buffer.Release()
 	if c.writePadding < kFirstPaddings {
@@ -345,14 +351,14 @@ func (c *naivePaddingConn) WriteBuffer(buffer *buf.Buffer) error {
 
 func (c *naivePaddingConn) WriteTo(w io.Writer) (n int64, err error) {
 	if c.readPadding < kFirstPaddings {
-		return bufio.WriteTo0(c, w)
+		return bufio.WriteToN(c, w, kFirstPaddings-c.readPadding)
 	}
 	return bufio.Copy(w, c.reader)
 }
 
 func (c *naivePaddingConn) ReadFrom(r io.Reader) (n int64, err error) {
 	if c.writePadding < kFirstPaddings {
-		return bufio.ReadFrom0(c, r)
+		return bufio.ReadFromN(c, r, kFirstPaddings-c.writePadding)
 	}
 	return bufio.Copy(c.writer, r)
 }

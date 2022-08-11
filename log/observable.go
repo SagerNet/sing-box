@@ -58,7 +58,6 @@ func (f *observableFactory) UnSubscribe(sub observable.Subscription[Entry]) {
 
 func (f *observableFactory) Close() error {
 	return common.Close(
-		f.writer,
 		f.observer,
 	)
 }

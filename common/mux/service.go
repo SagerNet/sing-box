@@ -26,8 +26,9 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 	if err != nil {
 		return err
 	}
+	var stream net.Conn
 	for {
-		stream, err := session.Accept()
+		stream, err = session.Accept()
 		if err != nil {
 			return err
 		}
@@ -116,7 +117,7 @@ func (c *ServerConn) WriteBuffer(buffer *buf.Buffer) error {
 	return c.ExtendedConn.WriteBuffer(buffer)
 }
 
-func (c *ServerConn) Headroom() int {
+func (c *ServerConn) FrontHeadroom() int {
 	if !c.responseWrite {
 		return 1
 	}
@@ -182,7 +183,7 @@ func (c *ServerPacketConn) Upstream() any {
 	return c.ExtendedConn
 }
 
-func (c *ServerPacketConn) Headroom() int {
+func (c *ServerPacketConn) FrontHeadroom() int {
 	if !c.responseWrite {
 		return 3
 	}
@@ -247,7 +248,7 @@ func (c *ServerPacketAddrConn) Upstream() any {
 	return c.ExtendedConn
 }
 
-func (c *ServerPacketAddrConn) Headroom() int {
+func (c *ServerPacketAddrConn) FrontHeadroom() int {
 	if !c.responseWrite {
 		return 3 + M.MaxSocksaddrLength
 	}
