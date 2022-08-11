@@ -17,6 +17,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/uot"
 )
 
 var _ adapter.Outbound = (*Shadowsocks)(nil)
@@ -26,6 +27,7 @@ type Shadowsocks struct {
 	dialer          N.Dialer
 	method          shadowsocks.Method
 	serverAddr      M.Socksaddr
+	uot             bool
 	multiplexDialer N.Dialer
 }
 
@@ -45,10 +47,13 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
 		method:     method,
 		serverAddr: options.ServerOptions.Build(),
+		uot:        options.UoT,
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
-	if err != nil {
-		return nil, err
+	if !options.UoT {
+		outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return outbound, nil
 }
@@ -59,6 +64,17 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 		case N.NetworkTCP:
 			h.logger.InfoContext(ctx, "outbound connection to ", destination)
 		case N.NetworkUDP:
+			if h.uot {
+				h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
+				tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, M.Socksaddr{
+					Fqdn: uot.UOTMagicAddress,
+					Port: destination.Port,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return uot.NewClientConn(tcpConn), nil
+			}
 			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		}
 		return (*shadowsocksDialer)(h).DialContext(ctx, network, destination)
@@ -75,6 +91,17 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 
 func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if h.multiplexDialer == nil {
+		if h.uot {
+			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
+			tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, M.Socksaddr{
+				Fqdn: uot.UOTMagicAddress,
+				Port: destination.Port,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return uot.NewClientConn(tcpConn), nil
+		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		return (*shadowsocksDialer)(h).ListenPacket(ctx, destination)
 	} else {
