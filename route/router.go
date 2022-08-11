@@ -35,6 +35,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/uot"
 )
 
 var warnDefaultInterfaceOnUnsupportedPlatform = warning.New(
@@ -492,9 +493,15 @@ func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	if metadata.Destination.Fqdn == mux.Destination.Fqdn {
+	switch metadata.Destination.Fqdn {
+	case mux.Destination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound multiplex connection")
 		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
+	case uot.UOTMagicAddress:
+		r.logger.InfoContext(ctx, "inbound UoT connection")
+		metadata.Network = N.NetworkUDP
+		metadata.Destination = M.Socksaddr{}
+		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
 	}
 	if metadata.SniffEnabled {
 		buffer := buf.NewPacket()
@@ -543,13 +550,12 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if metadata.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
-		_, err := conn.ReadPacket(buffer)
+		destination, err := conn.ReadPacket(buffer)
 		if err != nil {
 			buffer.Release()
 			return err
 		}
 		sniffMetadata, err := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.DomainNameQuery, sniff.QUICClientHello, sniff.STUNMessage)
-		originDestination := metadata.Destination
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
@@ -562,9 +568,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
 			}
 		}
-		conn = bufio.NewCachedPacketConn(conn, buffer, originDestination)
+		conn = bufio.NewCachedPacketConn(conn, buffer, destination)
 	}
-	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != dns.DomainStrategyAsIS {
+	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.UOTMagicAddress && metadata.DomainStrategy != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
 		if err != nil {
 			return err

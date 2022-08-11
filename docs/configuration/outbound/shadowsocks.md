@@ -14,6 +14,7 @@
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg==",
       "network": "udp",
+      "udp_over_tcp": false,
       "multiplex": {},
       
       "detour": "upstream-out",
@@ -84,6 +85,12 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### udp_over_tcp
+
+Enable UDP over TCP protocol.
+
+Conflict with `multiplex`.
 
 #### multiplex
 
