@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -40,10 +39,6 @@ func (f *simpleFactory) Logger() ContextLogger {
 
 func (f *simpleFactory) NewLogger(tag string) ContextLogger {
 	return &simpleLogger{f, tag}
-}
-
-func (f *simpleFactory) Close() error {
-	return common.Close(f.writer)
 }
 
 var _ ContextLogger = (*simpleLogger)(nil)

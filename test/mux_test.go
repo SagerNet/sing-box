@@ -102,7 +102,7 @@ func testVMessMux(t *testing.T, protocol string) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{

@@ -15,11 +15,11 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/oschwald/maxminddb-golang v1.10.0
-	github.com/sagernet/sing v0.0.0-20220808004927-21369d10810d
+	github.com/sagernet/sing v0.0.0-20220811152014-735372ab3ccf
 	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220801112336-a91eacdd01e1
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220811135826-7e47fd1a99d9
 	github.com/sagernet/sing-tun v0.0.0-20220808133432-d378b6ca536d
-	github.com/sagernet/sing-vmess v0.0.0-20220804023624-e829b41c84c2
+	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	github.com/xtaci/smux v1.5.16

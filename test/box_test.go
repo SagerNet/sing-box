@@ -23,14 +23,13 @@ func startInstance(t *testing.T, options option.Options) {
 		require.NoError(t, err)
 		err = instance.Start()
 		if err != nil {
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(time.Second)
 			continue
 		}
 		break
 	}
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		time.Sleep(500 * time.Millisecond)
 		instance.Close()
 	})
 }
