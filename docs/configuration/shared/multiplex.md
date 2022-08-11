@@ -41,7 +41,7 @@ Conflict with `max_streams`.
 
 Minimum multiplexed streams in a connection before opening a new connection.
 
-Conflict with `min_streams`.
+Conflict with `max_streams`.
 
 #### max_streams
 
