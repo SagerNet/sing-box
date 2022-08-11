@@ -13,7 +13,7 @@ type JSONObject struct {
 	linkedhashmap.Map[string, any]
 }
 
-func (m *JSONObject) MarshalJSON() ([]byte, error) {
+func (m JSONObject) MarshalJSON() ([]byte, error) {
 	buffer := new(bytes.Buffer)
 	buffer.WriteString("{")
 	items := m.Entries()
