@@ -15,7 +15,8 @@
       "username": "sekai",
       "password": "admin",
       "network": "udp",
-      
+      "udp_over_tcp": false,
+
       "detour": "upstream-out",
       "bind_interface": "en0",
       "routing_mark": 1234,
@@ -64,6 +65,10 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### udp_over_tcp
+
+Enable the UDP over TCP protocol.
 
 ### Dial Fields
 

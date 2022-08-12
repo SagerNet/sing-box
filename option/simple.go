@@ -21,6 +21,7 @@ type SocksOutboundOptions struct {
 	Username string      `json:"username,omitempty"`
 	Password string      `json:"password,omitempty"`
 	Network  NetworkList `json:"network,omitempty"`
+	UoT      bool        `json:"udp_over_tcp,omitempty"`
 }
 
 type HTTPOutboundOptions struct {
