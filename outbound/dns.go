@@ -144,5 +144,5 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 	group.Cleanup(func() {
 		conn.Close()
 	})
-	return group.Run(ctx)
+	return group.Run(fastClose)
 }

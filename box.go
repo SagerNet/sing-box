@@ -29,6 +29,7 @@ type Box struct {
 	logger      log.ContextLogger
 	logFile     *os.File
 	clashServer adapter.ClashServer
+	done        chan struct{}
 }
 
 func New(ctx context.Context, options option.Options) (*Box, error) {
@@ -161,6 +162,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		logger:      logFactory.NewLogger(""),
 		logFile:     logFile,
 		clashServer: clashServer,
+		done:        make(chan struct{}),
 	}, nil
 }
 
@@ -189,6 +191,12 @@ func (s *Box) Start() error {
 }
 
 func (s *Box) Close() error {
+	select {
+	case <-s.done:
+		return os.ErrClosed
+	default:
+		close(s.done)
+	}
 	for _, in := range s.inbounds {
 		in.Close()
 	}

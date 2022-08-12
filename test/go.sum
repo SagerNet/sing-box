@@ -174,8 +174,9 @@ github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273/go.mod h1:c3At6R
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/sagernet/netlink v0.0.0-20220803045538-bdac49abf805 h1:hE+vtsjBCCPmxkRz9jZA+CicHgVkDT6H+Av5ZzskVxs=
 github.com/sagernet/netlink v0.0.0-20220803045538-bdac49abf805/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
-github.com/sagernet/sing v0.0.0-20220811152014-735372ab3ccf h1:k8ZXdBb5D6JqDTgwLAw4cazapPcLYbcJNxSFUvUff+s=
-github.com/sagernet/sing v0.0.0-20220811152014-735372ab3ccf/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
+github.com/sagernet/sing v0.0.0-20220801112236-1bb95f9661fc/go.mod h1:GbtQfZSpmtD3cXeD1qX2LCMwY8dH+bnnInDTqd92IsM=
+github.com/sagernet/sing v0.0.0-20220812041020-13f394e2021c h1:/HDyukJrLGbr/eXyhpzPv2FGnXJeNj/bvQ/3GSYJhTo=
+github.com/sagernet/sing v0.0.0-20220812041020-13f394e2021c/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91 h1:jxt2PYixIkK2i7nUGW3f+PzJagEZcbNyQddBWGuqNnw=
 github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91/go.mod h1:T77zZdE2Cm6VqnFumrpwsq+kxYsbq+vWDhmjtdSl/oM=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220811135826-7e47fd1a99d9 h1:/FFNyglfOlk1x6NWhBWI+bc/kVQc7SFOSYAJ2m7FwHc=
@@ -184,6 +185,8 @@ github.com/sagernet/sing-tun v0.0.0-20220808133432-d378b6ca536d h1:AQpkoUiF8FxYV
 github.com/sagernet/sing-tun v0.0.0-20220808133432-d378b6ca536d/go.mod h1:gWwYd53AqXl+Y+q6WlXUc6PkqU28sfu5VTQhyeEIFbw=
 github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 h1:2hLETh97+S4WnfMR27XyC7QVU1SH7FTNoCznP229YJU=
 github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4/go.mod h1:82O6gzbxLha/W/jxSVQbsqf2lVdRTjMIgyLug0lpJps=
+github.com/sagernet/smux v0.0.0-20220812032842-6d45eecb473e h1:x+COm0plODjqCs8ypUbI8IJ6kclhNirmCsaVbnBXDoA=
+github.com/sagernet/smux v0.0.0-20220812032842-6d45eecb473e/go.mod h1:WFWe+7nAIPcVfJTonJwe8dRIX7JAV2Hc0/p5+X55nM4=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/shurcooL/component v0.0.0-20170202220835-f88ec8f54cc4/go.mod h1:XhFIlyj5a1fBNx5aJTbKoIq0mNaPvOagO+HjB3EtxrY=
 github.com/shurcooL/events v0.0.0-20181021180414-410e4ca65f48/go.mod h1:5u70Mqkb5O5cxEA8nxTsgrgLehJeAw6Oc4Ab1c/P1HM=
@@ -228,8 +231,6 @@ github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49u
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
 github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 h1:gga7acRE695APm9hlsSMoOoE65U4/TcqNj90mc69Rlg=
 github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74/go.mod h1:DD4vA1DwXk04H54A1oHXtwZmA0grkVMdPxx/VGLCah0=
-github.com/xtaci/smux v1.5.16 h1:FBPYOkW8ZTjLKUM4LI4xnnuuDC8CQ/dB04HD519WoEk=
-github.com/xtaci/smux v1.5.16/go.mod h1:OMlQbT5vcgl2gb49mFkYo6SMf+zP3rcjcwQz7ZU7IGY=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
@@ -315,6 +316,7 @@ golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20210616094352-59db8d763f22/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220412211240-33da011f77ad/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab h1:2QkjZIsXupsJbJIdSjjUOgWK3aEtzyuh2mPt3l/CkeU=
 golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=

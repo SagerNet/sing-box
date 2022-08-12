@@ -7,8 +7,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
-
-	"github.com/xtaci/smux"
+	"github.com/sagernet/smux"
 )
 
 type abstractSession interface {

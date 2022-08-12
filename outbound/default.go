@@ -92,15 +92,9 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
 	}
-	if metadata.Protocol != "" {
-		switch metadata.Protocol {
-		case C.ProtocolQUIC:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
-		case C.ProtocolDNS:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
-		case C.ProtocolSTUN:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
-		}
+	switch metadata.Protocol {
+	case C.ProtocolSTUN:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
 	}
 	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
 }
@@ -117,15 +111,11 @@ func connectPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketCo
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
 	}
-	if metadata.Protocol != "" {
-		switch metadata.Protocol {
-		case C.ProtocolQUIC:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
-		case C.ProtocolDNS:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
-		case C.ProtocolSTUN:
-			ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
-		}
+	switch metadata.Protocol {
+	case C.ProtocolQUIC:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
+	case C.ProtocolDNS:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
 	}
 	return bufio.CopyPacketConn(ctx, conn, bufio.NewUnbindPacketConn(outConn))
 }
