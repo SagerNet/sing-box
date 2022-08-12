@@ -146,7 +146,12 @@ func (c *Client) offerNew() (abstractSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	session, err := c.protocol.newClient(&protocolConn{Conn: conn, protocol: c.protocol})
+	if vectorisedWriter, isVectorised := bufio.CreateVectorisedWriter(conn); isVectorised {
+		conn = &vectorisedProtocolConn{protocolConn{Conn: conn, protocol: c.protocol}, vectorisedWriter}
+	} else {
+		conn = &protocolConn{Conn: conn, protocol: c.protocol}
+	}
+	session, err := c.protocol.newClient(conn)
 	if err != nil {
 		return nil, err
 	}

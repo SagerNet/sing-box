@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/smux"
 )
 
@@ -67,4 +68,24 @@ func (c *protocolConn) ReadFrom(r io.Reader) (n int64, err error) {
 
 func (c *protocolConn) Upstream() any {
 	return c.Conn
+}
+
+type vectorisedProtocolConn struct {
+	protocolConn
+	N.VectorisedWriter
+}
+
+func (c *vectorisedProtocolConn) WriteVectorised(buffers []*buf.Buffer) error {
+	if c.protocolWritten {
+		return c.VectorisedWriter.WriteVectorised(buffers)
+	}
+	c.protocolWritten = true
+	_buffer := buf.StackNewSize(2)
+	defer common.KeepAlive(_buffer)
+	buffer := common.Dup(_buffer)
+	defer buffer.Release()
+	EncodeRequest(buffer, Request{
+		Protocol: c.protocol,
+	})
+	return c.VectorisedWriter.WriteVectorised(append([]*buf.Buffer{buffer}, buffers...))
 }

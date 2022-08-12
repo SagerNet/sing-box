@@ -43,7 +43,7 @@ func ParseProtocol(name string) (Protocol, error) {
 func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 	switch p {
 	case ProtocolSMux:
-		session, err := smux.Server(wrapSMuxConn(conn), nil)
+		session, err := smux.Server(conn, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
 	switch p {
 	case ProtocolSMux:
-		session, err := smux.Client(wrapSMuxConn(conn), nil)
+		session, err := smux.Client(conn, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -199,31 +199,6 @@ func ReadStreamResponse(reader io.Reader) (*StreamResponse, error) {
 		}
 	}
 	return &response, nil
-}
-
-type smuxTCPConn struct {
-	*net.TCPConn
-}
-
-func wrapSMuxConn(originConn net.Conn) net.Conn {
-	switch conn := originConn.(type) {
-	case *net.TCPConn:
-		return &smuxTCPConn{conn}
-	}
-	return originConn
-}
-
-func (w *smuxTCPConn) WriteBuffers(v [][]byte) (n int, err error) {
-	buffers := net.Buffers(v)
-	writeN, err := buffers.WriteTo(w.TCPConn)
-	if err != nil {
-		return
-	}
-	return int(writeN), nil
-}
-
-func (w *smuxTCPConn) Upstream() any {
-	return w.TCPConn
 }
 
 type wrapStream struct {
