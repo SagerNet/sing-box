@@ -17,11 +17,37 @@ var commandVersion = &cobra.Command{
 	Args:  cobra.NoArgs,
 }
 
+var nameOnly bool
+
+func init() {
+	commandVersion.Flags().BoolVarP(&nameOnly, "name", "n", false, "print version name only")
+}
+
 func printVersion(cmd *cobra.Command, args []string) {
-	os.Stderr.WriteString(F.ToString("sing-box version ", C.Version, " (", runtime.Version(), ", ", runtime.GOOS, "/", runtime.GOARCH, ", CGO "))
-	if C.CGO_ENABLED {
-		os.Stderr.WriteString("enabled)\n")
-	} else {
-		os.Stderr.WriteString("disabled)\n")
+	var version string
+	if !nameOnly {
+		version = "sing-box "
 	}
+	version += F.ToString(C.Version)
+	if C.Commit != "" {
+		version += "." + C.Commit
+	}
+	if !nameOnly {
+		version += " ("
+		version += runtime.Version()
+		version += ", "
+		version += runtime.GOOS
+		version += ", "
+		version += runtime.GOARCH
+		version += ", "
+		version += "CGO "
+		if C.CGO_ENABLED {
+			version += "enabled"
+		} else {
+			version += "disabled"
+		}
+		version += ")"
+	}
+	version += "\n"
+	os.Stdout.WriteString(version)
 }

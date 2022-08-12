@@ -1,0 +1,82 @@
+project_name: sing-box
+builds:
+  - main: ./cmd/sing-box
+    flags:
+      - -v
+      - -trimpath
+    asmflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    gcflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    ldflags:
+      - -X github.com/sagernet/sing-box/constant.Commit={{ .ShortCommit }} -s -w -buildid=
+    tags:
+      - with_clash_api
+      - with_quic
+    env:
+      - CGO_ENABLED=0
+    targets:
+      - linux_amd64_v1
+      - linux_amd64_v3
+      - linux_arm64
+      - linux_arm_7
+      - windows_amd64_v1
+      - windows_amd64_v3
+      - windows_386
+      - windows_arm64
+      - darwin_amd64_v1
+      - darwin_amd64_v3
+      - darwin_arm64
+    mod_timestamp: '{{ .CommitTimestamp }}'
+snapshot:
+  name_template: "{{ .Version }}.{{ .ShortCommit }}"
+archives:
+  - id: archive
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - src: release/config/config.json
+        strip_parent: true
+    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+nfpms:
+  - id: package
+    package_name: sing-box
+    file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+    vendor: sagernet
+    homepage: https://sing-box.sagernet.org/
+    maintainer: nekohasekai <contact-git@sekai.icu>
+    description: The universal proxy platform.
+    license: GPLv3 or later
+    formats:
+      - deb
+      - rpm
+    priority: extra
+    contents:
+      - src: release/config/config.json
+        dst: /etc/sing-box/config.json
+        type: config
+      - src: release/config/sing-box.service
+        dst: /etc/systemd/system/sing-box.service
+      - src: release/config/sing-box@.service
+        dst: /etc/systemd/system/sing-box@.service
+      - src: LICENSE
+        dst: /usr/share/licenses/sing-box/LICENSE
+source:
+  enabled: true
+  name_template: '{{ .ProjectName }}-{{ .Version }}.source'
+  prefix_template: '{{ .ProjectName }}-{{ .Version }}/'
+checksum:
+  name_template: '{{ .ProjectName }}-{{ .Version }}.checksum'
+signs:
+  - artifacts: checksum
+release:
+  github:
+    owner: SagerNet
+    name: sing-box
+  name_template: '{{ if .IsSnapshot }}{{ nightly }}{{ else }}{{ .Version }}{{ end }}'
+  draft: true
+  mode: replace

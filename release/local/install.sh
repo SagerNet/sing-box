@@ -11,6 +11,6 @@ popd
 
 sudo cp $(go env GOPATH)/bin/sing-box /usr/local/bin/
 sudo mkdir -p /usr/local/etc/sing-box
-sudo cp $DIR/config.json /usr/local/etc/sing-box/config.json
+sudo cp $PROJECT/release/config/config.json /usr/local/etc/sing-box/config.json
 sudo cp $DIR/sing-box.service /etc/systemd/system
 sudo systemctl daemon-reload
