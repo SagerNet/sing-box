@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
@@ -54,6 +56,12 @@ func run0() error {
 	if err != nil {
 		cancel()
 		return E.Cause(err, "start service")
+	}
+	if debug.Enabled {
+		http.HandleFunc("/debug/close", func(writer http.ResponseWriter, request *http.Request) {
+			cancel()
+			instance.Close()
+		})
 	}
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
