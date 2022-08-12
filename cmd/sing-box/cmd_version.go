@@ -18,5 +18,10 @@ var commandVersion = &cobra.Command{
 }
 
 func printVersion(cmd *cobra.Command, args []string) {
-	os.Stderr.WriteString(F.ToString("sing-box version ", C.Version, " (", runtime.Version(), " ", runtime.GOOS, "/", runtime.GOARCH, ")\n"))
+	os.Stderr.WriteString(F.ToString("sing-box version ", C.Version, " (", runtime.Version(), ", ", runtime.GOOS, "/", runtime.GOARCH, ", CGO "))
+	if C.CGO_ENABLED {
+		os.Stderr.WriteString("enabled)\n")
+	} else {
+		os.Stderr.WriteString("disabled)\n")
+	}
 }
