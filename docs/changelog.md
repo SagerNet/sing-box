@@ -1,6 +1,11 @@
+#### 2022/08/12
+
+* Performance improvements
+* Add UoT option for [Socks](/configuration/outbound/socks) outbound
+
 #### 2022/08/11
 
-* Add UoT option for [Shadowsocks](/configuration/outbound/shadowsocks) outbound, UoT support for all inbounds.
+* Add UoT option for [Shadowsocks](/configuration/outbound/shadowsocks) outbound, UoT support for all inbounds
 
 #### 2022/08/10
 

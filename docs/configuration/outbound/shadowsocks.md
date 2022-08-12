@@ -88,7 +88,7 @@ Both is enabled by default.
 
 #### udp_over_tcp
 
-Enable UDP over TCP protocol.
+Enable the UDP over TCP protocol.
 
 Conflict with `multiplex`.
 

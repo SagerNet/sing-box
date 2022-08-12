@@ -59,6 +59,9 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 }
 
 func (h *Shadowsocks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	if h.multiplexDialer == nil {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP:
@@ -90,6 +93,9 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 }
 
 func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	if h.multiplexDialer == nil {
 		if h.uot {
 			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
@@ -127,9 +133,6 @@ var _ N.Dialer = (*shadowsocksDialer)(nil)
 type shadowsocksDialer Shadowsocks
 
 func (h *shadowsocksDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
-	metadata.Outbound = h.tag
-	metadata.Destination = destination
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
@@ -149,9 +152,6 @@ func (h *shadowsocksDialer) DialContext(ctx context.Context, network string, des
 }
 
 func (h *shadowsocksDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
-	metadata.Outbound = h.tag
-	metadata.Destination = destination
 	outConn, err := h.dialer.DialContext(ctx, N.NetworkUDP, h.serverAddr)
 	if err != nil {
 		return nil, err
