@@ -30,6 +30,6 @@ Default is `https://github.com/SagerNet/sing-geoip/releases/latest/download/geoi
 
 #### download_detour
 
-The ag of the outbound to download the database.
+The tag of the outbound to download the database.
 
 Default outbound will be used if empty.
