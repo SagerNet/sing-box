@@ -17,4 +17,4 @@ linters-settings:
       - prefix(github.com/sagernet/)
       - default
   staticcheck:
-    go: '1.18'
+    go: '1.19'

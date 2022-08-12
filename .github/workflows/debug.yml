@@ -47,6 +47,7 @@ jobs:
           go mod init build
           go get -v github.com/sagernet/sing-box@$version
           popd
+        continue-on-error: true
       - name: Run Test
         run: |
           go test -v ./...
@@ -160,6 +161,7 @@ jobs:
       GOARM: ${{ matrix.goarm }}
       GOMIPS: ${{ matrix.gomips }}
       CGO_ENABLED: 0
+      TAGS: with_clash_api,with_quic
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -181,18 +183,9 @@ jobs:
           key: go-${{ hashFiles('**/go.sum') }}
       - name: Build
         id: build
-        run: |
-          VERSION="$(date +%Y%m%d).$(git rev-parse --short HEAD)"
-          BUILDTIME="$(LANG=en_US.UTF-8 date -u)"
-          
-          go build -v -trimpath -ldflags '\
-            -X "github.com/sagernet/sing-box/constant.Version=$VERSION" \
-          	-X "github.com/sagernet/sing-box/constant.BuildTime=$BUILDTIME" \
-          	-s -w -buildid=' ./cmd/sing-box
-          
-          echo "::set-output name=VERSION::$VERSION"
+        run: make
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: sing-box-${{ matrix.name }}-${{ steps.build.outputs.VERSION }}
+          name: sing-box-${{ matrix.name }}
           path: sing-box*
