@@ -3,7 +3,7 @@ module github.com/sagernet/sing-box
 go 1.18
 
 require (
-	github.com/database64128/tfo-go v1.1.0
+	github.com/database64128/tfo-go v1.1.1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-chi/chi/v5 v5.0.7
@@ -23,10 +23,10 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	github.com/xtaci/smux v1.5.16
-	go.uber.org/atomic v1.9.0
+	go.uber.org/atomic v1.10.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/net v0.0.0-20220809184613-07c6da5e1ced
-	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664
+	golang.org/x/net v0.0.0-20220811182439-13a9a731de15
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab
 )
 
 require (
