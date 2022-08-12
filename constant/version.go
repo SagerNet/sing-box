@@ -1,6 +1,6 @@
 package constant
 
 var (
-	Version   = "nightly"
-	BuildTime = "unknown"
+	Version = "20220812"
+	Commit  = ""
 )

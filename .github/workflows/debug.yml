@@ -181,18 +181,9 @@ jobs:
           key: go-${{ hashFiles('**/go.sum') }}
       - name: Build
         id: build
-        run: |
-          VERSION="$(date +%Y%m%d).$(git rev-parse --short HEAD)"
-          BUILDTIME="$(LANG=en_US.UTF-8 date -u)"
-          
-          go build -v -trimpath -ldflags '\
-            -X "github.com/sagernet/sing-box/constant.Version=$VERSION" \
-          	-X "github.com/sagernet/sing-box/constant.BuildTime=$BUILDTIME" \
-          	-s -w -buildid=' ./cmd/sing-box
-          
-          echo "::set-output name=VERSION::$VERSION"
+        run: make
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: sing-box-${{ matrix.name }}-${{ steps.build.outputs.VERSION }}
+          name: sing-box-${{ matrix.name }}
           path: sing-box*
