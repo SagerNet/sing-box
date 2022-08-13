@@ -1,9 +1,10 @@
-NAME=sing-box
-COMMIT=$(shell git rev-parse --short HEAD)
-PARAMS=-trimpath -tags '$(TAGS)' -ldflags \
+NAME = sing-box
+COMMIT = $(shell git rev-parse --short HEAD)
+TAGS ?= with_quic,with_clash_api
+PARAMS = -trimpath -tags '$(TAGS)' -ldflags \
 		'-X "github.com/sagernet/sing-box/constant.Commit=$(COMMIT)" \
 		-w -s -buildid='
-MAIN=./cmd/sing-box
+MAIN = ./cmd/sing-box
 
 .PHONY: test release
 
@@ -24,9 +25,9 @@ fmt_install:
 	go install -v github.com/daixiang0/gci@v0.4.0
 
 fmt:
-	gofumpt -l -w .
-	gofmt -s -w .
-	gci write -s "standard,prefix(github.com/sagernet/),default" .
+	@gofumpt -l -w .
+	@gofmt -s -w .
+	@gci write -s "standard,prefix(github.com/sagernet/),default" .
 
 lint_install:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -38,10 +39,10 @@ lint:
 	GOOS=freebsd golangci-lint run ./...
 
 test:
-	go test -v . && \
-	pushd test && \
-	go test -v . && \
-	popd
+	@go test -v . && \
+	@pushd test && \
+	@go test -v . && \
+	@popd
 
 clean:
 	rm -rf bin dist

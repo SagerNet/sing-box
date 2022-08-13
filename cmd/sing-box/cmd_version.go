@@ -21,6 +21,7 @@ var nameOnly bool
 
 func init() {
 	commandVersion.Flags().BoolVarP(&nameOnly, "name", "n", false, "print version name only")
+	mainCommand.AddCommand(commandVersion)
 }
 
 func printVersion(cmd *cobra.Command, args []string) {
