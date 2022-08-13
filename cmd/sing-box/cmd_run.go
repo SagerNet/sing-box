@@ -20,17 +20,19 @@ import (
 var commandRun = &cobra.Command{
 	Use:   "run",
 	Short: "Run service",
-	Run:   run,
+	Run: func(cmd *cobra.Command, args []string) {
+		err := run()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
 }
 
-func run(cmd *cobra.Command, args []string) {
-	err := run0()
-	if err != nil {
-		log.Fatal(err)
-	}
+func init() {
+	mainCommand.AddCommand(commandRun)
 }
 
-func run0() error {
+func run() error {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
 		return E.Cause(err, "read config")

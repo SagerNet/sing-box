@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
 )
@@ -15,24 +16,31 @@ import (
 var commandCheck = &cobra.Command{
 	Use:   "check",
 	Short: "Check configuration",
-	Run:   checkConfiguration,
-	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		err := check()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+	Args: cobra.NoArgs,
 }
 
-func checkConfiguration(cmd *cobra.Command, args []string) {
+func init() {
+	mainCommand.AddCommand(commandCheck)
+}
+
+func check() error {
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("read config: ", err)
+		return E.Cause(err, "read config")
 	}
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		log.Fatal("decode config: ", err)
+		return E.Cause(err, "decode config")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	_, err = box.New(ctx, options)
-	if err != nil {
-		log.Fatal("create service: ", err)
-	}
 	cancel()
+	return err
 }
