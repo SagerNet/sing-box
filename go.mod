@@ -15,8 +15,8 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/oschwald/maxminddb-golang v1.10.0
-	github.com/sagernet/sing v0.0.0-20220812082120-05f9836bff8f
-	github.com/sagernet/sing-dns v0.0.0-20220803121532-9e1ffb850d91
+	github.com/sagernet/sing v0.0.0-20220813024838-eb2fad956aa8
+	github.com/sagernet/sing-dns v0.0.0-20220813025814-e656c9dbf3ae
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
 	github.com/sagernet/sing-tun v0.0.0-20220808133432-d378b6ca536d
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
