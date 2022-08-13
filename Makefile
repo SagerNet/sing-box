@@ -1,6 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_quic,with_wireguard,with_clash_api
+TAGS ?= with_quic,with_wireguard,with_clash_api,with_daemon
 PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags \
 		'-X "github.com/sagernet/sing-box/constant.Commit=$(COMMIT)" \
 		-w -s -buildid='

@@ -14,6 +14,7 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/yamux v0.1.1
+	github.com/kardianos/service v1.2.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.0.4
 	github.com/oschwald/maxminddb-golang v1.10.0
