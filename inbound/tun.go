@@ -3,7 +3,6 @@ package inbound
 import (
 	"context"
 	"net"
-	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +16,9 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ranges"
 )
 
 var _ adapter.Inbound = (*Tun)(nil)
@@ -30,11 +29,7 @@ type Tun struct {
 	router                 adapter.Router
 	logger                 log.ContextLogger
 	inboundOptions         option.InboundOptions
-	tunName                string
-	tunMTU                 uint32
-	inet4Address           netip.Prefix
-	inet6Address           netip.Prefix
-	autoRoute              bool
+	tunOptions             tun.Options
 	endpointIndependentNat bool
 	udpTimeout             int64
 	stack                  string
@@ -45,7 +40,7 @@ type Tun struct {
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
 	tunName := options.InterfaceName
 	if tunName == "" {
-		tunName = mkInterfaceName()
+		tunName = tun.DefaultInterfaceName()
 	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
@@ -57,21 +52,74 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	} else {
 		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
+	includeUID := uidToRange(options.IncludeUID)
+	if len(options.IncludeUIDRange) > 0 {
+		var err error
+		includeUID, err = parseRange(includeUID, options.IncludeUIDRange)
+		if err != nil {
+			return nil, E.Cause(err, "parse include_uid_range")
+		}
+	}
+	excludeUID := uidToRange(options.ExcludeUID)
+	if len(options.ExcludeUIDRange) > 0 {
+		var err error
+		excludeUID, err = parseRange(excludeUID, options.ExcludeUIDRange)
+		if err != nil {
+			return nil, E.Cause(err, "parse exclude_uid_range")
+		}
+	}
 	return &Tun{
-		tag:                    tag,
-		ctx:                    ctx,
-		router:                 router,
-		logger:                 logger,
-		inboundOptions:         options.InboundOptions,
-		tunName:                tunName,
-		tunMTU:                 tunMTU,
-		inet4Address:           options.Inet4Address.Build(),
-		inet6Address:           options.Inet6Address.Build(),
-		autoRoute:              options.AutoRoute,
+		tag:            tag,
+		ctx:            ctx,
+		router:         router,
+		logger:         logger,
+		inboundOptions: options.InboundOptions,
+		tunOptions: tun.Options{
+			Name:               tunName,
+			MTU:                tunMTU,
+			Inet4Address:       options.Inet4Address.Build(),
+			Inet6Address:       options.Inet6Address.Build(),
+			AutoRoute:          options.AutoRoute,
+			IncludeUID:         includeUID,
+			IncludeAndroidUser: options.IncludeAndroidUser,
+			ExcludeUID:         excludeUID,
+		},
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
 		stack:                  options.Stack,
 	}, nil
+}
+
+func uidToRange(uidList option.Listable[uint32]) []ranges.Range[uint32] {
+	return common.Map(uidList, func(uid uint32) ranges.Range[uint32] {
+		return ranges.NewSingle(uid)
+	})
+}
+
+func parseRange(uidRanges []ranges.Range[uint32], rangeList []string) ([]ranges.Range[uint32], error) {
+	for _, uidRange := range rangeList {
+		if !strings.Contains(uidRange, ":") {
+			return nil, E.New("missing ':' in range: ", uidRange)
+		}
+		subIndex := strings.Index(uidRange, ":")
+		if subIndex == 0 {
+			return nil, E.New("missing range start: ", uidRange)
+		} else if subIndex == len(uidRange)-1 {
+			return nil, E.New("missing range end: ", uidRange)
+		}
+		var start, end uint64
+		var err error
+		start, err = strconv.ParseUint(uidRange[:subIndex], 10, 32)
+		if err != nil {
+			return nil, E.Cause(err, "parse range start")
+		}
+		end, err = strconv.ParseUint(uidRange[subIndex+1:], 10, 32)
+		if err != nil {
+			return nil, E.Cause(err, "parse range end")
+		}
+		uidRanges = append(uidRanges, ranges.New(uint32(start), uint32(end)))
+	}
+	return uidRanges, nil
 }
 
 func (t *Tun) Type() string {
@@ -83,12 +131,12 @@ func (t *Tun) Tag() string {
 }
 
 func (t *Tun) Start() error {
-	tunIf, err := tun.Open(t.tunName, t.inet4Address, t.inet6Address, t.tunMTU, t.autoRoute)
+	tunIf, err := tun.Open(t.tunOptions)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
 	t.tunIf = tunIf
-	t.tunStack, err = tun.NewStack(t.ctx, t.stack, tunIf, t.tunMTU, t.endpointIndependentNat, t.udpTimeout, t)
+	t.tunStack, err = tun.NewStack(t.ctx, t.stack, tunIf, t.tunOptions.MTU, t.endpointIndependentNat, t.udpTimeout, t)
 	if err != nil {
 		return err
 	}
@@ -96,7 +144,7 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
-	t.logger.Info("started at ", t.tunName)
+	t.logger.Info("started at ", t.tunOptions.Name)
 	return nil
 }
 
@@ -152,27 +200,4 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 
 func (t *Tun) NewError(ctx context.Context, err error) {
 	NewError(t.logger, ctx, err)
-}
-
-func mkInterfaceName() (tunName string) {
-	if C.IsDarwin {
-		tunName = "utun"
-	} else {
-		tunName = "tun"
-	}
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-	var tunIndex int
-	for _, netInterface := range interfaces {
-		if strings.HasPrefix(netInterface.Name, tunName) {
-			index, parseErr := strconv.ParseInt(netInterface.Name[len(tunName):], 10, 16)
-			if parseErr == nil {
-				tunIndex = int(index) + 1
-			}
-		}
-	}
-	tunName = F.ToString(tunName, tunIndex)
-	return
 }
