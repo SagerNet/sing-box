@@ -19,6 +19,26 @@
       "endpoint_independent_nat": false,
       "udp_timeout": 300,
       "stack": "gvisor",
+      "include_uid": [
+        0
+      ],
+      "include_uid_range": [
+        [
+          1000,
+          99999
+        ]
+      ],
+      "include_android_user": [
+        0,
+        10
+      ],
+      "exclude_uid": [
+        1000
+      ],
+      "exclude_uid_range": [
+        1000,
+        99999
+      ],
       
       "sniff": true,
       "sniff_override_destination": false,
@@ -28,9 +48,13 @@
 }
 ```
 
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
+
 !!! warning ""
 
-    If tun is running in non-privileged mode, the address and MTU will not be configured automatically, please make sure the settings are accurate.
+    If tun is running in non-privileged mode, addresses and MTU will not be configured automatically, please make sure the settings are accurate.
 
 ### Tun Fields
 
@@ -82,6 +106,39 @@ TCP/IP stack.
 !!! warning ""
 
     The LWIP stack is not included by default, see [Installation](/#Installation).
+
+#### include_uid
+
+!!! error ""
+
+    UID and android user rules are only supported on Linux and require auto_route.
+
+Limit users in route. Not limited by default.
+
+#### include_uid_range
+
+Limit users in route, but in range.
+
+#### include_android_user
+
+!!! warning ""
+
+    Only supported on Android
+
+Limit android users in route.
+
+| Common user  | ID  |
+|--------------|-----|
+| Main         | 0   |
+| Work Profile | 10  |
+
+#### exclude_uid
+
+Exclude users in route.
+
+#### exclude_uid_range
+
+Exclude users in route, but in range.
 
 ### Listen Fields
 

@@ -3,18 +3,15 @@ linters:
   enable:
     - gofumpt
     - govet
-    - gci
+#    - gci
     - staticcheck
     - paralleltest
 
-issues:
-  fix: true
-
 linters-settings:
-  gci:
-    sections:
-      - standard
-      - prefix(github.com/sagernet/)
-      - default
+#  gci:
+#    sections:
+#      - standard
+#      - prefix(github.com/sagernet/)
+#      - default
   staticcheck:
     go: '1.19'
