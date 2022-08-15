@@ -1,6 +1,7 @@
 #### 2022/08/15
 
 * Add uid and android user rules support in [Tun](/configuration/inbound/tun) routing.
+* Add a good replacement of default geosite.db which is based on [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat).
 
 #### 2022/08/13
 
