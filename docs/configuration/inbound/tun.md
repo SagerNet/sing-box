@@ -28,16 +28,22 @@
           99999
         ]
       ],
-      "include_android_user": [
-        0,
-        10
-      ],
       "exclude_uid": [
         1000
       ],
       "exclude_uid_range": [
         1000,
         99999
+      ],
+      "include_android_user": [
+        0,
+        10
+      ],
+      "include_package": [
+        "com.android.chrome"
+      ],
+      "exclude_package": [
+        "com.android.captiveportallogin"
       ],
       
       "sniff": true,
@@ -111,26 +117,13 @@ TCP/IP stack.
 
 !!! error ""
 
-    UID and android user rules are only supported on Linux and require auto_route.
+    UID rules are only supported on Linux and require auto_route.
 
 Limit users in route. Not limited by default.
 
 #### include_uid_range
 
 Limit users in route, but in range.
-
-#### include_android_user
-
-!!! warning ""
-
-    Only supported on Android
-
-Limit android users in route.
-
-| Common user  | ID  |
-|--------------|-----|
-| Main         | 0   |
-| Work Profile | 10  |
 
 #### exclude_uid
 
@@ -139,6 +132,27 @@ Exclude users in route.
 #### exclude_uid_range
 
 Exclude users in route, but in range.
+
+#### include_android_user
+
+!!! error ""
+
+    Android user and package rules are only supported on Android and require auto_route.
+
+Limit android users in route.
+
+| Common user  | ID  |
+|--------------|-----|
+| Main         | 0   |
+| Work Profile | 10  |
+
+#### include_package
+
+Limit android packages in route.
+
+#### exclude_package
+
+Exclude android packages in route.
 
 ### Listen Fields
 

@@ -15,8 +15,8 @@ type linuxSearcher struct {
 	logger log.ContextLogger
 }
 
-func NewSearcher(logger log.ContextLogger) (Searcher, error) {
-	return &linuxSearcher{logger}, nil
+func NewSearcher(config Config) (Searcher, error) {
+	return &linuxSearcher{config.Logger}, nil
 }
 
 func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, srcIP netip.Addr, srcPort int) (*Info, error) {

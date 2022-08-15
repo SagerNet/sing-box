@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -12,6 +14,11 @@ type Searcher interface {
 }
 
 var ErrNotFound = E.New("process not found")
+
+type Config struct {
+	Logger         log.ContextLogger
+	PackageManager tun.PackageManager
+}
 
 type Info struct {
 	ProcessPath string

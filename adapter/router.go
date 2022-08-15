@@ -37,6 +37,7 @@ type Router interface {
 	DefaultMark() int
 	NetworkMonitor() tun.NetworkUpdateMonitor
 	InterfaceMonitor() tun.DefaultInterfaceMonitor
+	PackageManager() tun.PackageManager
 	Rules() []Rule
 	SetTrafficController(controller TrafficController)
 }

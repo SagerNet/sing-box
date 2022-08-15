@@ -1,6 +1,6 @@
 #### 2022/08/15
 
-* Add uid and android user rules support in [Tun](/configuration/inbound/tun) routing.
+* Add uid, android user and package rules support in [Tun](/configuration/inbound/tun) routing.
 
 #### 2022/08/13
 

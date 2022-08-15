@@ -81,8 +81,10 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			Inet6Address:       options.Inet6Address.Build(),
 			AutoRoute:          options.AutoRoute,
 			IncludeUID:         includeUID,
-			IncludeAndroidUser: options.IncludeAndroidUser,
 			ExcludeUID:         excludeUID,
+			IncludeAndroidUser: options.IncludeAndroidUser,
+			IncludePackage:     options.IncludePackage,
+			ExcludePackage:     options.ExcludePackage,
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
@@ -131,6 +133,9 @@ func (t *Tun) Tag() string {
 }
 
 func (t *Tun) Start() error {
+	if C.IsAndroid {
+		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
+	}
 	tunIf, err := tun.Open(t.tunOptions)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
