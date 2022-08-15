@@ -4,10 +4,8 @@ package process
 
 import (
 	"os"
-
-	"github.com/sagernet/sing-box/log"
 )
 
-func NewSearcher(logger log.ContextLogger) (Searcher, error) {
+func NewSearcher(_ Config) (Searcher, error) {
 	return nil, os.ErrInvalid
 }

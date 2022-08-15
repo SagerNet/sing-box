@@ -90,6 +90,7 @@ type Router struct {
 	defaultMark                        int
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
+	packageManager                     tun.PackageManager
 	trafficController                  adapter.TrafficController
 	processSearcher                    process.Searcher
 }
@@ -260,8 +261,22 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		router.interfaceMonitor = interfaceMonitor
 	}
 
-	if hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess {
-		searcher, err := process.NewSearcher(logger)
+	needFindProcess := hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
+	needPackageManager := C.IsAndroid && (needFindProcess || common.Any(inbounds, func(inbound option.Inbound) bool {
+		return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
+	}))
+	if needPackageManager {
+		packageManager, err := tun.NewPackageManager(router)
+		if err != nil {
+			return nil, E.Cause(err, "create package manager")
+		}
+		router.packageManager = packageManager
+	}
+	if needFindProcess {
+		searcher, err := process.NewSearcher(process.Config{
+			Logger:         logger,
+			PackageManager: router.packageManager,
+		})
 		if err != nil {
 			if err != os.ErrInvalid {
 				logger.Warn(E.Cause(err, "create process searcher"))
@@ -425,13 +440,10 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
-	if r.processSearcher != nil {
-		if starter, isStarter := r.processSearcher.(common.Starter); isStarter {
-			err := starter.Start()
-			if err != nil {
-				r.logger.Error(E.Cause(err, "initialize process searcher"))
-				r.processSearcher = nil
-			}
+	if r.packageManager != nil {
+		err := r.packageManager.Start()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -454,7 +466,7 @@ func (r *Router) Close() error {
 		common.PtrOrNil(r.geoIPReader),
 		r.interfaceMonitor,
 		r.networkMonitor,
-		r.processSearcher,
+		r.packageManager,
 	)
 }
 
@@ -677,6 +689,10 @@ func (r *Router) NetworkMonitor() tun.NetworkUpdateMonitor {
 
 func (r *Router) InterfaceMonitor() tun.DefaultInterfaceMonitor {
 	return r.interfaceMonitor
+}
+
+func (r *Router) PackageManager() tun.PackageManager {
+	return r.packageManager
 }
 
 func (r *Router) SetTrafficController(controller adapter.TrafficController) {
@@ -910,6 +926,10 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	defer response.Body.Close()
 	_, err = io.Copy(saveFile, response.Body)
 	return err
+}
+
+func (r *Router) OnPackagesUpdated(packages int, sharedUsers int) {
+	r.logger.Info("updated packages list: ", packages, " packages, ", sharedUsers, " shared users")
 }
 
 func (r *Router) NewError(ctx context.Context, err error) {

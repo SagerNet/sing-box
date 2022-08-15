@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 
@@ -19,7 +18,7 @@ var _ Searcher = (*windowsSearcher)(nil)
 
 type windowsSearcher struct{}
 
-func NewSearcher(logger log.ContextLogger) (Searcher, error) {
+func NewSearcher(_ Config) (Searcher, error) {
 	err := initWin32API()
 	if err != nil {
 		return nil, E.Cause(err, "init win32 api")

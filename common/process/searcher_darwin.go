@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/sagernet/sing-box/log"
 	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/sys/unix"
@@ -18,7 +17,7 @@ var _ Searcher = (*darwinSearcher)(nil)
 
 type darwinSearcher struct{}
 
-func NewSearcher(logger log.ContextLogger) (Searcher, error) {
+func NewSearcher(_ Config) (Searcher, error) {
 	return &darwinSearcher{}, nil
 }
 
