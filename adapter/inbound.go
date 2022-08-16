@@ -18,6 +18,7 @@ type Inbound interface {
 type InboundContext struct {
 	Inbound     string
 	InboundType string
+	IPVersion   int
 	Network     string
 	Source      M.Socksaddr
 	Destination M.Socksaddr

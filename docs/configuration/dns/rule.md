@@ -8,6 +8,7 @@
         "inbound": [
           "mixed-in"
         ],
+        "ip_version": 6,
         "network": "tcp",
         "auth_user": [
           "usera",
@@ -104,6 +105,12 @@
 #### inbound
 
 Tags of [inbound](../inbound).
+
+#### ip_version
+
+4 (A query) or 6 (AAAA dns query).
+
+Not limited if empty.
 
 #### network
 

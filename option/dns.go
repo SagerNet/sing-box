@@ -77,6 +77,7 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 
 type DefaultDNSRule struct {
 	Inbound         Listable[string] `json:"inbound,omitempty"`
+	IPVersion       int              `json:"ip_version,omitempty"`
 	Network         string           `json:"network,omitempty"`
 	AuthUser        Listable[string] `json:"auth_user,omitempty"`
 	Protocol        Listable[string] `json:"protocol,omitempty"`
