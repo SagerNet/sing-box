@@ -16,6 +16,7 @@ type _Outbound struct {
 	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
 	VMessOptions       VMessOutboundOptions       `json:"-"`
 	TrojanOptions      TrojanOutboundOptions      `json:"-"`
+	WireGuardOptions   WireGuardOutboundOptions   `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
 }
 
@@ -38,6 +39,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.VMessOptions
 	case C.TypeTrojan:
 		v = h.TrojanOptions
+	case C.TypeWireGuard:
+		v = h.WireGuardOptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
 	default:
@@ -67,6 +70,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.VMessOptions
 	case C.TypeTrojan:
 		v = &h.TrojanOptions
+	case C.TypeWireGuard:
+		v = &h.WireGuardOptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
 	default:

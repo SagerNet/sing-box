@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/sagernet/sing v0.0.0-20220815085149-6b313ff9efc3
+	github.com/sagernet/sing v0.0.0-20220816094748-fb82be7f3f08
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
@@ -52,9 +52,9 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sagernet/netlink v0.0.0-20220803045538-bdac49abf805 // indirect
+	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220813025814-e656c9dbf3ae // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220815033412-1407eae46bd7 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220816152948-85c649d9a3e8 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 // indirect
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
@@ -67,6 +67,8 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20220703234212-c31a7b1ab478 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.3.0 // indirect

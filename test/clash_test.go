@@ -31,6 +31,7 @@ const (
 	ImageV2RayCore             = "v2fly/v2fly-core:latest"
 	ImageTrojan                = "trojangfw/trojan:latest"
 	ImageNaive                 = "pocat/naiveproxy:client"
+	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
 )
 
 var allImages = []string{
@@ -39,6 +40,7 @@ var allImages = []string{
 	ImageV2RayCore,
 	ImageTrojan,
 	ImageNaive,
+	ImageBoringTun,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")
@@ -377,7 +379,7 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 			mux.Lock()
 			hashMap[i] = hash[:]
 			mux.Unlock()
-
+			println("write ti ", addr.String())
 			if _, err = pc.WriteTo(buf, addr); err != nil {
 				t.Log(err)
 				continue
@@ -398,11 +400,9 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 				t.Log(err.Error())
 				return
 			}
-
 			hash := md5.Sum(buf[:chunkSize])
 			hashMap[int(buf[0])] = hash[:]
 		}
-
 		sendHash, err := writeRandData(l, rAddr)
 		if err != nil {
 			t.Log(err.Error())

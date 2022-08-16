@@ -362,20 +362,6 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 			return E.New("outbound not found for rule[", i, "]: ", rule.Outbound())
 		}
 	}
-	for i, detour := range r.outbounds {
-		if starter, isStarter := detour.(adapter.Starter); isStarter {
-			err := starter.Start()
-			if err != nil {
-				var tag string
-				if detour.Tag() == "" {
-					tag = F.ToString(i)
-				} else {
-					tag = detour.Tag()
-				}
-				return E.Cause(err, "initialize outbound/", detour.Type(), "[", tag, "]")
-			}
-		}
-	}
 	return nil
 }
 
@@ -935,7 +921,7 @@ func (r *Router) OnPackagesUpdated(packages int, sharedUsers int) {
 func (r *Router) NewError(ctx context.Context, err error) {
 	common.Close(err)
 	if E.IsClosedOrCanceled(err) {
-		r.logger.TraceContext(ctx, "connection closed: ", err)
+		r.logger.DebugContext(ctx, "connection closed: ", err)
 		return
 	}
 	r.logger.ErrorContext(ctx, err)

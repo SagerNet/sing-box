@@ -39,7 +39,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
-	inbound := &VMess{
+	outbound := &VMess{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeVMess,
 			network:  options.Network.Build(),
@@ -50,15 +50,15 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		client:     client,
 		serverAddr: options.ServerOptions.Build(),
 	}
-	inbound.dialer, err = dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
+	outbound.dialer, err = dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
 	if err != nil {
 		return nil, err
 	}
-	inbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(inbound), common.PtrValueOrDefault(options.MultiplexOptions))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
 	if err != nil {
 		return nil, err
 	}
-	return inbound, nil
+	return outbound, nil
 }
 
 func (h *VMess) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
