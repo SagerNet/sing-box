@@ -18,7 +18,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220816094748-fb82be7f3f08
 	github.com/sagernet/sing-dns v0.0.0-20220813025814-e656c9dbf3ae
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
-	github.com/sagernet/sing-tun v0.0.0-20220815033412-1407eae46bd7
+	github.com/sagernet/sing-tun v0.0.0-20220816152948-85c649d9a3e8
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
@@ -27,6 +27,13 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab
+	golang.zx2c4.com/wireguard v0.0.0-20220703234212-c31a7b1ab478
+	gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97
+)
+
+replace (
+	github.com/sagernet/netlink => ../../GolandProjects/netlink
+	github.com/sagernet/sing-tun => ../sing-tun
 )
 
 require (
@@ -46,7 +53,7 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sagernet/netlink v0.0.0-20220803045538-bdac49abf805 // indirect
+	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/mod v0.5.1 // indirect
@@ -54,8 +61,8 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )

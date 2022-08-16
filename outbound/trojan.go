@@ -28,7 +28,7 @@ type Trojan struct {
 }
 
 func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanOutboundOptions) (*Trojan, error) {
-	inbound := &Trojan{
+	outbound := &Trojan{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeTrojan,
 			network:  options.Network.Build(),
@@ -40,15 +40,15 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		key:        trojan.Key(options.Password),
 	}
 	var err error
-	inbound.dialer, err = dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
+	outbound.dialer, err = dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
 	if err != nil {
 		return nil, err
 	}
-	inbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*TrojanDialer)(inbound), common.PtrValueOrDefault(options.MultiplexOptions))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*TrojanDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
 	if err != nil {
 		return nil, err
 	}
-	return inbound, nil
+	return outbound, nil
 }
 
 func (h *Trojan) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

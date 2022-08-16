@@ -8,6 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
@@ -72,9 +73,28 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 		}
 		require.NoError(t, err)
 	})*/
+	//require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
+	//require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
+	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
+	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
+
+	// require.NoError(t, testPacketConnTimeout(t, dialUDP))
+}
+
+func testSuitWg(t *testing.T, clientPort uint16, testPort uint16) {
+	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
+	dialTCP := func() (net.Conn, error) {
+		return dialer.DialContext(context.Background(), "tcp", M.ParseSocksaddrHostPort("10.0.0.1", testPort))
+	}
+	dialUDP := func() (net.PacketConn, error) {
+		conn, err := dialer.DialContext(context.Background(), "udp", M.ParseSocksaddrHostPort("10.0.0.1", testPort))
+		if err != nil {
+			return nil, err
+		}
+		return bufio.NewUnbindPacketConn(conn), nil
+	}
 	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
 	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
 	// require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
 	// require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
-	// require.NoError(t, testPacketConnTimeout(t, dialUDP))
 }

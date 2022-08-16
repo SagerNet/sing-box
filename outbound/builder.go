@@ -31,6 +31,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewVMess(ctx, router, logger, options.Tag, options.VMessOptions)
 	case C.TypeTrojan:
 		return NewTrojan(ctx, router, logger, options.Tag, options.TrojanOptions)
+	case C.TypeWireGuard:
+		return NewWireGuard(ctx, router, logger, options.Tag, options.WireGuardOptions)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:

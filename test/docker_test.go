@@ -28,6 +28,7 @@ type DockerOptions struct {
 	Env        []string
 	Bind       map[string]string
 	Stdin      []byte
+	Cap        []string
 }
 
 func startDockerContainer(t *testing.T, options DockerOptions) {
@@ -56,6 +57,7 @@ func startDockerContainer(t *testing.T, options DockerOptions) {
 	if !C.IsDarwin {
 		hostOptions.NetworkMode = "host"
 	}
+	hostOptions.CapAdd = options.Cap
 	hostOptions.PortBindings = make(nat.PortMap)
 
 	for _, port := range options.Ports {
