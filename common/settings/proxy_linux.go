@@ -27,9 +27,9 @@ func init() {
 
 func runAsUser(name string, args ...string) error {
 	if os.Getuid() != 0 {
-		return runCommand(name, args...)
+		return common.Exec(name, args...).Attach().Run()
 	} else if sudoUser != "" {
-		return runCommand("su", "-", sudoUser, "-c", F.ToString(name, " ", strings.Join(args, " ")))
+		return common.Exec("su", "-", sudoUser, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
 	} else {
 		return E.New("set system proxy: unable to set as root")
 	}
