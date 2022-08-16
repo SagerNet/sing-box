@@ -31,11 +31,6 @@ require (
 	gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97
 )
 
-replace (
-	github.com/sagernet/netlink => ../../GolandProjects/netlink
-	github.com/sagernet/sing-tun => ../sing-tun
-)
-
 require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect

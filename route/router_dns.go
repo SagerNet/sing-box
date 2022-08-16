@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-dns"
@@ -17,6 +18,15 @@ import (
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
 	if len(message.Questions) > 0 {
 		r.dnsLogger.DebugContext(ctx, "exchange ", formatDNSQuestion(message.Questions[0]))
+	}
+	ctx, metadata := adapter.AppendContext(ctx)
+	if len(message.Questions) > 0 {
+		switch message.Questions[0].Type {
+		case dnsmessage.TypeA:
+			metadata.IPVersion = 4
+		case dnsmessage.TypeAAAA:
+			metadata.IPVersion = 6
+		}
 	}
 	ctx, transport := r.matchDNS(ctx)
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)

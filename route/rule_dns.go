@@ -58,6 +58,16 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.IPVersion > 0 {
+		switch options.IPVersion {
+		case 4, 6:
+			item := NewIPVersionItem(options.IPVersion == 6)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
+		default:
+			return nil, E.New("invalid ip version: ", options.IPVersion)
+		}
+	}
 	if options.Network != "" {
 		switch options.Network {
 		case N.NetworkTCP, N.NetworkUDP:

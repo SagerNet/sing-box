@@ -14,6 +14,7 @@ const (
 	TypeVMess       = "vmess"
 	TypeTrojan      = "trojan"
 	TypeNaive       = "naive"
+	TypeWireGuard   = "wireguard"
 )
 
 const (
