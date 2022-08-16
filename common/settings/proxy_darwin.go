@@ -5,6 +5,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/x/list"
@@ -32,13 +33,13 @@ func (p *systemProxy) update() error {
 		return err
 	}
 	if p.isMixed {
-		err = runCommand("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port))
+		err = common.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	if err == nil {
-		err = runCommand("networksetup", "-setwebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port))
+		err = common.Exec("networksetup", "-setwebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	if err == nil {
-		err = runCommand("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port))
+		err = common.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	return err
 }
@@ -49,19 +50,19 @@ func (p *systemProxy) unset() error {
 		return err
 	}
 	if p.isMixed {
-		err = runCommand("networksetup", "-setsocksfirewallproxystate", interfaceDisplayName, "off")
+		err = common.Exec("networksetup", "-setsocksfirewallproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	if err == nil {
-		err = runCommand("networksetup", "-setwebproxystate", interfaceDisplayName, "off")
+		err = common.Exec("networksetup", "-setwebproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	if err == nil {
-		err = runCommand("networksetup", "-setsecurewebproxystate", interfaceDisplayName, "off")
+		err = common.Exec("networksetup", "-setsecurewebproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	return err
 }
 
 func getInterfaceDisplayName(name string) (string, error) {
-	content, err := readCommand("networksetup", "-listallhardwareports")
+	content, err := common.Exec("networksetup", "-listallhardwareports").Read()
 	if err != nil {
 		return "", err
 	}
