@@ -787,7 +787,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 func (r *Router) prepareGeositeDatabase() error {
 	var geoPath string
 	if r.geositeOptions.Path != "" {
-		geoPath = r.geoIPOptions.Path
+		geoPath = r.geositeOptions.Path
 	} else {
 		geoPath = "geosite.db"
 		if foundPath, loaded := C.FindPath(geoPath); loaded {
@@ -874,12 +874,12 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	} else {
 		downloadURL = "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
 	}
-	r.logger.Info("downloading geoip database")
+	r.logger.Info("downloading geosite database")
 	var detour adapter.Outbound
 	if r.geositeOptions.DownloadDetour != "" {
 		outbound, loaded := r.Outbound(r.geositeOptions.DownloadDetour)
 		if !loaded {
-			return E.New("detour outbound not found: ", r.geoIPOptions.DownloadDetour)
+			return E.New("detour outbound not found: ", r.geositeOptions.DownloadDetour)
 		}
 		detour = outbound
 	} else {
