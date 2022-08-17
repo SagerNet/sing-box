@@ -20,8 +20,9 @@
 | `socks`       | [Socks](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
- | `vmess`       | [VMess](./vmess)             |
-  | `trojan`      | [Trojan](./trojan)           |
+| `vmess`       | [VMess](./vmess)             |
+| `trojan`      | [Trojan](./trojan)           |
+| `wireguard`   | [Wireguard](./wireguard)     |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 

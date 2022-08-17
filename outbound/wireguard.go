@@ -139,7 +139,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	}
 	mtu := options.MTU
 	if mtu == 0 {
-		mtu = 1450
+		mtu = 1408
 	}
 	wireDevice, err := newWireDevice(localAddress, mtu)
 	if err != nil {
