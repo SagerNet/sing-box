@@ -16,7 +16,7 @@ require (
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/sagernet/sing v0.0.0-20220816094748-fb82be7f3f08
-	github.com/sagernet/sing-dns v0.0.0-20220813025814-e656c9dbf3ae
+	github.com/sagernet/sing-dns v0.0.0-20220817120950-9246726e3e53
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
 	github.com/sagernet/sing-tun v0.0.0-20220816152948-85c649d9a3e8
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4

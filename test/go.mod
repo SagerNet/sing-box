@@ -53,7 +53,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
-	github.com/sagernet/sing-dns v0.0.0-20220813025814-e656c9dbf3ae // indirect
+	github.com/sagernet/sing-dns v0.0.0-20220817120950-9246726e3e53 // indirect
 	github.com/sagernet/sing-tun v0.0.0-20220816152948-85c649d9a3e8 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 // indirect
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 // indirect
