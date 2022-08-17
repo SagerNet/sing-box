@@ -34,9 +34,9 @@ lint_install:
 
 test:
 	@go test -v . && \
-	@pushd test && \
-	@go test -v . && \
-	@popd
+	pushd test && \
+	go test -v . && \
+	popd
 
 clean:
 	rm -rf bin dist
