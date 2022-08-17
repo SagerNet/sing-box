@@ -1,3 +1,8 @@
+#### 2022/08/16
+
+* Add ip_version (route/dns) rule item
+* Add [WireGuard](/configuration/outbound/wireguard) outbound
+
 #### 2022/08/15
 
 * Add uid, android user and package rules support in [Tun](/configuration/inbound/tun) routing.

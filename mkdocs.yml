@@ -62,6 +62,7 @@ nav:
           - Shadowsocks: configuration/outbound/shadowsocks.md
           - VMess: configuration/outbound/vmess.md
           - Trojan: configuration/outbound/trojan.md
+          - WireGuard: configuration/outbound/wireguard.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:
