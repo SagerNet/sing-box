@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/netip"
 
-	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun"
 )
 
 var _ Searcher = (*androidSearcher)(nil)
