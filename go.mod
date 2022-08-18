@@ -15,10 +15,10 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/oschwald/maxminddb-golang v1.10.0
-	github.com/sagernet/sing v0.0.0-20220816094748-fb82be7f3f08
+	github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522
 	github.com/sagernet/sing-dns v0.0.0-20220817120950-9246726e3e53
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
-	github.com/sagernet/sing-tun v0.0.0-20220816152948-85c649d9a3e8
+	github.com/sagernet/sing-tun v0.0.0-20220818020810-9c905191f63d
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
@@ -35,7 +35,6 @@ require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/eycorsican/go-tun2socks v1.16.11 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -48,6 +47,7 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
