@@ -7,19 +7,20 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync"
 
+	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
-	dns "github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"github.com/lucas-clemente/quic-go"
 )
 
 var _ adapter.Inbound = (*Hysteria)(nil)
@@ -37,6 +38,10 @@ type Hysteria struct {
 	sendBPS       uint64
 	recvBPS       uint64
 	listener      quic.Listener
+	udpAccess     sync.RWMutex
+	udpSessionId  uint32
+	udpSessions   map[uint32]chan *hysteria.UDPMessage
+	udpDefragger  hysteria.Defragger
 }
 
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaInboundOptions) (*Hysteria, error) {
@@ -105,6 +110,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		xplusKey:      xplus,
 		sendBPS:       up,
 		recvBPS:       down,
+		udpSessions:   make(map[uint32]chan *hysteria.UDPMessage),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, ErrTLSRequired
@@ -138,6 +144,7 @@ func (h *Hysteria) Start() error {
 	}
 	if len(h.xplusKey) > 0 {
 		packetConn = hysteria.NewXPlusPacketConn(packetConn, h.xplusKey)
+		packetConn = &hysteria.PacketConnWrapper{PacketConn: packetConn}
 	}
 	err = h.tlsConfig.Start()
 	if err != nil {
@@ -159,6 +166,7 @@ func (h *Hysteria) acceptLoop() {
 		if err != nil {
 			return
 		}
+		h.logger.InfoContext(ctx, "inbound connection from ", conn.RemoteAddr())
 		go func() {
 			hErr := h.accept(ctx, conn)
 			if hErr != nil {
@@ -202,23 +210,51 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 	if err != nil {
 		return err
 	}
-	// TODO: set congestion control
+	conn.SetCongestionControl(hysteria.NewBrutalSender(congestion.ByteCount(serverSendBPS)))
 	go h.udpRecvLoop(conn)
-	var stream quic.Stream
 	for {
+		var stream quic.Stream
 		stream, err = conn.AcceptStream(ctx)
 		if err != nil {
 			return err
 		}
-		hErr := h.acceptStream(ctx, conn, stream)
-		if hErr != nil {
-			stream.Close()
-			NewError(h.logger, ctx, E.Cause(hErr, "process stream from ", conn.RemoteAddr()))
-		}
+		go func() {
+			hErr := h.acceptStream(ctx, conn /*&hysteria.StreamWrapper{Stream: stream}*/, stream)
+			if hErr != nil {
+				stream.Close()
+				NewError(h.logger, ctx, E.Cause(hErr, "process stream from ", conn.RemoteAddr()))
+			}
+		}()
 	}
 }
 
 func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
+	for {
+		packet, err := conn.ReceiveMessage()
+		if err != nil {
+			return
+		}
+		message, err := hysteria.ParseUDPMessage(packet)
+		if err != nil {
+			h.logger.Error("parse udp message: ", err)
+			continue
+		}
+		dfMsg := h.udpDefragger.Feed(message)
+		if dfMsg == nil {
+			continue
+		}
+		h.udpAccess.RLock()
+		ch, ok := h.udpSessions[dfMsg.SessionID]
+		if ok {
+			select {
+			case ch <- dfMsg:
+				// OK
+			default:
+				// Silently drop the message when the channel is full
+			}
+		}
+		h.udpAccess.RUnlock()
+	}
 }
 
 func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, stream quic.Stream) error {
@@ -226,15 +262,11 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	if err != nil {
 		return err
 	}
-	if request.UDP {
-		err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
-			Message: "unsupported",
-		}, nil)
-		if err != nil {
-			return err
-		}
-		stream.Close()
-		return nil
+	err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
+		OK: true,
+	})
+	if err != nil {
+		return err
 	}
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.tag
@@ -242,13 +274,43 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.SniffEnabled = h.listenOptions.SniffEnabled
 	metadata.SniffOverrideDestination = h.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(h.listenOptions.DomainStrategy)
-	metadata.Network = N.NetworkTCP
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port)
-	return h.router.RouteConnection(ctx, hysteria.NewServerConn(stream, metadata.Destination), metadata)
+	if !request.UDP {
+		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+		metadata.Network = N.NetworkTCP
+		return h.router.RouteConnection(ctx, hysteria.NewConn(stream, metadata.Destination), metadata)
+	} else {
+		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		var id uint32
+		h.udpAccess.Lock()
+		id = h.udpSessionId
+		nCh := make(chan *hysteria.UDPMessage, 1024)
+		h.udpSessions[id] = nCh
+		h.udpSessionId += 1
+		h.udpAccess.Unlock()
+		metadata.Network = N.NetworkUDP
+		packetConn := hysteria.NewPacketConn(conn, stream, id, metadata.Destination, nCh, common.Closer(func() error {
+			h.udpAccess.Lock()
+			if ch, ok := h.udpSessions[id]; ok {
+				close(ch)
+				delete(h.udpSessions, id)
+			}
+			h.udpAccess.Unlock()
+			return nil
+		}))
+		go packetConn.Hold()
+		return h.router.RoutePacketConnection(ctx, packetConn, metadata)
+	}
 }
 
 func (h *Hysteria) Close() error {
+	h.udpAccess.Lock()
+	for _, session := range h.udpSessions {
+		close(session)
+	}
+	h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
+	h.udpAccess.Unlock()
 	return common.Close(
 		h.listener,
 		common.PtrOrNil(h.tlsConfig),

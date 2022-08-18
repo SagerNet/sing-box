@@ -5,13 +5,15 @@ import (
 	"encoding/binary"
 	"io"
 	"math/rand"
+	"net"
+	"os"
 	"time"
 
+	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/lucas-clemente/quic-go"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 const (
@@ -177,13 +179,12 @@ func ReadClientRequest(stream io.Reader) (*ClientRequest, error) {
 	return &clientRequest, nil
 }
 
-func WriteClientRequest(stream io.Writer, request ClientRequest, payload []byte) error {
+func WriteClientRequest(stream io.Writer, request ClientRequest) error {
 	var requestLen int
 	requestLen += 1 // udp
 	requestLen += 2 // host len
 	requestLen += len(request.Host)
 	requestLen += 2 // port
-	requestLen += len(payload)
 	_buffer := buf.StackNewSize(requestLen)
 	defer common.KeepAlive(_buffer)
 	buffer := common.Dup(_buffer)
@@ -197,7 +198,6 @@ func WriteClientRequest(stream io.Writer, request ClientRequest, payload []byte)
 		binary.Write(buffer, binary.BigEndian, uint16(len(request.Host))),
 		common.Error(buffer.WriteString(request.Host)),
 		binary.Write(buffer, binary.BigEndian, request.Port),
-		common.Error(buffer.Write(payload)),
 	)
 	return common.Error(stream.Write(buffer.Bytes()))
 }
@@ -237,13 +237,12 @@ func ReadServerResponse(stream io.Reader) (*ServerResponse, error) {
 	return &serverResponse, nil
 }
 
-func WriteServerResponse(stream io.Writer, response ServerResponse, payload []byte) error {
+func WriteServerResponse(stream io.Writer, response ServerResponse) error {
 	var responseLen int
 	responseLen += 1 // ok
 	responseLen += 4 // udp session id
 	responseLen += 2 // message len
 	responseLen += len(response.Message)
-	responseLen += len(payload)
 	_buffer := buf.StackNewSize(responseLen)
 	defer common.KeepAlive(_buffer)
 	buffer := common.Dup(_buffer)
@@ -257,7 +256,6 @@ func WriteServerResponse(stream io.Writer, response ServerResponse, payload []by
 		binary.Write(buffer, binary.BigEndian, response.UDPSessionID),
 		binary.Write(buffer, binary.BigEndian, uint16(len(response.Message))),
 		common.Error(buffer.WriteString(response.Message)),
-		common.Error(buffer.Write(payload)),
 	)
 	return common.Error(stream.Write(buffer.Bytes()))
 }
@@ -341,9 +339,7 @@ func WriteUDPMessage(conn quic.Connection, message UDPMessage) error {
 	buffer := common.Dup(_buffer)
 	defer buffer.Release()
 	err := writeUDPMessage(conn, message, buffer)
-	// TODO: wait for change upstream
-	if /*errSize, ok := err.(quic.ErrMessageToLarge); ok*/ false {
-		const errSize = 0
+	if errSize, ok := err.(quic.ErrMessageToLarge); ok {
 		// need to frag
 		message.MsgID = uint16(rand.Intn(0xFFFF)) + 1 // msgID must be > 0 when fragCount > 1
 		fragMsgs := FragUDPMessage(message, int(errSize))
@@ -372,4 +368,143 @@ func writeUDPMessage(conn quic.Connection, message UDPMessage, buffer *buf.Buffe
 		common.Error(buffer.Write(message.Data)),
 	)
 	return conn.SendMessage(buffer.Bytes())
+}
+
+var _ net.Conn = (*Conn)(nil)
+
+type Conn struct {
+	quic.Stream
+	destination     M.Socksaddr
+	responseWritten bool
+}
+
+func NewConn(stream quic.Stream, destination M.Socksaddr) *Conn {
+	return &Conn{
+		Stream:      stream,
+		destination: destination,
+	}
+}
+
+func (c *Conn) LocalAddr() net.Addr {
+	return nil
+}
+
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.destination.TCPAddr()
+}
+
+func (c *Conn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *Conn) WriterReplaceable() bool {
+	return true
+}
+
+func (c *Conn) Upstream() any {
+	return c.Stream
+}
+
+type PacketConn struct {
+	session     quic.Connection
+	stream      quic.Stream
+	sessionId   uint32
+	destination M.Socksaddr
+	msgCh       <-chan *UDPMessage
+	closer      io.Closer
+}
+
+func NewPacketConn(session quic.Connection, stream quic.Stream, sessionId uint32, destination M.Socksaddr, msgCh <-chan *UDPMessage, closer io.Closer) *PacketConn {
+	return &PacketConn{
+		session:     session,
+		stream:      stream,
+		sessionId:   sessionId,
+		destination: destination,
+		msgCh:       msgCh,
+		closer:      closer,
+	}
+}
+
+func (c *PacketConn) Hold() {
+	// Hold the stream until it's closed
+	buf := make([]byte, 1024)
+	for {
+		_, err := c.stream.Read(buf)
+		if err != nil {
+			break
+		}
+	}
+	_ = c.Close()
+}
+
+func (c *PacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
+	msg := <-c.msgCh
+	if msg == nil {
+		err = net.ErrClosed
+		return
+	}
+	err = common.Error(buffer.Write(msg.Data))
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	return
+}
+
+func (c *PacketConn) ReadPacketThreadSafe() (buffer *buf.Buffer, destination M.Socksaddr, err error) {
+	msg := <-c.msgCh
+	if msg == nil {
+		err = net.ErrClosed
+		return
+	}
+	buffer = buf.As(msg.Data)
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	return
+}
+
+func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	return WriteUDPMessage(c.session, UDPMessage{
+		SessionID: c.sessionId,
+		Host:      destination.Unwrap().AddrString(),
+		Port:      destination.Port,
+		FragCount: 1,
+		Data:      buffer.Bytes(),
+	})
+}
+
+func (c *PacketConn) LocalAddr() net.Addr {
+	return nil
+}
+
+func (c *PacketConn) RemoteAddr() net.Addr {
+	return c.destination.UDPAddr()
+}
+
+func (c *PacketConn) SetDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *PacketConn) SetReadDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *PacketConn) SetWriteDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *PacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	return 0, nil, os.ErrInvalid
+}
+
+func (c *PacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (c *PacketConn) Read(b []byte) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (c *PacketConn) Write(b []byte) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (c *PacketConn) Close() error {
+	return common.Close(c.stream, c.closer)
 }

@@ -195,6 +195,8 @@ func (n *Naive) newConnection(ctx context.Context, conn net.Conn, source, destin
 	metadata.Network = N.NetworkTCP
 	metadata.Source = source
 	metadata.Destination = destination
+	n.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	n.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	hErr := n.router.RouteConnection(ctx, conn, metadata)
 	if hErr != nil {
 		conn.Close()
