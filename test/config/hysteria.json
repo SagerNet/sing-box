@@ -1,0 +1,9 @@
+{
+  "listen": ":10000",
+  "cert": "/etc/hysteria/cert.pem",
+  "key": "/etc/hysteria/key.pem",
+  "auth_str": "password",
+  "obfs": "fuck me till the daylight",
+  "up_mbps": 100,
+  "down_mbps": 100
+}

@@ -32,6 +32,7 @@ const (
 	ImageTrojan                = "trojangfw/trojan:latest"
 	ImageNaive                 = "pocat/naiveproxy:client"
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
+	ImageHysteria              = "tobyxdd/hysteria:latest"
 )
 
 var allImages = []string{
@@ -41,6 +42,7 @@ var allImages = []string{
 	ImageTrojan,
 	ImageNaive,
 	ImageBoringTun,
+	ImageHysteria,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")

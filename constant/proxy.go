@@ -15,6 +15,7 @@ const (
 	TypeTrojan      = "trojan"
 	TypeNaive       = "naive"
 	TypeWireGuard   = "wireguard"
+	TypeHysteria    = "hysteria"
 )
 
 const (
