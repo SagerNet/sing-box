@@ -60,6 +60,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			if err != nil {
 				return nil, err
 			}
+			logWriter = logFile
 		}
 		logFormatter := log.Formatter{
 			BaseTime:         createdAt,
