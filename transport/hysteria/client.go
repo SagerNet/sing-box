@@ -1,8 +1,13 @@
 package hysteria
 
 import (
+	"io"
 	"net"
+	"os"
+	"time"
 
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 
@@ -66,4 +71,108 @@ func (c *ClientConn) RemoteAddr() net.Addr {
 
 func (c *ClientConn) Upstream() any {
 	return c.Stream
+}
+
+type ClientPacketConn struct {
+	session     quic.Connection
+	stream      quic.Stream
+	sessionId   uint32
+	destination M.Socksaddr
+	msgCh       <-chan *UDPMessage
+	closer      io.Closer
+}
+
+func NewClientPacketConn(session quic.Connection, stream quic.Stream, sessionId uint32, destination M.Socksaddr, msgCh <-chan *UDPMessage, closer io.Closer) *ClientPacketConn {
+	return &ClientPacketConn{
+		session:     session,
+		stream:      stream,
+		sessionId:   sessionId,
+		destination: destination,
+		msgCh:       msgCh,
+		closer:      closer,
+	}
+}
+
+func (c *ClientPacketConn) Hold() {
+	// Hold the stream until it's closed
+	buf := make([]byte, 1024)
+	for {
+		_, err := c.stream.Read(buf)
+		if err != nil {
+			break
+		}
+	}
+	_ = c.Close()
+}
+
+func (c *ClientPacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
+	msg := <-c.msgCh
+	if msg == nil {
+		err = net.ErrClosed
+		return
+	}
+	err = common.Error(buffer.Write(msg.Data))
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	return
+}
+
+func (c *ClientPacketConn) ReadPacketThreadSafe() (buffer *buf.Buffer, destination M.Socksaddr, err error) {
+	msg := <-c.msgCh
+	if msg == nil {
+		err = net.ErrClosed
+		return
+	}
+	buffer = buf.As(msg.Data)
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	return
+}
+
+func (c *ClientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	return WriteUDPMessage(c.session, UDPMessage{
+		SessionID: c.sessionId,
+		Host:      destination.AddrString(),
+		Port:      destination.Port,
+		FragCount: 1,
+		Data:      buffer.Bytes(),
+	})
+}
+
+func (c *ClientPacketConn) LocalAddr() net.Addr {
+	return nil
+}
+
+func (c *ClientPacketConn) RemoteAddr() net.Addr {
+	return c.destination.UDPAddr()
+}
+
+func (c *ClientPacketConn) SetDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *ClientPacketConn) SetReadDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *ClientPacketConn) SetWriteDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *ClientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	panic("invalid")
+}
+
+func (c *ClientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	panic("invalid")
+}
+
+func (c *ClientPacketConn) Read(b []byte) (n int, err error) {
+	panic("invalid")
+}
+
+func (c *ClientPacketConn) Write(b []byte) (n int, err error) {
+	panic("invalid")
+}
+
+func (c *ClientPacketConn) Close() error {
+	return common.Close(c.stream, c.closer)
 }

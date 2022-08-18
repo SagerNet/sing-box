@@ -1,11 +1,16 @@
 package hysteria
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
+	"math/rand"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/lucas-clemente/quic-go"
 )
 
 const Version = 3
@@ -21,18 +26,6 @@ type ServerHello struct {
 	SendBPS uint64
 	RecvBPS uint64
 	Message string
-}
-
-type ClientRequest struct {
-	UDP  bool
-	Host string
-	Port uint16
-}
-
-type ServerResponse struct {
-	OK           bool
-	UDPSessionID uint32
-	Message      string
 }
 
 func WriteClientHello(stream io.Writer, hello ClientHello) error {
@@ -87,6 +80,18 @@ func ReadServerHello(stream io.Reader) (*ServerHello, error) {
 	return &serverHello, nil
 }
 
+type ClientRequest struct {
+	UDP  bool
+	Host string
+	Port uint16
+}
+
+type ServerResponse struct {
+	OK           bool
+	UDPSessionID uint32
+	Message      string
+}
+
 func WriteClientRequest(stream io.Writer, request ClientRequest, payload []byte) error {
 	var requestLen int
 	requestLen += 1 // udp
@@ -139,4 +144,116 @@ func ReadServerResponse(stream io.Reader) (*ServerResponse, error) {
 	}
 	serverResponse.Message = string(message)
 	return &serverResponse, nil
+}
+
+type UDPMessage struct {
+	SessionID uint32
+	Host      string
+	Port      uint16
+	MsgID     uint16 // doesn't matter when not fragmented, but must not be 0 when fragmented
+	FragID    uint8  // doesn't matter when not fragmented, starts at 0 when fragmented
+	FragCount uint8  // must be 1 when not fragmented
+	Data      []byte
+}
+
+func (m UDPMessage) HeaderSize() int {
+	return 4 + 2 + len(m.Host) + 2 + 2 + 1 + 1 + 2
+}
+
+func (m UDPMessage) Size() int {
+	return m.HeaderSize() + len(m.Data)
+}
+
+func ParseUDPMessage(packet []byte) (message UDPMessage, err error) {
+	reader := bytes.NewReader(packet)
+	err = binary.Read(reader, binary.BigEndian, &message.SessionID)
+	if err != nil {
+		return
+	}
+	var hostLen uint16
+	err = binary.Read(reader, binary.BigEndian, &hostLen)
+	if err != nil {
+		return
+	}
+	_, err = reader.Seek(int64(hostLen), io.SeekCurrent)
+	if err != nil {
+		return
+	}
+	message.Host = string(packet[6 : 6+hostLen])
+	err = binary.Read(reader, binary.BigEndian, &message.Port)
+	if err != nil {
+		return
+	}
+	err = binary.Read(reader, binary.BigEndian, &message.MsgID)
+	if err != nil {
+		return
+	}
+	err = binary.Read(reader, binary.BigEndian, &message.FragID)
+	if err != nil {
+		return
+	}
+	err = binary.Read(reader, binary.BigEndian, &message.FragCount)
+	if err != nil {
+		return
+	}
+	var dataLen uint16
+	err = binary.Read(reader, binary.BigEndian, &dataLen)
+	if err != nil {
+		return
+	}
+	if reader.Len() != int(dataLen) {
+		err = E.New("invalid data length")
+	}
+	dataOffset := int(reader.Size()) - reader.Len()
+	message.Data = packet[dataOffset:]
+	return
+}
+
+func WriteUDPMessage(conn quic.Connection, message UDPMessage) error {
+	var messageLen int
+	messageLen += 4 // session id
+	messageLen += 2 // host len
+	messageLen += len(message.Host)
+	messageLen += 2 // port
+	messageLen += 2 // msg id
+	messageLen += 1 // frag id
+	messageLen += 1 // frag count
+	messageLen += 2 // data len
+	messageLen += len(message.Data)
+	_buffer := buf.StackNewSize(messageLen)
+	defer common.KeepAlive(_buffer)
+	buffer := common.Dup(_buffer)
+	defer buffer.Release()
+	err := writeUDPMessage(conn, message, buffer)
+	// TODO: wait for change upstream
+	if /*errSize, ok := err.(quic.ErrMessageToLarge); ok*/ false {
+		const errSize = 0
+		// need to frag
+		message.MsgID = uint16(rand.Intn(0xFFFF)) + 1 // msgID must be > 0 when fragCount > 1
+		fragMsgs := FragUDPMessage(message, int(errSize))
+		for _, fragMsg := range fragMsgs {
+			buffer.FullReset()
+			err = writeUDPMessage(conn, fragMsg, buffer)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return err
+}
+
+func writeUDPMessage(conn quic.Connection, message UDPMessage, buffer *buf.Buffer) error {
+	common.Must(
+		binary.Write(buffer, binary.BigEndian, message.SessionID),
+		binary.Write(buffer, binary.BigEndian, uint16(len(message.Host))),
+		common.Error(buffer.WriteString(message.Host)),
+		binary.Write(buffer, binary.BigEndian, message.Port),
+		binary.Write(buffer, binary.BigEndian, message.MsgID),
+		binary.Write(buffer, binary.BigEndian, message.FragID),
+		binary.Write(buffer, binary.BigEndian, message.FragCount),
+		binary.Write(buffer, binary.BigEndian, uint16(len(message.Data))),
+		common.Error(buffer.Write(message.Data)),
+	)
+	return conn.SendMessage(buffer.Bytes())
 }

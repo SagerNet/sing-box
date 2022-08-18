@@ -40,17 +40,20 @@ var _ adapter.Outbound = (*Hysteria)(nil)
 
 type Hysteria struct {
 	myOutboundAdapter
-	ctx        context.Context
-	dialer     N.Dialer
-	serverAddr M.Socksaddr
-	tlsConfig  *tls.Config
-	quicConfig *quic.Config
-	authKey    []byte
-	xplusKey   []byte
-	sendBPS    uint64
-	recvBPS    uint64
-	connAccess sync.Mutex
-	conn       quic.Connection
+	ctx          context.Context
+	dialer       N.Dialer
+	serverAddr   M.Socksaddr
+	tlsConfig    *tls.Config
+	quicConfig   *quic.Config
+	authKey      []byte
+	xplusKey     []byte
+	sendBPS      uint64
+	recvBPS      uint64
+	connAccess   sync.Mutex
+	conn         quic.Connection
+	udpAccess    sync.RWMutex
+	udpSessions  map[uint32]chan *hysteria.UDPMessage
+	udpDefragger hysteria.Defragger
 }
 
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaOutboundOptions) (*Hysteria, error) {
@@ -162,6 +165,8 @@ func (h *Hysteria) offer(ctx context.Context) (quic.Connection, error) {
 	}
 	h.connAccess.Lock()
 	defer h.connAccess.Unlock()
+	h.udpAccess.Lock()
+	defer h.udpAccess.Unlock()
 	conn = h.conn
 	if conn != nil && !common.Done(conn.Context()) {
 		return conn, nil
@@ -171,6 +176,14 @@ func (h *Hysteria) offer(ctx context.Context) (quic.Connection, error) {
 		return nil, err
 	}
 	h.conn = conn
+	if common.Contains(h.network, N.NetworkUDP) {
+		for _, session := range h.udpSessions {
+			close(session)
+		}
+		h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
+		h.udpDefragger = hysteria.Defragger{}
+		go h.recvLoop(conn)
+	}
 	return conn, nil
 }
 
@@ -214,16 +227,74 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 	return quicConn, nil
 }
 
+func (h *Hysteria) recvLoop(conn quic.Connection) {
+	for {
+		packet, err := conn.ReceiveMessage()
+		if err != nil {
+			return
+		}
+		message, err := hysteria.ParseUDPMessage(packet)
+		if err != nil {
+			h.logger.Error("parse udp message: ", err)
+			continue
+		}
+		dfMsg := h.udpDefragger.Feed(message)
+		if dfMsg == nil {
+			continue
+		}
+		h.udpAccess.RLock()
+		ch, ok := h.udpSessions[dfMsg.SessionID]
+		if ok {
+			select {
+			case ch <- dfMsg:
+				// OK
+			default:
+				// Silently drop the message when the channel is full
+			}
+		}
+		h.udpAccess.RUnlock()
+	}
+}
+
 func (h *Hysteria) Close() error {
 	h.connAccess.Lock()
 	defer h.connAccess.Unlock()
+	h.udpAccess.Lock()
+	defer h.udpAccess.Unlock()
 	if h.conn != nil {
 		h.conn.CloseWithError(0, "")
 	}
+	for _, session := range h.udpSessions {
+		close(session)
+	}
+	h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
 	return nil
 }
 
 func (h *Hysteria) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	switch N.NetworkName(network) {
+	case N.NetworkTCP:
+		conn, err := h.offer(ctx)
+		if err != nil {
+			return nil, err
+		}
+		stream, err := conn.OpenStream()
+		if err != nil {
+			return nil, err
+		}
+		return hysteria.NewClientConn(stream, destination), nil
+	case N.NetworkUDP:
+		conn, err := h.ListenPacket(ctx, destination)
+		if err != nil {
+			return nil, err
+		}
+		return conn.(*hysteria.ClientPacketConn), nil
+	default:
+		return nil, E.New("unsupported network: ", network)
+	}
+}
+
+func (h *Hysteria) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	conn, err := h.offer(ctx)
 	if err != nil {
 		return nil, err
@@ -232,16 +303,43 @@ func (h *Hysteria) DialContext(ctx context.Context, network string, destination 
 	if err != nil {
 		return nil, err
 	}
-	switch N.NetworkName(network) {
-	case N.NetworkTCP:
-		return hysteria.NewClientConn(stream, destination), nil
-	default:
-		return nil, E.New("unsupported network: ", network)
+	err = hysteria.WriteClientRequest(stream, hysteria.ClientRequest{
+		UDP:  true,
+		Host: destination.AddrString(),
+		Port: destination.Port,
+	}, nil)
+	if err != nil {
+		stream.Close()
+		return nil, err
 	}
-}
-
-func (h *Hysteria) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return nil, os.ErrInvalid
+	var response *hysteria.ServerResponse
+	response, err = hysteria.ReadServerResponse(stream)
+	if err != nil {
+		stream.Close()
+		return nil, err
+	}
+	if !response.OK {
+		stream.Close()
+		return nil, E.New("remote error: ", response.Message)
+	}
+	h.udpAccess.Lock()
+	nCh := make(chan *hysteria.UDPMessage, 1024)
+	// Store the current session map for CloseFunc below
+	// to ensures that we are adding and removing sessions on the same map,
+	// as reconnecting will reassign the map
+	h.udpSessions[response.UDPSessionID] = nCh
+	h.udpAccess.Unlock()
+	packetConn := hysteria.NewClientPacketConn(conn, stream, response.UDPSessionID, destination, nCh, common.Closer(func() error {
+		h.udpAccess.Lock()
+		if ch, ok := h.udpSessions[response.UDPSessionID]; ok {
+			close(ch)
+			delete(h.udpSessions, response.UDPSessionID)
+		}
+		h.udpAccess.Unlock()
+		return nil
+	}))
+	go packetConn.Hold()
+	return packetConn, nil
 }
 
 func (h *Hysteria) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

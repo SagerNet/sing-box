@@ -381,7 +381,6 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 			mux.Lock()
 			hashMap[i] = hash[:]
 			mux.Unlock()
-			println("write ti ", addr.String())
 			if _, err = pc.WriteTo(buf, addr); err != nil {
 				t.Log(err)
 				continue

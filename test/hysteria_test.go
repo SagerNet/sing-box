@@ -56,5 +56,5 @@ func TestHysteriaOutbound(t *testing.T) {
 			},
 		},
 	})
-	testTCP(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }
