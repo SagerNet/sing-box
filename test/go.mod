@@ -11,7 +11,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220812082714-484a11603b48
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220818151432-7cbd7d634617
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234
