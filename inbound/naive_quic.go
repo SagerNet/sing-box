@@ -6,10 +6,9 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/http3"
 	M "github.com/sagernet/sing/common/metadata"
-
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
 )
 
 func (n *Naive) configureHTTP3Listener(listenAddr string) error {
