@@ -46,7 +46,7 @@ type Naive struct {
 }
 
 var (
-	ErrNaiveTLSRequired  = E.New("TLS required")
+	ErrTLSRequired       = E.New("TLS required")
 	ErrNaiveMissingUsers = E.New("missing users")
 )
 
@@ -61,7 +61,7 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, ErrNaiveTLSRequired
+		return nil, ErrTLSRequired
 	}
 	if len(options.Users) == 0 {
 		return nil, ErrNaiveMissingUsers

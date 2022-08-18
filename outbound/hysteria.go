@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -24,16 +23,6 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/lucas-clemente/quic-go"
-)
-
-const (
-	hyMbpsToBps                      = 125000
-	hyMinSpeedBPS                    = 16384
-	hyDefaultStreamReceiveWindow     = 15728640 // 15 MB/s
-	hyDefaultConnectionReceiveWindow = 67108864 // 64 MB/s
-	hyDefaultMaxIncomingStreams      = 1024
-	hyDefaultALPN                    = "hysteria"
-	hyKeepAlivePeriod                = 10 * time.Second
 )
 
 var _ adapter.Outbound = (*Hysteria)(nil)
@@ -65,7 +54,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.ALPN != "" {
 		tlsConfig.NextProtos = []string{options.ALPN}
 	} else {
-		tlsConfig.NextProtos = []string{hyDefaultALPN}
+		tlsConfig.NextProtos = []string{hysteria.DefaultALPN}
 	}
 	var ca []byte
 	var err error
@@ -90,20 +79,20 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		MaxStreamReceiveWindow:         options.ReceiveWindowConn,
 		InitialConnectionReceiveWindow: options.ReceiveWindow,
 		MaxConnectionReceiveWindow:     options.ReceiveWindow,
-		KeepAlivePeriod:                hyKeepAlivePeriod,
+		KeepAlivePeriod:                hysteria.KeepAlivePeriod,
 		DisablePathMTUDiscovery:        options.DisableMTUDiscovery,
 		EnableDatagrams:                true,
 	}
 	if options.ReceiveWindowConn == 0 {
-		quicConfig.InitialStreamReceiveWindow = hyDefaultStreamReceiveWindow
-		quicConfig.MaxStreamReceiveWindow = hyDefaultStreamReceiveWindow
+		quicConfig.InitialStreamReceiveWindow = hysteria.DefaultStreamReceiveWindow
+		quicConfig.MaxStreamReceiveWindow = hysteria.DefaultStreamReceiveWindow
 	}
 	if options.ReceiveWindow == 0 {
-		quicConfig.InitialConnectionReceiveWindow = hyDefaultConnectionReceiveWindow
-		quicConfig.MaxConnectionReceiveWindow = hyDefaultConnectionReceiveWindow
+		quicConfig.InitialConnectionReceiveWindow = hysteria.DefaultConnectionReceiveWindow
+		quicConfig.MaxConnectionReceiveWindow = hysteria.DefaultConnectionReceiveWindow
 	}
 	if quicConfig.MaxIncomingStreams == 0 {
-		quicConfig.MaxIncomingStreams = hyDefaultMaxIncomingStreams
+		quicConfig.MaxIncomingStreams = hysteria.DefaultMaxIncomingStreams
 	}
 	var auth []byte
 	if len(options.Auth) > 0 {
@@ -122,7 +111,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			return nil, E.New("invalid up speed format: ", options.Up)
 		}
 	} else {
-		up = uint64(options.UpMbps) * hyMbpsToBps
+		up = uint64(options.UpMbps) * hysteria.MbpsToBps
 	}
 	if len(options.Down) > 0 {
 		down = hysteria.StringToBps(options.Down)
@@ -130,12 +119,12 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			return nil, E.New("invalid down speed format: ", options.Down)
 		}
 	} else {
-		down = uint64(options.DownMbps) * hyMbpsToBps
+		down = uint64(options.DownMbps) * hysteria.MbpsToBps
 	}
-	if up < hyMinSpeedBPS {
+	if up < hysteria.MinSpeedBPS {
 		return nil, E.New("invalid up speed")
 	}
-	if down < hyMinSpeedBPS {
+	if down < hysteria.MinSpeedBPS {
 		return nil, E.New("invalid down speed")
 	}
 	return &Hysteria{
@@ -214,7 +203,7 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 		Auth:    h.authKey,
 	})
 	if err != nil {
-		return nil, E.Cause(err, "write hysteria client hello")
+		return nil, err
 	}
 	serverHello, err := hysteria.ReadServerHello(controlStream)
 	if err != nil {

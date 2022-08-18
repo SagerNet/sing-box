@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"math/rand"
+	"time"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -13,19 +14,22 @@ import (
 	"github.com/lucas-clemente/quic-go"
 )
 
+const (
+	MbpsToBps                      = 125000
+	MinSpeedBPS                    = 16384
+	DefaultStreamReceiveWindow     = 15728640 // 15 MB/s
+	DefaultConnectionReceiveWindow = 67108864 // 64 MB/s
+	DefaultMaxIncomingStreams      = 1024
+	DefaultALPN                    = "hysteria"
+	KeepAlivePeriod                = 10 * time.Second
+)
+
 const Version = 3
 
 type ClientHello struct {
 	SendBPS uint64
 	RecvBPS uint64
 	Auth    []byte
-}
-
-type ServerHello struct {
-	OK      bool
-	SendBPS uint64
-	RecvBPS uint64
-	Message string
 }
 
 func WriteClientHello(stream io.Writer, hello ClientHello) error {
@@ -47,6 +51,44 @@ func WriteClientHello(stream io.Writer, hello ClientHello) error {
 		common.Error(request.Write(hello.Auth)),
 	)
 	return common.Error(stream.Write(request.Bytes()))
+}
+
+func ReadClientHello(reader io.Reader) (*ClientHello, error) {
+	var version uint8
+	err := binary.Read(reader, binary.BigEndian, &version)
+	if err != nil {
+		return nil, err
+	}
+	if version != Version {
+		return nil, E.New("unsupported client version: ", version)
+	}
+	var clientHello ClientHello
+	err = binary.Read(reader, binary.BigEndian, &clientHello.SendBPS)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Read(reader, binary.BigEndian, &clientHello.RecvBPS)
+	if err != nil {
+		return nil, err
+	}
+	var authLen uint16
+	err = binary.Read(reader, binary.BigEndian, &authLen)
+	if err != nil {
+		return nil, err
+	}
+	clientHello.Auth = make([]byte, authLen)
+	_, err = io.ReadFull(reader, clientHello.Auth)
+	if err != nil {
+		return nil, err
+	}
+	return &clientHello, nil
+}
+
+type ServerHello struct {
+	OK      bool
+	SendBPS uint64
+	RecvBPS uint64
+	Message string
 }
 
 func ReadServerHello(stream io.Reader) (*ServerHello, error) {
@@ -80,16 +122,59 @@ func ReadServerHello(stream io.Reader) (*ServerHello, error) {
 	return &serverHello, nil
 }
 
+func WriteServerHello(stream io.Writer, hello ServerHello) error {
+	var responseLen int
+	responseLen += 1 // ok
+	responseLen += 8 // sendBPS
+	responseLen += 8 // recvBPS
+	responseLen += 2 // message len
+	responseLen += len(hello.Message)
+	_response := buf.StackNewSize(responseLen)
+	defer common.KeepAlive(_response)
+	response := common.Dup(_response)
+	defer response.Release()
+	if hello.OK {
+		common.Must(response.WriteByte(1))
+	} else {
+		common.Must(response.WriteByte(0))
+	}
+	common.Must(
+		binary.Write(response, binary.BigEndian, hello.SendBPS),
+		binary.Write(response, binary.BigEndian, hello.RecvBPS),
+		binary.Write(response, binary.BigEndian, uint16(len(hello.Message))),
+		common.Error(response.WriteString(hello.Message)),
+	)
+	return common.Error(stream.Write(response.Bytes()))
+}
+
 type ClientRequest struct {
 	UDP  bool
 	Host string
 	Port uint16
 }
 
-type ServerResponse struct {
-	OK           bool
-	UDPSessionID uint32
-	Message      string
+func ReadClientRequest(stream io.Reader) (*ClientRequest, error) {
+	var clientRequest ClientRequest
+	err := binary.Read(stream, binary.BigEndian, &clientRequest.UDP)
+	if err != nil {
+		return nil, err
+	}
+	var hostLen uint16
+	err = binary.Read(stream, binary.BigEndian, &hostLen)
+	if err != nil {
+		return nil, err
+	}
+	host := make([]byte, hostLen)
+	_, err = io.ReadFull(stream, host)
+	if err != nil {
+		return nil, err
+	}
+	clientRequest.Host = string(host)
+	err = binary.Read(stream, binary.BigEndian, &clientRequest.Port)
+	if err != nil {
+		return nil, err
+	}
+	return &clientRequest, nil
 }
 
 func WriteClientRequest(stream io.Writer, request ClientRequest, payload []byte) error {
@@ -115,6 +200,12 @@ func WriteClientRequest(stream io.Writer, request ClientRequest, payload []byte)
 		common.Error(buffer.Write(payload)),
 	)
 	return common.Error(stream.Write(buffer.Bytes()))
+}
+
+type ServerResponse struct {
+	OK           bool
+	UDPSessionID uint32
+	Message      string
 }
 
 func ReadServerResponse(stream io.Reader) (*ServerResponse, error) {
@@ -144,6 +235,31 @@ func ReadServerResponse(stream io.Reader) (*ServerResponse, error) {
 	}
 	serverResponse.Message = string(message)
 	return &serverResponse, nil
+}
+
+func WriteServerResponse(stream io.Writer, response ServerResponse, payload []byte) error {
+	var responseLen int
+	responseLen += 1 // ok
+	responseLen += 4 // udp session id
+	responseLen += 2 // message len
+	responseLen += len(response.Message)
+	responseLen += len(payload)
+	_buffer := buf.StackNewSize(responseLen)
+	defer common.KeepAlive(_buffer)
+	buffer := common.Dup(_buffer)
+	defer buffer.Release()
+	if response.OK {
+		common.Must(buffer.WriteByte(1))
+	} else {
+		common.Must(buffer.WriteByte(0))
+	}
+	common.Must(
+		binary.Write(buffer, binary.BigEndian, response.UDPSessionID),
+		binary.Write(buffer, binary.BigEndian, uint16(len(response.Message))),
+		common.Error(buffer.WriteString(response.Message)),
+		common.Error(buffer.Write(payload)),
+	)
+	return common.Error(stream.Write(buffer.Bytes()))
 }
 
 type UDPMessage struct {

@@ -49,7 +49,7 @@ func (c *ClientConn) Write(b []byte) (n int, err error) {
 	if !c.requestWritten {
 		err = WriteClientRequest(c.Stream, ClientRequest{
 			UDP:  false,
-			Host: c.destination.AddrString(),
+			Host: c.destination.Unwrap().AddrString(),
 			Port: c.destination.Port,
 		}, b)
 		if err != nil {
@@ -71,6 +71,14 @@ func (c *ClientConn) RemoteAddr() net.Addr {
 
 func (c *ClientConn) Upstream() any {
 	return c.Stream
+}
+
+func (c *ClientConn) ReaderReplaceable() bool {
+	return c.responseRead
+}
+
+func (c *ClientConn) WriterReplaceable() bool {
+	return c.requestWritten
 }
 
 type ClientPacketConn struct {
@@ -130,7 +138,7 @@ func (c *ClientPacketConn) ReadPacketThreadSafe() (buffer *buf.Buffer, destinati
 func (c *ClientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	return WriteUDPMessage(c.session, UDPMessage{
 		SessionID: c.sessionId,
-		Host:      destination.AddrString(),
+		Host:      destination.Unwrap().AddrString(),
 		Port:      destination.Port,
 		FragCount: 1,
 		Data:      buffer.Bytes(),
@@ -158,19 +166,19 @@ func (c *ClientPacketConn) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *ClientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	panic("invalid")
+	return 0, nil, os.ErrInvalid
 }
 
 func (c *ClientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	panic("invalid")
+	return 0, os.ErrInvalid
 }
 
 func (c *ClientPacketConn) Read(b []byte) (n int, err error) {
-	panic("invalid")
+	return 0, os.ErrInvalid
 }
 
 func (c *ClientPacketConn) Write(b []byte) (n int, err error) {
-	panic("invalid")
+	return 0, os.ErrInvalid
 }
 
 func (c *ClientPacketConn) Close() error {

@@ -8,6 +8,81 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
+func TestHysteriaSelf(t *testing.T) {
+	if !C.QUIC_AVAILABLE {
+		t.Skip("QUIC not included")
+	}
+	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+	startInstance(t, option.Options{
+		Log: &option.LogOptions{
+			Level: "trace",
+		},
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeHysteria,
+				HysteriaOptions: option.HysteriaInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					UpMbps:     100,
+					DownMbps:   100,
+					AuthString: "password",
+					Obfs:       "fuck me till the daylight",
+					TLS: &option.InboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+						KeyPath:         keyPem,
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeHysteria,
+				Tag:  "hy-out",
+				HysteriaOutbound: option.HysteriaOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					UpMbps:     100,
+					DownMbps:   100,
+					AuthString: "password",
+					Obfs:       "fuck me till the daylight",
+					CustomCA:   caPem,
+					ServerName: "example.org",
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					DefaultOptions: option.DefaultRule{
+						Inbound:  []string{"mixed-in"},
+						Outbound: "hy-out",
+					},
+				},
+			},
+		},
+	})
+	testTCP(t, clientPort, testPort)
+}
+
 func TestHysteriaOutbound(t *testing.T) {
 	if !C.QUIC_AVAILABLE {
 		t.Skip("QUIC not included")

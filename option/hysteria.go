@@ -1,23 +1,38 @@
 package option
 
+type HysteriaInboundOptions struct {
+	ListenOptions
+	Up                  string             `json:"up,omitempty"`
+	UpMbps              int                `json:"up_mbps,omitempty"`
+	Down                string             `json:"down,omitempty"`
+	DownMbps            int                `json:"down_mbps,omitempty"`
+	Obfs                string             `json:"obfs,omitempty"`
+	Auth                []byte             `json:"auth,omitempty"`
+	AuthString          string             `json:"auth_str,omitempty"`
+	ReceiveWindowConn   uint64             `json:"recv_window_conn,omitempty"`
+	ReceiveWindowClient uint64             `json:"recv_window_client,omitempty"`
+	MaxConnClient       int                `json:"max_conn_client,omitempty"`
+	DisableMTUDiscovery bool               `json:"disable_mtu_discovery,omitempty"`
+	TLS                 *InboundTLSOptions `json:"tls,omitempty"`
+}
+
 type HysteriaOutboundOptions struct {
 	OutboundDialerOptions
 	ServerOptions
-	Protocol            string      `json:"protocol"`
-	Up                  string      `json:"up"`
-	UpMbps              int         `json:"up_mbps"`
-	Down                string      `json:"down"`
-	DownMbps            int         `json:"down_mbps"`
-	Obfs                string      `json:"obfs"`
-	Auth                []byte      `json:"auth"`
-	AuthString          string      `json:"auth_str"`
-	ALPN                string      `json:"alpn"`
-	ServerName          string      `json:"server_name"`
-	Insecure            bool        `json:"insecure"`
-	CustomCA            string      `json:"ca"`
-	CustomCAStr         string      `json:"ca_str"`
-	ReceiveWindowConn   uint64      `json:"recv_window_conn"`
-	ReceiveWindow       uint64      `json:"recv_window"`
-	DisableMTUDiscovery bool        `json:"disable_mtu_discovery"`
+	Up                  string      `json:"up,omitempty"`
+	UpMbps              int         `json:"up_mbps,omitempty"`
+	Down                string      `json:"down,omitempty"`
+	DownMbps            int         `json:"down_mbps,omitempty"`
+	Obfs                string      `json:"obfs,omitempty"`
+	Auth                []byte      `json:"auth,omitempty"`
+	AuthString          string      `json:"auth_str,omitempty"`
+	ALPN                string      `json:"alpn,omitempty"`
+	ServerName          string      `json:"server_name,omitempty"`
+	Insecure            bool        `json:"insecure,omitempty"`
+	CustomCA            string      `json:"ca,omitempty"`
+	CustomCAStr         string      `json:"ca_str,omitempty"`
+	ReceiveWindowConn   uint64      `json:"recv_window_conn,omitempty"`
+	ReceiveWindow       uint64      `json:"recv_window,omitempty"`
+	DisableMTUDiscovery bool        `json:"disable_mtu_discovery,omitempty"`
 	Network             NetworkList `json:"network,omitempty"`
 }
