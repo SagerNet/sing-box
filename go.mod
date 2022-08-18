@@ -17,7 +17,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522
 	github.com/sagernet/sing-dns v0.0.0-20220817120950-9246726e3e53
-	github.com/sagernet/sing-shadowsocks v0.0.0-20220818151432-7cbd7d634617
+	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220818020810-9c905191f63d
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
