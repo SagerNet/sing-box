@@ -118,7 +118,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	if len(options.TLS.ALPN) == 0 {
 		options.TLS.ALPN = []string{hysteria.DefaultALPN}
 	}
-	tlsConfig, err := NewTLSConfig(logger, common.PtrValueOrDefault(options.TLS))
+	tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +155,7 @@ func (h *Hysteria) Start() error {
 		return err
 	}
 	h.listener = listener
+	h.logger.Info("udp server started at ", listener.Addr())
 	go h.acceptLoop()
 	return nil
 }
