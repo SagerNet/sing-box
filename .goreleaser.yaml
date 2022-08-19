@@ -13,6 +13,7 @@ builds:
     tags:
       - with_clash_api
       - with_quic
+      - with_acme
     env:
       - CGO_ENABLED=0
     targets:

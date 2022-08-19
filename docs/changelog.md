@@ -1,3 +1,21 @@
+#### 2022/08/19
+
+* Add Hysteria [Inbound](/configuration/inbound/hysteria) and [Outbund](/configuration/outbound/hysteria)
+* Add [ACME TLS certificate issuer](/configuration/shared/tls)
+* Allow read config from stdin (-c stdin)
+* Update gVisor to 20220815.0
+
+#### 2022/08/18
+
+* Fix find process with lwip stack
+* Fix crash on shadowsocks server
+* Fix crash on darwin tun
+* Fix write log to file
+
+#### 2022/08/17
+
+* Improve async dns transports
+
 #### 2022/08/16
 
 * Add ip_version (route/dns) rule item

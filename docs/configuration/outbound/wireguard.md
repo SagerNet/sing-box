@@ -32,6 +32,10 @@
 }
 ```
 
+!!! warning ""
+
+    WireGuard is not included by default, see [Installation](/#Installation).
+
 ### WireGuard Fields
 
 #### server
