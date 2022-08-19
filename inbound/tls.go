@@ -133,19 +133,18 @@ func NewTLSConfig(ctx context.Context, logger log.Logger, options option.Inbound
 	var acmeService adapter.Service
 	var err error
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
-		tlsConfig, acmeService, err = startACME(ctx, common.PtrValueOrDefault(options.ACME))
+		tlsConfig, acmeService, err = startACME(ctx, logger, common.PtrValueOrDefault(options.ACME))
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		tlsConfig = &tls.Config{}
 	}
-	tlsConfig.NextProtos = []string{}
 	if options.ServerName != "" {
 		tlsConfig.ServerName = options.ServerName
 	}
 	if len(options.ALPN) > 0 {
-		tlsConfig.NextProtos = options.ALPN
+		tlsConfig.NextProtos = append(tlsConfig.NextProtos, options.ALPN...)
 	}
 	if options.MinVersion != "" {
 		minVersion, err := option.ParseTLSVersion(options.MinVersion)
