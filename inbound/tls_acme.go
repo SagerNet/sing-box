@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 )
 
 type acmeWrapper struct {
@@ -28,7 +29,7 @@ func (w *acmeWrapper) Close() error {
 	return nil
 }
 
-func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
+func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":
@@ -46,21 +47,28 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		storage = &certmagic.FileStorage{
 			Path: options.DataDirectory,
 		}
+	} else {
+		storage = certmagic.Default.Storage
 	}
-	config := certmagic.New(certmagic.NewCache(certmagic.CacheOptions{}), certmagic.Config{
+	config := &certmagic.Config{
 		DefaultServerName: options.DefaultServerName,
-		Issuers: []certmagic.Issuer{
-			&certmagic.ACMEIssuer{
-				CA:                      acmeServer,
-				Email:                   options.Email,
-				Agreed:                  true,
-				DisableHTTPChallenge:    options.DisableHTTPChallenge,
-				DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
-				AltHTTPPort:             int(options.AlternativeHTTPPort),
-				AltTLSALPNPort:          int(options.AlternativeTLSPort),
-			},
+		Storage:           storage,
+	}
+	config.Issuers = []certmagic.Issuer{
+		certmagic.NewACMEIssuer(config, certmagic.ACMEIssuer{
+			CA:                      acmeServer,
+			Email:                   options.Email,
+			Agreed:                  true,
+			DisableHTTPChallenge:    options.DisableHTTPChallenge,
+			DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
+			AltHTTPPort:             int(options.AlternativeHTTPPort),
+			AltTLSALPNPort:          int(options.AlternativeTLSPort),
+		}),
+	}
+	config = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
+			return config, nil
 		},
-		Storage: storage,
-	})
+	}), *config)
 	return config.TLSConfig(), &acmeWrapper{ctx, config, options.Domain}, nil
 }
