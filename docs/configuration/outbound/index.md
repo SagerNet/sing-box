@@ -23,6 +23,7 @@
 | `vmess`       | [VMess](./vmess)             |
 | `trojan`      | [Trojan](./trojan)           |
 | `wireguard`   | [Wireguard](./wireguard)     |
+| `hysteria`    | [Hysteria](./hysteria)       |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 

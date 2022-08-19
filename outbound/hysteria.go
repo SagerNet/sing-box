@@ -5,9 +5,7 @@ package outbound
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"net"
-	"os"
 	"sync"
 
 	"github.com/sagernet/quic-go"
@@ -45,34 +43,19 @@ type Hysteria struct {
 	udpDefragger hysteria.Defragger
 }
 
+var errTLSRequired = E.New("TLS required")
+
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaOutboundOptions) (*Hysteria, error) {
-	tlsConfig := &tls.Config{
-		ServerName:         options.ServerName,
-		InsecureSkipVerify: options.Insecure,
-		MinVersion:         tls.VersionTLS13,
+	if options.TLS == nil || !options.TLS.Enabled {
+		return nil, errTLSRequired
 	}
-	if options.ALPN != "" {
-		tlsConfig.NextProtos = []string{options.ALPN}
-	} else {
+	tlsConfig, err := dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.MinVersion = tls.VersionTLS13
+	if len(tlsConfig.NextProtos) == 0 {
 		tlsConfig.NextProtos = []string{hysteria.DefaultALPN}
-	}
-	var ca []byte
-	var err error
-	if options.CustomCA != "" {
-		ca, err = os.ReadFile(options.CustomCA)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if options.CustomCAStr != "" {
-		ca = []byte(options.CustomCAStr)
-	}
-	if len(ca) > 0 {
-		cp := x509.NewCertPool()
-		if !cp.AppendCertsFromPEM(ca) {
-			return nil, E.New("parse ca failed")
-		}
-		tlsConfig.RootCAs = cp
 	}
 	quicConfig := &quic.Config{
 		InitialStreamReceiveWindow:     options.ReceiveWindowConn,

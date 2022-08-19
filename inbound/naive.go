@@ -45,10 +45,7 @@ type Naive struct {
 	h3Server      any
 }
 
-var (
-	ErrTLSRequired       = E.New("TLS required")
-	ErrNaiveMissingUsers = E.New("missing users")
-)
+var errTLSRequired = E.New("TLS required")
 
 func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.NaiveInboundOptions) (*Naive, error) {
 	inbound := &Naive{
@@ -61,10 +58,10 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, ErrTLSRequired
+		return nil, errTLSRequired
 	}
 	if len(options.Users) == 0 {
-		return nil, ErrNaiveMissingUsers
+		return nil, E.New("missing users")
 	}
 	tlsConfig, err := NewTLSConfig(logger, common.PtrValueOrDefault(options.TLS))
 	if err != nil {

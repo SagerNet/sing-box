@@ -52,7 +52,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		MaxConnectionReceiveWindow:     options.ReceiveWindowClient,
 		MaxIncomingStreams:             int64(options.MaxConnClient),
 		KeepAlivePeriod:                hysteria.KeepAlivePeriod,
-		DisablePathMTUDiscovery:        options.DisableMTUDiscovery,
+		DisablePathMTUDiscovery:        options.DisableMTUDiscovery || !(C.IsLinux || C.IsWindows),
 		EnableDatagrams:                true,
 	}
 	if options.ReceiveWindowConn == 0 {
@@ -113,7 +113,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		udpSessions:   make(map[uint32]chan *hysteria.UDPMessage),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, ErrTLSRequired
+		return nil, errTLSRequired
 	}
 	if len(options.TLS.ALPN) == 0 {
 		options.TLS.ALPN = []string{hysteria.DefaultALPN}

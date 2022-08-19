@@ -50,6 +50,7 @@ nav:
           - VMess: configuration/inbound/vmess.md
           - Trojan: configuration/inbound/trojan.md
           - Naive: configuration/inbound/naive.md
+          - Hysteria: configuration/inbound/hysteria.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -63,6 +64,7 @@ nav:
           - VMess: configuration/outbound/vmess.md
           - Trojan: configuration/outbound/trojan.md
           - WireGuard: configuration/outbound/wireguard.md
+          - Hysteria: configuration/outbound/hysteria.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:
