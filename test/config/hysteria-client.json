@@ -1,0 +1,12 @@
+{
+  "server": "127.0.0.1:10000",
+  "auth_str": "password",
+  "obfs": "fuck me till the daylight",
+  "up_mbps": 100,
+  "down_mbps": 100,
+  "socks5": {
+    "listen": "127.0.0.1:10001"
+  },
+  "server_name": "example.org",
+  "ca": "/etc/hysteria/ca.pem"
+}

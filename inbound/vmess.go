@@ -52,7 +52,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, err
 	}
 	if options.TLS != nil {
-		tlsConfig, err := NewTLSConfig(logger, common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}

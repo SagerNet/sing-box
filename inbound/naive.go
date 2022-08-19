@@ -45,10 +45,7 @@ type Naive struct {
 	h3Server      any
 }
 
-var (
-	ErrNaiveTLSRequired  = E.New("TLS required")
-	ErrNaiveMissingUsers = E.New("missing users")
-)
+var errTLSRequired = E.New("TLS required")
 
 func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.NaiveInboundOptions) (*Naive, error) {
 	inbound := &Naive{
@@ -61,12 +58,12 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, ErrNaiveTLSRequired
+		return nil, errTLSRequired
 	}
 	if len(options.Users) == 0 {
-		return nil, ErrNaiveMissingUsers
+		return nil, E.New("missing users")
 	}
-	tlsConfig, err := NewTLSConfig(logger, common.PtrValueOrDefault(options.TLS))
+	tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +192,8 @@ func (n *Naive) newConnection(ctx context.Context, conn net.Conn, source, destin
 	metadata.Network = N.NetworkTCP
 	metadata.Source = source
 	metadata.Destination = destination
+	n.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	n.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	hErr := n.router.RouteConnection(ctx, conn, metadata)
 	if hErr != nil {
 		conn.Close()

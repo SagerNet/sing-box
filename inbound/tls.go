@@ -1,12 +1,14 @@
 package inbound
 
 import (
+	"context"
 	"crypto/tls"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/fsnotify/fsnotify"
@@ -17,6 +19,7 @@ var _ adapter.Service = (*TLSConfig)(nil)
 type TLSConfig struct {
 	config          *tls.Config
 	logger          log.Logger
+	acmeService     adapter.Service
 	certificate     []byte
 	key             []byte
 	certificatePath string
@@ -29,14 +32,18 @@ func (c *TLSConfig) Config() *tls.Config {
 }
 
 func (c *TLSConfig) Start() error {
-	if c.certificatePath == "" && c.keyPath == "" {
+	if c.acmeService != nil {
+		return c.acmeService.Start()
+	} else {
+		if c.certificatePath == "" && c.keyPath == "" {
+			return nil
+		}
+		err := c.startWatcher()
+		if err != nil {
+			c.logger.Warn("create fsnotify watcher: ", err)
+		}
 		return nil
 	}
-	err := c.startWatcher()
-	if err != nil {
-		c.logger.Warn("create fsnotify watcher: ", err)
-	}
-	return nil
 }
 
 func (c *TLSConfig) startWatcher() error {
@@ -109,17 +116,31 @@ func (c *TLSConfig) reloadKeyPair() error {
 }
 
 func (c *TLSConfig) Close() error {
+	if c.acmeService != nil {
+		return c.acmeService.Close()
+	}
 	if c.watcher != nil {
 		return c.watcher.Close()
 	}
 	return nil
 }
 
-func NewTLSConfig(logger log.Logger, options option.InboundTLSOptions) (*TLSConfig, error) {
+func NewTLSConfig(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (*TLSConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
-	var tlsConfig tls.Config
+	var tlsConfig *tls.Config
+	var acmeService adapter.Service
+	var err error
+	if options.ACME != nil && len(options.ACME.Domain) > 0 {
+		tlsConfig, acmeService, err = startACME(ctx, common.PtrValueOrDefault(options.ACME))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		tlsConfig = &tls.Config{}
+	}
+	tlsConfig.NextProtos = []string{}
 	if options.ServerName != "" {
 		tlsConfig.ServerName = options.ServerName
 	}
@@ -153,39 +174,42 @@ func NewTLSConfig(logger log.Logger, options option.InboundTLSOptions) (*TLSConf
 		}
 	}
 	var certificate []byte
-	if options.Certificate != "" {
-		certificate = []byte(options.Certificate)
-	} else if options.CertificatePath != "" {
-		content, err := os.ReadFile(options.CertificatePath)
-		if err != nil {
-			return nil, E.Cause(err, "read certificate")
-		}
-		certificate = content
-	}
 	var key []byte
-	if options.Key != "" {
-		key = []byte(options.Key)
-	} else if options.KeyPath != "" {
-		content, err := os.ReadFile(options.KeyPath)
-		if err != nil {
-			return nil, E.Cause(err, "read key")
+	if acmeService == nil {
+		if options.Certificate != "" {
+			certificate = []byte(options.Certificate)
+		} else if options.CertificatePath != "" {
+			content, err := os.ReadFile(options.CertificatePath)
+			if err != nil {
+				return nil, E.Cause(err, "read certificate")
+			}
+			certificate = content
 		}
-		key = content
+		if options.Key != "" {
+			key = []byte(options.Key)
+		} else if options.KeyPath != "" {
+			content, err := os.ReadFile(options.KeyPath)
+			if err != nil {
+				return nil, E.Cause(err, "read key")
+			}
+			key = content
+		}
+		if certificate == nil {
+			return nil, E.New("missing certificate")
+		}
+		if key == nil {
+			return nil, E.New("missing key")
+		}
+		keyPair, err := tls.X509KeyPair(certificate, key)
+		if err != nil {
+			return nil, E.Cause(err, "parse x509 key pair")
+		}
+		tlsConfig.Certificates = []tls.Certificate{keyPair}
 	}
-	if certificate == nil {
-		return nil, E.New("missing certificate")
-	}
-	if key == nil {
-		return nil, E.New("missing key")
-	}
-	keyPair, err := tls.X509KeyPair(certificate, key)
-	if err != nil {
-		return nil, E.Cause(err, "parse x509 key pair")
-	}
-	tlsConfig.Certificates = []tls.Certificate{keyPair}
 	return &TLSConfig{
-		config:          &tlsConfig,
+		config:          tlsConfig,
 		logger:          logger,
+		acmeService:     acmeService,
 		certificate:     certificate,
 		key:             key,
 		certificatePath: options.CertificatePath,

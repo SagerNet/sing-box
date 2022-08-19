@@ -18,12 +18,13 @@ Install with options:
 go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
-| Build Tag                  | Description                                                                                                                                  |
-|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `with_quic`                | Build with QUIC support, see [QUIC and HTTP3 dns transports](./configuration/dns/server) and [Naive inbound](./configuration/inbound/naive). |
-| `with_clash_api`           | Build with Clash api support, see [Experimental](./configuration/experimental#clash-api-fields).                                             |
-| `no_gvisor`                | Build without gVisor tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                |
-| `with_lwip` (CGO required) | Build with LWIP tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                     |
+| Build Tag                  | Description                                                                                                                                                                                                                                                |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `with_quic`                | Build with QUIC support, see [QUIC and HTTP3 dns transports](./configuration/dns/server), [Naive inbound](./configuration/inbound/naive), [Hysteria Inbound](./configuration/inbound/hysteria) and [Hysteria Outbound](./configuration/outbound/hysteria). |
+| `with_acme`                | Build with ACME TLS certificate issuer support, see [TLS](./configuration/shared/tls).                                                                                                                                                                     |
+| `with_clash_api`           | Build with Clash api support, see [Experimental](./configuration/experimental#clash-api-fields).                                                                                                                                                           |
+| `no_gvisor`                | Build without gVisor tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                                                                                                                              |
+| `with_lwip` (CGO required) | Build with LWIP tun stack support, see [Tun inbound](./configuration/inbound/tun#stack).                                                                                                                                                                   |
 
 The binary is built under $GOPATH/bin
 

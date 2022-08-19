@@ -11,9 +11,24 @@
   "certificate": "",
   "certificate_path": "",
   "key": "",
-  "key_path": ""
+  "key_path": "",
+  "acme": {
+    "domain": [],
+    "data_directory": "",
+    "default_server_name": "",
+    "email": "",
+    "provider": "",
+    "disable_http_challenge": false,
+    "disable_tls_alpn_challenge": false,
+    "alternative_http_port": 0,
+    "alternative_tls_port": 0
+  }
 }
 ```
+
+!!! warning ""
+
+    ACME is not included by default, see [Installation](/#Installation).
 
 ### Outbound Structure
 
@@ -58,6 +73,10 @@ Cipher suite values:
 * `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
 * `TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256`
 * `TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256`
+
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
 
 ### Fields
 
@@ -134,6 +153,56 @@ The server private key, in PEM format.
 ==Server only==
 
 The path to the server private key, in PEM format.
+
+### ACME Fields
+
+#### domain
+
+List of domain.
+
+ACME will be disabled if empty.
+
+#### data_directory
+
+The directory to store ACME data.
+
+`$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic` will be used if empty.
+
+#### default_server_name
+
+Server name to use when choosing a certificate if the ClientHello's ServerName field is empty.
+
+#### email
+
+The email address to use when creating or selecting an existing ACME server account
+
+#### provider
+
+The ACME CA provider to use.
+
+| Value                   | Provider      |
+|-------------------------|---------------|
+| `letsenctypt (default)` | Let's Encrypt |
+| `zerossl`               | ZeroSSL       |
+| `https://...`           | Custom        |
+
+#### disable_http_challenge
+
+Disable all HTTP challenges.
+
+#### disable_tls_alpn_challenge
+
+Disable all TLS-ALPN challenges
+
+#### alternative_http_port
+
+The alternate port to use for the ACME HTTP challenge; if non-empty, this port will be used instead of 80 to spin up a
+listener for the HTTP challenge.
+
+#### alternative_tls_port
+
+The alternate port to use for the ACME TLS-ALPN challenge; the system must forward 443 to this port for challenge to
+succeed.
 
 ### Reload
 
