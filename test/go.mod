@@ -55,7 +55,7 @@ require (
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220819003411-1cc817596b08 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220819094638-9b98baa4ad09 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 // indirect
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
@@ -66,7 +66,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/sys v0.0.0-20220817070843-5a390386f1f2 // indirect
+	golang.org/x/sys v0.0.0-20220818161305-2296e01440c6 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.10 // indirect
@@ -77,6 +77,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.3.0 // indirect
-	gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97 // indirect
+	gvisor.dev/gvisor v0.0.0-20220812001733-b5c0f23893fb // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )

@@ -100,8 +100,8 @@ github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9 h1:XgXSOJv8e7+98
 github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9/go.mod h1:MAHy2IKZAA101t3Gr2x0ldwn6XuAs2cjGzSzHy5RhWk=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6 h1:JJfDeYYhWunvtxsU/mOVNTmFQmnzGx9dY034qG6G3g4=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6/go.mod h1:EX3RbZvrwAkPI2nuGa78T2iQXmrkT+/VQtskjou42xM=
-github.com/sagernet/sing-tun v0.0.0-20220819003411-1cc817596b08 h1:z5nVKoKjcu6n8VvidReWsfW0rS0LRqsZ5GQDtqFap7A=
-github.com/sagernet/sing-tun v0.0.0-20220819003411-1cc817596b08/go.mod h1:SwDXPiB3fhTW0NM6JEdUhHsiXRdALqxglmUFdC01tlw=
+github.com/sagernet/sing-tun v0.0.0-20220819094638-9b98baa4ad09 h1:/tJFSS1M/dFGXUaBwU9lkdti1opXJ0N8uzBXJLODdL8=
+github.com/sagernet/sing-tun v0.0.0-20220819094638-9b98baa4ad09/go.mod h1:RCrmK+1yOxvgy3JEnAE+mAjXUIr/FjlXRu8mKo8ZXOI=
 github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 h1:2hLETh97+S4WnfMR27XyC7QVU1SH7FTNoCznP229YJU=
 github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4/go.mod h1:82O6gzbxLha/W/jxSVQbsqf2lVdRTjMIgyLug0lpJps=
 github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 h1:pB1Dh1NbwVrLhQhotr4O4Hs3yhiBzmg3AvnUyYjL4x4=
@@ -178,8 +178,8 @@ golang.org/x/sys v0.0.0-20220412211240-33da011f77ad/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220731174439-a90be440212d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220817070843-5a390386f1f2 h1:fqTvyMIIj+HRzMmnzr9NtpHP6uVpvB5fkHcgPDC4nu8=
-golang.org/x/sys v0.0.0-20220817070843-5a390386f1f2/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220818161305-2296e01440c6 h1:Sx/u41w+OwrInGdEckYmEuU5gHoGSL4QbDz3S9s6j4U=
+golang.org/x/sys v0.0.0-20220818161305-2296e01440c6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
@@ -229,7 +229,7 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97 h1:zncudP85ZlJelPsgxZXN00Rl5M5j7QuDK27L35Ez01M=
-gvisor.dev/gvisor v0.0.0-20220801010827-addd1f7b3e97/go.mod h1:TIvkJD0sxe8pIob3p6T8IzxXunlp6yfgktvTNp+DGNM=
+gvisor.dev/gvisor v0.0.0-20220812001733-b5c0f23893fb h1:Z7S1dQX1RX+Tq55/Jq5kJQnPBdxA19ZmhgCmFjyK+yA=
+gvisor.dev/gvisor v0.0.0-20220812001733-b5c0f23893fb/go.mod h1:TIvkJD0sxe8pIob3p6T8IzxXunlp6yfgktvTNp+DGNM=
 lukechampine.com/blake3 v1.1.7 h1:GgRMhmdsuK8+ii6UZFDL8Nb+VyMwadAgcJyfYHxG6n0=
 lukechampine.com/blake3 v1.1.7/go.mod h1:tkKEOtDkNtklkXtLNEOGNq5tcV90tJiA1vAA12R78LA=
