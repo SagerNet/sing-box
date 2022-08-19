@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"os"
 
 	"github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
 )
@@ -30,14 +26,9 @@ func init() {
 }
 
 func check() error {
-	configContent, err := os.ReadFile(configPath)
+	options, err := readConfig()
 	if err != nil {
-		return E.Cause(err, "read config")
-	}
-	var options option.Options
-	err = json.Unmarshal(configContent, &options)
-	if err != nil {
-		return E.Cause(err, "decode config")
+		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	_, err = box.New(ctx, options)
