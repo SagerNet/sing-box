@@ -9,7 +9,7 @@ pushd $PROJECT
 git fetch
 git reset FETCH_HEAD --hard
 git clean -fdx
-go install -v -trimpath -ldflags "-s -w -buildid=" -tags no_gvisor,with_quic,debug ./cmd/sing-box
+go install -v -trimpath -ldflags "-s -w -buildid=" -tags no_gvisor,with_quic,with_acme,debug ./cmd/sing-box
 popd
 
 sudo systemctl stop sing-box
