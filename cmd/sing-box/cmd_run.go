@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,15 +33,31 @@ func init() {
 	mainCommand.AddCommand(commandRun)
 }
 
-func run() error {
-	configContent, err := os.ReadFile(configPath)
+func readConfig() (option.Options, error) {
+	var (
+		configContent []byte
+		err           error
+	)
+	if configPath == "stdin" {
+		configContent, err = io.ReadAll(os.Stdin)
+	} else {
+		configContent, err = os.ReadFile(configPath)
+	}
 	if err != nil {
-		return E.Cause(err, "read config")
+		return option.Options{}, E.Cause(err, "read config")
 	}
 	var options option.Options
 	err = json.Unmarshal(configContent, &options)
 	if err != nil {
-		return E.Cause(err, "decode config")
+		return option.Options{}, E.Cause(err, "decode config")
+	}
+	return options, nil
+}
+
+func run() error {
+	options, err := readConfig()
+	if err != nil {
+		return err
 	}
 	if disableColor {
 		if options.Log == nil {
