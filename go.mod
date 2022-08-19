@@ -16,7 +16,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220819041823-35c336a016c0
+	github.com/sagernet/sing v0.0.0-20220819160035-717bc38fd35c
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220819094638-9b98baa4ad09
