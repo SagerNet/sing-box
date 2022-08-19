@@ -33,6 +33,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewTrojan(ctx, router, logger, options.Tag, options.TrojanOptions)
 	case C.TypeWireGuard:
 		return NewWireGuard(ctx, router, logger, options.Tag, options.WireGuardOptions)
+	case C.TypeHysteria:
+		return NewHysteria(ctx, router, logger, options.Tag, options.HysteriaOutbound)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:

@@ -20,11 +20,7 @@ type TLSDialer struct {
 	config *tls.Config
 }
 
-func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
-	if !options.Enabled {
-		return dialer, nil
-	}
-
+func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -105,9 +101,20 @@ func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOpt
 		}
 		tlsConfig.RootCAs = certPool
 	}
+	return &tlsConfig, nil
+}
+
+func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
+	if !options.Enabled {
+		return dialer, nil
+	}
+	tlsConfig, err := TLSConfig(serverAddress, options)
+	if err != nil {
+		return nil, err
+	}
 	return &TLSDialer{
 		dialer: dialer,
-		config: &tlsConfig,
+		config: tlsConfig,
 	}, nil
 }
 

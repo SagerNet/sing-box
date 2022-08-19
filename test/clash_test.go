@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"net/netip"
 	"sync"
 	"testing"
@@ -32,6 +34,7 @@ const (
 	ImageTrojan                = "trojangfw/trojan:latest"
 	ImageNaive                 = "pocat/naiveproxy:client"
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
+	ImageHysteria              = "tobyxdd/hysteria:latest"
 )
 
 var allImages = []string{
@@ -41,6 +44,7 @@ var allImages = []string{
 	ImageTrojan,
 	ImageNaive,
 	ImageBoringTun,
+	ImageHysteria,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")
@@ -89,6 +93,12 @@ func init() {
 
 		io.Copy(io.Discard, imageStream)
 	}
+	go func() {
+		err = http.ListenAndServe("0.0.0.0:8965", nil)
+		if err != nil {
+			log.Debug(err)
+		}
+	}()
 }
 
 func newPingPongPair() (chan []byte, chan []byte, func(t *testing.T) error) {
@@ -379,7 +389,6 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 			mux.Lock()
 			hashMap[i] = hash[:]
 			mux.Unlock()
-			println("write ti ", addr.String())
 			if _, err = pc.WriteTo(buf, addr); err != nil {
 				t.Log(err)
 				continue

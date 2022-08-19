@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/sagernet/sing v0.0.0-20220819003212-2424b1e2fac1
+	github.com/sagernet/sing v0.0.0-20220819041823-35c336a016c0
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
@@ -34,12 +34,13 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
-	github.com/kr/text v0.1.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
+	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect
 	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
+	github.com/mholt/acmez v1.0.4 // indirect
 	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
@@ -49,6 +50,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
@@ -59,6 +61,8 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.22.0 // indirect
 	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect

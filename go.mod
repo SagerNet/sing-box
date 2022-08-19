@@ -14,8 +14,9 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.10.0
+	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220819003212-2424b1e2fac1
+	github.com/sagernet/sing v0.0.0-20220819041823-35c336a016c0
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220819003411-1cc817596b08
@@ -38,11 +39,12 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
+	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect
 	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
+	github.com/mholt/acmez v1.0.4 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -50,6 +52,8 @@ require (
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.22.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/text v0.3.7 // indirect
@@ -57,7 +61,6 @@ require (
 	golang.org/x/tools v0.1.10 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
