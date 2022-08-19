@@ -32,6 +32,8 @@ theme:
 nav:
   - Getting Started:
       - index.md
+      - Features: features.md
+      - Support: support.md
       - Change Log: changelog.md
   - Configuration:
       - configuration/index.md
@@ -84,7 +86,6 @@ nav:
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
       - DNS Hijack: examples/dns-hijack.md
-  - Benchmark: benchmark.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets

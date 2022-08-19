@@ -10,7 +10,6 @@
     {
       "type": "tun",
       "tag": "tun-in",
-      
       "interface_name": "tun0",
       "inet4_address": "172.19.0.1/30",
       "inet6_address": "fdfe:dcba:9876::1/128",
@@ -24,16 +23,14 @@
       ],
       "include_uid_range": [
         [
-          1000,
-          99999
+          "1000-99999"
         ]
       ],
       "exclude_uid": [
         1000
       ],
       "exclude_uid_range": [
-        1000,
-        99999
+        "1000-99999"
       ],
       "include_android_user": [
         0,
@@ -45,7 +42,6 @@
       "exclude_package": [
         "com.android.captiveportallogin"
       ],
-      
       "sniff": true,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv4"
