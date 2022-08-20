@@ -20,7 +20,7 @@ const IsIos = goos.IsIos == 1
 
 const IsJs = goos.IsJs == 1
 
-const IsLinux = goos.IsLinux == 1
+const IsLinux = goos.IsLinux == 1 || goos.IsAndroid == 1
 
 const IsNacl = goos.IsNacl == 1
 
