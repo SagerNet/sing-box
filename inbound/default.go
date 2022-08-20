@@ -47,6 +47,7 @@ type myInboundAdapter struct {
 
 	tcpListener          *net.TCPListener
 	udpConn              *net.UDPConn
+	udpAddr              M.Socksaddr
 	packetAccess         sync.RWMutex
 	packetOutboundClosed chan struct{}
 	packetOutbound       chan *myInboundPacket
@@ -84,6 +85,7 @@ func (a *myInboundAdapter) Start() error {
 			return err
 		}
 		a.udpConn = udpConn
+		a.udpAddr = bindAddr
 		a.packetOutboundClosed = make(chan struct{})
 		a.packetOutbound = make(chan *myInboundPacket)
 		if a.oobPacketHandler != nil {
@@ -164,6 +166,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 			metadata.Network = N.NetworkTCP
 			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+			metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
 			a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 			if hErr != nil {
@@ -198,6 +201,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))
@@ -230,6 +234,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))
@@ -256,6 +261,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
 			buffer.Release()
@@ -284,6 +290,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
 			buffer.Release()

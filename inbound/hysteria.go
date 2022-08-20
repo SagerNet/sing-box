@@ -276,6 +276,7 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.SniffOverrideDestination = h.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(h.listenOptions.DomainStrategy)
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port)
 	if !request.UDP {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)

@@ -63,8 +63,8 @@ func initWin32API() error {
 	return nil
 }
 
-func (s *windowsSearcher) FindProcessInfo(ctx context.Context, network string, srcIP netip.Addr, srcPort int) (*Info, error) {
-	processName, err := findProcessName(network, srcIP, srcPort)
+func (s *windowsSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
+	processName, err := findProcessName(network, source.Addr(), int(source.Port()))
 	if err != nil {
 		return nil, err
 	}

@@ -53,7 +53,7 @@ require (
 	github.com/sagernet/abx-go v0.0.0-20220819185957-dba1257d738e // indirect
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
-	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
+	github.com/sagernet/netlink v0.0.0-20220820040938-560ab95cda9e // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9 // indirect
 	github.com/sagernet/sing-tun v0.0.0-20220820022232-9e535150dbff // indirect

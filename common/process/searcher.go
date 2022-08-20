@@ -10,7 +10,7 @@ import (
 )
 
 type Searcher interface {
-	FindProcessInfo(ctx context.Context, network string, srcIP netip.Addr, srcPort int) (*Info, error)
+	FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error)
 }
 
 var ErrNotFound = E.New("process not found")
@@ -25,4 +25,14 @@ type Info struct {
 	PackageName string
 	User        string
 	UserId      int32
+}
+
+func FindProcessInfo(searcher Searcher, ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
+	info, err := findProcessInfo(searcher, ctx, network, source, destination)
+	if err != nil {
+		if source.Addr().Is4In6() {
+			info, err = findProcessInfo(searcher, ctx, network, netip.AddrPortFrom(netip.AddrFrom4(source.Addr().As4()), source.Port()), destination)
+		}
+	}
+	return info, err
 }

@@ -591,7 +591,13 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 
 func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
 	if r.processSearcher != nil {
-		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.Addr, int(metadata.Source.Port))
+		var originDestination netip.AddrPort
+		if metadata.OriginDestination.IsValid() {
+			originDestination = metadata.OriginDestination.AddrPort()
+		} else if metadata.Destination.IsIP() {
+			originDestination = metadata.Destination.AddrPort()
+		}
+		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.AddrPort(), originDestination)
 		if err != nil {
 			r.logger.DebugContext(ctx, "failed to search process: ", err)
 		} else {
