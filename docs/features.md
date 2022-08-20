@@ -25,7 +25,7 @@
 | Shadowsocks AEAD 2022 outbound                         | X                                  | X        |
 | Shadowsocks UDP over TCP                               | X                                  | X        |
 | Multiplex (smux/yamux)                                 | mux.cool                           | X        |
-| WireGuard/Hysteria outbound                            | X                                  | X        |
+| Tor/WireGuard/Hysteria outbound                        | X                                  | X        |
 | Selector outbound and Clash API                        | X                                  | ✔        |
 
 #### Sniffing

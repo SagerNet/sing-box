@@ -16,6 +16,7 @@ const (
 	TypeNaive       = "naive"
 	TypeWireGuard   = "wireguard"
 	TypeHysteria    = "hysteria"
+	TypeTor         = "tor"
 )
 
 const (

@@ -24,6 +24,7 @@
 | `trojan`      | [Trojan](./trojan)           |
 | `wireguard`   | [Wireguard](./wireguard)     |
 | `hysteria`    | [Hysteria](./hysteria)       |
+| `tor`         | [Tor](./tor)                 |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 

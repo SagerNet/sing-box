@@ -55,7 +55,7 @@ func TestHysteriaSelf(t *testing.T) {
 			{
 				Type: C.TypeHysteria,
 				Tag:  "hy-out",
-				HysteriaOutbound: option.HysteriaOutboundOptions{
+				HysteriaOptions: option.HysteriaOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -159,7 +159,7 @@ func TestHysteriaOutbound(t *testing.T) {
 		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeHysteria,
-				HysteriaOutbound: option.HysteriaOutboundOptions{
+				HysteriaOptions: option.HysteriaOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

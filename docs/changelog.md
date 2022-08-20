@@ -1,3 +1,7 @@
+#### 2022/08/21
+
+* Add [Tor outbound](/configuration/outbound/tor)
+
 #### 2022/08/20
 
 * Attempt to unwrap ip-in-fqdn socksaddr

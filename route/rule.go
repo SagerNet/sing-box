@@ -267,7 +267,11 @@ func (r *DefaultRule) Outbound() string {
 }
 
 func (r *DefaultRule) String() string {
-	return strings.Join(F.MapToString(r.allItems), " ")
+	if !r.invert {
+		return strings.Join(F.MapToString(r.allItems), " ")
+	} else {
+		return "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
+	}
 }
 
 var _ adapter.Rule = (*LogicalRule)(nil)
