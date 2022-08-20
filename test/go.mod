@@ -56,7 +56,7 @@ require (
 	github.com/sagernet/netlink v0.0.0-20220816152750-7a75378bd31a // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220819190418-529224be2d3b // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220820022232-9e535150dbff // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 // indirect
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
