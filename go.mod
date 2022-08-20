@@ -20,7 +20,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220820042914-5304a2876b82
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220820052551-0ea2fbc27855
+	github.com/sagernet/sing-tun v0.0.0-20220820054007-ce3573838b1e
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
