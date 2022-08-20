@@ -168,6 +168,26 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 }
 
 func (s *Box) Start() error {
+	for i, out := range s.outbounds {
+		if starter, isStarter := out.(common.Starter); isStarter {
+			err := starter.Start()
+			if err != nil {
+				for _, in := range s.inbounds {
+					common.Close(in)
+				}
+				for g := 0; g < i; g++ {
+					common.Close(s.outbounds[g])
+				}
+				var tag string
+				if out.Tag() == "" {
+					tag = F.ToString(i)
+				} else {
+					tag = out.Tag()
+				}
+				return E.Cause(err, "initialize outbound/", out.Type(), "[", tag, "]")
+			}
+		}
+	}
 	err := s.router.Start()
 	if err != nil {
 		return err
@@ -185,26 +205,6 @@ func (s *Box) Start() error {
 				tag = in.Tag()
 			}
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
-		}
-	}
-	for i, out := range s.outbounds {
-		if starter, isStarter := out.(common.Starter); isStarter {
-			err = starter.Start()
-			if err != nil {
-				for _, in := range s.inbounds {
-					common.Close(in)
-				}
-				for g := 0; g < i; g++ {
-					common.Close(s.outbounds[g])
-				}
-				var tag string
-				if out.Tag() == "" {
-					tag = F.ToString(i)
-				} else {
-					tag = out.Tag()
-				}
-				return E.Cause(err, "initialize outbound/", out.Type(), "[", tag, "]")
-			}
 		}
 	}
 	if s.clashServer != nil {
