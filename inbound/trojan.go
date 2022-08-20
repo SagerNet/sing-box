@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/trojan"
 )
@@ -22,9 +23,10 @@ var _ adapter.Inbound = (*Trojan)(nil)
 
 type Trojan struct {
 	myInboundAdapter
-	service   *trojan.Service[int]
-	users     []option.TrojanUser
-	tlsConfig *TLSConfig
+	service      *trojan.Service[int]
+	users        []option.TrojanUser
+	tlsConfig    *TLSConfig
+	fallbackAddr M.Socksaddr
 }
 
 func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanInboundOptions) (*Trojan, error) {
@@ -40,7 +42,12 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		},
 		users: options.Users,
 	}
-	service := trojan.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+	var fallbackHandler N.TCPConnectionHandler
+	if options.Fallback != nil && options.Fallback.Server != "" {
+		inbound.fallbackAddr = options.Fallback.Build()
+		fallbackHandler = adapter.NewUpstreamContextHandler(inbound.fallbackConnection, nil, nil)
+	}
+	service := trojan.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound), fallbackHandler)
 	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.TrojanUser) int {
 		return index
 	}), common.Map(options.Users, func(it option.TrojanUser) string {
@@ -101,6 +108,12 @@ func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adap
 		metadata.User = user
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
+	return h.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (h *Trojan) fallbackConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.logger.InfoContext(ctx, "fallback connection to ", h.fallbackAddr)
+	metadata.Destination = h.fallbackAddr
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 

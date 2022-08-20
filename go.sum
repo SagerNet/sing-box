@@ -96,8 +96,8 @@ github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb h1:wc0yQ+SBn4TaTY
 github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb/go.mod h1:MIccjRKnPTjWwAOpl+AUGWOkzyTd9tERytudxu+1ra4=
 github.com/sagernet/sing v0.0.0-20220812082120-05f9836bff8f/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
-github.com/sagernet/sing v0.0.0-20220820042914-5304a2876b82 h1:sKYbF5EN2AZXH0owjr4vHjFh/lmN3xHLVO8dm9eSnXE=
-github.com/sagernet/sing v0.0.0-20220820042914-5304a2876b82/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
+github.com/sagernet/sing v0.0.0-20220820125206-f0c2e5a0dcc2 h1:9wlER8wPHDjqzDGpqoBWcZ6/MBUL00my7D+hdCCaNiI=
+github.com/sagernet/sing v0.0.0-20220820125206-f0c2e5a0dcc2/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9 h1:XgXSOJv8e7+98SJvg1f0luuPR33r4yFcmzxb3R//BTI=
 github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9/go.mod h1:MAHy2IKZAA101t3Gr2x0ldwn6XuAs2cjGzSzHy5RhWk=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6 h1:JJfDeYYhWunvtxsU/mOVNTmFQmnzGx9dY034qG6G3g4=
