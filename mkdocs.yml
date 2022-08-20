@@ -67,6 +67,7 @@ nav:
           - Trojan: configuration/outbound/trojan.md
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
+          - Tor: configuration/outbound/tor.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:

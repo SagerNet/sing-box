@@ -3,6 +3,8 @@ module github.com/sagernet/sing-box
 go 1.18
 
 require (
+	berty.tech/go-libtor v1.0.385
+	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go v1.1.1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fsnotify/fsnotify v1.5.4
