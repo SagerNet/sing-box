@@ -20,7 +20,11 @@
           "password": "8JCsPssfgS8tiRwiMlhARg=="
         }
       ],
-      "tls": {}
+      "tls": {},
+      "fallback": {
+        "server": "127.0.0.0.1",
+        "server_port": 8080
+      }
     }
   ]
 }
@@ -73,3 +77,11 @@ Trojan users.
 #### tls
 
 TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+
+#### fallback
+
+!!! error ""
+
+    There is no evidence that GFW detects and blocks Trojan servers based on HTTP responses, and opening the standard http/s port on the server is a much bigger signature.
+
+Fallback server configuration. Disabled if empty.

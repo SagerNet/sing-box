@@ -1,3 +1,13 @@
+#### 2022/08/20
+
+* Attempt to unwrap ip-in-fqdn socksaddr
+* Fix read packages in android 12
+* Fix route on some android devices
+* Improve linux process searcher
+* Fix write socks5 username password auth request
+* Skip bind connection with private destination to interface
+* Add trojan connection fallback
+
 #### 2022/08/19
 
 * Add Hysteria [Inbound](/configuration/inbound/hysteria) and [Outbund](/configuration/outbound/hysteria)
