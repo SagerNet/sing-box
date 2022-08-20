@@ -6,7 +6,7 @@
 * Improve linux process searcher
 * Fix write socks5 username password auth request
 * Skip bind connection with private destination to interface
-* Add trojan connection fallback
+* Add [Trojan connection fallback](/configuration/inbound/trojan#fallback)
 
 #### 2022/08/19
 
