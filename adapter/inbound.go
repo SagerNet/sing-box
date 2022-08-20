@@ -29,14 +29,14 @@ type InboundContext struct {
 
 	// cache
 
+	OriginDestination        M.Socksaddr
 	DomainStrategy           dns.DomainStrategy
 	SniffEnabled             bool
 	SniffOverrideDestination bool
 	DestinationAddresses     []netip.Addr
-
-	SourceGeoIPCode string
-	GeoIPCode       string
-	ProcessInfo     *process.Info
+	SourceGeoIPCode          string
+	GeoIPCode                string
+	ProcessInfo              *process.Info
 }
 
 type inboundContextKey struct{}

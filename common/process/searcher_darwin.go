@@ -21,8 +21,8 @@ func NewSearcher(_ Config) (Searcher, error) {
 	return &darwinSearcher{}, nil
 }
 
-func (d *darwinSearcher) FindProcessInfo(ctx context.Context, network string, srcIP netip.Addr, srcPort int) (*Info, error) {
-	processName, err := findProcessName(network, srcIP, srcPort)
+func (d *darwinSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
+	processName, err := findProcessName(network, source.Addr(), int(source.Port()))
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-//go:build cgo && linux && !android
+//go:build linux && !android
 
 package process
 
@@ -10,8 +10,8 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
-func FindProcessInfo(searcher Searcher, ctx context.Context, network string, srcIP netip.Addr, srcPort int) (*Info, error) {
-	info, err := searcher.FindProcessInfo(ctx, network, srcIP, srcPort)
+func findProcessInfo(searcher Searcher, ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
+	info, err := searcher.FindProcessInfo(ctx, network, source, destination)
 	if err != nil {
 		return nil, err
 	}
