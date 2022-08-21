@@ -19,10 +19,10 @@ require (
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/netlink v0.0.0-20220820041223-3cd8365d17ac
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220820125206-f0c2e5a0dcc2
+	github.com/sagernet/sing v0.0.0-20220821004238-5945fd0457b2
 	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220820054007-ce3573838b1e
+	github.com/sagernet/sing-tun v0.0.0-20220821033717-8b6630a3b006
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
