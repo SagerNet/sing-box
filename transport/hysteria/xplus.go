@@ -101,6 +101,7 @@ func (c *VectorisedXPlusConn) WriteTo(p []byte, addr net.Addr) (n int, err error
 
 func (c *VectorisedXPlusConn) WriteVectorisedPacket(buffers []*buf.Buffer, destination M.Socksaddr) error {
 	header := buf.NewSize(xplusSaltLen)
+	defer header.Release()
 	salt := header.Extend(xplusSaltLen)
 	c.randAccess.Lock()
 	_, _ = c.rand.Read(salt)
