@@ -12,7 +12,7 @@ func TestHysteriaSelf(t *testing.T) {
 	if !C.QUIC_AVAILABLE {
 		t.Skip("QUIC not included")
 	}
-	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
 			Level: "trace",
@@ -64,8 +64,11 @@ func TestHysteriaSelf(t *testing.T) {
 					DownMbps:   100,
 					AuthString: "password",
 					Obfs:       "fuck me till the daylight",
-					CustomCA:   caPem,
-					ServerName: "example.org",
+					TLS: &option.OutboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+					},
 				},
 			},
 		},
@@ -130,7 +133,7 @@ func TestHysteriaOutbound(t *testing.T) {
 	if !C.QUIC_AVAILABLE {
 		t.Skip("QUIC not included")
 	}
-	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startDockerContainer(t, DockerOptions{
 		Image: ImageHysteria,
 		Ports: []uint16{serverPort, testPort},
@@ -168,8 +171,11 @@ func TestHysteriaOutbound(t *testing.T) {
 					DownMbps:   100,
 					AuthString: "password",
 					Obfs:       "fuck me till the daylight",
-					CustomCA:   caPem,
-					ServerName: "example.org",
+					TLS: &option.OutboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+					},
 				},
 			},
 		},
