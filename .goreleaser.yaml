@@ -11,9 +11,10 @@ builds:
     ldflags:
       - -X github.com/sagernet/sing-box/constant.Commit={{ .ShortCommit }} -s -w -buildid=
     tags:
-      - with_clash_api
       - with_quic
+      - with_wireguard
       - with_acme
+      - with_clash_api
     env:
       - CGO_ENABLED=0
     targets:
@@ -40,8 +41,6 @@ archives:
     wrap_in_directory: true
     files:
       - LICENSE
-      - src: release/config/config.json
-        strip_parent: true
     name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
 nfpms:
   - id: package
@@ -67,10 +66,11 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
 source:
-  enabled: true
+  enabled: false
   name_template: '{{ .ProjectName }}-{{ .Version }}.source'
   prefix_template: '{{ .ProjectName }}-{{ .Version }}/'
 checksum:
+  disable: true
   name_template: '{{ .ProjectName }}-{{ .Version }}.checksum'
 signs:
   - artifacts: checksum
