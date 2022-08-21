@@ -1,6 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_quic,with_clash_api
+TAGS ?= with_quic,with_wireguard,with_clash_api
 PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags \
 		'-X "github.com/sagernet/sing-box/constant.Commit=$(COMMIT)" \
 		-w -s -buildid='
@@ -31,7 +31,18 @@ lint:
 	GOOS=freebsd golangci-lint run ./...
 
 lint_install:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+snapshot:
+	goreleaser release --rm-dist --snapshot
+	mkdir dist/release
+	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
+	ghr --delete --draft --prerelease -p 1 nightly dist/release
+	rm -r dist
+
+snapshot_install:
+	go install -v github.com/goreleaser/goreleaser@latest
+	go install -v github.com/tcnksm/ghr@latest
 
 test:
 	@go test -v . && \
