@@ -25,6 +25,7 @@
 | `wireguard`   | [Wireguard](./wireguard)     |
 | `hysteria`    | [Hysteria](./hysteria)       |
 | `tor`         | [Tor](./tor)                 |
+| `ssh`         | [SSH](./ssh)                 |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
 

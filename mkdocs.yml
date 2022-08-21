@@ -68,6 +68,7 @@ nav:
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
           - Tor: configuration/outbound/tor.md
+          - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
       - Route:
