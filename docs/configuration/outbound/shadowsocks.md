@@ -1,5 +1,3 @@
-`socks` outbound is a socks4/socks4a/socks5 client.
-
 ### Structure
 
 ```json
