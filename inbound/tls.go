@@ -133,7 +133,7 @@ func NewTLSConfig(ctx context.Context, logger log.Logger, options option.Inbound
 	var acmeService adapter.Service
 	var err error
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
-		tlsConfig, acmeService, err = startACME(ctx, logger, common.PtrValueOrDefault(options.ACME))
+		tlsConfig, acmeService, err = startACME(ctx, common.PtrValueOrDefault(options.ACME))
 		if err != nil {
 			return nil, err
 		}

@@ -1,6 +1,7 @@
 #### 2022/08/21
 
 * Add [Tor outbound](/configuration/outbound/tor)
+* Add [SSH outbound](/configuration/outbound/ssh)
 
 #### 2022/08/20
 

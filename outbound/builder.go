@@ -37,6 +37,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewHysteria(ctx, router, logger, options.Tag, options.HysteriaOptions)
 	case C.TypeTor:
 		return NewTor(ctx, router, logger, options.Tag, options.TorOptions)
+	case C.TypeSSH:
+		return NewSSH(ctx, router, logger, options.Tag, options.SSHOptions)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:

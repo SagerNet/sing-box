@@ -17,6 +17,7 @@ const (
 	TypeWireGuard   = "wireguard"
 	TypeHysteria    = "hysteria"
 	TypeTor         = "tor"
+	TypeSSH         = "ssh"
 )
 
 const (
