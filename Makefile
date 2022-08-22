@@ -33,6 +33,15 @@ lint:
 lint_install:
 	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
+proto:
+	@go run ./cmd/internal/protogen
+	@gofumpt -l -w .
+	@gofumpt -l -w .
+
+proto_install:
+	go install -v google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 snapshot:
 	goreleaser release --rm-dist --snapshot
 	mkdir dist/release

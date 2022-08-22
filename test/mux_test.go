@@ -144,7 +144,7 @@ func testVMessMux(t *testing.T, protocol string) {
 					},
 					Security: "auto",
 					UUID:     user.String(),
-					MultiplexOptions: &option.MultiplexOptions{
+					Multiplex: &option.MultiplexOptions{
 						Enabled:  true,
 						Protocol: protocol,
 					},
