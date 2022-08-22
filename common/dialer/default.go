@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -54,6 +55,7 @@ var warnTFOOnUnsupportedPlatform = warning.New(
 type DefaultDialer struct {
 	tfo.Dialer
 	net.ListenConfig
+	bindUDPAddr string
 }
 
 func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDialer {
@@ -108,7 +110,15 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	if options.TCPFastOpen {
 		warnTFOOnUnsupportedPlatform.Check()
 	}
-	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener}
+	var bindUDPAddr string
+	bindAddress := netip.Addr(options.BindAddress)
+	if bindAddress.IsValid() {
+		dialer.LocalAddr = &net.TCPAddr{
+			IP: bindAddress.AsSlice(),
+		}
+		bindUDPAddr = M.SocksaddrFrom(bindAddress, 0).String()
+	}
+	return &DefaultDialer{tfo.Dialer{Dialer: dialer, DisableTFO: !options.TCPFastOpen}, listener, bindUDPAddr}
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
@@ -116,7 +126,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return d.ListenConfig.ListenPacket(ctx, N.NetworkUDP, "")
+	return d.ListenConfig.ListenPacket(ctx, N.NetworkUDP, d.bindUDPAddr)
 }
 
 func (d *DefaultDialer) Upstream() any {
