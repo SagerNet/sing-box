@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -125,12 +126,20 @@ func (s *Server) badRequest(request *http.Request, err error) {
 	s.errorHandler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
+func (s *Server) Network() []string {
+	return []string{N.NetworkTCP}
+}
+
 func (s *Server) Serve(listener net.Listener) error {
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
 	} else {
 		return s.httpServer.ServeTLS(listener, "", "")
 	}
+}
+
+func (s *Server) ServePacket(listener net.PacketConn) error {
+	return os.ErrInvalid
 }
 
 func (s *Server) Close() error {

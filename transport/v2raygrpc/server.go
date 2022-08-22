@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
@@ -44,8 +45,16 @@ func (s *Server) Tun(server GunService_TunServer) error {
 func (s *Server) mustEmbedUnimplementedGunServiceServer() {
 }
 
+func (s *Server) Network() []string {
+	return []string{N.NetworkTCP}
+}
+
 func (s *Server) Serve(listener net.Listener) error {
 	return s.server.Serve(listener)
+}
+
+func (s *Server) ServePacket(listener net.PacketConn) error {
+	return os.ErrInvalid
 }
 
 func (s *Server) Close() error {

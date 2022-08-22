@@ -34,7 +34,16 @@ func (c *PacketConnWrapper) Upstream() any {
 }
 
 type StreamWrapper struct {
+	Conn quic.Connection
 	quic.Stream
+}
+
+func (s *StreamWrapper) LocalAddr() net.Addr {
+	return s.Conn.LocalAddr()
+}
+
+func (s *StreamWrapper) RemoteAddr() net.Addr {
+	return s.Conn.RemoteAddr()
 }
 
 func (s *StreamWrapper) Upstream() any {

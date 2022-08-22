@@ -83,16 +83,30 @@ func (h *VMess) Start() error {
 	if h.transport == nil {
 		return h.myInboundAdapter.Start()
 	}
-	tcpListener, err := h.myInboundAdapter.ListenTCP()
-	if err != nil {
-		return err
-	}
-	go func() {
-		sErr := h.transport.Serve(tcpListener)
-		if sErr != nil && !E.IsClosed(sErr) {
-			h.logger.Error("transport serve error: ", sErr)
+	if common.Contains(h.transport.Network(), N.NetworkTCP) {
+		tcpListener, err := h.myInboundAdapter.ListenTCP()
+		if err != nil {
+			return err
 		}
-	}()
+		go func() {
+			sErr := h.transport.Serve(tcpListener)
+			if sErr != nil && !E.IsClosed(sErr) {
+				h.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
+	if common.Contains(h.transport.Network(), N.NetworkUDP) {
+		udpConn, err := h.myInboundAdapter.ListenUDP()
+		if err != nil {
+			return err
+		}
+		go func() {
+			sErr := h.transport.ServePacket(udpConn)
+			if sErr != nil && !E.IsClosed(sErr) {
+				h.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
 	return nil
 }
 

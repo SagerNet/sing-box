@@ -22,6 +22,8 @@ func NewServerTransport(ctx context.Context, options option.V2RayTransportOption
 		return NewGRPCServer(ctx, options.GRPCOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeWebsocket:
 		return v2raywebsocket.NewServer(ctx, options.WebsocketOptions, tlsConfig, handler, errorHandler), nil
+	case C.V2RayTransportTypeQUIC:
+		return NewQUICServer(ctx, options.QUICOptions, tlsConfig, handler, errorHandler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
@@ -36,6 +38,8 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 		return NewGRPCClient(ctx, dialer, serverAddr, options.GRPCOptions, tlsConfig)
 	case C.V2RayTransportTypeWebsocket:
 		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig), nil
+	case C.V2RayTransportTypeQUIC:
+		return NewQUICClient(ctx, dialer, serverAddr, options.QUICOptions, tlsConfig)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
