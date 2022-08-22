@@ -8,6 +8,3 @@ go get -x github.com/sagernet/sing-tun@$(git -C $PROJECTS/sing-tun rev-parse HEA
 go get -x github.com/sagernet/sing-shadowsocks@$(git -C $PROJECTS/sing-shadowsocks rev-parse HEAD)
 go get -x github.com/sagernet/sing-vmess@$(git -C $PROJECTS/sing-vmess rev-parse HEAD)
 go mod tidy
-pushd test
-go mod tidy
-popd

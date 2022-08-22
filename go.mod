@@ -19,8 +19,8 @@ require (
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/netlink v0.0.0-20220820041223-3cd8365d17ac
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220821143531-cee85dcd3013
-	github.com/sagernet/sing-dns v0.0.0-20220819010310-839eab1578c9
+	github.com/sagernet/sing v0.0.0-20220822031040-57fe2e623c82
+	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220821033717-8b6630a3b006
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
