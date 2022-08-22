@@ -37,6 +37,7 @@ type Hysteria struct {
 	xplusKey      []byte
 	sendBPS       uint64
 	recvBPS       uint64
+	udpListener   net.PacketConn
 	listener      quic.Listener
 	udpAccess     sync.RWMutex
 	udpSessionId  uint32
@@ -146,6 +147,7 @@ func (h *Hysteria) Start() error {
 		packetConn = hysteria.NewXPlusPacketConn(packetConn, h.xplusKey)
 		packetConn = &hysteria.PacketConnWrapper{PacketConn: packetConn}
 	}
+	h.udpListener = packetConn
 	err = h.tlsConfig.Start()
 	if err != nil {
 		return err
@@ -314,6 +316,7 @@ func (h *Hysteria) Close() error {
 	h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
 	h.udpAccess.Unlock()
 	return common.Close(
+		h.udpListener,
 		h.listener,
 		common.PtrOrNil(h.tlsConfig),
 	)

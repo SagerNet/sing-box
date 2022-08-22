@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func _TestVMessAuto(t *testing.T) {
+func TestVMessAuto(t *testing.T) {
 	security := "auto"
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
@@ -28,7 +28,7 @@ func _TestVMessAuto(t *testing.T) {
 	})
 }
 
-func TestVMess(t *testing.T) {
+func _TestVMess(t *testing.T) {
 	for _, security := range []string{
 		"zero",
 	} {
