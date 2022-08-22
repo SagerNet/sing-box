@@ -12,8 +12,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -96,21 +94,11 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	if h, ok := writer.(http.Hijacker); ok {
-		conn, reader, err := h.Hijack()
+		conn, _, err := h.Hijack()
 		if err != nil {
 			writer.WriteHeader(http.StatusInternalServerError)
 			s.badRequest(request, E.Cause(err, "hijack conn"))
 			return
-		}
-		if reader.Available() > 0 {
-			buffer := buf.NewSize(reader.Available())
-			_, err = buffer.ReadFullFrom(reader, buffer.FreeLen())
-			if err != nil {
-				writer.WriteHeader(http.StatusInternalServerError)
-				s.badRequest(request, E.Cause(err, "read cached data"))
-				return
-			}
-			conn = bufio.NewCachedConn(conn, buffer)
 		}
 		s.handler.NewConnection(request.Context(), conn, M.Metadata{})
 	} else {

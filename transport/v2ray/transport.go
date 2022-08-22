@@ -44,9 +44,6 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 	}
 	switch options.Type {
 	case C.V2RayTransportTypeHTTP:
-		if tlsConfig == nil {
-			return nil, C.ErrTLSRequired
-		}
 		return v2rayhttp.NewClient(ctx, dialer, serverAddr, options.HTTPOptions, tlsConfig), nil
 	case C.V2RayTransportTypeGRPC:
 		if tlsConfig == nil {
