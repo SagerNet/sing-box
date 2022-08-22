@@ -12,6 +12,40 @@ import (
 )
 
 func TestVMessGRPCSelf(t *testing.T) {
+	testVMessWebscoketSelf(t, &option.V2RayTransportOptions{
+		Type: C.V2RayTransportTypeGRPC,
+		GRPCOptions: option.V2RayGRPCOptions{
+			ServiceName: "TunService",
+		},
+	})
+}
+
+func TestVMessWebscoketSelf(t *testing.T) {
+	t.Run("basic", func(t *testing.T) {
+		testVMessWebscoketSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+		})
+	})
+	t.Run("v2ray early data", func(t *testing.T) {
+		testVMessWebscoketSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+			WebsocketOptions: option.V2RayWebsocketOptions{
+				MaxEarlyData: 2048,
+			},
+		})
+	})
+	t.Run("xray early data", func(t *testing.T) {
+		testVMessWebscoketSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+			WebsocketOptions: option.V2RayWebsocketOptions{
+				MaxEarlyData:        2048,
+				EarlyDataHeaderName: "Sec-WebSocket-Protocol",
+			},
+		})
+	})
+}
+
+func testVMessWebscoketSelf(t *testing.T, transport *option.V2RayTransportOptions) {
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
@@ -50,12 +84,7 @@ func TestVMessGRPCSelf(t *testing.T) {
 						CertificatePath: certPem,
 						KeyPath:         keyPem,
 					},
-					Transport: &option.V2RayInboundTransportOptions{
-						Type: C.V2RayTransportTypeGRPC,
-						GRPCOptions: option.V2RayGRPCOptions{
-							ServiceName: "TunService",
-						},
-					},
+					Transport: transport,
 				},
 			},
 		},
@@ -78,12 +107,7 @@ func TestVMessGRPCSelf(t *testing.T) {
 						ServerName:      "example.org",
 						CertificatePath: certPem,
 					},
-					Transport: &option.V2RayOutboundTransportOptions{
-						Type: C.V2RayTransportTypeGRPC,
-						GRPCOptions: option.V2RayGRPCOptions{
-							ServiceName: "TunService",
-						},
-					},
+					Transport: transport,
 				},
 			},
 		},

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -31,7 +32,7 @@ type Client struct {
 	connAccess  sync.Mutex
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, serviceName string, tlsConfig *tls.Config) adapter.V2RayClientTransport {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
 	var dialOptions []grpc.DialOption
 	if tlsConfig != nil {
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
@@ -55,7 +56,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, ser
 		ctx:         ctx,
 		dialer:      dialer,
 		serverAddr:  serverAddr.String(),
-		serviceName: serviceName,
+		serviceName: options.ServiceName,
 		dialOptions: dialOptions,
 	}
 }
