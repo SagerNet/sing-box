@@ -1,6 +1,7 @@
 #### 2022/08/22
 
 * Add strategy setting for each [DNS server](/configuration/dns/server)
+* Add bind address to outbound options
 
 #### 2022/08/21
 

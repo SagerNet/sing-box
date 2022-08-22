@@ -16,6 +16,7 @@
       
       "detour": "upstream-out",
       "bind_interface": "en0",
+      "bind_address": "0.0.0.0",
       "routing_mark": 1234,
       "reuse_addr": false,
       "connect_timeout": "5s",
@@ -68,6 +69,10 @@ Other dial fields will be ignored when enabled.
 #### bind_interface
 
 The network interface to bind to.
+
+#### bind_address
+
+The address to bind to.
 
 #### routing_mark
 
