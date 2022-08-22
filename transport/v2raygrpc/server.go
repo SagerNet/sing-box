@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -21,14 +22,14 @@ type Server struct {
 	server  *grpc.Server
 }
 
-func NewServer(ctx context.Context, serviceName string, tlsConfig *tls.Config, handler N.TCPConnectionHandler) *Server {
+func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler) *Server {
 	var serverOptions []grpc.ServerOption
 	if tlsConfig != nil {
 		tlsConfig.NextProtos = []string{"h2"}
 		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
 	server := &Server{ctx, handler, grpc.NewServer(serverOptions...)}
-	RegisterGunServiceCustomNameServer(server.server, server, serviceName)
+	RegisterGunServiceCustomNameServer(server.server, server, options.ServiceName)
 	return server
 }
 

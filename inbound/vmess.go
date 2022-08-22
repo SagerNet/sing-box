@@ -63,7 +63,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		}
 	}
 	if options.Transport != nil {
-		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig.Config(), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil))
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig.Config(), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil), inbound)
 		if err != nil {
 			return nil, err
 		}
