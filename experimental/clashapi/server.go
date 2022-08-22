@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/gorilla/websocket"
+	"github.com/sagernet/sing/common"
 )
 
 var _ adapter.ClashServer = (*Server)(nil)
@@ -103,10 +104,11 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Close() error {
-	s.httpServer.Close()
-	s.tcpListener.Close()
-	s.trafficManager.Close()
-	return nil
+	return common.Close(
+		common.PtrOrNil(s.httpServer),
+		s.tcpListener,
+		s.trafficManager,
+	)
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {
