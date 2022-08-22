@@ -81,7 +81,9 @@ nav:
       - Shared:
           - TLS: configuration/shared/tls.md
           - Multiplex: configuration/shared/multiplex.md
-  - FAQ: faq.md
+  - FAQ:
+      - faq/index.md
+      - Known Issues: faq/known-issues.md
   - Examples:
       - examples/index.md
       - Linux Server Installation: examples/linux-server-installation.md

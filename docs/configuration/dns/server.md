@@ -9,6 +9,7 @@
         "address": "tls://dns.google",
         "address_resolver": "local",
         "address_strategy": "prefer_ipv4",
+        "strategy": "ipv4_only",
         "detour": "direct"
       }
     ]
@@ -73,6 +74,14 @@ The domain strategy for resolving the domain name in the address.
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
 `dns.strategy` will be used if empty.
+
+#### strategy
+
+Default domain strategy for resolving the domain names.
+
+One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+
+Take no effect if override by other settings.
 
 #### detour
 
