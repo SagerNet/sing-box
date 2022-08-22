@@ -1,3 +1,7 @@
+#### 2022/08/22
+
+* Add strategy setting for each [DNS server](/configuration/dns/server)
+
 #### 2022/08/21
 
 * Add [Tor outbound](/configuration/outbound/tor)

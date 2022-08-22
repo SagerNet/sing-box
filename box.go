@@ -168,16 +168,18 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 }
 
 func (s *Box) Start() error {
+	err := s.start()
+	if err != nil {
+		s.Close()
+	}
+	return err
+}
+
+func (s *Box) start() error {
 	for i, out := range s.outbounds {
 		if starter, isStarter := out.(common.Starter); isStarter {
 			err := starter.Start()
 			if err != nil {
-				for _, in := range s.inbounds {
-					common.Close(in)
-				}
-				for g := 0; g < i; g++ {
-					common.Close(s.outbounds[g])
-				}
 				var tag string
 				if out.Tag() == "" {
 					tag = F.ToString(i)
@@ -195,9 +197,6 @@ func (s *Box) Start() error {
 	for i, in := range s.inbounds {
 		err = in.Start()
 		if err != nil {
-			for g := 0; g < i; g++ {
-				s.inbounds[g].Close()
-			}
 			var tag string
 			if in.Tag() == "" {
 				tag = F.ToString(i)

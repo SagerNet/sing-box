@@ -33,6 +33,8 @@ Default domain strategy for resolving the domain names.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
+Take no effect if `server.strategy` is set.
+
 #### disable_cache
 
 Disable dns cache.
