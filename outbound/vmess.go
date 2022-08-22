@@ -64,7 +64,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if options.Transport != nil {
 		outbound.transport, err = v2ray.NewClientTransport(ctx, outbound.dialer, outbound.serverAddr, common.PtrValueOrDefault(options.Transport), outbound.tlsConfig)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
 	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))

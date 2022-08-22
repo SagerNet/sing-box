@@ -143,5 +143,5 @@ func (s *Server) ServePacket(listener net.PacketConn) error {
 }
 
 func (s *Server) Close() error {
-	return common.Close(s.httpServer)
+	return common.Close(common.PtrOrNil(s.httpServer))
 }
