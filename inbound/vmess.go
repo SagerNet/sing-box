@@ -10,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
@@ -22,9 +23,11 @@ var _ adapter.Inbound = (*VMess)(nil)
 
 type VMess struct {
 	myInboundAdapter
+	ctx       context.Context
 	service   *vmess.Service[int]
 	users     []option.VMessUser
 	tlsConfig *TLSConfig
+	transport adapter.V2RayServerTransport
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessInboundOptions) (*VMess, error) {
@@ -38,9 +41,11 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
+		ctx:   ctx,
 		users: options.Users,
 	}
 	service := vmess.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+	inbound.service = service
 	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.VMessUser) int {
 		return index
 	}), common.Map(options.Users, func(it option.VMessUser) string {
@@ -52,28 +57,43 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, err
 	}
 	if options.TLS != nil {
-		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		inbound.tlsConfig, err = NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
-		inbound.tlsConfig = tlsConfig
 	}
-	inbound.service = service
+	if options.Transport != nil {
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig.Config(), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil))
+		if err != nil {
+			return nil, err
+		}
+	}
 	inbound.connHandler = inbound
 	return inbound, nil
 }
 
 func (h *VMess) Start() error {
-	if h.tlsConfig != nil {
-		err := h.tlsConfig.Start()
-		if err != nil {
-			return E.Cause(err, "create TLS config")
-		}
-	}
-	return common.Start(
+	err := common.Start(
 		h.service,
-		&h.myInboundAdapter,
+		h.tlsConfig,
 	)
+	if err != nil {
+		return err
+	}
+	if h.transport == nil {
+		return h.myInboundAdapter.Start()
+	}
+	tcpListener, err := h.myInboundAdapter.ListenTCP()
+	if err != nil {
+		return err
+	}
+	go func() {
+		sErr := h.transport.Serve(tcpListener)
+		if sErr != nil && !E.IsClosed(sErr) {
+			h.logger.Error("transport serve error: ", sErr)
+		}
+	}()
+	return nil
 }
 
 func (h *VMess) Close() error {
@@ -81,6 +101,7 @@ func (h *VMess) Close() error {
 		h.service,
 		&h.myInboundAdapter,
 		common.PtrOrNil(h.tlsConfig),
+		h.transport,
 	)
 }
 
@@ -88,6 +109,11 @@ func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	if h.tlsConfig != nil {
 		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	metadata = h.createMetadata(conn)
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

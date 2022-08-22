@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package transport.v2raygrpc;
+option go_package = "github.com/sagernet/sing-box/transport/v2raygrpc";
+
+message Hunk {
+  bytes data = 1;
+}
+
+service GunService {
+  rpc Tun (stream Hunk) returns (stream Hunk);
+}

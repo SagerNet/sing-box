@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
@@ -25,7 +26,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/gorilla/websocket"
-	"github.com/sagernet/sing/common"
 )
 
 var _ adapter.ClashServer = (*Server)(nil)

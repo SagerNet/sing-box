@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -10,6 +11,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -25,6 +27,8 @@ type VMess struct {
 	client          *vmess.Client
 	serverAddr      M.Socksaddr
 	multiplexDialer N.Dialer
+	tlsConfig       *tls.Config
+	transport       adapter.V2RayClientTransport
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessOutboundOptions) (*VMess, error) {
@@ -47,18 +51,31 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			logger:   logger,
 			tag:      tag,
 		},
+		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
 		client:     client,
 		serverAddr: options.ServerOptions.Build(),
 	}
-	outbound.dialer, err = dialer.NewTLS(dialer.NewOutbound(router, options.OutboundDialerOptions), options.Server, common.PtrValueOrDefault(options.TLSOptions))
-	if err != nil {
-		return nil, err
+	if options.TLS != nil {
+		outbound.tlsConfig, err = dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
+	if options.Transport != nil {
+		outbound.transport, err = v2ray.NewClientTransport(ctx, outbound.dialer, outbound.serverAddr, common.PtrValueOrDefault(options.Transport), outbound.tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
 	return outbound, nil
+}
+
+func (h *VMess) Close() error {
+	return common.Close(h.transport)
 }
 
 func (h *VMess) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -105,19 +122,24 @@ func (h *vmessDialer) DialContext(ctx context.Context, network string, destinati
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
+	var conn net.Conn
+	var err error
+	if h.transport != nil {
+		conn, err = h.transport.DialContext(ctx)
+	} else {
+		conn, err = h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
+		if err == nil && h.tlsConfig != nil {
+			conn, err = dialer.TLSClient(ctx, conn, h.tlsConfig)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
-		if err != nil {
-			return nil, err
-		}
-		return h.client.DialEarlyConn(outConn, destination), nil
+		return h.client.DialEarlyConn(conn, destination), nil
 	case N.NetworkUDP:
-		outConn, err := h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
-		if err != nil {
-			return nil, err
-		}
-		return h.client.DialEarlyPacketConn(outConn, destination), nil
+		return h.client.DialEarlyPacketConn(conn, destination), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}

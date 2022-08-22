@@ -113,6 +113,22 @@ func (a *myInboundAdapter) Start() error {
 	return nil
 }
 
+func (a *myInboundAdapter) ListenTCP() (*net.TCPListener, error) {
+	var err error
+	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
+	var tcpListener *net.TCPListener
+	if !a.listenOptions.TCPFastOpen {
+		tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+	} else {
+		tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+	}
+	if err == nil {
+		a.logger.Info("tcp server started at ", tcpListener.Addr())
+	}
+	a.tcpListener = tcpListener
+	return tcpListener, err
+}
+
 func (a *myInboundAdapter) Close() error {
 	var err error
 	if a.clearSystemProxy != nil {
@@ -156,24 +172,31 @@ func (a *myInboundAdapter) loopTCPIn() {
 		if err != nil {
 			return
 		}
-		go func() {
-			ctx := log.ContextWithNewID(a.ctx)
-			var metadata adapter.InboundContext
-			metadata.Inbound = a.tag
-			metadata.InboundType = a.protocol
-			metadata.SniffEnabled = a.listenOptions.SniffEnabled
-			metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-			metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-			metadata.Network = N.NetworkTCP
-			metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
-			metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
-			a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
-			hErr := a.connHandler.NewConnection(ctx, conn, metadata)
-			if hErr != nil {
-				conn.Close()
-				a.NewError(ctx, E.Cause(hErr, "process connection from ", metadata.Source))
-			}
-		}()
+		go a.injectTCP(conn)
+	}
+}
+
+func (a *myInboundAdapter) createMetadata(conn net.Conn) adapter.InboundContext {
+	var metadata adapter.InboundContext
+	metadata.Inbound = a.tag
+	metadata.InboundType = a.protocol
+	metadata.SniffEnabled = a.listenOptions.SniffEnabled
+	metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
+	metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
+	metadata.Network = N.NetworkTCP
+	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
+	return metadata
+}
+
+func (a *myInboundAdapter) injectTCP(conn net.Conn) {
+	ctx := log.ContextWithNewID(a.ctx)
+	metadata := a.createMetadata(conn)
+	a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	hErr := a.connHandler.NewConnection(ctx, conn, metadata)
+	if hErr != nil {
+		conn.Close()
+		a.NewError(ctx, E.Cause(hErr, "process connection from ", metadata.Source))
 	}
 }
 

@@ -126,13 +126,17 @@ func (d *TLSDialer) DialContext(ctx context.Context, network string, destination
 	if err != nil {
 		return nil, err
 	}
-	tlsConn := tls.Client(conn, d.config)
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
-	defer cancel()
-	err = tlsConn.HandshakeContext(ctx)
-	return tlsConn, err
+	return TLSClient(ctx, conn, d.config)
 }
 
 func (d *TLSDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, os.ErrInvalid
+}
+
+func TLSClient(ctx context.Context, conn net.Conn, tlsConfig *tls.Config) (*tls.Conn, error) {
+	tlsConn := tls.Client(conn, tlsConfig)
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
+	err := tlsConn.HandshakeContext(ctx)
+	return tlsConn, err
 }
