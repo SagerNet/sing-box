@@ -59,8 +59,7 @@ func TestTrojanSelf(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level:  "error",
-			Output: "stderr",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{

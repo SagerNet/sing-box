@@ -129,6 +129,18 @@ func (a *myInboundAdapter) ListenTCP() (*net.TCPListener, error) {
 	return tcpListener, err
 }
 
+func (a *myInboundAdapter) ListenUDP() (*net.UDPConn, error) {
+	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
+	udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
+	if err != nil {
+		return nil, err
+	}
+	a.udpConn = udpConn
+	a.udpAddr = bindAddr
+	a.logger.Info("udp server started at ", udpConn.LocalAddr())
+	return udpConn, err
+}
+
 func (a *myInboundAdapter) Close() error {
 	var err error
 	if a.clearSystemProxy != nil {

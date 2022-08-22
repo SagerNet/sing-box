@@ -45,14 +45,19 @@ func TestVMessWebscoketSelf(t *testing.T) {
 	})
 }
 
+func TestVMessQUICSelf(t *testing.T) {
+	testVMessWebscoketSelf(t, &option.V2RayTransportOptions{
+		Type: C.V2RayTransportTypeQUIC,
+	})
+}
+
 func testVMessWebscoketSelf(t *testing.T, transport *option.V2RayTransportOptions) {
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level:  "error",
-			Output: "stderr",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
@@ -122,5 +127,5 @@ func testVMessWebscoketSelf(t *testing.T, transport *option.V2RayTransportOption
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitQUIC(t, clientPort, testPort)
 }
