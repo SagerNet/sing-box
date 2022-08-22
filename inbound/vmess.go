@@ -63,9 +63,13 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		}
 	}
 	if options.Transport != nil {
-		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig.Config(), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil), inbound)
+		var tlsConfig *tls.Config
+		if inbound.tlsConfig != nil {
+			tlsConfig = inbound.tlsConfig.Config()
+		}
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), tlsConfig, adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil), inbound)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "create server transport: ", options.Transport.Type)
 		}
 	}
 	inbound.connHandler = inbound
@@ -75,7 +79,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 func (h *VMess) Start() error {
 	err := common.Start(
 		h.service,
-		h.tlsConfig,
+		common.PtrOrNil(h.tlsConfig),
 	)
 	if err != nil {
 		return err

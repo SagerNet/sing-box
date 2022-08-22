@@ -114,7 +114,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		udpSessions:   make(map[uint32]chan *hysteria.UDPMessage),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, errTLSRequired
+		return nil, C.ErrTLSRequired
 	}
 	if len(options.TLS.ALPN) == 0 {
 		options.TLS.ALPN = []string{hysteria.DefaultALPN}

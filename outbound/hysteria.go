@@ -43,11 +43,9 @@ type Hysteria struct {
 	udpDefragger hysteria.Defragger
 }
 
-var errTLSRequired = E.New("TLS required")
-
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaOutboundOptions) (*Hysteria, error) {
 	if options.TLS == nil || !options.TLS.Enabled {
-		return nil, errTLSRequired
+		return nil, C.ErrTLSRequired
 	}
 	tlsConfig, err := dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
