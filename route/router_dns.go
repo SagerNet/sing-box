@@ -15,6 +15,31 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, dns.DomainStrategy) {
+	metadata := adapter.ContextFrom(ctx)
+	if metadata == nil {
+		panic("no context")
+	}
+	for i, rule := range r.dnsRules {
+		if rule.Match(metadata) {
+			if rule.DisableCache() {
+				ctx = dns.ContextWithDisableCache(ctx, true)
+			}
+			detour := rule.Outbound()
+			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
+			if transport, loaded := r.transportMap[detour]; loaded {
+				if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
+					return ctx, transport, domainStrategy
+				} else {
+					return ctx, transport, r.defaultDomainStrategy
+				}
+			}
+			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
+		}
+	}
+	return ctx, r.defaultTransport, r.defaultDomainStrategy
+}
+
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
 	if len(message.Questions) > 0 {
 		r.dnsLogger.DebugContext(ctx, "exchange ", formatDNSQuestion(message.Questions[0]))
@@ -28,10 +53,10 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 			metadata.IPVersion = 6
 		}
 	}
-	ctx, transport := r.matchDNS(ctx)
+	ctx, transport, strategy := r.matchDNS(ctx)
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 	defer cancel()
-	response, err := r.dnsClient.Exchange(ctx, transport, message)
+	response, err := r.dnsClient.Exchange(ctx, transport, message, strategy)
 	if err != nil && len(message.Questions) > 0 {
 		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", message.Questions[0].Name.String()))
 	}
@@ -43,7 +68,10 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
-	ctx, transport := r.matchDNS(ctx)
+	ctx, transport, transportStrategy := r.matchDNS(ctx)
+	if strategy == dns.DomainStrategyAsIS {
+		strategy = transportStrategy
+	}
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 	defer cancel()
 	addrs, err := r.dnsClient.Lookup(ctx, transport, domain, strategy)
@@ -56,7 +84,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 }
 
 func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error) {
-	return r.Lookup(ctx, domain, r.defaultDomainStrategy)
+	return r.Lookup(ctx, domain, dns.DomainStrategyAsIS)
 }
 
 func LogDNSAnswers(logger log.ContextLogger, ctx context.Context, domain string, answers []dnsmessage.Resource) {

@@ -28,6 +28,7 @@ type DNSServerOptions struct {
 	AddressResolver      string         `json:"address_resolver,omitempty"`
 	AddressStrategy      DomainStrategy `json:"address_strategy,omitempty"`
 	AddressFallbackDelay Duration       `json:"address_fallback_delay,omitempty"`
+	Strategy             DomainStrategy `json:"strategy,omitempty"`
 	Detour               string         `json:"detour,omitempty"`
 }
 

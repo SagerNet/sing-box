@@ -84,6 +84,7 @@ type Router struct {
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
+	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
 	interfaceBindManager               control.BindManager
 	autoDetectInterface                bool
 	defaultInterface                   string
@@ -119,7 +120,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
 		defaultDetour:         options.Final,
-		dnsClient:             dns.NewClient(dns.DomainStrategy(dnsOptions.DNSClientOptions.Strategy), dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
+		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
 		interfaceBindManager:  control.NewBindManager(),
 		autoDetectInterface:   options.AutoDetectInterface,
@@ -145,6 +146,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	transportMap := make(map[string]dns.Transport)
 	transportTags := make([]string, len(dnsOptions.Servers))
 	transportTagMap := make(map[string]bool)
+	transportDomainStrategy := make(map[dns.Transport]dns.DomainStrategy)
 	for i, server := range dnsOptions.Servers {
 		var tag string
 		if server.Tag != "" {
@@ -202,6 +204,10 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 			if server.Tag != "" {
 				transportMap[server.Tag] = transport
 			}
+			strategy := dns.DomainStrategy(server.Strategy)
+			if strategy != dns.DomainStrategyAsIS {
+				transportDomainStrategy[transport] = strategy
+			}
 		}
 		if len(transports) == len(dummyTransportMap) {
 			break
@@ -233,6 +239,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.defaultTransport = defaultTransport
 	router.transports = transports
 	router.transportMap = transportMap
+	router.transportDomainStrategy = transportDomainStrategy
 
 	needInterfaceMonitor := options.AutoDetectInterface ||
 		C.IsDarwin && common.Any(inbounds, func(inbound option.Inbound) bool {
@@ -632,27 +639,6 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 		}
 	}
 	return nil, defaultOutbound
-}
-
-func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport) {
-	metadata := adapter.ContextFrom(ctx)
-	if metadata == nil {
-		panic("no context")
-	}
-	for i, rule := range r.dnsRules {
-		if rule.Match(metadata) {
-			if rule.DisableCache() {
-				ctx = dns.ContextWithDisableCache(ctx, true)
-			}
-			detour := rule.Outbound()
-			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
-			if transport, loaded := r.transportMap[detour]; loaded {
-				return ctx, transport
-			}
-			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
-		}
-	}
-	return ctx, r.defaultTransport
 }
 
 func (r *Router) InterfaceBindManager() control.BindManager {
