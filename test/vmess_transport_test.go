@@ -211,3 +211,73 @@ func TestVMessQUICSelf(t *testing.T) {
 	})
 	testSuitQUIC(t, clientPort, testPort)
 }
+
+func TestVMessHTTPNoTLSSelf(t *testing.T) {
+	transport := &option.V2RayTransportOptions{
+		Type: C.V2RayTransportTypeHTTP,
+	}
+	user, err := uuid.DefaultGenerator.NewV4()
+	require.NoError(t, err)
+	startInstance(t, option.Options{
+		Log: &option.LogOptions{
+			Level: "trace",
+		},
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeVMess,
+				VMessOptions: option.VMessInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					Users: []option.VMessUser{
+						{
+							Name: "sekai",
+							UUID: user.String(),
+						},
+					},
+					Transport: transport,
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeVMess,
+				Tag:  "vmess-out",
+				VMessOptions: option.VMessOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					UUID:      user.String(),
+					Security:  "zero",
+					Transport: transport,
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					DefaultOptions: option.DefaultRule{
+						Inbound:  []string{"mixed-in"},
+						Outbound: "vmess-out",
+					},
+				},
+			},
+		},
+	})
+	testSuitQUIC(t, clientPort, testPort)
+}
