@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	runtimeDebug "runtime/debug"
 	"syscall"
 
 	"github.com/sagernet/sing-box"
@@ -54,10 +55,10 @@ func readConfig() (option.Options, error) {
 	return options, nil
 }
 
-func run() error {
+func create() (*box.Box, context.CancelFunc, error) {
 	options, err := readConfig()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if disableColor {
 		if options.Log == nil {
@@ -69,12 +70,20 @@ func run() error {
 	instance, err := box.New(ctx, options)
 	if err != nil {
 		cancel()
-		return E.Cause(err, "create service")
+		return nil, nil, E.Cause(err, "create service")
 	}
 	err = instance.Start()
 	if err != nil {
 		cancel()
-		return E.Cause(err, "start service")
+		return nil, nil, E.Cause(err, "start service")
+	}
+	return instance, cancel, nil
+}
+
+func run() error {
+	instance, cancel, err := create()
+	if err != nil {
+		return err
 	}
 	if debug.Enabled {
 		http.HandleFunc("/debug/close", func(writer http.ResponseWriter, request *http.Request) {
@@ -82,6 +91,7 @@ func run() error {
 			instance.Close()
 		})
 	}
+	runtimeDebug.FreeOSMemory()
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
 	<-osSignals
