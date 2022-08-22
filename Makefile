@@ -47,7 +47,8 @@ snapshot_install:
 test:
 	@go test -v . && \
 	pushd test && \
-	go test -v . && \
+	go mod tidy && \
+	go test -v -tags '$(TAGS)' . && \
 	popd
 
 clean:
