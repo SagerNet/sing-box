@@ -15,7 +15,7 @@ func TestHysteriaSelf(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
@@ -93,7 +93,7 @@ func TestHysteriaInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
@@ -146,7 +146,7 @@ func TestHysteriaOutbound(t *testing.T) {
 	})
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{

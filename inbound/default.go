@@ -212,6 +212,15 @@ func (a *myInboundAdapter) injectTCP(conn net.Conn) {
 	}
 }
 
+func (a *myInboundAdapter) routeTCP(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) {
+	a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	hErr := a.newConnection(ctx, conn, metadata)
+	if hErr != nil {
+		conn.Close()
+		a.NewError(ctx, E.Cause(hErr, "process connection from ", metadata.Source))
+	}
+}
+
 func (a *myInboundAdapter) loopUDPIn() {
 	defer close(a.packetOutboundClosed)
 	_buffer := buf.StackNewPacket()

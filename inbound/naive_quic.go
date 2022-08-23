@@ -3,34 +3,26 @@
 package inbound
 
 import (
-	"net"
-	"net/netip"
-
-	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
-	M "github.com/sagernet/sing/common/metadata"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func (n *Naive) configureHTTP3Listener(listenAddr string) error {
+func (n *Naive) configureHTTP3Listener() error {
 	h3Server := &http3.Server{
 		Port:      int(n.listenOptions.ListenPort),
 		TLSConfig: n.tlsConfig.Config(),
 		Handler:   n,
 	}
 
-	udpListener, err := net.ListenPacket(M.NetworkFromNetAddr("udp", netip.Addr(n.listenOptions.Listen)), listenAddr)
+	udpConn, err := n.ListenUDP()
 	if err != nil {
 		return err
 	}
 
-	n.logger.Info("udp server started at ", udpListener.LocalAddr())
-
 	go func() {
-		sErr := h3Server.Serve(udpListener)
-		if sErr == quic.ErrServerClosed {
-			udpListener.Close()
-			return
-		} else if sErr != nil {
+		sErr := h3Server.Serve(udpConn)
+		udpConn.Close()
+		if sErr != nil && !E.IsClosedOrCanceled(sErr) {
 			n.logger.Error("http3 server serve error: ", sErr)
 		}
 	}()

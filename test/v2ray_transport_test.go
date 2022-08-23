@@ -310,7 +310,7 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 	require.NoError(t, err)
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{

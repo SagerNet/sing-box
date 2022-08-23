@@ -35,6 +35,7 @@ const (
 	ImageNaive                 = "pocat/naiveproxy:client"
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
 	ImageHysteria              = "tobyxdd/hysteria:latest"
+	ImageNginx                 = "nginx:stable"
 )
 
 var allImages = []string{
@@ -45,6 +46,7 @@ var allImages = []string{
 	ImageNaive,
 	ImageBoringTun,
 	ImageHysteria,
+	// ImageNginx,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")

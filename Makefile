@@ -57,7 +57,7 @@ test:
 	@go test -v . && \
 	pushd test && \
 	go mod tidy && \
-	go test -v -tags '$(TAGS)' . && \
+	go test -v -tags with_quic,with_wireguard,with_grpc . && \
 	popd
 
 clean:
