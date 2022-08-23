@@ -5,8 +5,6 @@ package inbound
 import (
 	"bytes"
 	"context"
-	"net"
-	"net/netip"
 	"sync"
 
 	"github.com/sagernet/quic-go"
@@ -26,23 +24,18 @@ import (
 var _ adapter.Inbound = (*Hysteria)(nil)
 
 type Hysteria struct {
-	ctx           context.Context
-	router        adapter.Router
-	logger        log.ContextLogger
-	tag           string
-	listenOptions option.ListenOptions
-	quicConfig    *quic.Config
-	tlsConfig     *TLSConfig
-	authKey       []byte
-	xplusKey      []byte
-	sendBPS       uint64
-	recvBPS       uint64
-	udpListener   net.PacketConn
-	listener      quic.Listener
-	udpAccess     sync.RWMutex
-	udpSessionId  uint32
-	udpSessions   map[uint32]chan *hysteria.UDPMessage
-	udpDefragger  hysteria.Defragger
+	myInboundAdapter
+	quicConfig   *quic.Config
+	tlsConfig    *TLSConfig
+	authKey      []byte
+	xplusKey     []byte
+	sendBPS      uint64
+	recvBPS      uint64
+	listener     quic.Listener
+	udpAccess    sync.RWMutex
+	udpSessionId uint32
+	udpSessions  map[uint32]chan *hysteria.UDPMessage
+	udpDefragger hysteria.Defragger
 }
 
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaInboundOptions) (*Hysteria, error) {
@@ -101,17 +94,21 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, E.New("invalid down speed")
 	}
 	inbound := &Hysteria{
-		ctx:           ctx,
-		router:        router,
-		logger:        logger,
-		tag:           tag,
-		quicConfig:    quicConfig,
-		listenOptions: options.ListenOptions,
-		authKey:       auth,
-		xplusKey:      xplus,
-		sendBPS:       up,
-		recvBPS:       down,
-		udpSessions:   make(map[uint32]chan *hysteria.UDPMessage),
+		myInboundAdapter: myInboundAdapter{
+			protocol:      C.TypeHysteria,
+			network:       []string{N.NetworkUDP},
+			ctx:           ctx,
+			router:        router,
+			logger:        logger,
+			tag:           tag,
+			listenOptions: options.ListenOptions,
+		},
+		quicConfig:  quicConfig,
+		authKey:     auth,
+		xplusKey:    xplus,
+		sendBPS:     up,
+		recvBPS:     down,
+		udpSessions: make(map[uint32]chan *hysteria.UDPMessage),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
@@ -127,19 +124,8 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	return inbound, nil
 }
 
-func (h *Hysteria) Type() string {
-	return C.TypeHysteria
-}
-
-func (h *Hysteria) Tag() string {
-	return h.tag
-}
-
 func (h *Hysteria) Start() error {
-	listenAddr := M.SocksaddrFrom(netip.Addr(h.listenOptions.Listen), h.listenOptions.ListenPort)
-	var packetConn net.PacketConn
-	var err error
-	packetConn, err = net.ListenUDP(M.NetworkFromNetAddr("udp", listenAddr.Addr), listenAddr.UDPAddr())
+	packetConn, err := h.myInboundAdapter.ListenUDP()
 	if err != nil {
 		return err
 	}
@@ -147,7 +133,6 @@ func (h *Hysteria) Start() error {
 		packetConn = hysteria.NewXPlusPacketConn(packetConn, h.xplusKey)
 		packetConn = &hysteria.PacketConnWrapper{PacketConn: packetConn}
 	}
-	h.udpListener = packetConn
 	err = h.tlsConfig.Start()
 	if err != nil {
 		return err
@@ -316,7 +301,7 @@ func (h *Hysteria) Close() error {
 	h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
 	h.udpAccess.Unlock()
 	return common.Close(
-		h.udpListener,
+		&h.myInboundAdapter,
 		h.listener,
 		common.PtrOrNil(h.tlsConfig),
 	)

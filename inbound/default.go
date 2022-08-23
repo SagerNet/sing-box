@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/proxyproto"
 	"github.com/sagernet/sing-box/common/settings"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -45,7 +46,7 @@ type myInboundAdapter struct {
 
 	// internal
 
-	tcpListener          *net.TCPListener
+	tcpListener          net.Listener
 	udpConn              *net.UDPConn
 	udpAddr              M.Socksaddr
 	packetAccess         sync.RWMutex
@@ -101,10 +102,10 @@ func (a *myInboundAdapter) Start() error {
 	return nil
 }
 
-func (a *myInboundAdapter) ListenTCP() (*net.TCPListener, error) {
+func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 	var err error
 	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
-	var tcpListener *net.TCPListener
+	var tcpListener net.Listener
 	if !a.listenOptions.TCPFastOpen {
 		tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 	} else {
@@ -113,11 +114,15 @@ func (a *myInboundAdapter) ListenTCP() (*net.TCPListener, error) {
 	if err == nil {
 		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
+	if a.listenOptions.ProxyProtocol {
+		a.logger.Debug("proxy protocol enabled")
+		tcpListener = &proxyproto.Listener{Listener: tcpListener}
+	}
 	a.tcpListener = tcpListener
 	return tcpListener, err
 }
 
-func (a *myInboundAdapter) ListenUDP() (*net.UDPConn, error) {
+func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
 	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
 	udpConn, err := net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
 	if err != nil {
@@ -135,7 +140,7 @@ func (a *myInboundAdapter) Close() error {
 		err = a.clearSystemProxy()
 	}
 	return E.Errors(err, common.Close(
-		common.PtrOrNil(a.tcpListener),
+		a.tcpListener,
 		common.PtrOrNil(a.udpConn),
 	))
 }
@@ -168,7 +173,7 @@ func (a *myInboundAdapter) newPacketConnection(ctx context.Context, conn N.Packe
 func (a *myInboundAdapter) loopTCPIn() {
 	tcpListener := a.tcpListener
 	for {
-		conn, err := tcpListener.AcceptTCP()
+		conn, err := tcpListener.Accept()
 		if err != nil {
 			return
 		}
@@ -183,8 +188,15 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 	metadata.Network = N.NetworkTCP
-	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
-	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
+	if !metadata.Source.IsValid() {
+		metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+	}
+	if !metadata.Destination.IsValid() {
+		metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr())
+	}
+	if tcpConn, isTCP := common.Cast[*net.TCPConn](conn); isTCP {
+		metadata.OriginDestination = M.SocksaddrFromNet(tcpConn.LocalAddr())
+	}
 	return metadata
 }
 

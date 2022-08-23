@@ -16,7 +16,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 	}
 	switch options.Type {
 	case C.TypeDirect:
-		return NewDirect(router, logger, options.Tag, options.DirectOptions), nil
+		return NewDirect(router, logger, options.Tag, options.DirectOptions)
 	case C.TypeBlock:
 		return NewBlock(logger, options.Tag), nil
 	case C.TypeDNS:
