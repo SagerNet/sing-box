@@ -79,19 +79,29 @@ func create() (*box.Box, context.CancelFunc, error) {
 }
 
 func run() error {
+	osSignals := make(chan os.Signal, 1)
+	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
 		instance, cancel, err := create()
 		if err != nil {
 			return err
 		}
 		runtimeDebug.FreeOSMemory()
-		osSignals := make(chan os.Signal, 1)
-		signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-		osSignal := <-osSignals
-		cancel()
-		instance.Close()
-		if osSignal != syscall.SIGHUP {
-			return nil
+		for {
+			osSignal := <-osSignals
+			if osSignal == syscall.SIGHUP {
+				err = check()
+				if err != nil {
+					log.Error(E.Cause(err, "reload service"))
+					continue
+				}
+			}
+			cancel()
+			instance.Close()
+			if osSignal != syscall.SIGHUP {
+				return nil
+			}
+			break
 		}
 	}
 }
