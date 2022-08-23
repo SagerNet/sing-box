@@ -10,12 +10,11 @@ import (
 	"github.com/sagernet/sing/common/network"
 )
 
-// FIXME: nginx do not support CONNECT
-func _TestNaiveInboundWithNingx(t *testing.T) {
+func TestNaiveInboundWithNginx(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
@@ -40,6 +39,7 @@ func _TestNaiveInboundWithNingx(t *testing.T) {
 		Image: ImageNginx,
 		Ports: []uint16{serverPort, otherPort},
 		Bind: map[string]string{
+			"nginx.conf":       "/etc/nginx/nginx.conf",
 			"naive-nginx.conf": "/etc/nginx/conf.d/naive.conf",
 			certPem:            "/etc/nginx/cert.pem",
 			keyPem:             "/etc/nginx/key.pem",
