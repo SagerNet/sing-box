@@ -10,6 +10,55 @@ import (
 	"github.com/sagernet/sing/common/network"
 )
 
+// FIXME: nginx do not support CONNECT
+func _TestNaiveInboundWithNingx(t *testing.T) {
+	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+	startInstance(t, option.Options{
+		Log: &option.LogOptions{
+			Level: "trace",
+		},
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeNaive,
+				NaiveOptions: option.NaiveInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: otherPort,
+					},
+					Users: []auth.User{
+						{
+							Username: "sekai",
+							Password: "password",
+						},
+					},
+					Network: network.NetworkTCP,
+				},
+			},
+		},
+	})
+	startDockerContainer(t, DockerOptions{
+		Image: ImageNginx,
+		Ports: []uint16{serverPort, otherPort},
+		Bind: map[string]string{
+			"naive-nginx.conf": "/etc/nginx/conf.d/naive.conf",
+			certPem:            "/etc/nginx/cert.pem",
+			keyPem:             "/etc/nginx/key.pem",
+		},
+	})
+	startDockerContainer(t, DockerOptions{
+		Image: ImageNaive,
+		Ports: []uint16{serverPort, clientPort},
+		Bind: map[string]string{
+			"naive.json": "/etc/naiveproxy/config.json",
+			caPem:        "/etc/naiveproxy/ca.pem",
+		},
+		Env: []string{
+			"SSL_CERT_FILE=/etc/naiveproxy/ca.pem",
+		},
+	})
+	testTCP(t, clientPort, testPort)
+}
+
 func TestNaiveInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{

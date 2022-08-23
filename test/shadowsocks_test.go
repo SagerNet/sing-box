@@ -18,6 +18,7 @@ const (
 	serverPort uint16 = 10000 + iota
 	clientPort
 	testPort
+	otherPort
 )
 
 func TestShadowsocks(t *testing.T) {
@@ -199,7 +200,7 @@ func TestShadowsocksUoT(t *testing.T) {
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{
