@@ -17,6 +17,7 @@
       "network": "tcp",
       "tls": {},
       "multiplex": {},
+      "transport": {},
 
       "detour": "upstream-out",
       "bind_interface": "en0",
@@ -97,6 +98,10 @@ TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbo
 #### multiplex
 
 Multiplex configuration, see [Multiplex structure](/configuration/shared/multiplex).
+
+#### transport
+
+V2Ray Transport configuration, see [V2Ray Transport](/configuration/shared/v2ray-transport).
 
 ### Dial Fields
 

@@ -1,3 +1,12 @@
+#### 2022/08/23
+
+* Add [V2Ray Transport](/configuration/shared/v2ray-transport) support for VMess and Trojan
+* Allow plain http request in Naive inbound (It can now be used with nginx)
+* Add proxy protocol support
+* Free memory after start
+* Parse X-Forward-For in HTTP requests
+* Handle SIGHUP signal
+
 #### 2022/08/22
 
 * Add strategy setting for each [DNS server](/configuration/dns/server)

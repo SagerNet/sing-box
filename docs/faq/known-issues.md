@@ -2,11 +2,16 @@
 
 ##### on macOS
 
-`auto-route` cannot automatically hijack DNS requests sent to the LAN, so it's need to manually set DNS to servers on the public internet.
+`auto-route` cannot automatically hijack DNS requests sent to the LAN, so it's need to manually set DNS to servers on
+the public internet.
 
 ##### on Android
 
 `auto-route` cannot automatically hijack DNS requests when Android's `Private DNS` is enabled.
+
+##### on Linux
+
+`auto-route` cannot automatically hijack DNS requests with `systemd-resoled` enabled, you can switch to NetworkManager.
 
 #### System proxy
 

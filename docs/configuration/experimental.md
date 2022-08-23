@@ -16,7 +16,7 @@
 
 !!! error ""
 
-    Clash API is not included by default, see [Installation](/#Installation).
+    Clash API is not included by default, see [Installation](/#installation).
 
 !!! note ""
 

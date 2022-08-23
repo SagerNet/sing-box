@@ -81,6 +81,7 @@ nav:
       - Shared:
           - TLS: configuration/shared/tls.md
           - Multiplex: configuration/shared/multiplex.md
+          - V2Ray Transport: configuration/shared/v2ray-transport.md
   - FAQ:
       - faq/index.md
       - Known Issues: faq/known-issues.md

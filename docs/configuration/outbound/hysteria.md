@@ -38,7 +38,7 @@
 
 !!! warning ""
 
-    QUIC, which is required by hysteria is not included by default, see [Installation](/#Installation).
+    QUIC, which is required by hysteria is not included by default, see [Installation](/#installation).
 
 ### Hysteria Fields
 
