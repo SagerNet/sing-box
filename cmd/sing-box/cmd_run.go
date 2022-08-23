@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"net/http"
 	"os"
 	"os/signal"
 	runtimeDebug "runtime/debug"
@@ -13,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
@@ -81,21 +79,19 @@ func create() (*box.Box, context.CancelFunc, error) {
 }
 
 func run() error {
-	instance, cancel, err := create()
-	if err != nil {
-		return err
+	for {
+		instance, cancel, err := create()
+		if err != nil {
+			return err
+		}
+		runtimeDebug.FreeOSMemory()
+		osSignals := make(chan os.Signal, 1)
+		signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		osSignal := <-osSignals
+		cancel()
+		instance.Close()
+		if osSignal != syscall.SIGHUP {
+			return nil
+		}
 	}
-	if debug.Enabled {
-		http.HandleFunc("/debug/close", func(writer http.ResponseWriter, request *http.Request) {
-			cancel()
-			instance.Close()
-		})
-	}
-	runtimeDebug.FreeOSMemory()
-	osSignals := make(chan os.Signal, 1)
-	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
-	<-osSignals
-	cancel()
-	instance.Close()
-	return nil
 }
