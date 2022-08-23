@@ -9,9 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 )
 
@@ -79,39 +77,6 @@ func GetGOBIN() string {
 		return GOBIN
 	}
 	return GOBIN
-}
-
-func getInstalledProtocVersion(protocPath string) (string, error) {
-	cmd := exec.Command(protocPath, "--version")
-	cmd.Env = append(cmd.Env, os.Environ()...)
-	output, cmdErr := cmd.CombinedOutput()
-	if cmdErr != nil {
-		return "", cmdErr
-	}
-	versionRegexp := regexp.MustCompile(`protoc\s*(\d+\.\d+\.\d+)`)
-	matched := versionRegexp.FindStringSubmatch(string(output))
-	return matched[1], nil
-}
-
-func parseVersion(s string, width int) int64 {
-	strList := strings.Split(s, ".")
-	format := fmt.Sprintf("%%s%%0%ds", width)
-	v := ""
-	for _, value := range strList {
-		v = fmt.Sprintf(format, v, value)
-	}
-	var result int64
-	var err error
-	if result, err = strconv.ParseInt(v, 10, 64); err != nil {
-		return 0
-	}
-	return result
-}
-
-func needToUpdate(targetedVersion, installedVersion string) bool {
-	vt := parseVersion(targetedVersion, 4)
-	vi := parseVersion(installedVersion, 4)
-	return vt > vi
 }
 
 func main() {
