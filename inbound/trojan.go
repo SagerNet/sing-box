@@ -10,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -27,6 +28,7 @@ type Trojan struct {
 	users        []option.TrojanUser
 	tlsConfig    *TLSConfig
 	fallbackAddr M.Socksaddr
+	transport    adapter.V2RayServerTransport
 }
 
 func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanInboundOptions) (*Trojan, error) {
@@ -63,6 +65,16 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		}
 		inbound.tlsConfig = tlsConfig
 	}
+	if options.Transport != nil {
+		var tlsConfig *tls.Config
+		if inbound.tlsConfig != nil {
+			tlsConfig = inbound.tlsConfig.Config()
+		}
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), tlsConfig, adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil), inbound)
+		if err != nil {
+			return nil, E.Cause(err, "create server transport: ", options.Transport.Type)
+		}
+	}
 	inbound.service = service
 	inbound.connHandler = inbound
 	return inbound, nil
@@ -75,17 +87,41 @@ func (h *Trojan) Start() error {
 			return E.Cause(err, "create TLS config")
 		}
 	}
-	return common.Start(
-		h.service,
-		&h.myInboundAdapter,
-	)
+	if h.transport == nil {
+		return h.myInboundAdapter.Start()
+	}
+	if common.Contains(h.transport.Network(), N.NetworkTCP) {
+		tcpListener, err := h.myInboundAdapter.ListenTCP()
+		if err != nil {
+			return err
+		}
+		go func() {
+			sErr := h.transport.Serve(tcpListener)
+			if sErr != nil && !E.IsClosed(sErr) {
+				h.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
+	if common.Contains(h.transport.Network(), N.NetworkUDP) {
+		udpConn, err := h.myInboundAdapter.ListenUDP()
+		if err != nil {
+			return err
+		}
+		go func() {
+			sErr := h.transport.ServePacket(udpConn)
+			if sErr != nil && !E.IsClosed(sErr) {
+				h.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
+	return nil
 }
 
 func (h *Trojan) Close() error {
 	return common.Close(
-		h.service,
 		&h.myInboundAdapter,
 		common.PtrOrNil(h.tlsConfig),
+		h.transport,
 	)
 }
 
@@ -93,6 +129,11 @@ func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 	if h.tlsConfig != nil {
 		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
+	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Trojan) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	metadata = h.createMetadata(conn)
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

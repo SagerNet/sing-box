@@ -43,7 +43,7 @@ func TestTrojanOutbound(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					Password: "password",
-					TLSOptions: &option.OutboundTLSOptions{
+					TLS: &option.OutboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
 						CertificatePath: certPem,
@@ -107,7 +107,7 @@ func TestTrojanSelf(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					Password: "password",
-					TLSOptions: &option.OutboundTLSOptions{
+					TLS: &option.OutboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
 						CertificatePath: certPem,
