@@ -20,6 +20,14 @@
 }
 ```
 
+### TProxy Fields
+
+#### network
+
+Listen network, one of `tcp` `udp`.
+
+Both if empty.
+
 ### Listen Fields
 
 #### listen
@@ -57,11 +65,3 @@ If `sniff_override_destination` is in effect, its value will be taken as a fallb
 #### udp_timeout
 
 UDP NAT expiration time in seconds, default is 300 (5 minutes).
-
-### TProxy Fields
-
-#### network
-
-Listen network, one of `tcp` `udp`.
-
-Both if empty.

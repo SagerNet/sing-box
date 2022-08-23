@@ -13,7 +13,8 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      
+      "proxy_protocol": false,
+
       "users": [
         {
           "name": "sekai",
@@ -21,11 +22,35 @@
           "alterId": 0
         }
       ],
-      "tls": {}
+      "tls": {},
+      "transport": {}
     }
   ]
 }
 ```
+
+### VMess Fields
+
+#### users
+
+VMess users.
+
+| Alter ID | Description             |
+|----------|-------------------------|
+| 0        | Disable legacy protocol |
+| > 0      | Enable legacy protocol  |
+
+!!! warning ""
+
+    Legacy protocol support (VMess MD5 Authentication) is provided for compatibility purposes only, use of alterId > 1 is not recommended.
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+
+#### transport
+
+V2Ray Transport configuration, see [V2Ray Transport](/configuration/shared/v2ray-transport).
 
 ### Listen Fields
 
@@ -65,21 +90,6 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-### VMess Fields
+#### proxy_protocol
 
-#### users
-
-VMess users.
-
-| Alter ID | Description             |
-|----------|-------------------------|
-| 0        | Disable legacy protocol |
-| > 0      | Enable legacy protocol  |
-
-!!! warning ""
-
-    Legacy protocol support (VMess MD5 Authentication) is provided for compatibility purposes only, use of alterId > 1 is not recommended.
-
-#### tls
-
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

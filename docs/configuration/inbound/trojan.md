@@ -13,7 +13,8 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      
+      "proxy_protocol": false,
+
       "users": [
         {
           "name": "sekai",
@@ -24,11 +25,34 @@
       "fallback": {
         "server": "127.0.0.0.1",
         "server_port": 8080
-      }
+      },
+      "transport": {}
     }
   ]
 }
 ```
+
+### Trojan Fields
+
+#### users
+
+Trojan users.
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+
+#### fallback
+
+!!! error ""
+
+    There is no evidence that GFW detects and blocks Trojan servers based on HTTP responses, and opening the standard http/s port on the server is a much bigger signature.
+
+Fallback server configuration. Disabled if empty.
+
+#### transport
+
+V2Ray Transport configuration, see [V2Ray Transport](/configuration/shared/v2ray-transport).
 
 ### Listen Fields
 
@@ -68,20 +92,6 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-### Trojan Fields
+#### proxy_protocol
 
-#### users
-
-Trojan users.
-
-#### tls
-
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
-
-#### fallback
-
-!!! error ""
-
-    There is no evidence that GFW detects and blocks Trojan servers based on HTTP responses, and opening the standard http/s port on the server is a much bigger signature.
-
-Fallback server configuration. Disabled if empty.
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

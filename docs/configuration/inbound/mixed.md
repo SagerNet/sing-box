@@ -15,6 +15,7 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
+      "proxy_protocol": false,
       
       "users": [
         {
@@ -22,12 +23,27 @@
           "password": "admin"
         }
       ],
-      
       "set_system_proxy": false
     }
   ]
 }
 ```
+
+### Mixed Fields
+
+#### users
+
+SOCKS and HTTP users.
+
+No authentication required if empty.
+
+#### set_system_proxy
+
+!!! error ""
+
+    Only supported on Linux, Android, Windows, and macOS.
+
+Automatically set system proxy configuration when start and clean up when stop.
 
 ### Listen Fields
 
@@ -74,11 +90,3 @@ If `sniff_override_destination` is in effect, its value will be taken as a fallb
     Only supported on Linux, Android, Windows, and macOS.
 
 Automatically set system proxy configuration when start and clean up when stop.
-
-### Mixed Fields
-
-#### users
-
-Socks and HTTP users.
-
-No authentication required if empty.

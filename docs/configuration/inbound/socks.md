@@ -15,7 +15,8 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      
+      "proxy_protocol": false,
+
       "users": [
         {
           "username": "admin",
@@ -26,6 +27,14 @@
   ]
 }
 ```
+
+### Socks Fields
+
+#### users
+
+SOCKS users.
+
+No authentication required if empty.
 
 ### Listen Fields
 
@@ -65,10 +74,6 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-### Socks Fields
+#### proxy_protocol
 
-#### users
-
-Socks users.
-
-No authentication required if empty.
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

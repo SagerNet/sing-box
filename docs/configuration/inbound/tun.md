@@ -107,7 +107,7 @@ TCP/IP stack.
 
 !!! warning ""
 
-    The LWIP stack is not included by default, see [Installation](/#Installation).
+    The LWIP stack is not included by default, see [Installation](/#installation).
 
 #### include_uid
 

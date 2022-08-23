@@ -13,6 +13,7 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
+      "proxy_protocol": false,
 
       "network": "udp",
       "users": [
@@ -29,7 +30,25 @@
 
 !!! warning ""
 
-    HTTP3 transport is not included by default, see [Installation](/#Installation).
+    HTTP3 transport is not included by default, see [Installation](/#installation).
+
+### Naive Fields
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+
+#### users
+
+==Required==
+
+Naive users.
+
+#### network
+
+Listen network, one of `tcp` `udp`.
+
+Both if empty.
 
 ### Listen Fields
 
@@ -69,22 +88,6 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-### Naive Fields
+#### proxy_protocol
 
-#### tls
-
-==Required==
-
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
-
-#### users
-
-==Required==
-
-Naive users.
-
-#### network
-
-Listen network, one of `tcp` `udp`.
-
-Both if empty.
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

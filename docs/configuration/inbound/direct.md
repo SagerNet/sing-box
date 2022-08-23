@@ -8,7 +8,6 @@
     {
       "type": "direct",
       "tag": "direct-in",
-      
       "listen": "::",
       "listen_port": 5353,
       "tcp_fast_open": false,
@@ -16,14 +15,30 @@
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "udp_timeout": 300,
-      
       "network": "udp",
+      "proxy_protocol": false,
       "override_address": "1.0.0.1",
       "override_port": 53
     }
   ]
 }
 ```
+
+### Direct Fields
+
+#### network
+
+Listen network, one of `tcp` `udp`.
+
+Both if empty.
+
+#### override_address
+
+Override the connection destination address.
+
+#### override_port
+
+Override the connection destination port.
 
 ### Listen Fields
 
@@ -67,18 +82,6 @@ If `sniff_override_destination` is in effect, its value will be taken as a fallb
 
 UDP NAT expiration time in seconds, default is 300 (5 minutes).
 
-### Direct Fields
+#### proxy_protocol
 
-#### network
-
-Listen network, one of `tcp` `udp`.
-
-Both if empty.
-
-#### override_address
-
-Override the connection destination address.
-
-#### override_port
-
-Override the connection destination port.
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

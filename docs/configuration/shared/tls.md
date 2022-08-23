@@ -28,7 +28,7 @@
 
 !!! warning ""
 
-    ACME is not included by default, see [Installation](/#Installation).
+    ACME is not included by default, see [Installation](/#installation).
 
 ### Outbound Structure
 
@@ -41,7 +41,6 @@
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
-  "disable_system_root": false,
   "certificate": "",
   "certificate_path": ""
 }
@@ -182,7 +181,7 @@ The ACME CA provider to use.
 
 | Value                   | Provider      |
 |-------------------------|---------------|
-| `letsenctypt (default)` | Let's Encrypt |
+| `letsencrypt (default)` | Let's Encrypt |
 | `zerossl`               | ZeroSSL       |
 | `https://...`           | Custom        |
 

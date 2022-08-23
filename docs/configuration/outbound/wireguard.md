@@ -35,7 +35,7 @@
 
 !!! warning ""
 
-    WireGuard is not included by default, see [Installation](/#Installation).
+    WireGuard is not included by default, see [Installation](/#installation).
 
 ### WireGuard Fields
 

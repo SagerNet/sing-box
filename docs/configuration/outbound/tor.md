@@ -30,7 +30,7 @@
 
 !!! info ""
 
-    Embedded tor is not included by default, see [Installation](/#Installation).
+    Embedded tor is not included by default, see [Installation](/#installation).
 
 ### Tor Fields
 

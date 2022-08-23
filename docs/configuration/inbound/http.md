@@ -1,5 +1,3 @@
-`socks` inbound is a http server.
-
 ### Structure
 
 ```json
@@ -15,7 +13,8 @@
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-
+      "proxy_protocol": false,
+      
       "users": [
         {
           "username": "admin",
@@ -28,6 +27,26 @@
   ]
 }
 ```
+
+### HTTP Fields
+
+#### tls
+
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+
+#### users
+
+HTTP users.
+
+No authentication required if empty.
+
+#### set_system_proxy
+
+!!! error ""
+
+    Only supported on Linux, Android, Windows, and macOS.
+
+Automatically set system proxy configuration when start and clean up when stop.
 
 ### Listen Fields
 
@@ -67,22 +86,6 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-#### set_system_proxy
+#### proxy_protocol
 
-!!! error ""
-
-    Only supported on Linux, Android, Windows, and macOS.
-
-Automatically set system proxy configuration when start and clean up when stop.
-
-### HTTP Fields
-
-#### tls
-
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
-
-#### users
-
-HTTP users.
-
-No authentication required if empty.
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.

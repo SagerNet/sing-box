@@ -47,7 +47,7 @@ The address of the dns server.
 
 !!! warning ""
 
-    QUIC and HTTP3 transport is not included by default, see [Installation](/#Installation).
+    QUIC and HTTP3 transport is not included by default, see [Installation](/#installation).
 
 !!! info ""
 
