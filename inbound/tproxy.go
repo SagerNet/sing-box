@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/redir"
@@ -55,7 +56,7 @@ func (t *TProxy) Start() error {
 		return err
 	}
 	if t.tcpListener != nil {
-		err = control.Conn(t.tcpListener, func(fd uintptr) error {
+		err = control.Conn(common.MustCast[syscall.Conn](t.tcpListener), func(fd uintptr) error {
 			return redir.TProxy(fd, M.SocksaddrFromNet(t.tcpListener.Addr()).Addr.Is6())
 		})
 		if err != nil {

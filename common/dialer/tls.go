@@ -21,11 +21,14 @@ type TLSDialer struct {
 }
 
 func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Config, error) {
+	if !options.Enabled {
+		return nil, nil
+	}
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
 	} else if serverAddress != "" {
-		if _, err := netip.ParseAddr(serverName); err != nil {
+		if _, err := netip.ParseAddr(serverName); err == nil {
 			serverName = serverAddress
 		}
 	}
