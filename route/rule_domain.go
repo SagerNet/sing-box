@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/domain"
 )
 
@@ -16,8 +15,6 @@ type DomainItem struct {
 }
 
 func NewDomainItem(domains []string, domainSuffixes []string) *DomainItem {
-	domains = common.Uniq(domains)
-	domainSuffixes = common.Uniq(domainSuffixes)
 	var description string
 	if dLen := len(domains); dLen > 0 {
 		if dLen == 1 {

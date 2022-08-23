@@ -9,7 +9,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 )
@@ -39,5 +38,5 @@ func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return socks.HandleConnection(ctx, conn, h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
+	return socks.HandleConnection(ctx, conn, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 }

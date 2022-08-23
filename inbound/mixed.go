@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/protocol/http"
@@ -53,8 +52,8 @@ func (h *Mixed) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	}
 	switch headerType {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnection0(ctx, conn, headerType, h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
+		return socks.HandleConnection0(ctx, conn, headerType, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 	}
 	reader := std_bufio.NewReader(bufio.NewCachedReader(conn, buf.As([]byte{headerType})))
-	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), M.Metadata{})
+	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 }

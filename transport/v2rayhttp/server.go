@@ -15,6 +15,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	sHttp "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -92,7 +93,8 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if f, ok := writer.(http.Flusher); ok {
 		f.Flush()
 	}
-
+	var metadata M.Metadata
+	metadata.Source = sHttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
 		conn, _, err := h.Hijack()
 		if err != nil {
@@ -100,7 +102,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			s.badRequest(request, E.Cause(err, "hijack conn"))
 			return
 		}
-		s.handler.NewConnection(request.Context(), conn, M.Metadata{})
+		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
 		conn := &ServerHTTPConn{
 			HTTPConn{
@@ -109,7 +111,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			},
 			writer.(http.Flusher),
 		}
-		s.handler.NewConnection(request.Context(), conn, M.Metadata{})
+		s.handler.NewConnection(request.Context(), conn, metadata)
 	}
 }
 

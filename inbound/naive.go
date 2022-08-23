@@ -25,6 +25,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
+	sHttp "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.Inbound = (*Naive)(nil)
@@ -155,7 +156,7 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if hostPort == "" {
 		hostPort = request.Host
 	}
-	source := M.ParseSocksaddr(request.RemoteAddr)
+	source := sHttp.SourceAddress(request)
 	destination := M.ParseSocksaddr(hostPort)
 
 	if hijacker, isHijacker := writer.(http.Hijacker); isHijacker {
@@ -170,10 +171,10 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (n *Naive) newConnection(ctx context.Context, conn net.Conn, source, destination M.Socksaddr) {
-	metadata := n.createMetadata(conn)
-	metadata.Source = source
-	metadata.Destination = destination
-	n.routeTCP(ctx, conn, metadata)
+	n.routeTCP(ctx, conn, n.createMetadata(conn, adapter.InboundContext{
+		Source:      source,
+		Destination: destination,
+	}))
 }
 
 func (n *Naive) badRequest(ctx context.Context, request *http.Request, err error) {

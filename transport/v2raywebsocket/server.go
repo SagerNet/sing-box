@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"net"
 	"net/http"
-	"net/netip"
 	"os"
 	"strings"
 
@@ -19,6 +18,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"github.com/gorilla/websocket"
 )
@@ -101,25 +101,16 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.badRequest(request, E.Cause(err, "upgrade websocket connection"))
 		return
 	}
-	var remoteAddr net.Addr
-	forwardFrom := request.Header.Get("X-Forwarded-For")
-	if forwardFrom != "" {
-		for _, from := range strings.Split(forwardFrom, ",") {
-			originAddr, err := netip.ParseAddr(from)
-			if err == nil {
-				remoteAddr = M.SocksaddrFrom(originAddr, 0).TCPAddr()
-				break
-			}
-		}
-	}
+	var metadata M.Metadata
+	metadata.Source = sHttp.SourceAddress(request)
 	conn = &WebsocketConn{
 		Conn:       wsConn,
-		remoteAddr: remoteAddr,
+		remoteAddr: metadata.Source.TCPAddr(),
 	}
 	if len(earlyData) > 0 {
 		conn = bufio.NewCachedConn(conn, buf.As(earlyData))
 	}
-	s.handler.NewConnection(request.Context(), conn, M.Metadata{})
+	s.handler.NewConnection(request.Context(), conn, metadata)
 }
 
 func (s *Server) badRequest(request *http.Request, err error) {

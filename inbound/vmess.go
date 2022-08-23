@@ -131,7 +131,7 @@ func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 }
 
 func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	metadata = h.createMetadata(conn)
+	metadata = h.createMetadata(conn, metadata)
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

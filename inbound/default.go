@@ -63,29 +63,18 @@ func (a *myInboundAdapter) Tag() string {
 
 func (a *myInboundAdapter) Start() error {
 	var err error
-	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
 	if common.Contains(a.network, N.NetworkTCP) {
-		var tcpListener *net.TCPListener
-		if !a.listenOptions.TCPFastOpen {
-			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
-		} else {
-			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
-		}
+		_, err = a.ListenTCP()
 		if err != nil {
 			return err
 		}
-		a.tcpListener = tcpListener
 		go a.loopTCPIn()
-		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
 	if common.Contains(a.network, N.NetworkUDP) {
-		var udpConn *net.UDPConn
-		udpConn, err = net.ListenUDP(M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.UDPAddr())
+		_, err = a.ListenUDP()
 		if err != nil {
 			return err
 		}
-		a.udpConn = udpConn
-		a.udpAddr = bindAddr
 		a.packetOutboundClosed = make(chan struct{})
 		a.packetOutbound = make(chan *myInboundPacket)
 		if a.oobPacketHandler != nil {
@@ -102,7 +91,6 @@ func (a *myInboundAdapter) Start() error {
 			}
 			go a.loopUDPOut()
 		}
-		a.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
 	if a.setSystemProxy {
 		a.clearSystemProxy, err = settings.SetSystemProxy(a.router, M.SocksaddrFromNet(a.tcpListener.Addr()).Port, a.protocol == C.TypeMixed)
@@ -188,8 +176,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 	}
 }
 
-func (a *myInboundAdapter) createMetadata(conn net.Conn) adapter.InboundContext {
-	var metadata adapter.InboundContext
+func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.InboundContext) adapter.InboundContext {
 	metadata.Inbound = a.tag
 	metadata.InboundType = a.protocol
 	metadata.SniffEnabled = a.listenOptions.SniffEnabled
@@ -203,7 +190,7 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn) adapter.InboundContext 
 
 func (a *myInboundAdapter) injectTCP(conn net.Conn) {
 	ctx := log.ContextWithNewID(a.ctx)
-	metadata := a.createMetadata(conn)
+	metadata := a.createMetadata(conn, adapter.InboundContext{})
 	a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 	if hErr != nil {
