@@ -1,54 +1,40 @@
-### Structure
+`socks` 入站是一个 socks4, socks4a 和 socks5 服务器.
+
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "naive",
-      "tag": "naive-in",
+      "type": "socks",
+      "tag": "socks-in",
       
       "listen": "::",
-      "listen_port": 443,
+      "listen_port": 2080,
       "tcp_fast_open": false,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "proxy_protocol": false,
-      
-      "network": "udp",
+
       "users": [
         {
-          "username": "sekai",
-          "password": "password"
+          "username": "admin",
+          "password": "admin"
         }
-      ],
-      "tls": {}
+      ]
     }
   ]
 }
 ```
 
-!!! warning ""
-
-    HTTP3 transport is not included by default, see [Installation](/#installation).
-
-### Naive Fields
-
-#### network
-
-Listen network, one of `tcp` `udp`.
-
-Both if empty.
+### SOCKS 字段
 
 #### users
 
-==Required==
+SOCKS 用户
 
-Naive users.
-
-#### tls
-
-TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+如果为空则不需要验证。
 
 ### Listen Fields
 

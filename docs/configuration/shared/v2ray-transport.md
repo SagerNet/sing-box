@@ -22,7 +22,7 @@ Available transports:
     * No mKCP transport.
     * No DomainSocket transport.
 
-!!! note
+!!! note ""
 
     You can ignore the JSON Array [] tag when the content is only one item
 

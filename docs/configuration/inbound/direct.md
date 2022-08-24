@@ -16,9 +16,9 @@
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "udp_timeout": 300,
-      "network": "udp",
       "proxy_protocol": false,
-      
+
+      "network": "udp",
       "override_address": "1.0.0.1",
       "override_port": 53
     }
@@ -64,7 +64,7 @@ Enable tcp fast open for listener.
 
 Enable sniffing.
 
-See [Sniff](/configuration/route/sniff/) for details.
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

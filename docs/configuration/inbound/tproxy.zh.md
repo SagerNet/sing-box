@@ -1,40 +1,32 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
-
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
+      "type": "tproxy",
+      "tag": "tproxy-in",
       
       "listen": "::",
-      "listen_port": 2080,
-      "tcp_fast_open": false,
+      "listen_port": 5353,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
-      "proxy_protocol": false,
-
-      "users": [
-        {
-          "username": "admin",
-          "password": "admin"
-        }
-      ]
+      "udp_timeout": 300,
+      
+      "network": "udp"
     }
   ]
 }
 ```
 
-### SOCKS Fields
+### TProxy 字段
 
-#### users
+#### network
 
-SOCKS users.
+监听的网络协议，`tcp` `udp` 之一。
 
-No authentication required if empty.
+默认所有。
 
 ### 监听字段
 
@@ -49,10 +41,6 @@ No authentication required if empty.
 ==必填==
 
 监听端口
-
-#### tcp_fast_open
-
-为监听器启用 TCP 快速打开
 
 #### sniff
 
@@ -74,6 +62,6 @@ No authentication required if empty.
 
 如果 `sniff_override_destination` 生效，它的值将作为后备。
 
-#### proxy_protocol
+#### udp_timeout
 
-解析连接头中的 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)。
+UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。

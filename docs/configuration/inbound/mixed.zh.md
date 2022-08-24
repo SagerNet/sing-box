@@ -1,13 +1,13 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
+`mixed` 入站是一个 socks4, socks4a, socks5 和 http 服务器.
 
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
+      "type": "mixed",
+      "tag": "mixed-in",
       
       "listen": "::",
       "listen_port": 2080,
@@ -16,25 +16,34 @@
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "proxy_protocol": false,
-
+      
       "users": [
         {
           "username": "admin",
           "password": "admin"
         }
-      ]
+      ],
+      "set_system_proxy": false
     }
   ]
 }
 ```
 
-### SOCKS Fields
+### Mixed 字段
 
 #### users
 
-SOCKS users.
+SOCKS 和 HTTP 用户
 
-No authentication required if empty.
+如果为空则不需要验证。
+
+#### set_system_proxy
+
+!!! error ""
+
+    仅支持 Linux, Android, Windows, 和 macOS.
+
+启动时自动设置系统代理，停止时自动清理。
 
 ### 监听字段
 

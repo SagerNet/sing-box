@@ -53,8 +53,7 @@ Supported units (case sensitive, b = bits, B = bytes, 8b=1B):
     Gbps (gigabits per second)
     GBps (gigabytes per second)
     Tbps (terabits per second)
-    TBps (terabytes per`socks` inbound is a http server.
- second)
+    TBps (terabytes per second)
 
 #### up_mbps, down_mbps
 
@@ -102,7 +101,7 @@ Force enabled on for systems other than Linux and Windows (according to upstream
 
 ==Required==
 
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound).
+TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 ### Listen Fields
 
@@ -122,7 +121,7 @@ Listen port.
 
 Enable sniffing.
 
-See [Sniff](/configuration/route/sniff/) for details.
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

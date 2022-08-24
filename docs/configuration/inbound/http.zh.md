@@ -1,13 +1,11 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
-
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
+      "type": "http",
+      "tag": "http-in",
       
       "listen": "::",
       "listen_port": 2080,
@@ -16,25 +14,39 @@
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "proxy_protocol": false,
-
+      
       "users": [
         {
           "username": "admin",
           "password": "admin"
         }
-      ]
+      ],
+      "tls": {},
+      "set_system_proxy": false
     }
   ]
 }
 ```
 
-### SOCKS Fields
+### HTTP 字段
+
+#### tls
+
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
 
 #### users
 
-SOCKS users.
+HTTP 用户
 
-No authentication required if empty.
+如果为空则不需要验证。
+
+#### set_system_proxy
+
+!!! error ""
+
+    仅支持 Linux, Android, Windows, 和 macOS.
+
+启动时自动设置系统代理，停止时自动清理。
 
 ### 监听字段
 

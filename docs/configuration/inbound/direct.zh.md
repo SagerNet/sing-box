@@ -1,40 +1,46 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
+`direct` 入站是一个隧道服务器。
 
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
-      
+      "type": "direct",
+      "tag": "direct-in",
+
       "listen": "::",
-      "listen_port": 2080,
+      "listen_port": 5353,
       "tcp_fast_open": false,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
+      "udp_timeout": 300,
+      
+      "network": "udp",
       "proxy_protocol": false,
-
-      "users": [
-        {
-          "username": "admin",
-          "password": "admin"
-        }
-      ]
+      "override_address": "1.0.0.1",
+      "override_port": 53
     }
   ]
 }
 ```
 
-### SOCKS Fields
+### Direct 字段
 
-#### users
+#### network
 
-SOCKS users.
+监听的网络协议，`tcp` `udp` 之一。
 
-No authentication required if empty.
+默认所有。
+
+#### override_address
+
+覆盖连接目标地址
+
+#### override_port
+
+覆盖连接目标端口。
 
 ### 监听字段
 
@@ -73,6 +79,10 @@ No authentication required if empty.
 如果设置，请求的域名将在路由之前解析为 IP。
 
 如果 `sniff_override_destination` 生效，它的值将作为后备。
+
+#### udp_timeout
+
+UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
 
 #### proxy_protocol
 
