@@ -110,7 +110,7 @@
 
 4 (A DNS 查询) 或 6 (AAAA DNS 查询)。
 
-留空不限制。
+为空则不限制。
 
 #### network
 
@@ -126,7 +126,7 @@
 
 #### domain
 
-匹配完整域名。Match user name.
+匹配完整域名。
 
 #### domain_suffix
 
