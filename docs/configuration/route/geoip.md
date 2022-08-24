@@ -1,5 +1,3 @@
-# geoip
-
 ### Structure
 
 ```json

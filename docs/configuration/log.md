@@ -1,5 +1,3 @@
-# Log
-
 ### Structure
 
 ```json

@@ -1,4 +1,4 @@
-#### Sniff Mode
+#### 探测模式
 
 ```json
 {
@@ -7,7 +7,7 @@
       "type": "tun",
       "inet4_address": "172.19.0.1/30",
       "auto_route": true,
-      "sniff": true // required
+      "sniff": true // 必须
     }
   ],
   "outbounds": [
@@ -31,7 +31,7 @@
 }
 ```
 
-#### Port Mode
+#### 端口模式
 
 ```json
 {
@@ -40,7 +40,7 @@
       "type": "tun",
       "inet4_address": "172.19.0.1/30",
       "auto_route": true,
-      "sniff": true // not required
+      "sniff": true // 非必须
     }
   ],
   "outbounds": [

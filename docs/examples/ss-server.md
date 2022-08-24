@@ -1,5 +1,3 @@
-# Shadowsocks Server
-
 ```json
 {
   "inbounds": [
