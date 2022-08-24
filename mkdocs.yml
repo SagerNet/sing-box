@@ -42,11 +42,23 @@ nav:
           - configuration/dns/index.md
           - DNS Server: configuration/dns/server.md
           - DNS Rule: configuration/dns/rule.md
+      - Route:
+          - configuration/route/index.md
+          - GeoIP: configuration/route/geoip.md
+          - Geosite: configuration/route/geosite.md
+          - Route Rule: configuration/route/rule.md
+          - Protocol Sniff: configuration/route/sniff.md
+      - Experimental:
+           - configuration/experimental/index.md
+      - Shared:
+          - TLS: configuration/shared/tls.md
+          - Multiplex: configuration/shared/multiplex.md
+          - V2Ray Transport: configuration/shared/v2ray-transport.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
           - Mixed: configuration/inbound/mixed.md
-          - Socks: configuration/inbound/socks.md
+          - SOCKS: configuration/inbound/socks.md
           - HTTP: configuration/inbound/http.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
           - VMess: configuration/inbound/vmess.md
@@ -60,7 +72,7 @@ nav:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md
           - Block: configuration/outbound/block.md
-          - Socks: configuration/outbound/socks.md
+          - SOCKS: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
           - VMess: configuration/outbound/vmess.md
@@ -71,17 +83,6 @@ nav:
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
-      - Route:
-          - configuration/route/index.md
-          - GeoIP: configuration/route/geoip.md
-          - Geosite: configuration/route/geosite.md
-          - Route Rule: configuration/route/rule.md
-          - Protocol Sniff: configuration/route/sniff.md
-      - Experimental: configuration/experimental.md
-      - Shared:
-          - TLS: configuration/shared/tls.md
-          - Multiplex: configuration/shared/multiplex.md
-          - V2Ray Transport: configuration/shared/v2ray-transport.md
   - FAQ:
       - faq/index.md
       - Known Issues: faq/known-issues.md
@@ -138,15 +139,15 @@ plugins:
           Log: 日志
           DNS Server: DNS 服务器
           DNS Rule: DNS 规则
-          Inbound: 入站
-          Outbound: 出站
           Route: 路由
           Route Rule: 路由规则
           Protocol Sniff: 协议探测
-          Experimental: 实验性功能
+          Experimental: 实验性
           Shared: 通用
           Multiple: 多路复用
           V2Ray Transport: V2Ray 传输层
+          Inbound: 入站
+          Outbound: 出站
           FAQ: 常见问题
           Known Issues: 已知问题
           Examples: 示例
