@@ -1,4 +1,4 @@
-`http` outbound is a HTTP Connect client.
+`http` outbound is a HTTP CONNECT proxy client.
 
 ### Structure
 
@@ -53,7 +53,7 @@ Basic authorization password.
 
 #### tls
 
-TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound).
+TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 ### Dial Fields
 
@@ -75,9 +75,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 

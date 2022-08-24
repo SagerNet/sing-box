@@ -113,7 +113,7 @@ Force enabled on for systems other than Linux and Windows (according to upstream
 
 ==Required==
 
-TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound).
+TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 #### network
 
@@ -143,9 +143,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 

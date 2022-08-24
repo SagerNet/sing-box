@@ -93,11 +93,11 @@ Both is enabled by default.
 
 #### tls
 
-TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound).
+TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 #### multiplex
 
-Multiplex configuration, see [Multiplex structure](/configuration/shared/multiplex).
+Multiplex configuration, see [Multiplex](/configuration/shared/multiplex).
 
 #### transport
 
@@ -123,9 +123,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 

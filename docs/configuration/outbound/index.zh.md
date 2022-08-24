@@ -1,4 +1,6 @@
-### Structure
+# 出站
+
+### 结构
 
 ```json
 {
@@ -11,9 +13,9 @@
 }
 ```
 
-### Fields
+### 字段
 
-| Type          | Format                       |
+| 类型            | 格式                           |
 |---------------|------------------------------|
 | `direct`      | [Direct](./direct)           |
 | `block`       | [Block](./block)             |
@@ -31,4 +33,4 @@
 
 #### tag
 
-The tag of the outbound.
+出站的标签。
