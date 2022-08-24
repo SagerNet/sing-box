@@ -1,6 +1,6 @@
 # 引言
 
-sing-box 使用 JSON 作为配置文件格式.
+sing-box 使用 JSON 作为配置文件格式。
 
 ### 结构
 

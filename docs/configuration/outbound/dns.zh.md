@@ -15,8 +15,8 @@
 
 !!! note ""
 
-    There are no outbound connections by the DNS outbound, all requests are handled internally.
+    DNS 出站没有出站连接，所有请求均在内部处理。
 
-### Fields
+### 字段
 
-No fields.
+无字段。

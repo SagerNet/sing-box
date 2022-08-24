@@ -35,23 +35,23 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### password
 
 ==必填==
 
-Trojan 密码
+Trojan 密码。
 
 #### network
 
-启用的网络协议
+启用的网络协议。
 
 `tcp` 或 `udp`。
 
@@ -59,11 +59,11 @@ Trojan 密码
 
 #### tls
 
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound).
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
 #### multiplex
 
-多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex).
+多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex)。
 
 #### transport
 
@@ -89,13 +89,13 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -106,11 +106,11 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

@@ -18,13 +18,13 @@
 
 指定 GeoSite 资源的路径。
 
-如果为空，将使用 `geosite.db`。
+默认 `geosite.db`。
 
 #### download_url
 
-指定 GeoSite 资源的下载连接。
+指定 GeoSite 资源的下载链接。
 
-默认为 `https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db`.
+默认为 `https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db`。
 
 #### download_detour
 

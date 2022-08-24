@@ -37,23 +37,23 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### uuid
 
 ==必填==
 
-VMess 用户 ID
+VMess 用户 ID。
 
 #### security
 
-加密方法:
+加密方法：
 
 * `auto`
 * `none`
@@ -61,7 +61,7 @@ VMess 用户 ID
 * `aes-128-gcm`
 * `chancha20-poly1305`
 
-旧加密方法:
+旧加密方法：
 
 * `aes-128-ctr`
 
@@ -79,11 +79,11 @@ VMess 用户 ID
 
 #### authenticated_length
 
-协议参数。 启用长度块加密。
+协议参数。启用长度块加密。
 
 #### network
 
-启用的网络协议
+启用的网络协议。
 
 `tcp` 或 `udp`。
 
@@ -91,11 +91,11 @@ VMess 用户 ID
 
 #### tls
 
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound).
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
 #### multiplex
 
-多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex).
+多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex)。
 
 #### transport
 
@@ -121,13 +121,13 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -138,11 +138,11 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

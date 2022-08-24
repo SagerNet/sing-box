@@ -16,7 +16,7 @@
 }
 ```
 
-### Fields
+### 字段
 
 | 键         | 格式                   |
 |-----------|----------------------|
@@ -32,7 +32,7 @@
 
 !!! error ""
 
-    仅支持 Linux, Windows, 和 macOS.
+    仅支持 Linux、Windows 和 macOS。
 
 默认将出站连接绑定到默认网卡，以防止在 Tun 下出现路由环路。
 
@@ -42,7 +42,7 @@
 
 !!! error ""
 
-    仅支持 Linux, Windows, 和 macOS.
+    仅支持 Linux、Windows 和 macOS。
 
 默认将出站连接绑定到指定网卡，以防止在 Tun 下出现路由环路。
 
@@ -52,7 +52,7 @@
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
 默认为出站连接设置路由标记。
 

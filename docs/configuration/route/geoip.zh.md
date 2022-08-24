@@ -18,13 +18,13 @@
 
 指定 GeoIP 资源的路径。
 
-如果为空，将使用 `geoip.db`。
+默认 `geoip.db`。
 
 #### download_url
 
-指定 GeoIP 资源的下载连接。
+指定 GeoIP 资源的下载链接。
 
-默认为 `https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db`.
+默认为 `https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db`。
 
 #### download_detour
 

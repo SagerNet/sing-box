@@ -35,19 +35,19 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### method
 
 ==必填==
 
-加密方法
+加密方法：
 
 * `2022-blake3-aes-128-gcm`
 * `2022-blake3-aes-256-gcm`
@@ -59,7 +59,7 @@
 * `chacha20-ietf-poly1305`
 * `xchacha20-ietf-poly1305`
 
-旧加密方法:
+旧加密方法：
 
 * `aes-128-ctr`
 * `aes-192-ctr`
@@ -75,7 +75,7 @@
 
 ==必填==
 
-Shadowsocks 密码
+Shadowsocks 密码。
 
 #### network
 
@@ -93,7 +93,7 @@ Shadowsocks 密码
 
 #### multiplex
 
-多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex).
+多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex)。
 
 ### 拨号字段
 
@@ -115,13 +115,13 @@ Shadowsocks 密码
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -132,11 +132,11 @@ Shadowsocks 密码
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

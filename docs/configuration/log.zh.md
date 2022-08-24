@@ -6,7 +6,7 @@
     "disabled": false,
     "level": "info",
     "output": "box.log",
-    "timestamp": false
+    "timestamp": true
   }
 }
 
@@ -20,7 +20,7 @@
 
 #### level
 
-日志等级，可选值：`trace` `debug` `info` `warn` `error` `fatal` `panic`.
+日志等级，可选值：`trace` `debug` `info` `warn` `error` `fatal` `panic`。
 
 #### output
 
