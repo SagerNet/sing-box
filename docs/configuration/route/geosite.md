@@ -1,5 +1,3 @@
-# geosite
-
 ### Structure
 
 ```json
