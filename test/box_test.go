@@ -57,6 +57,7 @@ func testTCP(t *testing.T, clientPort uint16, testPort uint16) {
 		return dialer.DialContext(context.Background(), "tcp", M.ParseSocksaddrHostPort("127.0.0.1", testPort))
 	}
 	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
+	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
 }
 
 func testSuitQUIC(t *testing.T, clientPort uint16, testPort uint16) {
