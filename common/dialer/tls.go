@@ -32,7 +32,7 @@ func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Co
 			serverName = serverAddress
 		}
 	}
-	if serverName == "" && options.Insecure {
+	if serverName == "" && !options.Insecure {
 		return nil, E.New("missing server_name or insecure=true")
 	}
 
