@@ -29,7 +29,7 @@ RESTful web API listening address. Disabled if empty.
 #### external_ui
 
 A relative path to the configuration directory or an absolute path to a
-directory in which you put some static web resource. Clash core will then
+directory in which you put some static web resource. sing-box will then
 serve it at `http://{{external-controller}}/ui`.
 
 #### secret

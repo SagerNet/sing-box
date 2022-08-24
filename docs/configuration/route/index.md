@@ -52,6 +52,6 @@ Takes no effect if `auto_detect_interface` is set.
 
     Only supported on Linux.
 
-Set iptables routing mark by default.
+Set routing mark by default.
 
 Takes no effect if `outbound.routing_mark` is set.

@@ -1,4 +1,4 @@
-### Structure
+### 结构
 
 ```json
 {
@@ -91,130 +91,130 @@
 
 !!! note ""
 
-    You can ignore the JSON Array [] tag when the content is only one item
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
-### Default Fields
+### 默认字段
 
 !!! note ""
 
-    The default rule uses the following matching logic:  
+    默认规则使用以下匹配逻辑:  
     (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite`) &&  
     (`source_geoip` || `source_ip_cidr`) &&  
     `other fields`  
 
 #### inbound
 
-Tags of [Inbound](/configuration/inbound).
+[入站](/zh/configuration/inbound) 标签.
 
 #### ip_version
 
-4 (A DNS query) or 6 (AAAA DNS query).
+4 (A DNS 查询) 或 6 (AAAA DNS 查询)。
 
-Not limited if empty.
+留空不限制。
 
 #### network
 
-`tcp` or `udp`.
+`tcp` 或 `udp`。
 
 #### auth_user
 
-Username, see each inbound for details.
+认证用户名，参阅入站设置。
 
 #### protocol
 
-Sniffed protocol, see [Sniff](/configuration/route/sniff/) for details.
+探测到的协议, 参阅 [协议探测](/zh/configuration/route/sniff/)。
 
 #### domain
 
-Match full domain.
+匹配完整域名。Match user name.
 
 #### domain_suffix
 
-Match domain suffix.
+匹配域名后缀。
 
 #### domain_keyword
 
-Match domain using keyword.
+匹配域名关键字。
 
 #### domain_regex
 
-Match domain using regular expression.
+匹配域名正则表达式。
 
 #### geosite
 
-Match geosite.
+匹配 GeoSite.
 
 #### source_geoip
 
-Match source geoip.
+匹配源 GeoIP。
 
 #### source_ip_cidr
 
-Match source ip cidr.
+匹配源 IP CIDR。
 
 #### source_port
 
-Match source port.
+匹配源端口。
 
 #### source_port_range
 
-Match source port range.
+匹配源端口范围。
 
 #### port
 
-Match port.
+匹配端口。
 
 #### port_range
 
-Match port range.
+匹配端口范围。
 
 #### process_name
 
 !!! error ""
 
-    Only supported on Linux, Windows, and macOS.
+    仅支持 Linux, Windows, 和 macOS.
 
-Match process name.
+匹配进程名称。
 
 #### package_name
 
-Match android package name.
+匹配 Android 应用包名。
 
 #### user
 
 !!! error ""
 
-    Only supported on Linux.
+    仅支持 Linux.
 
-Match user name.
+匹配用户名。
 
 #### user_id
 
 !!! error ""
 
-    Only supported on Linux.
+    仅支持 Linux.
 
-Match user id.
+匹配用户 ID。
 
 #### invert
 
-Invert match result.
+反选匹配结果。
 
 #### outbound
 
-Match outbound.
+匹配出站。
 
 #### server
 
-==Required==
+==必须==
 
-Tag of the target dns server.
+目标 DNS 服务器的标签。
 
 #### disable_cache
 
-Disable cache and save cache in this query.
+在此查询中禁用缓存
 
-### Logical Fields
+### 逻辑字段
 
 #### type
 
@@ -222,22 +222,22 @@ Disable cache and save cache in this query.
 
 #### mode
 
-`and` or `or`
+`and` 或 `or`
 
 #### rules
 
-Included default rules.
+包括的默认规则。
 
 #### invert
 
-Invert match result.
+反选匹配结果。
 
 #### server
 
-==Required==
+==必须==
 
-Tag of the target dns server.
+目标 DNS 服务器的标签。
 
 #### disable_cache
 
-Disable cache and save cache in this query.
+在此查询中禁用缓存。

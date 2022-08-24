@@ -8,6 +8,7 @@
     {
       "type": "direct",
       "tag": "direct-in",
+      
       "listen": "::",
       "listen_port": 5353,
       "tcp_fast_open": false,
@@ -17,6 +18,7 @@
       "udp_timeout": 300,
       "network": "udp",
       "proxy_protocol": false,
+      
       "override_address": "1.0.0.1",
       "override_port": 53
     }

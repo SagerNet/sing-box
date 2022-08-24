@@ -43,7 +43,7 @@ The address of the dns server.
 
 !!! warning ""
 
-    To ensure that system DNS is in effect, rather than go's built-in default resolver, enable CGO at compile time.
+    To ensure that system DNS is in effect, rather than Go's built-in default resolver, enable CGO at compile time.
 
 !!! warning ""
 
@@ -60,6 +60,7 @@ The address of the dns server.
 | `server_failure`  | `Server failure`      |
 | `name_error`      | `Non-existent domain` |
 | `not_implemented` | `Not implemented`     |
+| `refused`         | `Query refused`       |
 
 #### address_resolver
 
