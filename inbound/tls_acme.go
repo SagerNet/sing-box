@@ -11,6 +11,8 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/mholt/acmez/acme"
 )
 
 type acmeWrapper struct {
@@ -53,17 +55,19 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		DefaultServerName: options.DefaultServerName,
 		Storage:           storage,
 	}
-	config.Issuers = []certmagic.Issuer{
-		certmagic.NewACMEIssuer(config, certmagic.ACMEIssuer{
-			CA:                      acmeServer,
-			Email:                   options.Email,
-			Agreed:                  true,
-			DisableHTTPChallenge:    options.DisableHTTPChallenge,
-			DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
-			AltHTTPPort:             int(options.AlternativeHTTPPort),
-			AltTLSALPNPort:          int(options.AlternativeTLSPort),
-		}),
+	acmeConfig := certmagic.ACMEIssuer{
+		CA:                      acmeServer,
+		Email:                   options.Email,
+		Agreed:                  true,
+		DisableHTTPChallenge:    options.DisableHTTPChallenge,
+		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
+		AltHTTPPort:             int(options.AlternativeHTTPPort),
+		AltTLSALPNPort:          int(options.AlternativeTLSPort),
 	}
+	if options.ExternalAccount != nil {
+		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
+	}
+	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeConfig)}
 	config = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
 			return config, nil
