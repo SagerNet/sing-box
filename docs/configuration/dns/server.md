@@ -30,16 +30,16 @@ The tag of the dns server.
 
 The address of the dns server.
 
-| Protocol | Format                      |
-|----------|-----------------------------|
-| `System` | `local`                     |
-| `TCP`    | `tcp://1.0.0.1`             |
-| `UDP`    | `8.8.8.8` `udp://8.8.4.4`   |
-| `TLS`    | `tls://dns.google`          |
-| `HTTPS`  | `https://1.1.1.1/dns-query` |
-| `QUIC`   | `quic://dns.adguard.com`    |
-| `HTTP3`  | `h3://8.8.8.8/dns-query`    |
-| `RCode`  | `rcode://refused`           |
+| Protocol | Format                       |
+|----------|------------------------------|
+| `System` | `local`                      |
+| `TCP`    | `tcp://1.0.0.1`              |
+| `UDP`    | `8.8.8.8` or `udp://8.8.4.4` |
+| `TLS`    | `tls://dns.google`           |
+| `HTTPS`  | `https://1.1.1.1/dns-query`  |
+| `QUIC`   | `quic://dns.adguard.com`     |
+| `HTTP3`  | `h3://8.8.8.8/dns-query`     |
+| `RCode`  | `rcode://refused`            |
 
 !!! warning ""
 
@@ -51,7 +51,7 @@ The address of the dns server.
 
 !!! info ""
 
-    the RCode transport is often used to block queries. Use with rules and the `disable_cache` rule option.
+    The RCode transport is often used to block queries. Use with rules and the `disable_cache` rule option.
 
 | RCode             | Description           | 
 |-------------------|-----------------------|
@@ -65,7 +65,7 @@ The address of the dns server.
 
 ==Required if address contains domain==
 
-Tag of a another server to resolve the domain name in the address.
+Tag of an another server to resolve the domain name in the address.
 
 #### address_strategy
 
