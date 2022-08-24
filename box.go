@@ -2,8 +2,10 @@ package box
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -170,6 +172,15 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 func (s *Box) Start() error {
 	err := s.start()
 	if err != nil {
+		// TODO: remove catch error
+		defer func() {
+			v := recover()
+			if v != nil {
+				log.Error(E.Cause(err, "origin error"))
+				debug.PrintStack()
+				panic("panic on early close: " + fmt.Sprint(v))
+			}
+		}()
 		s.Close()
 	}
 	return err
