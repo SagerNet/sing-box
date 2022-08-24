@@ -102,7 +102,7 @@ Force enabled on for systems other than Linux and Windows (according to upstream
 
 ==Required==
 
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound).
 
 ### Listen Fields
 

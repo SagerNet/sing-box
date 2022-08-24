@@ -113,7 +113,7 @@ Force enabled on for systems other than Linux and Windows (according to upstream
 
 ==Required==
 
-TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound-structure).
+TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound).
 
 #### network
 

@@ -1,4 +1,4 @@
-### Inbound Structure
+### Inbound
 
 ```json
 {
@@ -34,7 +34,7 @@
 
     ACME is not included by default, see [Installation](/#installation).
 
-### Outbound Structure
+### Outbound
 
 ```json
 {
@@ -115,20 +115,13 @@ See [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Appli
 The minimum TLS version that is acceptable.
 
 By default, TLS 1.2 is currently used as the minimum when acting as a
-client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
-supported by this package, both as a client and as a server.
-
-The client-side default can temporarily be reverted to TLS 1.0 by
-including the value "x509sha1=1" in the GODEBUG environment variable.
-Note that this option will be removed in Go 1.19 (but it will still be
-possible to set this field to VersionTLS10 explicitly).
+client, and TLS 1.0 when acting as a server.
 
 #### max_version
 
 The maximum TLS version that is acceptable.
 
-By default, the maximum version supported by this package is used,
-which is currently TLS 1.3.
+By default, the maximum version is currently TLS 1.3.
 
 #### cipher_suites
 
