@@ -20,18 +20,6 @@ type InboundTLSOptions struct {
 	ACME            *InboundACMEOptions `json:"acme,omitempty"`
 }
 
-type InboundACMEOptions struct {
-	Domain                  Listable[string] `json:"domain,omitempty"`
-	DataDirectory           string           `json:"data_directory,omitempty"`
-	DefaultServerName       string           `json:"default_server_name,omitempty"`
-	Email                   string           `json:"email,omitempty"`
-	Provider                string           `json:"provider,omitempty"`
-	DisableHTTPChallenge    bool             `json:"disable_http_challenge,omitempty"`
-	DisableTLSALPNChallenge bool             `json:"disable_tls_alpn_challenge,omitempty"`
-	AlternativeHTTPPort     uint16           `json:"alternative_http_port,omitempty"`
-	AlternativeTLSPort      uint16           `json:"alternative_tls_port,omitempty"`
-}
-
 type OutboundTLSOptions struct {
 	Enabled         bool             `json:"enabled,omitempty"`
 	DisableSNI      bool             `json:"disable_sni,omitempty"`

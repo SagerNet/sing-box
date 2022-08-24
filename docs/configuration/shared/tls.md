@@ -21,7 +21,11 @@
     "disable_http_challenge": false,
     "disable_tls_alpn_challenge": false,
     "alternative_http_port": 0,
-    "alternative_tls_port": 0
+    "alternative_tls_port": 0,
+    "external_account": {
+      "key_id": "",
+      "mac_key": ""
+    }
   }
 }
 ```
@@ -206,3 +210,22 @@ succeed.
 ### Reload
 
 For server configuration, certificate and key will be automatically reloaded if modified.
+
+#### external_account
+
+EAB (External Account Binding) contains information necessary to bind or map an ACME account to some other account known
+by the CA.
+
+External account bindings are "used to associate an ACME account with an existing account in a non-ACME system, such as
+a CA customer database.
+
+To enable ACME account binding, the CA operating the ACME server needs to provide the ACME client with a MAC key and a
+key identifier, using some mechanism outside of ACME. §7.3.4
+
+#### external_account.key_id
+
+The key identifier.
+
+#### external_account.mac_key
+
+The MAC key.
