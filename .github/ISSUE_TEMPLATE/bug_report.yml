@@ -9,9 +9,11 @@ body:
       options:
         - label: Yes, I'm using the latest major release. Only such installations are supported.
           required: true
+        - label: Yes, I'm using the latest Golang release. Only such installations are supported.
+          required: true
         - label: Yes, I've searched similar issues on GitHub and didn't find any.
           required: true
-        - label: Yes, I've included all information below (version, config, etc).
+        - label: Yes, I've included all information below (version, config, log, etc).
           required: true
 
   - type: textarea
@@ -47,6 +49,21 @@ body:
 
         ```console
         # paste json here
+        ```
+
+        </details>
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Server and client log file
+      value: |-
+        <details>
+
+        ```console
+        # paste log here
         ```
 
         </details>

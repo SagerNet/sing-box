@@ -6,11 +6,13 @@
     {
       "type": "hysteria",
       "tag": "hysteria-in",
+      
       "listen": "::",
       "listen_port": 443,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
+      
       "up": "100 Mbps",
       "up_mbps": 100,
       "down": "100 Mbps",
