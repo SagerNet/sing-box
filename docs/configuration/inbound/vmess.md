@@ -46,7 +46,7 @@ VMess users.
 
 #### tls
 
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound-structure).
+TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound).
 
 #### transport
 

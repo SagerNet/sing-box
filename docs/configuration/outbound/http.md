@@ -53,7 +53,7 @@ Basic authorization password.
 
 #### tls
 
-TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound-structure).
+TLS configuration, see [TLS outbound structure](/configuration/shared/tls/#outbound).
 
 ### Dial Fields
 

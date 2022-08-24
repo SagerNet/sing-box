@@ -144,7 +144,7 @@ plugins:
           Protocol Sniff: 协议探测
           Experimental: 实验性
           Shared: 通用
-          Multiple: 多路复用
+          Multiplex: 多路复用
           V2Ray Transport: V2Ray 传输层
           Inbound: 入站
           Outbound: 出站
