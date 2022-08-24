@@ -63,9 +63,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 
@@ -84,7 +84,7 @@ Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-If set, the requested domain name will be resolved to IP before routing.
+If set, the requested domain name will be resolved to IP before connect.
 
 `dns.strategy` will be used if empty.
 

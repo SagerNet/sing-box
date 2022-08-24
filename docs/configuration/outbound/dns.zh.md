@@ -1,6 +1,6 @@
-`dns` outbound is a internal DNS server.
+`dns` 出站是一个内部 DNS 服务器。
 
-### Structure
+### 结构
 
 ```json
 {

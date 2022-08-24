@@ -53,7 +53,7 @@ Password.
 
 #### private_key
 
-Private key content.
+Private key.
 
 #### private_key_path
 
@@ -91,9 +91,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 

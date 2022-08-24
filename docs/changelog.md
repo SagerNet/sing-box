@@ -61,7 +61,7 @@
 #### 2022/08/12
 
 * Performance improvements
-* Add UoT option for [Socks](/configuration/outbound/socks) outbound
+* Add UoT option for [SOCKS](/configuration/outbound/socks) outbound
 
 #### 2022/08/11
 

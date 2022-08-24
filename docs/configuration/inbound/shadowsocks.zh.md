@@ -6,6 +6,7 @@
     {
       "type": "shadowsocks",
       "tag": "ss-in",
+      
       "listen": "::",
       "listen_port": 5353,
       "tcp_fast_open": false,
@@ -15,6 +16,7 @@
       "udp_timeout": 300,
       "network": "udp",
       "proxy_protocol": false,
+      
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg=="
     }

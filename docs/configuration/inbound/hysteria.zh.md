@@ -32,7 +32,7 @@
 
 !!! warning ""
 
-    默认安装不包含被 Hysteria 需要的 QUIC, 参阅 [安装](/zh/#installation).
+    默认安装不包含被 Hysteria 依赖的 QUIC, 参阅 [安装](/zh/#installation).
 
 ### Hysteria 字段
 

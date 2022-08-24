@@ -31,7 +31,7 @@
 }
 ```
 
-### Socks Fields
+### SOCKS Fields
 
 #### server
 
@@ -47,17 +47,17 @@ The server port.
 
 #### version
 
-The Socks version, one of `4` `4a` `5`.
+The SOCKS version, one of `4` `4a` `5`.
 
-Socks5 used by default.
+SOCKS5 used by default.
 
 #### username
 
-Socks username.
+SOCKS username.
 
 #### password
 
-Socks5 password.
+SOCKS5 password.
 
 #### network
 
@@ -91,9 +91,9 @@ The address to bind to.
 
 !!! error ""
 
-    Linux only
+    Only supported on Linux.
 
-The iptables routing mark.
+Set netfilter routing mark.
 
 #### reuse_addr
 

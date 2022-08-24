@@ -17,7 +17,7 @@
 |---------------|------------------------------|
 | `direct`      | [Direct](./direct)           |
 | `mixed`       | [Mixed](./mixed)             |
-| `socks`       | [Socks](./socks)             |
+| `socks`       | [SOCKS](./socks)             |
 | `http`        | [HTTP](./http)               |
 | `shadowsocks` | [Shadowsocks](./shadowsocks) |
 | `vmess`       | [VMess](./vmess)             |

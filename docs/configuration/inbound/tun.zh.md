@@ -137,10 +137,10 @@ TCP/IP 栈.
 
 限制被路由的 Android 用户。
 
-| Common user  | ID  |
-|--------------|-----|
-| Main         | 0   |
-| Work Profile | 10  |
+| 常用用户 | ID  |
+|--|-----|
+| 您 | 0   |
+| 工作资料 | 10  |
 
 #### include_package
 

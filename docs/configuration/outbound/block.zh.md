@@ -1,6 +1,6 @@
-`block` outbound closes all incoming requests.
+`block` 出站关闭所有传入请求
 
-### Structure
+### 结构
 
 ```json
 {
