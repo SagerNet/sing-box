@@ -67,7 +67,7 @@ Enable tcp fast open for listener.
 
 Enable sniffing.
 
-See [Sniff](/configuration/route/sniff/) for details.
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

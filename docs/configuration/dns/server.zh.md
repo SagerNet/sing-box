@@ -26,7 +26,7 @@ DNS 服务器的标签。
 
 #### address
 
-==必须==
+==必填==
 
 DNS 服务器的地址。
 
@@ -47,7 +47,7 @@ DNS 服务器的地址。
 
 !!! warning ""
 
-    默认安装下包括 QUIC 和 HTTP3 传输层，请参阅 [安装](/zh/#installation)。
+    默认安装不包含 QUIC 和 HTTP3 传输层，请参阅 [安装](/zh/#installation)。
 
 !!! info ""
 
@@ -74,7 +74,7 @@ DNS 服务器的地址。
 
 可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-如果为空，则使用 `dns.strategy`.
+如果为空，将使用 `dns.strategy`.
 
 #### strategy
 
@@ -88,4 +88,4 @@ DNS 服务器的地址。
 
 用于连接到 DNS 服务器的出站的标签。
 
-如果为空，则使用默认出站。
+如果为空，将使用默认出站。

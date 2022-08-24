@@ -156,7 +156,7 @@ Exclude android packages in route.
 
 Enable sniffing.
 
-See [Sniff](/configuration/route/sniff/) for details.
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 

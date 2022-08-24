@@ -21,7 +21,7 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
     * 没有 mKCP 传输层。
     * 没有 DomainSocket 传输层。
 
-!!! note
+!!! note ""
 
     当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
@@ -39,7 +39,7 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
 
 !!! warning "与 v2ray-core 的区别"
 
-    不强制执行 TLS。 如果未配置 TLS，则使用纯 HTTP 1.1。
+    不强制执行 TLS。 如果未配置 TLS，将使用纯 HTTP 1.1。
 
 #### host
 
@@ -116,7 +116,7 @@ HTTP 请求的额外标头
 
 !!! warning ""
 
-    默认安装不包括 gRPC, 参阅 [安装](/zh/#installation).
+    默认安装不包含 gRPC, 参阅 [安装](/zh/#installation).
 
 ```json
 {

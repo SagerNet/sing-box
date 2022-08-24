@@ -1,40 +1,54 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
-
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
+      "type": "naive",
+      "tag": "naive-in",
       
       "listen": "::",
-      "listen_port": 2080,
+      "listen_port": 443,
       "tcp_fast_open": false,
       "sniff": false,
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "proxy_protocol": false,
 
+      "network": "udp",
       "users": [
         {
-          "username": "admin",
-          "password": "admin"
+          "username": "sekai",
+          "password": "password"
         }
-      ]
+      ],
+      "tls": {}
     }
   ]
 }
 ```
 
-### SOCKS Fields
+!!! warning ""
+
+    默认安装不包含 HTTP3 传输层, 参阅 [安装](/zh/#installation).
+
+### Naive 字段
+
+#### network
+
+监听的网络协议，`tcp` `udp` 之一。
+
+默认所有。
 
 #### users
 
-SOCKS users.
+==必填==
 
-No authentication required if empty.
+Naive 用户
+
+#### tls
+
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
 
 ### 监听字段
 

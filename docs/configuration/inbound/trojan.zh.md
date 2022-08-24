@@ -1,13 +1,11 @@
-`socks` inbound is a socks4, socks4a, socks5 server.
-
-### Structure
+### 结构
 
 ```json
 {
   "inbounds": [
     {
-      "type": "socks",
-      "tag": "socks-in",
+      "type": "trojan",
+      "tag": "trojan-in",
       
       "listen": "::",
       "listen_port": 2080,
@@ -19,22 +17,46 @@
 
       "users": [
         {
-          "username": "admin",
-          "password": "admin"
+          "name": "sekai",
+          "password": "8JCsPssfgS8tiRwiMlhARg=="
         }
-      ]
+      ],
+      "tls": {},
+      "fallback": {
+        "server": "127.0.0.0.1",
+        "server_port": 8080
+      },
+      "transport": {}
     }
   ]
 }
 ```
 
-### SOCKS Fields
+### Trojan 字段
 
 #### users
 
-SOCKS users.
+==必填==
 
-No authentication required if empty.
+Trojan 用户.
+
+#### tls
+
+==如果启用 HTTP3 则必填==
+
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
+
+#### fallback
+
+!!! error ""
+
+    没有证据表明 GFW 基于 HTTP 响应检测并阻止木马服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
+
+备用服务器配置。 如果为空则禁用。
+
+#### transport
+
+V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-transport)。
 
 ### 监听字段
 

@@ -32,7 +32,7 @@
 
 !!! warning ""
 
-    默认安装不包括 ACME, 参阅 [安装](/zh/#installation).
+    默认安装不包含 ACME, 参阅 [安装](/zh/#installation).
 
 ### 出站
 
@@ -93,7 +93,7 @@ TLS 版本值:
 
 它还包含在 ClientHello 中以支持虚拟主机，除非它是 IP 地址。
 
-检阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication).
+参阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication).
 
 #### insecure
 
@@ -107,7 +107,7 @@ TLS 版本值:
 
 如果两个对等点都支持 ALPN，则选择的协议将是此列表中的一个，如果没有相互支持的协议则连接将失败。
 
-检阅 [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation).
+参阅 [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation).
 
 #### min_version
 
@@ -162,7 +162,7 @@ TLS 版本值:
 
 ACME 数据目录。
 
-如果为空，则使用 `$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic`。
+如果为空，将使用 `$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic`。
 
 #### default_server_name
 

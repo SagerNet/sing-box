@@ -32,7 +32,7 @@
 
 #### tls
 
-TLS configuration, see [TLS inbound structure](/configuration/shared/tls/#inbound).
+TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 #### users
 
@@ -70,7 +70,7 @@ Enable tcp fast open for listener.
 
 Enable sniffing.
 
-See [Sniff](/configuration/route/sniff/) for details.
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 
