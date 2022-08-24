@@ -22,7 +22,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.instant
+    #    - navigation.instant
     - navigation.tracking
     - navigation.tabs
     - navigation.indexes
@@ -118,3 +118,40 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/SagerNet/sing-box
   generator: false
+plugins:
+  - i18n:
+      default_language: en
+      languages:
+        en:
+          name: English
+          build: false
+        zh:
+          name: 简体中文
+      material_alternate: true
+      nav_translations:
+        zh:
+          Getting Started: 开始
+          Features: 特性
+          Support: 支持
+          Change Log: 更新日志
+          Configuration: 配置
+          Log: 日志
+          DNS Server: DNS 服务器
+          DNS Rule: DNS 规则
+          Inbound: 入站
+          Outbound: 出站
+          Route: 路由
+          Route Rule: 路由规则
+          Protocol Sniff: 协议探测
+          Experimental: 实验性功能
+          Shared: 通用
+          Multiple: 多路复用
+          V2Ray Transport: V2Ray 传输层
+          FAQ: 常见问题
+          Known Issues: 已知问题
+          Examples: 示例
+          Linux Server Installation: Linux 服务器安装
+          Shadowsocks Server: Shadowsocks 服务器
+          Shadowsocks Client: Shadowsocks 客户端
+          Shadowsocks Tun: Shadowsocks Tun
+          DNS Hijack: DNS 劫持
