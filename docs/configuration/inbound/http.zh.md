@@ -32,19 +32,19 @@
 
 #### tls
 
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 #### users
 
 HTTP 用户
 
-如果为空则不需要验证。
+默认不需要验证。
 
 #### set_system_proxy
 
 !!! error ""
 
-    仅支持 Linux, Android, Windows, 和 macOS.
+    仅支持 Linux、Android、Windows 和 macOS。
 
 启动时自动设置系统代理，停止时自动清理。
 
@@ -54,17 +54,17 @@ HTTP 用户
 
 ==必填==
 
-监听地址
+监听地址。
 
 #### listen_port
 
 ==必填==
 
-监听端口
+监听端口。
 
 #### tcp_fast_open
 
-为监听器启用 TCP 快速打开
+为监听器启用 TCP 快速打开。
 
 #### sniff
 
@@ -80,7 +80,7 @@ HTTP 用户
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，请求的域名将在路由之前解析为 IP。
 

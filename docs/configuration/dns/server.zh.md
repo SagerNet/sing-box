@@ -51,7 +51,7 @@ DNS 服务器的地址。
 
 !!! info ""
 
-    RCode 传输层传输层常用于屏蔽请求. 与 DNS 规则和 `disable_cache` 规则选项一起使用.
+    RCode 传输层传输层常用于屏蔽请求. 与 DNS 规则和 `disable_cache` 规则选项一起使用。
 
 | RCode             | 描述       | 
 |-------------------|----------|
@@ -72,15 +72,15 @@ DNS 服务器的地址。
 
 用于解析本 DNS 服务器的域名的策略。
 
-可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
-如果为空，将使用 `dns.strategy`.
+默认使用 `dns.strategy`。
 
 #### strategy
 
 默认解析策略。
 
-可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果被其他设置覆盖则不生效。
 

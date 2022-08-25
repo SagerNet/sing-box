@@ -30,7 +30,7 @@
 
 !!! info ""
 
-    默认安装不包含嵌入式 Tor, 参阅 [安装](/zh/#installation).
+    默认安装不包含嵌入式 Tor, 参阅 [安装](/zh/#installation)。
 
 ### Tor 字段
 
@@ -54,9 +54,9 @@ Tor 的数据目录。
 
 #### torrc
 
-torrc 参数表
+torrc 参数表。
 
-参阅 [tor(1)](https://linux.die.net/man/1/tor)
+参阅 [tor(1)](https://linux.die.net/man/1/tor)。
 
 ### 拨号字段
 
@@ -78,13 +78,13 @@ torrc 参数表
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -95,11 +95,11 @@ torrc 参数表
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

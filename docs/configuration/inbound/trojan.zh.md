@@ -38,13 +38,13 @@
 
 ==必填==
 
-Trojan 用户.
+Trojan 用户。
 
 #### tls
 
 ==如果启用 HTTP3 则必填==
 
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 #### fallback
 
@@ -52,7 +52,7 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound).
 
     没有证据表明 GFW 基于 HTTP 响应检测并阻止木马服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
 
-备用服务器配置。 如果为空则禁用。
+备用服务器配置。默认禁用。
 
 #### transport
 
@@ -64,23 +64,23 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 ==必填==
 
-监听地址
+监听地址。
 
 #### listen_port
 
 ==必填==
 
-监听端口
+监听端口。
 
 #### tcp_fast_open
 
-为监听器启用 TCP 快速打开
+为监听器启用 TCP 快速打开。
 
 #### sniff
 
 启用协议探测。
 
-参阅 [协议探测](/zh/configuration/route/sniff/)
+参阅 [协议探测](/zh/configuration/route/sniff/)。
 
 #### sniff_override_destination
 
@@ -90,7 +90,7 @@ V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-tra
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，请求的域名将在路由之前解析为 IP。
 

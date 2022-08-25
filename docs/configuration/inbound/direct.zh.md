@@ -36,11 +36,11 @@
 
 #### override_address
 
-覆盖连接目标地址
+覆盖连接目标地址。
 
 #### override_port
 
-覆盖连接目标端口
+覆盖连接目标端口。
 
 ### 监听字段
 
@@ -48,17 +48,17 @@
 
 ==必填==
 
-监听地址
+监听地址。
 
 #### listen_port
 
 ==必填==
 
-监听端口
+监听端口。
 
 #### tcp_fast_open
 
-为监听器启用 TCP 快速打开
+为监听器启用 TCP 快速打开。
 
 #### sniff
 
@@ -74,7 +74,7 @@
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，请求的域名将在路由之前解析为 IP。
 

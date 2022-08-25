@@ -32,7 +32,7 @@
 
 !!! warning ""
 
-    默认安装不包含 ACME, 参阅 [安装](/zh/#installation).
+    默认安装不包含 ACME，参阅 [安装](/zh/#installation)。
 
 ### 出站
 
@@ -50,14 +50,14 @@
 }
 ```
 
-TLS 版本值:
+TLS 版本值：
 
 * `1.0`
 * `1.1`
 * `1.2`
 * `1.3`
 
-密码套件值:
+密码套件值：
 
 * `TLS_RSA_WITH_AES_128_CBC_SHA`
 * `TLS_RSA_WITH_AES_256_CBC_SHA`
@@ -93,13 +93,13 @@ TLS 版本值:
 
 它还包含在 ClientHello 中以支持虚拟主机，除非它是 IP 地址。
 
-参阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication).
+参阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication)。
 
 #### insecure
 
 ==仅客户端==
 
-接受任何服务器证书
+接受任何服务器证书。
 
 #### alpn
 
@@ -107,13 +107,13 @@ TLS 版本值:
 
 如果两个对等点都支持 ALPN，则选择的协议将是此列表中的一个，如果没有相互支持的协议则连接将失败。
 
-参阅 [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation).
+参阅 [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation)。
 
 #### min_version
 
 可接受的最低 TLS 版本。
 
-默认情况下，当前使用 TLS 1.2 作为客户端的最低要求。作为服务器时使用 TLS 1.0.
+默认情况下，当前使用 TLS 1.2 作为客户端的最低要求。作为服务器时使用 TLS 1.0。
 
 #### max_version
 
@@ -132,23 +132,23 @@ TLS 版本值:
 
 #### certificate
 
-服务器 PEM 证书
+服务器 PEM 证书。
 
 #### certificate_path
 
-服务器 PEM 证书路径
+服务器 PEM 证书路径。
 
 #### key
 
 ==仅服务器==
 
-服务器 PEM 私钥
+服务器 PEM 私钥。
 
 #### key_path
 
 ==仅服务器==
 
-服务器 PEM 私钥路径
+服务器 PEM 私钥路径。
 
 ### ACME 字段
 
@@ -156,13 +156,13 @@ TLS 版本值:
 
 一组域名。
 
-如果为空，将禁用 ACME。
+默认禁用 ACME。
 
 #### data_directory
 
 ACME 数据目录。
 
-如果为空，将使用 `$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic`。
+默认使用 `$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic`。
 
 #### default_server_name
 
@@ -212,8 +212,8 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 
 #### external_account.key_id
 
-密钥标识符
+密钥标识符。
 
 #### external_account.mac_key
 
-MAC 密钥
+MAC 密钥。

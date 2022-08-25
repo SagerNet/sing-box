@@ -1,4 +1,4 @@
-`direct` 出站直接发送请求
+`direct` 出站直接发送请求。
 
 ### 结构
 
@@ -31,17 +31,17 @@
 
 #### override_address
 
-覆盖连接目标地址
+覆盖连接目标地址。
 
 #### override_port
 
-覆盖连接目标端口
+覆盖连接目标端口。
 
 #### proxy_protocol
 
 写出 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) 到连接头。
 
-可用协议版本值： `1` 或 `2`.
+可用协议版本值：`1` 或 `2`。
 
 ### 拨号字段
 
@@ -63,13 +63,13 @@
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -80,11 +80,11 @@
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，域名将在请求发出之前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

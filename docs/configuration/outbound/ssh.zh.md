@@ -37,7 +37,7 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
@@ -49,23 +49,23 @@ SSH 用户, 默认使用 root。
 
 #### password
 
-密码
+密码。
 
 #### private_key
 
-密钥
+密钥。
 
 #### private_key_path
 
-密钥路径
+密钥路径。
 
 #### private_key_passphrase
 
-密钥密码
+密钥密码。
 
 #### host_key_algorithms
 
-主机密钥算法
+主机密钥算法。
 
 #### client_version
 
@@ -91,13 +91,13 @@ SSH 用户, 默认使用 root。
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -108,11 +108,11 @@ SSH 用户, 默认使用 root。
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 
