@@ -81,7 +81,7 @@
 | Feature                                   | clash-premium |
 |-------------------------------------------|---------------|
 | Full IPv6 support                         | X             |
-| Auto route on Linux/Windows/maxOS/Android | ✔             |
+| Auto route on Linux/Windows/macOS/Android | ✔             |
 | Embed windows driver                      | X             |
 | Custom address/mtu                        | X             |
 | Limit uid (Linux) in routing              | X             |
