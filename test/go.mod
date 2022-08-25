@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/sagernet/sing v0.0.0-20220823075935-c333192241ec
+	github.com/sagernet/sing v0.0.0-20220824062950-7bfd820739a8
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
@@ -60,7 +60,7 @@ require (
 	github.com/sagernet/netlink v0.0.0-20220820041223-3cd8365d17ac // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220822073626-d5efb431220d // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220824105617-e5c59fc756a6 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4 // indirect
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
