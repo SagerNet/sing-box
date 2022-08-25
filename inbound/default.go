@@ -187,7 +187,6 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	metadata.SniffEnabled = a.listenOptions.SniffEnabled
 	metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-	metadata.Network = N.NetworkTCP
 	if !metadata.Source.IsValid() {
 		metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 	}
@@ -242,7 +241,6 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -275,7 +273,6 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
@@ -302,7 +299,6 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -331,7 +327,6 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Network = N.NetworkUDP
 		metadata.Source = M.SocksaddrFromNetIP(addr)
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
