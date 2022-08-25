@@ -1,3 +1,13 @@
+#### 2022/08/25
+
+* Let vmess use zero instead of auto if TLS enabled
+* Add trojan fallback for ALPN
+* Improve ip_cidr rule
+* Fix format bind_address
+* Fix http proxy with compressed response
+* Fix ipv6 route on linux
+* Fix route connections
+
 #### 2022/08/24
 
 * Fix naive padding
