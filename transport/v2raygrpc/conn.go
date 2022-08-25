@@ -102,5 +102,8 @@ func wrapError(err error) error {
 	if strings.Contains(err.Error(), "EOF") {
 		return io.EOF
 	}
+	if strings.Contains(err.Error(), "the client connection is closing") {
+		return net.ErrClosed
+	}
 	return err
 }
