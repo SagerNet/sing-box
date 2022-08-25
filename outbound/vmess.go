@@ -32,17 +32,6 @@ type VMess struct {
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessOutboundOptions) (*VMess, error) {
-	var clientOptions []vmess.ClientOption
-	if options.GlobalPadding {
-		clientOptions = append(clientOptions, vmess.ClientWithGlobalPadding())
-	}
-	if options.AuthenticatedLength {
-		clientOptions = append(clientOptions, vmess.ClientWithAuthenticatedLength())
-	}
-	client, err := vmess.NewClient(options.UUID, options.Security, options.AlterId, clientOptions...)
-	if err != nil {
-		return nil, err
-	}
 	outbound := &VMess{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeVMess,
@@ -52,9 +41,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			tag:      tag,
 		},
 		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
-		client:     client,
 		serverAddr: options.ServerOptions.Build(),
 	}
+	var err error
 	if options.TLS != nil {
 		outbound.tlsConfig, err = dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
@@ -71,6 +60,25 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
+	var clientOptions []vmess.ClientOption
+	if options.GlobalPadding {
+		clientOptions = append(clientOptions, vmess.ClientWithGlobalPadding())
+	}
+	if options.AuthenticatedLength {
+		clientOptions = append(clientOptions, vmess.ClientWithAuthenticatedLength())
+	}
+	security := options.Security
+	if security == "" {
+		security = "auto"
+	}
+	if security == "auto" && outbound.tlsConfig != nil {
+		security = "zero"
+	}
+	client, err := vmess.NewClient(options.UUID, security, options.AlterId, clientOptions...)
+	if err != nil {
+		return nil, err
+	}
+	outbound.client = client
 	return outbound, nil
 }
 
