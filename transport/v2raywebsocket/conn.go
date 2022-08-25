@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/gorilla/websocket"
@@ -19,11 +20,20 @@ type WebsocketConn struct {
 	reader     io.Reader
 }
 
+func (c *WebsocketConn) Close() error {
+	err := c.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(C.TCPTimeout))
+	if err != nil {
+		return c.Conn.Close()
+	}
+	return nil
+}
+
 func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 	for {
 		if c.reader == nil {
 			_, c.reader, err = c.NextReader()
 			if err != nil {
+				err = wrapError(err)
 				return
 			}
 		}
@@ -32,12 +42,13 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 			c.reader = nil
 			continue
 		}
+		err = wrapError(err)
 		return
 	}
 }
 
 func (c *WebsocketConn) Write(b []byte) (n int, err error) {
-	err = c.WriteMessage(websocket.BinaryMessage, b)
+	err = wrapError(c.WriteMessage(websocket.BinaryMessage, b))
 	if err != nil {
 		return
 	}
@@ -150,4 +161,11 @@ func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
 		return os.ErrInvalid
 	}
 	return c.conn.SetWriteDeadline(t)
+}
+
+func wrapError(err error) error {
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return net.ErrClosed
+	}
+	return err
 }
