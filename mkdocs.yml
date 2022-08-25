@@ -49,7 +49,7 @@ nav:
           - Route Rule: configuration/route/rule.md
           - Protocol Sniff: configuration/route/sniff.md
       - Experimental:
-           - configuration/experimental/index.md
+          - configuration/experimental/index.md
       - Shared:
           - TLS: configuration/shared/tls.md
           - Multiplex: configuration/shared/multiplex.md
@@ -93,6 +93,11 @@ nav:
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
       - DNS Hijack: examples/dns-hijack.md
+  - Contributing:
+      - contributing/index.md
+      - Developing:
+          - Environment: contributing/environment.md
+          - Sub projects: contributing/sub-projects.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
