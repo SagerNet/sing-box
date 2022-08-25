@@ -1,6 +1,5 @@
 name: Bug Report
 description: "Create a report to help us improve."
-labels: [ bug ]
 body:
   - type: checkboxes
     id: terms
@@ -56,7 +55,7 @@ body:
       required: true
 
   - type: textarea
-    id: config
+    id: log
     attributes:
       label: Server and client log file
       value: |-
