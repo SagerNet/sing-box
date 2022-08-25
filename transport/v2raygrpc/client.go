@@ -37,7 +37,7 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
-	client := &Client{
+	return &Client{
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
@@ -61,36 +61,35 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 				PingTimeout:        0,
 			},
 		},
+		url: &url.URL{
+			Scheme: "https",
+			Host:   serverAddr.String(),
+			Path:   fmt.Sprintf("/%s/Tun", options.ServiceName),
+		},
 	}
-	client.url = &url.URL{
-		Scheme: "https",
-		Host:   serverAddr.String(),
-		Path:   fmt.Sprintf("/%s/Tun", options.ServiceName),
-	}
-	return client
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
-	reader, writer := io.Pipe()
+	requestPipeReader, requestPipeWriter := io.Pipe()
 	request := (&http.Request{
 		Method:     http.MethodPost,
-		Body:       reader,
+		Body:       requestPipeReader,
 		URL:        c.url,
 		Proto:      "HTTP/2",
 		ProtoMajor: 2,
 		ProtoMinor: 0,
 		Header:     defaultClientHeader,
-	}).WithContext(c.ctx)
-	anotherReader, anotherWriter := io.Pipe()
+	}).WithContext(ctx)
+	responsePipeReader, responsePipeWriter := io.Pipe()
 	go func() {
-		defer anotherWriter.Close()
+		defer responsePipeWriter.Close()
 		response, err := c.client.Do(request)
 		if err != nil {
 			return
 		}
-		_, _ = bufio.Copy(anotherWriter, response.Body)
+		_, _ = bufio.Copy(responsePipeWriter, response.Body)
 	}()
-	return newGunConn(anotherReader, writer, ChainedClosable{reader, writer, anotherReader}), nil
+	return newGunConn(responsePipeReader, requestPipeWriter, ChainedClosable{requestPipeReader, requestPipeWriter, responsePipeReader}), nil
 }
 
 type ChainedClosable []io.Closer
