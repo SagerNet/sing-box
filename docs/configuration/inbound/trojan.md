@@ -23,8 +23,14 @@
       ],
       "tls": {},
       "fallback": {
-        "server": "127.0.0.0.1",
+        "server": "127.0.0.1",
         "server_port": 8080
+      },
+      "fallback_for_alpn": {
+        "http/1.1": {
+          "server": "127.0.0.1",
+          "server_port": 8081
+        }
       },
       "transport": {}
     }
@@ -50,7 +56,13 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
     There is no evidence that GFW detects and blocks Trojan servers based on HTTP responses, and opening the standard http/s port on the server is a much bigger signature.
 
-Fallback server configuration. Disabled if empty.
+Fallback server configuration. Disabled if `fallback` and `fallback_for_alpn` are empty.
+
+#### fallback_for_alpn
+
+Fallback server configuration for specified ALPN.
+
+If not empty, TLS fallback requests with ALPN not in this table will be rejected.
 
 #### transport
 

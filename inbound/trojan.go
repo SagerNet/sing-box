@@ -24,11 +24,12 @@ var _ adapter.Inbound = (*Trojan)(nil)
 
 type Trojan struct {
 	myInboundAdapter
-	service      *trojan.Service[int]
-	users        []option.TrojanUser
-	tlsConfig    *TLSConfig
-	fallbackAddr M.Socksaddr
-	transport    adapter.V2RayServerTransport
+	service                  *trojan.Service[int]
+	users                    []option.TrojanUser
+	tlsConfig                *TLSConfig
+	fallbackAddr             M.Socksaddr
+	fallbackAddrTLSNextProto map[string]M.Socksaddr
+	transport                adapter.V2RayServerTransport
 }
 
 func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanInboundOptions) (*Trojan, error) {
@@ -44,9 +45,35 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		},
 		users: options.Users,
 	}
+	if options.TLS != nil {
+		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+		inbound.tlsConfig = tlsConfig
+	}
 	var fallbackHandler N.TCPConnectionHandler
-	if options.Fallback != nil && options.Fallback.Server != "" {
-		inbound.fallbackAddr = options.Fallback.Build()
+	if options.Fallback != nil && options.Fallback.Server != "" || len(options.FallbackForALPN) > 0 {
+		if options.Fallback != nil && options.Fallback.Server != "" {
+			inbound.fallbackAddr = options.Fallback.Build()
+			if !inbound.fallbackAddr.IsValid() {
+				return nil, E.New("invalid fallback address: ", inbound.fallbackAddr)
+			}
+		}
+		if len(options.FallbackForALPN) > 0 {
+			if inbound.tlsConfig == nil {
+				return nil, E.New("fallback for ALPN is not supported without TLS")
+			}
+			fallbackAddrNextProto := make(map[string]M.Socksaddr)
+			for nextProto, destination := range options.FallbackForALPN {
+				fallbackAddr := destination.Build()
+				if !fallbackAddr.IsValid() {
+					return nil, E.New("invalid fallback address for ALPN ", nextProto, ": ", fallbackAddr)
+				}
+				fallbackAddrNextProto[nextProto] = fallbackAddr
+			}
+			inbound.fallbackAddrTLSNextProto = fallbackAddrNextProto
+		}
 		fallbackHandler = adapter.NewUpstreamContextHandler(inbound.fallbackConnection, nil, nil)
 	}
 	service := trojan.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound), fallbackHandler)
@@ -57,13 +84,6 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 	}))
 	if err != nil {
 		return nil, err
-	}
-	if options.TLS != nil {
-		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
-		if err != nil {
-			return nil, err
-		}
-		inbound.tlsConfig = tlsConfig
 	}
 	if options.Transport != nil {
 		var tlsConfig *tls.Config
@@ -153,8 +173,22 @@ func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adap
 }
 
 func (h *Trojan) fallbackConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	h.logger.InfoContext(ctx, "fallback connection to ", h.fallbackAddr)
-	metadata.Destination = h.fallbackAddr
+	var fallbackAddr M.Socksaddr
+	if len(h.fallbackAddrTLSNextProto) > 0 {
+		if tlsConn, loaded := common.Cast[*tls.Conn](conn); loaded {
+			connectionState := tlsConn.ConnectionState()
+			if connectionState.NegotiatedProtocol != "" {
+				if fallbackAddr, loaded = h.fallbackAddrTLSNextProto[connectionState.NegotiatedProtocol]; !loaded {
+					return E.New("fallback disabled for ALPN: ", connectionState.NegotiatedProtocol)
+				}
+			}
+		}
+	}
+	if !fallbackAddr.IsValid() {
+		fallbackAddr = h.fallbackAddr
+	}
+	h.logger.InfoContext(ctx, "fallback connection to ", fallbackAddr)
+	metadata.Destination = fallbackAddr
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 

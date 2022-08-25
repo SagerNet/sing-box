@@ -6,7 +6,6 @@
     {
       "type": "trojan",
       "tag": "trojan-in",
-      
       "listen": "::",
       "listen_port": 2080,
       "tcp_fast_open": false,
@@ -14,7 +13,6 @@
       "sniff_override_destination": false,
       "domain_strategy": "prefer_ipv6",
       "proxy_protocol": false,
-
       "users": [
         {
           "name": "sekai",
@@ -23,8 +21,14 @@
       ],
       "tls": {},
       "fallback": {
-        "server": "127.0.0.0.1",
+        "server": "127.0.0.1",
         "server_port": 8080
+      },
+      "fallback_for_alpn": {
+        "http/1.1": {
+          "server": "127.0.0.1",
+          "server_port": 8081
+        }
       },
       "transport": {}
     }
@@ -52,7 +56,13 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
     没有证据表明 GFW 基于 HTTP 响应检测并阻止木马服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
 
-备用服务器配置。默认禁用。
+回退服务器配置。如果 `fallback` 和 `fallback_for_alpn` 为空，则禁用回退。
+
+#### fallback_for_alpn
+
+为 ALPN 指定回退服务器配置。
+
+如果不为空，ALPN 不在此列表中的 TLS 回退请求将被拒绝。
 
 #### transport
 
