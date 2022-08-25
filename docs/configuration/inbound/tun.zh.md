@@ -1,6 +1,6 @@
 !!! error ""
 
-    仅支持 Linux, Windows, 和 macOS.
+    仅支持 Linux、Windows 和 macOS。
 
 ### 结构
 
@@ -52,7 +52,7 @@
 
 !!! note ""
 
-    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签。
 
 !!! warning ""
 
@@ -62,7 +62,7 @@
 
 #### interface_name
 
-虚拟设备名称，如果为空则自动选择。
+虚拟设备名称，默认自动选择。
 
 #### inet4_address
 
@@ -76,7 +76,7 @@ tun 接口的 IPv6 前缀。
 
 #### mtu
 
-最大传输单元
+最大传输单元。
 
 #### auto_route
 
@@ -84,7 +84,7 @@ tun 接口的 IPv6 前缀。
 
 !!! error ""
 
-    为避免流量环回，请设置 `route.auto_detect_interface` 或 `route.default_interface` 或 `outbound.bind_interface`
+    为避免流量环回，请设置 `route.auto_detect_interface` 或 `route.default_interface` 或 `outbound.bind_interface`。
 
 #### endpoint_independent_nat
 
@@ -98,7 +98,7 @@ UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
 
 #### stack
 
-TCP/IP 栈.
+TCP/IP 栈。
 
 | 栈                | 上游                                                                    | 状态    |
 |------------------|-----------------------------------------------------------------------|-------|
@@ -107,15 +107,15 @@ TCP/IP 栈.
 
 !!! warning ""
 
-    默认安装不包含 LWIP 栈， 请参阅 [安装](/zh/#installation)。
+    默认安装不包含 LWIP 栈，请参阅 [安装](/zh/#installation)。
 
 #### include_uid
 
 !!! error ""
 
-    UID 规则仅在 Linux 下被支持，并且需要 `auto_route`.
+    UID 规则仅在 Linux 下被支持，并且需要 `auto_route`。
 
-限制被路由的的用户。 默认不限制。
+限制被路由的的用户。默认不限制。
 
 #### include_uid_range
 
@@ -133,7 +133,7 @@ TCP/IP 栈.
 
 !!! error ""
 
-    Android 用户和应用规则仅在 Android 下被支持，并且需要 `auto_route`.
+    Android 用户和应用规则仅在 Android 下被支持，并且需要 `auto_route`。
 
 限制被路由的 Android 用户。
 
@@ -156,7 +156,7 @@ TCP/IP 栈.
 
 启用协议探测。
 
-参阅 [协议探测](/zh/configuration/route/sniff/)
+参阅 [协议探测](/zh/configuration/route/sniff/)。
 
 #### sniff_override_destination
 
@@ -166,7 +166,7 @@ TCP/IP 栈.
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，请求的域名将在路由之前解析为 IP。
 

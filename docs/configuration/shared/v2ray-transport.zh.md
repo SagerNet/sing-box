@@ -23,7 +23,7 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
 
 !!! note ""
 
-    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签。
 
 ### HTTP
 
@@ -39,31 +39,31 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
 
 !!! warning "与 v2ray-core 的区别"
 
-    不强制执行 TLS。 如果未配置 TLS，将使用纯 HTTP 1.1。
+    不强制执行 TLS。如果未配置 TLS，将使用纯 HTTP 1.1。
 
 #### host
 
 主机域名列表。
 
-客户端将随机选择，如果不为空，服务器将验证。
+客户端将随机选择，默认服务器将验证。
 
 #### path
 
 HTTP 请求路径
 
-如果不为空，服务器将验证。
+默认服务器将验证。
 
 #### method
 
 HTTP 请求方法
 
-如果不为空，服务器将验证。
+默认服务器将验证。
 
 #### headers
 
 HTTP 请求的额外标头
 
-如果不为空，服务器将写入响应。
+默认服务器将写入响应。
 
 ### WebSocket
 
@@ -81,15 +81,15 @@ HTTP 请求的额外标头
 
 HTTP 请求路径
 
-如果不为空，服务器将验证。
+默认服务器将验证。
 
 #### headers
 
-HTTP 请求的额外标头
+HTTP 请求的额外标头。
 
 #### max_early_data
 
-请求中允许的最大有效负载大小。 如果不为零则启用。
+请求中允许的最大有效负载大小。默认启用。
 
 #### early_data_header_name
 
@@ -116,7 +116,7 @@ HTTP 请求的额外标头
 
 !!! warning ""
 
-    默认安装不包含 gRPC, 参阅 [安装](/zh/#installation).
+    默认安装不包含 gRPC, 参阅 [安装](/zh/#installation)。
 
 ```json
 {
@@ -127,4 +127,4 @@ HTTP 请求的额外标头
 
 #### service_name
 
-gRPC 服务名称
+gRPC 服务名称。

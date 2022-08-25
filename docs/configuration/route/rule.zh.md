@@ -93,7 +93,7 @@
 
 !!! note ""
 
-    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签。
 
 ### Default Fields
 
@@ -106,13 +106,13 @@
 
 #### inbound
 
-[入站](/zh/configuration/inbound) 标签.
+[入站](/zh/configuration/inbound) 标签。
 
 #### ip_version
 
-4 或 6.
+4 或 6。
 
-为空则不限制。
+默认不限制。
 
 #### auth_user
 
@@ -144,7 +144,7 @@
 
 #### geosite
 
-匹配 GeoSite.
+匹配 GeoSite。
 
 #### source_geoip
 
@@ -182,7 +182,7 @@
 
 !!! error ""
 
-    仅支持 Linux, Windows, 和 macOS.
+    仅支持 Linux、Windows 和 macOS。
 
 匹配进程名称。
 

@@ -23,19 +23,19 @@
 
 ==必填==
 
-监听地址
+监听地址。
 
 #### listen_port
 
 ==必填==
 
-监听端口
+监听端口。
 
 #### sniff
 
 启用协议探测。
 
-参阅 [协议探测](/zh/configuration/route/sniff/)
+参阅 [协议探测](/zh/configuration/route/sniff/)。
 
 #### sniff_override_destination
 
@@ -45,7 +45,7 @@
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，请求的域名将在路由之前解析为 IP。
 

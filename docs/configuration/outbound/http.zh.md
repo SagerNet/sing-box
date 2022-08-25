@@ -35,25 +35,25 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### username
 
-Basic 认证用户名
+Basic 认证用户名。
 
 #### password
 
-Basic 认证密码
+Basic 认证密码。
 
 #### tls
 
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound).
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
 ### 拨号字段
 
@@ -75,13 +75,13 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound).
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -92,11 +92,11 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound).
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

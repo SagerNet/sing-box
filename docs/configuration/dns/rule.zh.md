@@ -110,7 +110,7 @@
 
 4 (A DNS 查询) 或 6 (AAAA DNS 查询)。
 
-为空则不限制。
+默认不限制。
 
 #### network
 
@@ -142,7 +142,7 @@
 
 #### geosite
 
-匹配 GeoSite.
+匹配 GeoSite。
 
 #### source_geoip
 
@@ -172,7 +172,7 @@
 
 !!! error ""
 
-    仅支持 Linux, Windows, 和 macOS.
+    仅支持 Linux、Windows 和 macOS.
 
 匹配进程名称。
 
@@ -184,7 +184,7 @@
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
 匹配用户名。
 
@@ -192,7 +192,7 @@
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
 匹配用户 ID。
 
@@ -212,7 +212,7 @@
 
 #### disable_cache
 
-在此查询中禁用缓存
+在此查询中禁用缓存。
 
 ### 逻辑字段
 

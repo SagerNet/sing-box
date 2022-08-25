@@ -35,7 +35,7 @@
 
 !!! warning ""
 
-    默认安装不包含 WireGuard, 参阅 [安装](/zh/#installation).
+    默认安装不包含 WireGuard, 参阅 [安装](/zh/#installation)。
 
 ### WireGuard 字段
 
@@ -43,19 +43,19 @@
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### local_address
 
 ==必填==
 
-接口的 IPv4/IPv6 地址或地址段的列表您
+接口的 IPv4/IPv6 地址或地址段的列表您。
 
 要分配给接口的 IP（v4 或 v6）地址列表（可以选择带有 CIDR 掩码）。
 
@@ -82,7 +82,7 @@ WireGuard 预共享密钥。
 
 #### mtu
 
-WireGuard MTU。 如果为空，将使用 1408。
+WireGuard MTU。 默认1408。
 
 #### network
 
@@ -112,13 +112,13 @@ WireGuard MTU。 如果为空，将使用 1408。
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -129,11 +129,11 @@ WireGuard MTU。 如果为空，将使用 1408。
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 

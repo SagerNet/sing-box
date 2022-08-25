@@ -31,33 +31,33 @@
 }
 ```
 
-### SOCKS Fields
+### SOCKS 字段
 
 #### server
 
 ==必填==
 
-服务器地址
+服务器地址。
 
 #### server_port
 
 ==必填==
 
-服务器端口
+服务器端口。
 
 #### version
 
 SOCKS 版本, 可为 `4` `4a` `5`.
 
-默认使用 SOCKS5.
+默认使用 SOCKS5。
 
 #### username
 
-SOCKS 用户名
+SOCKS 用户名。
 
 #### password
 
-SOCKS5 密码
+SOCKS5 密码。
 
 #### network
 
@@ -91,13 +91,13 @@ SOCKS5 密码
 
 !!! error ""
 
-    仅支持 Linux.
+    仅支持 Linux。
 
-设置 netfilter 路由标记
+设置 netfilter 路由标记。
 
 #### reuse_addr
 
-重用监听地址
+重用监听地址。
 
 #### connect_timeout
 
@@ -108,11 +108,11 @@ SOCKS5 密码
 
 #### domain_strategy
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，服务器域名将在连接前解析为 IP。
 
-如果为空，将使用 `dns.strategy`。
+默认使用 `dns.strategy`。
 
 #### fallback_delay
 
