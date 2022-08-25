@@ -603,5 +603,8 @@ func wrapHttpError(err error) error {
 	if strings.Contains(err.Error(), "body closed by handler") {
 		return net.ErrClosed
 	}
+	if strings.Contains(err.Error(), "canceled with error code 268") {
+		return io.EOF
+	}
 	return err
 }
