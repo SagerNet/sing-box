@@ -267,7 +267,6 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port)
 	if !request.UDP {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-		metadata.Network = N.NetworkTCP
 		return h.router.RouteConnection(ctx, hysteria.NewConn(stream, metadata.Destination), metadata)
 	} else {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
@@ -278,7 +277,6 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 		h.udpSessions[id] = nCh
 		h.udpSessionId += 1
 		h.udpAccess.Unlock()
-		metadata.Network = N.NetworkUDP
 		packetConn := hysteria.NewPacketConn(conn, stream, id, metadata.Destination, nCh, common.Closer(func() error {
 			h.udpAccess.Lock()
 			if ch, ok := h.udpSessions[id]; ok {

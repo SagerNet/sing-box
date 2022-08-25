@@ -165,7 +165,6 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.InboundType = C.TypeTun
-	metadata.Network = N.NetworkTCP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled
@@ -188,7 +187,6 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.InboundType = C.TypeTun
-	metadata.Network = N.NetworkUDP
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.SniffEnabled = t.inboundOptions.SniffEnabled

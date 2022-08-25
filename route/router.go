@@ -498,13 +498,13 @@ func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	metadata.Network = N.NetworkTCP
 	switch metadata.Destination.Fqdn {
 	case mux.Destination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound multiplex connection")
 		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
 	case uot.UOTMagicAddress:
 		r.logger.InfoContext(ctx, "inbound UoT connection")
-		metadata.Network = N.NetworkUDP
 		metadata.Destination = M.Socksaddr{}
 		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
 	}
@@ -552,6 +552,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	metadata.Network = N.NetworkUDP
 	if metadata.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
