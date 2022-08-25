@@ -2,10 +2,11 @@ package option
 
 type TrojanInboundOptions struct {
 	ListenOptions
-	Users     []TrojanUser           `json:"users,omitempty"`
-	TLS       *InboundTLSOptions     `json:"tls,omitempty"`
-	Fallback  *ServerOptions         `json:"fallback,omitempty"`
-	Transport *V2RayTransportOptions `json:"transport,omitempty"`
+	Users           []TrojanUser              `json:"users,omitempty"`
+	TLS             *InboundTLSOptions        `json:"tls,omitempty"`
+	Fallback        *ServerOptions            `json:"fallback,omitempty"`
+	FallbackForALPN map[string]*ServerOptions `json:"fallback_for_alpn,omitempty"`
+	Transport       *V2RayTransportOptions    `json:"transport,omitempty"`
 }
 
 type TrojanUser struct {
