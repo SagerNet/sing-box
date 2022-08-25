@@ -3,98 +3,102 @@ package v2raygrpc
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"github.com/sagernet/sing/common/bufio"
+	"io"
 	"net"
-	"sync"
-	"time"
+	"net/http"
+	"net/url"
 
 	"github.com/sagernet/sing-box/adapter"
+	D "github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
+	"golang.org/x/net/http2"
 )
 
 var _ adapter.V2RayClientTransport = (*Client)(nil)
 
+var defaultClientHeader = http.Header{
+	"Content-Type": []string{"application/grpc"},
+	"User-Agent":   []string{"grpc-go/1.48.0"},
+	"TE":           []string{"trailers"},
+}
+
 type Client struct {
-	ctx         context.Context
-	dialer      N.Dialer
-	serverAddr  string
-	serviceName string
-	dialOptions []grpc.DialOption
-	conn        *grpc.ClientConn
-	connAccess  sync.Mutex
+	ctx        context.Context
+	dialer     N.Dialer
+	serverAddr M.Socksaddr
+	client     *http.Client
+	options    option.V2RayGRPCOptions
+	url        *url.URL
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
-	var dialOptions []grpc.DialOption
-	if tlsConfig != nil {
-		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	} else {
-		dialOptions = append(dialOptions, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-	dialOptions = append(dialOptions, grpc.WithConnectParams(grpc.ConnectParams{
-		Backoff: backoff.Config{
-			BaseDelay:  500 * time.Millisecond,
-			Multiplier: 1.5,
-			Jitter:     0.2,
-			MaxDelay:   19 * time.Second,
+	client := &Client{
+		ctx:        ctx,
+		dialer:     dialer,
+		serverAddr: serverAddr,
+		options:    options,
+		client: &http.Client{
+			Transport: &http2.Transport{
+				DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+					conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+					if err != nil {
+						return nil, err
+					}
+					tlsConn, err := D.TLSClient(ctx, conn, cfg)
+					if err != nil {
+						return nil, err
+					}
+					return tlsConn, nil
+				},
+				TLSClientConfig:    tlsConfig,
+				AllowHTTP:          false,
+				DisableCompression: true,
+				PingTimeout:        0,
+			},
 		},
-		MinConnectTimeout: 5 * time.Second,
-	}))
-	dialOptions = append(dialOptions, grpc.WithContextDialer(func(ctx context.Context, server string) (net.Conn, error) {
-		return dialer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr(server))
-	}))
-	dialOptions = append(dialOptions, grpc.WithReturnConnectionError())
-	return &Client{
-		ctx:         ctx,
-		dialer:      dialer,
-		serverAddr:  serverAddr.String(),
-		serviceName: options.ServiceName,
-		dialOptions: dialOptions,
 	}
-}
-
-func (c *Client) Close() error {
-	return common.Close(c.conn)
-}
-
-func (c *Client) connect() (*grpc.ClientConn, error) {
-	conn := c.conn
-	if conn != nil && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
+	client.url = &url.URL{
+		Scheme: "https",
+		Host:   serverAddr.String(),
+		Path:   fmt.Sprintf("/%s/Tun", options.ServiceName),
 	}
-	c.connAccess.Lock()
-	defer c.connAccess.Unlock()
-	conn = c.conn
-	if conn != nil && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
-	}
-	conn, err := grpc.DialContext(c.ctx, c.serverAddr, c.dialOptions...)
-	if err != nil {
-		return nil, err
-	}
-	c.conn = conn
-	return conn, nil
+	return client
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
-	clientConn, err := c.connect()
-	if err != nil {
-		return nil, err
+	reader, writer := io.Pipe()
+	request := (&http.Request{
+		Method:     http.MethodPost,
+		Body:       reader,
+		URL:        c.url,
+		Proto:      "HTTP/2",
+		ProtoMajor: 2,
+		ProtoMinor: 0,
+		Header:     defaultClientHeader,
+	}).WithContext(c.ctx)
+	anotherReader, anotherWriter := io.Pipe()
+	go func() {
+		defer anotherWriter.Close()
+		response, err := c.client.Do(request)
+		if err != nil {
+			return
+		}
+		_, _ = bufio.Copy(anotherWriter, response.Body)
+	}()
+	return newGunConn(anotherReader, writer, ChainedClosable{reader, writer, anotherReader}), nil
+}
+
+type ChainedClosable []io.Closer
+
+// Close implements io.Closer.Close().
+func (cc ChainedClosable) Close() error {
+	for _, c := range cc {
+		_ = common.Close(c)
 	}
-	client := NewGunServiceClient(clientConn).(GunServiceCustomNameClient)
-	ctx, cancel := context.WithCancel(ctx)
-	stream, err := client.TunCustomName(ctx, c.serviceName)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	return NewGRPCConn(stream, cancel), nil
+	return nil
 }

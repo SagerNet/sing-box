@@ -15,7 +15,7 @@ import (
 
 var errGRPCNotIncluded = E.New("gRPC is not included in this build, rebuild with -tags with_grpc")
 
-func NewGRPCServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler) (adapter.V2RayServerTransport, error) {
+func NewGRPCServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 	return nil, errGRPCNotIncluded
 }
 

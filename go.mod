@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	berty.tech/go-libtor v1.0.385
+	ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8
 	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go v1.1.2
 	github.com/dustin/go-humanize v1.0.0
@@ -34,8 +35,6 @@ require (
 	golang.org/x/net v0.0.0-20220822230855-b0a4917ee28c
 	golang.org/x/sys v0.0.0-20220818161305-2296e01440c6
 	golang.zx2c4.com/wireguard v0.0.0-20220703234212-c31a7b1ab478
-	google.golang.org/grpc v1.48.0
-	google.golang.org/protobuf v1.28.1
 	gvisor.dev/gvisor v0.0.0-20220812001733-b5c0f23893fb
 )
 
@@ -44,7 +43,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
@@ -68,7 +66,7 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.11-0.20220513221640-090b14e8501f // indirect
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
-	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect

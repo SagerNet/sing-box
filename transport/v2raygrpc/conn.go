@@ -1,109 +1,139 @@
+// Modified from: https://github.com/Qv2ray/gun-lite
+// License: MIT
+
 package v2raygrpc
 
 import (
-	"context"
+	"bytes"
+	"encoding/binary"
 	"io"
 	"net"
+	"net/http"
 	"os"
-	"strings"
+	"sync"
 	"time"
 
-	"github.com/sagernet/sing/common/rw"
+	"ekyu.moe/leb128"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
-var _ net.Conn = (*GRPCConn)(nil)
+var ErrInvalidLength = E.New("invalid length")
 
-type GRPCConn struct {
-	GunService
-	cancel context.CancelFunc
-	cache  []byte
+type GunConn struct {
+	reader io.Reader
+	writer io.Writer
+	closer io.Closer
+	// mu protect done
+	mu   sync.Mutex
+	done chan struct{}
+
+	toRead []byte
+	readAt int
 }
 
-func NewGRPCConn(service GunService, cancel context.CancelFunc) *GRPCConn {
-	if client, isClient := service.(GunService_TunClient); isClient {
-		service = &clientConnWrapper{client}
-	}
-	return &GRPCConn{
-		GunService: service,
-		cancel:     cancel,
+func newGunConn(reader io.Reader, writer io.Writer, closer io.Closer) *GunConn {
+	return &GunConn{
+		reader: reader,
+		writer: writer,
+		closer: closer,
+		done:   make(chan struct{}),
 	}
 }
 
-func (c *GRPCConn) Read(b []byte) (n int, err error) {
-	if len(c.cache) > 0 {
-		n = copy(b, c.cache)
-		c.cache = c.cache[n:]
-		return
+func (c *GunConn) isClosed() bool {
+	select {
+	case <-c.done:
+		return true
+	default:
+		return false
 	}
-	hunk, err := c.Recv()
-	err = wrapError(err)
+}
+
+func (c *GunConn) Read(b []byte) (n int, err error) {
+	if c.toRead != nil {
+		n = copy(b, c.toRead[c.readAt:])
+		c.readAt += n
+		if c.readAt >= len(c.toRead) {
+			buf.Put(c.toRead)
+			c.toRead = nil
+		}
+		return n, nil
+	}
+	buffer := buf.Get(5)
+	n, err = io.ReadFull(c.reader, buffer)
 	if err != nil {
-		return
+		return 0, err
 	}
-	n = copy(b, hunk.Data)
-	if n < len(hunk.Data) {
-		c.cache = hunk.Data[n:]
-	}
-	return
-}
+	grpcPayloadLen := binary.BigEndian.Uint32(buffer[1:])
+	buf.Put(buffer)
 
-func (c *GRPCConn) Write(b []byte) (n int, err error) {
-	err = wrapError(c.Send(&Hunk{Data: b}))
+	buffer = buf.Get(int(grpcPayloadLen))
+	n, err = io.ReadFull(c.reader, buffer)
 	if err != nil {
-		return
+		return 0, io.ErrUnexpectedEOF
 	}
-	return len(b), nil
+	protobufPayloadLen, protobufLengthLen := leb128.DecodeUleb128(buffer[1:])
+	if protobufLengthLen == 0 {
+		return 0, ErrInvalidLength
+	}
+	if grpcPayloadLen != uint32(protobufPayloadLen)+uint32(protobufLengthLen)+1 {
+		return 0, ErrInvalidLength
+	}
+	n = copy(b, buffer[1+protobufLengthLen:])
+	if n < int(protobufPayloadLen) {
+		c.toRead = buffer
+		c.readAt = 1 + int(protobufLengthLen) + n
+		return n, nil
+	}
+	return n, nil
 }
 
-func (c *GRPCConn) Close() error {
-	c.cancel()
-	return nil
+func (c *GunConn) Write(b []byte) (n int, err error) {
+	if c.isClosed() {
+		return 0, io.ErrClosedPipe
+	}
+	protobufHeader := leb128.AppendUleb128([]byte{0x0A}, uint64(len(b)))
+	grpcHeader := buf.Get(5)
+	grpcPayloadLen := uint32(len(protobufHeader) + len(b))
+	binary.BigEndian.PutUint32(grpcHeader[1:5], grpcPayloadLen)
+	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader), bytes.NewReader(b)))
+	buf.Put(grpcHeader)
+	if f, ok := c.writer.(http.Flusher); ok {
+		f.Flush()
+	}
+	return len(b), err
 }
 
-func (c *GRPCConn) LocalAddr() net.Addr {
-	return nil
-}
-
-func (c *GRPCConn) RemoteAddr() net.Addr {
-	return nil
-}
-
-func (c *GRPCConn) SetDeadline(t time.Time) error {
-	return os.ErrInvalid
-}
-
-func (c *GRPCConn) SetReadDeadline(t time.Time) error {
-	return os.ErrInvalid
-}
-
-func (c *GRPCConn) SetWriteDeadline(t time.Time) error {
-	return os.ErrInvalid
-}
-
-func (c *GRPCConn) Upstream() any {
-	return c.GunService
-}
-
-var _ rw.WriteCloser = (*clientConnWrapper)(nil)
-
-type clientConnWrapper struct {
-	GunService_TunClient
-}
-
-func (c *clientConnWrapper) CloseWrite() error {
-	return c.CloseSend()
-}
-
-func wrapError(err error) error {
-	// grpc uses stupid internal error types
-	if err == nil {
+func (c *GunConn) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	select {
+	case <-c.done:
 		return nil
+	default:
+		close(c.done)
+		return c.closer.Close()
 	}
-	if strings.Contains(err.Error(), "EOF") {
-		return io.EOF
-	}
-	if strings.Contains(err.Error(), "the client connection is closing") {
-		return net.ErrClosed
-	}
-	return err
+}
+
+func (c *GunConn) LocalAddr() net.Addr {
+	return nil
+}
+
+func (c *GunConn) RemoteAddr() net.Addr {
+	return nil
+}
+
+func (c *GunConn) SetDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *GunConn) SetReadDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *GunConn) SetWriteDeadline(t time.Time) error {
+	return os.ErrInvalid
 }
