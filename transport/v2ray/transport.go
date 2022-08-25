@@ -29,9 +29,6 @@ func NewServerTransport(ctx context.Context, options option.V2RayTransportOption
 		}
 		return NewQUICServer(ctx, options.QUICOptions, tlsConfig, handler, errorHandler)
 	case C.V2RayTransportTypeGRPC:
-		if tlsConfig == nil {
-			return nil, C.ErrTLSRequired
-		}
 		return NewGRPCServer(ctx, options.GRPCOptions, tlsConfig, handler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
