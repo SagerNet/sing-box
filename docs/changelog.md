@@ -1,3 +1,12 @@
+#### 2022/08/24
+
+* Fix naive padding
+* Fix unix search path
+* Fix close non-duplex connections
+* Add ACME EAB support
+* Fix early close on windows and catch any
+* Initial zh-CN document translation
+
 #### 2022/08/23
 
 * Add [V2Ray Transport](/configuration/shared/v2ray-transport) support for VMess and Trojan

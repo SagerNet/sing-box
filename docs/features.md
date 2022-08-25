@@ -52,18 +52,18 @@
 
 #### Routing Rule
 
-| Rule                 | v2ray-core | clash |
-|----------------------|------------|-------|
-| Inbound              | ✔          | X     |
-| IP Version           | X          | X     |
-| User from inbound    | X          | X     |
-| Sniffed protocol     | ✔          | X     |
-| GeoSite              | ✔          | X     |
-| Process name         | X          | ✔     |
-| Android package name | X          | X     |
-| Linux user/user id   | X          | X     |
-| Invert rule          | X          | X     |
-| Logical rule         | X          | X     |
+| Rule                 | v2ray-core                 | clash |
+|----------------------|----------------------------|-------|
+| Inbound              | ✔                          | X     |
+| IP Version           | X                          | X     |
+| User from inbound    | vmess and shadowsocks only | X     |
+| Sniffed protocol     | ✔                          | X     |
+| GeoSite              | ✔                          | X     |
+| Process name         | X                          | ✔     |
+| Android package name | X                          | X     |
+| Linux user/user id   | X                          | X     |
+| Invert rule          | X                          | X     |
+| Logical rule         | X                          | X     |
 
 #### DNS
 
