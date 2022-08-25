@@ -49,7 +49,7 @@ tproxy UDP 被认为性能很差，因为在 v2ray 和 clash 中每次回写都�
 
 sing-box 的 `auto_route` 将劫持所有 DNS 请求，除了 [特殊情况](./known-issues#dns)。
 
-您需要手动配置以处理 tun 劫持的 DNS 流量，请参阅 [DNS劫持](/cn/examples/dns-hijack)。
+您需要手动配置以处理 tun 劫持的 DNS 流量，请参阅 [DNS劫持](/zh/examples/dns-hijack)。
 
 #### 为什么我不能将它与其他本地代理一起使用（例如通过 socks）？
 
