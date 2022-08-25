@@ -113,7 +113,10 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	}
 	var bindUDPAddr string
 	udpDialer := dialer
-	bindAddress := netip.Addr(options.BindAddress)
+	var bindAddress netip.Addr
+	if options.BindAddress != nil {
+		bindAddress = options.BindAddress.Build()
+	}
 	if bindAddress.IsValid() {
 		dialer.LocalAddr = &net.TCPAddr{
 			IP: bindAddress.AsSlice(),

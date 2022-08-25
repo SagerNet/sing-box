@@ -16,7 +16,7 @@ type ListenAddress netip.Addr
 func (a ListenAddress) MarshalJSON() ([]byte, error) {
 	addr := netip.Addr(a)
 	if !addr.IsValid() {
-		return json.Marshal("")
+		return nil, nil
 	}
 	return json.Marshal(addr.String())
 }
@@ -33,6 +33,10 @@ func (a *ListenAddress) UnmarshalJSON(content []byte) error {
 	}
 	*a = ListenAddress(addr)
 	return nil
+}
+
+func (a ListenAddress) Build() netip.Addr {
+	return (netip.Addr)(a)
 }
 
 type NetworkList string
