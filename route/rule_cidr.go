@@ -6,51 +6,67 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
+
+	"go4.org/netipx"
 )
 
 var _ RuleItem = (*IPCIDRItem)(nil)
 
 type IPCIDRItem struct {
-	prefixes []netip.Prefix
-	isSource bool
+	ipSet       *netipx.IPSet
+	isSource    bool
+	description string
 }
 
 func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
-	prefixes := make([]netip.Prefix, 0, len(prefixStrings))
+	var builder netipx.IPSetBuilder
 	for i, prefixString := range prefixStrings {
 		prefix, err := netip.ParsePrefix(prefixString)
-		if err != nil {
-			return nil, E.Cause(err, "parse prefix [", i, "]")
+		if err == nil {
+			builder.AddPrefix(prefix)
+			continue
 		}
-		prefixes = append(prefixes, prefix)
+		addr, addrErr := netip.ParseAddr(prefixString)
+		if addrErr == nil {
+			builder.Add(addr)
+			continue
+		}
+		return nil, E.Cause(err, "parse ip_cidr [", i, "]")
+	}
+	var description string
+	if isSource {
+		description = "source_ipcidr="
+	} else {
+		description = "ipcidr="
+	}
+	if dLen := len(prefixStrings); dLen == 1 {
+		description += prefixStrings[0]
+	} else if dLen > 3 {
+		description += "[" + strings.Join(prefixStrings[:3], " ") + "...]"
+	} else {
+		description += "[" + strings.Join(prefixStrings, " ") + "]"
+	}
+	ipSet, err := builder.IPSet()
+	if err != nil {
+		return nil, err
 	}
 	return &IPCIDRItem{
-		prefixes: prefixes,
-		isSource: isSource,
+		ipSet:       ipSet,
+		isSource:    isSource,
+		description: description,
 	}, nil
 }
 
 func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 	if r.isSource {
-		for _, prefix := range r.prefixes {
-			if prefix.Contains(metadata.Source.Addr) {
-				return true
-			}
-		}
+		return r.ipSet.Contains(metadata.Source.Addr)
 	} else {
 		if metadata.Destination.IsIP() {
-			for _, prefix := range r.prefixes {
-				if prefix.Contains(metadata.Destination.Addr) {
-					return true
-				}
-			}
+			return r.ipSet.Contains(metadata.Destination.Addr)
 		} else {
 			for _, address := range metadata.DestinationAddresses {
-				for _, prefix := range r.prefixes {
-					if prefix.Contains(address) {
-						return true
-					}
+				if r.ipSet.Contains(address) {
+					return true
 				}
 			}
 		}
@@ -59,17 +75,5 @@ func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 }
 
 func (r *IPCIDRItem) String() string {
-	var description string
-	if r.isSource {
-		description = "source_ipcidr="
-	} else {
-		description = "ipcidr="
-	}
-	pLen := len(r.prefixes)
-	if pLen == 1 {
-		description += r.prefixes[0].String()
-	} else {
-		description += "[" + strings.Join(F.MapToString(r.prefixes), " ") + "]"
-	}
-	return description
+	return r.description
 }
