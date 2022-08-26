@@ -1,3 +1,7 @@
+#### 2022/08/26
+
+* Fix ipv6 route on linux
+
 #### 2022/08/25
 
 * Let vmess use zero instead of auto if TLS enabled
@@ -5,7 +9,6 @@
 * Improve ip_cidr rule
 * Fix format bind_address
 * Fix http proxy with compressed response
-* Fix ipv6 route on linux
 * Fix route connections
 
 #### 2022/08/24
