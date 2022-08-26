@@ -38,7 +38,7 @@ func printVersion(cmd *cobra.Command, args []string) {
 		version += runtime.Version()
 		version += ", "
 		version += runtime.GOOS
-		version += ", "
+		version += "/"
 		version += runtime.GOARCH
 		version += ", "
 		version += "CGO "

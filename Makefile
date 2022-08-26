@@ -49,7 +49,14 @@ snapshot:
 	ghr --delete --draft --prerelease -p 1 nightly dist/release
 	rm -r dist
 
-snapshot_install:
+release:
+	goreleaser release --rm-dist --skip-publish
+	mkdir dist/release
+	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
+	ghr --delete --draft --prerelease -p 3 $(shell git describe --tags) dist/release
+	rm -r dist
+
+release_install:
 	go install -v github.com/goreleaser/goreleaser@latest
 	go install -v github.com/tcnksm/ghr@latest
 
