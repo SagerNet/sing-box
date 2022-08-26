@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"net/netip"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -20,7 +21,7 @@ type systemProxy struct {
 }
 
 func (p *systemProxy) update() error {
-	newInterfaceName := p.monitor.DefaultInterfaceName()
+	newInterfaceName := p.monitor.DefaultInterfaceName(netip.IPv4Unspecified())
 	if p.interfaceName == newInterfaceName {
 		return nil
 	}

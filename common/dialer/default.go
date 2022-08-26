@@ -64,25 +64,25 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
 		warnBindInterfaceOnUnsupportedPlatform.Check()
-		bindFunc := skipIfPrivate(control.BindToInterface(router.InterfaceBindManager(), options.BindInterface))
+		bindFunc := control.BindToInterface(router.InterfaceBindManager(), options.BindInterface)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	} else if router.AutoDetectInterface() {
 		if C.IsWindows {
-			bindFunc := skipIfPrivate(control.BindToInterfaceIndexFunc(func() int {
-				return router.InterfaceMonitor().DefaultInterfaceIndex()
-			}))
+			bindFunc := control.BindToInterfaceIndexFunc(func(network, address string) int {
+				return router.InterfaceMonitor().DefaultInterfaceIndex(M.ParseSocksaddr(address).Addr)
+			})
 			dialer.Control = control.Append(dialer.Control, bindFunc)
 			listener.Control = control.Append(listener.Control, bindFunc)
 		} else {
-			bindFunc := skipIfPrivate(control.BindToInterfaceFunc(router.InterfaceBindManager(), func() string {
-				return router.InterfaceMonitor().DefaultInterfaceName()
-			}))
+			bindFunc := control.BindToInterfaceFunc(router.InterfaceBindManager(), func(network, address string) string {
+				return router.InterfaceMonitor().DefaultInterfaceName(M.ParseSocksaddr(address).Addr)
+			})
 			dialer.Control = control.Append(dialer.Control, bindFunc)
 			listener.Control = control.Append(listener.Control, bindFunc)
 		}
 	} else if router.DefaultInterface() != "" {
-		bindFunc := skipIfPrivate(control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface()))
+		bindFunc := control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface())
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
