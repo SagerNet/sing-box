@@ -13,10 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"ekyu.moe/leb128"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"ekyu.moe/leb128"
 )
 
 var ErrInvalidLength = E.New("invalid length")

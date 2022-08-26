@@ -9,8 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/net/http2"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -19,6 +17,8 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	sHttp "github.com/sagernet/sing/protocol/http"
+
+	"golang.org/x/net/http2"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)

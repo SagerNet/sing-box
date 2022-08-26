@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/sagernet/sing/common/bufio"
 	"io"
 	"net"
 	"net/http"
@@ -14,8 +13,10 @@ import (
 	D "github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
 	"golang.org/x/net/http2"
 )
 
@@ -87,7 +88,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		if err != nil {
 			return
 		}
-		_, _ = bufio.Copy(responsePipeWriter, response.Body)
+		bufio.Copy(responsePipeWriter, response.Body)
 	}()
 	return newGunConn(responsePipeReader, requestPipeWriter, ChainedClosable{requestPipeReader, requestPipeWriter, responsePipeReader}), nil
 }
