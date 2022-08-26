@@ -2,7 +2,7 @@ name: Generate Documents
 on:
   push:
     branches:
-      - dev
+      - main
     paths:
       - docs/**
       - .github/workflows/mkdocs.yml
