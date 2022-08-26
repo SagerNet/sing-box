@@ -90,9 +90,8 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	writer.WriteHeader(http.StatusOK)
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
-	}
+	writer.(http.Flusher).Flush()
+
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
