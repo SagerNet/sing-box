@@ -20,16 +20,16 @@ func NewSearcher(config Config) (Searcher, error) {
 }
 
 func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
-	socket, err := resolveSocketByNetlink(network, source, destination)
+	inode, uid, err := resolveSocketByNetlink(network, source, destination)
 	if err != nil {
 		return nil, err
 	}
-	processPath, err := resolveProcessNameByProcSearch(socket.INode, socket.UID)
+	processPath, err := resolveProcessNameByProcSearch(inode, uid)
 	if err != nil {
 		s.logger.DebugContext(ctx, "find process path: ", err)
 	}
 	return &Info{
-		UserId:      int32(socket.UID),
+		UserId:      int32(uid),
 		ProcessPath: processPath,
 	}, nil
 }
