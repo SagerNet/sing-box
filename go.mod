@@ -23,7 +23,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20220826124916-d4ba8fdfac88
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220826130451-f85debfedb76
+	github.com/sagernet/sing-tun v0.0.0-20220826134511-3661aafce489
 	github.com/sagernet/sing-vmess v0.0.0-20220811135656-4f3f07acf9c4
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
@@ -57,7 +57,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/abx-go v0.0.0-20220819185957-dba1257d738e // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
-	github.com/sagernet/netlink v0.0.0-20220820041223-3cd8365d17ac // indirect
+	github.com/sagernet/netlink v0.0.0-20220826133217-3fb4ff92ea17 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect

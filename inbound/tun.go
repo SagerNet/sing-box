@@ -80,6 +80,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			Inet4Address:       options.Inet4Address.Build(),
 			Inet6Address:       options.Inet6Address.Build(),
 			AutoRoute:          options.AutoRoute,
+			StrictRoute:        options.StrictRoute,
 			IncludeUID:         includeUID,
 			ExcludeUID:         excludeUID,
 			IncludeAndroidUser: options.IncludeAndroidUser,
