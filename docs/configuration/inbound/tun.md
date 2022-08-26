@@ -15,6 +15,7 @@
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
+      "strict_route": true,
       "endpoint_independent_nat": false,
       "udp_timeout": 300,
       "stack": "gvisor",
@@ -85,6 +86,16 @@ Set the default route to the Tun.
 !!! error ""
 
     To avoid traffic loopback, set `route.auto_detect_interface` or `route.default_interface` or `outbound.bind_interface`
+
+#### strict_route
+
+Enforce strict routing rules in Linux when `auto_route` is enabled:
+
+* Let unsupported network unreachable
+* Route all connections to tun
+
+It prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will
+not be accessible by others.
 
 #### endpoint_independent_nat
 

@@ -15,6 +15,7 @@
       "inet6_address": "fdfe:dcba:9876::1/128",
       "mtu": 1500,
       "auto_route": true,
+      "strict_route": true,
       "endpoint_independent_nat": false,
       "udp_timeout": 300,
       "stack": "gvisor",
@@ -85,6 +86,15 @@ tun 接口的 IPv6 前缀。
 !!! error ""
 
     为避免流量环回，请设置 `route.auto_detect_interface` 或 `route.default_interface` 或 `outbound.bind_interface`。
+
+#### strict_route
+
+在 Linux 中启用 `auto_route` 时执行严格的路由规则。
+
+* 让不支持的网络无法到达
+* 将所有连接路由到 tun
+
+它可以防止地址泄漏，并使 DNS 劫持在 Android 和使用 systemd-resolved 的 Linux 上工作，但你的设备将无法其他设备被访问。
 
 #### endpoint_independent_nat
 
