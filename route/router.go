@@ -262,7 +262,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
 		interfaceMonitor.RegisterCallback(func() error {
-			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(), ", index ", router.interfaceMonitor.DefaultInterfaceIndex())
+			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
 			return nil
 		})
 		router.interfaceMonitor = interfaceMonitor
