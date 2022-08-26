@@ -49,11 +49,18 @@ sing-box version
 ## 授权
 
 ```
-版权所有 (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
+Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
 
-该程序是免费软件：您可以重新分发和 / 或修改根据 GNU 通用公共许可证的条款，由自由软件基金会，许可证的第 3 版，或（由您选择）任何更高版本。
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-分发这个程序是希望它有用，但没有任何保证； 甚至没有暗示的保证适销性或特定用途的适用性。 见 GNU 通用公共许可证以获取更多详细信息。
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-您应该已经收到一份 GNU 通用公共许可证的副本连同这个程序。 如果没有，请参阅 <http://www.gnu.org/licenses/>。
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 ```
