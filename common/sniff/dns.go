@@ -22,7 +22,7 @@ func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.
 	if err != nil {
 		return nil, err
 	}
-	if length > 512 {
+	if length == 0 {
 		return nil, os.ErrInvalid
 	}
 	_buffer := buf.StackNewSize(int(length))
