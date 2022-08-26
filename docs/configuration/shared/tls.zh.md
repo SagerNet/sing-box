@@ -39,6 +39,7 @@
 ```json
 {
   "enabled": true,
+  "disable_sni": false,
   "server_name": "",
   "insecure": false,
   "alpn": [],
@@ -87,13 +88,17 @@ TLS 版本值：
 
 启用 TLS
 
+#### disable_sni
+
+==仅客户端==
+
+不要在 ClientHello 中发送服务器名称.
+
 #### server_name
 
 用于验证返回证书上的主机名，除非设置不安全。
 
 它还包含在 ClientHello 中以支持虚拟主机，除非它是 IP 地址。
-
-参阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication)。
 
 #### insecure
 
@@ -208,7 +213,8 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 
 外部帐户绑定“用于将 ACME 帐户与非 ACME 系统中的现有帐户相关联，例如 CA 客户数据库。
 
-为了启用 ACME 帐户绑定，运行 ACME 服务器的 CA 需要向 ACME 客户端提供 MAC 密钥和密钥标识符，使用 ACME 之外的一些机制。 §7.3.4
+为了启用 ACME 帐户绑定，运行 ACME 服务器的 CA 需要向 ACME 客户端提供 MAC 密钥和密钥标识符，使用 ACME 之外的一些机制。
+§7.3.4
 
 #### external_account.key_id
 
