@@ -74,13 +74,13 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if !c.http2 {
-		return c.dialHTTP()
+		return c.dialHTTP(ctx)
 	} else {
-		return c.dialHTTP2()
+		return c.dialHTTP2(ctx)
 	}
 }
 
-func (c *Client) dialHTTP() (net.Conn, error) {
+func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 	conn, err := c.dialer.DialContext(c.ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, err
@@ -92,6 +92,7 @@ func (c *Client) dialHTTP() (net.Conn, error) {
 		Proto:      "HTTP/1.1",
 		Header:     c.headers.Clone(),
 	}
+	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
 	case 0:
 	case 1:
@@ -114,7 +115,7 @@ func (c *Client) dialHTTP() (net.Conn, error) {
 	return conn, nil
 }
 
-func (c *Client) dialHTTP2() (net.Conn, error) {
+func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
 	request := &http.Request{
 		Method:     c.method,
@@ -124,6 +125,7 @@ func (c *Client) dialHTTP2() (net.Conn, error) {
 		Proto:      "HTTP/2",
 		Header:     c.headers.Clone(),
 	}
+	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
 	case 0:
 	case 1:
