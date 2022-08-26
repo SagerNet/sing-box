@@ -39,6 +39,7 @@
 ```json
 {
   "enabled": true,
+  "disable_sni": false,
   "server_name": "",
   "insecure": false,
   "alpn": [],
@@ -87,13 +88,17 @@ Cipher suite values:
 
 Enable TLS.
 
+#### disable_sni
+
+==Client only==
+
+Do not send server name in ClientHello.
+
 #### server_name
 
 Used to verify the hostname on the returned certificates unless insecure is given.
 
 It is also included in the client's handshake to support virtual hosting unless it is an IP address.
-
-See [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication).
 
 #### insecure
 
