@@ -39,6 +39,7 @@
 ```json
 {
   "enabled": true,
+  "disable_sni": false,
   "server_name": "",
   "insecure": false,
   "alpn": [],
@@ -86,6 +87,18 @@ Cipher suite values:
 #### enabled
 
 Enable TLS.
+
+#### disable_sni
+
+Disable [Server Name Indication (SNI)](https://en.wikipedia.org/wiki/Server_Name_Indication) extension in TLS Client Hello.
+
+!!! warning ""
+
+    This may break compatibility with some networking tools or platforms, such as CDN.
+
+!!! note ""
+
+    This will prevent the server name from being leaked during the TLS handshake. But since most TLS connections on the Internet contain this extension, this may become a more obvious characteristic and can be identified by censors.
 
 #### server_name
 

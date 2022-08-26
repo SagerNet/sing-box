@@ -39,6 +39,7 @@
 ```json
 {
   "enabled": true,
+  "disable_sni": false,
   "server_name": "",
   "insecure": false,
   "alpn": [],
@@ -87,13 +88,25 @@ TLS 版本值：
 
 启用 TLS
 
+#### disable_sni
+
+在 TLS Client Hello 中禁用 [服务器名称指示 (SNI)](https://zh.wikipedia.org/wiki/%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%90%8D%E7%A7%B0%E6%8C%87%E7%A4%BA) 扩展。
+
+!!! warning ""
+
+    这可能破坏与某些网络工具或平台的兼容，如 CDN。
+
+!!! note ""
+    
+    这将防止主机名在 TLS 握手阶段被泄露，但是由于互联网上大部分 TLS 连接都包含这一扩展，这可能成为较明显的特征并被审查者辨认。
+
 #### server_name
 
 用于验证返回证书上的主机名，除非设置不安全。
 
 它还包含在 ClientHello 中以支持虚拟主机，除非它是 IP 地址。
 
-参阅 [Server Name Indication](https://en.wikipedia.org/wiki/Server_Name_Indication)。
+参阅 [服务器名称指示 (SNI)](https://zh.wikipedia.org/wiki/%E6%9C%8D%E5%8A%A1%E5%99%A8%E5%90%8D%E7%A7%B0%E6%8C%87%E7%A4%BA)。
 
 #### insecure
 
