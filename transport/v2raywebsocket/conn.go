@@ -1,6 +1,7 @@
 package v2raywebsocket
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"net"
@@ -68,6 +69,7 @@ func (c *WebsocketConn) SetDeadline(t time.Time) error {
 
 type EarlyWebsocketConn struct {
 	*Client
+	ctx    context.Context
 	conn   *WebsocketConn
 	create chan struct{}
 }
@@ -98,14 +100,14 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if len(earlyData) > 0 {
 		earlyDataString := base64.RawURLEncoding.EncodeToString(earlyData)
 		if c.earlyDataHeaderName == "" {
-			conn, response, err = c.dialer.Dial(c.uri+earlyDataString, c.headers)
+			conn, response, err = c.dialer.DialContext(c.ctx, c.uri+earlyDataString, c.headers)
 		} else {
 			headers := c.headers.Clone()
 			headers.Set(c.earlyDataHeaderName, earlyDataString)
-			conn, response, err = c.dialer.Dial(c.uri, headers)
+			conn, response, err = c.dialer.DialContext(c.ctx, c.uri, headers)
 		}
 	} else {
-		conn, response, err = c.dialer.Dial(c.uri, c.headers)
+		conn, response, err = c.dialer.DialContext(c.ctx, c.uri, c.headers)
 	}
 	if err != nil {
 		return 0, wrapDialError(response, err)

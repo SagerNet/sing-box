@@ -70,7 +70,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		}
 		return nil, wrapDialError(response, err)
 	} else {
-		return &EarlyWebsocketConn{Client: c, create: make(chan struct{})}, nil
+		return &EarlyWebsocketConn{Client: c, ctx: ctx, create: make(chan struct{})}, nil
 	}
 }
 
