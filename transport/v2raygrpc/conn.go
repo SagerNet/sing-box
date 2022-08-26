@@ -16,8 +16,6 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"ekyu.moe/leb128"
 )
 
 var ErrInvalidLength = E.New("invalid length")
@@ -63,7 +61,7 @@ func (c *GunConn) Read(b []byte) (n int, err error) {
 		return n, nil
 	}
 	buffer := buf.Get(5)
-	n, err = io.ReadFull(c.reader, buffer)
+	_, err = io.ReadFull(c.reader, buffer)
 	if err != nil {
 		return 0, err
 	}
@@ -71,11 +69,11 @@ func (c *GunConn) Read(b []byte) (n int, err error) {
 	buf.Put(buffer)
 
 	buffer = buf.Get(int(grpcPayloadLen))
-	n, err = io.ReadFull(c.reader, buffer)
+	_, err = io.ReadFull(c.reader, buffer)
 	if err != nil {
 		return 0, io.ErrUnexpectedEOF
 	}
-	protobufPayloadLen, protobufLengthLen := leb128.DecodeUleb128(buffer[1:])
+	protobufPayloadLen, protobufLengthLen := binary.Uvarint(buffer[1:])
 	if protobufLengthLen == 0 {
 		return 0, ErrInvalidLength
 	}
@@ -95,11 +93,12 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	if c.isClosed() {
 		return 0, io.ErrClosedPipe
 	}
-	protobufHeader := leb128.AppendUleb128([]byte{0x0A}, uint64(len(b)))
+	protobufHeader := [1 + binary.MaxVarintLen64]byte{0x0A}
+	varuintLen := binary.PutUvarint(protobufHeader[1:], uint64(len(b)))
 	grpcHeader := buf.Get(5)
-	grpcPayloadLen := uint32(len(protobufHeader) + len(b))
+	grpcPayloadLen := uint32(1 + varuintLen + len(b))
 	binary.BigEndian.PutUint32(grpcHeader[1:5], grpcPayloadLen)
-	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader), bytes.NewReader(b)))
+	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader[:varuintLen+1]), bytes.NewReader(b)))
 	buf.Put(grpcHeader)
 	if f, ok := c.writer.(http.Flusher); ok {
 		f.Flush()

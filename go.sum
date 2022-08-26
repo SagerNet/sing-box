@@ -1,7 +1,5 @@
 berty.tech/go-libtor v1.0.385 h1:RWK94C3hZj6Z2GdvePpHJLnWYobFr3bY/OdUJ5aoEXw=
 berty.tech/go-libtor v1.0.385/go.mod h1:9swOOQVb+kmvuAlsgWUK/4c52pm69AdbJsxLzk+fJEw=
-ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8 h1:zWcNapXDoFEobgJquW8jOgnVClkRLV9StPmi+LhtTGQ=
-ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8/go.mod h1:hphPjsG3qJdFKRttMyBWptntD0vAUE3NUenOGL0914A=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
