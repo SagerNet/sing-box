@@ -30,7 +30,7 @@
 
 !!! warning ""
 
-    默认安装不包含 HTTP3 传输层, 参阅 [安装](/zh/#installation)。
+    默认安装不包含 HTTP3 传输层, 参阅 [安装](/zh/#_2)。
 
 ### Naive 字段
 

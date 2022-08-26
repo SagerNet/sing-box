@@ -107,6 +107,10 @@ HTTP 请求的额外标头。
 }
 ```
 
+!!! warning ""
+
+    默认安装不包含 QUIC, 参阅 [安装](/zh/#_2)。
+
 !!! warning "与 v2ray-core 的区别"
 
     没有额外的加密支持：
@@ -116,7 +120,7 @@ HTTP 请求的额外标头。
 
 !!! warning ""
 
-    默认安装不包含 gRPC, 参阅 [安装](/zh/#installation)。
+    默认安装不包含 gRPC, 参阅 [安装](/zh/#_2)。
 
 ```json
 {

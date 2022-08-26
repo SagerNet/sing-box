@@ -32,7 +32,7 @@
 
 !!! warning ""
 
-    默认安装不包含 ACME，参阅 [安装](/zh/#installation)。
+    默认安装不包含 ACME，参阅 [安装](/zh/#_2)。
 
 ### 出站
 
