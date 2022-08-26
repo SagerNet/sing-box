@@ -38,7 +38,7 @@
 
 !!! warning ""
 
-    默认安装不包含被 Hysteria 依赖的 QUIC，参阅 [安装](/zh/#installation)。
+    默认安装不包含被 Hysteria 依赖的 QUIC，参阅 [安装](/zh/#_2)。
 
 ### Hysteria 字段
 

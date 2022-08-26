@@ -47,7 +47,7 @@ DNS 服务器的地址。
 
 !!! warning ""
 
-    默认安装不包含 QUIC 和 HTTP3 传输层，请参阅 [安装](/zh/#installation)。
+    默认安装不包含 QUIC 和 HTTP3 传输层，请参阅 [安装](/zh/#_2)。
 
 !!! info ""
 

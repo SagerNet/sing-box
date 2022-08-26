@@ -35,7 +35,7 @@
 
 !!! warning ""
 
-    默认安装不包含 WireGuard, 参阅 [安装](/zh/#installation)。
+    默认安装不包含 WireGuard, 参阅 [安装](/zh/#_2)。
 
 ### WireGuard 字段
 

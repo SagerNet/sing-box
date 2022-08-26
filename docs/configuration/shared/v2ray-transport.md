@@ -108,6 +108,10 @@ It needs to be consistent with the server.
 }
 ```
 
+!!! warning ""
+
+    QUIC is not included by default, see [Installation](/#installation).
+
 !!! warning "Difference from v2ray-core"
 
     No additional encryption support:

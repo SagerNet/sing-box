@@ -18,7 +18,7 @@
 
 !!! error ""
 
-    默认安装不包含 Clash API，参阅 [安装](/zh/#installation)。
+    默认安装不包含 Clash API，参阅 [安装](/zh/#_2)。
 
 !!! note ""
 
