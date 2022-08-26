@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -42,7 +43,7 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *
 	server := &Server{
 		handler:      handler,
 		errorHandler: errorHandler,
-		path:         fmt.Sprintf("/%s/Tun", options.ServiceName),
+		path:         fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
 		tlsConfig:    tlsConfig,
 		h2Server:     &http2.Server{},
 	}

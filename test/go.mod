@@ -19,7 +19,6 @@ require (
 
 require (
 	berty.tech/go-libtor v1.0.385 // indirect
-	ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/cretz/bine v0.2.0 // indirect

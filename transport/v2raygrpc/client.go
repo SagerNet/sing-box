@@ -65,7 +65,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		url: &url.URL{
 			Scheme: "https",
 			Host:   serverAddr.String(),
-			Path:   fmt.Sprintf("/%s/Tun", options.ServiceName),
+			Path:   fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
 		},
 	}
 }

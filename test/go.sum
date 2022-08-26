@@ -1,7 +1,5 @@
 berty.tech/go-libtor v1.0.385 h1:RWK94C3hZj6Z2GdvePpHJLnWYobFr3bY/OdUJ5aoEXw=
 berty.tech/go-libtor v1.0.385/go.mod h1:9swOOQVb+kmvuAlsgWUK/4c52pm69AdbJsxLzk+fJEw=
-ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8 h1:zWcNapXDoFEobgJquW8jOgnVClkRLV9StPmi+LhtTGQ=
-ekyu.moe/leb128 v0.0.0-20190626180622-d3722dc409a8/go.mod h1:hphPjsG3qJdFKRttMyBWptntD0vAUE3NUenOGL0914A=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOElx5B5HZ4hJQsoJ/PvUvKRhJHDQXO8P8=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Microsoft/go-winio v0.5.1 h1:aPJp2QD7OOrhO5tQXqQoGSJc+DjDtWTGLOmNyAm6FgY=
