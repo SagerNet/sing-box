@@ -1,7 +1,6 @@
 package route
 
 import (
-	"path/filepath"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -9,21 +8,21 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 )
 
-var warnProcessNameOnNonSupportedPlatform = warning.New(
+var warnProcessPathOnNonSupportedPlatform = warning.New(
 	func() bool { return !(C.IsLinux || C.IsWindows || C.IsDarwin) },
-	"rule item `process_name` is only supported on Linux, Windows and macOS",
+	"rule item `process_path` is only supported on Linux, Windows and macOS",
 )
 
-var _ RuleItem = (*ProcessItem)(nil)
+var _ RuleItem = (*ProcessPathItem)(nil)
 
-type ProcessItem struct {
+type ProcessPathItem struct {
 	processes  []string
 	processMap map[string]bool
 }
 
-func NewProcessItem(processNameList []string) *ProcessItem {
-	warnProcessNameOnNonSupportedPlatform.Check()
-	rule := &ProcessItem{
+func NewProcessPathItem(processNameList []string) *ProcessPathItem {
+	warnProcessPathOnNonSupportedPlatform.Check()
+	rule := &ProcessPathItem{
 		processes:  processNameList,
 		processMap: make(map[string]bool),
 	}
@@ -33,20 +32,20 @@ func NewProcessItem(processNameList []string) *ProcessItem {
 	return rule
 }
 
-func (r *ProcessItem) Match(metadata *adapter.InboundContext) bool {
+func (r *ProcessPathItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
 		return false
 	}
-	return r.processMap[strings.ToLower(filepath.Base(metadata.ProcessInfo.ProcessPath))]
+	return r.processMap[strings.ToLower(metadata.ProcessInfo.ProcessPath)]
 }
 
-func (r *ProcessItem) String() string {
+func (r *ProcessPathItem) String() string {
 	var description string
 	pLen := len(r.processes)
 	if pLen == 1 {
-		description = "process_name=" + r.processes[0]
+		description = "process_path=" + r.processes[0]
 	} else {
-		description = "process_name=[" + strings.Join(r.processes, " ") + "]"
+		description = "process_path=[" + strings.Join(r.processes, " ") + "]"
 	}
 	return description
 }
