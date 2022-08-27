@@ -29,7 +29,7 @@ By default you have the latest Go installed (currently 1.19), and added `GOPATH/
 ##### Setup
 
 ```shell
-make fmt_insall
+make fmt_insalll
 make lint_install
 ```
 

@@ -1,3 +1,10 @@
+#### 1.0-beta2
+
+* Add strict_route option for [Tun inbound](/configuration/inbound/tun#strict_route)
+* Add packetaddr support for [VMess outbound](/configuration/outbound/vmess#packet_addr)
+* Add better performing alternative gRPC implementation
+* Fix sniff override destination
+
 #### 1.0-beta1
 
 * Initial release

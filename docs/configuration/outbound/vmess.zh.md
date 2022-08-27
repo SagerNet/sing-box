@@ -6,6 +6,7 @@
     {
       "type": "vmess",
       "tag": "vmess-out",
+      
       "server": "127.0.0.1",
       "server_port": 1080,
       "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
@@ -15,8 +16,10 @@
       "authenticated_length": true,
       "network": "tcp",
       "tls": {},
+      "packet_addr": false,
       "multiplex": {},
       "transport": {},
+      
       "detour": "upstream-out",
       "bind_interface": "en0",
       "bind_address": "0.0.0.0",
@@ -92,6 +95,10 @@ VMess 用户 ID。
 #### tls
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
+
+#### packet_addr
+
+启用 packetaddr 支持。
 
 #### multiplex
 

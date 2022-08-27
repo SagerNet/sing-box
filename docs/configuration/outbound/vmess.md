@@ -16,6 +16,7 @@
       "authenticated_length": true,
       "network": "tcp",
       "tls": {},
+      "packet_addr": false,
       "multiplex": {},
       "transport": {},
 
@@ -94,6 +95,10 @@ Both is enabled by default.
 #### tls
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
+
+#### packet_addr
+
+Enable packetaddr support.
 
 #### multiplex
 
