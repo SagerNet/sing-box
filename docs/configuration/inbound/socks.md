@@ -36,44 +36,44 @@ SOCKS users.
 
 No authentication required if empty.
 
-### 监听字段
+### Listen Fields
 
 #### listen
 
-==必填==
+==Required==
 
-监听地址
+Listen address.
 
 #### listen_port
 
-==必填==
+==Required==
 
-监听端口
+Listen port.
 
 #### tcp_fast_open
 
-为监听器启用 TCP 快速打开
+Enable tcp fast open for listener.
 
 #### sniff
 
-启用协议探测。
+Enable sniffing.
 
-参阅 [协议探测](/zh/configuration/route/sniff/)
+See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### sniff_override_destination
 
-用探测出的域名覆盖连接目标地址。
+Override the connection destination address with the sniffed domain.
 
-如果域名无效（如 Tor），将不生效。
+If the domain name is invalid (like tor), this will not work.
 
 #### domain_strategy
 
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-如果设置，请求的域名将在路由之前解析为 IP。
+If set, the requested domain name will be resolved to IP before routing.
 
-如果 `sniff_override_destination` 生效，它的值将作为后备。
+If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
 #### proxy_protocol
 
-解析连接头中的 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)。
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.
