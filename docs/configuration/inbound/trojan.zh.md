@@ -54,7 +54,7 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 !!! error ""
 
-    没有证据表明 GFW 基于 HTTP 响应检测并阻止木马服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
+    没有证据表明 GFW 基于 HTTP 响应检测并阻止 Trojan 服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
 
 回退服务器配置。如果 `fallback` 和 `fallback_for_alpn` 为空，则禁用回退。
 
