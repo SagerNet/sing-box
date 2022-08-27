@@ -20,6 +20,52 @@ func TestV2RayGRPCSelf(t *testing.T) {
 	})
 }
 
+func TestV2RayGRPCLite(t *testing.T) {
+	t.Run("server", func(t *testing.T) {
+		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+				ForceLite:   true,
+			},
+		}, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+			},
+		})
+	})
+	t.Run("client", func(t *testing.T) {
+		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+			},
+		}, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+				ForceLite:   true,
+			},
+		})
+	})
+	t.Run("self", func(t *testing.T) {
+		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+				ForceLite:   true,
+			},
+		}, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeGRPC,
+			GRPCOptions: option.V2RayGRPCOptions{
+				ServiceName: "TunService",
+				ForceLite:   true,
+			},
+		})
+	})
+}
+
 func TestV2RayWebscoketSelf(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
@@ -48,6 +94,9 @@ func TestV2RayWebscoketSelf(t *testing.T) {
 func TestV2RayHTTPSelf(t *testing.T) {
 	testV2RayTransportSelf(t, &option.V2RayTransportOptions{
 		Type: C.V2RayTransportTypeHTTP,
+		HTTPOptions: option.V2RayHTTPOptions{
+			Method: "POST",
+		},
 	})
 }
 
@@ -58,15 +107,19 @@ func TestV2RayHTTPPlainSelf(t *testing.T) {
 }
 
 func testV2RayTransportSelf(t *testing.T, transport *option.V2RayTransportOptions) {
+	testV2RayTransportSelfWith(t, transport, transport)
+}
+
+func testV2RayTransportSelfWith(t *testing.T, server, client *option.V2RayTransportOptions) {
 	t.Run("vmess", func(t *testing.T) {
-		testVMessTransportSelf(t, transport)
+		testVMessTransportSelf(t, server, client)
 	})
 	t.Run("trojan", func(t *testing.T) {
-		testTrojanTransportSelf(t, transport)
+		testTrojanTransportSelf(t, server, client)
 	})
 }
 
-func testVMessTransportSelf(t *testing.T, transport *option.V2RayTransportOptions) {
+func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, client *option.V2RayTransportOptions) {
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
@@ -104,7 +157,7 @@ func testVMessTransportSelf(t *testing.T, transport *option.V2RayTransportOption
 						CertificatePath: certPem,
 						KeyPath:         keyPem,
 					},
-					Transport: transport,
+					Transport: server,
 				},
 			},
 		},
@@ -127,7 +180,7 @@ func testVMessTransportSelf(t *testing.T, transport *option.V2RayTransportOption
 						ServerName:      "example.org",
 						CertificatePath: certPem,
 					},
-					Transport: transport,
+					Transport: client,
 				},
 			},
 		},
@@ -145,7 +198,7 @@ func testVMessTransportSelf(t *testing.T, transport *option.V2RayTransportOption
 	testSuit(t, clientPort, testPort)
 }
 
-func testTrojanTransportSelf(t *testing.T, transport *option.V2RayTransportOptions) {
+func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions, client *option.V2RayTransportOptions) {
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
@@ -183,7 +236,7 @@ func testTrojanTransportSelf(t *testing.T, transport *option.V2RayTransportOptio
 						CertificatePath: certPem,
 						KeyPath:         keyPem,
 					},
-					Transport: transport,
+					Transport: server,
 				},
 			},
 		},
@@ -205,7 +258,7 @@ func testTrojanTransportSelf(t *testing.T, transport *option.V2RayTransportOptio
 						ServerName:      "example.org",
 						CertificatePath: certPem,
 					},
-					Transport: transport,
+					Transport: client,
 				},
 			},
 		},
