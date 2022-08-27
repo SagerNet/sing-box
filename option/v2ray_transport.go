@@ -78,4 +78,5 @@ type V2RayQUICOptions struct{}
 
 type V2RayGRPCOptions struct {
 	ServiceName string `json:"service_name,omitempty"`
+	ForceLite   bool   `json:"-"` // for test
 }

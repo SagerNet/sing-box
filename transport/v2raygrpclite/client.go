@@ -10,14 +10,11 @@ import (
 	"net/url"
 
 	"github.com/sagernet/sing-box/adapter"
-	D "github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"golang.org/x/net/http2"
 )
 
 var _ adapter.V2RayClientTransport = (*Client)(nil)
@@ -44,22 +41,12 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		serverAddr: serverAddr,
 		options:    options,
 		client: &http.Client{
-			Transport: &http2.Transport{
-				DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-					conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-					if err != nil {
-						return nil, err
-					}
-					tlsConn, err := D.TLSClient(ctx, conn, cfg)
-					if err != nil {
-						return nil, err
-					}
-					return tlsConn, nil
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 				},
-				TLSClientConfig:    tlsConfig,
-				AllowHTTP:          false,
-				DisableCompression: true,
-				PingTimeout:        0,
+				ForceAttemptHTTP2: true,
+				TLSClientConfig:   tlsConfig,
 			},
 		},
 		url: &url.URL{
@@ -72,7 +59,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	requestPipeReader, requestPipeWriter := io.Pipe()
-	request := (&http.Request{
+	request := &http.Request{
 		Method:     http.MethodPost,
 		Body:       requestPipeReader,
 		URL:        c.url,
@@ -80,7 +67,8 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		ProtoMajor: 2,
 		ProtoMinor: 0,
 		Header:     defaultClientHeader,
-	}).WithContext(ctx)
+	}
+	request = request.WithContext(ctx)
 	responsePipeReader, responsePipeWriter := io.Pipe()
 	go func() {
 		defer responsePipeWriter.Close()

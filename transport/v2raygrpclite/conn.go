@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/sagernet/sing/common/buf"
@@ -23,15 +22,11 @@ var ErrInvalidLength = E.New("invalid length")
 var _ net.Conn = (*GunConn)(nil)
 
 type GunConn struct {
-	reader io.Reader
-	writer io.Writer
-	closer io.Closer
-	// mu protect done
-	mu   sync.Mutex
-	done chan struct{}
-
-	toRead []byte
-	readAt int
+	reader      io.Reader
+	writer      io.Writer
+	closer      io.Closer
+	cached      []byte
+	cachedIndex int
 }
 
 func newGunConn(reader io.Reader, writer io.Writer, closer io.Closer) *GunConn {
@@ -39,28 +34,18 @@ func newGunConn(reader io.Reader, writer io.Writer, closer io.Closer) *GunConn {
 		reader: reader,
 		writer: writer,
 		closer: closer,
-		done:   make(chan struct{}),
-	}
-}
-
-func (c *GunConn) isClosed() bool {
-	select {
-	case <-c.done:
-		return true
-	default:
-		return false
 	}
 }
 
 func (c *GunConn) Read(b []byte) (n int, err error) {
-	if c.toRead != nil {
-		n = copy(b, c.toRead[c.readAt:])
-		c.readAt += n
-		if c.readAt >= len(c.toRead) {
-			buf.Put(c.toRead)
-			c.toRead = nil
+	if c.cached != nil {
+		n = copy(b, c.cached[c.cachedIndex:])
+		c.cachedIndex += n
+		if c.cachedIndex == len(c.cached) {
+			buf.Put(c.cached)
+			c.cached = nil
 		}
-		return n, nil
+		return
 	}
 	buffer := buf.Get(5)
 	_, err = io.ReadFull(c.reader, buffer)
@@ -84,17 +69,14 @@ func (c *GunConn) Read(b []byte) (n int, err error) {
 	}
 	n = copy(b, buffer[1+protobufLengthLen:])
 	if n < int(protobufPayloadLen) {
-		c.toRead = buffer
-		c.readAt = 1 + int(protobufLengthLen) + n
+		c.cached = buffer
+		c.cachedIndex = 1 + int(protobufLengthLen) + n
 		return n, nil
 	}
 	return n, nil
 }
 
 func (c *GunConn) Write(b []byte) (n int, err error) {
-	if c.isClosed() {
-		return 0, io.ErrClosedPipe
-	}
 	protobufHeader := [1 + binary.MaxVarintLen64]byte{0x0A}
 	varuintLen := binary.PutUvarint(protobufHeader[1:], uint64(len(b)))
 	grpcHeader := buf.Get(5)
@@ -108,16 +90,14 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	return len(b), err
 }
 
+/*func (c *GunConn) ReadBuffer(buffer *buf.Buffer) error {
+}
+
+func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
+}*/
+
 func (c *GunConn) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	select {
-	case <-c.done:
-		return nil
-	default:
-		close(c.done)
-		return c.closer.Close()
-	}
+	return c.closer.Close()
 }
 
 func (c *GunConn) LocalAddr() net.Addr {
