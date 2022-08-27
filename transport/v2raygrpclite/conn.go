@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -24,20 +25,40 @@ var _ net.Conn = (*GunConn)(nil)
 type GunConn struct {
 	reader      io.Reader
 	writer      io.Writer
-	closer      io.Closer
+	create      chan struct{}
+	err         error
 	cached      []byte
 	cachedIndex int
 }
 
-func newGunConn(reader io.Reader, writer io.Writer, closer io.Closer) *GunConn {
+func newGunConn(reader io.Reader, writer io.Writer) *GunConn {
 	return &GunConn{
 		reader: reader,
 		writer: writer,
-		closer: closer,
 	}
 }
 
+func newLateGunConn(writer io.Writer) *GunConn {
+	return &GunConn{
+		create: make(chan struct{}),
+		writer: writer,
+	}
+}
+
+func (c *GunConn) setup(reader io.Reader, err error) {
+	c.reader = reader
+	c.err = err
+	close(c.create)
+}
+
 func (c *GunConn) Read(b []byte) (n int, err error) {
+	if c.reader == nil {
+		<-c.create
+		if c.err != nil {
+			return 0, c.err
+		}
+	}
+
 	if c.cached != nil {
 		n = copy(b, c.cached[c.cachedIndex:])
 		c.cachedIndex += n
@@ -97,7 +118,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 }*/
 
 func (c *GunConn) Close() error {
-	return c.closer.Close()
+	return common.Close(c.reader, c.writer)
 }
 
 func (c *GunConn) LocalAddr() net.Addr {

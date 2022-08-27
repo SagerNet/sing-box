@@ -11,8 +11,6 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -58,35 +56,24 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
-	requestPipeReader, requestPipeWriter := io.Pipe()
+	pipeInReader, pipeInWriter := io.Pipe()
 	request := &http.Request{
 		Method:     http.MethodPost,
-		Body:       requestPipeReader,
+		Body:       pipeInReader,
 		URL:        c.url,
 		Proto:      "HTTP/2",
 		ProtoMajor: 2,
-		ProtoMinor: 0,
 		Header:     defaultClientHeader,
 	}
 	request = request.WithContext(ctx)
-	responsePipeReader, responsePipeWriter := io.Pipe()
+	conn := newLateGunConn(pipeInWriter)
 	go func() {
-		defer responsePipeWriter.Close()
 		response, err := c.client.Do(request)
-		if err != nil {
-			return
+		if err == nil {
+			conn.setup(response.Body, nil)
+		} else {
+			conn.setup(nil, err)
 		}
-		bufio.Copy(responsePipeWriter, response.Body)
 	}()
-	return newGunConn(responsePipeReader, requestPipeWriter, ChainedClosable{requestPipeReader, requestPipeWriter, responsePipeReader}), nil
-}
-
-type ChainedClosable []io.Closer
-
-// Close implements io.Closer.Close().
-func (cc ChainedClosable) Close() error {
-	for _, c := range cc {
-		_ = common.Close(c)
-	}
-	return nil
+	return conn, nil
 }

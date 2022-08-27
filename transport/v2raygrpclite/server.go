@@ -69,7 +69,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
-	conn := newGunConn(request.Body, writer, request.Body)
+	conn := newGunConn(request.Body, writer)
 	s.handler.NewConnection(request.Context(), conn, metadata)
 }
 

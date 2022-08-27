@@ -141,6 +141,7 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	if response.StatusCode != 200 {
+		pipeInWriter.Close()
 		return nil, E.New("unexpected status: ", response.StatusCode, " ", response.Status)
 	}
 	return &HTTPConn{

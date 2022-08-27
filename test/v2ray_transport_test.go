@@ -94,6 +94,9 @@ func TestV2RayWebscoketSelf(t *testing.T) {
 func TestV2RayHTTPSelf(t *testing.T) {
 	testV2RayTransportSelf(t, &option.V2RayTransportOptions{
 		Type: C.V2RayTransportTypeHTTP,
+		HTTPOptions: option.V2RayHTTPOptions{
+			Method: "POST",
+		},
 	})
 }
 
