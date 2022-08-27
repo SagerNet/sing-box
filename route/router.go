@@ -516,7 +516,10 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
 			if metadata.SniffOverrideDestination && sniff.IsDomainName(metadata.Domain) {
-				metadata.Destination.Fqdn = metadata.Domain
+				metadata.Destination = M.Socksaddr{
+					Fqdn: metadata.Domain,
+					Port: metadata.Destination.Port,
+				}
 			}
 			if metadata.Domain != "" {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
@@ -566,7 +569,10 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
 			if metadata.SniffOverrideDestination && sniff.IsDomainName(metadata.Domain) {
-				metadata.Destination.Fqdn = metadata.Domain
+				metadata.Destination = M.Socksaddr{
+					Fqdn: metadata.Domain,
+					Port: metadata.Destination.Port,
+				}
 			}
 			if metadata.Domain != "" {
 				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
