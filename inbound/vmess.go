@@ -12,10 +12,12 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-vmess"
+	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -161,6 +163,12 @@ func (h *VMess) newPacketConnection(ctx context.Context, conn N.PacketConn, meta
 	} else {
 		metadata.User = user
 	}
-	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	if metadata.Destination.Fqdn == packetaddr.SeqPacketMagicAddress {
+		metadata.Destination = M.Socksaddr{}
+		conn = packetaddr.NewConn(conn.(vmess.PacketConn), metadata.Destination)
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet addr connection")
+	} else {
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }
