@@ -13,11 +13,13 @@ builds:
     tags:
       - with_quic
       - with_wireguard
-      - with_acme
       - with_clash_api
     env:
       - CGO_ENABLED=0
     targets:
+      - android_arm64
+      - android_amd64
+      - android_amd64_v3
       - linux_amd64_v1
       - linux_amd64_v3
       - linux_arm64

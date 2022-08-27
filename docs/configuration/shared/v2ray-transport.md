@@ -119,9 +119,9 @@ It needs to be consistent with the server.
 
 ### gRPC
 
-!!! warning ""
+!!! note ""
 
-    gRPC is not included by default, see [Installation](/#installation).
+    standard gRPC has good compatibility but poor performance and is not included by default, see [Installation](/#installation).
 
 ```json
 {

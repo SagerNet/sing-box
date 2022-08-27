@@ -105,5 +105,8 @@ func wrapError(err error) error {
 	if strings.Contains(err.Error(), "the client connection is closing") {
 		return net.ErrClosed
 	}
+	if strings.Contains(err.Error(), "server closed the stream without sending trailers") {
+		return net.ErrClosed
+	}
 	return err
 }
