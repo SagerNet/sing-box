@@ -2,6 +2,10 @@
 
 set -e -o pipefail
 
+if [ -d /usr/local/go ]; then
+  export PATH="$PATH:/usr/local/go/bin"
+fi
+
 DIR=$(dirname "$0")
 PROJECT=$DIR/../..
 

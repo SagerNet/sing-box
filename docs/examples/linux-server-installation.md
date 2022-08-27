@@ -2,7 +2,6 @@
 
 * Linux & Systemd
 * Git
-* Go 1.18.5+
 * C compiler environment
 
 #### Install
@@ -10,6 +9,7 @@
 ```shell
 git clone https://github.com/SagerNet/sing-box
 cd sing-box
+./release/local/install_go.sh # skip if you have go1.19 already installed
 ./release/local/install.sh
 ```
 
