@@ -27,7 +27,7 @@ type Client struct {
 	ctx        context.Context
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
-	client     *http.Client
+	transport  *http.Transport
 	options    option.V2RayGRPCOptions
 	url        *url.URL
 }
@@ -38,14 +38,12 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		dialer:     dialer,
 		serverAddr: serverAddr,
 		options:    options,
-		client: &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-				},
-				ForceAttemptHTTP2: true,
-				TLSClientConfig:   tlsConfig,
+		transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
+			ForceAttemptHTTP2: true,
+			TLSClientConfig:   tlsConfig,
 		},
 		url: &url.URL{
 			Scheme: "https",
@@ -68,7 +66,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	request = request.WithContext(ctx)
 	conn := newLateGunConn(pipeInWriter)
 	go func() {
-		response, err := c.client.Do(request)
+		response, err := c.transport.RoundTrip(request)
 		if err == nil {
 			conn.setup(response.Body, nil)
 		} else {
