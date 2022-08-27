@@ -1,6 +1,3 @@
-// Modified from: https://github.com/Qv2ray/gun-lite
-// License: MIT
-
 package v2raygrpclite
 
 import (
@@ -20,7 +17,7 @@ import (
 	"github.com/sagernet/sing/common/rw"
 )
 
-var ErrInvalidLength = E.New("invalid length")
+// kanged from: https://github.com/Qv2ray/gun-lite
 
 var _ net.Conn = (*GunConn)(nil)
 
@@ -55,6 +52,11 @@ func (c *GunConn) setup(reader io.Reader, err error) {
 }
 
 func (c *GunConn) Read(b []byte) (n int, err error) {
+	n, err = c.read(b)
+	return n, wrapError(err)
+}
+
+func (c *GunConn) read(b []byte) (n int, err error) {
 	if c.reader == nil {
 		<-c.create
 		if c.err != nil {
@@ -103,7 +105,7 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	if f, ok := c.writer.(http.Flusher); ok {
 		f.Flush()
 	}
-	return len(b), err
+	return len(b), wrapError(err)
 }
 
 func uLen(x uint64) int {
@@ -127,7 +129,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	if c.flusher != nil {
 		c.flusher.Flush()
 	}
-	return err
+	return wrapError(err)
 }
 
 func (c *GunConn) FrontHeadroom() int {
@@ -156,4 +158,11 @@ func (c *GunConn) SetReadDeadline(t time.Time) error {
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
+}
+
+func wrapError(err error) error {
+	if E.IsMulti(err, io.ErrUnexpectedEOF) {
+		return io.EOF
+	}
+	return err
 }
