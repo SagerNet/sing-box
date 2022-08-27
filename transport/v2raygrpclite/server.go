@@ -38,8 +38,10 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *
 		errorHandler: errorHandler,
 		path:         fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
 	}
-	if !common.Contains(tlsConfig.NextProtos, "h2") {
-		tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
+	if tlsConfig != nil {
+		if !common.Contains(tlsConfig.NextProtos, "h2") {
+			tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
+		}
 	}
 	server.httpServer = &http.Server{
 		Handler:   server,
