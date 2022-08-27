@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-vmess"
+	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -29,6 +30,7 @@ type VMess struct {
 	multiplexDialer N.Dialer
 	tlsConfig       *tls.Config
 	transport       adapter.V2RayClientTransport
+	packetAddr      bool
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessOutboundOptions) (*VMess, error) {
@@ -59,6 +61,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
+	}
+	if outbound.multiplexDialer == nil && options.PacketAddr {
+		outbound.packetAddr = true
 	}
 	var clientOptions []vmess.ClientOption
 	if options.GlobalPadding {
@@ -154,9 +159,25 @@ func (h *vmessDialer) DialContext(ctx context.Context, network string, destinati
 }
 
 func (h *vmessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	conn, err := h.DialContext(ctx, N.NetworkUDP, destination)
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
+	var conn net.Conn
+	var err error
+	if h.transport != nil {
+		conn, err = h.transport.DialContext(ctx)
+	} else {
+		conn, err = h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
+		if err == nil && h.tlsConfig != nil {
+			conn, err = dialer.TLSClient(ctx, conn, h.tlsConfig)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	return conn.(vmess.PacketConn), nil
+	if h.packetAddr {
+		return packetaddr.NewConn(h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress}), destination), nil
+	} else {
+		return h.client.DialEarlyPacketConn(conn, destination), nil
+	}
 }
