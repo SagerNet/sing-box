@@ -2,7 +2,6 @@
 
 * Linux & Systemd
 * Git
-* Go 1.18.5+
 * C 编译器环境
 
 #### 安装
@@ -10,10 +9,11 @@
 ```shell
 git clone https://github.com/SagerNet/sing-box
 cd sing-box
+./release/local/install_go.sh # 如果已安装 go1.19 则跳过
 ./release/local/install.sh
 ```
 
-Edit configuration file in `/usr/local/etc/sing-box/config.json`
+编辑配置文件 `/usr/local/etc/sing-box/config.json`
 
 ```shell
 ./release/local/enable.sh
