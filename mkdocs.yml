@@ -37,7 +37,8 @@ nav:
       - Change Log: changelog.md
   - Configuration:
       - configuration/index.md
-      - Log: configuration/log.md
+      - Log:
+          - configuration/log/index.md
       - DNS:
           - configuration/dns/index.md
           - DNS Server: configuration/dns/server.md
