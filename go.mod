@@ -23,20 +23,20 @@ require (
 	github.com/sagernet/sing v0.0.0-20220826124916-d4ba8fdfac88
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220827013030-e01ce3a8a70e
+	github.com/sagernet/sing-tun v0.0.0-20220828031750-185b6c880a83
 	github.com/sagernet/sing-vmess v0.0.0-20220827032426-01665c9c4e31
 	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
-	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8
-	golang.org/x/net v0.0.0-20220822230855-b0a4917ee28c
-	golang.org/x/sys v0.0.0-20220818161305-2296e01440c6
+	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
+	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
+	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64
 	golang.zx2c4.com/wireguard v0.0.0-20220703234212-c31a7b1ab478
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
-	gvisor.dev/gvisor v0.0.0-20220812001733-b5c0f23893fb
+	gvisor.dev/gvisor v0.0.0-20220819163037-ba6e795b139a
 )
 
 require (
