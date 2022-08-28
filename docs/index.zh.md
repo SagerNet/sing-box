@@ -6,11 +6,11 @@ description: 欢迎来到该 sing-box 项目的文档页。
 
 欢迎来到该 sing-box 项目的文档页。
 
-通用代理平台。
+一款通用代理平台软件。
 
 ## 安装
 
-sing-box 需要 Golang **1.18.5** 或更高版本。
+sing-box 需要 **1.18.5** 或更高版本的**Golang**。
 
 ```bash
 go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
@@ -22,18 +22,18 @@ go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
-| 构建标志                         | 描述                                                                                                                                                                                                                                                                           |
-|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `with_quic`                  | 启用 QUIC 支持，参阅 [QUIC 和 HTTP3 DNS 传输层](./configuration/dns/server)，[Naive 入站](./configuration/inbound/naive)，[Hysteria 入站](./configuration/inbound/hysteria)，[Hysteria 出站](./configuration/outbound/hysteria) 和 [V2Ray 传输层#QUIC](./configuration/shared/v2ray-transport#quic)。 |
-| `with_grpc`                  | 启用标准 gRPC 支持，参阅 [V2Ray 传输层#gRPC](./configuration/shared/v2ray-transport#grpc)。                                                                                                                                                                                               |
-| `with_wireguard`             | 启用 WireGuard 支持，参阅 [WireGuard 出站](./configuration/outbound/wireguard)。                                                                                                                                                                                                       |
-| `with_acme`                  | 启用 ACME TLS 证书签发支持，参阅 [TLS](./configuration/shared/tls)。                                                                                                                                                                                                                     |
-| `with_clash_api`             | 启用 Clash api 支持，参阅 [实验性](./configuration/experimental#clash-api-fields)。                                                                                                                                                                                                     |
-| `no_gvisor`                  | 禁用 gVisor Tun 栈支持，参阅 [Tun 入站](./configuration/inbound/tun#stack)。                                                                                                                                                                                                            |
-| `with_embedded_tor` (需要 CGO) | 启用 嵌入式 Tor 支持，参阅 [Tor 出站](./configuration/outbound/tor)。                                                                                                                                                                                                                     |
-| `with_lwip` (需要 CGO)         | 启用 LWIP Tun 栈支持，参阅 [Tun 入站](./configuration/inbound/tun#stack)。                                                                                                                                                                                                              |
+| 构建标志                           | 描述                                                                                                                                                                                                                                                                                                |
+|--------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `with_quic`                    | 启用 QUIC，参阅 [QUIC 和 HTTP3 DNS 传输层](./configuration/dns/server.zh.md)，[Naive 入站](./configuration/inbound/naive.zh.md)，[Hysteria 入站](./configuration/inbound/hysteria.zh.md)，[Hysteria 出站](./configuration/outbound/hysteria.zh.md) 和 [V2Ray QUIC 传输](./configuration/shared/v2ray-transport.zh.md)。 |
+| `with_grpc`                    | 启用标准 gRPC，参阅 [V2Ray gRPC 传输](./configuration/shared/v2ray-transport.zh.md)。                                                                                                                                                                                                                       |
+| `with_wireguard`               | 启用 WireGuard，参阅 [WireGuard 出站](./configuration/outbound/wireguard.zh.md)。                                                                                                                                                                                                                         |
+| `with_acme`                    | 启用 ACME TLS 证书颁发机构颁发CA证书，参阅 [TLS](./configuration/shared/tls.zh.md)。                                                                                                                                                                                                                              |
+| `with_clash_api`               | 启用 Clash api，参阅 [实验性](./configuration/experimental/index.zh.md)。                                                                                                                                                                                                                                  |
+| `no_gvisor`                    | 禁用 gVisor Tun 栈，参阅 [Tun 入站](./configuration/inbound/tun.zh.md)。                                                                                                                                                                                                                                   |
+| `with_embedded_tor` (需要使用 CGO) | 启用 嵌入式 Tor，参阅 [Tor 出站](./configuration/outbound/tor.zh.md)。                                                                                                                                                                                                                                       |
+| `with_lwip` (需要使用 CGO)         | 启用 LWIP Tun 栈，参阅 [Tun 入站](./configuration/inbound/tun.zh.md)。                                                                                                                                                                                                                                     |
 
-二进制文件将被构建在 `$GOPATH/bin` 下。
+二进制文件构建在 `$GOPATH/bin` 路径下。
 
 ```bash
 sing-box version
@@ -62,5 +62,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 ```
+
