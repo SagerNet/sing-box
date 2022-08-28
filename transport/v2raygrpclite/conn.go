@@ -102,8 +102,8 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	binary.BigEndian.PutUint32(grpcHeader[1:5], grpcPayloadLen)
 	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader[:varuintLen+1]), bytes.NewReader(b)))
 	buf.Put(grpcHeader)
-	if f, ok := c.writer.(http.Flusher); ok {
-		f.Flush()
+	if c.flusher != nil {
+		c.flusher.Flush()
 	}
 	return len(b), wrapError(err)
 }
