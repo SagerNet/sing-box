@@ -3,6 +3,7 @@
 * Add strict_route option for [Tun inbound](/configuration/inbound/tun#strict_route)
 * Add packetaddr support for [VMess outbound](/configuration/outbound/vmess#packet_addr)
 * Add better performing alternative gRPC implementation
+* Add [docker image](https://github.com/SagerNet/sing-box/pkgs/container/sing-box)
 * Fix sniff override destination
 
 #### 1.0-beta1
