@@ -27,7 +27,7 @@ func NewProcessPathItem(processNameList []string) *ProcessPathItem {
 		processMap: make(map[string]bool),
 	}
 	for _, processName := range processNameList {
-		rule.processMap[strings.ToLower(processName)] = true
+		rule.processMap[processName] = true
 	}
 	return rule
 }
@@ -36,7 +36,7 @@ func (r *ProcessPathItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
 		return false
 	}
-	return r.processMap[strings.ToLower(metadata.ProcessInfo.ProcessPath)]
+	return r.processMap[metadata.ProcessInfo.ProcessPath]
 }
 
 func (r *ProcessPathItem) String() string {
