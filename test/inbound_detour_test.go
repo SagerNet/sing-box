@@ -60,10 +60,6 @@ func TestChainedInbound(t *testing.T) {
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
-					ServerOptions: option.ServerOptions{
-						Server:     "127.0.0.1",
-						ServerPort: serverPort,
-					},
 					Method:   method,
 					Password: password,
 					OutboundDialerOptions: option.OutboundDialerOptions{
@@ -97,5 +93,5 @@ func TestChainedInbound(t *testing.T) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }

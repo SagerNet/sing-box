@@ -11,6 +11,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -130,6 +131,9 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
+	if !address.IsValid() {
+		return nil, E.New("invalid address")
+	}
 	switch N.NetworkName(network) {
 	case N.NetworkUDP:
 		return d.udpDialer.DialContext(ctx, network, address.String())
