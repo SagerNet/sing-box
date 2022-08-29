@@ -126,7 +126,7 @@ func (h *VMess) Close() error {
 }
 
 func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	h.injectTCP(conn)
+	h.injectTCP(conn, metadata)
 	return nil
 }
 

@@ -177,7 +177,7 @@ func (a *myInboundAdapter) loopTCPIn() {
 		if err != nil {
 			return
 		}
-		go a.injectTCP(conn)
+		go a.injectTCP(conn, adapter.InboundContext{})
 	}
 }
 
@@ -199,9 +199,9 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	return metadata
 }
 
-func (a *myInboundAdapter) injectTCP(conn net.Conn) {
+func (a *myInboundAdapter) injectTCP(conn net.Conn, metadata adapter.InboundContext) {
 	ctx := log.ContextWithNewID(a.ctx)
-	metadata := a.createMetadata(conn, adapter.InboundContext{})
+	metadata = a.createMetadata(conn, metadata)
 	a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	hErr := a.connHandler.NewConnection(ctx, conn, metadata)
 	if hErr != nil {
