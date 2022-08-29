@@ -2,8 +2,12 @@ package option
 
 type ShadowTLSInboundOptions struct {
 	ListenOptions
-	Network         NetworkList `json:"network,omitempty"`
-	HandshakeDetour string      `json:"handshake_detour,omitempty"`
+	Handshake ShadowTLSHandshakeOptions `json:"handshake"`
+}
+
+type ShadowTLSHandshakeOptions struct {
+	ServerOptions
+	DialerOptions
 }
 
 type ShadowTLSOutboundOptions struct {
