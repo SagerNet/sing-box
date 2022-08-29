@@ -78,7 +78,6 @@ func TestShadowTLS(t *testing.T) {
 					TLS: &option.OutboundTLSOptions{
 						Enabled:    true,
 						ServerName: "google.com",
-						MaxVersion: "1.2",
 					},
 				},
 			},
@@ -150,7 +149,6 @@ func TestShadowTLSOutbound(t *testing.T) {
 					TLS: &option.OutboundTLSOptions{
 						Enabled:    true,
 						ServerName: "google.com",
-						MaxVersion: "1.2",
 					},
 				},
 			},

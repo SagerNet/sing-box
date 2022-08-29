@@ -93,6 +93,7 @@ nav:
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
+      - ShadowTLS: examples/shadowtls.md
       - DNS Hijack: examples/dns-hijack.md
   - Contributing:
       - contributing/index.md
