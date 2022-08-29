@@ -51,7 +51,7 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 }
 
 func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	if !destination.IsFqdn() || destination.Fqdn == "" {
+	if !destination.IsFqdn() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
 	ctx, metadata := adapter.AppendContext(ctx)
