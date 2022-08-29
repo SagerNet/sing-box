@@ -2,12 +2,11 @@ package v2raygrpc
 
 import (
 	"context"
-	"io"
 	"net"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common/rw"
 )
 
@@ -36,7 +35,7 @@ func (c *GRPCConn) Read(b []byte) (n int, err error) {
 		return
 	}
 	hunk, err := c.Recv()
-	err = wrapError(err)
+	err = baderror.WrapGRPC(err)
 	if err != nil {
 		return
 	}
@@ -48,7 +47,7 @@ func (c *GRPCConn) Read(b []byte) (n int, err error) {
 }
 
 func (c *GRPCConn) Write(b []byte) (n int, err error) {
-	err = wrapError(c.Send(&Hunk{Data: b}))
+	err = baderror.WrapGRPC(c.Send(&Hunk{Data: b}))
 	if err != nil {
 		return
 	}
@@ -92,21 +91,4 @@ type clientConnWrapper struct {
 
 func (c *clientConnWrapper) CloseWrite() error {
 	return c.CloseSend()
-}
-
-func wrapError(err error) error {
-	// grpc uses stupid internal error types
-	if err == nil {
-		return nil
-	}
-	if strings.Contains(err.Error(), "EOF") {
-		return io.EOF
-	}
-	if strings.Contains(err.Error(), "the client connection is closing") {
-		return net.ErrClosed
-	}
-	if strings.Contains(err.Error(), "server closed the stream without sending trailers") {
-		return net.ErrClosed
-	}
-	return err
 }

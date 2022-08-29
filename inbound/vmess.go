@@ -125,15 +125,15 @@ func (h *VMess) Close() error {
 	)
 }
 
-func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	if h.tlsConfig != nil {
-		conn = tls.Server(conn, h.tlsConfig.Config())
-	}
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.injectTCP(conn)
+	return nil
 }
 
-func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	metadata = h.createMetadata(conn, metadata)
+func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if h.tlsConfig != nil && h.transport == nil {
+		conn = tls.Server(conn, h.tlsConfig.Config())
+	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

@@ -11,61 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestV2RayGRPCSelf(t *testing.T) {
-	testV2RayTransportSelf(t, &option.V2RayTransportOptions{
-		Type: C.V2RayTransportTypeGRPC,
-		GRPCOptions: option.V2RayGRPCOptions{
-			ServiceName: "TunService",
-		},
-	})
-}
-
-func TestV2RayGRPCLite(t *testing.T) {
-	t.Run("server", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-			},
-		})
-	})
-	t.Run("client", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		})
-	})
-	t.Run("self", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		})
-	})
-}
-
 func TestV2RayWebscoketSelf(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
@@ -355,7 +300,7 @@ func TestVMessQUICSelf(t *testing.T) {
 			},
 		},
 	})
-	testSuitQUIC(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportOptions) {
@@ -422,5 +367,5 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 			},
 		},
 	})
-	testSuitQUIC(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
