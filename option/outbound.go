@@ -20,6 +20,7 @@ type _Outbound struct {
 	HysteriaOptions    HysteriaOutboundOptions    `json:"-"`
 	TorOptions         TorOutboundOptions         `json:"-"`
 	SSHOptions         SSHOutboundOptions         `json:"-"`
+	ShadowTLSOptions   ShadowTLSOutboundOptions   `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
 }
 
@@ -50,6 +51,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.TorOptions
 	case C.TypeSSH:
 		v = h.SSHOptions
+	case C.TypeShadowTLS:
+		v = h.ShadowTLSOptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
 	default:
@@ -87,6 +90,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.TorOptions
 	case C.TypeSSH:
 		v = &h.SSHOptions
+	case C.TypeShadowTLS:
+		v = &h.ShadowTLSOptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
 	default:

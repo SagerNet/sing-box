@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/debug"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
@@ -17,6 +18,11 @@ import (
 )
 
 func startInstance(t *testing.T, options option.Options) {
+	if debug.Enabled {
+		options.Log = &option.LogOptions{
+			Level: "trace",
+		}
+	}
 	var instance *box.Box
 	var err error
 	for retry := 0; retry < 3; retry++ {
