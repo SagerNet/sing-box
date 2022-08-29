@@ -31,7 +31,7 @@ body:
         <details>
 
         ```console
-        $ sing-box --version
+        $ sing-box version
         # Paste output here
         ```
 
