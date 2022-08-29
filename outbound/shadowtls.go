@@ -40,6 +40,8 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
+	options.TLS.MinVersion = "1.2"
+	options.TLS.MaxVersion = "1.2"
 	var err error
 	outbound.tlsConfig, err = dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
