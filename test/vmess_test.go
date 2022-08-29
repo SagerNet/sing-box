@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVMessAuto(t *testing.T) {
+func _TestVMessAuto(t *testing.T) {
 	security := "auto"
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestVMessAuto(t *testing.T) {
 	})
 }
 
-func _TestVMess(t *testing.T) {
+func TestVMess(t *testing.T) {
 	for _, security := range []string{
 		"zero",
 	} {
@@ -40,10 +40,17 @@ func _TestVMess(t *testing.T) {
 		})
 	}
 	for _, security := range []string{
-		"aes-128-gcm", "chacha20-poly1305", "aes-128-cfb",
+		"none",
 	} {
 		t.Run(security, func(t *testing.T) {
 			testVMess1(t, security)
+		})
+	}
+	for _, security := range []string{
+		"aes-128-gcm", "chacha20-poly1305", "aes-128-cfb",
+	} {
+		t.Run(security, func(t *testing.T) {
+			testVMess2(t, security)
 		})
 	}
 }
@@ -69,6 +76,29 @@ func testVMess0(t *testing.T, security string) {
 }
 
 func testVMess1(t *testing.T, security string) {
+	user, err := uuid.DefaultGenerator.NewV4()
+	require.NoError(t, err)
+	t.Run("self", func(t *testing.T) {
+		testVMessSelf(t, security, user, 0, false, false, false)
+	})
+	t.Run("self-legacy", func(t *testing.T) {
+		testVMessSelf(t, security, user, 1, false, false, false)
+	})
+	t.Run("packetaddr", func(t *testing.T) {
+		testVMessSelf(t, security, user, 0, false, false, true)
+	})
+	t.Run("inbound", func(t *testing.T) {
+		testVMessInboundWithV2Ray(t, security, user, 0, false)
+	})
+	t.Run("outbound", func(t *testing.T) {
+		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+	})
+	t.Run("outbound-legacy", func(t *testing.T) {
+		testVMessOutboundWithV2Ray(t, security, user, false, false, 1)
+	})
+}
+
+func testVMess2(t *testing.T, security string) {
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
@@ -175,7 +205,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, al
 		},
 	})
 
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, globalPadding bool, authenticatedLength bool, alterId int) {
@@ -232,13 +262,13 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
 	startInstance(t, option.Options{
 		Log: &option.LogOptions{
-			Level: "trace",
+			Level: "error",
 		},
 		Inbounds: []option.Inbound{
 			{

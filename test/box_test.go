@@ -60,7 +60,7 @@ func testTCP(t *testing.T, clientPort uint16, testPort uint16) {
 	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
 }
 
-func testSuitQUIC(t *testing.T, clientPort uint16, testPort uint16) {
+func testSuitSimple(t *testing.T, clientPort uint16, testPort uint16) {
 	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
 	dialTCP := func() (net.Conn, error) {
 		return dialer.DialContext(context.Background(), "tcp", M.ParseSocksaddrHostPort("127.0.0.1", testPort))

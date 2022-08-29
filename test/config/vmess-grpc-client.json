@@ -24,14 +24,27 @@
             "port": 1234,
             "users": [
               {
-                "id": "",
-                "alterId": 0,
-                "security": "none",
-                "experiments": ""
+                "id": ""
               }
             ]
           }
         ]
+      },
+      "streamSettings": {
+        "network": "gun",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "example.org",
+          "certificates": [
+            {
+              "certificateFile": "/path/to/certificate.crt",
+              "keyFile": "/path/to/private.key"
+            }
+          ]
+        },
+        "grpcSettings": {
+          "serviceName": "TunService"
+        }
       }
     }
   ]

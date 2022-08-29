@@ -10,10 +10,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
-	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
 )
 
@@ -53,7 +53,7 @@ func (c *GunConn) setup(reader io.Reader, err error) {
 
 func (c *GunConn) Read(b []byte) (n int, err error) {
 	n, err = c.read(b)
-	return n, wrapError(err)
+	return n, baderror.WrapH2(err)
 }
 
 func (c *GunConn) read(b []byte) (n int, err error) {
@@ -105,7 +105,7 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	if c.flusher != nil {
 		c.flusher.Flush()
 	}
-	return len(b), wrapError(err)
+	return len(b), baderror.WrapH2(err)
 }
 
 func uLen(x uint64) int {
@@ -129,7 +129,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	if c.flusher != nil {
 		c.flusher.Flush()
 	}
-	return wrapError(err)
+	return baderror.WrapH2(err)
 }
 
 func (c *GunConn) FrontHeadroom() int {
@@ -158,11 +158,4 @@ func (c *GunConn) SetReadDeadline(t time.Time) error {
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
-}
-
-func wrapError(err error) error {
-	if E.IsMulti(err, io.ErrUnexpectedEOF) {
-		return io.EOF
-	}
-	return err
 }

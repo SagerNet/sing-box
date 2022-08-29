@@ -145,15 +145,15 @@ func (h *Trojan) Close() error {
 	)
 }
 
-func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	if h.tlsConfig != nil {
-		conn = tls.Server(conn, h.tlsConfig.Config())
-	}
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *Trojan) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.injectTCP(conn)
+	return nil
 }
 
-func (h *Trojan) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	metadata = h.createMetadata(conn, metadata)
+func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if h.tlsConfig != nil && h.transport == nil {
+		conn = tls.Server(conn, h.tlsConfig.Config())
+	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 

@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common"
-	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type HTTPConn struct {
@@ -18,12 +18,12 @@ type HTTPConn struct {
 
 func (c *HTTPConn) Read(b []byte) (n int, err error) {
 	n, err = c.reader.Read(b)
-	return n, wrapError(err)
+	return n, baderror.WrapH2(err)
 }
 
 func (c *HTTPConn) Write(b []byte) (n int, err error) {
 	n, err = c.writer.Write(b)
-	return n, wrapError(err)
+	return n, baderror.WrapH2(err)
 }
 
 func (c *HTTPConn) Close() error {
@@ -61,11 +61,4 @@ func (c *ServerHTTPConn) Write(b []byte) (n int, err error) {
 		c.flusher.Flush()
 	}
 	return
-}
-
-func wrapError(err error) error {
-	if E.IsMulti(err, io.ErrUnexpectedEOF) {
-		return io.EOF
-	}
-	return err
 }
