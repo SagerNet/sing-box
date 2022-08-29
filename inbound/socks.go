@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -13,7 +14,10 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 )
 
-var _ adapter.Inbound = (*Socks)(nil)
+var (
+	_ adapter.Inbound           = (*Socks)(nil)
+	_ adapter.InjectableInbound = (*Socks)(nil)
+)
 
 type Socks struct {
 	myInboundAdapter
@@ -39,4 +43,8 @@ func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogg
 
 func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	return socks.HandleConnection(ctx, conn, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }

@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -30,7 +31,10 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	}
 }
 
-var _ adapter.Inbound = (*Shadowsocks)(nil)
+var (
+	_ adapter.Inbound           = (*Shadowsocks)(nil)
+	_ adapter.InjectableInbound = (*Shadowsocks)(nil)
+)
 
 type Shadowsocks struct {
 	myInboundAdapter
@@ -78,6 +82,10 @@ func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata
 
 func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
 	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
 
 func (h *Shadowsocks) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

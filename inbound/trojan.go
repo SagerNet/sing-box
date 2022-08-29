@@ -20,7 +20,10 @@ import (
 	"github.com/sagernet/sing/protocol/trojan"
 )
 
-var _ adapter.Inbound = (*Trojan)(nil)
+var (
+	_ adapter.Inbound           = (*Trojan)(nil)
+	_ adapter.InjectableInbound = (*Trojan)(nil)
+)
 
 type Trojan struct {
 	myInboundAdapter
@@ -155,6 +158,10 @@ func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
 
 func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

@@ -21,7 +21,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Inbound = (*VMess)(nil)
+var (
+	_ adapter.Inbound           = (*VMess)(nil)
+	_ adapter.InjectableInbound = (*VMess)(nil)
+)
 
 type VMess struct {
 	myInboundAdapter
@@ -135,6 +138,10 @@ func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *VMess) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
 
 func (h *VMess) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

@@ -4,6 +4,7 @@ import (
 	std_bufio "bufio"
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -20,7 +21,10 @@ import (
 	"github.com/sagernet/sing/protocol/socks/socks5"
 )
 
-var _ adapter.Inbound = (*Mixed)(nil)
+var (
+	_ adapter.Inbound           = (*Mixed)(nil)
+	_ adapter.InjectableInbound = (*Mixed)(nil)
+)
 
 type Mixed struct {
 	myInboundAdapter
@@ -56,4 +60,8 @@ func (h *Mixed) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	}
 	reader := std_bufio.NewReader(bufio.NewCachedReader(conn, buf.As([]byte{headerType})))
 	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+}
+
+func (h *Mixed) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
