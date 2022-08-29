@@ -22,13 +22,13 @@ func (s *androidSearcher) FindProcessInfo(ctx context.Context, network string, s
 	if err != nil {
 		return nil, err
 	}
-	if sharedPackage, loaded := s.packageManager.SharedPackageByID(uid); loaded {
+	if sharedPackage, loaded := s.packageManager.SharedPackageByID(uid % 100000); loaded {
 		return &Info{
 			UserId:      int32(uid),
 			PackageName: sharedPackage,
 		}, nil
 	}
-	if packageName, loaded := s.packageManager.PackageByID(uid); loaded {
+	if packageName, loaded := s.packageManager.PackageByID(uid % 100000); loaded {
 		return &Info{
 			UserId:      int32(uid),
 			PackageName: packageName,
