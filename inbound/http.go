@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -17,7 +18,10 @@ import (
 	"github.com/sagernet/sing/protocol/http"
 )
 
-var _ adapter.Inbound = (*HTTP)(nil)
+var (
+	_ adapter.Inbound           = (*HTTP)(nil)
+	_ adapter.InjectableInbound = (*HTTP)(nil)
+)
 
 type HTTP struct {
 	myInboundAdapter
@@ -72,6 +76,10 @@ func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapte
 		conn = tls.Server(conn, h.tlsConfig.Config())
 	}
 	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+}
+
+func (h *HTTP) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
 
 func (a *myInboundAdapter) upstreamUserHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {

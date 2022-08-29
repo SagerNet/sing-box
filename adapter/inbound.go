@@ -2,17 +2,26 @@ package adapter
 
 import (
 	"context"
+	"net"
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 )
 
 type Inbound interface {
 	Service
 	Type() string
 	Tag() string
+}
+
+type InjectableInbound interface {
+	Inbound
+	Network() []string
+	NewConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
+	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 }
 
 type InboundContext struct {
@@ -29,6 +38,8 @@ type InboundContext struct {
 
 	// cache
 
+	InboundDetour            string
+	LastInbound              string
 	OriginDestination        M.Socksaddr
 	DomainStrategy           dns.DomainStrategy
 	SniffEnabled             bool

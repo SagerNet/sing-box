@@ -21,7 +21,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Inbound = (*ShadowsocksMulti)(nil)
+var (
+	_ adapter.Inbound           = (*ShadowsocksMulti)(nil)
+	_ adapter.InjectableInbound = (*ShadowsocksMulti)(nil)
+)
 
 type ShadowsocksMulti struct {
 	myInboundAdapter
@@ -112,6 +115,10 @@ func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, met
 
 func (h *ShadowsocksMulti) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
 	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *ShadowsocksMulti) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return os.ErrInvalid
 }
 
 func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

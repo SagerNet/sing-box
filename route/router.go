@@ -65,6 +65,7 @@ type Router struct {
 	ctx                                context.Context
 	logger                             log.ContextLogger
 	dnsLogger                          log.ContextLogger
+	inboundByTag                       map[string]adapter.Inbound
 	outbounds                          []adapter.Outbound
 	outboundByTag                      map[string]adapter.Outbound
 	rules                              []adapter.Rule
@@ -295,7 +296,11 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	return router, nil
 }
 
-func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
+func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
+	inboundByTag := make(map[string]adapter.Inbound)
+	for _, inbound := range inbounds {
+		inboundByTag[inbound.Tag()] = inbound
+	}
 	outboundByTag := make(map[string]adapter.Outbound)
 	for _, detour := range outbounds {
 		outboundByTag[detour.Tag()] = detour
@@ -360,6 +365,7 @@ func (r *Router) Initialize(outbounds []adapter.Outbound, defaultOutbound func()
 		r.logger.Info("using ", defaultOutboundForConnection.Type(), "[", description, "] as default outbound for connection")
 		r.logger.Info("using ", defaultOutboundForPacketConnection.Type(), "[", packetDescription, "] as default outbound for packet connection")
 	}
+	r.inboundByTag = inboundByTag
 	r.outbounds = outbounds
 	r.defaultOutboundForConnection = defaultOutboundForConnection
 	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
@@ -498,6 +504,29 @@ func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if metadata.InboundDetour != "" {
+		if metadata.LastInbound == metadata.InboundDetour {
+			return E.New("routing loop on detour: ", metadata.InboundDetour)
+		}
+		detour := r.inboundByTag[metadata.InboundDetour]
+		if detour == nil {
+			return E.New("inbound detour not found: ", metadata.InboundDetour)
+		}
+		injectable, isInjectable := detour.(adapter.InjectableInbound)
+		if !isInjectable {
+			return E.New("inbound detour is not injectable: ", metadata.InboundDetour)
+		}
+		if !common.Contains(injectable.Network(), N.NetworkTCP) {
+			return E.New("inject: TCP unsupported")
+		}
+		metadata.InboundDetour = ""
+		metadata.LastInbound = metadata.Inbound
+		err := injectable.NewConnection(ctx, conn, metadata)
+		if err != nil {
+			return E.Cause(err, "inject ", detour.Tag())
+		}
+		return nil
+	}
 	metadata.Network = N.NetworkTCP
 	switch metadata.Destination.Fqdn {
 	case mux.Destination.Fqdn:
@@ -555,6 +584,29 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	if metadata.InboundDetour != "" {
+		if metadata.LastInbound == metadata.InboundDetour {
+			return E.New("routing loop on detour: ", metadata.InboundDetour)
+		}
+		detour := r.inboundByTag[metadata.InboundDetour]
+		if detour == nil {
+			return E.New("inbound detour not found: ", metadata.InboundDetour)
+		}
+		injectable, isInjectable := detour.(adapter.InjectableInbound)
+		if !isInjectable {
+			return E.New("inbound detour is not injectable: ", metadata.InboundDetour)
+		}
+		if !common.Contains(injectable.Network(), N.NetworkUDP) {
+			return E.New("inject: UDP unsupported")
+		}
+		metadata.InboundDetour = ""
+		metadata.LastInbound = metadata.Inbound
+		err := injectable.NewPacketConnection(ctx, conn, metadata)
+		if err != nil {
+			return E.Cause(err, "inject ", detour.Tag())
+		}
+		return nil
+	}
 	metadata.Network = N.NetworkUDP
 	if metadata.SniffEnabled {
 		buffer := buf.NewPacket()
