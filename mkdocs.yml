@@ -90,6 +90,7 @@ nav:
   - Examples:
       - examples/index.md
       - Linux Server Installation: examples/linux-server-installation.md
+      - MacOS Installation: examples/macos-installation.md
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
@@ -158,6 +159,7 @@ plugins:
           Known Issues: 已知问题
           Examples: 示例
           Linux Server Installation: Linux 服务器安装
+          MacOS Installation: MacOS 安装
           Shadowsocks Server: Shadowsocks 服务器
           Shadowsocks Client: Shadowsocks 客户端
           Shadowsocks Tun: Shadowsocks Tun
