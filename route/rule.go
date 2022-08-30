@@ -172,6 +172,11 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.ProcessPath) > 0 {
+		item := NewProcessPathItem(options.ProcessPath)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.PackageName) > 0 {
 		item := NewPackageNameItem(options.PackageName)
 		rule.items = append(rule.items, item)
