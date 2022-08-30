@@ -37,7 +37,7 @@ func (r *ProcessItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
 		return false
 	}
-	return r.processMap[strings.ToLower(filepath.Base(metadata.ProcessInfo.ProcessPath))]
+	return r.processMap[filepath.Base(metadata.ProcessInfo.ProcessPath)]
 }
 
 func (r *ProcessItem) String() string {
