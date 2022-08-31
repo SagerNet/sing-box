@@ -1,3 +1,7 @@
+!!! error ""
+
+    Only supported on Linux.
+
 ### Structure
 
 ```json

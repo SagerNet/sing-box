@@ -66,6 +66,9 @@
         "process_name": [
           "curl"
         ],
+        "process_path": [
+          "/usr/bin/curl"
+        ],
         "package_name": [
           "com.termux"
         ],
@@ -185,6 +188,14 @@
     仅支持 Linux、Windows 和 macOS。
 
 匹配进程名称。
+
+#### process_path
+
+!!! error ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配进程路径。
 
 #### package_name
 

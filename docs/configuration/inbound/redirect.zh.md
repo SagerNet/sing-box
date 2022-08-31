@@ -1,3 +1,7 @@
+!!! error ""
+
+    仅支持 Linux 和 macOS。
+
 ### 结构
 
 ```json

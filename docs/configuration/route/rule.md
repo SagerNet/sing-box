@@ -68,6 +68,9 @@
         "process_name": [
           "curl"
         ],
+        "process_path": [
+          "/usr/bin/curl"
+        ],
         "package_name": [
           "com.termux"
         ],
@@ -187,6 +190,14 @@ Match port range.
     Only supported on Linux, Windows, and macOS.
 
 Match process name.
+
+#### process_path
+
+!!! error ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process path.
 
 #### package_name
 
