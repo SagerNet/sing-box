@@ -4,12 +4,8 @@
 
 ```json
 {
-  "outbounds": [
-    {
-      "type": "block",
-      "tag": "block"
-    }
-  ]
+  "type": "block",
+  "tag": "block"
 }
 ```
 

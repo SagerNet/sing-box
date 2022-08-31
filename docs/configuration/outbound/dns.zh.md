@@ -4,12 +4,8 @@
 
 ```json
 {
-  "outbounds": [
-    {
-      "type": "dns",
-      "tag": "dns-out"
-    }
-  ]
+  "type": "dns",
+  "tag": "dns-out"
 }
 ```
 

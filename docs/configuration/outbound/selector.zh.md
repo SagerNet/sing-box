@@ -2,19 +2,15 @@
 
 ```json
 {
+  "type": "selector",
+  "tag": "select",
+
   "outbounds": [
-    {
-      "type": "selector",
-      "tag": "select",
-      
-      "outbounds": [
-        "proxy-a",
-        "proxy-b",
-        "proxy-c"
-      ],
-      "default": "proxy-c"
-    }
-  ]
+    "proxy-a",
+    "proxy-b",
+    "proxy-c"
+  ],
+  "default": "proxy-c"
 }
 ```
 

@@ -8,8 +8,8 @@ sing-box uses JSON for configuration files.
 {
   "log": {},
   "dns": {},
-  "inbounds": {},
-  "outbounds": {},
+  "inbounds": [],
+  "outbounds": [],
   "route": {},
   "experimental": {}
 }
