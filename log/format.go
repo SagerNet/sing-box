@@ -71,7 +71,7 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 	case f.DisableTimestamp:
 		message = levelString + " " + message
 	case f.FullTimestamp:
-		message = F.ToString(int(timestamp.Sub(f.BaseTime)/time.Second)) + " " + levelString + " " + message
+		message = timestamp.Format(f.TimestampFormat) + " " + levelString + " " + message
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
@@ -136,7 +136,7 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 	case f.DisableTimestamp:
 		message = levelString + " " + message
 	case f.FullTimestamp:
-		message = F.ToString(int(timestamp.Sub(f.BaseTime)/time.Second)) + " " + levelString + " " + message
+		message = timestamp.Format(f.TimestampFormat) + " " + levelString + " " + message
 	default:
 		message = levelString + "[" + xd(int(timestamp.Sub(f.BaseTime)/time.Second), 4) + "] " + message
 	}
