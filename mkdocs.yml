@@ -68,6 +68,7 @@ nav:
           - Trojan: configuration/inbound/trojan.md
           - Naive: configuration/inbound/naive.md
           - Hysteria: configuration/inbound/hysteria.md
+          - ShadowTLS: configuration/inbound/shadowtls.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -82,6 +83,7 @@ nav:
           - Trojan: configuration/outbound/trojan.md
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
+          - ShadowTLS: configuration/outbound/shadowtls.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
@@ -95,6 +97,7 @@ nav:
       - Shadowsocks Server: examples/ss-server.md
       - Shadowsocks Client: examples/ss-client.md
       - Shadowsocks Tun: examples/ss-tun.md
+      - ShadowTLS: examples/shadowtls.md
       - DNS Hijack: examples/dns-hijack.md
   - Contributing:
       - contributing/index.md

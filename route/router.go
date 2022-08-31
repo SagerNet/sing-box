@@ -519,8 +519,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		if !common.Contains(injectable.Network(), N.NetworkTCP) {
 			return E.New("inject: TCP unsupported")
 		}
-		metadata.InboundDetour = ""
 		metadata.LastInbound = metadata.Inbound
+		metadata.Inbound = metadata.InboundDetour
+		metadata.InboundDetour = ""
 		err := injectable.NewConnection(ctx, conn, metadata)
 		if err != nil {
 			return E.Cause(err, "inject ", detour.Tag())
@@ -599,8 +600,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if !common.Contains(injectable.Network(), N.NetworkUDP) {
 			return E.New("inject: UDP unsupported")
 		}
-		metadata.InboundDetour = ""
 		metadata.LastInbound = metadata.Inbound
+		metadata.Inbound = metadata.InboundDetour
+		metadata.InboundDetour = ""
 		err := injectable.NewPacketConnection(ctx, conn, metadata)
 		if err != nil {
 			return E.Cause(err, "inject ", detour.Tag())

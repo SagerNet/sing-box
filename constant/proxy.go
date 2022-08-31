@@ -18,6 +18,7 @@ const (
 	TypeHysteria    = "hysteria"
 	TypeTor         = "tor"
 	TypeSSH         = "ssh"
+	TypeShadowTLS   = "shadowtls"
 )
 
 const (
