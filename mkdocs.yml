@@ -52,8 +52,8 @@ nav:
       - Experimental:
           - configuration/experimental/index.md
       - Shared:
-          - Inbound Listen Fields: configuration/shared/listen.md
-          - Outbound Dial Fields: configuration/shared/dial.md
+          - Listen Fields: configuration/shared/listen.md
+          - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
@@ -152,8 +152,8 @@ plugins:
           Protocol Sniff: 协议探测
           Experimental: 实验性
           Shared: 通用
-          Inbound Listen Fields: 入站监听字段
-          Outbound Dial Fields: 出站拨号字段
+          Listen Fields: 监听字段
+          Dial Fields: 拨号字段
           Multiplex: 多路复用
           V2Ray Transport: V2Ray 传输层
           Inbound: 入站
