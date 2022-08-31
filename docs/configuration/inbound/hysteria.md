@@ -2,31 +2,23 @@
 
 ```json
 {
-  "inbounds": [
-    {
-      "type": "hysteria",
-      "tag": "hysteria-in",
-      
-      "listen": "::",
-      "listen_port": 443,
-      "sniff": false,
-      "sniff_override_destination": false,
-      "domain_strategy": "prefer_ipv6",
-      
-      "up": "100 Mbps",
-      "up_mbps": 100,
-      "down": "100 Mbps",
-      "down_mbps": 100,
-      "obfs": "fuck me till the daylight",
-      "auth": "",
-      "auth_str": "password",
-      "recv_window_conn": 0,
-      "recv_window_client": 0,
-      "max_conn_client": 0,
-      "disable_mtu_discovery": false,
-      "tls": {}
-    }
-  ]
+  "type": "hysteria",
+  "tag": "hysteria-in",
+  
+  ... // Listen Fields
+
+  "up": "100 Mbps",
+  "up_mbps": 100,
+  "down": "100 Mbps",
+  "down_mbps": 100,
+  "obfs": "fuck me till the daylight",
+  "auth": "",
+  "auth_str": "password",
+  "recv_window_conn": 0,
+  "recv_window_client": 0,
+  "max_conn_client": 0,
+  "disable_mtu_discovery": false,
+  "tls": {}
 }
 ```
 
@@ -34,7 +26,11 @@
 
     QUIC, which is required by hysteria is not included by default, see [Installation](/#installation).
 
-### Hysteria Fields
+### Listen Fields
+
+See [Listen Fields](/configuration/shared/listen) for details.
+
+### Fields
 
 #### up, down
 
@@ -102,37 +98,3 @@ Force enabled on for systems other than Linux and Windows (according to upstream
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
-
-### Listen Fields
-
-#### listen
-
-==Required==
-
-Listen address.
-
-#### listen_port
-
-==Required==
-
-Listen port.
-
-#### sniff
-
-Enable sniffing.
-
-See [Protocol Sniff](/configuration/route/sniff/) for details.
-
-#### sniff_override_destination
-
-Override the connection destination address with the sniffed domain.
-
-If the domain name is invalid (like tor), this will not work.
-
-#### domain_strategy
-
-One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
-
-If set, the requested domain name will be resolved to IP before routing.
-
-If `sniff_override_destination` is in effect, its value will be taken as a fallback.

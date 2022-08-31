@@ -223,7 +223,7 @@ func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 }
 
 func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewEarlyConnection(ctx, w, conn, metadata)
+	return NewConnection(ctx, w, conn, metadata)
 }
 
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {

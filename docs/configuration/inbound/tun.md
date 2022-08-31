@@ -6,48 +6,41 @@
 
 ```json
 {
-  "inbounds": [
-    {
-      "type": "tun",
-      "tag": "tun-in",
-      "interface_name": "tun0",
-      "inet4_address": "172.19.0.1/30",
-      "inet6_address": "fdfe:dcba:9876::1/128",
-      "mtu": 1500,
-      "auto_route": true,
-      "strict_route": true,
-      "endpoint_independent_nat": false,
-      "udp_timeout": 300,
-      "stack": "gvisor",
-      "include_uid": [
-        0
-      ],
-      "include_uid_range": [
-        [
-          "1000-99999"
-        ]
-      ],
-      "exclude_uid": [
-        1000
-      ],
-      "exclude_uid_range": [
-        "1000-99999"
-      ],
-      "include_android_user": [
-        0,
-        10
-      ],
-      "include_package": [
-        "com.android.chrome"
-      ],
-      "exclude_package": [
-        "com.android.captiveportallogin"
-      ],
-      "sniff": true,
-      "sniff_override_destination": false,
-      "domain_strategy": "prefer_ipv4"
-    }
-  ]
+  "type": "tun",
+  "tag": "tun-in",
+  
+  "interface_name": "tun0",
+  "inet4_address": "172.19.0.1/30",
+  "inet6_address": "fdfe:dcba:9876::1/128",
+  "mtu": 1500,
+  "auto_route": true,
+  "strict_route": true,
+  "endpoint_independent_nat": false,
+  "stack": "gvisor",
+  "include_uid": [
+    0
+  ],
+  "include_uid_range": [
+    "1000-99999"
+  ],
+  "exclude_uid": [
+    1000
+  ],
+  "exclude_uid_range": [
+    "1000-99999"
+  ],
+  "include_android_user": [
+    0,
+    10
+  ],
+  "include_package": [
+    "com.android.chrome"
+  ],
+  "exclude_package": [
+    "com.android.captiveportallogin"
+  ],
+
+  ... // Listen Fields
 }
 ```
 
@@ -59,7 +52,7 @@
 
     If tun is running in non-privileged mode, addresses and MTU will not be configured automatically, please make sure the settings are accurate.
 
-### Tun Fields
+### Fields
 
 #### interface_name
 
@@ -163,22 +156,4 @@ Exclude android packages in route.
 
 ### Listen Fields
 
-#### sniff
-
-Enable sniffing.
-
-See [Protocol Sniff](/configuration/route/sniff/) for details.
-
-#### sniff_override_destination
-
-Override the connection destination address with the sniffed domain.
-
-If the domain name is invalid (like tor), this will not work.
-
-#### domain_strategy
-
-One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
-
-If set, the requested domain name will be resolved to IP before routing.
-
-If `sniff_override_destination` is in effect, its value will be taken as a fallback.
+See [Listen Fields](/configuration/shared/listen) for details.
