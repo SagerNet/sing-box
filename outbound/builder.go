@@ -39,6 +39,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewTor(ctx, router, logger, options.Tag, options.TorOptions)
 	case C.TypeSSH:
 		return NewSSH(ctx, router, logger, options.Tag, options.SSHOptions)
+	case C.TypeShadowTLS:
+		return NewShadowTLS(ctx, router, logger, options.Tag, options.ShadowTLSOptions)
 	case C.TypeSelector:
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	default:

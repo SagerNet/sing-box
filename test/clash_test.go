@@ -36,6 +36,7 @@ const (
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
 	ImageHysteria              = "tobyxdd/hysteria:latest"
 	ImageNginx                 = "nginx:stable"
+	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
 )
 
 var allImages = []string{
@@ -46,7 +47,8 @@ var allImages = []string{
 	ImageNaive,
 	ImageBoringTun,
 	ImageHysteria,
-	// ImageNginx,
+	ImageNginx,
+	ImageShadowTLS,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")
