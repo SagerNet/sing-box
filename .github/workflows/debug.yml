@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - dev-next
     paths-ignore:
       - '**.md'
       - '.github/**'
@@ -11,6 +12,7 @@ on:
   pull_request:
     branches:
       - dev
+      - dev-next
 
 jobs:
   build:
