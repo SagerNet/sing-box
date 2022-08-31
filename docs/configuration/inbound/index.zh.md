@@ -15,20 +15,20 @@
 
 ### 字段
 
-| 类型            | 格式                           |
-|---------------|------------------------------|
-| `direct`      | [Direct](./direct)           |
-| `mixed`       | [Mixed](./mixed)             |
-| `socks`       | [SOCKS](./socks)             |
-| `http`        | [HTTP](./http)               |
-| `shadowsocks` | [Shadowsocks](./shadowsocks) |
-| `vmess`       | [VMess](./vmess)             |
-| `trojan`      | [Trojan](./trojan)           |
-| `naive`       | [Naive](./naive)             |
-| `hysteria`    | [Hysteria](./hysteria)       |
-| `tun`         | [Tun](./tun)                 |
-| `redirect`    | [Redirect](./redirect)       |
-| `tproxy`      | [TProxy](./tproxy)           |
+| 类型            | 格式                           | 注入支持 |
+|---------------|------------------------------|------|
+| `direct`      | [Direct](./direct)           | X    |
+| `mixed`       | [Mixed](./mixed)             | TCP  |
+| `socks`       | [SOCKS](./socks)             | TCP  |
+| `http`        | [HTTP](./http)               | TCP  |
+| `shadowsocks` | [Shadowsocks](./shadowsocks) | TCP  |
+| `vmess`       | [VMess](./vmess)             | TCP  |
+| `trojan`      | [Trojan](./trojan)           | TCP  |
+| `naive`       | [Naive](./naive)             | X    |
+| `hysteria`    | [Hysteria](./hysteria)       | X    |
+| `tun`         | [Tun](./tun)                 | X    |
+| `redirect`    | [Redirect](./redirect)       | X    |
+| `tproxy`      | [TProxy](./tproxy)           | X    |
 
 #### tag
 

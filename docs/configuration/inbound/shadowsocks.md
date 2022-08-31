@@ -2,25 +2,13 @@
 
 ```json
 {
-  "inbounds": [
-    {
-      "type": "shadowsocks",
-      "tag": "ss-in",
-      
-      "listen": "::",
-      "listen_port": 5353,
-      "tcp_fast_open": false,
-      "sniff": false,
-      "sniff_override_destination": false,
-      "domain_strategy": "prefer_ipv6",
-      "udp_timeout": 300,
-      "network": "udp",
-      "proxy_protocol": false,
-      
-      "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
-    }
-  ]
+  "type": "shadowsocks",
+  "tag": "ss-in",
+
+  ... // Listen Fields
+
+  "method": "2022-blake3-aes-128-gcm",
+  "password": "8JCsPssfgS8tiRwiMlhARg=="
 }
 ```
 
@@ -28,17 +16,12 @@
 
 ```json
 {
-  "inbounds": [
+  "method": "2022-blake3-aes-128-gcm",
+  "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "users": [
     {
-      "type": "shadowsocks",
-      "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg==",
-      "users": [
-        {
-          "name": "sekai",
-          "password": "PCD2Z4o12bKUoFa3cC97Hw=="
-        }
-      ]
+      "name": "sekai",
+      "password": "PCD2Z4o12bKUoFa3cC97Hw=="
     }
   ]
 }
@@ -48,25 +31,25 @@
 
 ```json
 {
-  "inbounds": [
+  "type": "shadowsocks",
+  "method": "2022-blake3-aes-128-gcm",
+  "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "destinations": [
     {
-      "type": "shadowsocks",
-      "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg==",
-      "destinations": [
-        {
-          "name": "test",
-          "server": "example.com",
-          "server_port": 8080,
-          "password": "PCD2Z4o12bKUoFa3cC97Hw=="
-        }
-      ]
+      "name": "test",
+      "server": "example.com",
+      "server_port": 8080,
+      "password": "PCD2Z4o12bKUoFa3cC97Hw=="
     }
   ]
 }
 ```
 
-### Shadowsocks Fields
+### Listen Fields
+
+See [Listen Fields](/configuration/shared/listen) for details.
+
+### Fields
 
 #### network
 

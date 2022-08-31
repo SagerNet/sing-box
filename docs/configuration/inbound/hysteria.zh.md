@@ -2,31 +2,23 @@
 
 ```json
 {
-  "inbounds": [
-    {
-      "type": "hysteria",
-      "tag": "hysteria-in",
-      
-      "listen": "::",
-      "listen_port": 443,
-      "sniff": false,
-      "sniff_override_destination": false,
-      "domain_strategy": "prefer_ipv6",
-      
-      "up": "100 Mbps",
-      "up_mbps": 100,
-      "down": "100 Mbps",
-      "down_mbps": 100,
-      "obfs": "fuck me till the daylight",
-      "auth": "",
-      "auth_str": "password",
-      "recv_window_conn": 0,
-      "recv_window_client": 0,
-      "max_conn_client": 0,
-      "disable_mtu_discovery": false,
-      "tls": {}
-    }
-  ]
+  "type": "hysteria",
+  "tag": "hysteria-in",
+  
+  ... // 监听字段
+
+  "up": "100 Mbps",
+  "up_mbps": 100,
+  "down": "100 Mbps",
+  "down_mbps": 100,
+  "obfs": "fuck me till the daylight",
+  "auth": "",
+  "auth_str": "password",
+  "recv_window_conn": 0,
+  "recv_window_client": 0,
+  "max_conn_client": 0,
+  "disable_mtu_discovery": false,
+  "tls": {}
 }
 ```
 
@@ -34,7 +26,11 @@
 
     默认安装不包含被 Hysteria 依赖的 QUIC，参阅 [安装](/zh/#_2)。
 
-### Hysteria 字段
+### 监听字段
+
+参阅 [监听字段](/zh/configuration/shared/listen/)。
+
+### 字段
 
 #### up, down
 
@@ -102,37 +98,3 @@ base64 编码的认证密码。
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
-
-### 监听字段
-
-#### listen
-
-==必填==
-
-监听地址。
-
-#### listen_port
-
-==必填==
-
-监听端口。
-
-#### sniff
-
-启用协议探测。
-
-参阅 [协议探测](/zh/configuration/route/sniff/)。
-
-#### sniff_override_destination
-
-用探测出的域名覆盖连接目标地址。
-
-如果域名无效（如 Tor），将不生效。
-
-#### domain_strategy
-
-可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
-
-如果设置，请求的域名将在路由之前解析为 IP。
-
-如果 `sniff_override_destination` 生效，它的值将作为后备。
