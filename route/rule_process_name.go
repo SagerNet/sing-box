@@ -28,7 +28,7 @@ func NewProcessItem(processNameList []string) *ProcessItem {
 		processMap: make(map[string]bool),
 	}
 	for _, processName := range processNameList {
-		rule.processMap[strings.ToLower(processName)] = true
+		rule.processMap[processName] = true
 	}
 	return rule
 }
