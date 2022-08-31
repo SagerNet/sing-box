@@ -25,15 +25,15 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220828031750-185b6c880a83
 	github.com/sagernet/sing-vmess v0.0.0-20220829020559-33915075430c
-	github.com/sagernet/smux v0.0.0-20220812084127-e2d085ee3939
+	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
-	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
-	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64
-	golang.zx2c4.com/wireguard v0.0.0-20220703234212-c31a7b1ab478
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
+	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	gvisor.dev/gvisor v0.0.0-20220819163037-ba6e795b139a
