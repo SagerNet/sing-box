@@ -11,7 +11,7 @@ the public internet.
 
 ##### on Linux
 
-`auto-route` cannot automatically hijack DNS requests with `systemd-resoled` enabled, you can switch to NetworkManager.
+`auto-route` cannot automatically hijack DNS requests with `systemd-resolved` enabled, you can switch to NetworkManager.
 
 #### System proxy
 

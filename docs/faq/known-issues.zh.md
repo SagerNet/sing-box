@@ -10,7 +10,7 @@
 
 ##### Linux
 
-`auto-route` 无法自动劫持 DNS 请求如果 `systemd-resoled` 开启, 您可以切换到 NetworkManager.
+`auto-route` 无法自动劫持 DNS 请求如果 `systemd-resolved` 开启, 您可以切换到 NetworkManager.
 
 #### 系统代理
 
