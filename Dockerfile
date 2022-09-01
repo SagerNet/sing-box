@@ -8,7 +8,7 @@ ENV CGO_ENABLED=0
 RUN set -ex \
     && apk add git build-base \
     && export COMMIT=$(git rev-parse HEAD) \
-    && go build -v -trimpath -tags 'with_quic,with_acme,with_wireguard,with_clash_api' \
+    && go build -v -trimpath -tags 'no_gvisor,with_quic,with_wireguard,with_acme' \
         -o /go/bin/sing-box \
         -ldflags "-X github.com/sagernet/sing-box/constant.Commit=${COMMIT} -w -s -buildid=" \
         ./cmd/sing-box

@@ -10,7 +10,7 @@ DIR=$(dirname "$0")
 PROJECT=$DIR/../..
 
 pushd $PROJECT
-go install -v -trimpath -ldflags "-s -w -buildid=" -tags no_gvisor,with_quic,with_acme ./cmd/sing-box
+go install -v -trimpath -ldflags "-s -w -buildid=" -tags no_gvisor,with_quic,with_wireguard,with_acme ./cmd/sing-box
 popd
 
 sudo systemctl stop sing-box
