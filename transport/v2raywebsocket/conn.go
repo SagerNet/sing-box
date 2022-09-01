@@ -167,6 +167,9 @@ func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
 
 func wrapError(err error) error {
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		return io.EOF
+	}
+	if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
 		return net.ErrClosed
 	}
 	return err

@@ -182,9 +182,6 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, al
 	})
 
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeVMess,
@@ -231,9 +228,6 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 	})
 
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -267,9 +261,6 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 
 func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

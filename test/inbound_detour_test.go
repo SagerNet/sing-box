@@ -13,9 +13,6 @@ func TestChainedInbound(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

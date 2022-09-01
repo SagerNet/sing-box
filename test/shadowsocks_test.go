@@ -77,9 +77,6 @@ func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, pass
 		Cmd:        []string{"-s", F.ToString("127.0.0.1:", serverPort), "-b", F.ToString("0.0.0.0:", clientPort), "-m", method, "-k", password, "-U"},
 	})
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeShadowsocks,
@@ -105,9 +102,6 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 		Cmd:        []string{"-s", F.ToString("0.0.0.0:", serverPort), "-m", method, "-k", password, "-U"},
 	})
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -138,9 +132,6 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 
 func testShadowsocksSelf(t *testing.T, method string, password string) {
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -199,9 +190,6 @@ func TestShadowsocksUoT(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

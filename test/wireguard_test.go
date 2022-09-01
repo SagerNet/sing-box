@@ -21,9 +21,6 @@ func TestWireGuard(t *testing.T) {
 	})
 	time.Sleep(5 * time.Second)
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
