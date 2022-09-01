@@ -37,9 +37,6 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -101,9 +98,6 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 func testVMessMux(t *testing.T, protocol string) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

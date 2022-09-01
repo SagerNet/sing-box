@@ -11,31 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestV2RayWebscoketSelf(t *testing.T) {
-	t.Run("basic", func(t *testing.T) {
-		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeWebsocket,
-		})
-	})
-	t.Run("v2ray early data", func(t *testing.T) {
-		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeWebsocket,
-			WebsocketOptions: option.V2RayWebsocketOptions{
-				MaxEarlyData: 2048,
-			},
-		})
-	})
-	t.Run("xray early data", func(t *testing.T) {
-		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeWebsocket,
-			WebsocketOptions: option.V2RayWebsocketOptions{
-				MaxEarlyData:        2048,
-				EarlyDataHeaderName: "Sec-WebSocket-Protocol",
-			},
-		})
-	})
-}
-
 func TestV2RayHTTPSelf(t *testing.T) {
 	testV2RayTransportSelf(t, &option.V2RayTransportOptions{
 		Type: C.V2RayTransportTypeHTTP,
@@ -69,9 +44,6 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -148,9 +120,6 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -229,9 +198,6 @@ func TestVMessQUICSelf(t *testing.T) {
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -307,9 +273,6 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

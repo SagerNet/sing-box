@@ -10,9 +10,6 @@ import (
 
 func TestProxyProtocol(t *testing.T) {
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

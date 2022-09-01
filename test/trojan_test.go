@@ -20,9 +20,6 @@ func TestTrojanOutbound(t *testing.T) {
 		},
 	})
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
@@ -58,9 +55,6 @@ func TestTrojanOutbound(t *testing.T) {
 func TestTrojanSelf(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Log: &option.LogOptions{
-			Level: "error",
-		},
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,

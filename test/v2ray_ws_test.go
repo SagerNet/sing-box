@@ -13,16 +13,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestV2RayGRPCInbound(t *testing.T) {
-	t.Run("origin", func(t *testing.T) {
-		testV2RayGRPCInbound(t, false)
+func TestV2RayWebsocket(t *testing.T) {
+	t.Run("self", func(t *testing.T) {
+		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+		})
 	})
-	t.Run("lite", func(t *testing.T) {
-		testV2RayGRPCInbound(t, true)
+	t.Run("self-early-data", func(t *testing.T) {
+		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+			WebsocketOptions: option.V2RayWebsocketOptions{
+				MaxEarlyData: 2048,
+			},
+		})
+	})
+	t.Run("self-xray-early-data", func(t *testing.T) {
+		testV2RayTransportSelf(t, &option.V2RayTransportOptions{
+			Type: C.V2RayTransportTypeWebsocket,
+			WebsocketOptions: option.V2RayWebsocketOptions{
+				MaxEarlyData:        2048,
+				EarlyDataHeaderName: "Sec-WebSocket-Protocol",
+			},
+		})
+	})
+	t.Run("inbound", func(t *testing.T) {
+		testV2RayWebsocketInbound(t, 0, "")
+	})
+	t.Run("inbound-early-data", func(t *testing.T) {
+		testV2RayWebsocketInbound(t, 2048, "")
+	})
+	t.Run("inbound-xray-early-data", func(t *testing.T) {
+		testV2RayWebsocketInbound(t, 2048, "Sec-WebSocket-Protocol")
+	})
+	t.Run("outbound", func(t *testing.T) {
+		testV2RayWebsocketOutbound(t, 0, "")
+	})
+	t.Run("outbound-early-data", func(t *testing.T) {
+		testV2RayWebsocketOutbound(t, 2048, "")
+	})
+	t.Run("outbound-xray-early-data", func(t *testing.T) {
+		testV2RayWebsocketOutbound(t, 2048, "Sec-WebSocket-Protocol")
 	})
 }
 
-func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
+func testV2RayWebsocketInbound(t *testing.T, maxEarlyData uint32, earlyDataHeaderName string) {
 	userId, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
@@ -48,26 +82,30 @@ func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
 						KeyPath:         keyPem,
 					},
 					Transport: &option.V2RayTransportOptions{
-						Type: C.V2RayTransportTypeGRPC,
-						GRPCOptions: option.V2RayGRPCOptions{
-							ServiceName: "TunService",
-							ForceLite:   forceLite,
+						Type: C.V2RayTransportTypeWebsocket,
+						WebsocketOptions: option.V2RayWebsocketOptions{
+							MaxEarlyData:        maxEarlyData,
+							EarlyDataHeaderName: earlyDataHeaderName,
 						},
 					},
 				},
 			},
 		},
 	})
-	content, err := os.ReadFile("config/vmess-grpc-client.json")
+	content, err := os.ReadFile("config/vmess-ws-client.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
 	require.NoError(t, err)
 
 	config.MustKey("inbounds").MustIndex(0).MustKey("port").SetNumeric(float64(clientPort))
-	outbound := config.MustKey("outbounds").MustIndex(0).MustKey("settings").MustKey("vnext").MustIndex(0)
-	outbound.MustKey("port").SetNumeric(float64(serverPort))
-	user := outbound.MustKey("users").MustIndex(0)
+	outbound := config.MustKey("outbounds").MustIndex(0)
+	settings := outbound.MustKey("settings").MustKey("vnext").MustIndex(0)
+	settings.MustKey("port").SetNumeric(float64(serverPort))
+	user := settings.MustKey("users").MustIndex(0)
 	user.MustKey("id").SetString(userId.String())
+	wsSettings := outbound.MustKey("streamSettings").MustKey("wsSettings")
+	wsSettings.MustKey("maxEarlyData").SetNumeric(float64(maxEarlyData))
+	wsSettings.MustKey("earlyDataHeaderName").SetString(earlyDataHeaderName)
 	content, err = ajson.Marshal(config)
 	require.NoError(t, err)
 
@@ -85,21 +123,12 @@ func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
 	testSuitSimple(t, clientPort, testPort)
 }
 
-func TestV2RayGRPCOutbound(t *testing.T) {
-	t.Run("origin", func(t *testing.T) {
-		testV2RayGRPCOutbound(t, false)
-	})
-	t.Run("lite", func(t *testing.T) {
-		testV2RayGRPCOutbound(t, true)
-	})
-}
-
-func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
+func testV2RayWebsocketOutbound(t *testing.T, maxEarlyData uint32, earlyDataHeaderName string) {
 	userId, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 
-	content, err := os.ReadFile("config/vmess-grpc-server.json")
+	content, err := os.ReadFile("config/vmess-ws-server.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
 	require.NoError(t, err)
@@ -107,6 +136,9 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 	inbound := config.MustKey("inbounds").MustIndex(0)
 	inbound.MustKey("port").SetNumeric(float64(serverPort))
 	inbound.MustKey("settings").MustKey("clients").MustIndex(0).MustKey("id").SetString(userId.String())
+	wsSettings := inbound.MustKey("streamSettings").MustKey("wsSettings")
+	wsSettings.MustKey("maxEarlyData").SetNumeric(float64(maxEarlyData))
+	wsSettings.MustKey("earlyDataHeaderName").SetString(earlyDataHeaderName)
 	content, err = ajson.Marshal(config)
 	require.NoError(t, err)
 
@@ -151,10 +183,10 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 						CertificatePath: certPem,
 					},
 					Transport: &option.V2RayTransportOptions{
-						Type: C.V2RayTransportTypeGRPC,
-						GRPCOptions: option.V2RayGRPCOptions{
-							ServiceName: "TunService",
-							ForceLite:   forceLite,
+						Type: C.V2RayTransportTypeWebsocket,
+						WebsocketOptions: option.V2RayWebsocketOptions{
+							MaxEarlyData:        maxEarlyData,
+							EarlyDataHeaderName: earlyDataHeaderName,
 						},
 					},
 				},
@@ -162,50 +194,4 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 		},
 	})
 	testSuitSimple(t, clientPort, testPort)
-}
-
-func TestV2RayGRPCLite(t *testing.T) {
-	t.Run("server", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-			},
-		})
-	})
-	t.Run("client", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		})
-	})
-	t.Run("self", func(t *testing.T) {
-		testV2RayTransportSelfWith(t, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		}, &option.V2RayTransportOptions{
-			Type: C.V2RayTransportTypeGRPC,
-			GRPCOptions: option.V2RayGRPCOptions{
-				ServiceName: "TunService",
-				ForceLite:   true,
-			},
-		})
-	})
 }
