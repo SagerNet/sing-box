@@ -35,7 +35,7 @@
       "password": "8JCsPssfgS8tiRwiMlhARg==",
       "detour": "shadowtls-out",
       "multiplex": {
-        "enabled": 1,
+        "enabled": true,
         "max_connections": 4,
         "min_streams": 4
       }
