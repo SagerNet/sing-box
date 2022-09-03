@@ -16,11 +16,13 @@
 
 ### Fields
 
+| Field                                                                             | Available Context |
+|-----------------------------------------------------------------------------------|-------------------|
+| `bind_interface` /`bind_address` /`routing_mark` /`reuse_addr` /`connect_timeout` | `detour` not set  |
+
 #### detour
 
 The tag of the upstream outbound.
-
-Other dial fields will be ignored when enabled.
 
 #### bind_interface
 
@@ -57,13 +59,16 @@ One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
 If set, the requested domain name will be resolved to IP before connect.
 
-`dns.strategy` will be used if empty.
+| Outbound | Effected domains         | Fallback Value                            |
+|----------|--------------------------|-------------------------------------------|
+| `direct` | Domain in request        | Take `inbound.domain_strategy` if not set | 
+| others   | Domain in server address | /                                         |
 
 #### fallback_delay
 
 The length of time to wait before spawning a RFC 6555 Fast Fallback connection.
-That is, is the amount of time to wait for IPv6 to succeed before assuming
-that IPv6 is misconfigured and falling back to IPv4 if `prefer_ipv4` is set.
+That is, is the amount of time to wait for connection to succeed before assuming
+that IPv4/IPv6 is misconfigured and falling back to other type of addresses.
 If zero, a default delay of 300ms is used.
 
-Only take effect when `domain_strategy` is `prefer_ipv4` or `prefer_ipv6`.
+Only take effect when `domain_strategy` is set.
