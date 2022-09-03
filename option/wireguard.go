@@ -1,7 +1,7 @@
 package option
 
 type WireGuardOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	LocalAddress  Listable[string] `json:"local_address"`
 	PrivateKey    string           `json:"private_key"`

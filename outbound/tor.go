@@ -66,7 +66,7 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			tag:      tag,
 		},
 		ctx:       ctx,
-		proxy:     NewProxyListener(ctx, logger, dialer.NewOutbound(router, options.OutboundDialerOptions)),
+		proxy:     NewProxyListener(ctx, logger, dialer.New(router, options.DialerOptions)),
 		startConf: &startConf,
 		options:   options.Options,
 	}, nil

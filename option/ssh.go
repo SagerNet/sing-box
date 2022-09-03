@@ -1,7 +1,7 @@
 package option
 
 type SSHOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	User                 string           `json:"user,omitempty"`
 	Password             string           `json:"password,omitempty"`

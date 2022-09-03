@@ -17,7 +17,7 @@ type HysteriaInboundOptions struct {
 }
 
 type HysteriaOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	Up                  string              `json:"up,omitempty"`
 	UpMbps              int                 `json:"up_mbps,omitempty"`

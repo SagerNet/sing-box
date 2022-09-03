@@ -64,7 +64,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		},
 		ctx:        ctx,
 		serverAddr: options.ServerOptions.Build(),
-		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:     dialer.New(router, options.DialerOptions),
 	}
 	var endpointIp netip.Addr
 	if !outbound.serverAddr.IsFqdn() {

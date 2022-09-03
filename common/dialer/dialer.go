@@ -10,15 +10,12 @@ import (
 )
 
 func New(router adapter.Router, options option.DialerOptions) N.Dialer {
+	var dialer N.Dialer
 	if options.Detour == "" {
-		return NewDefault(router, options)
+		dialer = NewDefault(router, options)
 	} else {
-		return NewDetour(router, options.Detour)
+		dialer = NewDetour(router, options.Detour)
 	}
-}
-
-func NewOutbound(router adapter.Router, options option.OutboundDialerOptions) N.Dialer {
-	dialer := New(router, options.DialerOptions)
 	domainStrategy := dns.DomainStrategy(options.DomainStrategy)
 	if domainStrategy != dns.DomainStrategyAsIS || options.Detour == "" {
 		dialer = NewResolveDialer(router, dialer, domainStrategy, time.Duration(options.FallbackDelay))

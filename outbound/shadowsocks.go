@@ -44,7 +44,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 			logger:   logger,
 			tag:      tag,
 		},
-		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:     dialer.New(router, options.DialerOptions),
 		method:     method,
 		serverAddr: options.ServerOptions.Build(),
 		uot:        options.UoT,
