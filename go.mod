@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	berty.tech/go-libtor v1.0.385
+	github.com/cloudflare/circl v1.2.1-0.20220831060716-4cf0150356fc
 	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go v1.1.2
 	github.com/dustin/go-humanize v1.0.0
