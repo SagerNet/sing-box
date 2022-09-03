@@ -11,7 +11,7 @@ type ShadowTLSHandshakeOptions struct {
 }
 
 type ShadowTLSOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	TLS *OutboundTLSOptions `json:"tls,omitempty"`
 }

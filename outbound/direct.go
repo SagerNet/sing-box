@@ -45,7 +45,7 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 		},
 		domainStrategy: dns.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),
-		dialer:         dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:         dialer.New(router, options.DialerOptions),
 		proxyProto:     options.ProxyProtocol,
 	}
 	if options.ProxyProtocol > 2 {

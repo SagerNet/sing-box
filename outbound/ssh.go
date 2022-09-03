@@ -47,7 +47,7 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			tag:      tag,
 		},
 		ctx:               ctx,
-		dialer:            dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:            dialer.New(router, options.DialerOptions),
 		serverAddr:        options.ServerOptions.Build(),
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,

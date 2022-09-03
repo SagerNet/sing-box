@@ -59,10 +59,8 @@ func TestChainedInbound(t *testing.T) {
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
 					Method:   method,
 					Password: password,
-					OutboundDialerOptions: option.OutboundDialerOptions{
-						DialerOptions: option.DialerOptions{
-							Detour: "detour-out",
-						},
+					DialerOptions: option.DialerOptions{
+						Detour: "detour-out",
 					},
 				},
 			},

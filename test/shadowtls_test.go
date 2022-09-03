@@ -60,10 +60,8 @@ func TestShadowTLS(t *testing.T) {
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
 					Method:   method,
 					Password: password,
-					OutboundDialerOptions: option.OutboundDialerOptions{
-						DialerOptions: option.DialerOptions{
-							Detour: "detour",
-						},
+					DialerOptions: option.DialerOptions{
+						Detour: "detour",
 					},
 				},
 			},
@@ -131,10 +129,8 @@ func TestShadowTLSOutbound(t *testing.T) {
 			{
 				Type: C.TypeSocks,
 				SocksOptions: option.SocksOutboundOptions{
-					OutboundDialerOptions: option.OutboundDialerOptions{
-						DialerOptions: option.DialerOptions{
-							Detour: "detour",
-						},
+					DialerOptions: option.DialerOptions{
+						Detour: "detour",
 					},
 				},
 			},

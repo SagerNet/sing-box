@@ -14,7 +14,7 @@ type VMessUser struct {
 }
 
 type VMessOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	UUID                string                 `json:"uuid"`
 	Security            string                 `json:"security"`

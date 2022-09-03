@@ -113,10 +113,6 @@ type DialerOptions struct {
 	ReuseAddr      bool           `json:"reuse_addr,omitempty"`
 	ConnectTimeout Duration       `json:"connect_timeout,omitempty"`
 	TCPFastOpen    bool           `json:"tcp_fast_open,omitempty"`
-}
-
-type OutboundDialerOptions struct {
-	DialerOptions
 	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`
 	FallbackDelay  Duration       `json:"fallback_delay,omitempty"`
 }

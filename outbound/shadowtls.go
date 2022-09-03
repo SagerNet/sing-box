@@ -34,7 +34,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 			logger:   logger,
 			tag:      tag,
 		},
-		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:     dialer.New(router, options.DialerOptions),
 		serverAddr: options.ServerOptions.Build(),
 	}
 	if options.TLS == nil || !options.TLS.Enabled {

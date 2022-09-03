@@ -22,7 +22,7 @@ type ShadowsocksDestination struct {
 }
 
 type ShadowsocksOutboundOptions struct {
-	OutboundDialerOptions
+	DialerOptions
 	ServerOptions
 	Method           string            `json:"method"`
 	Password         string            `json:"password"`

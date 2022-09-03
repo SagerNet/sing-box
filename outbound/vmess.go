@@ -42,7 +42,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			logger:   logger,
 			tag:      tag,
 		},
-		dialer:     dialer.NewOutbound(router, options.OutboundDialerOptions),
+		dialer:     dialer.New(router, options.DialerOptions),
 		serverAddr: options.ServerOptions.Build(),
 	}
 	var err error
