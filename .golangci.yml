@@ -7,6 +7,10 @@ linters:
     - staticcheck
     - paralleltest
 
+run:
+  skip-dirs:
+    - transport/cloudflaretls
+
 linters-settings:
 #  gci:
 #    sections:
