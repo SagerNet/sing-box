@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -125,7 +126,7 @@ func (h *trojanDialer) DialContext(ctx context.Context, network string, destinat
 	case N.NetworkTCP:
 		return trojan.NewClientConn(conn, h.key, destination), nil
 	case N.NetworkUDP:
-		return trojan.NewClientPacketConn(conn, h.key), nil
+		return &bufio.BindPacketConn{PacketConn: trojan.NewClientPacketConn(conn, h.key), Addr: destination}, nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
@@ -136,5 +137,5 @@ func (h *trojanDialer) ListenPacket(ctx context.Context, destination M.Socksaddr
 	if err != nil {
 		return nil, err
 	}
-	return conn.(*trojan.ClientPacketConn), nil
+	return conn.(net.PacketConn), nil
 }
