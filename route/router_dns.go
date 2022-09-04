@@ -52,6 +52,7 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 		case dnsmessage.TypeAAAA:
 			metadata.IPVersion = 6
 		}
+		metadata.Domain = string(message.Questions[0].Name.Data[:message.Questions[0].Name.Length-1])
 	}
 	ctx, transport, strategy := r.matchDNS(ctx)
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
@@ -68,6 +69,8 @@ func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dn
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Domain = domain
 	ctx, transport, transportStrategy := r.matchDNS(ctx)
 	if strategy == dns.DomainStrategyAsIS {
 		strategy = transportStrategy
