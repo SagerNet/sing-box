@@ -1,9 +1,20 @@
+#### 1.0-rc1
+
+* Fix write log timestamp
+* Fix write zero
+* Fix dial parallel in direct outbound
+* Fix write trojan udp
+* Fix DNS routing
+* Add attribute support for geosite
+* Update documentation for [Dial Fields](/configuration/shared/dial)
+
 #### 1.0-beta3
 
 * Add [chained inbound](/configuration/shared/listen#detour) support
 * Add process_path rule item
 * Add macOS redirect support
-* Add ShadowTLS [Inbound](/configuration/inbound/shadowtls), [Outbound](/configuration/outbound/shadowtls) and [Examples](/examples/shadowtls)
+* Add ShadowTLS [Inbound](/configuration/inbound/shadowtls), [Outbound](/configuration/outbound/shadowtls)
+  and [Examples](/examples/shadowtls)
 * Fix search android package in non-owner users
 * Fix socksaddr type condition
 * Fix smux session status
