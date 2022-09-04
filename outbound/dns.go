@@ -77,12 +77,9 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 	if err != nil {
 		return err
 	}
-	if len(message.Questions) > 0 {
-		question := message.Questions[0]
-		metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-	}
+	metadataInQuery := metadata
 	go func() error {
-		response, err := d.router.Exchange(ctx, &message)
+		response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 		if err != nil {
 			return err
 		}
@@ -125,13 +122,10 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			if err != nil {
 				return err
 			}
-			if len(message.Questions) > 0 {
-				question := message.Questions[0]
-				metadata.Domain = string(question.Name.Data[:question.Name.Length-1])
-			}
 			timeout.Update()
+			metadataInQuery := metadata
 			go func() error {
-				response, err := d.router.Exchange(ctx, &message)
+				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
 					return err
 				}
