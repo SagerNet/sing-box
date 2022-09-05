@@ -20,7 +20,7 @@ type systemProxy struct {
 	isMixed       bool
 }
 
-func (p *systemProxy) update() error {
+func (p *systemProxy) update(event int) error {
 	newInterfaceName := p.monitor.DefaultInterfaceName(netip.IPv4Unspecified())
 	if p.interfaceName == newInterfaceName {
 		return nil
@@ -88,7 +88,7 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 		port:    port,
 		isMixed: isMixed,
 	}
-	err := proxy.update()
+	err := proxy.update(tun.EventInterfaceUpdate)
 	if err != nil {
 		return nil, err
 	}

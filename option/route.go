@@ -16,6 +16,7 @@ type RouteOptions struct {
 	Final               string          `json:"final,omitempty"`
 	FindProcess         bool            `json:"find_process,omitempty"`
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
+	OverrideAndroidVPN  bool            `json:"override_android_vpn,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
 	DefaultMark         int             `json:"default_mark,omitempty"`
 }
