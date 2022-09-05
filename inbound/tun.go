@@ -86,6 +86,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			IncludeAndroidUser: options.IncludeAndroidUser,
 			IncludePackage:     options.IncludePackage,
 			ExcludePackage:     options.ExcludePackage,
+			InterfaceMonitor:   router.InterfaceMonitor(),
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,

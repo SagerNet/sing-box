@@ -244,7 +244,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 
 	needInterfaceMonitor := options.AutoDetectInterface ||
 		C.IsDarwin && common.Any(inbounds, func(inbound option.Inbound) bool {
-			return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy
+			return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || C.IsAndroid && inbound.TunOptions.AutoRoute
 		})
 
 	if router.interfaceBindManager != nil || needInterfaceMonitor {
@@ -258,12 +258,24 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 
 	if router.networkMonitor != nil && needInterfaceMonitor {
-		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor)
+		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
+			OverrideAndroidVPN: options.OverrideAndroidVPN,
+		})
 		if err != nil {
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
-		interfaceMonitor.RegisterCallback(func() error {
-			router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+		interfaceMonitor.RegisterCallback(func(event int) error {
+			if C.IsAndroid {
+				var vpnStatus string
+				if router.interfaceMonitor.AndroidVPNEnabled() {
+					vpnStatus = "enabled"
+				} else {
+					vpnStatus = "disabled"
+				}
+				router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+			} else {
+				router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+			}
 			return nil
 		})
 		router.interfaceMonitor = interfaceMonitor
@@ -667,12 +679,12 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 		}
 		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.AddrPort(), originDestination)
 		if err != nil {
-			r.logger.DebugContext(ctx, "failed to search process: ", err)
+			r.logger.InfoContext(ctx, "failed to search process: ", err)
 		} else {
 			if processInfo.ProcessPath != "" {
-				r.logger.DebugContext(ctx, "found process path: ", processInfo.ProcessPath)
+				r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath)
 			} else if processInfo.PackageName != "" {
-				r.logger.DebugContext(ctx, "found package name: ", processInfo.PackageName)
+				r.logger.InfoContext(ctx, "found package name: ", processInfo.PackageName)
 			} else if processInfo.UserId != -1 {
 				if /*needUserName &&*/ true {
 					osUser, _ := user.LookupId(F.ToString(processInfo.UserId))
@@ -681,9 +693,9 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 					}
 				}
 				if processInfo.User != "" {
-					r.logger.DebugContext(ctx, "found user: ", processInfo.User)
+					r.logger.InfoContext(ctx, "found user: ", processInfo.User)
 				} else {
-					r.logger.DebugContext(ctx, "found user id: ", processInfo.UserId)
+					r.logger.InfoContext(ctx, "found user id: ", processInfo.UserId)
 				}
 			}
 			metadata.ProcessInfo = processInfo
