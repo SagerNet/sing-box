@@ -275,6 +275,7 @@ func (c *wireClientBind) Open(port uint16) (fns []conn.ReceiveFunc, actualPort u
 func (c *wireClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
 	udpConn, err := c.connect()
 	if err != nil {
+		err = &wireError{err}
 		return
 	}
 	n, err = udpConn.Read(b)
@@ -330,10 +331,6 @@ func (w *wireError) Timeout() bool {
 
 func (w *wireError) Temporary() bool {
 	return true
-}
-
-func (w *wireError) Unwrap() error {
-	return w.cause
 }
 
 type wireConn struct {
