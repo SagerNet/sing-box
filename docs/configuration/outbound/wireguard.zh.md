@@ -8,7 +8,6 @@
   "server": "127.0.0.1",
   "server_port": 1080,
   "local_address": [
-    "10.0.0.1",
     "10.0.0.2/32"
   ],
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
@@ -45,7 +44,7 @@
 
 接口的 IPv4/IPv6 地址或地址段的列表您。
 
-要分配给接口的 IP（v4 或 v6）地址列表（可以选择带有 CIDR 掩码）。
+要分配给接口的 IP（v4 或 v6）地址段列表。
 
 #### private_key
 

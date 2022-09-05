@@ -40,7 +40,7 @@ type Tun struct {
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
 	tunName := options.InterfaceName
 	if tunName == "" {
-		tunName = tun.DefaultInterfaceName()
+		tunName = tun.CalculateInterfaceName("")
 	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
@@ -77,8 +77,8 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		tunOptions: tun.Options{
 			Name:               tunName,
 			MTU:                tunMTU,
-			Inet4Address:       options.Inet4Address.Build(),
-			Inet6Address:       options.Inet6Address.Build(),
+			Inet4Address:       common.Map(options.Inet4Address, option.ListenPrefix.Build),
+			Inet6Address:       common.Map(options.Inet6Address, option.ListenPrefix.Build),
 			AutoRoute:          options.AutoRoute,
 			StrictRoute:        options.StrictRoute,
 			IncludeUID:         includeUID,
@@ -87,6 +87,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			IncludePackage:     options.IncludePackage,
 			ExcludePackage:     options.ExcludePackage,
 			InterfaceMonitor:   router.InterfaceMonitor(),
+			TableIndex:         2022,
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
