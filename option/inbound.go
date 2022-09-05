@@ -114,6 +114,7 @@ type ListenOptions struct {
 	Listen        ListenAddress `json:"listen"`
 	ListenPort    uint16        `json:"listen_port,omitempty"`
 	TCPFastOpen   bool          `json:"tcp_fast_open,omitempty"`
+	UDPFragment   bool          `json:"udp_fragment,omitempty"`
 	UDPTimeout    int64         `json:"udp_timeout,omitempty"`
 	ProxyProtocol bool          `json:"proxy_protocol,omitempty"`
 	Detour        string        `json:"detour,omitempty"`

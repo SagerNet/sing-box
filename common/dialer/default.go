@@ -112,6 +112,10 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	if options.TCPFastOpen {
 		warnTFOOnUnsupportedPlatform.Check()
 	}
+	if !options.UDPFragment {
+		dialer.Control = control.Append(dialer.Control, control.DisableUDPFragment())
+		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
+	}
 	var bindUDPAddr string
 	udpDialer := dialer
 	var bindAddress netip.Addr
