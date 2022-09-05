@@ -184,9 +184,6 @@ func (p *ListenPrefix) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (p *ListenPrefix) Build() netip.Prefix {
-	if p == nil {
-		return netip.Prefix{}
-	}
-	return netip.Prefix(*p)
+func (p ListenPrefix) Build() netip.Prefix {
+	return netip.Prefix(p)
 }
