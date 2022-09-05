@@ -8,7 +8,6 @@
   "server": "127.0.0.1",
   "server_port": 1080,
   "local_address": [
-    "10.0.0.1",
     "10.0.0.2/32"
   ],
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
@@ -43,7 +42,7 @@ The server port.
 
 ==Required==
 
-List of IP (v4 or v6) addresses (optionally with CIDR masks) to be assigned to the interface.
+List of IP (v4 or v6) address prefixes to be assigned to the interface.
 
 #### private_key
 
