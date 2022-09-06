@@ -40,9 +40,10 @@ func (a *myInboundAdapter) loopTCPIn() {
 	for {
 		conn, err := tcpListener.Accept()
 		if err != nil {
-			return
+			a.logger.ErrorContext(a.ctx, err)
+		} else {
+			go a.injectTCP(conn, adapter.InboundContext{})
 		}
-		go a.injectTCP(conn, adapter.InboundContext{})
 	}
 }
 
