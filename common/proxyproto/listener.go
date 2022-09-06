@@ -22,7 +22,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 	}
 	bufReader := std_bufio.NewReader(conn)
 	header, err := proxyproto.Read(bufReader)
-	if err != nil {
+	if err != nil && err != proxyproto.ErrNoProxyProtocol {
 		return nil, err
 	}
 	if bufReader.Buffered() > 0 {
@@ -33,8 +33,11 @@ func (l *Listener) Accept() (net.Conn, error) {
 		}
 		conn = bufio.NewCachedConn(conn, cache)
 	}
-	return &bufio.AddrConn{Conn: conn, Metadata: M.Metadata{
-		Source:      M.SocksaddrFromNet(header.SourceAddr),
-		Destination: M.SocksaddrFromNet(header.DestinationAddr),
-	}}, nil
+	if header != nil {
+		return &bufio.AddrConn{Conn: conn, Metadata: M.Metadata{
+			Source:      M.SocksaddrFromNet(header.SourceAddr),
+			Destination: M.SocksaddrFromNet(header.DestinationAddr),
+		}}, nil
+	}
+	return conn, nil
 }
