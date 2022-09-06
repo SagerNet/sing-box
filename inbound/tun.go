@@ -144,7 +144,17 @@ func (t *Tun) Start() error {
 		return E.Cause(err, "configure tun interface")
 	}
 	t.tunIf = tunIf
-	t.tunStack, err = tun.NewStack(t.ctx, t.stack, tunIf, t.tunOptions.MTU, t.endpointIndependentNat, t.udpTimeout, t)
+	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
+		Context:                t.ctx,
+		Tun:                    tunIf,
+		MTU:                    t.tunOptions.MTU,
+		Name:                   t.tunOptions.Name,
+		Inet4Address:           t.tunOptions.Inet4Address,
+		Inet6Address:           t.tunOptions.Inet6Address,
+		EndpointIndependentNat: t.endpointIndependentNat,
+		UDPTimeout:             t.udpTimeout,
+		Handler:                t,
+	})
 	if err != nil {
 		return err
 	}
