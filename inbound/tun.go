@@ -44,7 +44,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
-		tunMTU = 1500
+		tunMTU = 9000
 	}
 	var udpTimeout int64
 	if options.UDPTimeout != 0 {
