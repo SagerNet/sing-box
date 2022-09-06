@@ -4,12 +4,44 @@ Documentation=https://sing-box.sagernet.org
 After=network.target nss-lookup.target
 
 [Service]
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 ExecStart=/usr/bin/sing-box run -c /etc/sing-box/config.json
 Restart=on-failure
 RestartSec=10s
-LimitNOFILE=infinity
+TimeoutStopSec=10s
+
+LimitNOFILE=1048576
+LimitNPROC=512
+
+DynamicUser=yes
+CacheDirectory=sing-box
+WorkingDirectory=/var/cache/sing-box
+StateDirectory=sing-box
+Environment=XDG_DATA_HOME=/var/lib/sing-box
+
+# Hardening options
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+DevicePolicy=closed
+LockPersonality=true
+MemoryAccounting=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=strict
+RemoveIPC=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target
