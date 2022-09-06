@@ -40,7 +40,11 @@ func (a *myInboundAdapter) loopTCPIn() {
 	for {
 		conn, err := tcpListener.Accept()
 		if err != nil {
-			return
+			if E.IsClosed(err) {
+				return
+			}
+			a.logger.Error("accept: ", err)
+			continue
 		}
 		go a.injectTCP(conn, adapter.InboundContext{})
 	}
