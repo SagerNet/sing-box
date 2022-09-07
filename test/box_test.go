@@ -22,6 +22,10 @@ func startInstance(t *testing.T, options option.Options) {
 		options.Log = &option.LogOptions{
 			Level: "trace",
 		}
+	} else {
+		options.Log = &option.LogOptions{
+			Level: "warning",
+		}
 	}
 	var instance *box.Box
 	var err error
