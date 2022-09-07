@@ -7,7 +7,7 @@ ENV GOPROXY ${GOPROXY}
 ENV CGO_ENABLED=0
 RUN set -ex \
     && apk add git build-base \
-    && export COMMIT=$(git rev-parse HEAD) \
+    && export COMMIT=$(git rev-parse --short HEAD) \
     && go build -v -trimpath -tags 'no_gvisor,with_quic,with_wireguard,with_acme' \
         -o /go/bin/sing-box \
         -ldflags "-X github.com/sagernet/sing-box/constant.Commit=${COMMIT} -w -s -buildid=" \

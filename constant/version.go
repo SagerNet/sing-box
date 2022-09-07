@@ -1,6 +1,6 @@
 package constant
 
 var (
-	Version = "1.0-rc1"
+	Version = "1.0"
 	Commit  = ""
 )
