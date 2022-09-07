@@ -20,23 +20,23 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220903085538-02b9ca1cc133
+	github.com/sagernet/sing v0.0.0-20220905164441-f3d346256d4a
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220828031750-185b6c880a83
+	github.com/sagernet/sing-tun v0.0.0-20220909054347-575ac2941790
 	github.com/sagernet/sing-vmess v0.0.0-20220907073918-72d7fdf6825f
-	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
+	github.com/sagernet/smux v0.0.0-20220907034654-1acb8471c15a
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
-	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
-	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
-	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
+	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7
+	golang.org/x/sys v0.0.0-20220908164124-27713097b956
+	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
-	gvisor.dev/gvisor v0.0.0-20220819163037-ba6e795b139a
+	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 
 //replace github.com/sagernet/sing => ../sing
@@ -59,7 +59,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagernet/abx-go v0.0.0-20220819185957-dba1257d738e // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
-	github.com/sagernet/netlink v0.0.0-20220826133217-3fb4ff92ea17 // indirect
+	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
