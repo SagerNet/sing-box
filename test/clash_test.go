@@ -183,6 +183,7 @@ func testPingPongWithConn(t *testing.T, port uint16, cc func() (net.Conn, error)
 	if err != nil {
 		return err
 	}
+	defer c.Close()
 
 	pingCh, pongCh, test := newPingPongPair()
 	go func() {
@@ -245,6 +246,7 @@ func testPingPongWithPacketConn(t *testing.T, port uint16, pcc func() (net.Packe
 	if err != nil {
 		return err
 	}
+	defer pc.Close()
 
 	go func() {
 		if _, err := pc.WriteTo([]byte("ping"), rAddr); err != nil {
@@ -301,6 +303,7 @@ func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error
 	if err != nil {
 		return err
 	}
+	defer c.Close()
 
 	go func() {
 		c, err := l.Accept()
@@ -432,6 +435,7 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 	if err != nil {
 		return err
 	}
+	defer pc.Close()
 
 	go func() {
 		sendHash, err := writeRandData(pc, rAddr)
