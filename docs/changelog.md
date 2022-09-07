@@ -1,3 +1,12 @@
+#### 1.0
+
+* Fix wireguard reconnect
+* Fix naive inbound
+* Fix json format error message
+* Fix processing vmess termination signal
+* Fix hysteria stream error
+* Fix listener close when proxyproto failed
+
 #### 1.0-rc1
 
 * Fix write log timestamp
