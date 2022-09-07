@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -46,7 +45,7 @@ func readConfig() (option.Options, error) {
 		return option.Options{}, E.Cause(err, "read config")
 	}
 	var options option.Options
-	err = json.Unmarshal(configContent, &options)
+	err = options.UnmarshalJSON(configContent)
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
