@@ -252,28 +252,26 @@ func (c *naivePaddingConn) read(p []byte) (n int, err error) {
 	}
 	if c.readPadding < kFirstPaddings {
 		c.readPadding++
-		nr, err := io.ReadFull(c.reader, p[0:3])
-		if nr > 0 {
-			nr = int(p[0])*256 + int(p[1])
+		n, err = io.ReadFull(c.reader, p[0:3])
+		if n > 0 {
+			n = int(binary.BigEndian.Uint16(p[0:2]))
 			paddingSize := int(p[2])
 
-			if nr > len(p) {
-				c.readRemaining = nr - len(p)
+			// If buffer is too small, set remaining.
+			if n > len(p) {
+				c.readRemaining = n - len(p)
 				c.paddingRemaining = paddingSize
-				nr = len(p)
+				n = len(p)
 				paddingSize = 0
 			}
 
-			nr, err = io.ReadFull(c.reader, p[0:nr])
-			if nr > 0 && paddingSize > 0 {
+			n, err = io.ReadFull(c.reader, p[0:n])
+			if n > 0 && paddingSize > 0 {
 				var junk [256]byte
 				_, err = io.ReadFull(c.reader, junk[0:paddingSize])
 			}
 		}
-		if err != nil {
-			return 0, err
-		}
-		return nr, nil
+		return
 	}
 	return c.reader.Read(p)
 }
@@ -318,7 +316,7 @@ func (c *naivePaddingConn) write(p []byte) (n int, err error) {
 		_, err = c.writer.Write(p)
 
 		if err != nil {
-			return 0, err
+			return
 		}
 		return len(p), nil
 	}
