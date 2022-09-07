@@ -24,7 +24,7 @@ require (
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220828031750-185b6c880a83
-	github.com/sagernet/sing-vmess v0.0.0-20220903085707-c32fca59bfa1
+	github.com/sagernet/sing-vmess v0.0.0-20220907073918-72d7fdf6825f
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
