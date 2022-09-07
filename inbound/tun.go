@@ -154,6 +154,7 @@ func (t *Tun) Start() error {
 		EndpointIndependentNat: t.endpointIndependentNat,
 		UDPTimeout:             t.udpTimeout,
 		Handler:                t,
+		Logger:                 t.logger,
 	})
 	if err != nil {
 		return err
