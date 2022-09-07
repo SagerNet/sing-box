@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/sagernet/quic-go"
+	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common"
 )
 
@@ -38,6 +39,16 @@ type StreamWrapper struct {
 	quic.Stream
 }
 
+func (s *StreamWrapper) Read(p []byte) (n int, err error) {
+	n, err = s.Stream.Read(p)
+	return n, baderror.WrapQUIC(err)
+}
+
+func (s *StreamWrapper) Write(p []byte) (n int, err error) {
+	n, err = s.Stream.Write(p)
+	return n, baderror.WrapQUIC(err)
+}
+
 func (s *StreamWrapper) LocalAddr() net.Addr {
 	return s.Conn.LocalAddr()
 }
@@ -48,10 +59,6 @@ func (s *StreamWrapper) RemoteAddr() net.Addr {
 
 func (s *StreamWrapper) Upstream() any {
 	return s.Stream
-}
-
-func (s *StreamWrapper) ReaderReplaceable() bool {
-	return true
 }
 
 func (s *StreamWrapper) WriterReplaceable() bool {
