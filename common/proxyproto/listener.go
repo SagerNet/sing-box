@@ -13,6 +13,7 @@ import (
 
 type Listener struct {
 	net.Listener
+	AcceptNoHeader bool
 }
 
 func (l *Listener) Accept() (net.Conn, error) {
@@ -22,7 +23,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 	}
 	bufReader := std_bufio.NewReader(conn)
 	header, err := proxyproto.Read(bufReader)
-	if err != nil && err != proxyproto.ErrNoProxyProtocol {
+	if err != nil && !(l.AcceptNoHeader && err == proxyproto.ErrNoProxyProtocol) {
 		return nil, err
 	}
 	if bufReader.Buffered() > 0 {
