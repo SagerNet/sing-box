@@ -20,7 +20,6 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -361,7 +360,7 @@ func (c *naiveH1Conn) WriteBuffer(buffer *buf.Buffer) error {
 		n, err = bufio.Copy(w, c.Conn)
 	}
 	return n, wrapHttpError(err)
-}*/
+}
 
 func (c *naiveH1Conn) ReadFrom(r io.Reader) (n int64, err error) {
 	if c.writePadding < kFirstPaddings {
@@ -371,13 +370,14 @@ func (c *naiveH1Conn) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 	return n, wrapHttpError(err)
 }
+*/
 
 func (c *naiveH1Conn) Upstream() any {
 	return c.Conn
 }
 
 func (c *naiveH1Conn) ReaderReplaceable() bool {
-	return c.readRemaining == kFirstPaddings
+	return c.readPadding == kFirstPaddings
 }
 
 func (c *naiveH1Conn) WriterReplaceable() bool {
@@ -539,7 +539,7 @@ func (c *naiveH2Conn) WriteBuffer(buffer *buf.Buffer) error {
 		n, err = bufio.Copy(w, c.reader)
 	}
 	return n, wrapHttpError(err)
-}*/
+}
 
 func (c *naiveH2Conn) ReadFrom(r io.Reader) (n int64, err error) {
 	if c.writePadding < kFirstPaddings {
@@ -548,7 +548,7 @@ func (c *naiveH2Conn) ReadFrom(r io.Reader) (n int64, err error) {
 		n, err = bufio.Copy(c.writer, r)
 	}
 	return n, wrapHttpError(err)
-}
+}*/
 
 func (c *naiveH2Conn) Close() error {
 	return common.Close(
@@ -586,7 +586,7 @@ func (c *naiveH2Conn) UpstreamWriter() any {
 }
 
 func (c *naiveH2Conn) ReaderReplaceable() bool {
-	return c.readRemaining == kFirstPaddings
+	return c.readPadding == kFirstPaddings
 }
 
 func (c *naiveH2Conn) WriterReplaceable() bool {
