@@ -36,7 +36,7 @@ func getConfigs(logFactory log.Factory) func(w http.ResponseWriter, r *http.Requ
 		logLevel := logFactory.Level()
 		if logLevel == log.LevelTrace {
 			logLevel = log.LevelDebug
-		} else if logLevel > log.LevelError {
+		} else if logLevel < log.LevelError {
 			logLevel = log.LevelError
 		}
 		render.JSON(w, r, &configSchema{
