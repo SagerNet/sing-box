@@ -61,10 +61,6 @@ func (s *StreamWrapper) Upstream() any {
 	return s.Stream
 }
 
-func (s *StreamWrapper) WriterReplaceable() bool {
-	return true
-}
-
 func (s *StreamWrapper) Close() error {
 	s.CancelRead(0)
 	s.Stream.Close()
