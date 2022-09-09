@@ -1,3 +1,9 @@
+#### 1.0.1
+
+* Fix match 4in6 address in ip_cidr
+* Fix clash api log level format error
+* Fix clash api unknown proxy type
+
 #### 1.0
 
 * Fix wireguard reconnect
