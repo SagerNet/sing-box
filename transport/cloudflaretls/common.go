@@ -834,6 +834,8 @@ type Config struct {
 	// Otherwise, if ECH is enabled, it will send a dummy ECH extension.
 	ClientECHConfigs []ECHConfig
 
+	GetClientECHConfigs func(ctx context.Context, serverName string) ([]ECHConfig, error)
+
 	// ServerECHProvider is the ECH provider used by the client-facing server
 	// for the ECH extension. If the client offers ECH and TLS 1.3 is
 	// negotiated, then the provider is used to compute the HPKE context

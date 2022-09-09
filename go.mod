@@ -17,6 +17,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.0.4
+	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
