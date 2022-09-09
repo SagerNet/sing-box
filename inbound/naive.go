@@ -2,7 +2,6 @@ package inbound
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -32,7 +32,7 @@ var _ adapter.Inbound = (*Naive)(nil)
 type Naive struct {
 	myInboundAdapter
 	authenticator auth.Authenticator
-	tlsConfig     *TLSConfig
+	tlsConfig     tls.ServerConfig
 	httpServer    *http.Server
 	h3Server      any
 }
@@ -59,7 +59,7 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, E.New("missing users")
 	}
 	if options.TLS != nil {
-		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
@@ -69,13 +69,16 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (n *Naive) Start() error {
-	var tlsConfig *tls.Config
+	var tlsConfig *tls.STDConfig
 	if n.tlsConfig != nil {
 		err := n.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
-		tlsConfig = n.tlsConfig.Config()
+		tlsConfig, err = n.tlsConfig.Config()
+		if err != nil {
+			return err
+		}
 	}
 
 	if common.Contains(n.network, N.NetworkTCP) {
@@ -117,7 +120,7 @@ func (n *Naive) Close() error {
 		&n.myInboundAdapter,
 		common.PtrOrNil(n.httpServer),
 		n.h3Server,
-		common.PtrOrNil(n.tlsConfig),
+		n.tlsConfig,
 	)
 }
 

@@ -2,7 +2,6 @@ package v2raygrpclite
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +9,7 @@ import (
 	"net/url"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -32,18 +32,21 @@ type Client struct {
 	url        *url.URL
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
 	return &Client{
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
 		options:    options,
 		transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				if err != nil {
+					return nil, err
+				}
+				return tls.ClientHandshake(ctx, conn, tlsConfig)
 			},
 			ForceAttemptHTTP2: true,
-			TLSClientConfig:   tlsConfig,
 		},
 		url: &url.URL{
 			Scheme: "https",

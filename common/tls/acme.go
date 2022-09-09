@@ -1,6 +1,6 @@
 //go:build with_acme
 
-package inbound
+package tls
 
 import (
 	"context"
