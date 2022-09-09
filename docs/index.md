@@ -13,13 +13,13 @@ The universal proxy platform.
 sing-box requires Golang **1.18.5** or a higher version.
 
 ```bash
-go install -v github.com/sagernet/sing-box/cmd/sing-box@v1.0-beta2
+go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
 Install with options:
 
 ```bash
-go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@v1.0-beta2
+go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
 | Build Tag                          | Description                                                                                                                                                                                                                                                                                                                     |

@@ -13,13 +13,13 @@ description: 欢迎来到该 sing-box 项目的文档页。
 sing-box 需要 Golang **1.18.5** 或更高版本。
 
 ```bash
-go install -v github.com/sagernet/sing-box/cmd/sing-box@v1.0-beta2
+go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
 自定义安装：
 
 ```bash
-go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@v1.0-beta2
+go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
 | 构建标志                         | 描述                                                                                                                                                                                                                                                                           |
