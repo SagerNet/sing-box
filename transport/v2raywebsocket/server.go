@@ -2,7 +2,6 @@ package v2raywebsocket
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"net"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -35,7 +35,7 @@ type Server struct {
 	earlyDataHeaderName string
 }
 
-func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) *Server {
+func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
 	server := &Server{
 		ctx:                 ctx,
 		handler:             handler,
@@ -51,9 +51,15 @@ func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsCon
 		Handler:           server,
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
-		TLSConfig:         tlsConfig,
 	}
-	return server
+	if tlsConfig != nil {
+		stdConfig, err := tlsConfig.Config()
+		if err != nil {
+			return nil, err
+		}
+		server.httpServer.TLSConfig = stdConfig
+	}
+	return server, nil
 }
 
 var upgrader = websocket.Upgrader{

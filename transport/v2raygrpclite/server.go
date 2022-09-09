@@ -2,7 +2,6 @@ package v2raygrpclite
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -32,22 +32,26 @@ func (s *Server) Network() []string {
 	return []string{N.NetworkTCP}
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) *Server {
+func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
 	server := &Server{
 		handler:      handler,
 		errorHandler: errorHandler,
 		path:         fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
 	}
-	if tlsConfig != nil {
-		if !common.Contains(tlsConfig.NextProtos, "h2") {
-			tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
-		}
-	}
 	server.httpServer = &http.Server{
-		Handler:   server,
-		TLSConfig: tlsConfig,
+		Handler: server,
 	}
-	return server
+	if tlsConfig != nil {
+		stdConfig, err := tlsConfig.Config()
+		if err != nil {
+			return nil, err
+		}
+		if !common.Contains(stdConfig.NextProtos, "h2") {
+			stdConfig.NextProtos = append(stdConfig.NextProtos, "h2")
+		}
+		server.httpServer.TLSConfig = stdConfig
+	}
+	return server, nil
 }
 
 func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {

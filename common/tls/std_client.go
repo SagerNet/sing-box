@@ -1,34 +1,26 @@
-package dialer
+package tls
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
 	"net/netip"
 	"os"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 )
 
-type TLSDialer struct {
-	dialer N.Dialer
+type stdClientConfig struct {
 	config *tls.Config
 }
 
-func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Config, error) {
-	if !options.Enabled {
-		return nil, nil
-	}
+func newStdClient(serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
 	} else if serverAddress != "" {
-		if _, err := netip.ParseAddr(serverName); err == nil {
+		if _, err := netip.ParseAddr(serverName); err != nil {
 			serverName = serverAddress
 		}
 	}
@@ -62,14 +54,14 @@ func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Co
 		tlsConfig.NextProtos = options.ALPN
 	}
 	if options.MinVersion != "" {
-		minVersion, err := option.ParseTLSVersion(options.MinVersion)
+		minVersion, err := ParseTLSVersion(options.MinVersion)
 		if err != nil {
 			return nil, E.Cause(err, "parse min_version")
 		}
 		tlsConfig.MinVersion = minVersion
 	}
 	if options.MaxVersion != "" {
-		maxVersion, err := option.ParseTLSVersion(options.MaxVersion)
+		maxVersion, err := ParseTLSVersion(options.MaxVersion)
 		if err != nil {
 			return nil, E.Cause(err, "parse max_version")
 		}
@@ -104,42 +96,13 @@ func TLSConfig(serverAddress string, options option.OutboundTLSOptions) (*tls.Co
 		}
 		tlsConfig.RootCAs = certPool
 	}
-	return &tlsConfig, nil
+	return &stdClientConfig{&tlsConfig}, nil
 }
 
-func NewTLS(dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
-	if !options.Enabled {
-		return dialer, nil
-	}
-	tlsConfig, err := TLSConfig(serverAddress, options)
-	if err != nil {
-		return nil, err
-	}
-	return &TLSDialer{
-		dialer: dialer,
-		config: tlsConfig,
-	}, nil
+func (s *stdClientConfig) Config() (*STDConfig, error) {
+	return s.config, nil
 }
 
-func (d *TLSDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	if network != N.NetworkTCP {
-		return nil, os.ErrInvalid
-	}
-	conn, err := d.dialer.DialContext(ctx, network, destination)
-	if err != nil {
-		return nil, err
-	}
-	return TLSClient(ctx, conn, d.config)
-}
-
-func (d *TLSDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return nil, os.ErrInvalid
-}
-
-func TLSClient(ctx context.Context, conn net.Conn, tlsConfig *tls.Config) (*tls.Conn, error) {
-	tlsConn := tls.Client(conn, tlsConfig)
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
-	defer cancel()
-	err := tlsConn.HandshakeContext(ctx)
-	return tlsConn, err
+func (s *stdClientConfig) Client(conn net.Conn) Conn {
+	return tls.Client(conn, s.config)
 }

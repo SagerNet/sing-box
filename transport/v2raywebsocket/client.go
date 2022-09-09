@@ -2,7 +2,6 @@ package v2raywebsocket
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -28,15 +28,24 @@ type Client struct {
 	earlyDataHeaderName string
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayWebsocketOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayWebsocketOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
 	wsDialer := &websocket.Dialer{
-		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-		},
-		TLSClientConfig:  tlsConfig,
 		ReadBufferSize:   4 * 1024,
 		WriteBufferSize:  4 * 1024,
 		HandshakeTimeout: time.Second * 8,
+	}
+	if tlsConfig != nil {
+		wsDialer.NetDialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			if err != nil {
+				return nil, err
+			}
+			return tls.ClientHandshake(ctx, conn, tlsConfig)
+		}
+	} else {
+		wsDialer.NetDialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+		}
 	}
 	var uri url.URL
 	if tlsConfig == nil {
