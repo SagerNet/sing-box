@@ -187,7 +187,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		return err
 	}
 
-	hello, helloInner, err := c.echOfferOrGrease(helloBase)
+	hello, helloInner, err := c.echOfferOrGrease(ctx, helloBase)
 	if err != nil {
 		return err
 	}
