@@ -21,7 +21,11 @@ func NewDialerFromOptions(router adapter.Router, dialer N.Dialer, serverAddress 
 }
 
 func NewClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
-	return newStdClient(serverAddress, options)
+	if options.ECH != nil && options.ECH.Enabled {
+		return newECHClient(router, serverAddress, options)
+	} else {
+		return newStdClient(serverAddress, options)
+	}
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (net.Conn, error) {
