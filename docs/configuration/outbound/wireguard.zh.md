@@ -7,6 +7,8 @@
 
   "server": "127.0.0.1",
   "server_port": 1080,
+  "system_interface": false,
+  "interface_name": "wg0",
   "local_address": [
     "10.0.0.2/32"
   ],
@@ -37,6 +39,16 @@
 ==必填==
 
 服务器端口。
+
+#### system_interface
+
+使用系统 tun 支持。
+
+需要特权且不能与系统接口冲突。
+
+#### interface_name
+
+启用 `system_interface` 时的自定义设备名称。
 
 #### local_address
 

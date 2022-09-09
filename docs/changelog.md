@@ -1,3 +1,46 @@
+#### 1.1-beta1
+
+* Add support for use with android VPNService **1**
+* Add tun support for WireGuard outbound **2**
+* Add system tun stack **3**
+* Add comment filter for config **4**
+* Add option for allow optional proxy protocol header
+* Add half close for smux
+* Set UDP DF by default **5**
+* Set default tun mtu to 9000
+* Update gVisor to 20220905.0
+
+*1*:
+
+In previous versions, Android VPN would not work with tun enabled.
+
+The usage of tun over VPN and VPN over tun is now supported, see [Tun Inbound](/configuration/inbound/tun#auto_route).
+
+*2*:
+
+In previous releases, WireGuard outbound support was backed by the lower performance gVisor virtual interface.
+
+It achieves the same performance as wireguard-go by providing automatic system interface support.
+
+*3*:
+
+It does not depend on gVisor and has better performance in some cases.
+
+It is less compatible and may not be available in some environments.
+
+*4*:
+
+Annotated json configuration files are now supported.
+
+*5*:
+
+UDP fragmentation is now blocked by default.
+
+Including shadowsocks-libev, shadowsocks-rust and quic-go all disable segmentation by default.
+
+See [Dial Fields](/configuration/shared/dial#udp_fragment)
+and [Listen Fields](/configuration/shared/listen#udp_fragment).
+
 #### 1.0.1
 
 * Fix match 4in6 address in ip_cidr

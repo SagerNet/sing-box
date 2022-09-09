@@ -5,21 +5,26 @@
   "listen": "::",
   "listen_port": 5353,
   "tcp_fast_open": false,
+  "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
   "domain_strategy": "prefer_ipv6",
   "udp_timeout": 300,
+  "proxy_protocol": false,
+  "proxy_protocol_accept_no_header": false,
   "detour": "another-in"
 }
 ```
 
-| 字段               | 可用上下文                               |
-|------------------|-------------------------------------|
-| `listen`         | 需要监听 TCP 或 UDP。                     |
-| `listen_port`    | 需要监听 TCP 或 UDP。                     |
-| `tcp_fast_open`  | 需要监听 TCP。                           |
-| `udp_timeout`    | 需要组装 UDP 连接, 当前为 Tun 和 Shadowsocks。 |
-| `proxy_protocol` | 需要监听 TCP。                           |
+
+| 字段                                | 可用上下文                               |
+|-----------------------------------|-------------------------------------|
+| `listen`                          | 需要监听 TCP 或 UDP。                     |
+| `listen_port`                     | 需要监听 TCP 或 UDP。                     |
+| `tcp_fast_open`                   | 需要监听 TCP。                           |
+| `udp_timeout`                     | 需要组装 UDP 连接, 当前为 Tun 和 Shadowsocks。 |
+| `proxy_protocol`                  | 需要监听 TCP。                           |
+| `proxy_protocol_accept_no_header` | `proxy_protocol` 启用时                |
 
 ### 字段
 
@@ -35,7 +40,11 @@
 
 #### tcp_fast_open
 
-为监听器启用 TCP 快速打开。
+启用 TCP Fast Open。
+
+#### udp_fragment
+
+启用 UDP 分段。
 
 #### sniff
 
@@ -64,6 +73,10 @@ UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
 #### proxy_protocol
 
 解析连接头中的 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)。
+
+#### proxy_protocol_accept_no_header
+
+接受没有代理协议标头的连接。
 
 #### detour
 
