@@ -10,6 +10,7 @@
     "rules": [],
     "final": "",
     "auto_detect_interface": false,
+    "override_android_vpn": false,
     "default_interface": "en0",
     "default_mark": 233
   }
@@ -34,9 +35,17 @@ Default outbound tag. the first outbound will be used if empty.
 
     Only supported on Linux, Windows and macOS.
 
-Bind outbound connections to the default NIC by default to prevent routing loops under Tun.
+Bind outbound connections to the default NIC by default to prevent routing loops under tun.
 
 Takes no effect if `outbound.bind_interface` is set.
+
+#### override_android_vpn
+
+!!! error ""
+
+    Only supported on Android.
+
+Accept Android VPN as upstream NIC when `auto_detect_interface` enabled.
 
 #### default_interface
 
@@ -44,7 +53,7 @@ Takes no effect if `outbound.bind_interface` is set.
 
     Only supported on Linux, Windows and macOS.
 
-Bind outbound connections to the specified NIC by default to prevent routing loops under Tun.
+Bind outbound connections to the specified NIC by default to prevent routing loops under tun.
 
 Takes no effect if `auto_detect_interface` is set.
 

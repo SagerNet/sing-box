@@ -7,6 +7,8 @@
   
   "server": "127.0.0.1",
   "server_port": 1080,
+  "system_interface": false,
+  "interface_name": "wg0",
   "local_address": [
     "10.0.0.2/32"
   ],
@@ -37,6 +39,16 @@ The server address.
 ==Required==
 
 The server port.
+
+#### system_interface
+
+Use system tun support.
+
+Requires privileges and cannot conflict with system interfaces.
+
+#### interface_name
+
+Custom device name when `system_interface` enabled.
 
 #### local_address
 

@@ -10,6 +10,7 @@
     "rules": [],
     "final": "",
     "auto_detect_interface": false,
+    "override_android_vpn": false,
     "default_interface": "en0",
     "default_mark": 233
   }
@@ -34,9 +35,17 @@
 
     仅支持 Linux、Windows 和 macOS。
 
-默认将出站连接绑定到默认网卡，以防止在 Tun 下出现路由环路。
+默认将出站连接绑定到默认网卡，以防止在 tun 下出现路由环路。
 
 如果设置了 `outbound.bind_interface` 设置，则不生效。
+
+#### override_android_vpn
+
+!!! error ""
+
+    仅支持 Android。
+
+启用 `auto_detect_interface` 时接受 Android VPN 作为上游网卡。
 
 #### default_interface
 
@@ -44,7 +53,7 @@
 
     仅支持 Linux、Windows 和 macOS。
 
-默认将出站连接绑定到指定网卡，以防止在 Tun 下出现路由环路。
+默认将出站连接绑定到指定网卡，以防止在 tun 下出现路由环路。
 
 如果设置了 `auto_detect_interface` 设置，则不生效。
 

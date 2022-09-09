@@ -9,6 +9,7 @@
   "reuse_addr": false,
   "connect_timeout": "5s",
   "tcp_fast_open": false,
+  "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "fallback_delay": "300ms"
 }
@@ -16,9 +17,9 @@
 
 ### Fields
 
-| Field                                                                             | Available Context |
-|-----------------------------------------------------------------------------------|-------------------|
-| `bind_interface` /`bind_address` /`routing_mark` /`reuse_addr` /`connect_timeout` | `detour` not set  |
+| Field                                                                                                               | Available Context |
+|---------------------------------------------------------------------------------------------------------------------|-------------------|
+| `bind_interface` /`bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open`/ `udp_fragment` /`connect_timeout` | `detour` not set  |
 
 #### detour
 
@@ -43,6 +44,14 @@ Set netfilter routing mark.
 #### reuse_addr
 
 Reuse listener address.
+
+#### tcp_fast_open
+
+Enable TCP Fast Open.
+
+#### udp_fragment
+
+Enable UDP fragmentation.
 
 #### connect_timeout
 
