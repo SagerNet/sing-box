@@ -2,11 +2,11 @@ package v2raygrpc
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -23,15 +23,19 @@ type Server struct {
 	server  *grpc.Server
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *tls.Config, handler N.TCPConnectionHandler) *Server {
+func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler) (*Server, error) {
 	var serverOptions []grpc.ServerOption
 	if tlsConfig != nil {
-		tlsConfig.NextProtos = []string{"h2"}
-		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(tlsConfig)))
+		stdConfig, err := tlsConfig.Config()
+		if err != nil {
+			return nil, err
+		}
+		stdConfig.NextProtos = []string{"h2"}
+		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(stdConfig)))
 	}
 	server := &Server{ctx, handler, grpc.NewServer(serverOptions...)}
 	RegisterGunServiceCustomNameServer(server.server, server, options.ServiceName)
-	return server
+	return server, nil
 }
 
 func (s *Server) Tun(server GunService_TunServer) error {

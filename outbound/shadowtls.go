@@ -2,12 +2,12 @@ package outbound
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -22,7 +22,7 @@ type ShadowTLS struct {
 	myOutboundAdapter
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
-	tlsConfig  *tls.Config
+	tlsConfig  tls.Config
 }
 
 func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowTLSOutboundOptions) (*ShadowTLS, error) {
@@ -43,7 +43,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 	options.TLS.MinVersion = "1.2"
 	options.TLS.MaxVersion = "1.2"
 	var err error
-	outbound.tlsConfig, err = dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
+	outbound.tlsConfig, err = tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
@@ -60,15 +60,7 @@ func (s *ShadowTLS) DialContext(ctx context.Context, network string, destination
 	if err != nil {
 		return nil, err
 	}
-	tlsConn, err := dialer.TLSClient(ctx, conn, s.tlsConfig)
-	if err != nil {
-		return nil, err
-	}
-	err = tlsConn.HandshakeContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
+	return tls.ClientHandshake(ctx, conn, s.tlsConfig)
 }
 
 func (s *ShadowTLS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {

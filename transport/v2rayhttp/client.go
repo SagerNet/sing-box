@@ -3,7 +3,6 @@ package v2rayhttp
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"io"
 	"math/rand"
 	"net"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -32,7 +32,7 @@ type Client struct {
 	headers    http.Header
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayHTTPOptions, tlsConfig *tls.Config) adapter.V2RayClientTransport {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayHTTPOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
 	client := &Client{
 		ctx:        ctx,
 		dialer:     dialer,
@@ -40,16 +40,26 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		host:       options.Host,
 		method:     options.Method,
 		headers:    make(http.Header),
-		client: &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-				},
-				ForceAttemptHTTP2: true,
-				TLSClientConfig:   tlsConfig,
+		client:     &http.Client{},
+		http2:      tlsConfig != nil,
+	}
+	if client.http2 {
+		client.client.Transport = &http.Transport{
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				if err != nil {
+					return nil, err
+				}
+				return tls.ClientHandshake(ctx, conn, tlsConfig)
 			},
-		},
-		http2: tlsConfig != nil,
+			ForceAttemptHTTP2: true,
+		}
+	} else {
+		client.client.Transport = &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+		}
 	}
 	if client.method == "" {
 		client.method = "PUT"

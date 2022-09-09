@@ -3,11 +3,11 @@ package inbound
 import (
 	std_bufio "bufio"
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -26,7 +26,7 @@ var (
 type HTTP struct {
 	myInboundAdapter
 	authenticator auth.Authenticator
-	tlsConfig     *TLSConfig
+	tlsConfig     tls.ServerConfig
 }
 
 func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) (*HTTP, error) {
@@ -44,7 +44,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS != nil {
-		tlsConfig, err := NewTLSConfig(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
@@ -67,13 +67,13 @@ func (h *HTTP) Start() error {
 func (h *HTTP) Close() error {
 	return common.Close(
 		&h.myInboundAdapter,
-		common.PtrOrNil(h.tlsConfig),
+		h.tlsConfig,
 	)
 }
 
 func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if h.tlsConfig != nil {
-		conn = tls.Server(conn, h.tlsConfig.Config())
+		conn = h.tlsConfig.Server(conn)
 	}
 	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 }

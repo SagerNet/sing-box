@@ -4,7 +4,6 @@ package outbound
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -30,7 +30,7 @@ type Hysteria struct {
 	ctx          context.Context
 	dialer       N.Dialer
 	serverAddr   M.Socksaddr
-	tlsConfig    *tls.Config
+	tlsConfig    *tls.STDConfig
 	quicConfig   *quic.Config
 	authKey      []byte
 	xplusKey     []byte
@@ -47,7 +47,11 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
-	tlsConfig, err := dialer.TLSConfig(options.Server, common.PtrValueOrDefault(options.TLS))
+	abstractTLSConfig, err := tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig, err := abstractTLSConfig.Config()
 	if err != nil {
 		return nil, err
 	}
