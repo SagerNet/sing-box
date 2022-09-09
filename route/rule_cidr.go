@@ -59,19 +59,27 @@ func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
 
 func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 	if r.isSource {
-		return r.ipSet.Contains(metadata.Source.Addr)
+		return r.match(metadata.Source.Addr)
 	} else {
 		if metadata.Destination.IsIP() {
-			return r.ipSet.Contains(metadata.Destination.Addr)
+			return r.match(metadata.Destination.Addr)
 		} else {
 			for _, address := range metadata.DestinationAddresses {
-				if r.ipSet.Contains(address) {
+				if r.match(address) {
 					return true
 				}
 			}
 		}
 	}
 	return false
+}
+
+func (r *IPCIDRItem) match(address netip.Addr) bool {
+	if address.Is4In6() {
+		return r.ipSet.Contains(netip.AddrFrom4(address.As4()))
+	} else {
+		return r.ipSet.Contains(address)
+	}
 }
 
 func (r *IPCIDRItem) String() string {
