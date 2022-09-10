@@ -154,7 +154,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}
-		router.SetTrafficController(clashServer)
+		router.SetClashServer(clashServer)
 	}
 	return &Box{
 		router:      router,

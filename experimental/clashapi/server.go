@@ -37,6 +37,7 @@ type Server struct {
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
 	tcpListener    net.Listener
+	mode           string
 }
 
 func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) *Server {
@@ -51,6 +52,10 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		},
 		trafficManager: trafficManager,
 		urlTestHistory: urltest.NewHistoryStorage(),
+		mode:           strings.ToLower(options.DefaultMode),
+	}
+	if server.mode == "" {
+		server.mode = "rule"
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -65,7 +70,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Get("/logs", getLogs(logFactory))
 		r.Get("/traffic", traffic(trafficManager))
 		r.Get("/version", version)
-		r.Mount("/configs", configRouter(logFactory))
+		r.Mount("/configs", configRouter(server, logFactory, server.logger))
 		r.Mount("/proxies", proxyRouter(server, router))
 		r.Mount("/rules", ruleRouter(router))
 		r.Mount("/connections", connectionRouter(trafficManager))
@@ -119,6 +124,10 @@ func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata a
 func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule) (N.PacketConn, adapter.Tracker) {
 	tracker := trafficontrol.NewUDPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
 	return tracker, tracker
+}
+
+func (s *Server) Mode() string {
+	return s.mode
 }
 
 func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {

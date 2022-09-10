@@ -39,7 +39,9 @@ type Router interface {
 	InterfaceMonitor() tun.DefaultInterfaceMonitor
 	PackageManager() tun.PackageManager
 	Rules() []Rule
-	SetTrafficController(controller TrafficController)
+
+	ClashServer() ClashServer
+	SetClashServer(controller ClashServer)
 }
 
 type Rule interface {
