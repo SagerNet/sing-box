@@ -9,16 +9,13 @@ import (
 
 type ClashServer interface {
 	Service
-	TrafficController
+	Mode() string
+	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
+	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) (N.PacketConn, Tracker)
 }
 
 type Tracker interface {
 	Leave()
-}
-
-type TrafficController interface {
-	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
-	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) (N.PacketConn, Tracker)
 }
 
 type OutboundGroup interface {

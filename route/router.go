@@ -93,7 +93,7 @@ type Router struct {
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
-	trafficController                  adapter.TrafficController
+	clashServer                        adapter.ClashServer
 	processSearcher                    process.Searcher
 }
 
@@ -588,8 +588,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		conn.Close()
 		return E.New("missing supported outbound, closing connection")
 	}
-	if r.trafficController != nil {
-		trackerConn, tracker := r.trafficController.RoutedConnection(ctx, conn, metadata, matchedRule)
+	if r.clashServer != nil {
+		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
 		conn = trackerConn
 	}
@@ -661,8 +661,8 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
 	}
-	if r.trafficController != nil {
-		trackerConn, tracker := r.trafficController.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
+	if r.clashServer != nil {
+		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
 		conn = trackerConn
 	}
@@ -746,8 +746,12 @@ func (r *Router) PackageManager() tun.PackageManager {
 	return r.packageManager
 }
 
-func (r *Router) SetTrafficController(controller adapter.TrafficController) {
-	r.trafficController = controller
+func (r *Router) ClashServer() adapter.ClashServer {
+	return r.clashServer
+}
+
+func (r *Router) SetClashServer(controller adapter.ClashServer) {
+	r.clashServer = controller
 }
 
 func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

@@ -192,6 +192,11 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.ClashMode != "" {
+		item := NewClashModeItem(router, options.ClashMode)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	return rule, nil
 }
 
