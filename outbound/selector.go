@@ -59,15 +59,30 @@ func (s *Selector) Start() error {
 		}
 		s.outbounds[tag] = detour
 	}
+
+	if s.tag != "" {
+		if clashServer := s.router.ClashServer(); clashServer != nil && clashServer.StoreSelected() {
+			selected := clashServer.CacheFile().LoadSelected(s.tag)
+			if selected != "" {
+				detour, loaded := s.outbounds[selected]
+				if loaded {
+					s.selected = detour
+					return nil
+				}
+			}
+		}
+	}
+
 	if s.defaultTag != "" {
 		detour, loaded := s.outbounds[s.defaultTag]
 		if !loaded {
 			return E.New("default outbound not found: ", s.defaultTag)
 		}
 		s.selected = detour
-	} else {
-		s.selected = s.outbounds[s.tags[0]]
+		return nil
 	}
+
+	s.selected = s.outbounds[s.tags[0]]
 	return nil
 }
 
@@ -85,6 +100,14 @@ func (s *Selector) SelectOutbound(tag string) bool {
 		return false
 	}
 	s.selected = detour
+	if s.tag != "" {
+		if clashServer := s.router.ClashServer(); clashServer != nil && clashServer.StoreSelected() {
+			err := clashServer.CacheFile().StoreSelected(s.tag, tag)
+			if err != nil {
+				s.logger.Error("store selected: ", err)
+			}
+		}
+	}
 	return true
 }
 

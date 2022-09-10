@@ -11,7 +11,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.2
-	github.com/gofrs/uuid v4.2.0+incompatible
+	github.com/gofrs/uuid v4.3.0+incompatible
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -28,11 +28,12 @@ require (
 	github.com/sagernet/smux v0.0.0-20220907034654-1acb8471c15a
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
+	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
-	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7
-	golang.org/x/sys v0.0.0-20220908164124-27713097b956
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
+	golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2
 	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1

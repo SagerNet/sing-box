@@ -10,5 +10,5 @@ import (
 )
 
 func NewClashServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
-	return clashapi.NewServer(router, logFactory, options), nil
+	return clashapi.NewServer(router, logFactory, options)
 }
