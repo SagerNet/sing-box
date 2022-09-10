@@ -20,6 +20,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
+	github.com/refraction-networking/utls v1.1.2
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
 	github.com/sagernet/sing v0.0.0-20220905164441-f3d346256d4a
@@ -46,12 +47,14 @@ require (
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
+	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
