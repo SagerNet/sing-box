@@ -3,6 +3,7 @@ name: Debug build
 on:
   push:
     branches:
+      - main
       - dev
       - dev-next
     paths-ignore:
@@ -11,6 +12,7 @@ on:
       - '!.github/workflows/debug.yml'
   pull_request:
     branches:
+      - main
       - dev
       - dev-next
 
