@@ -80,6 +80,7 @@
         "user_id": [
           1000
         ],
+        "clash_mode": "direct",
         "invert": false,
         "outbound": "direct"
       },
@@ -218,6 +219,10 @@ Match user name.
     Only supported on Linux.
 
 Match user id.
+
+#### clash_mode
+
+Match Clash mode.
 
 #### invert
 

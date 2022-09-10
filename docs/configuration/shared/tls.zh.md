@@ -30,10 +30,6 @@
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含 ACME，参阅 [安装](/zh/#_2)。
-
 ### 出站
 
 ```json
@@ -47,7 +43,17 @@
   "max_version": "",
   "cipher_suites": [],
   "certificate": "",
-  "certificate_path": ""
+  "certificate_path": "",
+  "ech": {
+    "enabled": false,
+    "pq_signature_schemes_enabled": false,
+    "dynamic_record_sizing_disabled": false,
+    "config": ""
+  },
+  "utls": {
+    "enabled": false,
+    "fingerprint": ""
+  }
 }
 ```
 
@@ -155,7 +161,46 @@ TLS 版本值：
 
 服务器 PEM 私钥路径。
 
+#### ech
+
+==仅客户端==
+
+!!! warning ""
+
+    默认安装不包含 ECH, 参阅 [安装](/zh/#_2)。
+
+ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 ClientHello 的第一部分
+信息。
+
+如果您不知道如何填写其他配置，只需设置 `enabled` 即可。
+
+#### utls
+
+==仅客户端==
+
+!!! warning ""
+
+    默认安装不包含 uTLS, 参阅 [安装](/zh/#_2)。
+
+!!! note ""
+
+    uTLS 维护不善且其效果可能未经证实，使用风险自负。
+
+uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻力。
+
+可用的指纹值：
+
+* chrome
+* firefox
+* ios
+* android
+* random
+
 ### ACME 字段
+
+!!! warning ""
+
+    默认安装不包含 ACME，参阅 [安装](/zh/#_2)。
 
 #### domain
 
@@ -203,10 +248,6 @@ ACME 数据目录。
 
 用于 ACME TLS-ALPN 质询的备用端口； 系统必须将 443 转发到此端口以使质询成功。
 
-### Reload
-
-对于服务器配置，如果修改，证书和密钥将自动重新加载。
-
 #### external_account
 
 EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知帐户所需的信息由 CA。
@@ -223,3 +264,7 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 #### external_account.mac_key
 
 MAC 密钥。
+
+### 重载
+
+对于服务器配置，如果修改，证书和密钥将自动重新加载。
