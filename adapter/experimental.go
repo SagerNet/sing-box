@@ -10,8 +10,15 @@ import (
 type ClashServer interface {
 	Service
 	Mode() string
+	StoreSelected() bool
+	CacheFile() ClashCacheFile
 	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
 	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) (N.PacketConn, Tracker)
+}
+
+type ClashCacheFile interface {
+	LoadSelected(group string) string
+	StoreSelected(group string, selected string) error
 }
 
 type Tracker interface {
