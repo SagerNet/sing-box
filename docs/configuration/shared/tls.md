@@ -30,10 +30,6 @@
 }
 ```
 
-!!! warning ""
-
-    ACME is not included by default, see [Installation](/#installation).
-
 ### Outbound
 
 ```json
@@ -47,7 +43,17 @@
   "max_version": "",
   "cipher_suites": [],
   "certificate": "",
-  "certificate_path": ""
+  "certificate_path": "",
+  "ech": {
+    "enabled": false,
+    "pq_signature_schemes_enabled": false,
+    "dynamic_record_sizing_disabled": false,
+    "config": ""
+  },
+  "utls": {
+    "enabled": false,
+    "fingerprint": ""
+  }
 }
 ```
 
@@ -155,7 +161,47 @@ The server private key, in PEM format.
 
 The path to the server private key, in PEM format.
 
+#### ech
+
+==Client only==
+
+!!! warning ""
+
+    ECH is not included by default, see [Installation](/#installation).
+
+ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello
+message.
+
+If you don't know how to fill in the other configuration, just set `enabled`.
+
+#### utls
+
+==Client only==
+
+!!! warning ""
+
+    uTLS is not included by default, see [Installation](/#installation).
+
+!!! note ""
+
+    uTLS is poorly maintained and the effect may be unproven, use at your own risk.
+
+uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.
+
+Available fingerprint values:
+
+* chrome
+* firefox
+* ios
+* android
+* random
+
+
 ### ACME Fields
+
+!!! warning ""
+
+    ACME is not included by default, see [Installation](/#installation).
 
 #### domain
 
@@ -205,10 +251,6 @@ listener for the HTTP challenge.
 The alternate port to use for the ACME TLS-ALPN challenge; the system must forward 443 to this port for challenge to
 succeed.
 
-### Reload
-
-For server configuration, certificate and key will be automatically reloaded if modified.
-
 #### external_account
 
 EAB (External Account Binding) contains information necessary to bind or map an ACME account to some other account known
@@ -227,3 +269,7 @@ The key identifier.
 #### external_account.mac_key
 
 The MAC key.
+
+### Reload
+
+For server configuration, certificate and key will be automatically reloaded if modified.

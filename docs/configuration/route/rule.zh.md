@@ -78,6 +78,7 @@
         "user_id": [
           1000
         ],
+        "clash_mode": "direct",
         "invert": false,
         "outbound": "direct"
       },
@@ -216,6 +217,10 @@
     仅支持 Linux.
 
 匹配用户 ID。
+
+#### clash_mode
+
+匹配 Clash 模式。
 
 #### invert
 

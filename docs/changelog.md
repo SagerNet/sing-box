@@ -1,3 +1,28 @@
+#### 1.1-beta2
+
+* Add Clash mode and persistence support **1**
+* Add TLS ECH and uTLS support for outbound TLS options **2**
+* Fix socks4 request
+* Fix processing empty dns result
+
+*1*:
+
+Switching modes using the Clash API, and `store-selected` are now supported,
+see [Experimental](/configuration/experimental).
+
+*2*:
+
+ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello
+message, see [TLS#ECH](/configuration/shared/tls#ech).
+
+uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance,
+see [TLS#uTLS](/configuration/shared/tls#utls).
+
+#### 1.0.2
+
+* Fix socks4 request
+* Fix processing empty dns result
+
 #### 1.1-beta1
 
 * Add support for use with android VPNService **1**
