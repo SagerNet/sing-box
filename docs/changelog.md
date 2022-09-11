@@ -1,3 +1,8 @@
+#### 1.1-beta3
+
+* Fix using custom TLS client in http2 client
+* Fix bugs in 1.1-beta2
+
 #### 1.1-beta2
 
 * Add Clash mode and persistence support **1**
