@@ -14,9 +14,37 @@ import (
 type HTTPConn struct {
 	reader io.Reader
 	writer io.Writer
+	create chan struct{}
+	err    error
+}
+
+func newHTTPConn(reader io.Reader, writer io.Writer) HTTPConn {
+	return HTTPConn{
+		reader: reader,
+		writer: writer,
+	}
+}
+
+func newLateHTTPConn(writer io.Writer) *HTTPConn {
+	return &HTTPConn{
+		create: make(chan struct{}),
+		writer: writer,
+	}
+}
+
+func (c *HTTPConn) setup(reader io.Reader, err error) {
+	c.reader = reader
+	c.err = err
+	close(c.create)
 }
 
 func (c *HTTPConn) Read(b []byte) (n int, err error) {
+	if c.reader == nil {
+		<-c.create
+		if c.err != nil {
+			return 0, c.err
+		}
+	}
 	n, err = c.reader.Read(b)
 	return n, baderror.WrapH2(err)
 }

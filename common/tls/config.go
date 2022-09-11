@@ -15,6 +15,8 @@ type (
 )
 
 type Config interface {
+	NextProtos() []string
+	SetNextProtos(nextProto []string)
 	Config() (*STDConfig, error)
 	Client(conn net.Conn) Conn
 }
@@ -28,6 +30,7 @@ type ServerConfig interface {
 type Conn interface {
 	net.Conn
 	HandshakeContext(ctx context.Context) error
+	ConnectionState() tls.ConnectionState
 }
 
 func ParseTLSVersion(version string) (uint16, error) {

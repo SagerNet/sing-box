@@ -22,6 +22,14 @@ type utlsClientConfig struct {
 	id     utls.ClientHelloID
 }
 
+func (e *utlsClientConfig) NextProtos() []string {
+	return e.config.NextProtos
+}
+
+func (e *utlsClientConfig) SetNextProtos(nextProto []string) {
+	e.config.NextProtos = nextProto
+}
+
 func (e *utlsClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for uTLS")
 }
@@ -36,6 +44,24 @@ type utlsConnWrapper struct {
 
 func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
 	return c.Conn.Handshake()
+}
+
+func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
+	state := c.Conn.ConnectionState()
+	return tls.ConnectionState{
+		Version:                     state.Version,
+		HandshakeComplete:           state.HandshakeComplete,
+		DidResume:                   state.DidResume,
+		CipherSuite:                 state.CipherSuite,
+		NegotiatedProtocol:          state.NegotiatedProtocol,
+		NegotiatedProtocolIsMutual:  state.NegotiatedProtocolIsMutual,
+		ServerName:                  state.ServerName,
+		PeerCertificates:            state.PeerCertificates,
+		VerifiedChains:              state.VerifiedChains,
+		SignedCertificateTimestamps: state.SignedCertificateTimestamps,
+		OCSPResponse:                state.OCSPResponse,
+		TLSUnique:                   state.TLSUnique,
+	}
 }
 
 func newUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
