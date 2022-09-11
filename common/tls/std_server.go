@@ -26,6 +26,14 @@ type STDServerConfig struct {
 	watcher         *fsnotify.Watcher
 }
 
+func (c *STDServerConfig) NextProtos() []string {
+	return c.config.NextProtos
+}
+
+func (c *STDServerConfig) SetNextProtos(nextProto []string) {
+	c.config.NextProtos = nextProto
+}
+
 func newSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil

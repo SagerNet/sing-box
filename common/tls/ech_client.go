@@ -4,6 +4,7 @@ package tls
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"net"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/transport/cloudflaretls"
+	cftls "github.com/sagernet/sing-box/transport/cloudflaretls"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -21,7 +22,15 @@ import (
 )
 
 type echClientConfig struct {
-	config *tls.Config
+	config *cftls.Config
+}
+
+func (e *echClientConfig) NextProtos() []string {
+	return e.config.NextProtos
+}
+
+func (e *echClientConfig) SetNextProtos(nextProto []string) {
+	e.config.NextProtos = nextProto
 }
 
 func (e *echClientConfig) Config() (*STDConfig, error) {
@@ -29,7 +38,29 @@ func (e *echClientConfig) Config() (*STDConfig, error) {
 }
 
 func (e *echClientConfig) Client(conn net.Conn) Conn {
-	return tls.Client(conn, e.config)
+	return &echConnWrapper{cftls.Client(conn, e.config)}
+}
+
+type echConnWrapper struct {
+	*cftls.Conn
+}
+
+func (c *echConnWrapper) ConnectionState() tls.ConnectionState {
+	state := c.Conn.ConnectionState()
+	return tls.ConnectionState{
+		Version:                     state.Version,
+		HandshakeComplete:           state.HandshakeComplete,
+		DidResume:                   state.DidResume,
+		CipherSuite:                 state.CipherSuite,
+		NegotiatedProtocol:          state.NegotiatedProtocol,
+		NegotiatedProtocolIsMutual:  state.NegotiatedProtocolIsMutual,
+		ServerName:                  state.ServerName,
+		PeerCertificates:            state.PeerCertificates,
+		VerifiedChains:              state.VerifiedChains,
+		SignedCertificateTimestamps: state.SignedCertificateTimestamps,
+		OCSPResponse:                state.OCSPResponse,
+		TLSUnique:                   state.TLSUnique,
+	}
 }
 
 func newECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
@@ -45,7 +76,7 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 		return nil, E.New("missing server_name or insecure=true")
 	}
 
-	var tlsConfig tls.Config
+	var tlsConfig cftls.Config
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {
@@ -55,7 +86,7 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 		tlsConfig.InsecureSkipVerify = options.Insecure
 	} else if options.DisableSNI {
 		tlsConfig.InsecureSkipVerify = true
-		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
+		tlsConfig.VerifyConnection = func(state cftls.ConnectionState) error {
 			verifyOptions := x509.VerifyOptions{
 				DNSName:       serverName,
 				Intermediates: x509.NewCertPool(),
@@ -87,7 +118,7 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 	if options.CipherSuites != nil {
 	find:
 		for _, cipherSuite := range options.CipherSuites {
-			for _, tlsCipherSuite := range tls.CipherSuites() {
+			for _, tlsCipherSuite := range cftls.CipherSuites() {
 				if cipherSuite == tlsCipherSuite.Name {
 					tlsConfig.CipherSuites = append(tlsConfig.CipherSuites, tlsCipherSuite.ID)
 					continue find
@@ -124,7 +155,7 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 		if err != nil {
 			return nil, err
 		}
-		clientConfig, err := tls.UnmarshalECHConfigs(clientConfigContent)
+		clientConfig, err := cftls.UnmarshalECHConfigs(clientConfigContent)
 		if err != nil {
 			return nil, err
 		}
@@ -137,8 +168,8 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 
 const typeHTTPS = 65
 
-func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]tls.ECHConfig, error) {
-	return func(ctx context.Context, serverName string) ([]tls.ECHConfig, error) {
+func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
+	return func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
 		message := &dnsmessage.Message{
 			Header: dnsmessage.Header{
 				RecursionDesired: true,
@@ -176,7 +207,7 @@ func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serve
 						if err != nil {
 							return nil, E.Cause(err, "decode ECH config")
 						}
-						return tls.UnmarshalECHConfigs(echConfig)
+						return cftls.UnmarshalECHConfigs(echConfig)
 					}
 				}
 			default:

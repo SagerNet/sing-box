@@ -99,6 +99,14 @@ func newStdClient(serverAddress string, options option.OutboundTLSOptions) (Conf
 	return &stdClientConfig{&tlsConfig}, nil
 }
 
+func (s *stdClientConfig) NextProtos() []string {
+	return s.config.NextProtos
+}
+
+func (s *stdClientConfig) SetNextProtos(nextProto []string) {
+	s.config.NextProtos = nextProto
+}
+
 func (s *stdClientConfig) Config() (*STDConfig, error) {
 	return s.config, nil
 }

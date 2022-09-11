@@ -16,6 +16,8 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	sHttp "github.com/sagernet/sing/protocol/http"
+
+	"golang.org/x/net/http2"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -110,10 +112,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
 		conn := &ServerHTTPConn{
-			HTTPConn{
-				request.Body,
-				writer,
-			},
+			newHTTPConn(request.Body, writer),
 			writer.(http.Flusher),
 		}
 		s.handler.NewConnection(request.Context(), conn, metadata)
@@ -128,6 +127,10 @@ func (s *Server) Serve(listener net.Listener) error {
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
 	} else {
+		err := http2.ConfigureServer(s.httpServer, &http2.Server{})
+		if err != nil {
+			return err
+		}
 		return s.httpServer.ServeTLS(listener, "", "")
 	}
 }

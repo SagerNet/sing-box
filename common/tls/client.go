@@ -30,7 +30,7 @@ func NewClient(router adapter.Router, serverAddress string, options option.Outbo
 	}
 }
 
-func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (net.Conn, error) {
+func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {
 	tlsConn := config.Client(conn)
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()

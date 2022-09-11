@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/netip"
-	"os"
 	"testing"
 	"time"
 
@@ -48,51 +47,5 @@ func TestWireGuard(t *testing.T) {
 			},
 		},
 	})
-	testSuitWg(t, clientPort, testPort)
-}
-
-func TestWireGuardSystem(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("requires root")
-	}
-	startDockerContainer(t, DockerOptions{
-		Image: ImageBoringTun,
-		Cap:   []string{"MKNOD", "NET_ADMIN", "NET_RAW"},
-		Ports: []uint16{serverPort, testPort},
-		Bind: map[string]string{
-			"wireguard.conf": "/etc/wireguard/wg0.conf",
-		},
-		Cmd: []string{"wg0"},
-	})
-	time.Sleep(5 * time.Second)
-	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
-			{
-				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
-					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
-						ListenPort: clientPort,
-					},
-				},
-			},
-		},
-		Outbounds: []option.Outbound{
-			{
-				Type: C.TypeWireGuard,
-				WireGuardOptions: option.WireGuardOutboundOptions{
-					InterfaceName: "wg",
-					ServerOptions: option.ServerOptions{
-						Server:     "127.0.0.1",
-						ServerPort: serverPort,
-					},
-					LocalAddress:  []option.ListenPrefix{option.ListenPrefix(netip.MustParsePrefix("10.0.0.2/32"))},
-					PrivateKey:    "qGnwlkZljMxeECW8fbwAWdvgntnbK7B8UmMFl3zM0mk=",
-					PeerPublicKey: "QsdcBm+oJw2oNv0cIFXLIq1E850lgTBonup4qnKEQBg=",
-				},
-			},
-		},
-	})
-	time.Sleep(10 * time.Second)
 	testSuitWg(t, clientPort, testPort)
 }
