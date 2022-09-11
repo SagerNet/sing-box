@@ -60,7 +60,11 @@ func (s *ShadowTLS) DialContext(ctx context.Context, network string, destination
 	if err != nil {
 		return nil, err
 	}
-	return tls.ClientHandshake(ctx, conn, s.tlsConfig)
+	_, err = tls.ClientHandshake(ctx, conn, s.tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 func (s *ShadowTLS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
