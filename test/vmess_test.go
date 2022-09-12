@@ -13,21 +13,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newUUID() uuid.UUID {
+	user, _ := uuid.DefaultGenerator.NewV4()
+	return user
+}
+
 func _TestVMessAuto(t *testing.T) {
 	security := "auto"
-	user, err := uuid.DefaultGenerator.NewV4()
-	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, false)
+		testVMessSelf(t, security, 0, false, false, false)
 	})
 	t.Run("packetaddr", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, true)
+		testVMessSelf(t, security, 0, false, false, true)
 	})
 	t.Run("inbound", func(t *testing.T) {
-		testVMessInboundWithV2Ray(t, security, user, 0, false)
+		testVMessInboundWithV2Ray(t, security, 0, false)
 	})
 	t.Run("outbound", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+		testVMessOutboundWithV2Ray(t, security, false, false, 0)
 	})
 }
 
@@ -56,102 +59,97 @@ func TestVMess(t *testing.T) {
 }
 
 func testVMess0(t *testing.T, security string) {
-	user, err := uuid.DefaultGenerator.NewV4()
-	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, false)
+		testVMessSelf(t, security, 0, false, false, false)
 	})
 	t.Run("self-legacy", func(t *testing.T) {
-		testVMessSelf(t, security, user, 1, false, false, false)
+		testVMessSelf(t, security, 1, false, false, false)
 	})
 	t.Run("packetaddr", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, true)
+		testVMessSelf(t, security, 0, false, false, true)
 	})
 	t.Run("outbound", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+		testVMessOutboundWithV2Ray(t, security, false, false, 0)
 	})
 	t.Run("outbound-legacy", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 1)
+		testVMessOutboundWithV2Ray(t, security, false, false, 1)
 	})
 }
 
 func testVMess1(t *testing.T, security string) {
-	user, err := uuid.DefaultGenerator.NewV4()
-	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, false)
+		testVMessSelf(t, security, 0, false, false, false)
 	})
 	t.Run("self-legacy", func(t *testing.T) {
-		testVMessSelf(t, security, user, 1, false, false, false)
+		testVMessSelf(t, security, 1, false, false, false)
 	})
 	t.Run("packetaddr", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, true)
+		testVMessSelf(t, security, 0, false, false, true)
 	})
 	t.Run("inbound", func(t *testing.T) {
-		testVMessInboundWithV2Ray(t, security, user, 0, false)
+		testVMessInboundWithV2Ray(t, security, 0, false)
 	})
 	t.Run("outbound", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+		testVMessOutboundWithV2Ray(t, security, false, false, 0)
 	})
 	t.Run("outbound-legacy", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 1)
+		testVMessOutboundWithV2Ray(t, security, false, false, 1)
 	})
 }
 
 func testVMess2(t *testing.T, security string) {
-	user, err := uuid.DefaultGenerator.NewV4()
-	require.NoError(t, err)
 	t.Run("self", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, false)
+		testVMessSelf(t, security, 0, false, false, false)
 	})
 	t.Run("self-padding", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, true, false, false)
+		testVMessSelf(t, security, 0, true, false, false)
 	})
 	t.Run("self-authid", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, true, false)
+		testVMessSelf(t, security, 0, false, true, false)
 	})
 	t.Run("self-padding-authid", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, true, true, false)
+		testVMessSelf(t, security, 0, true, true, false)
 	})
 	t.Run("self-legacy", func(t *testing.T) {
-		testVMessSelf(t, security, user, 1, false, false, false)
+		testVMessSelf(t, security, 1, false, false, false)
 	})
 	t.Run("self-legacy-padding", func(t *testing.T) {
-		testVMessSelf(t, security, user, 1, true, false, false)
+		testVMessSelf(t, security, 1, true, false, false)
 	})
 	t.Run("packetaddr", func(t *testing.T) {
-		testVMessSelf(t, security, user, 0, false, false, true)
+		testVMessSelf(t, security, 0, false, false, true)
 	})
 	t.Run("inbound", func(t *testing.T) {
-		testVMessInboundWithV2Ray(t, security, user, 0, false)
+		testVMessInboundWithV2Ray(t, security, 0, false)
 	})
 	t.Run("inbound-authid", func(t *testing.T) {
-		testVMessInboundWithV2Ray(t, security, user, 0, true)
+		testVMessInboundWithV2Ray(t, security, 0, true)
 	})
 	t.Run("inbound-legacy", func(t *testing.T) {
-		testVMessInboundWithV2Ray(t, security, user, 64, false)
+		testVMessInboundWithV2Ray(t, security, 64, false)
 	})
 	t.Run("outbound", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 0)
+		testVMessOutboundWithV2Ray(t, security, false, false, 0)
 	})
 	t.Run("outbound-padding", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, true, false, 0)
+		testVMessOutboundWithV2Ray(t, security, true, false, 0)
 	})
 	t.Run("outbound-authid", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, true, 0)
+		testVMessOutboundWithV2Ray(t, security, false, true, 0)
 	})
 	t.Run("outbound-padding-authid", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, true, true, 0)
+		testVMessOutboundWithV2Ray(t, security, true, true, 0)
 	})
 	t.Run("outbound-legacy", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, false, false, 1)
+		testVMessOutboundWithV2Ray(t, security, false, false, 1)
 	})
 	t.Run("outbound-legacy-padding", func(t *testing.T) {
-		testVMessOutboundWithV2Ray(t, security, user, true, false, 1)
+		testVMessOutboundWithV2Ray(t, security, true, false, 1)
 	})
 }
 
-func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, alterId int, authenticatedLength bool) {
+func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authenticatedLength bool) {
+	userId := newUUID()
 	content, err := os.ReadFile("config/vmess-client.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
@@ -161,7 +159,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, al
 	outbound := config.MustKey("outbounds").MustIndex(0).MustKey("settings").MustKey("vnext").MustIndex(0)
 	outbound.MustKey("port").SetNumeric(float64(serverPort))
 	user := outbound.MustKey("users").MustIndex(0)
-	user.MustKey("id").SetString(uuid.String())
+	user.MustKey("id").SetString(userId.String())
 	user.MustKey("alterId").SetNumeric(float64(alterId))
 	user.MustKey("security").SetString(security)
 	var experiments string
@@ -193,7 +191,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, al
 					Users: []option.VMessUser{
 						{
 							Name:    "sekai",
-							UUID:    uuid.String(),
+							UUID:    userId.String(),
 							AlterId: alterId,
 						},
 					},
@@ -205,7 +203,8 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, al
 	testSuitSimple(t, clientPort, testPort)
 }
 
-func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, globalPadding bool, authenticatedLength bool, alterId int) {
+func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding bool, authenticatedLength bool, alterId int) {
+	user := newUUID()
 	content, err := os.ReadFile("config/vmess-server.json")
 	require.NoError(t, err)
 	config, err := ajson.Unmarshal(content)
@@ -213,7 +212,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 
 	inbound := config.MustKey("inbounds").MustIndex(0)
 	inbound.MustKey("port").SetNumeric(float64(serverPort))
-	inbound.MustKey("settings").MustKey("clients").MustIndex(0).MustKey("id").SetString(uuid.String())
+	inbound.MustKey("settings").MustKey("clients").MustIndex(0).MustKey("id").SetString(user.String())
 	inbound.MustKey("settings").MustKey("clients").MustIndex(0).MustKey("alterId").SetNumeric(float64(alterId))
 
 	content, err = ajson.Marshal(config)
@@ -248,7 +247,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 						ServerPort: serverPort,
 					},
 					Security:            security,
-					UUID:                uuid.String(),
+					UUID:                user.String(),
 					GlobalPadding:       globalPadding,
 					AuthenticatedLength: authenticatedLength,
 					AlterId:             alterId,
@@ -259,7 +258,8 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 	testSuitSimple(t, clientPort, testPort)
 }
 
-func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
+func testVMessSelf(t *testing.T, security string, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
+	user := newUUID()
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -282,7 +282,7 @@ func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, g
 					Users: []option.VMessUser{
 						{
 							Name:    "sekai",
-							UUID:    uuid.String(),
+							UUID:    user.String(),
 							AlterId: alterId,
 						},
 					},
@@ -302,7 +302,7 @@ func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, g
 						ServerPort: serverPort,
 					},
 					Security:            security,
-					UUID:                uuid.String(),
+					UUID:                user.String(),
 					AlterId:             alterId,
 					GlobalPadding:       globalPadding,
 					AuthenticatedLength: authenticatedLength,

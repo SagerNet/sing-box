@@ -38,6 +38,7 @@ const (
 	ImageNginx                 = "nginx:stable"
 	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
 	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
+	ImageXRayCore              = "teddysun/xray:latest"
 )
 
 var allImages = []string{
@@ -51,6 +52,7 @@ var allImages = []string{
 	ImageNginx,
 	ImageShadowTLS,
 	ImageShadowsocksR,
+	ImageXRayCore,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")
@@ -379,7 +381,7 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 
 	rAddr := &net.UDPAddr{IP: localIP.AsSlice(), Port: int(port)}
 
-	times := 50
+	times := 2
 	chunkSize := int64(1024)
 
 	pingCh, pongCh, test := newLargeDataPair()
