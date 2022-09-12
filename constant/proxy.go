@@ -20,6 +20,7 @@ const (
 	TypeSSH          = "ssh"
 	TypeShadowTLS    = "shadowtls"
 	TypeShadowsocksR = "shadowsocksr"
+	TypeVLESS        = "vless"
 )
 
 const (
