@@ -22,6 +22,7 @@ type _Outbound struct {
 	SSHOptions         SSHOutboundOptions         `json:"-"`
 	ShadowTLSOptions   ShadowTLSOutboundOptions   `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
+	ProviderOptions    []ProviderOutboundOptions  `json:"providers,omitempty"`
 }
 
 type Outbound _Outbound

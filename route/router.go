@@ -507,6 +507,13 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	return outbound, loaded
 }
 
+func (r *Router) AddOutbound(tag string, outbound adapter.Outbound) {
+	if _, loaded := r.outboundByTag[tag]; !loaded {
+		r.outbounds = append(r.outbounds, outbound)
+	}
+	r.outboundByTag[tag] = outbound
+}
+
 func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 	if network == N.NetworkTCP {
 		return r.defaultOutboundForConnection

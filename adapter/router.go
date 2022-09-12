@@ -19,6 +19,7 @@ type Router interface {
 
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
+	AddOutbound(string, Outbound)
 	DefaultOutbound(network string) Outbound
 
 	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error

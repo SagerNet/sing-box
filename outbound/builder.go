@@ -42,7 +42,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 	case C.TypeShadowTLS:
 		return NewShadowTLS(ctx, router, logger, options.Tag, options.ShadowTLSOptions)
 	case C.TypeSelector:
-		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
+		return NewSelector(ctx, router, logger, options.Tag, options.SelectorOptions, options.ProviderOptions)
 	default:
 		return nil, E.New("unknown outbound type: ", options.Type)
 	}

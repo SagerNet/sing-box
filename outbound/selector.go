@@ -20,13 +20,14 @@ var (
 
 type Selector struct {
 	myOutboundAdapter
+	providerAdapter
 	tags       []string
 	defaultTag string
 	outbounds  map[string]adapter.Outbound
 	selected   adapter.Outbound
 }
 
-func NewSelector(router adapter.Router, logger log.ContextLogger, tag string, options option.SelectorOutboundOptions) (*Selector, error) {
+func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SelectorOutboundOptions, providers []option.ProviderOutboundOptions) (*Selector, error) {
 	outbound := &Selector{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeSelector,
@@ -37,6 +38,25 @@ func NewSelector(router adapter.Router, logger log.ContextLogger, tag string, op
 		tags:       options.Outbounds,
 		defaultTag: options.Default,
 		outbounds:  make(map[string]adapter.Outbound),
+	}
+	for _, providerOption := range providers {
+		provider, err := NewProvider(providerOption.Url, providerOption.Filter, providerOption.Interval, ctx, router, logger)
+		if err != nil {
+			return nil, err
+		}
+		outbound.providers = append(outbound.providers, provider)
+		go outbound.NewUpdateFunc(&outbound.tags, &outbound.outbounds, router, []func(){
+			func() {
+				if outbound.selected != nil {
+					if _, ok := outbound.outbounds[outbound.selected.Tag()]; ok {
+						return
+					}
+				}
+				outbound.InitSelected()
+			}})()
+	}
+	if len(outbound.providers) > 0 {
+		outbound.AddCompatibleProxy(&outbound.tags, &outbound.outbounds, router)
 	}
 	if len(outbound.tags) == 0 {
 		return nil, E.New("missing tags")
@@ -59,7 +79,10 @@ func (s *Selector) Start() error {
 		}
 		s.outbounds[tag] = detour
 	}
+	return s.InitSelected()
+}
 
+func (s *Selector) InitSelected() error {
 	if s.tag != "" {
 		if clashServer := s.router.ClashServer(); clashServer != nil && clashServer.StoreSelected() {
 			selected := clashServer.CacheFile().LoadSelected(s.tag)

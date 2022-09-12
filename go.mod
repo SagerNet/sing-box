@@ -7,6 +7,7 @@ require (
 	github.com/cloudflare/circl v1.2.1-0.20220831060716-4cf0150356fc
 	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go v1.1.2
+	github.com/dlclark/regexp2 v1.7.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-chi/chi/v5 v5.0.7
@@ -40,6 +41,7 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/yaml.v3 v3.0.1
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 
@@ -78,6 +80,5 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )

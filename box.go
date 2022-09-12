@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
+	_ "github.com/sagernet/sing-box/outbound/provider"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -120,6 +121,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		}
 		inbounds = append(inbounds, in)
 	}
+	outbounds = append(outbounds, outbound.InitCompatibleProxy(router, logFactory.NewLogger("outbound/provider"), option.Outbound{Type: "direct", Tag: "compatible"}.DirectOptions))
 	for i, outboundOptions := range options.Outbounds {
 		var out adapter.Outbound
 		var tag string
