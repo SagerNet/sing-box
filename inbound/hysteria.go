@@ -273,7 +273,7 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 			return err
 		}
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-		return h.router.RouteConnection(ctx, hysteria.NewConn(stream, metadata.Destination), metadata)
+		return h.router.RouteConnection(ctx, hysteria.NewConn(stream, metadata.Destination, false), metadata)
 	} else {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 		var id uint32
