@@ -19,6 +19,9 @@ type Plugin interface {
 var plugins map[string]PluginConstructor
 
 func RegisterPlugin(name string, constructor PluginConstructor) {
+	if plugins == nil {
+		plugins = make(map[string]PluginConstructor)
+	}
 	plugins[name] = constructor
 }
 

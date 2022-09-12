@@ -37,6 +37,7 @@ const (
 	ImageHysteria              = "tobyxdd/hysteria:latest"
 	ImageNginx                 = "nginx:stable"
 	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
+	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
 )
 
 var allImages = []string{
@@ -49,6 +50,7 @@ var allImages = []string{
 	ImageHysteria,
 	ImageNginx,
 	ImageShadowTLS,
+	ImageShadowsocksR,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")

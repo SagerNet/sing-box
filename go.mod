@@ -23,6 +23,7 @@ require (
 	github.com/refraction-networking/utls v1.1.2
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
+	github.com/sagernet/shadowsocksr v0.0.0-20220912092645-c9ab93f81bb0
 	github.com/sagernet/sing v0.0.0-20220910144724-62c4ebdbcb3f
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6

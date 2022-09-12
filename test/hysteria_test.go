@@ -9,9 +9,6 @@ import (
 )
 
 func TestHysteriaSelf(t *testing.T) {
-	if !C.QUIC_AVAILABLE {
-		t.Skip("QUIC not included")
-	}
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -84,9 +81,6 @@ func TestHysteriaSelf(t *testing.T) {
 }
 
 func TestHysteriaInbound(t *testing.T) {
-	if !C.QUIC_AVAILABLE {
-		t.Skip("QUIC not included")
-	}
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -120,13 +114,10 @@ func TestHysteriaInbound(t *testing.T) {
 			caPem:                  "/etc/hysteria/ca.pem",
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func TestHysteriaOutbound(t *testing.T) {
-	if !C.QUIC_AVAILABLE {
-		t.Skip("QUIC not included")
-	}
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startDockerContainer(t, DockerOptions{
 		Image: ImageHysteria,

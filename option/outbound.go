@@ -8,20 +8,21 @@ import (
 )
 
 type _Outbound struct {
-	Type               string                     `json:"type"`
-	Tag                string                     `json:"tag,omitempty"`
-	DirectOptions      DirectOutboundOptions      `json:"-"`
-	SocksOptions       SocksOutboundOptions       `json:"-"`
-	HTTPOptions        HTTPOutboundOptions        `json:"-"`
-	ShadowsocksOptions ShadowsocksOutboundOptions `json:"-"`
-	VMessOptions       VMessOutboundOptions       `json:"-"`
-	TrojanOptions      TrojanOutboundOptions      `json:"-"`
-	WireGuardOptions   WireGuardOutboundOptions   `json:"-"`
-	HysteriaOptions    HysteriaOutboundOptions    `json:"-"`
-	TorOptions         TorOutboundOptions         `json:"-"`
-	SSHOptions         SSHOutboundOptions         `json:"-"`
-	ShadowTLSOptions   ShadowTLSOutboundOptions   `json:"-"`
-	SelectorOptions    SelectorOutboundOptions    `json:"-"`
+	Type                string                      `json:"type"`
+	Tag                 string                      `json:"tag,omitempty"`
+	DirectOptions       DirectOutboundOptions       `json:"-"`
+	SocksOptions        SocksOutboundOptions        `json:"-"`
+	HTTPOptions         HTTPOutboundOptions         `json:"-"`
+	ShadowsocksOptions  ShadowsocksOutboundOptions  `json:"-"`
+	VMessOptions        VMessOutboundOptions        `json:"-"`
+	TrojanOptions       TrojanOutboundOptions       `json:"-"`
+	WireGuardOptions    WireGuardOutboundOptions    `json:"-"`
+	HysteriaOptions     HysteriaOutboundOptions     `json:"-"`
+	TorOptions          TorOutboundOptions          `json:"-"`
+	SSHOptions          SSHOutboundOptions          `json:"-"`
+	ShadowTLSOptions    ShadowTLSOutboundOptions    `json:"-"`
+	ShadowsocksROptions ShadowsocksROutboundOptions `json:"-"`
+	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 }
 
 type Outbound _Outbound
@@ -53,6 +54,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.SSHOptions
 	case C.TypeShadowTLS:
 		v = h.ShadowTLSOptions
+	case C.TypeShadowsocksR:
+		v = h.ShadowsocksROptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
 	default:
@@ -92,6 +95,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.SSHOptions
 	case C.TypeShadowTLS:
 		v = &h.ShadowTLSOptions
+	case C.TypeShadowsocksR:
+		v = &h.ShadowsocksROptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
 	default:
