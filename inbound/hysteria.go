@@ -255,12 +255,6 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	if err != nil {
 		return err
 	}
-	err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
-		OK: true,
-	})
-	if err != nil {
-		return err
-	}
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.tag
 	metadata.InboundType = C.TypeHysteria
@@ -270,7 +264,14 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port)
+
 	if !request.UDP {
+		err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
+			OK: true,
+		})
+		if err != nil {
+			return err
+		}
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 		return h.router.RouteConnection(ctx, hysteria.NewConn(stream, metadata.Destination), metadata)
 	} else {
@@ -282,6 +283,13 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 		h.udpSessions[id] = nCh
 		h.udpSessionId += 1
 		h.udpAccess.Unlock()
+		err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
+			OK:           true,
+			UDPSessionID: id,
+		})
+		if err != nil {
+			return err
+		}
 		packetConn := hysteria.NewPacketConn(conn, stream, id, metadata.Destination, nCh, common.Closer(func() error {
 			h.udpAccess.Lock()
 			if ch, ok := h.udpSessions[id]; ok {
