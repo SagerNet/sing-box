@@ -374,15 +374,33 @@ var _ net.Conn = (*Conn)(nil)
 
 type Conn struct {
 	quic.Stream
-	destination     M.Socksaddr
-	responseWritten bool
+	destination      M.Socksaddr
+	needReadResponse bool
 }
 
-func NewConn(stream quic.Stream, destination M.Socksaddr) *Conn {
+func NewConn(stream quic.Stream, destination M.Socksaddr, isClient bool) *Conn {
 	return &Conn{
-		Stream:      stream,
-		destination: destination,
+		Stream:           stream,
+		destination:      destination,
+		needReadResponse: isClient,
 	}
+}
+
+func (c *Conn) Read(p []byte) (n int, err error) {
+	if c.needReadResponse {
+		var response *ServerResponse
+		response, err = ReadServerResponse(c.Stream)
+		if err != nil {
+			c.Close()
+			return
+		}
+		if !response.OK {
+			c.Close()
+			return 0, E.New("remote error: ", response.Message)
+		}
+		c.needReadResponse = false
+	}
+	return c.Stream.Read(p)
 }
 
 func (c *Conn) LocalAddr() net.Addr {
@@ -394,7 +412,7 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 func (c *Conn) ReaderReplaceable() bool {
-	return true
+	return !c.needReadResponse
 }
 
 func (c *Conn) WriterReplaceable() bool {

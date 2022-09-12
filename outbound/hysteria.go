@@ -276,16 +276,7 @@ func (h *Hysteria) DialContext(ctx context.Context, network string, destination 
 			stream.Close()
 			return nil, err
 		}
-		response, err := hysteria.ReadServerResponse(stream)
-		if err != nil {
-			stream.Close()
-			return nil, err
-		}
-		if !response.OK {
-			stream.Close()
-			return nil, E.New("remote error: ", response.Message)
-		}
-		return hysteria.NewConn(stream, destination), nil
+		return hysteria.NewConn(stream, destination, true), nil
 	case N.NetworkUDP:
 		conn, err := h.ListenPacket(ctx, destination)
 		if err != nil {
