@@ -20,8 +20,9 @@ var _ adapter.Outbound = (*Socks)(nil)
 
 type Socks struct {
 	myOutboundAdapter
-	client *socks.Client
-	uot    bool
+	client  *socks.Client
+	resolve bool
+	uot     bool
 }
 
 func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
@@ -45,6 +46,7 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 			tag:      tag,
 		},
 		socks.NewClient(detour, options.ServerOptions.Build(), version, options.Username, options.Password),
+		version == socks.Version4,
 		options.UoT,
 	}, nil
 }
@@ -71,6 +73,13 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
+	}
+	if destination.IsFqdn() {
+		addrs, err := h.router.LookupDefault(ctx, destination.Fqdn)
+		if err != nil {
+			return nil, err
+		}
+		return N.DialSerial(ctx, h.client, network, destination, addrs)
 	}
 	return h.client.DialContext(ctx, network, destination)
 }
