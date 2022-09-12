@@ -26,6 +26,8 @@ type ShadowsocksOutboundOptions struct {
 	ServerOptions
 	Method           string            `json:"method"`
 	Password         string            `json:"password"`
+	Plugin           string            `json:"plugin,omitempty"`
+	PluginOptions    string            `json:"plugin_opts,omitempty"`
 	Network          NetworkList       `json:"network,omitempty"`
 	UoT              bool              `json:"udp_over_tcp,omitempty"`
 	MultiplexOptions *MultiplexOptions `json:"multiplex,omitempty"`
