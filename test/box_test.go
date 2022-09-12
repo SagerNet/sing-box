@@ -53,8 +53,8 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 	dialUDP := func() (net.PacketConn, error) {
 		return dialer.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("127.0.0.1", testPort))
 	}
-	// require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
-	// require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
+	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
+	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
 	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
 	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
 
@@ -78,6 +78,8 @@ func testSuitSimple(t *testing.T, clientPort uint16, testPort uint16) {
 	dialUDP := func() (net.PacketConn, error) {
 		return dialer.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("127.0.0.1", testPort))
 	}
+	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
+	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
 	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
 	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
 }

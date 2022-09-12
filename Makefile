@@ -64,7 +64,7 @@ test:
 	@go test -v . && \
 	pushd test && \
 	go mod tidy && \
-	go test -v -tags with_quic,with_wireguard,with_grpc,with_ech,with_utls . && \
+	go test -v -tags with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr . && \
 	popd
 
 clean:

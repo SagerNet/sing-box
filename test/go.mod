@@ -66,8 +66,9 @@ require (
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
+	github.com/sagernet/shadowsocksr v0.0.0-20220912092645-c9ab93f81bb0 // indirect
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220909114108-a6b5a9289ecb // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220911034209-c7dd5d457e24 // indirect
 	github.com/sagernet/sing-vmess v0.0.0-20220907073918-72d7fdf6825f // indirect
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect

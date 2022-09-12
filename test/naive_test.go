@@ -99,9 +99,6 @@ func TestNaiveInbound(t *testing.T) {
 }
 
 func TestNaiveHTTP3Inbound(t *testing.T) {
-	if !C.QUIC_AVAILABLE {
-		t.Skip("QUIC not included")
-	}
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
