@@ -61,6 +61,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		server.mode = "rule"
 	}
 	if options.StoreSelected {
+		server.storeSelected = true
 		cachePath := os.ExpandEnv(options.CacheFile)
 		if cachePath == "" {
 			cachePath = "cache.db"
