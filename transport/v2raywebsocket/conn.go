@@ -11,8 +11,7 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	"github.com/gorilla/websocket"
+	"github.com/sagernet/websocket"
 )
 
 type WebsocketConn struct {

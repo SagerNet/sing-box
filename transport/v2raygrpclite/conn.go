@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/common/baderror"
@@ -28,6 +29,7 @@ type GunConn struct {
 	create        chan struct{}
 	err           error
 	readRemaining int
+	writeAccess   sync.Mutex
 }
 
 func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunConn {
@@ -100,7 +102,9 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	grpcHeader := buf.Get(5)
 	grpcPayloadLen := uint32(1 + varuintLen + len(b))
 	binary.BigEndian.PutUint32(grpcHeader[1:5], grpcPayloadLen)
+	c.writeAccess.Lock()
 	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader[:varuintLen+1]), bytes.NewReader(b)))
+	c.writeAccess.Unlock()
 	buf.Put(grpcHeader)
 	if c.flusher != nil {
 		c.flusher.Flush()

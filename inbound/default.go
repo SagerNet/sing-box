@@ -3,7 +3,6 @@ package inbound
 import (
 	"context"
 	"net"
-	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/settings"
@@ -42,7 +41,6 @@ type myInboundAdapter struct {
 	tcpListener          net.Listener
 	udpConn              *net.UDPConn
 	udpAddr              M.Socksaddr
-	packetAccess         sync.RWMutex
 	packetOutboundClosed chan struct{}
 	packetOutbound       chan *myInboundPacket
 }
