@@ -84,6 +84,8 @@ nav:
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
           - ShadowTLS: configuration/outbound/shadowtls.md
+          - ShadowsocksR: configuration/outbound/shadowsocksr.md
+          - VLESS: configuration/outbound/vless.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md

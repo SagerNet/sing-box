@@ -9,6 +9,8 @@
   "server_port": 1080,
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "plugin": "",
+  "plugin_opts": "",
   "network": "udp",
   "udp_over_tcp": false,
   "multiplex": {},
@@ -64,6 +66,16 @@ Legacy encryption methods:
 ==Required==
 
 The shadowsocks password.
+
+#### plugin
+
+Shadowsocks SIP003 plugin, implemented in internal.
+
+Only `obfs-local` and `v2ray-plugin` are supported.
+
+#### plugin_opts
+
+Shadowsocks SIP003 plugin options.
 
 #### network
 
