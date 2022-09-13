@@ -193,5 +193,5 @@ func testV2RayWebsocketOutbound(t *testing.T, maxEarlyData uint32, earlyDataHead
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }

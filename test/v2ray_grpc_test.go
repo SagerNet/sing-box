@@ -161,7 +161,7 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }
 
 func TestV2RayGRPCLite(t *testing.T) {
