@@ -80,7 +80,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 	chiRouter.Use(cors.Handler)
 	chiRouter.Group(func(r chi.Router) {
 		r.Use(authentication(options.Secret))
-		r.Get("/", hello)
+		r.Get("/", hello(options.ExternalUI != ""))
 		r.Get("/logs", getLogs(logFactory))
 		r.Get("/traffic", traffic(trafficManager))
 		r.Get("/version", version)
@@ -232,8 +232,14 @@ func authentication(serverSecret string) func(next http.Handler) http.Handler {
 	}
 }
 
-func hello(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, render.M{"hello": "clash"})
+func hello(redirect bool) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if redirect {
+			http.Redirect(w, r, "/ui/", http.StatusTemporaryRedirect)
+		} else {
+			render.JSON(w, r, render.M{"hello": "clash"})
+		}
+	}
 }
 
 var upgrader = websocket.Upgrader{
