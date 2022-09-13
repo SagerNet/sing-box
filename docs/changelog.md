@@ -1,3 +1,19 @@
+#### 1.1-beta4
+
+* Add internal simple-obfs and v2ray-plugin [Shadowsocks plugins](/configuration/outbound/shadowsocks#plugin)
+* Add [ShadowsocksR outbound](/configuration/outbound/shadowsocksr)
+* Add [VLESS outbound and XUDP](/configuration/outbound/vless)
+* Skip wait for hysteria tcp handshake response
+* Fix socks4 client
+* Fix hysteria inbound
+* Fix concurrent write
+
+#### 1.0.3
+
+* Fix socks4 client
+* Fix hysteria inbound
+* Fix concurrent write
+
 #### 1.1-beta3
 
 * Fix using custom TLS client in http2 client

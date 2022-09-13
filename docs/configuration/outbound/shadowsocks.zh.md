@@ -9,6 +9,8 @@
   "server_port": 1080,
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "plugin": "",
+  "plugin_opts": "",
   "network": "udp",
   "udp_over_tcp": false,
   "multiplex": {},
@@ -64,6 +66,16 @@
 ==必填==
 
 Shadowsocks 密码。
+
+#### plugin
+
+Shadowsocks SIP003 插件，由内部实现。
+
+仅支持 `obfs-local` 和 `v2ray-plugin`。
+
+#### plugin_opts
+
+Shadowsocks SIP003 插件参数。
 
 #### network
 
