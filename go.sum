@@ -300,8 +300,8 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 h1:Ug9qvr1myri/zFN6xL17LSCBGFDnphBBhzmILHsM5TY=
 golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224/go.mod h1:deeaetjYA+DHMHg+sMSMI58GrEteJUUzzw7en6TJQcI=
-golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 h1:5ZkdpbduT/g+9OtbSDvbF3KvfQG45CtH/ppO8FUmvCQ=
-golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0/go.mod h1:enML0deDxY1ux+B6ANGiwtg0yAJi1rctkTpcHNAVPyg=
+golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b h1:qgrKnOfe1zyURRNdmDlGbN32i38Zjmw0B1+TMdHcOvg=
+golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b/go.mod h1:6y4CqPAy54NwiN4nC8K+R1eMpQDB1P2d25qmunh2RSA=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=
