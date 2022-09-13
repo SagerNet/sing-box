@@ -12,7 +12,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 
-	"golang.org/x/net/dns/dnsmessage"
+	mDNS "github.com/miekg/dns"
 )
 
 func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, dns.DomainStrategy) {
@@ -40,29 +40,29 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 	return ctx, r.defaultTransport, r.defaultDomainStrategy
 }
 
-func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
-	if len(message.Questions) > 0 {
-		r.dnsLogger.DebugContext(ctx, "exchange ", formatDNSQuestion(message.Questions[0]))
+func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	if len(message.Question) > 0 {
+		r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()))
 	}
 	ctx, metadata := adapter.AppendContext(ctx)
-	if len(message.Questions) > 0 {
-		switch message.Questions[0].Type {
-		case dnsmessage.TypeA:
+	if len(message.Question) > 0 {
+		switch message.Question[0].Qtype {
+		case mDNS.TypeA:
 			metadata.IPVersion = 4
-		case dnsmessage.TypeAAAA:
+		case mDNS.TypeAAAA:
 			metadata.IPVersion = 6
 		}
-		metadata.Domain = string(message.Questions[0].Name.Data[:message.Questions[0].Name.Length-1])
+		metadata.Domain = fqdnToDomain(message.Question[0].Name)
 	}
 	ctx, transport, strategy := r.matchDNS(ctx)
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 	defer cancel()
 	response, err := r.dnsClient.Exchange(ctx, transport, message, strategy)
-	if err != nil && len(message.Questions) > 0 {
-		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", message.Questions[0].Name.String()))
+	if err != nil && len(message.Question) > 0 {
+		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", formatQuestion(message.Question[0].String())))
 	}
-	if len(message.Questions) > 0 && response != nil {
-		LogDNSAnswers(r.dnsLogger, ctx, message.Questions[0].Name.String(), response.Answers)
+	if len(message.Question) > 0 && response != nil {
+		LogDNSAnswers(r.dnsLogger, ctx, message.Question[0].Name, response.Answer)
 	}
 	return response, err
 }
@@ -93,61 +93,26 @@ func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr
 	return r.Lookup(ctx, domain, dns.DomainStrategyAsIS)
 }
 
-func LogDNSAnswers(logger log.ContextLogger, ctx context.Context, domain string, answers []dnsmessage.Resource) {
-	for _, rawAnswer := range answers {
-		var content string
-		switch answer := rawAnswer.Body.(type) {
-		case *dnsmessage.AResource:
-			content = netip.AddrFrom4(answer.A).String()
-		case *dnsmessage.NSResource:
-			content = answer.NS.String()
-		case *dnsmessage.CNAMEResource:
-			content = answer.CNAME.String()
-		case *dnsmessage.SOAResource:
-			content = answer.MBox.String()
-		case *dnsmessage.PTRResource:
-			content = answer.PTR.String()
-		case *dnsmessage.MXResource:
-			content = answer.MX.String()
-		case *dnsmessage.TXTResource:
-			content = strings.Join(answer.TXT, " ")
-		case *dnsmessage.AAAAResource:
-			content = netip.AddrFrom16(answer.AAAA).String()
-		case *dnsmessage.SRVResource:
-			content = answer.Target.String()
-		case *dnsmessage.UnknownResource:
-			content = answer.Type.String()
-		default:
-			continue
-		}
-		rType := formatDNSType(rawAnswer.Header.Type)
-		if rType == "" {
-			logger.InfoContext(ctx, "exchanged ", domain, " ", rType)
-		} else {
-			logger.InfoContext(ctx, "exchanged ", domain, " ", rType, " ", content)
-		}
+func LogDNSAnswers(logger log.ContextLogger, ctx context.Context, domain string, answers []mDNS.RR) {
+	for _, answer := range answers {
+		logger.InfoContext(ctx, "exchanged ", domain, " ", mDNS.Type(answer.Header().Rrtype).String(), " ", formatQuestion(answer.String()))
 	}
 }
 
-func formatDNSQuestion(question dnsmessage.Question) string {
-	var qType string
-	qType = question.Type.String()
-	if len(qType) > 4 {
-		qType = qType[4:]
+func fqdnToDomain(fqdn string) string {
+	if mDNS.IsFqdn(fqdn) {
+		return fqdn[:len(fqdn)-1]
 	}
-	var qClass string
-	qClass = question.Class.String()
-	if len(qClass) > 5 {
-		qClass = qClass[5:]
-	}
-	return string(question.Name.Data[:question.Name.Length-1]) + " " + qType + " " + qClass
+	return fqdn
 }
 
-func formatDNSType(qType dnsmessage.Type) string {
-	qTypeName := qType.String()
-	if len(qTypeName) > 4 {
-		return qTypeName[4:]
-	} else {
-		return F.ToString("unknown (type ", qTypeName, ")")
+func formatQuestion(string string) string {
+	if strings.HasPrefix(string, ";") {
+		string = string[1:]
 	}
+	string = strings.ReplaceAll(string, "\t", " ")
+	for strings.Contains(string, "  ") {
+		string = strings.ReplaceAll(string, "  ", " ")
+	}
+	return string
 }

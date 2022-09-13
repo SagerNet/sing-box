@@ -53,17 +53,6 @@ we need to do this.
 
 The library needs to be updated with the upstream.
 
-#### certmagic
-
-Link: [GitHub repository](https://github.com/SagerNet/certmagic)
-
-Fork of `caddyserver/certmagic`
-
-Since upstream uses `miekg/dns` and we use `x/net/dnsmessage`, we need to replace its DNS part with our own
-implementation.
-
-The library needs to be updated with the upstream.
-
 #### smux
 
 Link: [GitHub repository](https://github.com/SagerNet/smux)

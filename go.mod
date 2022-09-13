@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	berty.tech/go-libtor v1.0.385
+	github.com/caddyserver/certmagic v0.17.1
 	github.com/cloudflare/circl v1.2.1-0.20220831060716-4cf0150356fc
 	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go v1.1.2
@@ -20,11 +21,10 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/refraction-networking/utls v1.1.2
-	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
 	github.com/sagernet/shadowsocksr v0.0.0-20220912092645-c9ab93f81bb0
 	github.com/sagernet/sing v0.0.0-20220913004915-27ddefbb8921
-	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
+	github.com/sagernet/sing-dns v0.0.0-20220913080251-628caf4acef7
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220911034209-c7dd5d457e24
 	github.com/sagernet/sing-vmess v0.0.0-20220913015714-c4ab86d40e12
