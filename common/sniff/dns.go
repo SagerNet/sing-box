@@ -13,7 +13,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/task"
 
-	"golang.org/x/net/dns/dnsmessage"
+	mDNS "github.com/miekg/dns"
 )
 
 func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.InboundContext, error) {
@@ -44,18 +44,10 @@ func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.
 }
 
 func DomainNameQuery(ctx context.Context, packet []byte) (*adapter.InboundContext, error) {
-	var parser dnsmessage.Parser
-	_, err := parser.Start(packet)
+	var msg mDNS.Msg
+	err := msg.Unpack(packet)
 	if err != nil {
 		return nil, err
 	}
-	question, err := parser.Question()
-	if err != nil {
-		return nil, os.ErrInvalid
-	}
-	domain := question.Name.String()
-	if question.Class == dnsmessage.ClassINET && IsDomainName(domain) {
-		return &adapter.InboundContext{Protocol: C.ProtocolDNS /*, Domain: domain*/}, nil
-	}
-	return nil, os.ErrInvalid
+	return &adapter.InboundContext{Protocol: C.ProtocolDNS}, nil
 }

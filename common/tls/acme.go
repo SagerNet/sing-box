@@ -7,11 +7,11 @@ import (
 	"crypto/tls"
 	"strings"
 
-	"github.com/sagernet/certmagic"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez/acme"
 )
 

@@ -18,7 +18,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	mDNS "github.com/miekg/dns"
-	"golang.org/x/net/dns/dnsmessage"
 )
 
 type echClientConfig struct {
@@ -170,15 +169,15 @@ const typeHTTPS = 65
 
 func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
 	return func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
-		message := &dnsmessage.Message{
-			Header: dnsmessage.Header{
+		message := &mDNS.Msg{
+			MsgHdr: mDNS.MsgHdr{
 				RecursionDesired: true,
 			},
-			Questions: []dnsmessage.Question{
+			Question: []mDNS.Question{
 				{
-					Name:  dnsmessage.MustNewName(serverName + "."),
-					Type:  typeHTTPS,
-					Class: dnsmessage.ClassINET,
+					Name:   serverName + ".",
+					Qtype:  mDNS.TypeHTTPS,
+					Qclass: mDNS.ClassINET,
 				},
 			},
 		}
@@ -186,19 +185,10 @@ func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serve
 		if err != nil {
 			return nil, err
 		}
-		if response.RCode != dnsmessage.RCodeSuccess {
-			return nil, dns.RCodeError(response.RCode)
+		if response.Rcode != mDNS.RcodeSuccess {
+			return nil, dns.RCodeError(response.Rcode)
 		}
-		content, err := response.Pack()
-		if err != nil {
-			return nil, err
-		}
-		var mMsg mDNS.Msg
-		err = mMsg.Unpack(content)
-		if err != nil {
-			return nil, err
-		}
-		for _, rr := range mMsg.Answer {
+		for _, rr := range response.Answer {
 			switch resource := rr.(type) {
 			case *mDNS.HTTPS:
 				for _, value := range resource.Value {

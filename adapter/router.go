@@ -11,7 +11,7 @@ import (
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
 
-	"golang.org/x/net/dns/dnsmessage"
+	mdns "github.com/miekg/dns"
 )
 
 type Router interface {
@@ -27,7 +27,7 @@ type Router interface {
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
 
-	Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error)
+	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
 	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
 
