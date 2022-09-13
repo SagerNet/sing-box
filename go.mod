@@ -12,7 +12,6 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.0.4
@@ -20,12 +19,13 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/sagernet/certmagic v0.0.0-20220819042630-4a57f8b6853a
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220910144724-62c4ebdbcb3f
+	github.com/sagernet/sing v0.0.0-20220913004915-27ddefbb8921
 	github.com/sagernet/sing-dns v0.0.0-20220822023312-3e086b06d666
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220828031750-185b6c880a83
-	github.com/sagernet/sing-vmess v0.0.0-20220907073918-72d7fdf6825f
+	github.com/sagernet/sing-vmess v0.0.0-20220913015714-c4ab86d40e12
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
+	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.10.0

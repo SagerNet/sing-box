@@ -80,7 +80,7 @@ func TestHysteriaSelf(t *testing.T) {
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuitSimple1(t, clientPort, testPort)
 }
 
 func TestHysteriaInbound(t *testing.T) {
@@ -171,5 +171,5 @@ func TestHysteriaOutbound(t *testing.T) {
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }

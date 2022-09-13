@@ -256,7 +256,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, uuid uuid.UUID, g
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }
 
 func testVMessSelf(t *testing.T, security string, uuid uuid.UUID, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {

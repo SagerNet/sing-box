@@ -19,8 +19,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	sHttp "github.com/sagernet/sing/protocol/http"
-
-	"github.com/gorilla/websocket"
+	"github.com/sagernet/websocket"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)

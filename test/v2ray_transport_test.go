@@ -266,7 +266,7 @@ func TestVMessQUICSelf(t *testing.T) {
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }
 
 func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportOptions) {
@@ -330,5 +330,5 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 			},
 		},
 	})
-	testSuitSimple(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }

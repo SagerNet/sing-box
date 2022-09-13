@@ -21,11 +21,11 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/websocket"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
-	"github.com/gorilla/websocket"
 )
 
 var _ adapter.ClashServer = (*Server)(nil)

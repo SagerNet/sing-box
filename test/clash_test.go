@@ -385,21 +385,24 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 		hashMap := map[int][]byte{}
 		mux := sync.Mutex{}
 		for i := 0; i < times; i++ {
-			buf := make([]byte, chunkSize)
-			if _, err = rand.Read(buf[1:]); err != nil {
-				t.Log(err.Error())
-				continue
-			}
-			buf[0] = byte(i)
+			go func(idx int) {
+				buf := make([]byte, chunkSize)
+				if _, err := rand.Read(buf[1:]); err != nil {
+					t.Log(err.Error())
+					return
+				}
+				buf[0] = byte(idx)
 
-			hash := md5.Sum(buf)
-			mux.Lock()
-			hashMap[i] = hash[:]
-			mux.Unlock()
-			if _, err = pc.WriteTo(buf, addr); err != nil {
-				t.Log(err)
-				continue
-			}
+				hash := md5.Sum(buf)
+				mux.Lock()
+				hashMap[idx] = hash[:]
+				mux.Unlock()
+
+				if _, err := pc.WriteTo(buf, addr); err != nil {
+					t.Log(err.Error())
+					return
+				}
+			}(i)
 		}
 
 		return hashMap, nil

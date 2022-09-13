@@ -14,8 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"github.com/gorilla/websocket"
+	"github.com/sagernet/websocket"
 )
 
 var _ adapter.V2RayClientTransport = (*Client)(nil)

@@ -203,17 +203,12 @@ func (s *myInboundPacketAdapter) Upstream() any {
 }
 
 func (s *myInboundPacketAdapter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
-	s.packetAccess.RLock()
-	defer s.packetAccess.RUnlock()
-
 	select {
+	case s.packetOutbound <- &myInboundPacket{buffer, destination}:
+		return nil
 	case <-s.packetOutboundClosed:
 		return os.ErrClosed
-	default:
 	}
-
-	s.packetOutbound <- &myInboundPacket{buffer, destination}
-	return nil
 }
 
 func (s *myInboundPacketAdapter) Close() error {
