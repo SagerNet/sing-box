@@ -4,41 +4,36 @@ package outbound
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
-	"strings"
 
-	"github.com/sagernet/shadowsocksr"
-	"github.com/sagernet/shadowsocksr/obfs"
-	"github.com/sagernet/shadowsocksr/protocol"
-	"github.com/sagernet/shadowsocksr/ssr"
-	"github.com/sagernet/shadowsocksr/streamCipher"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-shadowsocks"
-	"github.com/sagernet/sing-shadowsocks/shadowimpl"
-	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing-box/transport/clashssr/obfs"
+	"github.com/sagernet/sing-box/transport/clashssr/protocol"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"github.com/Dreamacro/clash/transport/shadowsocks/core"
+	"github.com/Dreamacro/clash/transport/shadowsocks/shadowstream"
+	"github.com/Dreamacro/clash/transport/socks5"
 )
 
 var _ adapter.Outbound = (*ShadowsocksR)(nil)
 
 type ShadowsocksR struct {
 	myOutboundAdapter
-	dialer         N.Dialer
-	serverAddr     M.Socksaddr
-	method         shadowsocks.Method
-	cipher         string
-	password       string
-	obfs           string
-	obfsParams     *ssr.ServerInfo
-	protocol       string
-	protocolParams *ssr.ServerInfo
+	dialer     N.Dialer
+	serverAddr M.Socksaddr
+	cipher     core.Cipher
+	obfs       obfs.Obfs
+	protocol   protocol.Protocol
 }
 
 func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksROutboundOptions) (*ShadowsocksR, error) {
@@ -52,40 +47,54 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 		},
 		dialer:     dialer.New(router, options.DialerOptions),
 		serverAddr: options.ServerOptions.Build(),
-		cipher:     options.Method,
-		password:   options.Password,
-		obfs:       options.Obfs,
-		protocol:   options.Protocol,
 	}
+	var cipher string
 	var err error
-	outbound.method, err = shadowimpl.FetchMethod(options.Method, options.Password)
+	switch options.Method {
+	case "none":
+		cipher = "dummy"
+	default:
+		cipher = options.Method
+	}
+	outbound.cipher, err = core.PickCipher(cipher, nil, options.Password)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = streamCipher.NewStreamCipher(options.Method, options.Password); err != nil {
-		return nil, E.New(strings.ToLower(err.Error()))
+	var (
+		ivSize int
+		key    []byte
+	)
+	if cipher == "dummy" {
+		ivSize = 0
+		key = core.Kdf(options.Password, 16)
+	} else {
+		streamCipher, ok := outbound.cipher.(*core.StreamCipher)
+		if !ok {
+			return nil, fmt.Errorf("%s is not none or a supported stream cipher in ssr", cipher)
+		}
+		ivSize = streamCipher.IVSize()
+		key = streamCipher.Key
 	}
-	if obfs.NewObfs(options.Obfs) == nil {
-		return nil, E.New("unknown obfs: " + options.Obfs)
-	}
-	outbound.obfsParams = &ssr.ServerInfo{
-		Host:   outbound.serverAddr.AddrString(),
-		Port:   outbound.serverAddr.Port,
-		TcpMss: 1460,
+	obfs, obfsOverhead, err := obfs.PickObfs(options.Obfs, &obfs.Base{
+		Host:   options.Server,
+		Port:   int(options.ServerPort),
+		Key:    key,
+		IVSize: ivSize,
 		Param:  options.ObfsParam,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "initialize obfs")
 	}
-	if protocol.NewProtocol(options.Protocol) == nil {
-		return nil, E.New("unknown protocol: " + options.Protocol)
+	protocol, err := protocol.PickProtocol(options.Protocol, &protocol.Base{
+		Key:      key,
+		Overhead: obfsOverhead,
+		Param:    options.ProtocolParam,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "initialize protocol")
 	}
-	outbound.protocolParams = &ssr.ServerInfo{
-		Host:   outbound.serverAddr.AddrString(),
-		Port:   outbound.serverAddr.Port,
-		TcpMss: 1460,
-		Param:  options.Protocol,
-	}
-	if outbound.method == nil {
-		outbound.network = common.Filter(outbound.network, func(it string) bool { return it == N.NetworkTCP })
-	}
+	outbound.obfs = obfs
+	outbound.protocol = protocol
 	return outbound, nil
 }
 
@@ -97,20 +106,17 @@ func (h *ShadowsocksR) DialContext(ctx context.Context, network string, destinat
 		if err != nil {
 			return nil, err
 		}
-		cipher, err := streamCipher.NewStreamCipher(h.cipher, h.password)
+		conn = h.cipher.StreamConn(h.obfs.StreamConn(conn))
+		writeIv, err := conn.(*shadowstream.Conn).ObtainWriteIV()
 		if err != nil {
-			return nil, E.New(strings.ToLower(err.Error()))
+			return nil, err
 		}
-		ssConn := shadowsocksr.NewSSTCPConn(conn, cipher)
-		ssConn.IObfs = obfs.NewObfs(h.obfs)
-		ssConn.IObfs.SetServerInfo(h.obfsParams)
-		ssConn.IProtocol = protocol.NewProtocol(h.protocol)
-		ssConn.IProtocol.SetServerInfo(h.protocolParams)
-		err = M.SocksaddrSerializer.WriteAddrPort(ssConn, destination)
+		conn = h.protocol.StreamConn(conn, writeIv)
+		err = M.SocksaddrSerializer.WriteAddrPort(conn, destination)
 		if err != nil {
 			return nil, E.Cause(err, "write request")
 		}
-		return ssConn, nil
+		return conn, nil
 	case N.NetworkUDP:
 		conn, err := h.ListenPacket(ctx, destination)
 		if err != nil {
@@ -128,7 +134,10 @@ func (h *ShadowsocksR) ListenPacket(ctx context.Context, destination M.Socksaddr
 	if err != nil {
 		return nil, err
 	}
-	return h.method.DialPacketConn(outConn), nil
+	packetConn := h.cipher.PacketConn(bufio.NewUnbindPacketConn(outConn))
+	packetConn = h.protocol.PacketConn(packetConn)
+	packetConn = &ssPacketConn{packetConn, outConn.RemoteAddr()}
+	return packetConn, nil
 }
 
 func (h *ShadowsocksR) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -137,4 +146,37 @@ func (h *ShadowsocksR) NewConnection(ctx context.Context, conn net.Conn, metadat
 
 func (h *ShadowsocksR) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewPacketConnection(ctx, h, conn, metadata)
+}
+
+type ssPacketConn struct {
+	net.PacketConn
+	rAddr net.Addr
+}
+
+func (spc *ssPacketConn) WriteTo(b []byte, addr net.Addr) (n int, err error) {
+	packet, err := socks5.EncodeUDPPacket(socks5.ParseAddrToSocksAddr(addr), b)
+	if err != nil {
+		return
+	}
+	return spc.PacketConn.WriteTo(packet[3:], spc.rAddr)
+}
+
+func (spc *ssPacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
+	n, _, e := spc.PacketConn.ReadFrom(b)
+	if e != nil {
+		return 0, nil, e
+	}
+
+	addr := socks5.SplitAddr(b[:n])
+	if addr == nil {
+		return 0, nil, errors.New("parse addr error")
+	}
+
+	udpAddr := addr.UDPAddr()
+	if udpAddr == nil {
+		return 0, nil, errors.New("parse addr error")
+	}
+
+	copy(b, b[len(addr):])
+	return n - len(addr), udpAddr, e
 }
