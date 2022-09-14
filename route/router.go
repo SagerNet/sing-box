@@ -86,7 +86,7 @@ type Router struct {
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
 	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
-	interfaceBindManager               control.BindManager
+	interfaceFinder                    myInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
 	defaultMark                        int
@@ -123,7 +123,6 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
-		interfaceBindManager:  control.NewBindManager(),
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
@@ -196,7 +195,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
-			transport, err := dns.NewTransport(ctx, detour, server.Address)
+			transport, err := dns.CreateTransport(ctx, detour, server.Address)
 			if err != nil {
 				return nil, E.Cause(err, "parse dns server[", tag, "]")
 			}
@@ -233,7 +232,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 	if defaultTransport == nil {
 		if len(transports) == 0 {
-			transports = append(transports, dns.NewLocalTransport())
+			transports = append(transports, &dns.LocalTransport{})
 		}
 		defaultTransport = transports[0]
 	}
@@ -247,13 +246,11 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 			return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || C.IsAndroid && inbound.TunOptions.AutoRoute
 		})
 
-	if router.interfaceBindManager != nil || needInterfaceMonitor {
+	if needInterfaceMonitor {
 		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
 		if err == nil {
 			router.networkMonitor = networkMonitor
-			if router.interfaceBindManager != nil {
-				networkMonitor.RegisterCallback(router.interfaceBindManager.Update)
-			}
+			networkMonitor.RegisterCallback(router.interfaceFinder.update)
 		}
 	}
 
@@ -714,8 +711,8 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 	return nil, defaultOutbound
 }
 
-func (r *Router) InterfaceBindManager() control.BindManager {
-	return r.interfaceBindManager
+func (r *Router) InterfaceFinder() control.InterfaceFinder {
+	return &r.interfaceFinder
 }
 
 func (r *Router) AutoDetectInterface() bool {

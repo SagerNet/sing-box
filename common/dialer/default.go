@@ -65,25 +65,23 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
 		warnBindInterfaceOnUnsupportedPlatform.Check()
-		bindFunc := control.BindToInterface(router.InterfaceBindManager(), options.BindInterface)
+		bindFunc := control.BindToInterface(router.InterfaceFinder(), options.BindInterface, -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	} else if router.AutoDetectInterface() {
-		if C.IsWindows {
-			bindFunc := control.BindToInterfaceIndexFunc(func(network, address string) int {
-				return router.InterfaceMonitor().DefaultInterfaceIndex(M.ParseSocksaddr(address).Addr)
-			})
-			dialer.Control = control.Append(dialer.Control, bindFunc)
-			listener.Control = control.Append(listener.Control, bindFunc)
-		} else {
-			bindFunc := control.BindToInterfaceFunc(router.InterfaceBindManager(), func(network, address string) string {
-				return router.InterfaceMonitor().DefaultInterfaceName(M.ParseSocksaddr(address).Addr)
-			})
-			dialer.Control = control.Append(dialer.Control, bindFunc)
-			listener.Control = control.Append(listener.Control, bindFunc)
-		}
+		const useInterfaceName = C.IsLinux
+		bindFunc := control.BindToInterfaceFunc(router.InterfaceFinder(), func(network string, address string) (interfaceName string, interfaceIndex int) {
+			remoteAddr := M.ParseSocksaddr(address).Addr
+			if C.IsLinux {
+				return router.InterfaceMonitor().DefaultInterfaceName(remoteAddr), -1
+			} else {
+				return "", router.InterfaceMonitor().DefaultInterfaceIndex(remoteAddr)
+			}
+		})
+		dialer.Control = control.Append(dialer.Control, bindFunc)
+		listener.Control = control.Append(listener.Control, bindFunc)
 	} else if router.DefaultInterface() != "" {
-		bindFunc := control.BindToInterface(router.InterfaceBindManager(), router.DefaultInterface())
+		bindFunc := control.BindToInterface(router.InterfaceFinder(), router.DefaultInterface(), -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
