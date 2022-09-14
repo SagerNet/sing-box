@@ -31,7 +31,7 @@ type Router interface {
 	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
 
-	InterfaceBindManager() control.BindManager
+	InterfaceFinder() control.InterfaceFinder
 	DefaultInterface() string
 	AutoDetectInterface() bool
 	DefaultMark() int
