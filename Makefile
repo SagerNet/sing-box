@@ -60,10 +60,9 @@ release_install:
 
 test:
 	@go test -v . && \
-	pushd test && \
+	cd test && \
 	go mod tidy && \
-	go test -v -tags with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr . && \
-	popd
+	go test -v -tags with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr .
 
 clean:
 	rm -rf bin dist
