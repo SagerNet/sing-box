@@ -107,8 +107,10 @@
 
     The default rule uses the following matching logic:  
     (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr`) &&  
+    (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr`) &&  
-    `other fields`  
+    (`source_port` || `source_port_range`) &&  
+    `other fields`
 
 #### inbound
 
