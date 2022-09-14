@@ -62,7 +62,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) Close() error {
-	return common.Close(c.conn)
+	return common.Close(
+		common.PtrOrNil(c.conn),
+	)
 }
 
 func (c *Client) connect() (*grpc.ClientConn, error) {
