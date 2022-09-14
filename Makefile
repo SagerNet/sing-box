@@ -1,9 +1,7 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
 TAGS ?= with_quic,with_wireguard,with_clash_api
-PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags \
-		'-X "github.com/sagernet/sing-box/constant.Commit=$(COMMIT)" \
-		-w -s -buildid='
+PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags '-s -w -buildid='
 MAIN = ./cmd/sing-box
 
 .PHONY: test release
