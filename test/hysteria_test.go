@@ -114,7 +114,7 @@ func TestHysteriaInbound(t *testing.T) {
 			caPem:                  "/etc/hysteria/ca.pem",
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple1(t, clientPort, testPort)
 }
 
 func TestHysteriaOutbound(t *testing.T) {
@@ -162,5 +162,5 @@ func TestHysteriaOutbound(t *testing.T) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple1(t, clientPort, testPort)
 }
