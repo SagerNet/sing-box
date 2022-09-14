@@ -103,8 +103,10 @@
 
     默认规则使用以下匹配逻辑:  
     (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite`) &&  
+    (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr`) &&  
-    `other fields`  
+    (`source_port` || `source_port_range`) &&  
+    `other fields`
 
 #### inbound
 
