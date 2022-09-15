@@ -70,18 +70,26 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	case C.TypeSocks:
 		clashType = "Socks"
 	case C.TypeHTTP:
-		clashType = "Http"
+		clashType = "HTTP"
 	case C.TypeShadowsocks:
 		clashType = "Shadowsocks"
 	case C.TypeVMess:
-		clashType = "Vmess"
+		clashType = "VMess"
 	case C.TypeTrojan:
 		clashType = "Trojan"
+	case C.TypeHysteria:
+		clashType = "Hysteria"
+	case C.TypeWireGuard:
+		clashType = "WireGuard"
+	case C.TypeTor:
+		clashType = "Tor"
+	case C.TypeSSH:
+		clashType = "SSH"
 	case C.TypeSelector:
 		clashType = "Selector"
 		isGroup = true
 	default:
-		clashType = "Socks"
+		clashType = "Direct"
 	}
 	info.Put("type", clashType)
 	info.Put("name", detour.Tag())
