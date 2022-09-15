@@ -145,10 +145,10 @@ github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb h1:wc0yQ+SBn4TaTY
 github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb/go.mod h1:MIccjRKnPTjWwAOpl+AUGWOkzyTd9tERytudxu+1ra4=
 github.com/sagernet/sing v0.0.0-20220812082120-05f9836bff8f/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
-github.com/sagernet/sing v0.0.0-20220915031330-38f39bc0c690 h1:pvaLdkDmsGN2K46vf8rorAhYGFvKPuQNzcofuy3aXXg=
-github.com/sagernet/sing v0.0.0-20220915031330-38f39bc0c690/go.mod h1:x3NHUeJBQwV75L51zwmLKQdLtRvR+M4PmXkfQtU1vIY=
-github.com/sagernet/sing-dns v0.0.0-20220913115644-aebff1dfbba8 h1:Iyfl+Rm5jcDvXuy/jpOBI3eu35ujci50tkqYHHwwg+8=
-github.com/sagernet/sing-dns v0.0.0-20220913115644-aebff1dfbba8/go.mod h1:bPVnJ5gJ0WmUfN1bJP9Cis0ab8SSByx6JVzyLJjDMwA=
+github.com/sagernet/sing v0.0.0-20220915083342-a8e70a54fea2 h1:5Qgm7mMGpLdv+f6CuHJpxzRRnWcqoaGHh7rGAMbCW2s=
+github.com/sagernet/sing v0.0.0-20220915083342-a8e70a54fea2/go.mod h1:x3NHUeJBQwV75L51zwmLKQdLtRvR+M4PmXkfQtU1vIY=
+github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b h1:cXCMNJ9heZ+c6l+qUcku60x9KyXo4SOAaJfg/6spOmU=
+github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b/go.mod h1:SrvWLfOSlnFmH32CWXicfilAGgIXR0VjrH6yRbuXYww=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6 h1:JJfDeYYhWunvtxsU/mOVNTmFQmnzGx9dY034qG6G3g4=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6/go.mod h1:EX3RbZvrwAkPI2nuGa78T2iQXmrkT+/VQtskjou42xM=
 github.com/sagernet/sing-tun v0.0.0-20220915041614-0e80d729a3e1 h1:QHpg9JSUeNVnit9UgwGug/P39naZgrct0fY5FiwnyuI=
