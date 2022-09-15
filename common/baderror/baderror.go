@@ -26,7 +26,7 @@ func WrapH2(err error) error {
 	if err == io.ErrUnexpectedEOF {
 		return io.EOF
 	}
-	if Contains(err, "client disconnected", "body closed by handler") {
+	if Contains(err, "client disconnected", "body closed by handler", "response body closed", "; CANCEL") {
 		return net.ErrClosed
 	}
 	return err
