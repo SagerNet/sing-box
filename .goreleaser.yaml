@@ -11,6 +11,7 @@ builds:
     ldflags:
       - -s -w -buildid=
     tags:
+      - with_gvisor
       - with_quic
       - with_wireguard
       - with_clash_api

@@ -26,6 +26,10 @@
 
     默认安装不包含 WireGuard, 参阅 [安装](/zh/#_2)。
 
+!!! warning ""
+
+    默认安装不包含被非特权 WireGuard 需要的 gVisor, 参阅 [安装](/zh/#_2)。
+
 ### 字段
 
 #### server
@@ -45,6 +49,8 @@
 使用系统 tun 支持。
 
 需要特权且不能与系统接口冲突。
+
+如果 gVisor 未包含在构建中，则强制执行。
 
 #### interface_name
 

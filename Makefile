@@ -1,6 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_quic,with_wireguard,with_clash_api
+TAGS ?= with_gvisor,with_quic,with_wireguard,with_clash_api
 PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags '-s -w -buildid='
 MAIN = ./cmd/sing-box
 
@@ -62,7 +62,7 @@ test:
 	@go test -v . && \
 	cd test && \
 	go mod tidy && \
-	go test -v -tags with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr .
+	go test -v -tags with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr .
 
 clean:
 	rm -rf bin dist

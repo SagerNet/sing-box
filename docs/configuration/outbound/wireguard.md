@@ -26,6 +26,10 @@
 
     WireGuard is not included by default, see [Installation](/#installation).
 
+!!! warning ""
+
+    gVisor, which is required by the unprivileged WireGuard is not included by default, see [Installation](/#installation).
+
 ### Fields
 
 #### server
@@ -44,7 +48,9 @@ The server port.
 
 Use system tun support.
 
-Requires privileges and cannot conflict with system interfaces.
+Requires privilege and cannot conflict with system interfaces.
+
+Forced if gVisor not included in the build.
 
 #### interface_name
 

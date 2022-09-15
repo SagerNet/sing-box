@@ -16,7 +16,7 @@
   "auto_route": true,
   "strict_route": true,
   "endpoint_independent_nat": false,
-  "stack": "gvisor",
+  "stack": "system",
   "include_uid": [
     0
   ],
@@ -112,15 +112,15 @@ UDP NAT expiration time in seconds, default is 300 (5 minutes).
 
 TCP/IP stack.
 
-| Stack            | Description                                                                    | Status            |
-|------------------|--------------------------------------------------------------------------------|-------------------|
-| gVisor (default) | Based on [google/gvisor](https://github.com/google/gvisor)                     | recommended       |
- | system           | Less compatibility and sometimes better performance.                           | recommended       |
-| LWIP             | Based on [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks) | upstream archived |
+| Stack            | Description                                                                      | Status            |
+|------------------|----------------------------------------------------------------------------------|-------------------|
+| system (default) | Sometimes better performance                                                     | recommended       |
+| gVisor           | Better compatibility, based on [google/gvisor](https://github.com/google/gvisor) | recommended       |
+| LWIP             | Based on [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks)   | upstream archived |
 
 !!! warning ""
 
-    The LWIP stack is not included by default, see [Installation](/#installation).
+    gVisor and LWIP stacks is not included by default, see [Installation](/#installation).
 
 #### include_uid
 

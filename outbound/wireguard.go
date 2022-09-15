@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -98,7 +99,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	}
 	var wireTunDevice wireguard.Device
 	var err error
-	if !options.SystemInterface {
+	if !options.SystemInterface && tun.WithGVisor {
 		wireTunDevice, err = wireguard.NewStackDevice(localPrefixes, mtu)
 	} else {
 		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, localPrefixes, mtu)
