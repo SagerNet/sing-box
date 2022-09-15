@@ -16,7 +16,7 @@
   "auto_route": true,
   "strict_route": true,
   "endpoint_independent_nat": false,
-  "stack": "gvisor",
+  "stack": "system",
   "include_uid": [
     0
   ],
@@ -107,15 +107,15 @@ UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
 
 TCP/IP 栈。
 
-| 栈                | 描述                                                                       | 状态    |
-|------------------|--------------------------------------------------------------------------|-------|
-| gVisor (default) | 基于 [google/gvisor](https://github.com/google/gvisor)                     | 推荐    |
-| system           | 兼容性较差，有时性能更好。                                                            | 推荐    |
-| LWIP             | 基于 [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks) | 上游已存档 |
+| 栈           | 描述                                                                       | 状态    |
+|-------------|--------------------------------------------------------------------------|-------|
+| system （默认） | 有时性能更好                                                                   | 推荐    |
+| gVisor      | 兼容性较好，基于 [google/gvisor](https://github.com/google/gvisor)               | 推荐    |
+| LWIP        | 基于 [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks) | 上游已存档 |
 
 !!! warning ""
 
-    默认安装不包含 LWIP 栈，请参阅 [安装](/zh/#_2)。
+    默认安装不包含 gVisor 和 LWIP 栈，请参阅 [安装](/zh/#_2)。
 
 #### include_uid
 
@@ -145,10 +145,10 @@ TCP/IP 栈。
 
 限制被路由的 Android 用户。
 
-| 常用用户 | ID  |
+| 常用用户 | ID |
 |--|-----|
-| 您 | 0   |
-| 工作资料 | 10  |
+| 您 | 0 |
+| 工作资料 | 10 |
 
 #### include_package
 

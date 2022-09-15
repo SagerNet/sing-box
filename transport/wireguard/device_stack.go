@@ -1,4 +1,4 @@
-//go:build !no_gvisor
+//go:build with_gvisor
 
 package wireguard
 
