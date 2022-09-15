@@ -41,7 +41,9 @@ var _ adapter.Rule = (*DefaultRule)(nil)
 type DefaultRule struct {
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
+	sourcePortItems         []RuleItem
 	destinationAddressItems []RuleItem
+	destinationPortItems    []RuleItem
 	allItems                []RuleItem
 	invert                  bool
 	outbound                string
@@ -143,7 +145,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
-		rule.items = append(rule.items, item)
+		rule.sourcePortItems = append(rule.sourcePortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePortRange) > 0 {
@@ -151,12 +153,12 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		if err != nil {
 			return nil, E.Cause(err, "source_port_range")
 		}
-		rule.items = append(rule.items, item)
+		rule.sourcePortItems = append(rule.sourcePortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Port) > 0 {
 		item := NewPortItem(false, options.Port)
-		rule.items = append(rule.items, item)
+		rule.destinationPortItems = append(rule.destinationPortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.PortRange) > 0 {
@@ -164,7 +166,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		if err != nil {
 			return nil, E.Cause(err, "port_range")
 		}
-		rule.items = append(rule.items, item)
+		rule.destinationPortItems = append(rule.destinationPortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.ProcessName) > 0 {
@@ -251,6 +253,19 @@ func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 		}
 	}
 
+	if len(r.sourcePortItems) > 0 {
+		var sourcePortMatch bool
+		for _, item := range r.sourcePortItems {
+			if item.Match(metadata) {
+				sourcePortMatch = true
+				break
+			}
+		}
+		if !sourcePortMatch {
+			return r.invert
+		}
+	}
+
 	if len(r.destinationAddressItems) > 0 {
 		var destinationAddressMatch bool
 		for _, item := range r.destinationAddressItems {
@@ -260,6 +275,19 @@ func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
 			}
 		}
 		if !destinationAddressMatch {
+			return r.invert
+		}
+	}
+
+	if len(r.destinationPortItems) > 0 {
+		var destinationPortMatch bool
+		for _, item := range r.destinationPortItems {
+			if item.Match(metadata) {
+				destinationPortMatch = true
+				break
+			}
+		}
+		if !destinationPortMatch {
 			return r.invert
 		}
 	}
