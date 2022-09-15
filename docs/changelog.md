@@ -1,3 +1,29 @@
+#### 1.1-beta5
+
+* Print tags in version command
+* Redirect clash hello to external ui
+* Move shadowsocksr implementation to clash
+* Make gVisor optional **1**
+* Refactor to miekg/dns
+* Refactor bind control
+* Fix build on go1.18
+* Fix clash store-selected
+* Fix close grpc conn
+* Fix port rule match logic
+* Fix clash api proxy type
+
+*1*:
+
+The build tag `no_gvisor` is replaced by `with_gvisor`.
+
+The default tun stack is changed to system.
+
+#### 1.0.4
+
+* Fix close grpc conn
+* Fix port rule match logic
+* Fix clash api proxy type
+
 #### 1.1-beta4
 
 * Add internal simple-obfs and v2ray-plugin [Shadowsocks plugins](/configuration/outbound/shadowsocks#plugin)
