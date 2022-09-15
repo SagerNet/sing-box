@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/sagernet/sing-box/common/urltest"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -12,6 +13,7 @@ type ClashServer interface {
 	Mode() string
 	StoreSelected() bool
 	CacheFile() ClashCacheFile
+	HistoryStorage() *urltest.HistoryStorage
 	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
 	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule) (N.PacketConn, Tracker)
 }
