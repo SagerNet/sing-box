@@ -90,6 +90,7 @@ nav:
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
+          - URLTest: configuration/outbound/urltest.md
   - FAQ:
       - faq/index.md
       - Known Issues: faq/known-issues.md
