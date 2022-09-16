@@ -1,3 +1,8 @@
+#### 1.1-beta6
+
+* Add [URLTest outbound](/configuration/outbound/urltest)
+* Fix bugs in 1.1-beta5
+
 #### 1.1-beta5
 
 * Print tags in version command
