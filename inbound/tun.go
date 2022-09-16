@@ -190,7 +190,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	if err != nil {
 		t.NewError(ctx, err)
 	}
-	return err
+	return nil
 }
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
@@ -212,7 +212,7 @@ func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstre
 	if err != nil {
 		t.NewError(ctx, err)
 	}
-	return err
+	return nil
 }
 
 func (t *Tun) NewError(ctx context.Context, err error) {
