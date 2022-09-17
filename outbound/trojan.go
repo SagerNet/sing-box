@@ -66,20 +66,28 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 }
 
 func (h *Trojan) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	destinationString := destination.String()
+	if destination.Addr.IsValid() {
+		metadata := adapter.ContextFrom(ctx)
+		if metadata.Domain != "" {
+			destinationString += " (" + metadata.Domain + ")"
+		}
+	}
+
 	if h.multiplexDialer == nil {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP:
-			h.logger.InfoContext(ctx, "outbound connection to ", destination)
+			h.logger.InfoContext(ctx, "outbound connection to ", destinationString)
 		case N.NetworkUDP:
-			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+			h.logger.InfoContext(ctx, "outbound packet connection to ", destinationString)
 		}
 		return (*trojanDialer)(h).DialContext(ctx, network, destination)
 	} else {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP:
-			h.logger.InfoContext(ctx, "outbound multiplex connection to ", destination)
+			h.logger.InfoContext(ctx, "outbound multiplex connection to ", destinationString)
 		case N.NetworkUDP:
-			h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
+			h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destinationString)
 		}
 		return h.multiplexDialer.DialContext(ctx, network, destination)
 	}
