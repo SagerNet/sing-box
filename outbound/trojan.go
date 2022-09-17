@@ -69,7 +69,7 @@ func (h *Trojan) DialContext(ctx context.Context, network string, destination M.
 	destinationString := destination.String()
 	if destination.Addr.IsValid() {
 		metadata := adapter.ContextFrom(ctx)
-		if metadata.Domain != "" {
+		if metadata != nil && metadata.Domain != "" {
 			destinationString += " (" + metadata.Domain + ")"
 		}
 	}
