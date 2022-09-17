@@ -148,7 +148,7 @@ func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapt
 		link = "http://www.gstatic.com/generate_204"
 	}
 	if interval == 0 {
-		interval = C.TCPTimeout
+		interval = C.DefaultURLTestInterval
 	}
 	if tolerance == 0 {
 		tolerance = 50
