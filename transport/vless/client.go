@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
@@ -25,20 +26,21 @@ func NewClient(userId string) (*Client, error) {
 }
 
 func (c *Client) DialEarlyConn(conn net.Conn, destination M.Socksaddr) *Conn {
-	return &Conn{Conn: conn, key: c.key, destination: destination}
+	return &Conn{Conn: conn, key: c.key, command: vmess.CommandTCP, destination: destination}
 }
 
 func (c *Client) DialPacketConn(conn net.Conn, destination M.Socksaddr) *PacketConn {
 	return &PacketConn{Conn: conn, key: c.key, destination: destination}
 }
 
-func (c *Client) DialXUDPPacketConn(conn net.Conn, destination M.Socksaddr) *XUDPConn {
-	return &XUDPConn{Conn: conn, key: c.key, destination: destination}
+func (c *Client) DialXUDPPacketConn(conn net.Conn, destination M.Socksaddr) vmess.PacketConn {
+	return vmess.NewXUDPConn(&Conn{Conn: conn, key: c.key, command: vmess.CommandMux, destination: destination}, destination)
 }
 
 type Conn struct {
 	net.Conn
 	key            []byte
+	command        byte
 	destination    M.Socksaddr
 	requestWritten bool
 	responseRead   bool
@@ -57,7 +59,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 
 func (c *Conn) Write(b []byte) (n int, err error) {
 	if !c.requestWritten {
-		err = WriteRequest(c.Conn, Request{c.key, CommandTCP, c.destination}, b)
+		err = WriteRequest(c.Conn, Request{c.key, c.command, c.destination}, b)
 		if err == nil {
 			n = len(b)
 		}
@@ -100,7 +102,7 @@ func (c *PacketConn) Read(b []byte) (n int, err error) {
 
 func (c *PacketConn) Write(b []byte) (n int, err error) {
 	if !c.requestWritten {
-		err = WritePacketRequest(c.Conn, Request{c.key, CommandUDP, c.destination}, b)
+		err = WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination}, b)
 		if err == nil {
 			n = len(b)
 		}
@@ -119,7 +121,7 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 	dataLen := buffer.Len()
 	binary.BigEndian.PutUint16(buffer.ExtendHeader(2), uint16(dataLen))
 	if !c.requestWritten {
-		err := WritePacketRequest(c.Conn, Request{c.key, CommandUDP, c.destination}, buffer.Bytes())
+		err := WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination}, buffer.Bytes())
 		c.requestWritten = true
 		return err
 	}

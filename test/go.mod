@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.3.0+incompatible
-	github.com/sagernet/sing v0.0.0-20220914045234-93cc53b60cee
+	github.com/sagernet/sing v0.0.0-20220916071326-834794b006ea
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
@@ -21,6 +21,7 @@ require (
 
 require (
 	berty.tech/go-libtor v1.0.385 // indirect
+	github.com/Dreamacro/clash v1.11.8 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
@@ -65,13 +66,12 @@ require (
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
-	github.com/sagernet/shadowsocksr v0.0.0-20220912092645-c9ab93f81bb0 // indirect
-	github.com/sagernet/sing-dns v0.0.0-20220913115644-aebff1dfbba8 // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220914100102-057dd738a7f7 // indirect
-	github.com/sagernet/sing-vmess v0.0.0-20220913015714-c4ab86d40e12 // indirect
+	github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220916073459-0032242c9617 // indirect
+	github.com/sagernet/sing-vmess v0.0.0-20220917033734-9b634758039d // indirect
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 // indirect
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
@@ -86,7 +86,7 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.11-0.20220513221640-090b14e8501f // indirect
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b // indirect
 	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f // indirect
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect

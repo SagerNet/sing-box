@@ -306,7 +306,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 					AlterId:             alterId,
 					GlobalPadding:       globalPadding,
 					AuthenticatedLength: authenticatedLength,
-					PacketAddr:          packetAddr,
+					PacketEncoding:      "packetaddr",
 				},
 			},
 		},
