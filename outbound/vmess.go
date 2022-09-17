@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
@@ -31,6 +32,7 @@ type VMess struct {
 	tlsConfig       tls.Config
 	transport       adapter.V2RayClientTransport
 	packetAddr      bool
+	xudp            bool
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessOutboundOptions) (*VMess, error) {
@@ -62,8 +64,14 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
-	if outbound.multiplexDialer == nil && options.PacketAddr {
+	switch options.PacketEncoding {
+	case "":
+	case "packetaddr":
 		outbound.packetAddr = true
+	case "xudp":
+		outbound.xudp = true
+	default:
+		return nil, E.New("unknown packet encoding: ", options.PacketEncoding)
 	}
 	var clientOptions []vmess.ClientOption
 	if options.GlobalPadding {
@@ -176,7 +184,9 @@ func (h *vmessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr)
 		return nil, err
 	}
 	if h.packetAddr {
-		return packetaddr.NewConn(h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress}), destination), nil
+		return dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress}), destination)), nil
+	} else if h.xudp {
+		return h.client.DialEarlyXUDPPacketConn(conn, destination), nil
 	} else {
 		return h.client.DialEarlyPacketConn(conn, destination), nil
 	}

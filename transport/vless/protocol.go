@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -11,20 +12,7 @@ import (
 	"github.com/sagernet/sing/common/rw"
 )
 
-const (
-	Version    = 0
-	CommandTCP = 1
-	CommandUDP = 2
-	CommandMux = 3
-	NetworkUDP = 2
-)
-
-var AddressSerializer = M.NewSerializer(
-	M.AddressFamilyByte(0x01, M.AddressFamilyIPv4),
-	M.AddressFamilyByte(0x02, M.AddressFamilyFqdn),
-	M.AddressFamilyByte(0x03, M.AddressFamilyIPv6),
-	M.PortThenAddress(),
-)
+const Version = 0
 
 type Request struct {
 	UUID        []byte
@@ -38,7 +26,9 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 	requestLen += 16 // uuid
 	requestLen += 1  // protobuf length
 	requestLen += 1  // command
-	requestLen += AddressSerializer.AddrPortLen(request.Destination)
+	if request.Command != vmess.CommandMux {
+		requestLen += vmess.AddressSerializer.AddrPortLen(request.Destination)
+	}
 	requestLen += len(payload)
 	_buffer := buf.StackNewSize(requestLen)
 	defer common.KeepAlive(_buffer)
@@ -48,10 +38,14 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 		buffer.WriteByte(Version),
 		common.Error(buffer.Write(request.UUID)),
 		buffer.WriteByte(0),
-		buffer.WriteByte(CommandTCP),
-		AddressSerializer.WriteAddrPort(buffer, request.Destination),
-		common.Error(buffer.Write(payload)),
+		buffer.WriteByte(request.Command),
 	)
+
+	if request.Command != vmess.CommandMux {
+		common.Must(vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination))
+	}
+
+	common.Must1(buffer.Write(payload))
 	return common.Error(writer.Write(buffer.Bytes()))
 }
 
@@ -61,7 +55,7 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 	requestLen += 16 // uuid
 	requestLen += 1  // protobuf length
 	requestLen += 1  // command
-	requestLen += AddressSerializer.AddrPortLen(request.Destination)
+	requestLen += vmess.AddressSerializer.AddrPortLen(request.Destination)
 	if len(payload) > 0 {
 		requestLen += 2
 		requestLen += len(payload)
@@ -74,8 +68,8 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 		buffer.WriteByte(Version),
 		common.Error(buffer.Write(request.UUID)),
 		buffer.WriteByte(0),
-		buffer.WriteByte(CommandUDP),
-		AddressSerializer.WriteAddrPort(buffer, request.Destination),
+		buffer.WriteByte(vmess.CommandUDP),
+		vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination),
 		binary.Write(buffer, binary.BigEndian, uint16(len(payload))),
 		common.Error(buffer.Write(payload)),
 	)
