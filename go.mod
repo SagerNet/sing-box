@@ -27,7 +27,7 @@ require (
 	github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/sagernet/sing-tun v0.0.0-20220916073459-0032242c9617
-	github.com/sagernet/sing-vmess v0.0.0-20220917033734-9b634758039d
+	github.com/sagernet/sing-vmess v0.0.0-20220921140858-b6a1bdee672f
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/spf13/cobra v1.5.0
@@ -35,7 +35,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
-	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
+	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
 	golang.org/x/sys v0.0.0-20220913120320-3275c407cedc
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
