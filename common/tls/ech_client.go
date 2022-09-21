@@ -165,8 +165,6 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 	return &echClientConfig{&tlsConfig}, nil
 }
 
-const typeHTTPS = 65
-
 func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
 	return func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
 		message := &mDNS.Msg{
