@@ -110,7 +110,13 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	if options.TCPFastOpen {
 		warnTFOOnUnsupportedPlatform.Check()
 	}
-	if !options.UDPFragment {
+	var udpFragment bool
+	if options.UDPFragment != nil {
+		udpFragment = *options.UDPFragment
+	} else {
+		udpFragment = options.UDPFragmentDefault
+	}
+	if !udpFragment {
 		dialer.Control = control.Append(dialer.Control, control.DisableUDPFragment())
 		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
 	}
