@@ -487,6 +487,25 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 	})
 }
 
+func (c *PacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	msg := <-c.msgCh
+	if msg == nil {
+		err = net.ErrClosed
+		return
+	}
+	n = copy(p, msg.Data)
+	addr = M.ParseSocksaddrHostPort(msg.Host, msg.Port).UDPAddr()
+	return
+}
+
+func (c *PacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	err = c.WritePacket(buf.As(p), M.SocksaddrFromNet(addr))
+	if err == nil {
+		n = len(p)
+	}
+	return
+}
+
 func (c *PacketConn) LocalAddr() net.Addr {
 	return nil
 }
@@ -505,14 +524,6 @@ func (c *PacketConn) SetReadDeadline(t time.Time) error {
 
 func (c *PacketConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
-}
-
-func (c *PacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	return 0, nil, os.ErrInvalid
-}
-
-func (c *PacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	return 0, os.ErrInvalid
 }
 
 func (c *PacketConn) Read(b []byte) (n int, err error) {

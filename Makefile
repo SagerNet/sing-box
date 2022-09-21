@@ -1,7 +1,8 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
 TAGS ?= with_gvisor,with_quic,with_wireguard,with_clash_api
-PARAMS = -v -trimpath -tags '$(TAGS)' -ldflags '-s -w -buildid='
+TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr
+PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-s -w -buildid="
 MAIN = ./cmd/sing-box
 
 .PHONY: test release
@@ -59,10 +60,15 @@ release_install:
 	go install -v github.com/tcnksm/ghr@latest
 
 test:
-	@go test -v . && \
+	@go test -v ./... && \
 	cd test && \
 	go mod tidy && \
-	go test -v -tags with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr .
+	go test -v -tags "$(TAGS_TEST)" .
+test_stdio:
+	@go test -v ./... && \
+	cd test && \
+	go mod tidy && \
+	go test -v -tags "$(TAGS_TEST),force_stdio" .
 
 clean:
 	rm -rf bin dist
