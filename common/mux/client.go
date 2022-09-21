@@ -466,10 +466,7 @@ func (c *ClientPacketAddrConn) ReadPacket(buffer *buf.Buffer) (destination M.Soc
 	if err != nil {
 		return
 	}
-	if buffer.FreeLen() < int(length) {
-		return destination, io.ErrShortBuffer
-	}
-	_, err = io.ReadFull(c.ExtendedConn, buffer.Extend(int(length)))
+	_, err = buffer.ReadFullFrom(c.ExtendedConn, int(length))
 	return
 }
 
