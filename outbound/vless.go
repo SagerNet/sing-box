@@ -11,9 +11,9 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
-	"github.com/sagernet/sing-box/transport/vless"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-vmess/packetaddr"
+	"github.com/sagernet/sing-vmess/vless"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -105,7 +105,7 @@ func (h *VLESS) DialContext(ctx context.Context, network string, destination M.S
 		return h.client.DialEarlyConn(conn, destination), nil
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-		return h.client.DialPacketConn(conn, destination), nil
+		return h.client.DialEarlyPacketConn(conn, destination), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
@@ -130,11 +130,11 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 		return nil, err
 	}
 	if h.xudp {
-		return h.client.DialXUDPPacketConn(conn, destination), nil
+		return h.client.DialEarlyXUDPPacketConn(conn, destination), nil
 	} else if h.packetAddr {
-		return dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(h.client.DialPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress}), destination)), nil
+		return dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress}), destination)), nil
 	} else {
-		return h.client.DialPacketConn(conn, destination), nil
+		return h.client.DialEarlyPacketConn(conn, destination), nil
 	}
 }
 
