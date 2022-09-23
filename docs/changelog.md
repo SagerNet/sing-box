@@ -1,3 +1,10 @@
+#### 1.1-beta7
+
+* Add v2ray mux and XUDP support for VMess inbound
+* Add XUDP support for VMess outbound
+* Disable DF on direct outbound by default
+* Fix bugs in 1.1-beta6
+
 #### 1.1-beta6
 
 * Add [URLTest outbound](/configuration/outbound/urltest)
