@@ -34,6 +34,8 @@ func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
+var errInsecureUnused = E.New("tls: insecure unused")
+
 func newSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
@@ -45,6 +47,9 @@ func newSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		tlsConfig, acmeService, err = startACME(ctx, common.PtrValueOrDefault(options.ACME))
 		if err != nil {
 			return nil, err
+		}
+		if options.Insecure {
+			return nil, errInsecureUnused
 		}
 	} else {
 		tlsConfig = &tls.Config{}
@@ -102,17 +107,23 @@ func newSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			}
 			key = content
 		}
-		if certificate == nil {
-			return nil, E.New("missing certificate")
+		if certificate == nil && key == nil && options.Insecure {
+			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				return GenerateKeyPair(info.ServerName)
+			}
+		} else {
+			if certificate == nil {
+				return nil, E.New("missing certificate")
+			} else if key == nil {
+				return nil, E.New("missing key")
+			}
+
+			keyPair, err := tls.X509KeyPair(certificate, key)
+			if err != nil {
+				return nil, E.Cause(err, "parse x509 key pair")
+			}
+			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
-		if key == nil {
-			return nil, E.New("missing key")
-		}
-		keyPair, err := tls.X509KeyPair(certificate, key)
-		if err != nil {
-			return nil, E.Cause(err, "parse x509 key pair")
-		}
-		tlsConfig.Certificates = []tls.Certificate{keyPair}
 	}
 	return &STDServerConfig{
 		config:          tlsConfig,
