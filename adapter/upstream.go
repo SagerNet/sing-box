@@ -38,13 +38,25 @@ type myUpstreamHandlerWrapper struct {
 }
 
 func (w *myUpstreamHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	w.metadata.Destination = metadata.Destination
-	return w.connectionHandler(ctx, conn, w.metadata)
+	myMetadata := w.metadata
+	if metadata.Source.IsValid() {
+		myMetadata.Source = metadata.Source
+	}
+	if metadata.Destination.IsValid() {
+		myMetadata.Destination = metadata.Destination
+	}
+	return w.connectionHandler(ctx, conn, myMetadata)
 }
 
 func (w *myUpstreamHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
-	w.metadata.Destination = metadata.Destination
-	return w.packetHandler(ctx, conn, w.metadata)
+	myMetadata := w.metadata
+	if metadata.Source.IsValid() {
+		myMetadata.Source = metadata.Source
+	}
+	if metadata.Destination.IsValid() {
+		myMetadata.Destination = metadata.Destination
+	}
+	return w.packetHandler(ctx, conn, myMetadata)
 }
 
 func (w *myUpstreamHandlerWrapper) NewError(ctx context.Context, err error) {
@@ -78,13 +90,23 @@ func NewUpstreamContextHandler(
 
 func (w *myUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
-	myMetadata.Destination = metadata.Destination
+	if metadata.Source.IsValid() {
+		myMetadata.Source = metadata.Source
+	}
+	if metadata.Destination.IsValid() {
+		myMetadata.Destination = metadata.Destination
+	}
 	return w.connectionHandler(ctx, conn, *myMetadata)
 }
 
 func (w *myUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
-	myMetadata.Destination = metadata.Destination
+	if metadata.Source.IsValid() {
+		myMetadata.Source = metadata.Source
+	}
+	if metadata.Destination.IsValid() {
+		myMetadata.Destination = metadata.Destination
+	}
 	return w.packetHandler(ctx, conn, *myMetadata)
 }
 
