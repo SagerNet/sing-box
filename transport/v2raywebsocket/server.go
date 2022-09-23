@@ -108,10 +108,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
-	conn = &WebsocketConn{
-		Conn:       wsConn,
-		remoteAddr: metadata.Source.TCPAddr(),
-	}
+	conn = NewServerConn(wsConn, metadata.Source.TCPAddr())
 	if len(earlyData) > 0 {
 		conn = bufio.NewCachedConn(conn, buf.As(earlyData))
 	}
