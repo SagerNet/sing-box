@@ -107,3 +107,64 @@ func TestMuxCoolClient(t *testing.T) {
 	})
 	testSuit(t, clientPort, testPort)
 }
+
+func TestMuxCoolSelf(t *testing.T) {
+	user := newUUID()
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeVMess,
+				VMessOptions: option.VMessInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					Users: []option.VMessUser{
+						{
+							Name: "sekai",
+							UUID: user.String(),
+						},
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeVMess,
+				Tag:  "vmess-out",
+				VMessOptions: option.VMessOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					UUID:           user.String(),
+					PacketEncoding: "xudp",
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					DefaultOptions: option.DefaultRule{
+						Inbound:  []string{"mixed-in"},
+						Outbound: "vmess-out",
+					},
+				},
+			},
+		},
+	})
+	testSuit(t, clientPort, testPort)
+}

@@ -15,9 +15,14 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
-func startInstance(t *testing.T, options option.Options) {
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
+
+func startInstance(t *testing.T, options option.Options) *box.Box {
 	if debug.Enabled {
 		options.Log = &option.LogOptions{
 			Level: "trace",
@@ -27,10 +32,12 @@ func startInstance(t *testing.T, options option.Options) {
 			Level: "warning",
 		}
 	}
+	// ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	var instance *box.Box
 	var err error
 	for retry := 0; retry < 3; retry++ {
-		instance, err = box.New(context.Background(), options)
+		instance, err = box.New(ctx, options)
 		require.NoError(t, err)
 		err = instance.Start()
 		if err != nil {
@@ -42,7 +49,9 @@ func startInstance(t *testing.T, options option.Options) {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		instance.Close()
+		cancel()
 	})
+	return instance
 }
 
 func testSuit(t *testing.T, clientPort uint16, testPort uint16) {

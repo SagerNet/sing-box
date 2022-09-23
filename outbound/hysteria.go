@@ -38,6 +38,7 @@ type Hysteria struct {
 	recvBPS      uint64
 	connAccess   sync.Mutex
 	conn         quic.Connection
+	rawConn      net.Conn
 	udpAccess    sync.RWMutex
 	udpSessions  map[uint32]chan *hysteria.UDPMessage
 	udpDefragger hysteria.Defragger
@@ -149,7 +150,6 @@ func (h *Hysteria) offer(ctx context.Context) (quic.Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	h.conn = conn
 	if common.Contains(h.network, N.NetworkUDP) {
 		for _, session := range h.udpSessions {
 			close(session)
@@ -201,6 +201,8 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 		return nil, E.New("remote error: ", serverHello.Message)
 	}
 	quicConn.SetCongestionControl(hysteria.NewBrutalSender(congestion.ByteCount(serverHello.RecvBPS)))
+	h.conn = quicConn
+	h.rawConn = udpConn
 	return quicConn, nil
 }
 
@@ -240,6 +242,7 @@ func (h *Hysteria) Close() error {
 	defer h.udpAccess.Unlock()
 	if h.conn != nil {
 		h.conn.CloseWithError(0, "")
+		h.rawConn.Close()
 	}
 	for _, session := range h.udpSessions {
 		close(session)

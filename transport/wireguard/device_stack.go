@@ -35,7 +35,6 @@ type StackDevice struct {
 	events     chan tun.Event
 	outbound   chan *stack.PacketBuffer
 	dispatcher stack.NetworkDispatcher
-	done       chan struct{}
 	addr4      tcpip.Address
 	addr6      tcpip.Address
 }
@@ -51,7 +50,6 @@ func NewStackDevice(localAddresses []netip.Prefix, mtu uint32) (*StackDevice, er
 		mtu:      mtu,
 		events:   make(chan tun.Event, 1),
 		outbound: make(chan *stack.PacketBuffer, 256),
-		done:     make(chan struct{}),
 	}
 	err := ipStack.CreateNIC(defaultNIC, (*wireEndpoint)(tunDevice))
 	if err != nil {
@@ -193,11 +191,11 @@ func (w *StackDevice) Events() chan tun.Event {
 
 func (w *StackDevice) Close() error {
 	select {
-	case <-w.done:
+	case <-w.events:
 		return os.ErrClosed
 	default:
+		close(w.events)
 	}
-	close(w.done)
 	w.stack.Close()
 	for _, endpoint := range w.stack.CleanupEndpoints() {
 		endpoint.Abort()

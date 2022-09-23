@@ -74,10 +74,6 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	return outbound, nil
 }
 
-func (h *VLESS) Close() error {
-	return common.Close(h.transport)
-}
-
 func (h *VLESS) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
@@ -144,4 +140,8 @@ func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 
 func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewPacketConnection(ctx, h, conn, metadata)
+}
+
+func (h *VLESS) Close() error {
+	return common.Close(h.transport)
 }

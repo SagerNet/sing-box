@@ -18,7 +18,7 @@ func newUUID() uuid.UUID {
 	return user
 }
 
-func _TestVMessAuto(t *testing.T) {
+func TestVMessAuto(t *testing.T) {
 	security := "auto"
 	t.Run("self", func(t *testing.T) {
 		testVMessSelf(t, security, 0, false, false, false)

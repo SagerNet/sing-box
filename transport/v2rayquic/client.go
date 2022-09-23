@@ -25,8 +25,9 @@ type Client struct {
 	serverAddr M.Socksaddr
 	tlsConfig  *tls.STDConfig
 	quicConfig *quic.Config
-	conn       quic.Connection
 	connAccess sync.Mutex
+	conn       quic.Connection
+	rawConn    net.Conn
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
@@ -64,7 +65,6 @@ func (c *Client) offer() (quic.Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.conn = conn
 	return conn, nil
 }
 
@@ -80,6 +80,8 @@ func (c *Client) offerNew() (quic.Connection, error) {
 		packetConn.Close()
 		return nil, err
 	}
+	c.conn = quicConn
+	c.rawConn = udpConn
 	return quicConn, nil
 }
 
@@ -93,4 +95,8 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	return &hysteria.StreamWrapper{Conn: conn, Stream: stream}, nil
+}
+
+func (c *Client) Close() error {
+	return common.Close(c.conn, c.rawConn)
 }

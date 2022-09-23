@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net"
-	"net/http"
 	_ "net/http/pprof"
 	"net/netip"
 	"sync"
@@ -101,12 +100,6 @@ func init() {
 
 		io.Copy(io.Discard, imageStream)
 	}
-	go func() {
-		err = http.ListenAndServe("0.0.0.0:8965", nil)
-		if err != nil {
-			log.Debug(err)
-		}
-	}()
 }
 
 func newPingPongPair() (chan []byte, chan []byte, func(t *testing.T) error) {
