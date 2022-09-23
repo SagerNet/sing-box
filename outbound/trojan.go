@@ -103,6 +103,10 @@ func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, met
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
+func (h *Trojan) Close() error {
+	return common.Close(h.multiplexDialer, h.transport)
+}
+
 type trojanDialer Trojan
 
 func (h *trojanDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

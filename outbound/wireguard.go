@@ -162,9 +162,8 @@ func (w *WireGuard) Start() error {
 }
 
 func (w *WireGuard) Close() error {
-	return common.Close(
-		w.tunDevice,
-		common.PtrOrNil(w.device),
-		common.PtrOrNil(w.bind),
-	)
+	if w.device != nil {
+		w.device.Close()
+	}
+	return common.Close(w.tunDevice)
 }

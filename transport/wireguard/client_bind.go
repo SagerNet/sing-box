@@ -20,6 +20,7 @@ type ClientBind struct {
 	peerAddr   M.Socksaddr
 	connAccess sync.Mutex
 	conn       *wireConn
+	done       chan struct{}
 }
 
 func NewClientBind(ctx context.Context, dialer N.Dialer, peerAddr M.Socksaddr) *ClientBind {
@@ -63,6 +64,12 @@ func (c *ClientBind) connect() (*wireConn, error) {
 }
 
 func (c *ClientBind) Open(port uint16) (fns []conn.ReceiveFunc, actualPort uint16, err error) {
+	select {
+	case <-c.done:
+		err = net.ErrClosed
+		return
+	default:
+	}
 	return []conn.ReceiveFunc{c.receive}, 0, nil
 }
 
@@ -75,7 +82,12 @@ func (c *ClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
 	n, err = udpConn.Read(b)
 	if err != nil {
 		udpConn.Close()
-		err = &wireError{err}
+		select {
+		case <-c.done:
+		default:
+			err = &wireError{err}
+		}
+		return
 	}
 	ep = Endpoint(c.peerAddr)
 	return
@@ -85,6 +97,16 @@ func (c *ClientBind) Close() error {
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()
 	common.Close(common.PtrOrNil(c.conn))
+	if c.done == nil {
+		c.done = make(chan struct{})
+		return nil
+	}
+	select {
+	case <-c.done:
+		return net.ErrClosed
+	default:
+		close(c.done)
+	}
 	return nil
 }
 

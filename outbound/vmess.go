@@ -96,7 +96,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *VMess) Close() error {
-	return common.Close(h.transport)
+	return common.Close(h.multiplexDialer, h.transport)
 }
 
 func (h *VMess) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

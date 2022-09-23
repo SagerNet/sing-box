@@ -14,6 +14,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/task"
 )
 
 func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Handler, logger log.ContextLogger, conn net.Conn, metadata adapter.InboundContext) error {
@@ -25,14 +26,21 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 	if err != nil {
 		return err
 	}
-	var stream net.Conn
-	for {
-		stream, err = session.Accept()
-		if err != nil {
-			return err
+	var group task.Group
+	group.Append0(func(ctx context.Context) error {
+		var stream net.Conn
+		for {
+			stream, err = session.Accept()
+			if err != nil {
+				return err
+			}
+			go newConnection(ctx, router, errorHandler, logger, stream, metadata)
 		}
-		go newConnection(ctx, router, errorHandler, logger, stream, metadata)
-	}
+	})
+	group.Cleanup(func() {
+		session.Close()
+	})
+	return group.Run(ctx)
 }
 
 func newConnection(ctx context.Context, router adapter.Router, errorHandler E.Handler, logger log.ContextLogger, stream net.Conn, metadata adapter.InboundContext) {
