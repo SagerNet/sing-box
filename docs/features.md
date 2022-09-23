@@ -95,13 +95,22 @@
 | cn                | 17.8M    | 140.3M     |
 | cn (Loyalsoldier) | 74.3M    | 246.7M     |
 
-#### Shadowsocks benchmark
+#### Benchmark
+
+##### Shadowsocks
 
 | /                                  |   none    | aes-128-gcm | 2022-blake3-aes-128-gcm |
 |------------------------------------|:---------:|:-----------:|:-----------------------:|
 | v2ray-core (5.0.7)                 | 13.0 Gbps |  5.02 Gbps  |            /            |
 | shadowsocks-rust (v1.15.0-alpha.5) | 10.7 Gbps |      /      |        9.36 Gbps        |
 | sing-box                           | 29.0 Gbps |      /      |        11.8 Gbps        |
+
+##### VMess
+
+| /                  |    TCP    |   HTTP    |  H2 TLS   | WebSocket TLS | gRPC TLS  |
+|--------------------|:---------:|:---------:|:---------:|:-------------:|:---------:|
+| v2ray-core (5.1.0) | 7.86 GBps | 2.86 Gbps | 1.83 Gbps |   2.36 Gbps   | 2.43 Gbps |
+| sing-box           | 7.96 Gbps | 8.09 Gbps | 6.11 Gbps |   2.69 Gbps   | 6.35 Gbps |
 
 #### License
 
