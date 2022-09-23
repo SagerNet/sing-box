@@ -110,7 +110,7 @@
 | /                  |    TCP    |   HTTP    |  H2 TLS   | WebSocket TLS | gRPC TLS  |
 |--------------------|:---------:|:---------:|:---------:|:-------------:|:---------:|
 | v2ray-core (5.1.0) | 7.86 GBps | 2.86 Gbps | 1.83 Gbps |   2.36 Gbps   | 2.43 Gbps |
-| sing-box           | 7.96 Gbps | 8.09 Gbps | 6.11 Gbps |   2.69 Gbps   | 6.35 Gbps |
+| sing-box           | 7.96 Gbps | 8.09 Gbps | 6.11 Gbps |   8.02 Gbps   | 6.35 Gbps |
 
 #### License
 
