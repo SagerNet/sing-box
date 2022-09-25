@@ -3,19 +3,20 @@
 package redir
 
 import (
-	"net"
 	"net/netip"
 	"os"
+
+	"github.com/sagernet/sing/common/control"
 )
 
 func TProxy(fd uintptr, isIPv6 bool) error {
 	return os.ErrInvalid
 }
 
-func GetOriginalDestinationFromOOB(oob []byte) (netip.AddrPort, error) {
-	return netip.AddrPort{}, os.ErrInvalid
+func TProxyWriteBack() control.Func {
+	return nil
 }
 
-func DialUDP(lAddr *net.UDPAddr, rAddr *net.UDPAddr) (*net.UDPConn, error) {
-	return nil, os.ErrInvalid
+func GetOriginalDestinationFromOOB(oob []byte) (netip.AddrPort, error) {
+	return netip.AddrPort{}, os.ErrInvalid
 }
