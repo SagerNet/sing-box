@@ -86,12 +86,13 @@ func (t *TProxy) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.B
 	}
 	metadata.Destination = M.SocksaddrFromNetIP(destination)
 	t.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
-		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &tproxyPacketWriter{source: natConn}
+		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &tproxyPacketWriter{ctx: ctx, source: natConn}
 	})
 	return nil
 }
 
 type tproxyPacketWriter struct {
+	ctx         context.Context
 	source      N.PacketConn
 	destination M.Socksaddr
 	conn        *net.UDPConn
@@ -99,25 +100,30 @@ type tproxyPacketWriter struct {
 
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	var udpConn *net.UDPConn
+	destination = destination.Unwrap()
+	if !w.destination.Addr.IsValid() {
+		w.destination = destination
+	} else if w.destination == destination && w.conn != nil {
+		_, err := w.conn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr()))
+		if err == nil {
+			w.conn = nil
+		}
+		return err
+	}
+	var listener net.ListenConfig
+	listener.Control = control.Append(listener.Control, control.ReuseAddr())
+	listener.Control = control.Append(listener.Control, redir.TProxyWriteBack())
+	packetConn, err := listener.ListenPacket(w.ctx, "udp", destination.String())
+	if err != nil {
+		return err
+	}
+	udpConn := packetConn.(*net.UDPConn)
 	if w.destination == destination {
-		if w.conn != nil {
-			udpConn = w.conn
-		}
+		w.conn = udpConn
+	} else {
+		defer udpConn.Close()
 	}
-	if udpConn == nil {
-		var err error
-		udpConn, err = redir.DialUDP(destination.UDPAddr(), M.SocksaddrFromNet(w.source.LocalAddr()).UDPAddr())
-		if err != nil {
-			return E.Cause(err, "tproxy udp write back")
-		}
-		if w.destination == destination {
-			w.conn = udpConn
-		} else {
-			defer udpConn.Close()
-		}
-	}
-	return common.Error(udpConn.Write(buffer.Bytes()))
+	return common.Error(udpConn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr())))
 }
 
 func (w *tproxyPacketWriter) Close() error {
