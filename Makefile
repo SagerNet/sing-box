@@ -64,6 +64,7 @@ test:
 	cd test && \
 	go mod tidy && \
 	go test -v -tags "$(TAGS_TEST)" .
+
 test_stdio:
 	@go test -v ./... && \
 	cd test && \
@@ -71,7 +72,7 @@ test_stdio:
 	go test -v -tags "$(TAGS_TEST),force_stdio" .
 
 clean:
-	rm -rf bin dist
+	rm -rf bin dist sing-box
 	rm -f $(shell go env GOPATH)/sing-box
 
 update:

@@ -54,7 +54,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -86,7 +86,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
@@ -112,7 +112,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
 		if err != nil {
@@ -140,7 +140,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		metadata.SniffEnabled = a.listenOptions.SniffEnabled
 		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
-		metadata.Source = M.SocksaddrFromNetIP(addr)
+		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {

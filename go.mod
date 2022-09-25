@@ -23,10 +23,10 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/refraction-networking/utls v1.1.2
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
-	github.com/sagernet/sing v0.0.0-20220921101604-86d7d510231f
+	github.com/sagernet/sing v0.0.0-20220925112014-b12b8b7fd220
 	github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20220922083325-80ee99472704
+	github.com/sagernet/sing-tun v0.0.0-20220925112147-6bad0c2380ca
 	github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
@@ -34,10 +34,10 @@ require (
 	github.com/stretchr/testify v1.8.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
-	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
-	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0
-	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
-	golang.org/x/sys v0.0.0-20220913120320-3275c407cedc
+	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
+	golang.org/x/crypto v0.0.0-20220924013350-4ba4fb4dd9e7
+	golang.org/x/net v0.0.0-20220923203811-8be639271d50
+	golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1

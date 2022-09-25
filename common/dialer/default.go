@@ -146,7 +146,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 	case N.NetworkUDP:
 		return d.udpDialer.DialContext(ctx, network, address.String())
 	}
-	return d.dialer.DialContext(ctx, network, address.Unwrap().String())
+	return d.dialer.DialContext(ctx, network, address.String())
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
