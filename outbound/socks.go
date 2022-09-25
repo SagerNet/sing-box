@@ -74,7 +74,7 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
-	if destination.IsFqdn() {
+	if h.resolve && destination.IsFqdn() {
 		addrs, err := h.router.LookupDefault(ctx, destination.Fqdn)
 		if err != nil {
 			return nil, err
