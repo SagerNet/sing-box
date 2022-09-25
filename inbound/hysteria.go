@@ -261,9 +261,9 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.SniffEnabled = h.listenOptions.SniffEnabled
 	metadata.SniffOverrideDestination = h.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(h.listenOptions.DomainStrategy)
-	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
-	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr())
-	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port)
+	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
+	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
+	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port).Unwrap()
 
 	if !request.UDP {
 		err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{

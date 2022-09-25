@@ -36,8 +36,8 @@ func (l *Listener) Accept() (net.Conn, error) {
 	}
 	if header != nil {
 		return &bufio.AddrConn{Conn: conn, Metadata: M.Metadata{
-			Source:      M.SocksaddrFromNet(header.SourceAddr),
-			Destination: M.SocksaddrFromNet(header.DestinationAddr),
+			Source:      M.SocksaddrFromNet(header.SourceAddr).Unwrap(),
+			Destination: M.SocksaddrFromNet(header.DestinationAddr).Unwrap(),
 		}}, nil
 	}
 	return conn, nil

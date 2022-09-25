@@ -462,7 +462,7 @@ func (c *PacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, er
 		return
 	}
 	err = common.Error(buffer.Write(msg.Data))
-	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port).Unwrap()
 	return
 }
 
@@ -473,14 +473,14 @@ func (c *PacketConn) ReadPacketThreadSafe() (buffer *buf.Buffer, destination M.S
 		return
 	}
 	buffer = buf.As(msg.Data)
-	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	destination = M.ParseSocksaddrHostPort(msg.Host, msg.Port).Unwrap()
 	return
 }
 
 func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	return WriteUDPMessage(c.session, UDPMessage{
 		SessionID: c.sessionId,
-		Host:      destination.Unwrap().AddrString(),
+		Host:      destination.AddrString(),
 		Port:      destination.Port,
 		FragCount: 1,
 		Data:      buffer.Bytes(),

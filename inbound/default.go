@@ -141,13 +141,13 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
 	metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
 	if !metadata.Source.IsValid() {
-		metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr())
+		metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
 	}
 	if !metadata.Destination.IsValid() {
-		metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr())
+		metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 	}
 	if tcpConn, isTCP := common.Cast[*net.TCPConn](conn); isTCP {
-		metadata.OriginDestination = M.SocksaddrFromNet(tcpConn.LocalAddr())
+		metadata.OriginDestination = M.SocksaddrFromNet(tcpConn.LocalAddr()).Unwrap()
 	}
 	return metadata
 }
