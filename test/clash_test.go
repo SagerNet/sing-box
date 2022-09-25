@@ -38,6 +38,7 @@ const (
 	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
 	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
 	ImageXRayCore              = "teddysun/xray:latest"
+	ImageShadowsocksLegacy     = "mritd/shadowsocks:latest"
 )
 
 var allImages = []string{
@@ -52,6 +53,7 @@ var allImages = []string{
 	ImageShadowTLS,
 	ImageShadowsocksR,
 	ImageXRayCore,
+	ImageShadowsocksLegacy,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")

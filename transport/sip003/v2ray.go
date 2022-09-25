@@ -2,12 +2,15 @@ package sip003
 
 import (
 	"context"
+	"net"
+	"strconv"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
+	"github.com/sagernet/sing-vmess"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -56,6 +59,7 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 		}
 	}
 
+	var mux int
 	var transportOptions option.V2RayTransportOptions
 	switch mode {
 	case "websocket":
@@ -68,6 +72,15 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 				Path: path,
 			},
 		}
+		if muxOpt, loaded := pluginOpts.Get("mux"); loaded {
+			muxVal, err := strconv.Atoi(muxOpt)
+			if err != nil {
+				return nil, E.Cause(err, "parse mux value")
+			}
+			mux = muxVal
+		} else {
+			mux = 1
+		}
 	case "quic":
 		transportOptions = option.V2RayTransportOptions{
 			Type: C.V2RayTransportTypeQUIC,
@@ -76,5 +89,28 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 		return nil, E.New("v2ray-plugin: unknown mode: " + mode)
 	}
 
-	return v2ray.NewClientTransport(context.Background(), dialer, serverAddr, transportOptions, tlsClient)
+	transport, err := v2ray.NewClientTransport(context.Background(), dialer, serverAddr, transportOptions, tlsClient)
+	if err != nil {
+		return nil, err
+	}
+
+	if mux > 0 {
+		return &v2rayMuxWrapper{transport}, nil
+	}
+
+	return transport, nil
+}
+
+var _ Plugin = (*v2rayMuxWrapper)(nil)
+
+type v2rayMuxWrapper struct {
+	adapter.V2RayClientTransport
+}
+
+func (w *v2rayMuxWrapper) DialContext(ctx context.Context) (net.Conn, error) {
+	conn, err := w.V2RayClientTransport.DialContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return vmess.NewMuxConnWrapper(conn, vmess.MuxDestination), nil
 }

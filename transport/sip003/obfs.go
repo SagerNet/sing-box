@@ -19,7 +19,10 @@ func init() {
 }
 
 func newObfsLocal(pluginOpts Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
-	var plugin ObfsLocal
+	plugin := &ObfsLocal{
+		dialer:     dialer,
+		serverAddr: serverAddr,
+	}
 	mode := "http"
 	if obfsMode, loaded := pluginOpts.Get("obfs"); loaded {
 		mode = obfsMode
@@ -35,7 +38,7 @@ func newObfsLocal(pluginOpts Args, router adapter.Router, dialer N.Dialer, serve
 		return nil, E.New("unknown obfs mode ", mode)
 	}
 	plugin.port = F.ToString(serverAddr.Port)
-	return &plugin, nil
+	return plugin, nil
 }
 
 type ObfsLocal struct {
