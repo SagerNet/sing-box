@@ -1,3 +1,20 @@
+#### 1.1-beta8
+
+* Fix leaks on close
+* Improve websocket writer
+* Refine tproxy write back
+* Refine 4in6 processing
+* Fix shadowsocks plugins
+* Fix missing source address from transport connection
+* Fix fqdn socks5 outbound connection
+* Fix read source address from grpc-go
+
+#### 1.0.5
+
+* Fix missing source address from transport connection
+* Fix fqdn socks5 outbound connection
+* Fix read source address from grpc-go
+
 #### 1.1-beta7
 
 * Add v2ray mux and XUDP support for VMess inbound
