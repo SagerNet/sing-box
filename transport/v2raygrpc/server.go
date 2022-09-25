@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
@@ -13,6 +14,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	gM "google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -37,7 +40,22 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig *
 func (s *Server) Tun(server GunService_TunServer) error {
 	ctx, cancel := context.WithCancel(s.ctx)
 	conn := NewGRPCConn(server, cancel)
-	go s.handler.NewConnection(ctx, conn, M.Metadata{})
+	var metadata M.Metadata
+	if remotePeer, loaded := peer.FromContext(server.Context()); loaded {
+		metadata.Source = M.SocksaddrFromNet(remotePeer.Addr)
+	}
+	if grpcMetadata, loaded := gM.FromIncomingContext(server.Context()); loaded {
+		forwardFrom := strings.Join(grpcMetadata.Get("X-Forwarded-For"), ",")
+		if forwardFrom != "" {
+			for _, from := range strings.Split(forwardFrom, ",") {
+				originAddr := M.ParseSocksaddr(from)
+				if originAddr.IsValid() {
+					metadata.Source = originAddr.Unwrap()
+				}
+			}
+		}
+	}
+	go s.handler.NewConnection(ctx, conn, metadata)
 	<-ctx.Done()
 	return nil
 }
