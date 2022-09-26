@@ -38,6 +38,7 @@ type Server struct {
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
 	tcpListener    net.Listener
+	directIO       bool
 	mode           string
 	storeSelected  bool
 	cacheFile      adapter.ClashCacheFile
@@ -55,6 +56,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		},
 		trafficManager: trafficManager,
 		urlTestHistory: urltest.NewHistoryStorage(),
+		directIO:       options.DirectIO,
 		mode:           strings.ToLower(options.DefaultMode),
 	}
 	if server.mode == "" {
@@ -149,7 +151,7 @@ func (s *Server) HistoryStorage() *urltest.HistoryStorage {
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {
-	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
+	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule, s.directIO)
 	return tracker, tracker
 }
 
