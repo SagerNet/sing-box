@@ -5,6 +5,7 @@ type ClashAPIOptions struct {
 	ExternalUI         string `json:"external_ui,omitempty"`
 	Secret             string `json:"secret,omitempty"`
 
+	DirectIO      bool   `json:"direct_io,omitempty"`
 	DefaultMode   string `json:"default_mode,omitempty"`
 	StoreSelected bool   `json:"store_selected,omitempty"`
 	CacheFile     string `json:"cache_file,omitempty"`

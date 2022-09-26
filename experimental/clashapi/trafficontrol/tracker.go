@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/experimental/trackerconn"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/buf"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/gofrs/uuid"
@@ -45,7 +44,7 @@ type trackerInfo struct {
 }
 
 type tcpTracker struct {
-	net.Conn `json:"-"`
+	N.ExtendedConn `json:"-"`
 	*trackerInfo
 	manager *Manager
 }
@@ -54,25 +53,9 @@ func (tt *tcpTracker) ID() string {
 	return tt.UUID.String()
 }
 
-func (tt *tcpTracker) Read(b []byte) (int, error) {
-	n, err := tt.Conn.Read(b)
-	upload := int64(n)
-	tt.manager.PushUploaded(upload)
-	tt.UploadTotal.Add(upload)
-	return n, err
-}
-
-func (tt *tcpTracker) Write(b []byte) (int, error) {
-	n, err := tt.Conn.Write(b)
-	download := int64(n)
-	tt.manager.PushDownloaded(download)
-	tt.DownloadTotal.Add(download)
-	return n, err
-}
-
 func (tt *tcpTracker) Close() error {
 	tt.manager.Leave(tt)
-	return tt.Conn.Close()
+	return tt.ExtendedConn.Close()
 }
 
 func (tt *tcpTracker) Leave() {
@@ -80,10 +63,18 @@ func (tt *tcpTracker) Leave() {
 }
 
 func (tt *tcpTracker) Upstream() any {
-	return tt.Conn
+	return tt.ExtendedConn
 }
 
-func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *tcpTracker {
+func (tt *tcpTracker) ReaderReplaceable() bool {
+	return true
+}
+
+func (tt *tcpTracker) WriterReplaceable() bool {
+	return true
+}
+
+func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule, directIO bool) *tcpTracker {
 	uuid, _ := uuid.NewV4()
 
 	var chain []string
@@ -106,17 +97,20 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 		next = group.Now()
 	}
 
+	upload := atomic.NewInt64(0)
+	download := atomic.NewInt64(0)
+
 	t := &tcpTracker{
-		Conn:    conn,
-		manager: manager,
+		ExtendedConn: trackerconn.New(conn, upload, download, directIO),
+		manager:      manager,
 		trackerInfo: &trackerInfo{
 			UUID:          uuid,
 			Start:         time.Now(),
 			Metadata:      metadata,
 			Chain:         common.Reverse(chain),
 			Rule:          "",
-			UploadTotal:   atomic.NewInt64(0),
-			DownloadTotal: atomic.NewInt64(0),
+			UploadTotal:   upload,
+			DownloadTotal: download,
 		},
 	}
 
@@ -140,27 +134,6 @@ func (ut *udpTracker) ID() string {
 	return ut.UUID.String()
 }
 
-func (ut *udpTracker) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
-	destination, err = ut.PacketConn.ReadPacket(buffer)
-	if err == nil {
-		upload := int64(buffer.Len())
-		ut.manager.PushUploaded(upload)
-		ut.UploadTotal.Add(upload)
-	}
-	return
-}
-
-func (ut *udpTracker) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
-	download := int64(buffer.Len())
-	err := ut.PacketConn.WritePacket(buffer, destination)
-	if err != nil {
-		return err
-	}
-	ut.manager.PushDownloaded(download)
-	ut.DownloadTotal.Add(download)
-	return nil
-}
-
 func (ut *udpTracker) Close() error {
 	ut.manager.Leave(ut)
 	return ut.PacketConn.Close()
@@ -172,6 +145,14 @@ func (ut *udpTracker) Leave() {
 
 func (ut *udpTracker) Upstream() any {
 	return ut.PacketConn
+}
+
+func (ut *udpTracker) ReaderReplaceable() bool {
+	return true
+}
+
+func (ut *udpTracker) WriterReplaceable() bool {
+	return true
 }
 
 func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *udpTracker {
@@ -197,8 +178,11 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, route
 		next = group.Now()
 	}
 
+	upload := atomic.NewInt64(0)
+	download := atomic.NewInt64(0)
+
 	ut := &udpTracker{
-		PacketConn: conn,
+		PacketConn: trackerconn.NewPacket(conn, upload, download),
 		manager:    manager,
 		trackerInfo: &trackerInfo{
 			UUID:          uuid,
@@ -206,8 +190,8 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, route
 			Metadata:      metadata,
 			Chain:         common.Reverse(chain),
 			Rule:          "",
-			UploadTotal:   atomic.NewInt64(0),
-			DownloadTotal: atomic.NewInt64(0),
+			UploadTotal:   upload,
+			DownloadTotal: download,
 		},
 	}
 
