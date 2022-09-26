@@ -45,10 +45,6 @@ sing-box version
 It is also recommended to use systemd to manage sing-box service,
 see [Linux server installation example](./examples/linux-server-installation).
 
-## Contributors
-
-[![](https://opencollective.com/sagernet/contributors.svg?width=740&button=false)](https://github.com/sagernet/sing-box/graphs/contributors)
-
 ## License
 
 ```
