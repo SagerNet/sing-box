@@ -93,8 +93,9 @@ type Router struct {
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
-	clashServer                        adapter.ClashServer
 	processSearcher                    process.Searcher
+	clashServer                        adapter.ClashServer
+	v2rayServer                        adapter.V2RayServer
 }
 
 func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
@@ -590,6 +591,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		defer tracker.Leave()
 		conn = trackerConn
 	}
+	if r.v2rayServer != nil {
+		if statsService := r.v2rayServer.StatsService(); statsService != nil {
+			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), conn)
+		}
+	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
 
@@ -662,6 +668,11 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
 		conn = trackerConn
+	}
+	if r.v2rayServer != nil {
+		if statsService := r.v2rayServer.StatsService(); statsService != nil {
+			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), conn)
+		}
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
@@ -747,8 +758,16 @@ func (r *Router) ClashServer() adapter.ClashServer {
 	return r.clashServer
 }
 
-func (r *Router) SetClashServer(controller adapter.ClashServer) {
-	r.clashServer = controller
+func (r *Router) SetClashServer(server adapter.ClashServer) {
+	r.clashServer = server
+}
+
+func (r *Router) V2RayServer() adapter.V2RayServer {
+	return r.v2rayServer
+}
+
+func (r *Router) SetV2RayServer(server adapter.V2RayServer) {
+	r.v2rayServer = server
 }
 
 func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

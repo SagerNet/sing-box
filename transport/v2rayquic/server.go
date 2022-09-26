@@ -29,7 +29,7 @@ type Server struct {
 	quicListener quic.Listener
 }
 
-func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
+func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 	quicConfig := &quic.Config{
 		DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
 	}

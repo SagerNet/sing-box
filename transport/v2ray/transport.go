@@ -14,6 +14,11 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
+type (
+	ServerConstructor[O any] func(ctx context.Context, options O, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error)
+	ClientConstructor[O any] func(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options O, tlsConfig tls.Config) (adapter.V2RayClientTransport, error)
+)
+
 func NewServerTransport(ctx context.Context, options option.V2RayTransportOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 	if options.Type == "" {
 		return nil, nil

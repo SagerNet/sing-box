@@ -3,9 +3,9 @@
 package inbound
 
 import (
-	I "github.com/sagernet/sing-box/include"
+	C "github.com/sagernet/sing-box/constant"
 )
 
 func (n *Naive) configureHTTP3Listener() error {
-	return I.ErrQUICNotIncluded
+	return C.ErrQUICNotIncluded
 }

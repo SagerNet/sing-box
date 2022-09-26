@@ -41,7 +41,10 @@ type Router interface {
 	Rules() []Rule
 
 	ClashServer() ClashServer
-	SetClashServer(controller ClashServer)
+	SetClashServer(server ClashServer)
+
+	V2RayServer() V2RayServer
+	SetV2RayServer(server V2RayServer)
 }
 
 type Rule interface {
