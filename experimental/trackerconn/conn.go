@@ -57,6 +57,10 @@ func (c *Conn) WriteBuffer(buffer *buf.Buffer) error {
 	return nil
 }
 
+func (c *Conn) Upstream() any {
+	return c.ExtendedConn
+}
+
 type DirectConn Conn
 
 func (c *DirectConn) WriteTo(w io.Writer) (n int64, err error) {

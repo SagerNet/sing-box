@@ -38,3 +38,13 @@ func OutboundTag(detour Outbound) string {
 	}
 	return detour.Tag()
 }
+
+type V2RayServer interface {
+	Service
+	StatsService() V2RayStatsService
+}
+
+type V2RayStatsService interface {
+	RoutedConnection(inbound string, outbound string, conn net.Conn) net.Conn
+	RoutedPacketConnection(inbound string, outbound string, conn N.PacketConn) N.PacketConn
+}

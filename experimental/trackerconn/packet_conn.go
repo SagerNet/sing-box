@@ -35,3 +35,7 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 	c.writeCounter.Add(dataLen)
 	return nil
 }
+
+func (c *PacketConn) Upstream() any {
+	return c.PacketConn
+}

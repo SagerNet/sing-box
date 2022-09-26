@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/clashapi/cachefile"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
@@ -28,6 +29,12 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 )
+
+func init() {
+	experimental.RegisterClashServerConstructor(func(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
+		return NewServer(router, logFactory, options)
+	})
+}
 
 var _ adapter.ClashServer = (*Server)(nil)
 

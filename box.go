@@ -31,6 +31,7 @@ type Box struct {
 	logger      log.ContextLogger
 	logFile     *os.File
 	clashServer adapter.ClashServer
+	v2rayServer adapter.V2RayServer
 	done        chan struct{}
 }
 
@@ -39,8 +40,14 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	logOptions := common.PtrValueOrDefault(options.Log)
 
 	var needClashAPI bool
-	if options.Experimental != nil && options.Experimental.ClashAPI != nil && options.Experimental.ClashAPI.ExternalController != "" {
-		needClashAPI = true
+	var needV2RayAPI bool
+	if options.Experimental != nil {
+		if options.Experimental.ClashAPI != nil && options.Experimental.ClashAPI.ExternalController != "" {
+			needClashAPI = true
+		}
+		if options.Experimental.V2RayAPI != nil && options.Experimental.V2RayAPI.Listen != "" {
+			needV2RayAPI = true
+		}
 	}
 
 	var logFactory log.Factory
@@ -149,12 +156,20 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	}
 
 	var clashServer adapter.ClashServer
+	var v2rayServer adapter.V2RayServer
 	if needClashAPI {
 		clashServer, err = experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}
 		router.SetClashServer(clashServer)
+	}
+	if needV2RayAPI {
+		v2rayServer, err = experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(options.Experimental.V2RayAPI))
+		if err != nil {
+			return nil, E.Cause(err, "create v2ray api server")
+		}
+		router.SetV2RayServer(v2rayServer)
 	}
 	return &Box{
 		router:      router,
@@ -165,6 +180,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		logger:      logFactory.NewLogger(""),
 		logFile:     logFile,
 		clashServer: clashServer,
+		v2rayServer: v2rayServer,
 		done:        make(chan struct{}),
 	}, nil
 }
@@ -223,6 +239,12 @@ func (s *Box) start() error {
 			return E.Cause(err, "start clash api server")
 		}
 	}
+	if s.v2rayServer != nil {
+		err = s.v2rayServer.Start()
+		if err != nil {
+			return E.Cause(err, "start v2ray api server")
+		}
+	}
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
 	return nil
 }
@@ -244,6 +266,11 @@ func (s *Box) Close() error {
 		s.router,
 		s.logFactory,
 		s.clashServer,
+		s.v2rayServer,
 		common.PtrOrNil(s.logFile),
 	)
+}
+
+func (s *Box) Router() adapter.Router {
+	return s.router
 }
