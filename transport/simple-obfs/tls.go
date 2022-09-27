@@ -9,10 +9,11 @@ import (
 	"time"
 
 	B "github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/random"
 )
 
 func init() {
-	rand.Seed(time.Now().Unix())
+	random.InitializeSeed()
 }
 
 const (
