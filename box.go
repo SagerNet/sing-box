@@ -177,7 +177,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		outbounds:   outbounds,
 		createdAt:   createdAt,
 		logFactory:  logFactory,
-		logger:      logFactory.NewLogger(""),
+		logger:      logFactory.Logger(),
 		logFile:     logFile,
 		clashServer: clashServer,
 		v2rayServer: v2rayServer,
