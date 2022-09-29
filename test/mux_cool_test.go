@@ -55,7 +55,7 @@ func TestMuxCoolServer(t *testing.T) {
 		},
 	})
 
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func TestMuxCoolClient(t *testing.T) {
@@ -105,7 +105,7 @@ func TestMuxCoolClient(t *testing.T) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
 
 func TestMuxCoolSelf(t *testing.T) {
@@ -166,5 +166,5 @@ func TestMuxCoolSelf(t *testing.T) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitSimple(t, clientPort, testPort)
 }
