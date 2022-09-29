@@ -45,6 +45,7 @@ func newSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 	var err error
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
 		tlsConfig, acmeService, err = startACME(ctx, common.PtrValueOrDefault(options.ACME))
+		//nolint:staticcheck
 		if err != nil {
 			return nil, err
 		}

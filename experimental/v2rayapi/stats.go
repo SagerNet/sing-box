@@ -181,6 +181,7 @@ func (s *StatsService) GetSysStats(ctx context.Context, request *SysStatsRequest
 func (s *StatsService) mustEmbedUnimplementedStatsServiceServer() {
 }
 
+//nolint:staticcheck
 func (s *StatsService) loadOrCreateCounter(name string, counter *atomic.Int64) *atomic.Int64 {
 	counter, loaded := s.counters[name]
 	if !loaded {
