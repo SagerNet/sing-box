@@ -130,8 +130,12 @@ func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metad
 }
 
 func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	var err error
 	if h.tlsConfig != nil && h.transport == nil {
-		conn = h.tlsConfig.Server(conn)
+		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
+		if err != nil {
+			return err
+		}
 	}
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }

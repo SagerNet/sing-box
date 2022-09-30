@@ -2,10 +2,12 @@ package tls
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
@@ -35,7 +37,17 @@ func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, e
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
 	err := tlsConn.HandshakeContext(ctx)
-	return tlsConn, err
+	if err != nil {
+		return nil, err
+	}
+	if stdConn, isSTD := tlsConn.(*tls.Conn); isSTD {
+		var badConn badtls.TLSConn
+		badConn, err = badtls.Create(stdConn)
+		if err == nil {
+			return badConn, nil
+		}
+	}
+	return tlsConn, nil
 }
 
 type Dialer struct {

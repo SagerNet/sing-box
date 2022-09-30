@@ -74,7 +74,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if c.maxEarlyData <= 0 {
 		conn, response, err := c.dialer.DialContext(ctx, c.uri, c.headers)
 		if err == nil {
-			return &WebsocketConn{Conn: conn, Writer: &Writer{conn, false}}, nil
+			return &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}, nil
 		}
 		return nil, wrapDialError(response, err)
 	} else {

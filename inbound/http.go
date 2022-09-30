@@ -72,8 +72,12 @@ func (h *HTTP) Close() error {
 }
 
 func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	var err error
 	if h.tlsConfig != nil {
-		conn = h.tlsConfig.Server(conn)
+		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
+		if err != nil {
+			return err
+		}
 	}
 	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 }

@@ -26,7 +26,7 @@ func NewServerConn(wsConn *websocket.Conn, remoteAddr net.Addr) *WebsocketConn {
 	return &WebsocketConn{
 		Conn:       wsConn,
 		remoteAddr: remoteAddr,
-		Writer:     &Writer{wsConn, true},
+		Writer:     NewWriter(wsConn, true),
 	}
 }
 
@@ -117,7 +117,7 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if err != nil {
 		return 0, wrapDialError(response, err)
 	}
-	c.conn = &WebsocketConn{Conn: conn, Writer: &Writer{conn, false}}
+	c.conn = &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}
 	close(c.create)
 	if len(lateData) > 0 {
 		_, err = c.conn.Write(lateData)
@@ -160,7 +160,7 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	if err != nil {
 		return wrapDialError(response, err)
 	}
-	c.conn = &WebsocketConn{Conn: conn, Writer: &Writer{conn, false}}
+	c.conn = &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}
 	close(c.create)
 	if len(lateData) > 0 {
 		_, err = c.conn.Write(lateData)
