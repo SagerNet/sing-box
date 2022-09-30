@@ -10,12 +10,12 @@ require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.3.0+incompatible
-	github.com/sagernet/sing v0.0.0-20220921101604-86d7d510231f
+	github.com/sagernet/sing v0.0.0-20220930130214-cb9b17d6a4a7
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/goleak v1.2.0
-	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
+	golang.org/x/net v0.0.0-20220927171203-f486391704dc
 )
 
 //replace github.com/sagernet/sing => ../../sing
@@ -67,9 +67,9 @@ require (
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb // indirect
-	github.com/sagernet/sing-dns v0.0.0-20220915084601-812e0864b45b // indirect
-	github.com/sagernet/sing-tun v0.0.0-20220922083325-80ee99472704 // indirect
-	github.com/sagernet/sing-vmess v0.0.0-20220923035311-d70afe4ab2c9 // indirect
+	github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3 // indirect
+	github.com/sagernet/sing-tun v0.0.0-20220929163559-a93592a9b581 // indirect
+	github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685 // indirect
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 // indirect
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
@@ -78,11 +78,11 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.22.0 // indirect
-	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d // indirect
-	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0 // indirect
+	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab // indirect
+	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/sys v0.0.0-20220913120320-3275c407cedc // indirect
+	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.11-0.20220513221640-090b14e8501f // indirect

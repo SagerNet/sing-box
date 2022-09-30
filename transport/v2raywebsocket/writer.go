@@ -4,8 +4,9 @@ import (
 	"encoding/binary"
 	"math/rand"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/websocket"
 )
 
@@ -13,7 +14,16 @@ const frontHeadroom = 14
 
 type Writer struct {
 	*websocket.Conn
+	writer   N.ExtendedWriter
 	isServer bool
+}
+
+func NewWriter(conn *websocket.Conn, isServer bool) *Writer {
+	return &Writer{
+		conn,
+		bufio.NewExtendedWriter(conn.NetConn()),
+		isServer,
+	}
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
@@ -25,8 +35,6 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 }
 
 func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
-	defer buffer.Release()
-
 	var payloadBitLength int
 	dataLen := buffer.Len()
 	data := buffer.Bytes()
@@ -69,5 +77,13 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 		maskBytes(*(*[4]byte)(header[1+payloadBitLength:]), 0, data)
 	}
 
-	return common.Error(w.Conn.NetConn().Write(buffer.Bytes()))
+	return w.writer.WriteBuffer(buffer)
+}
+
+func (w *Writer) Upstream() any {
+	return w.Conn.NetConn()
+}
+
+func (w *Writer) FrontHeadroom() int {
+	return frontHeadroom
 }
