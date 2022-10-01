@@ -101,8 +101,14 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 	download := atomic.NewInt64(0)
 
 	t := &tcpTracker{
-		ExtendedConn: trackerconn.New(conn, upload, download, directIO),
-		manager:      manager,
+		ExtendedConn: trackerconn.NewHook(conn, func(n int64) {
+			upload.Add(n)
+			manager.PushUploaded(n)
+		}, func(n int64) {
+			download.Add(n)
+			manager.PushDownloaded(n)
+		}, directIO),
+		manager: manager,
 		trackerInfo: &trackerInfo{
 			UUID:          uuid,
 			Start:         time.Now(),
@@ -182,8 +188,14 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, route
 	download := atomic.NewInt64(0)
 
 	ut := &udpTracker{
-		PacketConn: trackerconn.NewPacket(conn, upload, download),
-		manager:    manager,
+		PacketConn: trackerconn.NewHookPacket(conn, func(n int64) {
+			upload.Add(n)
+			manager.PushUploaded(n)
+		}, func(n int64) {
+			download.Add(n)
+			manager.PushDownloaded(n)
+		}),
+		manager: manager,
 		trackerInfo: &trackerInfo{
 			UUID:          uuid,
 			Start:         time.Now(),

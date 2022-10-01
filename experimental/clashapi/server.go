@@ -31,9 +31,7 @@ import (
 )
 
 func init() {
-	experimental.RegisterClashServerConstructor(func(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
-		return NewServer(router, logFactory, options)
-	})
+	experimental.RegisterClashServerConstructor(NewServer)
 }
 
 var _ adapter.ClashServer = (*Server)(nil)
@@ -51,7 +49,7 @@ type Server struct {
 	cacheFile      adapter.ClashCacheFile
 }
 
-func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (*Server, error) {
+func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
