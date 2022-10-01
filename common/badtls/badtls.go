@@ -202,5 +202,9 @@ func (c *Conn) WriterMTU() int {
 }
 
 func (c *Conn) Upstream() any {
+	return c.Conn
+}
+
+func (c *Conn) UpstreamWriter() any {
 	return c.NetConn()
 }
