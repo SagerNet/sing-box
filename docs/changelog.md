@@ -1,3 +1,17 @@
+#### 1.1-beta9
+
+* Fix windows route **1**:
+* Add direct io option for clash api
+* Add v2ray statistics api
+* Improve TLS writer
+* Other fixes
+
+**1**:
+
+* Fix DNS leak caused by
+  Windows' [ordinary multihomed DNS resolution behavior](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
+* Flush Windows DNS cache when start/close
+
 #### 1.1-beta8
 
 * Fix leaks on close

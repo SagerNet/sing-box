@@ -86,12 +86,18 @@ tun 接口的 IPv6 前缀。
 
 #### strict_route
 
-在 Linux 中启用 `auto_route` 时执行严格的路由规则。
+*在 Linux 中*:
+
+启用 `auto_route` 时执行严格的路由规则。
 
 * 让不支持的网络无法到达
 * 将所有连接路由到 tun
 
 它可以防止地址泄漏，并使 DNS 劫持在 Android 和使用 systemd-resolved 的 Linux 上工作，但你的设备将无法其他设备被访问。
+
+*在 Windows 中*:
+
+使用分段的 `auto_route` 路由设置，如果您使用的是拨号网络，这可能会有所帮助。
 
 #### endpoint_independent_nat
 
