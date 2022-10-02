@@ -26,6 +26,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -543,6 +544,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	case mux.Destination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound multiplex connection")
 		return mux.NewConnection(ctx, r, r, r.logger, conn, metadata)
+	case vmess.MuxDestination.Fqdn:
+		r.logger.InfoContext(ctx, "inbound legacy multiplex connection")
+		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
 	case uot.UOTMagicAddress:
 		r.logger.InfoContext(ctx, "inbound UoT connection")
 		metadata.Destination = M.Socksaddr{}
