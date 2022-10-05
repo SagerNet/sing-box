@@ -15,7 +15,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
-	"github.com/database64128/tfo-go"
+	"github.com/database64128/tfo-go/v2"
 )
 
 var warnBindInterfaceOnUnsupportedPlatform = warning.New(
@@ -146,7 +146,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 	case N.NetworkUDP:
 		return d.udpDialer.DialContext(ctx, network, address.String())
 	}
-	return d.dialer.DialContext(ctx, network, address.String())
+	return DialSlowContext(&d.dialer, ctx, network, address)
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
