@@ -5,10 +5,10 @@ go 1.18
 require (
 	berty.tech/go-libtor v1.0.385
 	github.com/Dreamacro/clash v1.11.8
-	github.com/caddyserver/certmagic v0.17.1
+	github.com/caddyserver/certmagic v0.17.2
 	github.com/cloudflare/circl v1.2.1-0.20220831060716-4cf0150356fc
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go v1.1.2
+	github.com/database64128/tfo-go/v2 v2.0.1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-chi/chi/v5 v5.0.7
@@ -35,8 +35,8 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
-	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be
-	golang.org/x/net v0.0.0-20220927171203-f486391704dc
+	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
+	golang.org/x/net v0.0.0-20221004154528-8021a29435af
 	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
 	google.golang.org/grpc v1.49.0
@@ -56,7 +56,7 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.22.0 // indirect
+	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/text v0.3.7 // indirect
