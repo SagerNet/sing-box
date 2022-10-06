@@ -11,7 +11,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/shadowtls"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -23,6 +25,8 @@ type ShadowTLS struct {
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
 	tlsConfig  tls.Config
+	v2         bool
+	password   string
 }
 
 func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowTLSOutboundOptions) (*ShadowTLS, error) {
@@ -36,12 +40,22 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		},
 		dialer:     dialer.New(router, options.DialerOptions),
 		serverAddr: options.ServerOptions.Build(),
+		password:   options.Password,
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
-	options.TLS.MinVersion = "1.2"
-	options.TLS.MaxVersion = "1.2"
+	switch options.Version {
+	case 0:
+		fallthrough
+	case 1:
+		options.TLS.MinVersion = "1.2"
+		options.TLS.MaxVersion = "1.2"
+	case 2:
+		outbound.v2 = true
+	default:
+		return nil, E.New("unknown shadowtls protocol version: ", options.Version)
+	}
 	var err error
 	outbound.tlsConfig, err = tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
@@ -60,11 +74,20 @@ func (s *ShadowTLS) DialContext(ctx context.Context, network string, destination
 	if err != nil {
 		return nil, err
 	}
-	_, err = tls.ClientHandshake(ctx, conn, s.tlsConfig)
-	if err != nil {
-		return nil, err
+	if !s.v2 {
+		_, err = tls.ClientHandshake(ctx, conn, s.tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		return conn, nil
+	} else {
+		hashConn := shadowtls.NewHashReadConn(conn, s.password)
+		_, err = tls.ClientHandshake(ctx, hashConn, s.tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		return shadowtls.NewClientConn(hashConn), nil
 	}
-	return conn, nil
 }
 
 func (s *ShadowTLS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
