@@ -1,16 +1,19 @@
 #### 1.1-beta9
 
-* Fix windows route **1**:
-* Add direct io option for clash api
-* Add v2ray statistics api
-* Improve TLS writer
-* Other fixes
+* Fix windows route **1**
+* Add [v2ray statistics api](/configuration/experimental#v2ray-api-fields)
+* Add ShadowTLS v2 support **2**
+* Fixes and improvements
 
 **1**:
 
 * Fix DNS leak caused by
   Windows' [ordinary multihomed DNS resolution behavior](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
 * Flush Windows DNS cache when start/close
+
+**2**:
+
+See [ShadowTLS inbound](/configuration/inbound/shadowtls#version) and [ShadowTLS outbound](/configuration/outbound/shadowtls#version)
 
 #### 1.1-beta8
 
