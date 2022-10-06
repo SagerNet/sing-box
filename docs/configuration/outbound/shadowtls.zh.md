@@ -7,6 +7,8 @@
   
   "server": "127.0.0.1",
   "server_port": 1080,
+  "version": 2,
+  "password": "fuck me till the daylight",
   "tls": {},
 
   ... // 拨号字段
@@ -26,6 +28,21 @@
 ==必填==
 
 服务器端口。
+
+#### version
+
+ShadowTLS 协议版本。
+
+| 值             | 协议版本                                                                                    |
+|---------------|-----------------------------------------------------------------------------------------|
+| `1` (default) | [ShadowTLS v1](https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-en.md#v1) |
+| `2`           | [ShadowTLS v2](https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-en.md#v2) |
+
+#### password
+
+设置密码。
+
+仅在 ShadowTLS v2 协议中可用。
 
 #### tls
 
