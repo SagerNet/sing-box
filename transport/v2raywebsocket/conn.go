@@ -68,8 +68,8 @@ func (c *WebsocketConn) SetDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
-func (c *WebsocketConn) FrontHeadroom() int {
-	return frontHeadroom
+func (c *WebsocketConn) LazyHeadroom() bool {
+	return c.Writer == nil
 }
 
 type EarlyWebsocketConn struct {
@@ -210,8 +210,12 @@ func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func (c *EarlyWebsocketConn) FrontHeadroom() int {
-	return frontHeadroom
+func (c *EarlyWebsocketConn) Upstream() any {
+	return c.conn
+}
+
+func (c *EarlyWebsocketConn) LazyHeadroom() bool {
+	return c.conn == nil
 }
 
 func wrapError(err error) error {
