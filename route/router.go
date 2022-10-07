@@ -552,14 +552,14 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.Destination = M.Socksaddr{}
 		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
 	}
-	if metadata.SniffEnabled {
+	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
-		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
+		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, time.Duration(metadata.InboundOptions.SniffTimeout), sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
-			if metadata.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
 				metadata.Destination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
@@ -577,8 +577,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			buffer.Release()
 		}
 	}
-	if metadata.Destination.IsFqdn() && metadata.DomainStrategy != dns.DomainStrategyAsIS {
-		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
+	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
+		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
 			return err
 		}
@@ -629,7 +629,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		return nil
 	}
 	metadata.Network = N.NetworkUDP
-	if metadata.SniffEnabled {
+	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
 		destination, err := conn.ReadPacket(buffer)
@@ -641,7 +641,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if err == nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
-			if metadata.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
 				metadata.Destination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
@@ -655,8 +655,8 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, destination)
 	}
-	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.UOTMagicAddress && metadata.DomainStrategy != dns.DomainStrategyAsIS {
-		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, metadata.DomainStrategy)
+	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.UOTMagicAddress && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
+		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
 			return err
 		}
