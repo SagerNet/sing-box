@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
@@ -51,9 +50,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
 		metadata.InboundType = a.protocol
-		metadata.SniffEnabled = a.listenOptions.SniffEnabled
-		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -83,9 +80,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
 		metadata.InboundType = a.protocol
-		metadata.SniffEnabled = a.listenOptions.SniffEnabled
-		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
@@ -109,9 +104,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
 		metadata.InboundType = a.protocol
-		metadata.SniffEnabled = a.listenOptions.SniffEnabled
-		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
@@ -137,9 +130,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		var metadata adapter.InboundContext
 		metadata.Inbound = a.tag
 		metadata.InboundType = a.protocol
-		metadata.SniffEnabled = a.listenOptions.SniffEnabled
-		metadata.SniffOverrideDestination = a.listenOptions.SniffOverrideDestination
-		metadata.DomainStrategy = dns.DomainStrategy(a.listenOptions.DomainStrategy)
+		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
 		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)

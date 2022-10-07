@@ -19,8 +19,11 @@ type (
 	PacketSniffer = func(ctx context.Context, packet []byte) (*adapter.InboundContext, error)
 )
 
-func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
-	err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
+func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout time.Duration, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
+	if timeout == 0 {
+		timeout = C.ReadPayloadTimeout
+	}
+	err := conn.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return nil, err
 	}

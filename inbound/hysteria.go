@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -258,9 +257,7 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.tag
 	metadata.InboundType = C.TypeHysteria
-	metadata.SniffEnabled = h.listenOptions.SniffEnabled
-	metadata.SniffOverrideDestination = h.listenOptions.SniffOverrideDestination
-	metadata.DomainStrategy = dns.DomainStrategy(h.listenOptions.DomainStrategy)
+	metadata.InboundOptions = h.listenOptions.InboundOptions
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port).Unwrap()

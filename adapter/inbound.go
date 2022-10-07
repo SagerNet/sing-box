@@ -6,7 +6,7 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/process"
-	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -38,16 +38,14 @@ type InboundContext struct {
 
 	// cache
 
-	InboundDetour            string
-	LastInbound              string
-	OriginDestination        M.Socksaddr
-	DomainStrategy           dns.DomainStrategy
-	SniffEnabled             bool
-	SniffOverrideDestination bool
-	DestinationAddresses     []netip.Addr
-	SourceGeoIPCode          string
-	GeoIPCode                string
-	ProcessInfo              *process.Info
+	InboundDetour        string
+	LastInbound          string
+	OriginDestination    M.Socksaddr
+	InboundOptions       option.InboundOptions
+	DestinationAddresses []netip.Addr
+	SourceGeoIPCode      string
+	GeoIPCode            string
+	ProcessInfo          *process.Info
 }
 
 type inboundContextKey struct{}
