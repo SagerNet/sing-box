@@ -10,8 +10,6 @@ import (
 	"github.com/sagernet/websocket"
 )
 
-const frontHeadroom = 14
-
 type Writer struct {
 	*websocket.Conn
 	writer   N.ExtendedWriter
@@ -85,5 +83,5 @@ func (w *Writer) Upstream() any {
 }
 
 func (w *Writer) FrontHeadroom() int {
-	return frontHeadroom
+	return 14
 }

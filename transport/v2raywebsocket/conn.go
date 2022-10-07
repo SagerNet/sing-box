@@ -10,6 +10,7 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/websocket"
@@ -68,8 +69,12 @@ func (c *WebsocketConn) SetDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
-func (c *WebsocketConn) FrontHeadroom() int {
-	return frontHeadroom
+func (c *WebsocketConn) Upstream() any {
+	return c.Conn.NetConn()
+}
+
+func (c *WebsocketConn) UpstreamWriter() any {
+	return c.Writer
 }
 
 type EarlyWebsocketConn struct {
@@ -210,8 +215,12 @@ func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func (c *EarlyWebsocketConn) FrontHeadroom() int {
-	return frontHeadroom
+func (c *EarlyWebsocketConn) Upstream() any {
+	return common.PtrOrNil(c.conn)
+}
+
+func (c *EarlyWebsocketConn) LazyHeadroom() bool {
+	return c.conn == nil
 }
 
 func wrapError(err error) error {
