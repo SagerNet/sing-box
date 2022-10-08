@@ -27,6 +27,12 @@ func TestShadowTLS(t *testing.T) {
 func testShadowTLS(t *testing.T, password string) {
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
+	var version int
+	if password != "" {
+		version = 2
+	} else {
+		version = 1
+	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -53,6 +59,7 @@ func testShadowTLS(t *testing.T, password string) {
 							ServerPort: 443,
 						},
 					},
+					Version:  version,
 					Password: password,
 				},
 			},
@@ -95,6 +102,7 @@ func testShadowTLS(t *testing.T, password string) {
 						Enabled:    true,
 						ServerName: "google.com",
 					},
+					Version:  version,
 					Password: password,
 				},
 			},
