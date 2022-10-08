@@ -46,7 +46,7 @@ body:
       value: |-
         <details>
 
-        ```console
+        ```json
         # paste json here
         ```
 
