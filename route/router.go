@@ -243,10 +243,9 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	router.transportMap = transportMap
 	router.transportDomainStrategy = transportDomainStrategy
 
-	needInterfaceMonitor := options.AutoDetectInterface ||
-		C.IsDarwin && common.Any(inbounds, func(inbound option.Inbound) bool {
-			return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || C.IsAndroid && inbound.TunOptions.AutoRoute
-		})
+	needInterfaceMonitor := options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
+		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
+	})
 
 	if needInterfaceMonitor {
 		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
