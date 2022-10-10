@@ -82,7 +82,7 @@ func (w *SystemDevice) File() *os.File {
 }
 
 func (w *SystemDevice) Read(bytes []byte, index int) (int, error) {
-	return w.device.Read(bytes[index-tunPacketOffset:])
+	return w.device.Read(bytes[index-tun.PacketOffset:])
 }
 
 func (w *SystemDevice) Write(bytes []byte, index int) (int, error) {
