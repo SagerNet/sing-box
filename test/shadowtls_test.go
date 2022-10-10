@@ -158,6 +158,89 @@ func TestShadowTLSv2Fallback(t *testing.T) {
 	client.CloseIdleConnections()
 }
 
+func TestShadowTLSInbound(t *testing.T) {
+	method := shadowaead_2022.List[0]
+	password := mkBase64(t, 16)
+	startDockerContainer(t, DockerOptions{
+		Image:      ImageShadowTLS,
+		Ports:      []uint16{serverPort, otherPort},
+		EntryPoint: "shadow-tls",
+		Cmd:        []string{"--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
+	})
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeShadowTLS,
+				ShadowTLSOptions: option.ShadowTLSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+						Detour:     "detour",
+					},
+					Handshake: option.ShadowTLSHandshakeOptions{
+						ServerOptions: option.ServerOptions{
+							Server:     "google.com",
+							ServerPort: 443,
+						},
+					},
+					Version:  2,
+					Password: password,
+				},
+			},
+			{
+				Type: C.TypeShadowsocks,
+				Tag:  "detour",
+				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen: option.ListenAddress(netip.IPv4Unspecified()),
+					},
+					Method:   method,
+					Password: password,
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeShadowsocks,
+				Tag:  "out",
+				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: otherPort,
+					},
+					Method:   method,
+					Password: password,
+					MultiplexOptions: &option.MultiplexOptions{
+						Enabled: true,
+					},
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{{
+				DefaultOptions: option.DefaultRule{
+					Inbound:  []string{"in"},
+					Outbound: "out",
+				},
+			}},
+		},
+	})
+	testSuit(t, clientPort, testPort)
+}
+
 func TestShadowTLSOutbound(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
@@ -176,6 +259,25 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
+				},
+			},
+			{
+				Type: C.TypeShadowTLS,
+				Tag:  "in",
+				ShadowTLSOptions: option.ShadowTLSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+						Detour:     "detour",
+					},
+					Handshake: option.ShadowTLSHandshakeOptions{
+						ServerOptions: option.ServerOptions{
+							Server:     "google.com",
+							ServerPort: 443,
+						},
+					},
+					Version:  2,
+					Password: password,
 				},
 			},
 			{
