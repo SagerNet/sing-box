@@ -26,6 +26,7 @@ type _Outbound struct {
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
 	LeastLoadOptions    LeastLoadOutboundOptions    `json:"-"`
+	LeastPingOptions    LeastPingOutboundOptions    `json:"-"`
 }
 
 type Outbound _Outbound
@@ -67,6 +68,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.URLTestOptions
 	case C.TypeLeastLoad:
 		v = h.LeastLoadOptions
+	case C.TypeLeastPing:
+		v = h.LeastPingOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -114,6 +117,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.URLTestOptions
 	case C.TypeLeastLoad:
 		v = &h.LeastLoadOptions
+	case C.TypeLeastPing:
+		v = &h.LeastPingOptions
 	default:
 		return E.New("unknown outbound type: ", h.Type)
 	}

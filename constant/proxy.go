@@ -27,4 +27,5 @@ const (
 	TypeSelector  = "selector"
 	TypeURLTest   = "urltest"
 	TypeLeastLoad = "leastload"
+	TypeLeastPing = "leastping"
 )

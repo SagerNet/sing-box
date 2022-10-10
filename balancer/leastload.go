@@ -2,12 +2,15 @@ package balancer
 
 import (
 	"math"
+	"math/rand"
 	"sort"
 	"time"
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 )
+
+var _ Balancer = (*LeastLoad)(nil)
 
 // LeastLoad is leastload balancer
 type LeastLoad struct {
@@ -22,11 +25,11 @@ type LeastLoad struct {
 func NewLeastLoad(
 	nodes []*Node, logger log.ContextLogger,
 	options option.LeastLoadOutboundOptions,
-) (*LeastLoad, error) {
+) (Balancer, error) {
 	return &LeastLoad{
 		nodes:       nodes,
 		options:     &options,
-		HealthCheck: NewHealthCheck(nodes, logger, options.HealthCheck),
+		HealthCheck: NewHealthCheck(nodes, logger, &options.HealthCheck),
 		costs: NewWeightManager(
 			logger, options.Costs, 1,
 			func(value, cost float64) float64 {
@@ -37,9 +40,14 @@ func NewLeastLoad(
 }
 
 // Select selects qualified nodes
-func (s *LeastLoad) Select() []*Node {
+func (s *LeastLoad) Select() *Node {
 	qualified, _ := s.getNodes()
-	return s.selectLeastLoad(qualified)
+	selects := s.selectLeastLoad(qualified)
+	count := len(selects)
+	if count == 0 {
+		return nil
+	}
+	return selects[rand.Intn(count)]
 }
 
 // selectLeastLoad selects nodes according to Baselines and Expected Count.
@@ -147,9 +155,6 @@ func leastloadSort(nodes []*Node) {
 	sort.Slice(nodes, func(i, j int) bool {
 		left := nodes[i]
 		right := nodes[j]
-		if left.applied != right.applied {
-			return left.applied < right.applied
-		}
 		if left.applied != right.applied {
 			return left.applied < right.applied
 		}
