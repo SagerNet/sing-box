@@ -22,5 +22,6 @@ const (
 )
 
 const (
-	TypeSelector = "selector"
+	TypeSelector  = "selector"
+	TypeLeastLoad = "leastload"
 )
