@@ -90,19 +90,22 @@ func (s *Balancer) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 
 // initialize inits the balancer
 func (s *Balancer) initialize() error {
+	// the fallback is required, in case that all outbounds are not available,
+	// we can pick it instead of returning nil to avoid panic.
+	if s.fallbackTag == "" {
+		return E.New("fallback not set")
+	}
+	outbound, loaded := s.router.Outbound(s.fallbackTag)
+	if !loaded {
+		return E.New("fallback outbound not found: ", s.fallbackTag)
+	}
+	s.fallback = outbound
 	for i, tag := range s.tags {
 		outbound, loaded := s.router.Outbound(tag)
 		if !loaded {
 			return E.New("outbound ", i, " not found: ", tag)
 		}
 		s.nodes = append(s.nodes, balancer.NewNode(outbound))
-	}
-	if s.fallbackTag != "" {
-		outbound, loaded := s.router.Outbound(s.fallbackTag)
-		if !loaded {
-			return E.New("fallback outbound not found: ", s.fallbackTag)
-		}
-		s.fallback = outbound
 	}
 	return nil
 }
@@ -129,7 +132,7 @@ func (s *Balancer) pick() adapter.Outbound {
 	// not started
 	count := len(s.nodes)
 	if count == 0 {
-		// goes to fallbackTag
+		// goes to fallback
 		return s.fallback
 	}
 	picked := s.nodes[rand.Intn(count)]
