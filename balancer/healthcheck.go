@@ -46,7 +46,7 @@ func NewHealthCheck(outbounds []*Node, logger log.Logger, config *option.HealthC
 		}
 	}
 	if settings.Destination == "" {
-		settings.Destination = "http://www.google.com/gen_204"
+		settings.Destination = "http://www.gstatic.com/generate_204"
 	}
 	if settings.Interval == 0 {
 		settings.Interval = time.Duration(1) * time.Minute
