@@ -45,6 +45,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewSelector(router, logger, options.Tag, options.SelectorOptions)
 	case C.TypeLeastLoad:
 		return NewLeastLoad(router, logger, options.Tag, options.LeastLoadOptions)
+	case C.TypeLeastPing:
+		return NewLeastPing(router, logger, options.Tag, options.LeastPingOptions)
 	default:
 		return nil, E.New("unknown outbound type: ", options.Type)
 	}

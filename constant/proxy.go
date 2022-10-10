@@ -24,4 +24,5 @@ const (
 const (
 	TypeSelector  = "selector"
 	TypeLeastLoad = "leastload"
+	TypeLeastPing = "leastping"
 )

@@ -71,22 +71,24 @@ func NewHealthCheck(outbounds []*Node, logger log.Logger, config *option.HealthC
 }
 
 // Start starts the health check service
-func (h *HealthCheck) Start() {
+func (h *HealthCheck) Start() error {
 	if h.ticker != nil {
-		return
+		return nil
 	}
 	interval := h.Settings.Interval * time.Duration(h.Settings.SamplingCount)
 	ticker := time.NewTicker(interval)
 	h.ticker = ticker
 	go func() {
+		h.doCheck(0, 1)
 		for {
-			h.doCheck(interval, h.Settings.SamplingCount)
 			_, ok := <-ticker.C
 			if !ok {
 				break
 			}
+			h.doCheck(interval, h.Settings.SamplingCount)
 		}
 	}()
+	return nil
 }
 
 // Stop stops the health check service
@@ -105,8 +107,8 @@ func (h *HealthCheck) Check() error {
 }
 
 type rtt struct {
-	handler string
-	value   time.Duration
+	tag   string
+	value time.Duration
 }
 
 // doCheck performs the 'rounds' amount checks in given 'duration'. You should make
@@ -135,16 +137,16 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 				delay, err := client.MeasureDelay()
 				if err == nil {
 					ch <- &rtt{
-						handler: tag,
-						value:   delay,
+						tag:   tag,
+						value: delay,
 					}
 					return
 				}
 				if !h.checkConnectivity() {
 					h.logger.Debug("network is down")
 					ch <- &rtt{
-						handler: tag,
-						value:   0,
+						tag:   tag,
+						value: 0,
 					}
 					return
 				}
@@ -155,8 +157,8 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 					),
 				)
 				ch <- &rtt{
-					handler: tag,
-					value:   rttFailed,
+					tag:   tag,
+					value: rttFailed,
 				}
 			})
 		}
@@ -164,8 +166,9 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 	for i := 0; i < count; i++ {
 		rtt := <-ch
 		if rtt.value > 0 {
+			// h.logger.Debug("ping ", rtt.tag, ":", rtt.value)
 			// should not put results when network is down
-			h.PutResult(rtt.handler, rtt.value)
+			h.PutResult(rtt.tag, rtt.value)
 		}
 	}
 }

@@ -10,25 +10,25 @@ import (
 )
 
 var (
-	_ adapter.Outbound      = (*LeastLoad)(nil)
-	_ adapter.OutboundGroup = (*LeastLoad)(nil)
+	_ adapter.Outbound      = (*LeastPing)(nil)
+	_ adapter.OutboundGroup = (*LeastPing)(nil)
 )
 
-// LeastLoad is a outbound group that picks outbound with least load
-type LeastLoad struct {
+// LeastPing is a outbound group that picks outbound with least load
+type LeastPing struct {
 	*Balancer
 
-	options option.LeastLoadOutboundOptions
+	options option.LeastPingOutboundOptions
 }
 
-// NewLeastLoad creates a new LeastLoad outbound
-func NewLeastLoad(router adapter.Router, logger log.ContextLogger, tag string, options option.LeastLoadOutboundOptions) (*LeastLoad, error) {
+// NewLeastPing creates a new LeastPing outbound
+func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, options option.LeastPingOutboundOptions) (*LeastPing, error) {
 	if len(options.Outbounds) == 0 {
 		return nil, E.New("missing tags")
 	}
-	return &LeastLoad{
+	return &LeastPing{
 		Balancer: NewBalancer(
-			C.TypeLeastLoad, router, logger, tag,
+			C.TypeLeastPing, router, logger, tag,
 			options.Outbounds, options.Fallback,
 		),
 		options: options,
@@ -36,12 +36,12 @@ func NewLeastLoad(router adapter.Router, logger log.ContextLogger, tag string, o
 }
 
 // Start implements common.Starter
-func (s *LeastLoad) Start() error {
+func (s *LeastPing) Start() error {
 	err := s.Balancer.initialize()
 	if err != nil {
 		return err
 	}
-	b, err := balancer.NewLeastLoad(s.nodes, s.logger, s.options)
+	b, err := balancer.NewLeastPing(s.nodes, s.logger, s.options)
 	if err != nil {
 		return err
 	}
