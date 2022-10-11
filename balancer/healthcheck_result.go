@@ -20,7 +20,7 @@ type HealthCheckStats struct {
 	Max       time.Duration
 	Min       time.Duration
 
-	applied time.Duration
+	Weighted time.Duration
 }
 
 // HealthCheckRTTS holds ping rtts for health Checker
@@ -45,21 +45,24 @@ func NewHealthPingResult(cap int, validity time.Duration) *HealthCheckRTTS {
 }
 
 // Get gets statistics of the HealthPingRTTS
-func (h *HealthCheckRTTS) Get() *HealthCheckStats {
+func (h *HealthCheckRTTS) Get() HealthCheckStats {
 	return h.getStatistics()
 }
 
 // GetWithCache get statistics and write cache for next call
 // Make sure use Mutex.Lock() before calling it, RWMutex.RLock()
 // is not an option since it writes cache
-func (h *HealthCheckRTTS) GetWithCache() *HealthCheckStats {
+func (h *HealthCheckRTTS) GetWithCache() HealthCheckStats {
 	lastPutAt := h.rtts[h.idx].time
 	now := time.Now()
 	if h.stats == nil || h.lastUpdateAt.Before(lastPutAt) || h.findOutdated(now) >= 0 {
-		h.stats = h.getStatistics()
+		if h.stats == nil {
+			h.stats = &HealthCheckStats{}
+		}
+		*h.stats = h.getStatistics()
 		h.lastUpdateAt = now
 	}
-	return h.stats
+	return *h.stats
 }
 
 // Put puts a new rtt to the HealthPingResult
@@ -86,14 +89,14 @@ func (h *HealthCheckRTTS) calcIndex(step int) int {
 	return idx
 }
 
-func (h *HealthCheckRTTS) getStatistics() *HealthCheckStats {
-	stats := &HealthCheckStats{}
+func (h *HealthCheckRTTS) getStatistics() HealthCheckStats {
+	stats := HealthCheckStats{}
 	stats.Fail = 0
 	stats.Max = 0
 	stats.Min = rttFailed
 	sum := time.Duration(0)
 	cnt := 0
-	validRTTs := make([]time.Duration, 0)
+	validRTTs := make([]time.Duration, 0, h.cap)
 	for _, rtt := range h.rtts {
 		switch {
 		case rtt.value == 0 || time.Since(rtt.time) > h.validity:
@@ -115,9 +118,22 @@ func (h *HealthCheckRTTS) getStatistics() *HealthCheckStats {
 	stats.All = cnt + stats.Fail
 	if cnt == 0 {
 		stats.Min = 0
-		return stats
+		return healthPingStatsUntested
 	}
 	stats.Average = time.Duration(int(sum) / cnt)
+	switch {
+	case stats.All == 0:
+		return healthPingStatsUntested
+	case stats.Fail == stats.All:
+		return HealthCheckStats{
+			All:       stats.All,
+			Fail:      stats.Fail,
+			Deviation: rttFailed,
+			Average:   rttFailed,
+			Max:       rttFailed,
+			Min:       rttFailed,
+		}
+	}
 	var std float64
 	if cnt < 2 {
 		// no enough data for standard deviation, we assume it's half of the average rtt

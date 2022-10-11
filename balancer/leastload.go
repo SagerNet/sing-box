@@ -41,8 +41,17 @@ func NewLeastLoad(
 
 // Select selects qualified nodes
 func (s *LeastLoad) Select() *Node {
-	qualified, _ := s.getNodes()
-	selects := s.selectLeastLoad(qualified)
+	nodes := s.HealthCheck.NodesByCategory()
+	var candidates []*Node
+	if len(nodes.Qualified) > 0 {
+		candidates := nodes.Qualified
+		appliyCost(candidates, s.costs)
+		leastPingSort(candidates)
+	} else {
+		candidates = nodes.Untested
+		shuffle(candidates)
+	}
+	selects := s.selectLeastLoad(candidates)
 	count := len(selects)
 	if count == 0 {
 		return nil
@@ -89,7 +98,7 @@ func (s *LeastLoad) selectLeastLoad(nodes []*Node) []*Node {
 	for _, b := range s.options.Baselines {
 		baseline := time.Duration(b)
 		for i := 0; i < availableCount; i++ {
-			if nodes[i].applied > baseline {
+			if nodes[i].Weighted > baseline {
 				break
 			}
 			count = i + 1
@@ -106,57 +115,21 @@ func (s *LeastLoad) selectLeastLoad(nodes []*Node) []*Node {
 	return nodes[:count]
 }
 
-func (s *LeastLoad) getNodes() ([]*Node, []*Node) {
-	s.HealthCheck.Lock()
-	defer s.HealthCheck.Unlock()
-
-	qualified := make([]*Node, 0)
-	unqualified := make([]*Node, 0)
-	failed := make([]*Node, 0)
-	untested := make([]*Node, 0)
-	others := make([]*Node, 0)
-	for _, node := range s.nodes {
-		node.FetchStats(s.HealthCheck)
-		switch {
-		case node.All == 0:
-			node.applied = rttUntested
-			untested = append(untested, node)
-		case s.options.HealthCheck.MaxRTT > 0 && node.Average > time.Duration(s.options.HealthCheck.MaxRTT):
-			node.applied = rttUnqualified
-			unqualified = append(unqualified, node)
-		case float64(node.Fail)/float64(node.All) > float64(s.options.HealthCheck.Tolerance):
-			node.applied = rttFailed
-			if node.All-node.Fail == 0 {
-				// no good, put them after has-good nodes
-				node.applied = rttFailed
-				node.Deviation = rttFailed
-				node.Average = rttFailed
-			}
-			failed = append(failed, node)
-		default:
-			node.applied = time.Duration(s.costs.Apply(node.Outbound.Tag(), float64(node.Deviation)))
-			qualified = append(qualified, node)
-		}
+func appliyCost(nodes []*Node, costs *WeightManager) {
+	for _, node := range nodes {
+		node.Weighted = time.Duration(costs.Apply(node.Outbound.Tag(), float64(node.Deviation)))
 	}
-	if len(qualified) > 0 {
-		leastloadSort(qualified)
-		others = append(others, unqualified...)
-		others = append(others, untested...)
-		others = append(others, failed...)
-	} else {
-		qualified = untested
-		others = append(others, unqualified...)
-		others = append(others, failed...)
-	}
-	return qualified, others
 }
 
 func leastloadSort(nodes []*Node) {
 	sort.Slice(nodes, func(i, j int) bool {
 		left := nodes[i]
 		right := nodes[j]
-		if left.applied != right.applied {
-			return left.applied < right.applied
+		if left.Weighted != right.Weighted {
+			return left.Weighted < right.Weighted
+		}
+		if left.Deviation != right.Deviation {
+			return left.Deviation < right.Deviation
 		}
 		if left.Average != right.Average {
 			return left.Average < right.Average
