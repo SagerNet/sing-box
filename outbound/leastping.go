@@ -6,7 +6,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var (
@@ -23,9 +22,6 @@ type LeastPing struct {
 
 // NewLeastPing creates a new LeastPing outbound
 func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, options option.BalancerOutboundOptions) (*LeastPing, error) {
-	if len(options.Outbounds) == 0 {
-		return nil, E.New("missing tags")
-	}
 	return &LeastPing{
 		Balancer: NewBalancer(
 			C.TypeLeastPing, router, logger, tag,
@@ -41,7 +37,7 @@ func (s *LeastPing) Start() error {
 	if err != nil {
 		return err
 	}
-	b, err := balancer.NewLeastPing(s.nodes, s.logger, s.options)
+	b, err := balancer.NewLeastPing(s.router, s.logger, s.options)
 	if err != nil {
 		return err
 	}

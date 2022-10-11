@@ -3,7 +3,6 @@ package balancer
 import (
 	"time"
 
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 )
 
@@ -23,7 +22,7 @@ import (
 // 3. Speed priority: Baselines + `Expected Count <= 0`.
 // go through all baselines until find selects, if not, select none. Used in combination
 // with 'balancer.fallbackTag', it means: selects qualified nodes or use the fallback.
-func selectNodes(nodes []*Node, logger log.Logger, expected int, baselines []option.Duration) []*Node {
+func selectNodes(nodes []*Node, expected int, baselines []option.Duration) []*Node {
 	if len(nodes) == 0 {
 		// s.logger.Debug("no qualified nodes")
 		return nil
@@ -53,9 +52,6 @@ func selectNodes(nodes []*Node, logger log.Logger, expected int, baselines []opt
 		}
 		// don't continue if find expected selects
 		if count >= expected2 {
-			if logger != nil {
-				logger.Debug("applied baseline: ", baseline)
-			}
 			break
 		}
 	}
