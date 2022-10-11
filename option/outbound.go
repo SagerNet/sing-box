@@ -22,8 +22,7 @@ type _Outbound struct {
 	SSHOptions         SSHOutboundOptions         `json:"-"`
 	ShadowTLSOptions   ShadowTLSOutboundOptions   `json:"-"`
 	SelectorOptions    SelectorOutboundOptions    `json:"-"`
-	LeastLoadOptions   LeastLoadOutboundOptions   `json:"-"`
-	LeastPingOptions   LeastPingOutboundOptions   `json:"-"`
+	BalancerOptions    BalancerOutboundOptions    `json:"-"`
 }
 
 type Outbound _Outbound
@@ -57,10 +56,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowTLSOptions
 	case C.TypeSelector:
 		v = h.SelectorOptions
-	case C.TypeLeastLoad:
-		v = h.LeastLoadOptions
-	case C.TypeLeastPing:
-		v = h.LeastPingOptions
+	case C.TypeLeastLoad, C.TypeLeastPing:
+		v = h.BalancerOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -100,10 +97,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowTLSOptions
 	case C.TypeSelector:
 		v = &h.SelectorOptions
-	case C.TypeLeastLoad:
-		v = &h.LeastLoadOptions
-	case C.TypeLeastPing:
-		v = &h.LeastPingOptions
+	case C.TypeLeastLoad, C.TypeLeastPing:
+		v = &h.BalancerOptions
 	default:
 		return E.New("unknown outbound type: ", h.Type)
 	}

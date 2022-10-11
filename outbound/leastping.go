@@ -18,11 +18,11 @@ var (
 type LeastPing struct {
 	*Balancer
 
-	options option.LeastPingOutboundOptions
+	options option.BalancerOutboundOptions
 }
 
 // NewLeastPing creates a new LeastPing outbound
-func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, options option.LeastPingOutboundOptions) (*LeastPing, error) {
+func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, options option.BalancerOutboundOptions) (*LeastPing, error) {
 	if len(options.Outbounds) == 0 {
 		return nil, E.New("missing tags")
 	}
