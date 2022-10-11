@@ -50,6 +50,12 @@ func NewBalancer(
 }
 
 // Network implements adapter.Outbound
+//
+// FIXME: logic issue:
+// picked node is very likely to be different between first "Network() assetion"
+// then "NewConnection()", maybe we need to keep the picked node in the context?
+// that requests to change the Network() signature of the interface of
+// adapter.Outbound
 func (s *Balancer) Network() []string {
 	picked := s.pick()
 	if picked == nil {
