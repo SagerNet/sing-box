@@ -33,66 +33,27 @@ func NewLeastPing(
 
 // Select selects least ping node
 func (s *LeastPing) Select() *Node {
-	qualified, _ := s.getNodes()
-	if len(qualified) == 0 {
+	nodes := s.HealthCheck.NodesByCategory()
+	var candidates []*Node
+	if len(nodes.Qualified) > 0 {
+		candidates := nodes.Qualified
+		leastPingSort(candidates)
+	} else {
+		candidates = nodes.Untested
+		shuffle(candidates)
+	}
+	if len(candidates) == 0 {
 		return nil
 	}
-	return qualified[0]
-}
-
-func (s *LeastPing) getNodes() ([]*Node, []*Node) {
-	s.HealthCheck.Lock()
-	defer s.HealthCheck.Unlock()
-
-	qualified := make([]*Node, 0)
-	unqualified := make([]*Node, 0)
-	failed := make([]*Node, 0)
-	untested := make([]*Node, 0)
-	others := make([]*Node, 0)
-	for _, node := range s.nodes {
-		node.FetchStats(s.HealthCheck)
-		switch {
-		case node.All == 0:
-			node.applied = rttUntested
-			untested = append(untested, node)
-		case s.options.HealthCheck.MaxRTT > 0 && node.Average > time.Duration(s.options.HealthCheck.MaxRTT):
-			node.applied = rttUnqualified
-			unqualified = append(unqualified, node)
-		case float64(node.Fail)/float64(node.All) > float64(s.options.HealthCheck.Tolerance):
-			node.applied = rttFailed
-			if node.All-node.Fail == 0 {
-				// no good, put them after has-good nodes
-				node.applied = rttFailed
-				node.Deviation = rttFailed
-				node.Average = rttFailed
-			}
-			failed = append(failed, node)
-		default:
-			node.applied = node.Average
-			qualified = append(qualified, node)
-		}
-	}
-	if len(qualified) > 0 {
-		leastPingSort(qualified)
-		others = append(others, unqualified...)
-		others = append(others, untested...)
-		others = append(others, failed...)
-	} else {
-		// random node if not tested
-		shuffle(untested)
-		qualified = untested
-		others = append(others, unqualified...)
-		others = append(others, failed...)
-	}
-	return qualified, others
+	return candidates[0]
 }
 
 func leastPingSort(nodes []*Node) {
 	sort.Slice(nodes, func(i, j int) bool {
 		left := nodes[i]
 		right := nodes[j]
-		if left.applied != right.applied {
-			return left.applied < right.applied
+		if left.Average != right.Average {
+			return left.Average < right.Average
 		}
 		if left.Fail != right.Fail {
 			return left.Fail < right.Fail

@@ -4,8 +4,13 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 )
 
-var healthPingStatsZero = HealthCheckStats{
-	applied: rttUntested,
+var healthPingStatsUntested = HealthCheckStats{
+	All:       0,
+	Fail:      0,
+	Deviation: rttUntested,
+	Average:   rttUntested,
+	Max:       rttUntested,
+	Min:       rttUntested,
 }
 
 // Node is a banalcer node with health check result
@@ -18,20 +23,6 @@ type Node struct {
 func NewNode(outbound adapter.Outbound) *Node {
 	return &Node{
 		Outbound:         outbound,
-		HealthCheckStats: healthPingStatsZero,
+		HealthCheckStats: healthPingStatsUntested,
 	}
-}
-
-// FetchStats fetches statistics from *HealthPing p
-func (s *Node) FetchStats(p *HealthCheck) {
-	if p == nil || p.Results == nil {
-		s.HealthCheckStats = healthPingStatsZero
-		return
-	}
-	r, ok := p.Results[s.Outbound.Tag()]
-	if !ok {
-		s.HealthCheckStats = healthPingStatsZero
-		return
-	}
-	s.HealthCheckStats = *r.Get()
 }
