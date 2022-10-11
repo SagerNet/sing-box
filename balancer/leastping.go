@@ -55,10 +55,10 @@ func (s *LeastPing) getNodes() ([]*Node, []*Node) {
 		case node.All == 0:
 			node.applied = rttUntested
 			untested = append(untested, node)
-		case s.options.MaxRTT > 0 && node.Average > time.Duration(s.options.MaxRTT):
+		case s.options.HealthCheck.MaxRTT > 0 && node.Average > time.Duration(s.options.HealthCheck.MaxRTT):
 			node.applied = rttUnqualified
 			unqualified = append(unqualified, node)
-		case float64(node.Fail)/float64(node.All) > float64(s.options.Tolerance):
+		case float64(node.Fail)/float64(node.All) > float64(s.options.HealthCheck.Tolerance):
 			node.applied = rttFailed
 			if node.All-node.Fail == 0 {
 				// no good, put them after has-good nodes

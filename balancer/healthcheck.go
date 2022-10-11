@@ -3,7 +3,6 @@ package balancer
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 
@@ -11,15 +10,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
-
-// HealthPingSettings holds settings for health Checker
-type HealthPingSettings struct {
-	Destination   string        `json:"destination"`
-	Connectivity  string        `json:"connectivity"`
-	Interval      time.Duration `json:"interval"`
-	SamplingCount int           `json:"sampling"`
-	Timeout       time.Duration `json:"timeout"`
-}
 
 // HealthCheck is the health checker for balancers
 type HealthCheck struct {
@@ -29,44 +19,37 @@ type HealthCheck struct {
 	nodes  []*Node
 	logger log.Logger
 
-	Settings *HealthPingSettings
-	Results  map[string]*HealthCheckRTTS
+	options *option.HealthCheckSettings
+	Results map[string]*HealthCheckRTTS
 }
 
 // NewHealthCheck creates a new HealthPing with settings
 func NewHealthCheck(outbounds []*Node, logger log.Logger, config *option.HealthCheckSettings) *HealthCheck {
-	settings := &HealthPingSettings{}
-	if config != nil {
-		settings = &HealthPingSettings{
-			Connectivity:  strings.TrimSpace(config.Connectivity),
-			Destination:   strings.TrimSpace(config.Destination),
-			Interval:      time.Duration(config.Interval),
-			SamplingCount: int(config.SamplingCount),
-			Timeout:       time.Duration(config.Timeout),
-		}
+	if config == nil {
+		config = &option.HealthCheckSettings{}
 	}
-	if settings.Destination == "" {
-		settings.Destination = "http://www.gstatic.com/generate_204"
+	if config.Destination == "" {
+		config.Destination = "http://www.gstatic.com/generate_204"
 	}
-	if settings.Interval == 0 {
-		settings.Interval = time.Duration(1) * time.Minute
-	} else if settings.Interval < 10 {
+	if config.Interval == 0 {
+		config.Interval = option.Duration(time.Minute)
+	} else if config.Interval < 10 {
 		logger.Warn("health check interval is too small, 10s is applied")
-		settings.Interval = time.Duration(10) * time.Second
+		config.Interval = option.Duration(10 * time.Second)
 	}
-	if settings.SamplingCount <= 0 {
-		settings.SamplingCount = 10
+	if config.SamplingCount <= 0 {
+		config.SamplingCount = 10
 	}
-	if settings.Timeout <= 0 {
+	if config.Timeout <= 0 {
 		// results are saved after all health pings finish,
 		// a larger timeout could possibly makes checks run longer
-		settings.Timeout = time.Duration(5) * time.Second
+		config.Timeout = option.Duration(5 * time.Second)
 	}
 	return &HealthCheck{
-		nodes:    outbounds,
-		Settings: settings,
-		Results:  nil,
-		logger:   logger,
+		nodes:   outbounds,
+		options: config,
+		Results: nil,
+		logger:  logger,
 	}
 }
 
@@ -75,7 +58,7 @@ func (h *HealthCheck) Start() error {
 	if h.ticker != nil {
 		return nil
 	}
-	interval := h.Settings.Interval * time.Duration(h.Settings.SamplingCount)
+	interval := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount)
 	ticker := time.NewTicker(interval)
 	h.ticker = ticker
 	go func() {
@@ -85,7 +68,7 @@ func (h *HealthCheck) Start() error {
 			if !ok {
 				break
 			}
-			h.doCheck(interval, h.Settings.SamplingCount)
+			h.doCheck(interval, h.options.SamplingCount)
 		}
 	}()
 	return nil
@@ -124,8 +107,8 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 		tag, detour := node.Outbound.Tag(), node.Outbound
 		client := newPingClient(
 			detour,
-			h.Settings.Destination,
-			h.Settings.Timeout,
+			h.options.Destination,
+			time.Duration(h.options.Timeout),
 		)
 		for i := 0; i < rounds; i++ {
 			delay := time.Duration(0)
@@ -153,7 +136,7 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 				h.logger.Debug(
 					E.Cause(
 						err,
-						fmt.Sprintf("ping %s via %s", h.Settings.Destination, tag),
+						fmt.Sprintf("ping %s via %s", h.options.Destination, tag),
 					),
 				)
 				ch <- &rtt{
@@ -186,8 +169,8 @@ func (h *HealthCheck) PutResult(tag string, rtt time.Duration) {
 		// distributed in the time line randomly, in extreme cases,
 		// previous checks are distributed on the left, and latters
 		// on the right
-		validity := h.Settings.Interval * time.Duration(h.Settings.SamplingCount) * 2
-		r = NewHealthPingResult(h.Settings.SamplingCount, validity)
+		validity := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount) * 2
+		r = NewHealthPingResult(h.options.SamplingCount, validity)
 		h.Results[tag] = r
 	}
 	r.Put(rtt)
@@ -196,12 +179,12 @@ func (h *HealthCheck) PutResult(tag string, rtt time.Duration) {
 // checkConnectivity checks the network connectivity, it returns
 // true if network is good or "connectivity check url" not set
 func (h *HealthCheck) checkConnectivity() bool {
-	if h.Settings.Connectivity == "" {
+	if h.options.Connectivity == "" {
 		return true
 	}
 	tester := newDirectPingClient(
-		h.Settings.Connectivity,
-		h.Settings.Timeout,
+		h.options.Connectivity,
+		time.Duration(h.options.Timeout),
 	)
 	if _, err := tester.MeasureDelay(); err != nil {
 		return false
