@@ -129,7 +129,7 @@ func (s *Balancer) setBalancer(b balancer.Balancer) error {
 
 func (s *Balancer) pick() adapter.Outbound {
 	if s.Balancer != nil {
-		selected := s.Balancer.Select()
+		selected := s.Balancer.Pick()
 		if selected == nil {
 			return s.fallback
 		}
