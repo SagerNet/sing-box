@@ -11,8 +11,8 @@ const (
 	rttUnqualified
 )
 
-// HealthCheckStats is the statistics of HealthPingRTTS
-type HealthCheckStats struct {
+// RTTStats is the statistics of health check RTTs
+type RTTStats struct {
 	All       int
 	Fail      int
 	Deviation time.Duration
@@ -23,15 +23,15 @@ type HealthCheckStats struct {
 	Weighted time.Duration
 }
 
-// HealthCheckRTTS holds ping rtts for health Checker
-type HealthCheckRTTS struct {
+// rttStorage holds ping rtts for health Checker
+type rttStorage struct {
 	idx      int
 	cap      int
 	validity time.Duration
 	rtts     []*pingRTT
 
 	lastUpdateAt time.Time
-	stats        *HealthCheckStats
+	stats        *RTTStats
 }
 
 type pingRTT struct {
@@ -39,25 +39,25 @@ type pingRTT struct {
 	value time.Duration
 }
 
-// NewHealthPingResult returns a *HealthPingResult with specified capacity
-func NewHealthPingResult(cap int, validity time.Duration) *HealthCheckRTTS {
-	return &HealthCheckRTTS{cap: cap, validity: validity}
+// newRTTStorage returns a *HealthPingResult with specified capacity
+func newRTTStorage(cap int, validity time.Duration) *rttStorage {
+	return &rttStorage{cap: cap, validity: validity}
 }
 
 // Get gets statistics of the HealthPingRTTS
-func (h *HealthCheckRTTS) Get() HealthCheckStats {
+func (h *rttStorage) Get() RTTStats {
 	return h.getStatistics()
 }
 
 // GetWithCache get statistics and write cache for next call
 // Make sure use Mutex.Lock() before calling it, RWMutex.RLock()
 // is not an option since it writes cache
-func (h *HealthCheckRTTS) GetWithCache() HealthCheckStats {
+func (h *rttStorage) GetWithCache() RTTStats {
 	lastPutAt := h.rtts[h.idx].time
 	now := time.Now()
 	if h.stats == nil || h.lastUpdateAt.Before(lastPutAt) || h.findOutdated(now) >= 0 {
 		if h.stats == nil {
-			h.stats = &HealthCheckStats{}
+			h.stats = &RTTStats{}
 		}
 		*h.stats = h.getStatistics()
 		h.lastUpdateAt = now
@@ -66,7 +66,7 @@ func (h *HealthCheckRTTS) GetWithCache() HealthCheckStats {
 }
 
 // Put puts a new rtt to the HealthPingResult
-func (h *HealthCheckRTTS) Put(d time.Duration) {
+func (h *rttStorage) Put(d time.Duration) {
 	if h.rtts == nil {
 		h.rtts = make([]*pingRTT, h.cap)
 		for i := 0; i < h.cap; i++ {
@@ -80,7 +80,7 @@ func (h *HealthCheckRTTS) Put(d time.Duration) {
 	h.rtts[h.idx].value = d
 }
 
-func (h *HealthCheckRTTS) calcIndex(step int) int {
+func (h *rttStorage) calcIndex(step int) int {
 	idx := h.idx
 	idx += step
 	if idx >= h.cap {
@@ -89,8 +89,8 @@ func (h *HealthCheckRTTS) calcIndex(step int) int {
 	return idx
 }
 
-func (h *HealthCheckRTTS) getStatistics() HealthCheckStats {
-	stats := HealthCheckStats{}
+func (h *rttStorage) getStatistics() RTTStats {
+	stats := RTTStats{}
 	stats.Fail = 0
 	stats.Max = 0
 	stats.Min = rttFailed
@@ -125,7 +125,7 @@ func (h *HealthCheckRTTS) getStatistics() HealthCheckStats {
 	case stats.All == 0:
 		return healthPingStatsUntested
 	case stats.Fail == stats.All:
-		return HealthCheckStats{
+		return RTTStats{
 			All:       stats.All,
 			Fail:      stats.Fail,
 			Deviation: rttFailed,
@@ -151,7 +151,7 @@ func (h *HealthCheckRTTS) getStatistics() HealthCheckStats {
 	return stats
 }
 
-func (h *HealthCheckRTTS) findOutdated(now time.Time) int {
+func (h *rttStorage) findOutdated(now time.Time) int {
 	for i := h.cap - 1; i < 2*h.cap; i++ {
 		// from oldest to latest
 		idx := h.calcIndex(i)

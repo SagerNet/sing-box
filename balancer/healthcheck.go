@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -16,15 +17,16 @@ type HealthCheck struct {
 	sync.Mutex
 
 	ticker *time.Ticker
-	nodes  []*Node
+	router adapter.Router
+	tags   []string
 	logger log.Logger
 
 	options *option.HealthCheckSettings
-	Results map[string]*HealthCheckRTTS
+	results map[string]*rttStorage
 }
 
 // NewHealthCheck creates a new HealthPing with settings
-func NewHealthCheck(outbounds []*Node, logger log.Logger, config *option.HealthCheckSettings) *HealthCheck {
+func NewHealthCheck(router adapter.Router, tags []string, logger log.Logger, config *option.HealthCheckSettings) *HealthCheck {
 	if config == nil {
 		config = &option.HealthCheckSettings{}
 	}
@@ -46,29 +48,33 @@ func NewHealthCheck(outbounds []*Node, logger log.Logger, config *option.HealthC
 		config.Timeout = option.Duration(5 * time.Second)
 	}
 	return &HealthCheck{
-		nodes:   outbounds,
+		router:  router,
+		tags:    tags,
 		options: config,
-		Results: nil,
+		results: make(map[string]*rttStorage),
 		logger:  logger,
 	}
 }
 
 // Start starts the health check service
 func (h *HealthCheck) Start() error {
+	h.Lock()
+	defer h.Unlock()
 	if h.ticker != nil {
 		return nil
 	}
 	interval := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount)
 	ticker := time.NewTicker(interval)
 	h.ticker = ticker
+	// one time instant check
+	h.Check()
 	go func() {
-		h.doCheck(0, 1)
 		for {
+			h.doCheck(interval, h.options.SamplingCount)
 			_, ok := <-ticker.C
 			if !ok {
 				break
 			}
-			h.doCheck(interval, h.options.SamplingCount)
 		}
 	}()
 	return nil
@@ -76,17 +82,17 @@ func (h *HealthCheck) Start() error {
 
 // Stop stops the health check service
 func (h *HealthCheck) Stop() {
-	h.ticker.Stop()
-	h.ticker = nil
+	h.Lock()
+	defer h.Unlock()
+	if h.ticker != nil {
+		h.ticker.Stop()
+		h.ticker = nil
+	}
 }
 
 // Check does a one time health check
-func (h *HealthCheck) Check() error {
-	if len(h.nodes) == 0 {
-		return nil
-	}
-	h.doCheck(0, 1)
-	return nil
+func (h *HealthCheck) Check() {
+	go h.doCheck(0, 1)
 }
 
 type rtt struct {
@@ -97,14 +103,15 @@ type rtt struct {
 // doCheck performs the 'rounds' amount checks in given 'duration'. You should make
 // sure all tags are valid for current balancer
 func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
-	count := len(h.nodes) * rounds
+	nodes := h.refreshNodes()
+	count := len(nodes) * rounds
 	if count == 0 {
 		return
 	}
 	ch := make(chan *rtt, count)
 	// rtts := make(map[string][]time.Duration)
-	for _, node := range h.nodes {
-		tag, detour := node.Outbound.Tag(), node.Outbound
+	for _, node := range nodes {
+		tag, detour := node.Tag(), node
 		client := newPingClient(
 			detour,
 			h.options.Destination,
@@ -160,18 +167,10 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 func (h *HealthCheck) PutResult(tag string, rtt time.Duration) {
 	h.Lock()
 	defer h.Unlock()
-	if h.Results == nil {
-		h.Results = make(map[string]*HealthCheckRTTS)
-	}
-	r, ok := h.Results[tag]
+	r, ok := h.results[tag]
 	if !ok {
-		// validity is 2 times to sampling period, since the check are
-		// distributed in the time line randomly, in extreme cases,
-		// previous checks are distributed on the left, and latters
-		// on the right
-		validity := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount) * 2
-		r = NewHealthPingResult(h.options.SamplingCount, validity)
-		h.Results[tag] = r
+		// the result may come after the node is removed
+		return
 	}
 	r.Put(rtt)
 }

@@ -8,12 +8,12 @@ import (
 
 func TestSelectNodes(t *testing.T) {
 	nodes := []*Node{
-		{HealthCheckStats: HealthCheckStats{Weighted: 50}},
-		{HealthCheckStats: HealthCheckStats{Weighted: 70}},
-		{HealthCheckStats: HealthCheckStats{Weighted: 100}},
-		{HealthCheckStats: HealthCheckStats{Weighted: 110}},
-		{HealthCheckStats: HealthCheckStats{Weighted: 120}},
-		{HealthCheckStats: HealthCheckStats{Weighted: 150}},
+		{RTTStats: RTTStats{Weighted: 50}},
+		{RTTStats: RTTStats{Weighted: 70}},
+		{RTTStats: RTTStats{Weighted: 100}},
+		{RTTStats: RTTStats{Weighted: 110}},
+		{RTTStats: RTTStats{Weighted: 120}},
+		{RTTStats: RTTStats{Weighted: 150}},
 	}
 	tests := []struct {
 		expected  int
@@ -31,7 +31,7 @@ func TestSelectNodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			if got := selectNodes(nodes, nil, tt.expected, tt.baselines); len(got) != tt.want {
+			if got := selectNodes(nodes, tt.expected, tt.baselines); len(got) != tt.want {
 				t.Errorf("selectNodes() = %v, want %v", len(got), tt.want)
 			}
 		})

@@ -27,7 +27,6 @@ type Balancer struct {
 	fallbackTag string
 
 	balancer.Balancer
-	nodes    []*balancer.Node
 	fallback adapter.Outbound
 }
 
@@ -106,13 +105,6 @@ func (s *Balancer) initialize() error {
 		return E.New("fallback outbound not found: ", s.fallbackTag)
 	}
 	s.fallback = outbound
-	for i, tag := range s.tags {
-		outbound, loaded := s.router.Outbound(tag)
-		if !loaded {
-			return E.New("outbound ", i, " not found: ", tag)
-		}
-		s.nodes = append(s.nodes, balancer.NewNode(outbound))
-	}
 	return nil
 }
 
@@ -128,19 +120,34 @@ func (s *Balancer) setBalancer(b balancer.Balancer) error {
 }
 
 func (s *Balancer) pick() adapter.Outbound {
-	if s.Balancer != nil {
-		selected := s.Balancer.Pick()
-		if selected == nil {
-			return s.fallback
-		}
-		return selected.Outbound
-	}
-	// not started
-	count := len(s.nodes)
-	if count == 0 {
-		// goes to fallback
+	tag := s.pickTag()
+	if tag == "" {
 		return s.fallback
 	}
-	picked := s.nodes[rand.Intn(count)]
-	return picked.Outbound
+	outbound, ok := s.router.Outbound(tag)
+	if !ok {
+		return s.fallback
+	}
+	return outbound
+}
+
+func (s *Balancer) pickTag() string {
+	if s.Balancer == nil {
+		// not started yet, pick a random one
+		return s.randomTag()
+	}
+	tag := s.Balancer.Pick()
+	if tag == "" {
+		return ""
+	}
+	return tag
+}
+
+func (s *Balancer) randomTag() string {
+	nodes := balancer.CoveredOutbounds(s.router, s.tags)
+	count := len(nodes)
+	if count == 0 {
+		return ""
+	}
+	return s.tags[rand.Intn(count)]
 }

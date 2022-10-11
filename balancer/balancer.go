@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 )
@@ -14,7 +15,7 @@ var _ Balancer = (*rttBasedBalancer)(nil)
 
 // Balancer is interface for load balancers
 type Balancer interface {
-	Pick() *Node
+	Pick() string
 }
 
 type rttBasedBalancer struct {
@@ -30,15 +31,14 @@ type rttFunc func(node *Node) time.Duration
 
 // newRTTBasedLoad creates a new rtt based load balancer
 func newRTTBasedBalancer(
-	nodes []*Node, logger log.ContextLogger,
+	router adapter.Router, logger log.ContextLogger,
 	options option.BalancerOutboundOptions,
 	rttFunc rttFunc,
 ) (Balancer, error) {
 	return &rttBasedBalancer{
-		nodes:       nodes,
 		rttFunc:     rttFunc,
 		options:     &options,
-		HealthCheck: NewHealthCheck(nodes, logger, &options.Check),
+		HealthCheck: NewHealthCheck(router, options.Outbounds, logger, &options.Check),
 		costs: NewWeightManager(
 			logger, options.Pick.Costs, 1,
 			func(value, cost float64) float64 {
@@ -49,28 +49,33 @@ func newRTTBasedBalancer(
 }
 
 // Select selects qualified nodes
-func (s *rttBasedBalancer) Pick() *Node {
+func (s *rttBasedBalancer) Pick() string {
 	nodes := s.HealthCheck.NodesByCategory()
 	var candidates []*Node
 	if len(nodes.Qualified) > 0 {
 		candidates = nodes.Qualified
 		for _, node := range candidates {
-			node.Weighted = time.Duration(s.costs.Apply(node.Outbound.Tag(), float64(s.rttFunc(node))))
+			node.Weighted = time.Duration(s.costs.Apply(node.Tag, float64(s.rttFunc(node))))
 		}
 		sortNodes(candidates)
 	} else {
 		candidates = nodes.Untested
 		shuffleNodes(candidates)
 	}
-	selects := selectNodes(
-		candidates, s.logger,
-		int(s.options.Pick.Expected), s.options.Pick.Baselines,
-	)
+	selects := selectNodes(candidates, int(s.options.Pick.Expected), s.options.Pick.Baselines)
 	count := len(selects)
 	if count == 0 {
-		return nil
+		return ""
 	}
-	return selects[rand.Intn(count)]
+	picked := selects[rand.Intn(count)]
+	s.logger.Debug(
+		"pick [", picked.Tag, "]",
+		" +W=", picked.Weighted,
+		" STD=", picked.Deviation,
+		" AVG=", picked.Average,
+		" Fail=", picked.Fail, "/", picked.All,
+	)
+	return picked.Tag
 }
 
 func sortNodes(nodes []*Node) {
