@@ -1,29 +1,22 @@
 package option
 
-// LeastPingOutboundOptions is the options for leastping outbound
-type LeastPingOutboundOptions struct {
-	BalancerOutboundOptions
-	// health check settings
-	HealthCheck HealthCheckSettings `json:"health_check,omitempty"`
+// BalancerOutboundOptions is the options for balancer outbound
+type BalancerOutboundOptions struct {
+	Outbounds []string `json:"outbounds"`
+	Fallback  string   `json:"fallback,omitempty"`
+
+	Check HealthCheckSettings `json:"check,omitempty"`
+	Pick  BalancerPickOptions `json:"pick,omitempty"`
 }
 
-// LeastLoadOutboundOptions is the options for leastload outbound
-type LeastLoadOutboundOptions struct {
-	BalancerOutboundOptions
-	// health check settings
-	HealthCheck HealthCheckSettings `json:"health_check,omitempty"`
+// BalancerPickOptions is the options for balancer outbound picking
+type BalancerPickOptions struct {
 	// expected nodes count to select
 	Expected int32 `json:"expected,omitempty"`
 	// ping rtt baselines (ms)
 	Baselines []Duration `json:"baselines,omitempty"`
 	// cost settings
 	Costs []*StrategyWeight `json:"costs,omitempty"`
-}
-
-// BalancerOutboundOptions is the options for balancer outbound
-type BalancerOutboundOptions struct {
-	Outbounds []string `json:"outbounds"`
-	Fallback  string   `json:"fallback,omitempty"`
 }
 
 // HealthCheckSettings is the settings for health check

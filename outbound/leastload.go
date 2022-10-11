@@ -18,11 +18,11 @@ var (
 type LeastLoad struct {
 	*Balancer
 
-	options option.LeastLoadOutboundOptions
+	options option.BalancerOutboundOptions
 }
 
 // NewLeastLoad creates a new LeastLoad outbound
-func NewLeastLoad(router adapter.Router, logger log.ContextLogger, tag string, options option.LeastLoadOutboundOptions) (*LeastLoad, error) {
+func NewLeastLoad(router adapter.Router, logger log.ContextLogger, tag string, options option.BalancerOutboundOptions) (*LeastLoad, error) {
 	if len(options.Outbounds) == 0 {
 		return nil, E.New("missing tags")
 	}
