@@ -45,8 +45,8 @@ func selectNodes(nodes []*Node, logger log.Logger, expected int, baselines []opt
 	// go through all base line until find expected selects
 	for _, b := range baselines {
 		baseline := time.Duration(b)
-		for i := 0; i < availableCount; i++ {
-			if nodes[i].Weighted > baseline {
+		for i := count; i < availableCount; i++ {
+			if nodes[i].Weighted >= baseline {
 				break
 			}
 			count = i + 1
