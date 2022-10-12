@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common"
 )
 
 // CategorizedNodes holds the categorized nodes
@@ -13,8 +14,9 @@ type CategorizedNodes struct {
 	Failed, Untested       []*Node
 }
 
-// NodesByCategory returns the categorized nodes
-func (h *HealthCheck) NodesByCategory() *CategorizedNodes {
+// NodesByCategory returns the categorized nodes for specific network.
+// If network is empty, all nodes are returned.
+func (h *HealthCheck) NodesByCategory(network string) *CategorizedNodes {
 	h.Lock()
 	defer h.Unlock()
 	if h == nil || len(h.results) == 0 {
@@ -27,9 +29,13 @@ func (h *HealthCheck) NodesByCategory() *CategorizedNodes {
 		Untested:    make([]*Node, 0, len(h.results)),
 	}
 	for tag, result := range h.results {
+		if network != "" && !common.Contains(result.networks, network) {
+			continue
+		}
 		node := &Node{
 			Tag:      tag,
-			RTTStats: result.Get(),
+			Networks: result.networks,
+			RTTStats: result.rttStorage.Get(),
 		}
 		switch {
 		case node.RTTStats.All == 0:
@@ -72,15 +78,18 @@ func (h *HealthCheck) refreshNodes() []adapter.Outbound {
 		tag := node.Tag()
 		tags[tag] = struct{}{}
 		// make it known to the health check results
-		r, ok := h.results[tag]
+		_, ok := h.results[tag]
 		if !ok {
 			// validity is 2 times to sampling period, since the check are
 			// distributed in the time line randomly, in extreme cases,
 			// previous checks are distributed on the left, and latters
 			// on the right
 			validity := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount) * 2
-			r = newRTTStorage(h.options.SamplingCount, validity)
-			h.results[tag] = r
+			h.results[tag] = &result{
+				// tag:        tag,
+				networks:   node.Network(),
+				rttStorage: newRTTStorage(h.options.SamplingCount, validity),
+			}
 		}
 	}
 	// remove unused rttStorage

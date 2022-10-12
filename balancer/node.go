@@ -11,6 +11,7 @@ var healthPingStatsUntested = RTTStats{
 
 // Node is a banalcer node with health check result
 type Node struct {
-	Tag string
+	Tag      string
+	Networks []string
 	RTTStats
 }

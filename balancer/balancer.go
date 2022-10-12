@@ -9,13 +9,18 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var _ Balancer = (*rttBasedBalancer)(nil)
 
 // Balancer is interface for load balancers
 type Balancer interface {
-	Pick() string
+	// Pick picks a qualified nodes
+	Pick(network string) string
+	// Networks returns the supported network types
+	Networks() []string
 }
 
 type rttBasedBalancer struct {
@@ -49,8 +54,46 @@ func newRTTBasedBalancer(
 }
 
 // Select selects qualified nodes
-func (s *rttBasedBalancer) Pick() string {
-	nodes := s.HealthCheck.NodesByCategory()
+func (s *rttBasedBalancer) Networks() []string {
+	hasTCP, hasUDP := false, false
+	nodes := s.HealthCheck.NodesByCategory("")
+	for _, node := range nodes.Qualified {
+		if !hasTCP && common.Contains(node.Networks, N.NetworkTCP) {
+			hasTCP = true
+		}
+		if !hasUDP && common.Contains(node.Networks, N.NetworkUDP) {
+			hasUDP = true
+		}
+		if hasTCP && hasUDP {
+			break
+		}
+	}
+	if !hasTCP && !hasUDP {
+		for _, node := range nodes.Untested {
+			if !hasTCP && common.Contains(node.Networks, N.NetworkTCP) {
+				hasTCP = true
+			}
+			if !hasUDP && common.Contains(node.Networks, N.NetworkUDP) {
+				hasUDP = true
+			}
+			if hasTCP && hasUDP {
+				break
+			}
+		}
+	}
+	switch {
+	case hasTCP && hasUDP:
+		return []string{N.NetworkTCP, N.NetworkUDP}
+	case hasTCP:
+		return []string{N.NetworkTCP}
+	default:
+		return []string{N.NetworkUDP}
+	}
+}
+
+// Select selects qualified nodes
+func (s *rttBasedBalancer) Pick(network string) string {
+	nodes := s.HealthCheck.NodesByCategory(network)
 	var candidates []*Node
 	if len(nodes.Qualified) > 0 {
 		candidates = nodes.Qualified
