@@ -103,10 +103,6 @@ Enforce strict routing rules when `auto_route` is enabled:
 It prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will
 not be accessible by others.
 
-*In Windows*:
-
-Use segmented `auto_route` routing settings, which may help if you're using a dial-up network.
-
 #### inet4_route_address
 
 Use custom routes instead of default when `auto_route` is enabled.

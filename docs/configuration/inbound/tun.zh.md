@@ -103,10 +103,6 @@ tun 接口的 IPv6 前缀。
 
 它可以防止地址泄漏，并使 DNS 劫持在 Android 和使用 systemd-resolved 的 Linux 上工作，但你的设备将无法其他设备被访问。
 
-*在 Windows 中*:
-
-使用分段的 `auto_route` 路由设置，如果您使用的是拨号网络，这可能会有所帮助。
-
 #### inet4_route_address
 
 启用 `auto_route` 时使用自定义路由而不是默认路由。
