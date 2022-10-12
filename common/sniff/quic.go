@@ -24,8 +24,7 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	if err != nil {
 		return nil, err
 	}
-
-	if typeByte&0x80 == 0 || typeByte&0x40 == 0 {
+	if typeByte&0x40 == 0 {
 		return nil, E.New("bad type byte")
 	}
 	var versionNumber uint32
@@ -145,9 +144,6 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	default:
 		return nil, E.New("bad packet number length")
 	}
-	if packetNumber != 0 {
-		return nil, E.New("bad packet number: ", packetNumber)
-	}
 	extHdrLen := hdrLen + int(packetNumberLength)
 	copy(newPacket[extHdrLen:hdrLen+4], packet[extHdrLen:])
 	data := newPacket[extHdrLen : int(packetLen)+hdrLen]
@@ -172,37 +168,76 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	if err != nil {
 		return nil, err
 	}
+	var frameType byte
+	var frameLen uint64
+	var fragments []struct {
+		offset  uint64
+		length  uint64
+		payload []byte
+	}
 	decryptedReader := bytes.NewReader(decrypted)
-	frameType, err := decryptedReader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	for frameType == 0x0 {
-		// skip padding
+	for {
 		frameType, err = decryptedReader.ReadByte()
-		if err != nil {
-			return nil, err
+		if err == io.EOF {
+			break
 		}
-	}
-	if frameType != 0x6 {
-		// not crypto frame
-		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, nil
-	}
-	_, err = qtls.ReadUvarint(decryptedReader)
-	if err != nil {
-		return nil, err
-	}
-	_, err = qtls.ReadUvarint(decryptedReader)
-	if err != nil {
-		return nil, err
+		switch frameType {
+		case 0x0:
+			continue
+		case 0x1:
+			continue
+		case 0x6:
+			var offset uint64
+			offset, err = qtls.ReadUvarint(decryptedReader)
+			if err != nil {
+				return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
+			}
+			var length uint64
+			length, err = qtls.ReadUvarint(decryptedReader)
+			if err != nil {
+				return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
+			}
+			index := len(decrypted) - decryptedReader.Len()
+			fragments = append(fragments, struct {
+				offset  uint64
+				length  uint64
+				payload []byte
+			}{offset, length, decrypted[index : index+int(length)]})
+			frameLen += length
+			_, err = decryptedReader.Seek(int64(length), io.SeekCurrent)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			// ignore unknown frame type
+		}
 	}
 	tlsHdr := make([]byte, 5)
 	tlsHdr[0] = 0x16
 	binary.BigEndian.PutUint16(tlsHdr[1:], uint16(0x0303))
-	binary.BigEndian.PutUint16(tlsHdr[3:], uint16(decryptedReader.Len()))
-	metadata, err := TLSClientHello(ctx, io.MultiReader(bytes.NewReader(tlsHdr), decryptedReader))
+	binary.BigEndian.PutUint16(tlsHdr[3:], uint16(frameLen))
+	var index uint64
+	var length int
+	var readers []io.Reader
+	readers = append(readers, bytes.NewReader(tlsHdr))
+find:
+	for {
+		for _, fragment := range fragments {
+			if fragment.offset == index {
+				readers = append(readers, bytes.NewReader(fragment.payload))
+				index = fragment.offset + fragment.length
+				length++
+				continue find
+			}
+		}
+		if length == len(fragments) {
+			break
+		}
+		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, E.New("bad fragments")
+	}
+	metadata, err := TLSClientHello(ctx, io.MultiReader(readers...))
 	if err != nil {
-		return nil, err
+		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
 	}
 	metadata.Protocol = C.ProtocolQUIC
 	return metadata, nil

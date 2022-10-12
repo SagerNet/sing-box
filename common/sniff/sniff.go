@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net"
-	"os"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -30,23 +29,25 @@ func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, sniffers
 		return nil, err
 	}
 	var metadata *adapter.InboundContext
+	var errors []error
 	for _, sniffer := range sniffers {
 		metadata, err = sniffer(ctx, bytes.NewReader(buffer.Bytes()))
-		if err != nil {
-			continue
+		if metadata != nil {
+			return metadata, nil
 		}
-		return metadata, nil
+		errors = append(errors, err)
 	}
-	return nil, os.ErrInvalid
+	return nil, E.Errors(errors...)
 }
 
 func PeekPacket(ctx context.Context, packet []byte, sniffers ...PacketSniffer) (*adapter.InboundContext, error) {
+	var errors []error
 	for _, sniffer := range sniffers {
-		sniffMetadata, err := sniffer(ctx, packet)
-		if err != nil {
-			continue
+		metadata, err := sniffer(ctx, packet)
+		if metadata != nil {
+			return metadata, nil
 		}
-		return sniffMetadata, nil
+		errors = append(errors, err)
 	}
-	return nil, os.ErrInvalid
+	return nil, E.Errors(errors...)
 }
