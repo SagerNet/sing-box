@@ -53,7 +53,33 @@ func (s *Balancer) Network() []string {
 	if s.Balancer == nil {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
-	return s.Balancer.Networks()
+	fallbackNetworks := s.fallback.Network()
+	fallbackTCP := common.Contains(fallbackNetworks, N.NetworkTCP)
+	fallbackUDP := common.Contains(fallbackNetworks, N.NetworkUDP)
+	if fallbackTCP && fallbackUDP {
+		// fallback supports all network, we don't need to ask s.Balancer,
+		// we know it can fallback to s.fallback for all networks even if
+		// no outbound is available
+		return fallbackNetworks
+	}
+
+	// ask s.Balancer for available networks
+	networks := s.Balancer.Networks()
+	switch {
+	case fallbackTCP:
+		if !common.Contains(networks, N.NetworkUDP) {
+			return fallbackNetworks
+		}
+		return []string{N.NetworkTCP, N.NetworkUDP}
+	case fallbackUDP:
+		if !common.Contains(networks, N.NetworkTCP) {
+			return fallbackNetworks
+		}
+		return []string{N.NetworkTCP, N.NetworkUDP}
+	default:
+		// fallback supports no network, return the networks from s.Balancer
+		return networks
+	}
 }
 
 // Now implements adapter.OutboundGroup

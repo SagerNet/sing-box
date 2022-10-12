@@ -86,8 +86,10 @@ func (s *rttBasedBalancer) Networks() []string {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	case hasTCP:
 		return []string{N.NetworkTCP}
-	default:
+	case hasUDP:
 		return []string{N.NetworkUDP}
+	default:
+		return nil
 	}
 }
 
