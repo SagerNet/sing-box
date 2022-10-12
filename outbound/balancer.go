@@ -49,23 +49,16 @@ func NewBalancer(
 }
 
 // Network implements adapter.Outbound
-//
-// FIXME: logic issue:
-// picked node is very likely to be different between first "Network() assetion"
-// then "NewConnection()", maybe we need to keep the picked node in the context?
-// that requests to change the Network() signature of the interface of
-// adapter.Outbound
 func (s *Balancer) Network() []string {
-	picked := s.pick()
-	if picked == nil {
+	if s.Balancer == nil {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
-	return picked.Network()
+	return s.Balancer.Networks()
 }
 
 // Now implements adapter.OutboundGroup
 func (s *Balancer) Now() string {
-	return s.pick().Tag()
+	return s.pick("").Tag()
 }
 
 // All implements adapter.OutboundGroup
@@ -75,22 +68,22 @@ func (s *Balancer) All() []string {
 
 // DialContext implements adapter.Outbound
 func (s *Balancer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return s.pick().DialContext(ctx, network, destination)
+	return s.pick(network).DialContext(ctx, network, destination)
 }
 
 // ListenPacket implements adapter.Outbound
 func (s *Balancer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return s.pick().ListenPacket(ctx, destination)
+	return s.pick(N.NetworkUDP).ListenPacket(ctx, destination)
 }
 
 // NewConnection implements adapter.Outbound
 func (s *Balancer) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return s.pick().NewConnection(ctx, conn, metadata)
+	return s.pick(N.NetworkTCP).NewConnection(ctx, conn, metadata)
 }
 
 // NewPacketConnection implements adapter.Outbound
 func (s *Balancer) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return s.pick().NewPacketConnection(ctx, conn, metadata)
+	return s.pick(N.NetworkUDP).NewPacketConnection(ctx, conn, metadata)
 }
 
 // initialize inits the balancer
@@ -119,8 +112,8 @@ func (s *Balancer) setBalancer(b balancer.Balancer) error {
 	return nil
 }
 
-func (s *Balancer) pick() adapter.Outbound {
-	tag := s.pickTag()
+func (s *Balancer) pick(network string) adapter.Outbound {
+	tag := s.pickTag(network)
 	if tag == "" {
 		return s.fallback
 	}
@@ -131,12 +124,12 @@ func (s *Balancer) pick() adapter.Outbound {
 	return outbound
 }
 
-func (s *Balancer) pickTag() string {
+func (s *Balancer) pickTag(network string) string {
 	if s.Balancer == nil {
 		// not started yet, pick a random one
 		return s.randomTag()
 	}
-	tag := s.Balancer.Pick()
+	tag := s.Balancer.Pick(network)
 	if tag == "" {
 		return ""
 	}

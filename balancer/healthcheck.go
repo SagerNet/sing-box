@@ -22,7 +22,13 @@ type HealthCheck struct {
 	logger log.Logger
 
 	options *option.HealthCheckSettings
-	results map[string]*rttStorage
+	results map[string]*result
+}
+
+type result struct {
+	// tag      string
+	networks []string
+	*rttStorage
 }
 
 // NewHealthCheck creates a new HealthPing with settings
@@ -51,7 +57,7 @@ func NewHealthCheck(router adapter.Router, tags []string, logger log.Logger, con
 		router:  router,
 		tags:    tags,
 		options: config,
-		results: make(map[string]*rttStorage),
+		results: make(map[string]*result),
 		logger:  logger,
 	}
 }
