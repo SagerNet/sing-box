@@ -15,8 +15,8 @@ func NewLeastLoad(
 ) (Balancer, error) {
 	return newRTTBasedBalancer(
 		router, logger, options,
-		func(node *Node) time.Duration {
-			return node.Deviation
+		func(n *Node) time.Duration {
+			return n.Deviation
 		},
 	)
 }

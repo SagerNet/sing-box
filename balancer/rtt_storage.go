@@ -120,7 +120,14 @@ func (h *rttStorage) getStatistics() RTTStats {
 	}
 	switch {
 	case stats.All == 0:
-		return healthPingStatsUntested
+		return RTTStats{
+			All:       0,
+			Fail:      0,
+			Deviation: rttUntested,
+			Average:   rttUntested,
+			Max:       rttUntested,
+			Min:       rttUntested,
+		}
 	case stats.Fail == stats.All:
 		return RTTStats{
 			All:       stats.All,

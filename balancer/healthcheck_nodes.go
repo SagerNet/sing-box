@@ -8,21 +8,28 @@ import (
 	"github.com/sagernet/sing/common"
 )
 
-// CategorizedNodes holds the categorized nodes
-type CategorizedNodes struct {
+// Nodes holds the categorized nodes
+type Nodes struct {
 	Qualified, Unqualified []*Node
 	Failed, Untested       []*Node
 }
 
-// NodesByCategory returns the categorized nodes for specific network.
+// Node is a banalcer Node with health check result
+type Node struct {
+	Tag      string
+	Networks []string
+	RTTStats
+}
+
+// Nodes returns the categorized nodes for specific network.
 // If network is empty, all nodes are returned.
-func (h *HealthCheck) NodesByCategory(network string) *CategorizedNodes {
-	h.Lock()
-	defer h.Unlock()
+func (h *HealthCheck) Nodes(network string) *Nodes {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h == nil || len(h.results) == 0 {
-		return &CategorizedNodes{}
+		return &Nodes{}
 	}
-	nodes := &CategorizedNodes{
+	nodes := &Nodes{
 		Qualified:   make([]*Node, 0, len(h.results)),
 		Unqualified: make([]*Node, 0, len(h.results)),
 		Failed:      make([]*Node, 0, len(h.results)),
@@ -32,21 +39,21 @@ func (h *HealthCheck) NodesByCategory(network string) *CategorizedNodes {
 		if network != "" && !common.Contains(result.networks, network) {
 			continue
 		}
-		node := &Node{
+		n := &Node{
 			Tag:      tag,
 			Networks: result.networks,
 			RTTStats: result.rttStorage.Get(),
 		}
 		switch {
-		case node.RTTStats.All == 0:
-			nodes.Untested = append(nodes.Untested, node)
-		case node.RTTStats.All == node.RTTStats.Fail,
-			float64(node.Fail)/float64(node.All) > float64(h.options.Tolerance):
-			nodes.Failed = append(nodes.Failed, node)
-		case h.options.MaxRTT > 0 && node.Average > time.Duration(h.options.MaxRTT):
-			nodes.Unqualified = append(nodes.Unqualified, node)
+		case n.RTTStats.All == 0:
+			nodes.Untested = append(nodes.Untested, n)
+		case n.RTTStats.All == n.RTTStats.Fail,
+			float64(n.Fail)/float64(n.All) > float64(h.options.Tolerance):
+			nodes.Failed = append(nodes.Failed, n)
+		case h.options.MaxRTT > 0 && n.Average > time.Duration(h.options.MaxRTT):
+			nodes.Unqualified = append(nodes.Unqualified, n)
 		default:
-			nodes.Qualified = append(nodes.Qualified, node)
+			nodes.Qualified = append(nodes.Qualified, n)
 		}
 	}
 	return nodes
@@ -69,13 +76,13 @@ func CoveredOutbounds(router adapter.Router, tags []string) []adapter.Outbound {
 
 // refreshNodes matches nodes from router by tag prefix, and refreshes the health check results
 func (h *HealthCheck) refreshNodes() []adapter.Outbound {
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
 	nodes := CoveredOutbounds(h.router, h.tags)
 	tags := make(map[string]struct{})
-	for _, node := range nodes {
-		tag := node.Tag()
+	for _, n := range nodes {
+		tag := n.Tag()
 		tags[tag] = struct{}{}
 		// make it known to the health check results
 		_, ok := h.results[tag]
@@ -87,7 +94,7 @@ func (h *HealthCheck) refreshNodes() []adapter.Outbound {
 			validity := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount) * 2
 			h.results[tag] = &result{
 				// tag:        tag,
-				networks:   node.Network(),
+				networks:   n.Network(),
 				rttStorage: newRTTStorage(h.options.SamplingCount, validity),
 			}
 		}
