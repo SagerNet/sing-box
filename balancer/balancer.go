@@ -32,7 +32,7 @@ type rttBasedBalancer struct {
 	costs *WeightManager
 }
 
-type rttFunc func(node *Node) time.Duration
+type rttFunc func(n *Node) time.Duration
 
 // newRTTBasedLoad creates a new rtt based load balancer
 func newRTTBasedBalancer(
@@ -56,12 +56,12 @@ func newRTTBasedBalancer(
 // Select selects qualified nodes
 func (s *rttBasedBalancer) Networks() []string {
 	hasTCP, hasUDP := false, false
-	nodes := s.HealthCheck.NodesByCategory("")
-	for _, node := range nodes.Qualified {
-		if !hasTCP && common.Contains(node.Networks, N.NetworkTCP) {
+	nodes := s.HealthCheck.Nodes("")
+	for _, n := range nodes.Qualified {
+		if !hasTCP && common.Contains(n.Networks, N.NetworkTCP) {
 			hasTCP = true
 		}
-		if !hasUDP && common.Contains(node.Networks, N.NetworkUDP) {
+		if !hasUDP && common.Contains(n.Networks, N.NetworkUDP) {
 			hasUDP = true
 		}
 		if hasTCP && hasUDP {
@@ -69,11 +69,11 @@ func (s *rttBasedBalancer) Networks() []string {
 		}
 	}
 	if !hasTCP && !hasUDP {
-		for _, node := range nodes.Untested {
-			if !hasTCP && common.Contains(node.Networks, N.NetworkTCP) {
+		for _, n := range nodes.Untested {
+			if !hasTCP && common.Contains(n.Networks, N.NetworkTCP) {
 				hasTCP = true
 			}
-			if !hasUDP && common.Contains(node.Networks, N.NetworkUDP) {
+			if !hasUDP && common.Contains(n.Networks, N.NetworkUDP) {
 				hasUDP = true
 			}
 			if hasTCP && hasUDP {
@@ -93,12 +93,12 @@ func (s *rttBasedBalancer) Networks() []string {
 
 // Select selects qualified nodes
 func (s *rttBasedBalancer) Pick(network string) string {
-	nodes := s.HealthCheck.NodesByCategory(network)
+	nodes := s.HealthCheck.Nodes(network)
 	var candidates []*Node
 	if len(nodes.Qualified) > 0 {
 		candidates = nodes.Qualified
-		for _, node := range candidates {
-			node.Weighted = time.Duration(s.costs.Apply(node.Tag, float64(s.rttFunc(node))))
+		for _, n := range candidates {
+			n.Weighted = time.Duration(s.costs.Apply(n.Tag, float64(s.rttFunc(n))))
 		}
 		sortNodes(candidates)
 	} else {

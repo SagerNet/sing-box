@@ -15,8 +15,8 @@ func NewLeastPing(
 ) (Balancer, error) {
 	return newRTTBasedBalancer(
 		router, logger, options,
-		func(node *Node) time.Duration {
-			return node.Average
+		func(n *Node) time.Duration {
+			return n.Average
 		},
 	)
 }

@@ -14,7 +14,7 @@ import (
 
 // HealthCheck is the health checker for balancers
 type HealthCheck struct {
-	sync.Mutex
+	mutex sync.Mutex
 
 	ticker *time.Ticker
 	router adapter.Router
@@ -64,8 +64,8 @@ func NewHealthCheck(router adapter.Router, tags []string, logger log.Logger, con
 
 // Start starts the health check service
 func (h *HealthCheck) Start() error {
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.ticker != nil {
 		return nil
 	}
@@ -88,8 +88,8 @@ func (h *HealthCheck) Start() error {
 
 // Stop stops the health check service
 func (h *HealthCheck) Stop() {
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.ticker != nil {
 		h.ticker.Stop()
 		h.ticker = nil
@@ -116,8 +116,8 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 	}
 	ch := make(chan *rtt, count)
 	// rtts := make(map[string][]time.Duration)
-	for _, node := range nodes {
-		tag, detour := node.Tag(), node
+	for _, n := range nodes {
+		tag, detour := n.Tag(), n
 		client := newPingClient(
 			detour,
 			h.options.Destination,
@@ -164,15 +164,15 @@ func (h *HealthCheck) doCheck(duration time.Duration, rounds int) {
 		if rtt.value > 0 {
 			// h.logger.Debug("ping ", rtt.tag, ":", rtt.value)
 			// should not put results when network is down
-			h.PutResult(rtt.tag, rtt.value)
+			h.putResult(rtt.tag, rtt.value)
 		}
 	}
 }
 
-// PutResult put a ping rtt to results
-func (h *HealthCheck) PutResult(tag string, rtt time.Duration) {
-	h.Lock()
-	defer h.Unlock()
+// putResult put a ping rtt to results
+func (h *HealthCheck) putResult(tag string, rtt time.Duration) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	r, ok := h.results[tag]
 	if !ok {
 		// the result may come after the node is removed
