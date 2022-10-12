@@ -9,12 +9,12 @@ import (
 
 func TestRTTStorage(t *testing.T) {
 	rtts := []int64{60, 140, 60, 140, 60, 60, 140, 60, 140}
-	hr := newRTTStorage(4, time.Hour)
+	s := newRTTStorage(4, time.Hour)
 	for _, rtt := range rtts {
-		hr.Put(time.Duration(rtt))
+		s.Put(time.Duration(rtt))
 	}
 	rttFailed := time.Duration(math.MaxInt64)
-	expected := &RTTStats{
+	want := RTTStats{
 		All:       4,
 		Fail:      0,
 		Deviation: 40,
@@ -22,45 +22,45 @@ func TestRTTStorage(t *testing.T) {
 		Max:       140,
 		Min:       60,
 	}
-	actual := hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected: %v, actual: %v", expected, actual)
+	got := s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("want: %v, got: %v", want, got)
 	}
-	hr.Put(rttFailed)
-	hr.Put(rttFailed)
-	expected.Fail = 2
-	actual = hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("failed half-failures test, expected: %v, actual: %v", expected, actual)
+	s.Put(rttFailed)
+	s.Put(rttFailed)
+	want.Fail = 2
+	got = s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("failed half-failures test, want: %v, got: %v", want, got)
 	}
-	hr.Put(rttFailed)
-	hr.Put(rttFailed)
-	expected = &RTTStats{
+	s.Put(rttFailed)
+	s.Put(rttFailed)
+	want = RTTStats{
 		All:       4,
 		Fail:      4,
-		Deviation: 0,
-		Average:   0,
-		Max:       0,
-		Min:       0,
+		Deviation: rttFailed,
+		Average:   rttFailed,
+		Max:       rttFailed,
+		Min:       rttFailed,
 	}
-	actual = hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("failed all-failures test, expected: %v, actual: %v", expected, actual)
+	got = s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("failed all-failures test, want: %v, got: %v", want, got)
 	}
 }
 
 func TestHealthPingResultsIgnoreOutdated(t *testing.T) {
 	rtts := []int64{60, 140, 60, 140}
-	hr := newRTTStorage(4, time.Duration(10)*time.Millisecond)
+	s := newRTTStorage(4, time.Duration(10)*time.Millisecond)
 	for i, rtt := range rtts {
 		if i == 2 {
 			// wait for previous 2 outdated
 			time.Sleep(time.Duration(10) * time.Millisecond)
 		}
-		hr.Put(time.Duration(rtt))
+		s.Put(time.Duration(rtt))
 	}
-	hr.Get()
-	expected := &RTTStats{
+	s.Get()
+	want := RTTStats{
 		All:       2,
 		Fail:      0,
 		Deviation: 40,
@@ -68,27 +68,27 @@ func TestHealthPingResultsIgnoreOutdated(t *testing.T) {
 		Max:       140,
 		Min:       60,
 	}
-	actual := hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("failed 'half-outdated' test, expected: %v, actual: %v", expected, actual)
+	got := s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("failed 'half-outdated' test, want: %v, got: %v", want, got)
 	}
 	// wait for all outdated
 	time.Sleep(time.Duration(10) * time.Millisecond)
-	expected = &RTTStats{
+	want = RTTStats{
 		All:       0,
 		Fail:      0,
-		Deviation: 0,
-		Average:   0,
-		Max:       0,
-		Min:       0,
+		Deviation: rttUntested,
+		Average:   rttUntested,
+		Max:       rttUntested,
+		Min:       rttUntested,
 	}
-	actual = hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("failed 'outdated / not-tested' test, expected: %v, actual: %v", expected, actual)
+	got = s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("failed 'outdated / not-tested' test, want: %v, got: %v", want, got)
 	}
 
-	hr.Put(time.Duration(60))
-	expected = &RTTStats{
+	s.Put(time.Duration(60))
+	want = RTTStats{
 		All:  1,
 		Fail: 0,
 		// 1 sample, std=0.5rtt
@@ -97,8 +97,8 @@ func TestHealthPingResultsIgnoreOutdated(t *testing.T) {
 		Max:       60,
 		Min:       60,
 	}
-	actual = hr.Get()
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected: %v, actual: %v", expected, actual)
+	got = s.Get()
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("want: %v, got: %v", want, got)
 	}
 }
