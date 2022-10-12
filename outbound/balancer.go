@@ -87,7 +87,7 @@ func (s *Balancer) Network() []string {
 
 // Now implements adapter.OutboundGroup
 func (s *Balancer) Now() string {
-	return s.pick("").Tag()
+	return s.pick(context.Background(), "").Tag()
 }
 
 // All implements adapter.OutboundGroup
@@ -97,22 +97,22 @@ func (s *Balancer) All() []string {
 
 // DialContext implements adapter.Outbound
 func (s *Balancer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return s.pick(network).DialContext(ctx, network, destination)
+	return s.pick(ctx, network).DialContext(ctx, network, destination)
 }
 
 // ListenPacket implements adapter.Outbound
 func (s *Balancer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return s.pick(N.NetworkUDP).ListenPacket(ctx, destination)
+	return s.pick(ctx, N.NetworkUDP).ListenPacket(ctx, destination)
 }
 
 // NewConnection implements adapter.Outbound
 func (s *Balancer) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return s.pick(N.NetworkTCP).NewConnection(ctx, conn, metadata)
+	return s.pick(ctx, N.NetworkTCP).NewConnection(ctx, conn, metadata)
 }
 
 // NewPacketConnection implements adapter.Outbound
 func (s *Balancer) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return s.pick(N.NetworkUDP).NewPacketConnection(ctx, conn, metadata)
+	return s.pick(ctx, N.NetworkUDP).NewPacketConnection(ctx, conn, metadata)
 }
 
 // Close implements io.Closer
@@ -149,24 +149,26 @@ func (s *Balancer) setBalancer(b balancer.Balancer) error {
 	return nil
 }
 
-func (s *Balancer) pick(network string) adapter.Outbound {
-	tag := s.pickTag(network)
+func (s *Balancer) pick(ctx context.Context, network string) adapter.Outbound {
+	tag := s.pickTag(ctx, network)
 	if tag == "" {
+		s.logger.DebugContext(ctx, "(network=", network, ", candidates=0) => fallback [", s.fallbackTag, "]")
 		return s.fallback
 	}
 	outbound, ok := s.router.Outbound(tag)
 	if !ok {
+		s.logger.DebugContext(ctx, "[", tag, "] not exist, fallback to [", s.fallbackTag, "]")
 		return s.fallback
 	}
 	return outbound
 }
 
-func (s *Balancer) pickTag(network string) string {
+func (s *Balancer) pickTag(ctx context.Context, network string) string {
 	if s.Balancer == nil {
 		// not started yet, pick a random one
 		return s.randomTag()
 	}
-	tag := s.Balancer.Pick(network)
+	tag := s.Balancer.Pick(ctx, network)
 	if tag == "" {
 		return ""
 	}
