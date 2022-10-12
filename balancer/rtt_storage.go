@@ -90,10 +90,9 @@ func (h *rttStorage) calcIndex(step int) int {
 }
 
 func (h *rttStorage) getStatistics() RTTStats {
-	stats := RTTStats{}
-	stats.Fail = 0
-	stats.Max = 0
-	stats.Min = rttFailed
+	stats := RTTStats{
+		Min: math.MaxInt64,
+	}
 	sum := time.Duration(0)
 	cnt := 0
 	validRTTs := make([]time.Duration, 0, h.cap)
@@ -116,11 +115,9 @@ func (h *rttStorage) getStatistics() RTTStats {
 		}
 	}
 	stats.All = cnt + stats.Fail
-	if cnt == 0 {
-		stats.Min = 0
-		return healthPingStatsUntested
+	if cnt > 0 {
+		stats.Average = time.Duration(int(sum) / cnt)
 	}
-	stats.Average = time.Duration(int(sum) / cnt)
 	switch {
 	case stats.All == 0:
 		return healthPingStatsUntested
