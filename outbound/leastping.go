@@ -1,16 +1,21 @@
 package outbound
 
 import (
+	"io"
+
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/balancer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 )
 
 var (
 	_ adapter.Outbound      = (*LeastPing)(nil)
 	_ adapter.OutboundGroup = (*LeastPing)(nil)
+	_ common.Starter        = (*LeastPing)(nil)
+	_ io.Closer             = (*LeastPing)(nil)
 )
 
 // LeastPing is a outbound group that picks outbound with least load
@@ -33,7 +38,7 @@ func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, o
 
 // Start implements common.Starter
 func (s *LeastPing) Start() error {
-	err := s.Balancer.initialize()
+	err := s.Balancer.Start()
 	if err != nil {
 		return err
 	}
