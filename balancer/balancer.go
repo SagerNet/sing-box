@@ -1,6 +1,7 @@
 package balancer
 
 import (
+	"context"
 	"math"
 	"math/rand"
 	"sort"
@@ -18,7 +19,7 @@ var _ Balancer = (*rttBasedBalancer)(nil)
 // Balancer is interface for load balancers
 type Balancer interface {
 	// Pick picks a qualified nodes
-	Pick(network string) string
+	Pick(ctx context.Context, network string) string
 	// Networks returns the supported network types
 	Networks() []string
 }
@@ -27,6 +28,7 @@ type rttBasedBalancer struct {
 	nodes   []*Node
 	rttFunc rttFunc
 	options *option.BalancerOutboundOptions
+	logger  log.ContextLogger
 
 	*HealthCheck
 	costs *WeightManager
@@ -43,6 +45,7 @@ func newRTTBasedBalancer(
 	return &rttBasedBalancer{
 		rttFunc:     rttFunc,
 		options:     &options,
+		logger:      logger,
 		HealthCheck: NewHealthCheck(router, options.Outbounds, logger, &options.Check),
 		costs: NewWeightManager(
 			logger, options.Pick.Costs, 1,
@@ -94,7 +97,7 @@ func (s *rttBasedBalancer) Networks() []string {
 }
 
 // Select selects qualified nodes
-func (s *rttBasedBalancer) Pick(network string) string {
+func (s *rttBasedBalancer) Pick(ctx context.Context, network string) string {
 	nodes := s.HealthCheck.Nodes(network)
 	var candidates []*Node
 	if len(nodes.Qualified) > 0 {
@@ -113,8 +116,10 @@ func (s *rttBasedBalancer) Pick(network string) string {
 		return ""
 	}
 	picked := selects[rand.Intn(count)]
-	s.logger.Debug(
-		"pick [", picked.Tag, "]",
+	s.logger.DebugContext(
+		ctx,
+		"(network=", network, ", candidates=", count, ")",
+		" => [", picked.Tag, "]",
 		" +W=", picked.Weighted,
 		" STD=", picked.Deviation,
 		" AVG=", picked.Average,
