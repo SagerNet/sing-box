@@ -30,6 +30,8 @@
 | `ssh`         | [SSH](./ssh)                 |
 | `dns`         | [DNS](./dns)                 |
 | `selector`    | [Selector](./selector)       |
+| `leastload`    | [LeastLoad](./leastload)       |
+| `leastping`    | [LeastPing](./leastping)       |
 
 #### tag
 
