@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 
@@ -17,6 +18,8 @@ import (
 var (
 	_ adapter.Outbound      = (*Balancer)(nil)
 	_ adapter.OutboundGroup = (*Balancer)(nil)
+	_ common.Starter        = (*Balancer)(nil)
+	_ io.Closer             = (*Balancer)(nil)
 )
 
 // Balancer is a outbound group that picks outbound with least load
@@ -112,8 +115,16 @@ func (s *Balancer) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 	return s.pick(N.NetworkUDP).NewPacketConnection(ctx, conn, metadata)
 }
 
-// initialize inits the balancer
-func (s *Balancer) initialize() error {
+// Close implements io.Closer
+func (s *Balancer) Close() error {
+	if c, ok := s.Balancer.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+// Start implements common.Starter
+func (s *Balancer) Start() error {
 	// the fallback is required, in case that all outbounds are not available,
 	// we can pick it instead of returning nil to avoid panic.
 	if s.fallbackTag == "" {
