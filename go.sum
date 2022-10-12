@@ -151,8 +151,8 @@ github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3 h1:AEdyJxEDFq38z
 github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3/go.mod h1:SrvWLfOSlnFmH32CWXicfilAGgIXR0VjrH6yRbuXYww=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6 h1:JJfDeYYhWunvtxsU/mOVNTmFQmnzGx9dY034qG6G3g4=
 github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6/go.mod h1:EX3RbZvrwAkPI2nuGa78T2iQXmrkT+/VQtskjou42xM=
-github.com/sagernet/sing-tun v0.0.0-20221009132126-1ede22e6eb7e h1:UIE1wKIr92d2VUWox3On8JQknvewl7aeG+JfthISX0w=
-github.com/sagernet/sing-tun v0.0.0-20221009132126-1ede22e6eb7e/go.mod h1:qbqV9lwcXJnj1Tw4we7oA6Z8zGE/kCXQBCzuhzRWVw8=
+github.com/sagernet/sing-tun v0.0.0-20221010052616-99492e0d70a1 h1:y9bgx5fcmjIAR5S9jueTIqDm9N2lkIHYEYWPE/x+pHU=
+github.com/sagernet/sing-tun v0.0.0-20221010052616-99492e0d70a1/go.mod h1:1u3pjXA9HmH7kRiBJqM3C/zPxrxnCLd3svmqtub/RFU=
 github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685 h1:AZzFNRR/ZwMTceUQ1b/mxx6oyKqmFymdMn/yleJmoVM=
 github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685/go.mod h1:bwhAdSNET1X+j9DOXGj9NIQR39xgcWIk1rOQ9lLD+gM=
 github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 h1:5VBIbVw9q7aKbrFdT83mjkyvQ+VaRsQ6yflTepfln38=
@@ -264,8 +264,8 @@ golang.org/x/sys v0.0.0-20220412211240-33da011f77ad/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220731174439-a90be440212d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec h1:BkDtF2Ih9xZ7le9ndzTA7KJow28VbQW3odyk/8drmuI=
-golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875 h1:AzgQNqF+FKwyQ5LbVrVqOcuuFB67N47F9+htZYH0wFM=
+golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=

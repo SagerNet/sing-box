@@ -26,7 +26,7 @@ require (
 	github.com/sagernet/sing v0.0.0-20221008120626-60a9910eefe4
 	github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
-	github.com/sagernet/sing-tun v0.0.0-20221009132126-1ede22e6eb7e
+	github.com/sagernet/sing-tun v0.0.0-20221010052616-99492e0d70a1
 	github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
@@ -37,7 +37,7 @@ require (
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af
-	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec
+	golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1

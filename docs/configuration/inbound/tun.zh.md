@@ -15,6 +15,14 @@
   "mtu": 9000,
   "auto_route": true,
   "strict_route": true,
+  "inet4_route_address": [
+    "0.0.0.0/1",
+    "128.0.0.0/1"
+  ],
+  "inet6_route_address": [
+    "::/1",
+    "8000::/1"
+  ],
   "endpoint_independent_nat": false,
   "stack": "system",
   "include_uid": [
@@ -98,6 +106,14 @@ tun 接口的 IPv6 前缀。
 *在 Windows 中*:
 
 使用分段的 `auto_route` 路由设置，如果您使用的是拨号网络，这可能会有所帮助。
+
+#### inet4_route_address
+
+启用 `auto_route` 时使用自定义路由而不是默认路由。
+
+#### inet6_route_address
+
+启用 `auto_route` 时使用自定义路由而不是默认路由。
 
 #### endpoint_independent_nat
 
