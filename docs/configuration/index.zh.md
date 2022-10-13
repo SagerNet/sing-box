@@ -47,9 +47,6 @@ sing-box 支持多文件、多格式混合使用。按照配置文件的加载�
 ```bash
 # 根据参数顺序加载
 sing-box run -c inbound.json -c outbound.yaml -c http://url.to/config.toml
-```
-
-```bash
 # 根据文件名顺序加载
 sing-box run -r -c config_dir
 ```
