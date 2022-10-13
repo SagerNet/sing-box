@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/sagernet/sing-box/common/conf/mergers"
 	_ "github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 
@@ -10,9 +11,11 @@ import (
 )
 
 var (
-	configPath   string
-	workingDir   string
-	disableColor bool
+	configPaths     []string
+	configFormat    string
+	configRecursive bool
+	workingDir      string
+	disableColor    bool
 )
 
 var mainCommand = &cobra.Command{
@@ -21,7 +24,9 @@ var mainCommand = &cobra.Command{
 }
 
 func init() {
-	mainCommand.PersistentFlags().StringVarP(&configPath, "config", "c", "config.json", "set configuration file path")
+	mainCommand.PersistentFlags().StringArrayVarP(&configPaths, "config", "c", []string{"config.json"}, "set configuration file path")
+	mainCommand.PersistentFlags().StringVarP(&configFormat, "format", "", string(mergers.FormatAuto), "load configuration directories recursively")
+	mainCommand.PersistentFlags().BoolVarP(&configRecursive, "recursive", "r", false, "load configuration directories recursively")
 	mainCommand.PersistentFlags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	mainCommand.PersistentFlags().BoolVarP(&disableColor, "disable-color", "", false, "disable color output")
 }

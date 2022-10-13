@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"io"
 	"os"
 	"os/signal"
 	runtimeDebug "runtime/debug"
 	"syscall"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/common/conf"
+	"github.com/sagernet/sing-box/common/conf/mergers"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -36,10 +37,11 @@ func readConfig() (option.Options, error) {
 		configContent []byte
 		err           error
 	)
-	if configPath == "stdin" {
-		configContent, err = io.ReadAll(os.Stdin)
+	format := mergers.ParseFormat(configFormat)
+	if len(configPaths) == 1 && configPaths[0] == "stdin" {
+		configContent, err = conf.ReaderToJSON(os.Stdin, format)
 	} else {
-		configContent, err = os.ReadFile(configPath)
+		configContent, err = conf.FilesToJSON(configPaths, format, configRecursive)
 	}
 	if err != nil {
 		return option.Options{}, E.Cause(err, "read config")
