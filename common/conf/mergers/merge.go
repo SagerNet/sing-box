@@ -1,7 +1,6 @@
 package mergers
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +12,7 @@ import (
 func MergeAs(formatName Format, input interface{}, m map[string]interface{}) error {
 	f, found := mergersByName[formatName]
 	if !found {
-		return fmt.Errorf("format merger not found for: %s", formatName)
+		return fmt.Errorf("unknown format: %s", formatName)
 	}
 	return f.Merge(input, m)
 }
@@ -51,7 +50,7 @@ func Merge(input interface{}, target map[string]interface{}) error {
 			return err
 		}
 	default:
-		return errors.New("unknow merge input type")
+		return fmt.Errorf("unknow supported input type: %T", input)
 	}
 	return nil
 }
@@ -63,7 +62,7 @@ func mergeSingleFile(input interface{}, m map[string]interface{}) error {
 			lext := strings.ToLower(ext)
 			f, found := mergersByExt[lext]
 			if !found {
-				return fmt.Errorf("unmergeable format extension: %s", ext)
+				return fmt.Errorf("unsupported file extension: %s", ext)
 			}
 			return f.Merge(file, m)
 		}
@@ -80,7 +79,7 @@ func mergeSingleFile(input interface{}, m map[string]interface{}) error {
 		}
 		errs = append(errs, fmt.Sprintf("[%s] %s", f.Name, err))
 	}
-	return fmt.Errorf("tried all mergers but failed for: \n\n%s\n\nreason:\n\n  %s", input, strings.Join(errs, "\n  "))
+	return fmt.Errorf("tried all formats but failed for: \n\n%s\n\nerrors:\n\n  %s", input, strings.Join(errs, "\n  "))
 }
 
 func getExtension(filename string) string {
