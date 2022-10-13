@@ -14,7 +14,7 @@ import (
 )
 
 var commandFormatWrite string
-var commandEncodeFormat string
+var commandFormatEncoding string
 
 var commandFormat = &cobra.Command{
 	Use:   "format",
@@ -29,8 +29,8 @@ var commandFormat = &cobra.Command{
 }
 
 func init() {
-	commandFormat.Flags().StringVarP(&commandFormatWrite, "write", "w", "", "write result to (source) file instead of stdout")
-	commandFormat.Flags().StringVarP(&commandEncodeFormat, "encode", "e", string(mergers.FormatJSON), "encode format")
+	commandFormat.Flags().StringVarP(&commandFormatWrite, "write", "w", "", "write result to file instead of stdout")
+	commandFormat.Flags().StringVarP(&commandFormatEncoding, "format", "f", string(mergers.FormatJSON), "output format: json, yaml, toml")
 	mainCommand.AddCommand(commandFormat)
 }
 
@@ -40,7 +40,7 @@ func format() error {
 		err           error
 	)
 	format := mergers.ParseFormat(configFormat)
-	encode := mergers.ParseFormat(commandEncodeFormat)
+	encode := mergers.ParseFormat(commandFormatEncoding)
 	if encode == mergers.FormatAuto {
 		encode = mergers.FormatJSON
 	}

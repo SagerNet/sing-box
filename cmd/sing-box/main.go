@@ -23,9 +23,9 @@ var mainCommand = &cobra.Command{
 }
 
 func init() {
-	mainCommand.PersistentFlags().StringArrayVarP(&configPaths, "config", "c", []string{"config.json"}, "set configuration file path")
-	mainCommand.PersistentFlags().StringVarP(&configFormat, "format", "", string(mergers.FormatAuto), "load configuration directories recursively")
-	mainCommand.PersistentFlags().BoolVarP(&configRecursive, "recursive", "r", false, "load configuration directories recursively")
+	mainCommand.PersistentFlags().StringArrayVarP(&configPaths, "config", "c", []string{"config.json"}, "set configuration files / directories")
+	mainCommand.PersistentFlags().StringVarP(&configFormat, "config-format", "", string(mergers.FormatAuto), "configuration files format: auto, json, jsonc, yaml, toml")
+	mainCommand.PersistentFlags().BoolVarP(&configRecursive, "config-recursive", "r", false, "load configuration directories recursively")
 	mainCommand.PersistentFlags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	mainCommand.PersistentFlags().BoolVarP(&disableColor, "disable-color", "", false, "disable color output")
 }
