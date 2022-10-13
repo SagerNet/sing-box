@@ -102,6 +102,6 @@ Applied:
 
 Just remember these few rules:
 
-- Simple values (string, number, boolean) are overwritten, others (array, object) are merged.
+- Simple values (`string`, `number`, `boolean`) are overwritten, others (`array`, `object`) are merged.
 - Elements with same `_tag` in an array will be merged.
-- Elements in an array will be sorted by "_priority" field, the smaller the higher priority.
+- Elements in an array will be sorted by `_priority` field, the smaller the higher priority.
