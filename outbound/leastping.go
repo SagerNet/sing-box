@@ -38,13 +38,10 @@ func NewLeastPing(router adapter.Router, logger log.ContextLogger, tag string, o
 
 // Start implements common.Starter
 func (s *LeastPing) Start() error {
-	err := s.Balancer.Start()
-	if err != nil {
-		return err
-	}
 	b, err := balancer.NewLeastPing(s.router, s.logger, s.options)
 	if err != nil {
 		return err
 	}
-	return s.setBalancer(b)
+	s.Balancer.Balancer = b
+	return s.Balancer.Start()
 }

@@ -130,17 +130,15 @@ func (s *Balancer) Start() error {
 	if s.fallbackTag == "" {
 		return E.New("fallback not set")
 	}
+	if s.Balancer == nil {
+		return E.New("balancer not set")
+	}
 	outbound, loaded := s.router.Outbound(s.fallbackTag)
 	if !loaded {
 		return E.New("fallback outbound not found: ", s.fallbackTag)
 	}
 	s.fallback = outbound
-	return nil
-}
-
-func (s *Balancer) setBalancer(b balancer.Balancer) error {
-	s.Balancer = b
-	if starter, isStarter := b.(common.Starter); isStarter {
+	if starter, isStarter := s.Balancer.(common.Starter); isStarter {
 		err := starter.Start()
 		if err != nil {
 			return err
