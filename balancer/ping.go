@@ -7,6 +7,7 @@ import (
 
 	"net"
 
+	"github.com/sagernet/sing-box/log"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -34,6 +35,7 @@ func newHTTPClient(detour N.Dialer, timeout time.Duration) *http.Client {
 	tr := &http.Transport{
 		DisableKeepAlives: true,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
 			return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
 		},
 	}
