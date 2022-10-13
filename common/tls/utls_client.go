@@ -136,7 +136,7 @@ func newUTLSClient(router adapter.Router, serverAddress string, options option.O
 	}
 	var id utls.ClientHelloID
 	switch options.UTLS.Fingerprint {
-	case "chrome", "":
+	case "chrome":
 		id = utls.HelloChrome_Auto
 	case "firefox":
 		id = utls.HelloFirefox_Auto
@@ -144,8 +144,18 @@ func newUTLSClient(router adapter.Router, serverAddress string, options option.O
 		id = utls.HelloIOS_Auto
 	case "android":
 		id = utls.HelloAndroid_11_OkHttp
+	case "edge":
+		id = utls.HelloEdge_Auto
+	case "safari":
+		id = utls.HelloSafari_Auto
+	case "360":
+		id = utls.Hello360_Auto
+	case "qq":
+		id = utls.HelloQQ_Auto
 	case "random":
 		id = utls.HelloRandomized
+	default:
+		id = utls.HelloChrome_Auto
 	}
 	return &utlsClientConfig{&tlsConfig, id}, nil
 }

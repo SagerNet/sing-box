@@ -21,7 +21,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
-	github.com/refraction-networking/utls v1.1.2
+	github.com/refraction-networking/utls v1.1.3
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
 	github.com/sagernet/sing v0.0.0-20221006081821-c4e9bf11fa00
 	github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3
