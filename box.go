@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/service"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -27,6 +28,7 @@ type Box struct {
 	router      adapter.Router
 	inbounds    []adapter.Inbound
 	outbounds   []adapter.Outbound
+	services    []adapter.BoxService
 	logFactory  log.Factory
 	logger      log.ContextLogger
 	logFile     *os.File
@@ -108,6 +110,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	}
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
+	services := make([]adapter.BoxService, 0, len(options.Services))
 	for i, inboundOptions := range options.Inbounds {
 		var in adapter.Inbound
 		var tag string
@@ -155,6 +158,34 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		return nil, err
 	}
 
+	for i, serviceOptions := range options.Services {
+		var srv adapter.BoxService
+		var tag string
+		if serviceOptions.Tag != "" {
+			tag = serviceOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		srv, err = service.New(
+			ctx,
+			router,
+			logFactory.NewLogger(F.ToString("service/", serviceOptions.Type, "[", tag, "]")),
+			serviceOptions)
+		if err != nil {
+			return nil, E.Cause(err, "parse outbound[", i, "]")
+		}
+		services = append(services, srv)
+	}
+	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
+		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), option.Outbound{Type: "direct", Tag: "default"})
+		common.Must(oErr)
+		outbounds = append(outbounds, out)
+		return out
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var clashServer adapter.ClashServer
 	var v2rayServer adapter.V2RayServer
 	if needClashAPI {
@@ -175,6 +206,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		router:      router,
 		inbounds:    inbounds,
 		outbounds:   outbounds,
+		services:    services,
 		createdAt:   createdAt,
 		logFactory:  logFactory,
 		logger:      logFactory.Logger(),
@@ -233,6 +265,18 @@ func (s *Box) start() error {
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
+	for i, srv := range s.services {
+		err = srv.Start()
+		if err != nil {
+			var tag string
+			if srv.Tag() == "" {
+				tag = F.ToString(i)
+			} else {
+				tag = srv.Tag()
+			}
+			return E.Cause(err, "initialize service/", srv.Type(), "[", tag, "]")
+		}
+	}
 	if s.clashServer != nil {
 		err = s.clashServer.Start()
 		if err != nil {
@@ -261,6 +305,9 @@ func (s *Box) Close() error {
 	}
 	for _, out := range s.outbounds {
 		common.Close(out)
+	}
+	for _, srv := range s.services {
+		srv.Close()
 	}
 	return common.Close(
 		s.router,
