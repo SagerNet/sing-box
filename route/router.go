@@ -24,9 +24,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -67,8 +67,7 @@ type Router struct {
 	logger                             log.ContextLogger
 	dnsLogger                          log.ContextLogger
 	inboundByTag                       map[string]adapter.Inbound
-	outbounds                          []adapter.Outbound
-	outboundByTag                      map[string]adapter.Outbound
+	outbounds                          *outboundsManager
 	rules                              []adapter.Rule
 	defaultDetour                      string
 	defaultOutboundForConnection       adapter.Outbound
@@ -114,7 +113,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		ctx:                   ctx,
 		logger:                logger,
 		dnsLogger:             dnsLogger,
-		outboundByTag:         make(map[string]adapter.Outbound),
+		outbounds:             newOutboundsManager(),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
@@ -311,14 +310,13 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 	for _, inbound := range inbounds {
 		inboundByTag[inbound.Tag()] = inbound
 	}
-	outboundByTag := make(map[string]adapter.Outbound)
 	for _, detour := range outbounds {
-		outboundByTag[detour.Tag()] = detour
+		r.outbounds.Add(detour)
 	}
 	var defaultOutboundForConnection adapter.Outbound
 	var defaultOutboundForPacketConnection adapter.Outbound
 	if r.defaultDetour != "" {
-		detour, loaded := outboundByTag[r.defaultDetour]
+		detour, loaded := r.outbounds.Get(r.defaultDetour)
 		if !loaded {
 			return E.New("default detour not found: ", r.defaultDetour)
 		}
@@ -357,7 +355,7 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 			defaultOutboundForPacketConnection = detour
 		}
 		outbounds = append(outbounds, detour)
-		outboundByTag[detour.Tag()] = detour
+		r.outbounds.Add(detour)
 	}
 	if defaultOutboundForConnection != defaultOutboundForPacketConnection {
 		var description string
@@ -376,12 +374,10 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 		r.logger.Info("using ", defaultOutboundForPacketConnection.Type(), "[", packetDescription, "] as default outbound for packet connection")
 	}
 	r.inboundByTag = inboundByTag
-	r.outbounds = outbounds
 	r.defaultOutboundForConnection = defaultOutboundForConnection
 	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
-	r.outboundByTag = outboundByTag
 	for i, rule := range r.rules {
-		if _, loaded := outboundByTag[rule.Outbound()]; !loaded {
+		if _, loaded := r.outbounds.Get(rule.Outbound()); !loaded {
 			return E.New("outbound not found for rule[", i, "]: ", rule.Outbound())
 		}
 	}
@@ -389,7 +385,7 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 }
 
 func (r *Router) Outbounds() []adapter.Outbound {
-	return r.outbounds
+	return r.outbounds.All()
 }
 
 func (r *Router) Start() error {
@@ -499,10 +495,15 @@ func (r *Router) LoadGeosite(code string) (adapter.Rule, error) {
 	r.geositeCache[code] = rule
 	return rule, nil
 }
+func (r *Router) AddOutbound(o adapter.Outbound) {
+	r.outbounds.Add(o)
+}
+func (r *Router) RemoveOutbound(tag string) {
+	r.outbounds.Remove(tag)
+}
 
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
-	outbound, loaded := r.outboundByTag[tag]
-	return outbound, loaded
+	return r.outbounds.Get(tag)
 }
 
 func (r *Router) DefaultOutbound(network string) adapter.Outbound {
