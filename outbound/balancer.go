@@ -18,8 +18,7 @@ import (
 var (
 	_ adapter.Outbound      = (*Balancer)(nil)
 	_ adapter.OutboundGroup = (*Balancer)(nil)
-	_ common.Starter        = (*Balancer)(nil)
-	_ io.Closer             = (*Balancer)(nil)
+	_ adapter.Service       = (*Balancer)(nil)
 )
 
 // Balancer is a outbound group that picks outbound with least load
@@ -115,7 +114,7 @@ func (s *Balancer) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 	return s.pick(ctx, N.NetworkUDP).NewPacketConnection(ctx, conn, metadata)
 }
 
-// Close implements io.Closer
+// Close implements adapter.Service
 func (s *Balancer) Close() error {
 	if c, ok := s.Balancer.(io.Closer); ok {
 		return c.Close()
@@ -123,7 +122,7 @@ func (s *Balancer) Close() error {
 	return nil
 }
 
-// Start implements common.Starter
+// Start implements adapter.Service
 func (s *Balancer) Start() error {
 	// the fallback is required, in case that all outbounds are not available,
 	// we can pick it instead of returning nil to avoid panic.

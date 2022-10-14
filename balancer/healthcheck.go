@@ -2,7 +2,6 @@ package balancer
 
 import (
 	"fmt"
-	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,13 +9,11 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var (
-	_ common.Starter = (*HealthCheck)(nil)
-	_ io.Closer      = (*HealthCheck)(nil)
+	_ adapter.Service = (*HealthCheck)(nil)
 )
 
 // HealthCheck is the health checker for balancers
@@ -69,7 +66,7 @@ func NewHealthCheck(router adapter.Router, tags []string, logger log.Logger, con
 	}
 }
 
-// Start starts the health check service, implements common.Starter
+// Start starts the health check service, implements adapter.Service
 func (h *HealthCheck) Start() error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -93,7 +90,7 @@ func (h *HealthCheck) Start() error {
 	return nil
 }
 
-// Close stops the health check service, implements io.Closer
+// Close stops the health check service, implements adapter.Service
 func (h *HealthCheck) Close() error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
