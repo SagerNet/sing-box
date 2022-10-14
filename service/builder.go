@@ -10,13 +10,13 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.Service) (adapter.BoxService, error) {
+func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, logFactory log.Factory, options option.Service) (adapter.BoxService, error) {
 	if options.Type == "" {
 		return nil, E.New("missing service type")
 	}
 	switch options.Type {
 	case C.ServiceSubscription:
-		return NewSubscription(router, logger, options)
+		return NewSubscription(ctx, router, logger, logFactory, options)
 	default:
 		return nil, E.New("unknown service type: ", options.Type)
 	}

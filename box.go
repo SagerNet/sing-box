@@ -170,6 +170,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			ctx,
 			router,
 			logFactory.NewLogger(F.ToString("service/", serviceOptions.Type, "[", tag, "]")),
+			logFactory,
 			serviceOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
