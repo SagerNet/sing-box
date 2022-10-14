@@ -1,8 +1,9 @@
 package option
 
 type SubscriptionServiceOptions struct {
-	Interval  Duration                      `json:"interval,omitempty"`
-	Providers []SubscriptionProviderOptions `json:"providers"`
+	Interval       Duration                      `json:"interval,omitempty"`
+	DownloadDetour string                        `json:"download_detour,omitempty"`
+	Providers      []SubscriptionProviderOptions `json:"providers"`
 
 	DialerOptions
 }
