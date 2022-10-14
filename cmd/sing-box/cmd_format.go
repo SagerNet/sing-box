@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/sagernet/sing-box/common/conf"
 	"github.com/sagernet/sing-box/common/conf/mergers"
+	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -13,12 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var commandFormatWrite string
-var commandFormatEncoding string
+var commandFormatFlagWrite bool
 
 var commandFormat = &cobra.Command{
 	Use:   "format",
-	Short: "Format configuration",
+	Short: "Format configuration (json only)",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := format()
 		if err != nil {
@@ -29,55 +30,58 @@ var commandFormat = &cobra.Command{
 }
 
 func init() {
-	commandFormat.Flags().StringVarP(&commandFormatWrite, "write", "w", "", "write result to file instead of stdout")
-	commandFormat.Flags().StringVarP(&commandFormatEncoding, "format", "f", string(mergers.FormatJSON), "output format: json, yaml, toml")
+	commandFormat.Flags().BoolVarP(&commandFormatFlagWrite, "write", "w", false, "write result to (source) file instead of stdout")
 	mainCommand.AddCommand(commandFormat)
 }
 
 func format() error {
-	var (
-		configContent []byte
-		err           error
-	)
+	if len(configPaths) > 1 {
+		return E.New("only one file can be formatted at a time")
+	}
+	configPath := configPaths[0]
 	format := mergers.ParseFormat(configFormat)
-	encode := mergers.ParseFormat(commandFormatEncoding)
-	if encode == mergers.FormatAuto {
-		encode = mergers.FormatJSON
+	isJSON := strings.EqualFold(filepath.Ext(configPath), ".json")
+	// only json is supported, since:
+	// 1. all other foramts will lost comments after formatting
+	// 2. fields order is shuffled for yaml and toml, because of the nature of the go map
+	if format != mergers.FormatJSON &&
+		(format == mergers.FormatAuto && !isJSON) {
+		return E.New("only json format is supported")
 	}
-	if len(configPaths) == 1 && configPaths[0] == "stdin" {
-		configContent, err = conf.ReaderToJSON(os.Stdin, format)
-	} else {
-		configContent, err = conf.FilesToJSON(configPaths, format, configRecursive)
-	}
+
+	configContent, err := os.ReadFile(configPath)
 	if err != nil {
 		return E.Cause(err, "read config")
 	}
-
 	var options option.Options
 	err = options.UnmarshalJSON(configContent)
 	if err != nil {
 		return E.Cause(err, "decode config")
 	}
-	content, err := conf.Sprint(options, encode)
+	buffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(buffer)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(options)
 	if err != nil {
 		return E.Cause(err, "encode config")
 	}
-
-	if commandFormatWrite == "" {
-		os.Stdout.WriteString(content + "\n")
+	if !commandFormatFlagWrite {
+		os.Stdout.WriteString(buffer.String() + "\n")
 		return nil
 	}
-
-	output, err := os.Create(commandFormatWrite)
+	if bytes.Equal(configContent, buffer.Bytes()) {
+		return nil
+	}
+	output, err := os.Create(configPath)
 	if err != nil {
 		return E.Cause(err, "open output")
 	}
-	_, err = output.WriteString(content)
+	_, err = output.Write(buffer.Bytes())
 	output.Close()
 	if err != nil {
 		return E.Cause(err, "write output")
 	}
-	outputPath, _ := filepath.Abs(commandFormatWrite)
+	outputPath, _ := filepath.Abs(configPath)
 	os.Stderr.WriteString(outputPath + "\n")
 	return nil
 }
