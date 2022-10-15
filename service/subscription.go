@@ -2,12 +2,9 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -144,61 +141,17 @@ func (s *Subscription) fetchProvider(client *http.Client, provider option.Subscr
 	if err != nil {
 		return nil, err
 	}
-	// try undecoded
-	content := string(body)
-	links, err := linksFromContent(content)
+	links, err := link.ParseCollection(string(body))
 	if len(links) > 0 {
 		if err != nil {
-			s.logger.Warn("some links failed", err)
+			s.logger.Warn("links parsed with error:", err)
 		}
 		return links, nil
 	}
-	// try decoded
-	decoded, err := base64Decode(content)
-	links, err = linksFromContent(string(decoded))
-	if len(links) > 0 {
-		if err != nil {
-			s.logger.Warn("some links failed", err)
-		}
-		return links, nil
+	if err != nil {
+		return nil, err
 	}
 	return nil, E.New("no links found")
-}
-
-func linksFromContent(content string) ([]link.Link, error) {
-	links := make([]link.Link, 0)
-	errs := make([]error, 0)
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		u, err := url.Parse(line)
-		if err != nil {
-			continue
-		}
-		link, err := link.Parse(u)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		links = append(links, link)
-	}
-	return links, E.Errors(errs...)
-}
-
-func base64Decode(b64 string) ([]byte, error) {
-	b64 = strings.TrimSpace(b64)
-	stdb64 := b64
-	if pad := len(b64) % 4; pad != 0 {
-		stdb64 += strings.Repeat("=", 4-pad)
-	}
-
-	b, err := base64.StdEncoding.DecodeString(stdb64)
-	if err != nil {
-		return base64.URLEncoding.DecodeString(b64)
-	}
-	return b, nil
 }
 
 func (s *Subscription) client() (*http.Client, error) {
