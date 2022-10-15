@@ -47,14 +47,26 @@ type subscriptionProvider struct {
 
 // NewSubscription creates a new subscription service.
 func NewSubscription(ctx context.Context, router adapter.Router, logger log.ContextLogger, logFactory log.Factory, options option.Service) (*Subscription, error) {
-	ctx2, cancel := context.WithCancel(ctx)
+	nproviders := len(options.SubscriptionOptions.Providers)
+	if nproviders == 0 {
+		return nil, E.New("missing subscription providers")
+	}
 	providers := make([]*subscriptionProvider, 0, len(options.SubscriptionOptions.Providers))
-	for _, p := range options.SubscriptionOptions.Providers {
+	for i, p := range options.SubscriptionOptions.Providers {
 		var (
 			err     error
+			tag     string
 			exclude *regexp.Regexp
 			include *regexp.Regexp
 		)
+		if p.Tag != "" {
+			tag = p.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		if p.URL == "" {
+			return nil, E.New("missing URL for provider [", tag, "]")
+		}
 		if p.Exclude != "" {
 			exclude, err = regexp.Compile(p.Exclude)
 			if err != nil {
@@ -74,7 +86,12 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 			Include: include,
 		})
 	}
+	interval := time.Duration(options.SubscriptionOptions.Interval)
+	if interval < time.Minute {
+		interval = time.Minute
+	}
 
+	ctx2, cancel := context.WithCancel(ctx)
 	return &Subscription{
 		myServiceAdapter: myServiceAdapter{
 			router:      router,
@@ -82,7 +99,7 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 			logger:      logger,
 			tag:         options.Tag,
 		},
-		interval:       time.Duration(options.SubscriptionOptions.Interval),
+		interval:       interval,
 		downloadDetour: options.SubscriptionOptions.DownloadDetour,
 		providers:      providers,
 		dialerOptions:  options.SubscriptionOptions.DialerOptions,
