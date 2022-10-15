@@ -72,10 +72,11 @@ func (s *Subscription) fetchLoop() {
 	if err := s.fetch(); err != nil {
 		s.logger.Error("fetch subscription: ", err)
 	}
+L:
 	for {
 		select {
 		case <-s.ctx.Done():
-			break
+			break L
 		case <-ticker.C:
 			if err := s.fetch(); err != nil {
 				s.logger.Error("fetch subscription: ", err)
