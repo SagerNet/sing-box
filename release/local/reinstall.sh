@@ -9,6 +9,8 @@ fi
 DIR=$(dirname "$0")
 PROJECT=$DIR/../..
 
+export GOAMD64=$("$DIR"/check_amd64_level.awk)
+
 pushd $PROJECT
 go install -v -trimpath -ldflags "-s -w -buildid=" -tags with_quic,with_wireguard,with_acme ./cmd/sing-box
 popd
