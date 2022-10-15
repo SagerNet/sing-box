@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -27,15 +28,53 @@ type Subscription struct {
 
 	parentCtx  context.Context
 	logFactory log.Factory
-	options    option.SubscriptionServiceOptions
+
+	interval       time.Duration
+	downloadDetour string `json:"download_detour,omitempty"`
+	dialerOptions  option.DialerOptions
+	providers      []*subscriptionProvider
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
+type subscriptionProvider struct {
+	Tag     string         `json:"tag,omitempty"`
+	URL     string         `json:"url"`
+	Exclude *regexp.Regexp `json:"exclude,omitempty"`
+	Include *regexp.Regexp `json:"include,omitempty"`
+}
+
 // NewSubscription creates a new subscription service.
 func NewSubscription(ctx context.Context, router adapter.Router, logger log.ContextLogger, logFactory log.Factory, options option.Service) (*Subscription, error) {
 	ctx2, cancel := context.WithCancel(ctx)
+	providers := make([]*subscriptionProvider, 0, len(options.SubscriptionOptions.Providers))
+	for _, p := range options.SubscriptionOptions.Providers {
+		var (
+			err     error
+			exclude *regexp.Regexp
+			include *regexp.Regexp
+		)
+		if p.Exclude != "" {
+			exclude, err = regexp.Compile(p.Exclude)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if p.Include != "" {
+			include, err = regexp.Compile(p.Include)
+			if err != nil {
+				return nil, err
+			}
+		}
+		providers = append(providers, &subscriptionProvider{
+			Tag:     p.Tag,
+			URL:     p.URL,
+			Exclude: exclude,
+			Include: include,
+		})
+	}
+
 	return &Subscription{
 		myServiceAdapter: myServiceAdapter{
 			router:      router,
@@ -43,11 +82,14 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 			logger:      logger,
 			tag:         options.Tag,
 		},
-		options:    options.SubscriptionOptions,
-		parentCtx:  ctx,
-		logFactory: logFactory,
-		ctx:        ctx2,
-		cancel:     cancel,
+		interval:       time.Duration(options.SubscriptionOptions.Interval),
+		downloadDetour: options.SubscriptionOptions.DownloadDetour,
+		providers:      providers,
+		dialerOptions:  options.SubscriptionOptions.DialerOptions,
+		parentCtx:      ctx,
+		logFactory:     logFactory,
+		ctx:            ctx2,
+		cancel:         cancel,
 	}, nil
 }
 
@@ -66,7 +108,7 @@ func (s *Subscription) Close() error {
 }
 
 func (s *Subscription) fetchLoop() {
-	ticker := time.NewTicker(time.Duration(s.options.Interval))
+	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	if err := s.fetch(); err != nil {
@@ -90,7 +132,7 @@ func (s *Subscription) fetch() error {
 	if err != nil {
 		return err
 	}
-	for i, provider := range s.options.Providers {
+	for i, provider := range s.providers {
 		var tag string
 		if provider.Tag != "" {
 			tag = provider.Tag
@@ -104,9 +146,11 @@ func (s *Subscription) fetch() error {
 		}
 		s.logger.Info(len(links), " links found from provider [", tag, "]")
 		for _, link := range links {
-			// TODO: filter links
 			opt := link.Options()
-			s.applyOptions(opt, &provider)
+			if !applyFilter(opt.Tag, provider) {
+				continue
+			}
+			s.applyOptions(opt, provider)
 			outbound, err := outbound.New(
 				s.parentCtx,
 				s.router,
@@ -123,12 +167,46 @@ func (s *Subscription) fetch() error {
 	return nil
 }
 
-func (s *Subscription) applyOptions(options *option.Outbound, provider *option.SubscriptionProviderOptions) {
-	options.Tag = s.tag + provider.Tag + options.Tag
-	// TODO: implement me
+func applyFilter(tag string, provider *subscriptionProvider) bool {
+	if provider.Exclude != nil && provider.Exclude.MatchString(tag) {
+		return false
+	}
+	if provider.Include == nil {
+		return true
+	}
+	return provider.Include.MatchString(tag)
 }
 
-func (s *Subscription) fetchProvider(client *http.Client, provider option.SubscriptionProviderOptions) ([]link.Link, error) {
+func (s *Subscription) applyOptions(options *option.Outbound, provider *subscriptionProvider) error {
+	options.Tag = s.tag + "." + provider.Tag + "." + options.Tag
+	switch options.Type {
+	case C.TypeSocks:
+		options.SocksOptions.DialerOptions = s.dialerOptions
+	case C.TypeHTTP:
+		options.HTTPOptions.DialerOptions = s.dialerOptions
+	case C.TypeShadowsocks:
+		options.ShadowsocksOptions.DialerOptions = s.dialerOptions
+	case C.TypeVMess:
+		options.VMessOptions.DialerOptions = s.dialerOptions
+	case C.TypeTrojan:
+		options.TrojanOptions.DialerOptions = s.dialerOptions
+	case C.TypeWireGuard:
+		options.WireGuardOptions.DialerOptions = s.dialerOptions
+	case C.TypeHysteria:
+		options.HysteriaOptions.DialerOptions = s.dialerOptions
+	case C.TypeTor:
+		options.TorOptions.DialerOptions = s.dialerOptions
+	case C.TypeSSH:
+		options.SSHOptions.DialerOptions = s.dialerOptions
+	case C.TypeShadowTLS:
+		options.ShadowTLSOptions.DialerOptions = s.dialerOptions
+	default:
+		return E.New("unknown outbound type: ", options.Type)
+	}
+	return nil
+}
+
+func (s *Subscription) fetchProvider(client *http.Client, provider *subscriptionProvider) ([]link.Link, error) {
 	req, err := http.NewRequestWithContext(s.ctx, http.MethodGet, provider.URL, nil)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -157,10 +235,10 @@ func (s *Subscription) fetchProvider(client *http.Client, provider option.Subscr
 
 func (s *Subscription) client() (*http.Client, error) {
 	var detour adapter.Outbound
-	if s.options.DownloadDetour != "" {
-		outbound, loaded := s.router.Outbound(s.options.DownloadDetour)
+	if s.downloadDetour != "" {
+		outbound, loaded := s.router.Outbound(s.downloadDetour)
 		if !loaded {
-			return nil, E.New("detour outbound not found: ", s.options.DownloadDetour)
+			return nil, E.New("detour outbound not found: ", s.downloadDetour)
 		}
 		detour = outbound
 	} else {
