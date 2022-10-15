@@ -30,7 +30,7 @@ type Subscription struct {
 	logFactory log.Factory
 
 	interval       time.Duration
-	downloadDetour string `json:"download_detour,omitempty"`
+	downloadDetour string
 	dialerOptions  option.DialerOptions
 	providers      []*subscriptionProvider
 
@@ -39,10 +39,10 @@ type Subscription struct {
 }
 
 type subscriptionProvider struct {
-	Tag     string         `json:"tag,omitempty"`
-	URL     string         `json:"url"`
-	Exclude *regexp.Regexp `json:"exclude,omitempty"`
-	Include *regexp.Regexp `json:"include,omitempty"`
+	tag     string
+	url     string
+	exclude *regexp.Regexp
+	include *regexp.Regexp
 }
 
 // NewSubscription creates a new subscription service.
@@ -80,10 +80,10 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 			}
 		}
 		providers = append(providers, &subscriptionProvider{
-			Tag:     p.Tag,
-			URL:     p.URL,
-			Exclude: exclude,
-			Include: include,
+			tag:     p.Tag,
+			url:     p.URL,
+			exclude: exclude,
+			include: include,
 		})
 	}
 	interval := time.Duration(options.SubscriptionOptions.Interval)
@@ -151,8 +151,8 @@ func (s *Subscription) fetch() error {
 	}
 	for i, provider := range s.providers {
 		var tag string
-		if provider.Tag != "" {
-			tag = provider.Tag
+		if provider.tag != "" {
+			tag = provider.tag
 		} else {
 			tag = F.ToString(i)
 		}
@@ -164,7 +164,7 @@ func (s *Subscription) fetch() error {
 		s.logger.Info(len(links), " links found from provider [", tag, "]")
 		for _, link := range links {
 			opt := link.Options()
-			if !applyFilter(opt.Tag, provider) {
+			if !selectedByTag(opt.Tag, provider) {
 				continue
 			}
 			s.applyOptions(opt, provider)
@@ -184,18 +184,18 @@ func (s *Subscription) fetch() error {
 	return nil
 }
 
-func applyFilter(tag string, provider *subscriptionProvider) bool {
-	if provider.Exclude != nil && provider.Exclude.MatchString(tag) {
+func selectedByTag(tag string, provider *subscriptionProvider) bool {
+	if provider.exclude != nil && provider.exclude.MatchString(tag) {
 		return false
 	}
-	if provider.Include == nil {
+	if provider.include == nil {
 		return true
 	}
-	return provider.Include.MatchString(tag)
+	return provider.include.MatchString(tag)
 }
 
 func (s *Subscription) applyOptions(options *option.Outbound, provider *subscriptionProvider) error {
-	options.Tag = s.tag + "." + provider.Tag + "." + options.Tag
+	options.Tag = s.tag + "." + provider.tag + "." + options.Tag
 	switch options.Type {
 	case C.TypeSocks:
 		options.SocksOptions.DialerOptions = s.dialerOptions
@@ -224,7 +224,7 @@ func (s *Subscription) applyOptions(options *option.Outbound, provider *subscrip
 }
 
 func (s *Subscription) fetchProvider(client *http.Client, provider *subscriptionProvider) ([]link.Link, error) {
-	req, err := http.NewRequestWithContext(s.ctx, http.MethodGet, provider.URL, nil)
+	req, err := http.NewRequestWithContext(s.ctx, http.MethodGet, provider.url, nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
