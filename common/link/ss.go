@@ -18,55 +18,49 @@ func init() {
 	common.Must(RegisterParser(&Parser{
 		Name:   "Shadowsocks",
 		Scheme: []string{"ss"},
-		Parse: func(input string) (Link, error) {
-			return ParseShadowSocks(input)
+		Parse: func(u *url.URL) (Link, error) {
+			link := &SSLink{}
+			return link, link.Parse(u)
 		},
 	}))
 }
 
-// ParseShadowSocks parses official vemss link to Link
-func ParseShadowSocks(ss string) (*SSLink, error) {
-	url, err := url.Parse(ss)
+// Parse implements Link
+func (l *SSLink) Parse(u *url.URL) error {
+	if u.Scheme != "ss" {
+		return E.New("not a ss link")
+	}
+	port, err := strconv.ParseUint(u.Port(), 10, 16)
 	if err != nil {
-		return nil, err
+		return E.Cause(err, "invalid port")
 	}
-	if url.Scheme != "ss" {
-		return nil, E.New("not a ss:// link")
-	}
-	port, err := strconv.ParseUint(url.Port(), 10, 16)
-	if err != nil {
-		return nil, E.Cause(err, "invalid port")
-	}
-	link := &SSLink{
-		OrigLink: ss,
-		Address:  url.Hostname(),
-		Port:     uint16(port),
-		Ps:       url.Fragment,
-	}
-	queries := url.Query()
+	l.Address = u.Hostname()
+	l.Port = uint16(port)
+	l.Ps = u.Fragment
+	queries := u.Query()
 	for key, values := range queries {
 		switch key {
 		default:
-			return nil, fmt.Errorf("unsupported shadowsocks parameter: %s=%v", key, values)
+			return fmt.Errorf("unsupported shadowsocks parameter: %s=%v", key, values)
 		}
 	}
-	if uname := url.User.Username(); uname != "" {
-		if pass, ok := url.User.Password(); ok {
-			link.Method = uname
-			link.Password = pass
+	if uname := u.User.Username(); uname != "" {
+		if pass, ok := u.User.Password(); ok {
+			l.Method = uname
+			l.Password = pass
 		} else {
 			dec, err := base64Decode(uname)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			parts := strings.Split(string(dec), ":")
-			link.Method = parts[0]
+			l.Method = parts[0]
 			if len(parts) > 1 {
-				link.Password = parts[1]
+				l.Password = parts[1]
 			}
 		}
 	}
-	return link, nil
+	return nil
 }
 
 // SSLink represents a parsed shadowsocks link
@@ -76,27 +70,20 @@ type SSLink struct {
 	Address  string `json:"address,omitempty"`
 	Port     uint16 `json:"port,omitempty"`
 	Ps       string `json:"ps,omitempty"`
-
-	OrigLink string `json:"-,omitempty"`
-}
-
-// String implements Link
-func (v SSLink) String() string {
-	return v.OrigLink
 }
 
 // Options implements Link
-func (v *SSLink) Options() *option.Outbound {
+func (l *SSLink) Options() *option.Outbound {
 	return &option.Outbound{
 		Type: "shadowsocks",
-		Tag:  v.Ps,
+		Tag:  l.Ps,
 		ShadowsocksOptions: option.ShadowsocksOutboundOptions{
 			ServerOptions: option.ServerOptions{
-				Server:     v.Address,
-				ServerPort: v.Port,
+				Server:     l.Address,
+				ServerPort: l.Port,
 			},
-			Method:   v.Method,
-			Password: v.Password,
+			Method:   l.Method,
+			Password: l.Password,
 		},
 	}
 }

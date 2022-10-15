@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -172,7 +173,11 @@ func linksFromContent(content string) ([]link.Link, error) {
 		if line == "" {
 			continue
 		}
-		link, err := link.Parse(line)
+		u, err := url.Parse(line)
+		if err != nil {
+			continue
+		}
+		link, err := link.Parse(u)
 		if err != nil {
 			errs = append(errs, err)
 			continue

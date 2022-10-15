@@ -1,27 +1,29 @@
 package link
 
 import (
+	"net/url"
+
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 // Link is the interface for v2ray links
 type Link interface {
+	// Parse parses the url to Link
+	Parse(*url.URL) error
 	// Detail returns human readable string
 	Options() *option.Outbound
-	// String unmarshals Link to string
-	String() string
 }
 
 // Parse parses a link string to Link
-func Parse(arg string) (Link, error) {
-	ps, err := getParsers(arg)
+func Parse(u *url.URL) (Link, error) {
+	ps, err := getParsers(u)
 	if err != nil {
 		return nil, err
 	}
 	errs := make([]error, 0, len(ps))
 	for _, p := range ps {
-		lk, err := p.Parse(arg)
+		lk, err := p.Parse(u)
 		if err == nil {
 			return lk, nil
 		}

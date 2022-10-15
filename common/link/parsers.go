@@ -9,7 +9,7 @@ import (
 )
 
 // ParseFunc is parser function to load links, like "vmess://..."
-type ParseFunc func(input string) (Link, error)
+type ParseFunc func(u *url.URL) (Link, error)
 
 // Parser is parser load v2ray links with specified schemes
 type Parser struct {
@@ -36,11 +36,7 @@ func RegisterParser(parser *Parser) error {
 	return nil
 }
 
-func getParsers(link string) ([]*Parser, error) {
-	u, err := url.Parse(link)
-	if err != nil {
-		return nil, err
-	}
+func getParsers(u *url.URL) ([]*Parser, error) {
 	if u.Scheme == "" {
 		return nil, E.New("invalid link")
 	}

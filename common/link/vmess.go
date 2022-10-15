@@ -8,18 +8,17 @@ import (
 )
 
 type vmess struct {
-	Ver      string `json:"v,omitempty"`
-	Add      string `json:"add,omitempty"`
-	Aid      int    `json:"aid,omitempty"`
-	Host     string `json:"host,omitempty"`
-	ID       string `json:"id,omitempty"`
-	Net      string `json:"net,omitempty"`
-	Path     string `json:"path,omitempty"`
-	Port     uint16 `json:"port,omitempty"`
-	Ps       string `json:"ps,omitempty"`
-	TLS      string `json:"tls,omitempty"`
-	Type     string `json:"type,omitempty"`
-	OrigLink string `json:"-,omitempty"`
+	Ver  string `json:"v,omitempty"`
+	Add  string `json:"add,omitempty"`
+	Aid  int    `json:"aid,omitempty"`
+	Host string `json:"host,omitempty"`
+	ID   string `json:"id,omitempty"`
+	Net  string `json:"net,omitempty"`
+	Path string `json:"path,omitempty"`
+	Port uint16 `json:"port,omitempty"`
+	Ps   string `json:"ps,omitempty"`
+	TLS  string `json:"tls,omitempty"`
+	Type string `json:"type,omitempty"`
 }
 
 // Options implements Link

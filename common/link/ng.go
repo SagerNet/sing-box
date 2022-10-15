@@ -1,20 +1,20 @@
 package link
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func init() {
 	common.Must(RegisterParser(&Parser{
 		Name:   "V2RayNG",
 		Scheme: []string{"vmess"},
-		Parse: func(input string) (Link, error) {
-			return ParseVMessV2RayNG(input)
+		Parse: func(u *url.URL) (Link, error) {
+			link := &VMessV2RayNG{}
+			return link, link.Parse(u)
 		},
 	}))
 }
@@ -24,29 +24,21 @@ type VMessV2RayNG struct {
 	vmess
 }
 
-// String implements Link
-func (v VMessV2RayNG) String() string {
-	b, _ := json.Marshal(v)
-	return "vmess://" + base64.StdEncoding.EncodeToString(b)
-}
-
-// ParseVMessV2RayNG parses V2RayN vemss link
-func ParseVMessV2RayNG(vmess string) (*VMessV2RayNG, error) {
-	if !strings.HasPrefix(vmess, "vmess://") {
-		return nil, fmt.Errorf("vmess unreconized: %s", vmess)
+// Parse implements Link
+func (l *VMessV2RayNG) Parse(u *url.URL) error {
+	if u.Scheme != "vmess" {
+		return E.New("not a vmess link")
 	}
 
-	b64 := vmess[8:]
+	b64 := u.Host
 	b, err := base64Decode(b64)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	v := &VMessV2RayNG{}
-	if err := json.Unmarshal(b, v); err != nil {
-		return nil, err
+	if err := json.Unmarshal(b, l); err != nil {
+		return err
 	}
-	v.OrigLink = vmess
 
-	return v, nil
+	return nil
 }
