@@ -64,10 +64,9 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 			exclude *regexp.Regexp
 			include *regexp.Regexp
 		)
-		if p.Tag != "" {
-			tag = p.Tag
-		} else {
-			tag = F.ToString(i)
+		// required for outbounds clean up
+		if p.Tag == "" {
+			return nil, E.New("tag of provider [", i, "] is required")
 		}
 		if p.URL == "" {
 			return nil, E.New("missing URL for provider [", tag, "]")
@@ -117,7 +116,7 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 
 // Start starts the service.
 func (s *Subscription) Start() error {
-	go s.fetchLoop()
+	go s.refreshLoop()
 	return nil
 }
 
@@ -129,7 +128,7 @@ func (s *Subscription) Close() error {
 	return nil
 }
 
-func (s *Subscription) fetchLoop() {
+func (s *Subscription) refreshLoop() {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
@@ -146,16 +145,26 @@ L:
 }
 
 func (s *Subscription) refresh() {
-	opts, err := s.fetch()
+	client, err := s.client()
 	if err != nil {
-		s.logger.Error("fetch subscription: ", err)
+		s.logger.Error("client: ", err)
 	}
-	s.updateOutbounds(opts)
+	// outbounds before refresh
+	outbounds := s.router.Outbounds()
+	for _, provider := range s.providers {
+		opts, err := s.fetch(client, provider)
+		if err != nil {
+			s.logger.Warn("fetch provider [", provider.tag, "]: ", err)
+			continue
+		}
+		s.logger.Info(len(opts), " links found from provider [", provider.tag, "]")
+		s.updateOutbounds(provider, opts, outbounds)
+	}
 }
 
-func (s *Subscription) updateOutbounds(opts []*option.Outbound) {
-	outbounds := s.router.Outbounds()
+func (s *Subscription) updateOutbounds(provider *subscriptionProvider, opts []*option.Outbound, outbounds []adapter.Outbound) {
 	knownOutbounds := make(map[string]struct{})
+	removeCount := 0
 	for _, opt := range opts {
 		tag := opt.Tag
 		knownOutbounds[tag] = struct{}{}
@@ -172,7 +181,7 @@ func (s *Subscription) updateOutbounds(opts []*option.Outbound) {
 		s.logger.Info("created outbound [", tag, "]")
 	}
 	// remove outbounds that are not in the latest list
-	tagPrefix := s.tag + "."
+	tagPrefix := s.tag + "." + provider.tag
 	for _, outbound := range outbounds {
 		tag := outbound.Tag()
 		if !strings.HasPrefix(tag, tagPrefix) {
@@ -181,37 +190,27 @@ func (s *Subscription) updateOutbounds(opts []*option.Outbound) {
 		if _, ok := knownOutbounds[tag]; ok {
 			continue
 		}
+		removeCount++
 		s.router.RemoveOutbound(tag)
+	}
+	if removeCount > 0 {
+		s.logger.Info(removeCount, " outbounds removed for [", tagPrefix, "]")
 	}
 }
 
-func (s *Subscription) fetch() ([]*option.Outbound, error) {
-	client, err := s.client()
+func (s *Subscription) fetch(client *http.Client, provider *subscriptionProvider) ([]*option.Outbound, error) {
+	opts := make([]*option.Outbound, 0)
+	links, err := s.fetchProvider(client, provider)
 	if err != nil {
 		return nil, err
 	}
-	opts := make([]*option.Outbound, 0)
-	for i, provider := range s.providers {
-		var tag string
-		if provider.tag != "" {
-			tag = provider.tag
-		} else {
-			tag = F.ToString(i)
-		}
-		links, err := s.fetchProvider(client, provider)
-		if err != nil {
-			s.logger.Warn("fetch provider [", tag, "]: ", err)
+	for _, link := range links {
+		opt := link.Options()
+		if !selectedByTag(opt.Tag, provider) {
 			continue
 		}
-		s.logger.Info(len(links), " links found from provider [", tag, "]")
-		for _, link := range links {
-			opt := link.Options()
-			if !selectedByTag(opt.Tag, provider) {
-				continue
-			}
-			s.applyOptions(opt, provider)
-			opts = append(opts, opt)
-		}
+		s.applyOptions(opt, provider)
+		opts = append(opts, opt)
 	}
 	return opts, nil
 }
