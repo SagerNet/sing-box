@@ -1,67 +1,70 @@
 package link
 
 import (
-	"strings"
-
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 )
 
-type vmess struct {
-	Ver  string `json:"v,omitempty"`
-	Add  string `json:"add,omitempty"`
-	Aid  int    `json:"aid,omitempty"`
-	Host string `json:"host,omitempty"`
-	ID   string `json:"id,omitempty"`
-	Net  string `json:"net,omitempty"`
-	Path string `json:"path,omitempty"`
-	Port uint16 `json:"port,omitempty"`
-	Ps   string `json:"ps,omitempty"`
-	TLS  string `json:"tls,omitempty"`
-	Type string `json:"type,omitempty"`
+// Vmess is the base struct of vmess link
+type Vmess struct {
+	Tag              string
+	Server           string
+	ServerPort       uint16
+	UUID             string
+	AlterID          int
+	Security         string
+	Transport        string
+	TransportPath    string
+	Host             string
+	TLS              bool
+	TLSAllowInsecure bool
 }
 
 // Options implements Link
-func (v *vmess) Options() *option.Outbound {
+func (v *Vmess) Options() *option.Outbound {
 	out := &option.Outbound{
 		Type: "vmess",
-		Tag:  v.Ps,
+		Tag:  v.Tag,
 		VMessOptions: option.VMessOutboundOptions{
 			ServerOptions: option.ServerOptions{
-				Server:     v.Add,
-				ServerPort: v.Port,
+				Server:     v.Server,
+				ServerPort: v.ServerPort,
 			},
-			UUID:     v.ID,
-			AlterId:  v.Aid,
-			Security: "auto",
+			UUID:     v.UUID,
+			AlterId:  v.AlterID,
+			Security: v.Security,
 		},
 	}
 
-	opt := &option.V2RayTransportOptions{}
-
-	switch v.Net {
-	case "":
-		opt = nil
-	case "tcp", "h2", "http":
-		opt.Type = C.V2RayTransportTypeHTTP
-		opt.HTTPOptions.Path = strings.Split(v.Path, ",")[0]
-		if v.Host != "" {
-			opt.HTTPOptions.Host = strings.Split(v.Host, ",")
-			opt.HTTPOptions.Headers["Host"] = opt.HTTPOptions.Host[0]
-		}
-	case "ws":
-		opt.Type = C.V2RayTransportTypeWebsocket
-		opt.WebsocketOptions.Path = v.Path
-		opt.WebsocketOptions.Headers = map[string]string{
-			"Host": v.Host,
+	if v.TLS {
+		out.VMessOptions.TLS = &option.OutboundTLSOptions{
+			Insecure:   v.TLSAllowInsecure,
+			ServerName: v.Host,
 		}
 	}
 
-	if v.TLS == "tls" {
-		out.VMessOptions.TLS = &option.OutboundTLSOptions{
-			Insecure:   true,
-			ServerName: v.Host,
+	opt := &option.V2RayTransportOptions{
+		Type: v.Transport,
+	}
+
+	switch v.Transport {
+	case "":
+		opt = nil
+	case C.V2RayTransportTypeHTTP:
+		opt.HTTPOptions.Path = v.TransportPath
+		if v.Host != "" {
+			opt.HTTPOptions.Host = []string{v.Host}
+			opt.HTTPOptions.Headers["Host"] = v.Host
 		}
+	case C.V2RayTransportTypeWebsocket:
+		opt.WebsocketOptions.Path = v.TransportPath
+		opt.WebsocketOptions.Headers = map[string]string{
+			"Host": v.Host,
+		}
+	case C.V2RayTransportTypeQUIC:
+		// do nothing
+	case C.V2RayTransportTypeGRPC:
+		opt.GRPCOptions.ServiceName = v.Host
 	}
 
 	out.VMessOptions.Transport = opt

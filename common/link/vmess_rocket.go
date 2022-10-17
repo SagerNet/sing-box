@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -25,7 +26,9 @@ func init() {
 
 // VMessRocket is the vmess link of ShadowRocket
 type VMessRocket struct {
-	vmess
+	Vmess
+
+	Ver string
 }
 
 // Parse implements Link
@@ -50,35 +53,34 @@ func (l *VMessRocket) Parse(u *url.URL) error {
 		return E.Cause(err, "invalid port")
 	}
 	// mhp[0] is the encryption method
-	l.Port = uint16(port)
+	l.ServerPort = uint16(port)
 	idadd := strings.SplitN(mhp[1], "@", 2)
 	if len(idadd) != 2 {
 		return fmt.Errorf("vmess unreconized: id@addr -- %v", idadd)
 	}
-	l.ID = idadd[0]
-	l.Add = idadd[1]
-	l.Aid = 0
+	l.UUID = idadd[0]
+	l.Server = idadd[1]
+	l.AlterID = 0
+	l.Security = "auto"
 
 	for key, values := range u.Query() {
 		switch key {
 		case "remarks":
-			l.Ps = firstValueOf(values)
+			l.Tag = firstValueOf(values)
 		case "path":
-			l.Path = firstValueOf(values)
+			l.TransportPath = firstValueOf(values)
 		case "tls":
-			l.TLS = firstValueOf(values)
+			l.TLS = firstValueOf(values) == "tls"
 		case "obfs":
 			v := firstValueOf(values)
 			switch v {
-			case "websocket":
-				l.Net = "ws"
-			case "none":
-				l.Net = ""
+			case "ws", "websocket":
+				l.Transport = C.V2RayTransportTypeWebsocket
+			case "http":
+				l.Transport = C.V2RayTransportTypeHTTP
 			}
 		case "obfsParam":
 			l.Host = firstValueOf(values)
-		default:
-			return fmt.Errorf("unsupported shadowrocket vmess parameter: %s=%v", key, values)
 		}
 	}
 	return nil
