@@ -109,6 +109,7 @@ func (h *HealthCheck) Check() {
 	nodes := h.refreshNodes()
 	h.mutex.Unlock()
 	for _, n := range nodes {
+		n := n
 		go h.checkNode(n)
 	}
 }
@@ -124,6 +125,7 @@ func (h *HealthCheck) CheckNodes() {
 	nodes := h.refreshNodes()
 	h.mutex.Unlock()
 	for _, n := range nodes {
+		n := n
 		delay := time.Duration(rand.Intn(int(h.options.Interval)))
 		time.AfterFunc(delay, func() {
 			h.checkNode(n)

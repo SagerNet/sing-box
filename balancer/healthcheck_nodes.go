@@ -59,6 +59,12 @@ func (h *HealthCheck) Nodes(network string) *Nodes {
 		default:
 			nodes.Qualified = append(nodes.Qualified, n)
 		}
+		h.logger.Trace(
+			"[", n.Tag, "]",
+			" STD=", n.Deviation,
+			" AVG=", n.Average,
+			" Fail=", n.Fail, "/", n.All,
+		)
 	}
 	return nodes
 }
@@ -83,6 +89,7 @@ func (h *HealthCheck) refreshNodes() []adapter.Outbound {
 	nodes := CoveredOutbounds(h.router, h.tags)
 	tags := make(map[string]struct{})
 	for _, n := range nodes {
+		n := n
 		tag := n.Tag()
 		tags[tag] = struct{}{}
 		// make it known to the health check results
