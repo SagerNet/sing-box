@@ -26,6 +26,10 @@ type Node struct {
 func (h *HealthCheck) Nodes(network string) *Nodes {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
+
+	// fetech nodes from router, may have newly added untested nodes
+	h.refreshNodes()
+
 	if h == nil || len(h.results) == 0 {
 		return &Nodes{}
 	}
@@ -76,9 +80,6 @@ func CoveredOutbounds(router adapter.Router, tags []string) []adapter.Outbound {
 
 // refreshNodes matches nodes from router by tag prefix, and refreshes the health check results
 func (h *HealthCheck) refreshNodes() []adapter.Outbound {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-
 	nodes := CoveredOutbounds(h.router, h.tags)
 	tags := make(map[string]struct{})
 	for _, n := range nodes {
@@ -97,6 +98,8 @@ func (h *HealthCheck) refreshNodes() []adapter.Outbound {
 				networks:   n.Network(),
 				rttStorage: newRTTStorage(h.options.SamplingCount, validity),
 			}
+
+			go h.checkNode(n)
 		}
 	}
 	// remove unused rttStorage
