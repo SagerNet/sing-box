@@ -157,6 +157,7 @@ func (s *Subscription) refresh() {
 	// outbounds before refresh
 	outbounds := s.router.Outbounds()
 	for _, provider := range s.providers {
+		provider := provider
 		opts, err := s.fetch(client, provider)
 		if err != nil {
 			s.logger.Warn("fetch provider [", provider.tag, "]: ", err)
@@ -183,7 +184,7 @@ func (s *Subscription) updateOutbounds(provider *subscriptionProvider, opts []*o
 			s.logger.Warn("create outbound [", tag, "]: ", err)
 		}
 		s.router.AddOutbound(outbound)
-		s.logger.Info("created outbound [", tag, "]")
+		s.logger.Debug("added / updated outbound [", tag, "]")
 	}
 	// remove outbounds that are not in the latest list
 	tagPrefix := s.tag + "." + provider.tag
