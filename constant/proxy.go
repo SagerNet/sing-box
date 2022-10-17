@@ -24,6 +24,7 @@ const (
 )
 
 const (
-	TypeSelector = "selector"
-	TypeURLTest  = "urltest"
+	TypeSelector  = "selector"
+	TypeURLTest   = "urltest"
+	TypeLeastLoad = "leastload"
 )
