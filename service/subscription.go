@@ -91,7 +91,12 @@ func NewSubscription(ctx context.Context, router adapter.Router, logger log.Cont
 		})
 	}
 	interval := time.Duration(options.SubscriptionOptions.Interval)
+	if interval <= 0 {
+		// default to 1 hour
+		interval = time.Hour
+	}
 	if interval < time.Minute {
+		// minimum interval is 1 minute
 		interval = time.Minute
 	}
 

@@ -9,7 +9,7 @@ type SubscriptionServiceOptions struct {
 }
 
 type SubscriptionProviderOptions struct {
-	Tag     string `json:"tag,omitempty"`
+	Tag     string `json:"tag"`
 	URL     string `json:"url"`
 	Exclude string `json:"exclude,omitempty"`
 	Include string `json:"include,omitempty"`
