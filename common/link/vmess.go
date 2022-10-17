@@ -23,7 +23,7 @@ type Vmess struct {
 // Options implements Link
 func (v *Vmess) Options() *option.Outbound {
 	out := &option.Outbound{
-		Type: "vmess",
+		Type: C.TypeVMess,
 		Tag:  v.Tag,
 		VMessOptions: option.VMessOutboundOptions{
 			ServerOptions: option.ServerOptions{
@@ -38,6 +38,7 @@ func (v *Vmess) Options() *option.Outbound {
 
 	if v.TLS {
 		out.VMessOptions.TLS = &option.OutboundTLSOptions{
+			Enabled:    true,
 			Insecure:   v.TLSAllowInsecure,
 			ServerName: v.Host,
 		}

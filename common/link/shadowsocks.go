@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -37,7 +38,7 @@ type ShadowSocks struct {
 // Options implements Link
 func (l *ShadowSocks) Options() *option.Outbound {
 	return &option.Outbound{
-		Type: "shadowsocks",
+		Type: C.TypeShadowsocks,
 		Tag:  l.Ps,
 		ShadowsocksOptions: option.ShadowsocksOutboundOptions{
 			ServerOptions: option.ServerOptions{
