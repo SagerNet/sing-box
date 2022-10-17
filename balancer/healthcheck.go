@@ -27,6 +27,8 @@ type HealthCheck struct {
 
 	options *option.HealthCheckSettings
 	results map[string]*result
+
+	close chan struct{}
 }
 
 type result struct {
@@ -73,15 +75,16 @@ func (h *HealthCheck) Start() error {
 	if h.ticker != nil {
 		return nil
 	}
-	interval := time.Duration(h.options.Interval) * time.Duration(h.options.SamplingCount)
-	ticker := time.NewTicker(interval)
+	h.close = make(chan struct{})
+	ticker := time.NewTicker(time.Duration(h.options.Interval))
 	h.ticker = ticker
 	go func() {
 		for {
-			h.CheckNodes()
-			_, ok := <-ticker.C
-			if !ok {
-				break
+			select {
+			case <-h.close:
+				return
+			case <-ticker.C:
+				h.CheckNodes()
 			}
 		}
 	}()
@@ -96,6 +99,7 @@ func (h *HealthCheck) Close() error {
 		h.ticker.Stop()
 		h.ticker = nil
 	}
+	close(h.close)
 	return nil
 }
 
