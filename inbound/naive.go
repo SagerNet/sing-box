@@ -248,7 +248,14 @@ func (c *naiveH1Conn) read(p []byte) (n int, err error) {
 		c.paddingRemaining = 0
 	}
 	if c.readPadding < kFirstPaddings {
-		paddingHdr := p[:3]
+		var paddingHdr []byte
+		if len(p) >= 3 {
+			paddingHdr = p[:3]
+		} else {
+			_paddingHdr := make([]byte, 3)
+			defer common.KeepAlive(_paddingHdr)
+			paddingHdr = common.Dup(_paddingHdr)
+		}
 		_, err = io.ReadFull(c.Conn, paddingHdr)
 		if err != nil {
 			return
@@ -420,7 +427,14 @@ func (c *naiveH2Conn) read(p []byte) (n int, err error) {
 		c.paddingRemaining = 0
 	}
 	if c.readPadding < kFirstPaddings {
-		paddingHdr := p[:3]
+		var paddingHdr []byte
+		if len(p) >= 3 {
+			paddingHdr = p[:3]
+		} else {
+			_paddingHdr := make([]byte, 3)
+			defer common.KeepAlive(_paddingHdr)
+			paddingHdr = common.Dup(_paddingHdr)
+		}
 		_, err = io.ReadFull(c.reader, paddingHdr)
 		if err != nil {
 			return
