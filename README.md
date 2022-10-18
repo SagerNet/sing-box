@@ -12,6 +12,10 @@ https://github.com/MatsuriDayo/Matsuri
 安卓端插件地址
 https://github.com/SagerNet/SagerNet
 
+## 基于 Qt/C++ 的跨平台 GUI 代理配置管理器
+https://github.com/MatsuriDayo/nekoray
+目前支持 Windows / Linux amd64 开箱即用
+
 ## License
 
 ```
