@@ -6,6 +6,11 @@
 
 https://sing-box.sagernet.org
 
+安卓端支持软件Matsuri
+https://github.com/MatsuriDayo/Matsuri
+安卓端插件地址
+https://github.com/SagerNet/SagerNet
+
 ## License
 
 ```
