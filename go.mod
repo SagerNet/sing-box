@@ -8,9 +8,9 @@ require (
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cloudflare/circl v1.2.1-0.20220831060716-4cf0150356fc
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go/v2 v2.0.1
+	github.com/database64128/tfo-go/v2 v2.0.2
 	github.com/dustin/go-humanize v1.0.0
-	github.com/fsnotify/fsnotify v1.5.4
+	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.2
@@ -21,7 +21,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
-	github.com/refraction-networking/utls v1.1.2
+	github.com/refraction-networking/utls v1.1.5
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
 	github.com/sagernet/sing v0.0.0-20221008120626-60a9910eefe4
 	github.com/sagernet/sing-dns v0.0.0-20220929010544-ee843807aae3
@@ -30,16 +30,16 @@ require (
 	github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
-	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
-	golang.org/x/net v0.0.0-20221004154528-8021a29435af
-	golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875
+	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a
+	golang.org/x/net v0.0.0-20221017152216-f25eb7ecb193
+	golang.org/x/sys v0.1.0
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
-	google.golang.org/grpc v1.49.0
+	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
@@ -54,8 +54,8 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
