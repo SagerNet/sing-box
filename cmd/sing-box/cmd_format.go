@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sagernet/sing-box/common/conf/mergers"
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -19,7 +18,7 @@ var commandFormatFlagWrite bool
 
 var commandFormat = &cobra.Command{
 	Use:   "format",
-	Short: "Format configuration (json only)",
+	Short: "Format configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := format()
 		if err != nil {
@@ -39,16 +38,9 @@ func format() error {
 		return E.New("only one file can be formatted at a time")
 	}
 	configPath := configPaths[0]
-	format := mergers.ParseFormat(configFormat)
-	isJSON := strings.EqualFold(filepath.Ext(configPath), ".json")
-	// only json is supported, since:
-	// 1. all other foramts will lost comments after formatting
-	// 2. fields order is shuffled for yaml and toml, because of the nature of the go map
-	if format != mergers.FormatJSON &&
-		(format == mergers.FormatAuto && !isJSON) {
+	if strings.EqualFold(filepath.Ext(configPath), ".json") {
 		return E.New("only json format is supported")
 	}
-
 	configContent, err := os.ReadFile(configPath)
 	if err != nil {
 		return E.Cause(err, "read config")

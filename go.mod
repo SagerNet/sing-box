@@ -20,7 +20,6 @@ require (
 	github.com/mholt/acmez v1.0.4
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
-	github.com/pelletier/go-toml v1.9.5
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/refraction-networking/utls v1.1.2
 	github.com/sagernet/quic-go v0.0.0-20220818150011-de611ab3e2bb
@@ -42,7 +41,6 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20220829161405-d1d08426b27b
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
-	gopkg.in/yaml.v2 v2.4.0
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 

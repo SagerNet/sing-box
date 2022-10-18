@@ -37,7 +37,7 @@ func readConfig() (option.Options, error) {
 		configContent []byte
 		err           error
 	)
-	format := mergers.ParseFormat(configFormat)
+	format := mergers.FormatAuto
 	if len(configPaths) == 1 && configPaths[0] == "stdin" {
 		configContent, err = conf.ReaderToJSON(os.Stdin, format)
 	} else {

@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pelletier/go-toml"
 	"github.com/sagernet/sing-box/common/conf/jsonc"
-	"github.com/sagernet/sing-box/common/conf/merge"
 	"github.com/sagernet/sing/common"
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -34,30 +31,6 @@ func init() {
 				return nil, err
 			}
 			return m, nil
-		},
-	)))
-	common.Must(registerMerger(makeMerger(
-		FormatTOML,
-		[]string{".toml"},
-		func(v []byte) (map[string]interface{}, error) {
-			m := make(map[string]interface{})
-			if err := toml.Unmarshal(v, &m); err != nil {
-				return nil, err
-			}
-			return m, nil
-		},
-	)))
-	common.Must(registerMerger(makeMerger(
-		FormatYAML,
-		[]string{".yml", ".yaml"},
-		func(v []byte) (map[string]interface{}, error) {
-			m1 := make(map[interface{}]interface{})
-			err := yaml.Unmarshal(v, &m1)
-			if err != nil {
-				return nil, err
-			}
-			m2 := merge.Convert(m1)
-			return m2, nil
 		},
 	)))
 	common.Must(registerMerger(
