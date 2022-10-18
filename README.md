@@ -1,8 +1,8 @@
 # sing-box 网络代理平台的“瑞士军刀”
 
-The universal proxy platform.
+通用代理平台 The universal proxy platform.
 
-## Documentation
+## 文档 Documentation
 
 https://sing-box.sagernet.org
 
