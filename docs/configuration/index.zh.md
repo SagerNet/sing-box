@@ -1,6 +1,6 @@
 # 引言
 
-sing-box 支持 JSON、JSONC、YAML、TOML 作为配置文件格式。
+sing-box 使用 JSON 作为配置文件格式。
 
 ### 结构
 
@@ -42,11 +42,11 @@ $ sing-box format -w
 
 > 如果只使用单个配置文件，您完全可以忽略这一节。
 
-sing-box 支持多文件、多格式混合使用。按照配置文件的加载顺序，后者会覆盖并合并到前者。
+sing-box 支持多文件配置。按照配置文件的加载顺序，后者会覆盖并合并到前者。
 
 ```bash
 # 根据参数顺序加载
-sing-box run -c inbound.json -c outbound.yaml -c http://url.to/config.toml
+sing-box run -c inbound.json -c outbound.json
 # 根据文件名顺序加载
 sing-box run -r -c config_dir
 ```

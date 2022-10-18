@@ -42,12 +42,12 @@ $ sing-box format -w
 
 > You can skip this section if you are using only one configuration file.
 
-sing-box supports multiple files and multiple formats. The latter overwrites and merges into the former, in the order in which the configuration files are loaded.
+sing-box supports multiple configuration files. The latter overwrites and merges into the former, in the order in which the configuration files are loaded.
 
 
 ```bash
 # Load by the order of parameters
-sing-box run -c inbound.json -c outbound.yaml -c  -c http://url.to/config.toml
+sing-box run -c inbound.json -c outbound.json
 # Load by the order of file names
 sing-box run -r -c config_dir
 ```
