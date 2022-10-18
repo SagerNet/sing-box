@@ -1,4 +1,4 @@
-# sing-box
+# sing-box 网络代理平台的“瑞士军刀”
 
 The universal proxy platform.
 
