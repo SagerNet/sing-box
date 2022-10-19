@@ -1,3 +1,31 @@
+#### 1.1-beta10
+
+* Add [sniff_timeout](/configuration/shared/listen#sniff_timeout) listen option
+* Add [custom route](/configuration/inbound/tun#inet4_route_address) support for tun **1**
+* Fix interface monitor
+* Fix websocket headroom
+* Fix uTLS handshake
+* Fix ssh outbound
+* Fix sniff fragmented quic client hello
+* Fix DF for hysteria
+* Fix naive overflow
+* Check destination before udp connect
+* Update uTLS to v1.1.5
+* Update tfo-go to v2.0.2
+* Update fsnotify to v1.6.0
+* Update grpc to v1.50.1
+
+*1*:
+
+The `strict_route` on windows is removed.
+
+#### 1.0.6
+
+* Fix ssh outbound
+* Fix sniff fragmented quic client hello
+* Fix naive overflow
+* Check destination before udp connect
+
 #### 1.1-beta9
 
 * Fix windows route **1**
