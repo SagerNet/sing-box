@@ -8,17 +8,17 @@
 
 https://sing-box.sagernet.org
 
-## Matsuri (茉莉) for Android
+### Matsuri (茉莉) for Android
 安卓端支持软件Matsuri
 https://github.com/MatsuriDayo/Matsuri
 安卓端插件地址
 https://github.com/SagerNet/SagerNet
 
-## 基于 Qt/C++ 的跨平台 GUI 代理配置管理器
+### 基于 Qt/C++ 的跨平台 GUI 代理配置管理器
 
 目前支持 Windows / Linux amd64 开箱即用  https://github.com/MatsuriDayo/nekoray
 
-# 方便快捷的安装、管理sing-box
+### 方便快捷的安装、管理sing-box
 https://github.com/FranzKafkaYu/sing-box-yes
 
 ## License
@@ -40,5 +40,5 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 ```
 # 致谢
-# SagerNet/sing-box
-# # 致谢所有贡献者
+SagerNet/sing-box
+# 致谢所有贡献者
