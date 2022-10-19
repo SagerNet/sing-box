@@ -8,6 +8,7 @@
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
+  "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
   "udp_timeout": 300,
   "proxy_protocol": false,
@@ -57,6 +58,12 @@
 用探测出的域名覆盖连接目标地址。
 
 如果域名无效（如 Tor），将不生效。
+
+#### sniff_timeout
+
+探测超时时间。
+
+默认使用 300ms。
 
 #### domain_strategy
 
