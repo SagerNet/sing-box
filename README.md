@@ -18,6 +18,9 @@ https://github.com/SagerNet/SagerNet
 
 目前支持 Windows / Linux amd64 开箱即用  https://github.com/MatsuriDayo/nekoray
 
+# 方便快捷的安装、管理sing-box
+https://github.com/FranzKafkaYu/sing-box-yes
+
 ## License
 
 ```
@@ -36,3 +39,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 ```
+# 致谢
+# SagerNet/sing-box
+# # 致谢所有贡献者
