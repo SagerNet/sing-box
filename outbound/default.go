@@ -79,7 +79,9 @@ func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metad
 func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
 	switch metadata.Protocol {
 	case C.ProtocolQUIC, C.ProtocolDNS:
-		return connectPacketConnection(ctx, this, conn, metadata)
+		if !metadata.Destination.Addr.IsUnspecified() {
+			return connectPacketConnection(ctx, this, conn, metadata)
+		}
 	}
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.PacketConn
