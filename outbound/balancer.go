@@ -7,8 +7,8 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/balancer"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/outbound/balancer"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"

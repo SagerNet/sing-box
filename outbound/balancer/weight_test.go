@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sagernet/sing-box/balancer"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/outbound/balancer"
 )
 
 func TestWeight(t *testing.T) {
