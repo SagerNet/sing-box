@@ -1,16 +1,16 @@
 # sing-box 网络代理平台的“瑞士军刀”
 
-### https://github.com/SagerNet/sing-box
+### 官方网址：https://github.com/SagerNet/sing-box
 
 通用代理平台 The universal proxy platform.
 
-## 文档 Documentation
+## 官方文档 Documentation
 
 https://sing-box.sagernet.org
 
 ### Matsuri (茉莉) for Android
 安卓端支持软件Matsuri
-https://github.com/MatsuriDayo/Matsuri
+官方网址：https://github.com/MatsuriDayo/Matsuri
 安卓端插件地址
 https://github.com/SagerNet/SagerNet
 
@@ -18,8 +18,15 @@ https://github.com/SagerNet/SagerNet
 
 目前支持 Windows / Linux amd64 开箱即用  https://github.com/MatsuriDayo/nekoray
 
-### 方便快捷的安装、管理sing-box
-https://github.com/FranzKafkaYu/sing-box-yes
+### 一键安装、管理sing-box
+网址：https://github.com/FranzKafkaYu/sing-box-yes
+
+### nstall Golang terbaru.
+```jaon
+cd
+curl -fsL https://raw.githubusercontent.com/jetsung/golang-install/main/install.sh | bash
+source /root/.bashrc
+```
 
 ## License
 
