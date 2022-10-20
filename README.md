@@ -39,6 +39,20 @@ go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 例：
 go install -v -tags "with_acme with_clash_api with_quic with_grpc with_wireguard with_ech with_utls with_gvisor with_shadowsocksr" github.com/sagernet/sing-box/cmd/sing-box@dev-next
 ```
+### 设置 DNS
+Disini akan menggantikan default dns dari WAN/Modem.
+
+add resolver updater 来自https://github.com/malikshi/sing_box
+```
+wget -O /usr/local/bin/u-resolver https://raw.githubusercontent.com/malikshi/sing_box/main/u-resolver.sh && chmod +x /usr/local/bin/u-resolver && u-resolver
+```
+
+### 设置 sing-box
+Download GEO Assets
+```
+wget -c -P /etc/sing-box/ "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db"
+wget -c -P /etc/sing-box/ "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+```
 
 ## License
 
