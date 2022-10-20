@@ -1,10 +1,58 @@
-# sing-box
+# sing-box 网络代理平台的“瑞士军刀”
 
-The universal proxy platform.
+### 官方网址：https://github.com/SagerNet/sing-box
 
-## Documentation
+通用代理平台 The universal proxy platform.
+
+## 官方文档 Documentation
 
 https://sing-box.sagernet.org
+
+### Matsuri (茉莉) for Android
+安卓端支持软件Matsuri
+官方网址：https://github.com/MatsuriDayo/Matsuri
+安卓端插件地址
+https://github.com/SagerNet/SagerNet
+
+### 基于 Qt/C++ 的跨平台 GUI 代理配置管理器
+
+目前支持 Windows / Linux amd64 开箱即用  https://github.com/MatsuriDayo/nekoray
+
+### 一键安装、管理sing-box
+网址：https://github.com/FranzKafkaYu/sing-box-yes
+
+### 安装
+
+sing-box 需要 Golang 1.18.5 或更高版本
+#### 安装 Golang
+```
+cd
+curl -fsL https://raw.githubusercontent.com/jetsung/golang-install/main/install.sh | bash
+source /root/.bashrc
+```
+#### 安装最新的 sing-box 版本
+```
+go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
+````
+#### 自定义安装,具体方法看官方文档 https://sing-box.sagernet.org
+```
+例：
+go install -v -tags "with_acme with_clash_api with_quic with_grpc with_wireguard with_ech with_utls with_gvisor with_shadowsocksr" github.com/sagernet/sing-box/cmd/sing-box@dev-next
+```
+### 设置 DNS
+Disini akan menggantikan default dns dari WAN/Modem.
+
+add resolver updater 来自https://github.com/malikshi/sing_box
+```
+wget -O /usr/local/bin/u-resolver https://raw.githubusercontent.com/malikshi/sing_box/main/u-resolver.sh && chmod +x /usr/local/bin/u-resolver && u-resolver
+```
+
+### 设置 sing-box
+Download GEO Assets
+```
+wget -c -P /etc/sing-box/ "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db"
+wget -c -P /etc/sing-box/ "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+```
 
 ## License
 
@@ -24,3 +72,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 ```
+# 致谢
+SagerNet/sing-box
+# 致谢所有github贡献者
