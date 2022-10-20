@@ -21,12 +21,19 @@ https://github.com/SagerNet/SagerNet
 ### 一键安装、管理sing-box
 网址：https://github.com/FranzKafkaYu/sing-box-yes
 
-### nstall Golang terbaru.
+### 安装
+
+sing-box 需要 Golang 1.18.5 或更高版本
+### 安装 Golang
 ```jaon
 cd
 curl -fsL https://raw.githubusercontent.com/jetsung/golang-install/main/install.sh | bash
 source /root/.bashrc
 ```
+### 安装最新的 sing-box 版本
+```
+go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
+````
 
 ## License
 
