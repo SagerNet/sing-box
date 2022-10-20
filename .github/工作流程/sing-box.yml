@@ -1,0 +1,143 @@
+name: Build sing-box
+
+on:
+  workflow_dispatch:
+
+  release:
+    types: 
+      - 'prereleased' 
+      - 'published' 
+      - 'released'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "windows-386",
+            GOARCH: 386,
+            GOOS: windows,
+            release: true
+          }
+        - {
+            name: "windows-amd64",
+            GOARCH: amd64,
+            GOOS: windows,
+            release: true
+          }
+        - {
+            name: "linux-amd64",
+            GOARCH: amd64,
+            GOOS: linux,
+            release: true
+          }
+        - {
+            name: "linux-arm64",
+            GOARCH: arm64,
+            GOOS: linux,
+            release: true
+          }
+        - {
+            name: "freebsd-amd64",
+            GOARCH: amd64,
+            GOOS: freebsd,
+            release: true
+          }
+        - {
+            name: "freebsd-arm",
+            GOARCH: arm,
+            GOOS: linux,
+            release: true
+          }
+        - {
+            name: "darwin-arm64",
+            GOARCH: arm64,
+            GOOS: darwin,
+            release: true
+          }
+        - {
+            name: "darwin-amd64",
+            GOARCH: amd64,
+            GOOS: darwin,
+            release: true
+          }
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.19.2'
+        check-latest: true
+    
+    - name: Build sing-box
+      run: |
+        mkdir release-tmp
+        export GOARCH=${{ matrix.config.GOARCH }} 
+        export GOOS=${{ matrix.config.GOOS }} 
+        ~/go install -v -tags \
+           --with_quic,\
+           --with_grpc,\
+           --with_wireguard,\
+           --with_shadowsocksr,\
+           --with_ech,with_utls,\
+           --with_acme,\
+           --with_clash_api,\
+           --with_gvisor,\
+           --with_embedded_tor,\
+           --with_lwip \
+           --with github.com/sagernet/sing-box/cmd/sing-box@v1.1-beta10 \
+           --output ./release-tmp/sing-box
+
+    - name: Rename for Windows 
+      if: matrix.config.GOOS == 'windows'
+      run: |
+        mv ./release-tmp/sing-box ./release-tmp/sing-box.exe
+    
+    - name: Calculate Hash
+      run: |
+        cd ./release-tmp || exit 1
+        sha256sum * > sha256
+
+    - name: Generate zip for Windows
+      if: matrix.config.GOOS == 'windows'
+      run: |
+        mkdir release-ready
+        cd ./release-tmp
+        zip -r ../release-ready/sing-box-${{ matrix.config.name }}.zip *
+    
+    - name: Generate tar for other platform
+      if: matrix.config.GOOS != 'windows'
+      run: |
+        mkdir release-ready
+        cd ./release-tmp
+        tar -zcvf ../release-ready/sing-box-${{ matrix.config.name }}.tar.gz *
+
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: caddy-${{ github.sha }}-${{ matrix.config.name }}
+        path: ./release-ready/*
+        
+    - name: Upload to GitHub Release for Windows
+      uses: svenstaro/upload-release-action@v2
+      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS == 'windows'
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./release-ready/sing-box-${{ matrix.config.name }}.zip
+        tag: ${{ github.ref }}
+        overwrite: true
+        
+    - name: Upload to GitHub Release for other platform
+      uses: svenstaro/upload-release-action@v2
+      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS != 'windows'
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./release-ready/caddy-${{ matrix.config.name }}.tar.gz
+        tag: ${{ github.ref }}
+        overwrite: true
