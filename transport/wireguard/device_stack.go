@@ -33,7 +33,7 @@ type StackDevice struct {
 	stack      *stack.Stack
 	mtu        uint32
 	events     chan tun.Event
-	outbound   chan *stack.PacketBuffer
+	outbound   chan stack.PacketBufferPtr
 	dispatcher stack.NetworkDispatcher
 	addr4      tcpip.Address
 	addr6      tcpip.Address
@@ -49,7 +49,7 @@ func NewStackDevice(localAddresses []netip.Prefix, mtu uint32) (*StackDevice, er
 		stack:    ipStack,
 		mtu:      mtu,
 		events:   make(chan tun.Event, 1),
-		outbound: make(chan *stack.PacketBuffer, 256),
+		outbound: make(chan stack.PacketBufferPtr, 256),
 	}
 	err := ipStack.CreateNIC(defaultNIC, (*wireEndpoint)(tunDevice))
 	if err != nil {
@@ -240,7 +240,7 @@ func (ep *wireEndpoint) ARPHardwareType() header.ARPHardwareType {
 	return header.ARPHardwareNone
 }
 
-func (ep *wireEndpoint) AddHeader(buffer *stack.PacketBuffer) {
+func (ep *wireEndpoint) AddHeader(buffer stack.PacketBufferPtr) {
 }
 
 func (ep *wireEndpoint) WritePackets(list stack.PacketBufferList) (int, tcpip.Error) {
