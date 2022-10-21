@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sagernet/sing-box/common/conf"
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -33,7 +34,16 @@ func init() {
 }
 
 func format() error {
-	configContent, err := os.ReadFile(configPath)
+	files, err := conf.ResolveFiles(configPaths, configRecursive)
+	if err != nil {
+		return E.Cause(err, "resolve config files")
+	}
+	if len(files) == 0 {
+		return E.New("no config file found")
+	}
+	// use conf.Merge even if there's only one config file, make
+	// it has the same behavior between one and multiple files.
+	configContent, err := conf.Merge(files)
 	if err != nil {
 		return E.Cause(err, "read config")
 	}
@@ -49,13 +59,22 @@ func format() error {
 	if err != nil {
 		return E.Cause(err, "encode config")
 	}
+	flagIgnored := false
+	if commandFormatFlagWrite && len(files) > 1 {
+		commandFormatFlagWrite = false
+		flagIgnored = true
+	}
 	if !commandFormatFlagWrite {
 		os.Stdout.WriteString(buffer.String() + "\n")
+		if flagIgnored {
+			log.Warn("--write flag is ignored due to more than one configuration file specified")
+		}
 		return nil
 	}
 	if bytes.Equal(configContent, buffer.Bytes()) {
 		return nil
 	}
+	configPath := files[0]
 	output, err := os.Create(configPath)
 	if err != nil {
 		return E.Cause(err, "open output")

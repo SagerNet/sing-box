@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"io"
 	"os"
 	"os/signal"
 	runtimeDebug "runtime/debug"
 	"syscall"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/common/conf"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -36,10 +36,19 @@ func readConfig() (option.Options, error) {
 		configContent []byte
 		err           error
 	)
-	if configPath == "stdin" {
-		configContent, err = io.ReadAll(os.Stdin)
+	// always use conf.Merge to make it has the same behavior
+	// between one and multiple files.
+	if len(configPaths) == 1 && configPaths[0] == "stdin" {
+		configContent, err = conf.Merge(os.Stdin)
 	} else {
-		configContent, err = os.ReadFile(configPath)
+		files, err := conf.ResolveFiles(configPaths, configRecursive)
+		if err != nil {
+			return option.Options{}, E.Cause(err, "resolve config files")
+		}
+		if len(files) == 0 {
+			return option.Options{}, E.New("no config file found")
+		}
+		configContent, err = conf.Merge(files)
 	}
 	if err != nil {
 		return option.Options{}, E.Cause(err, "read config")
