@@ -86,12 +86,17 @@ func (s *Balancer) Network() []string {
 
 // Now implements adapter.OutboundGroup
 func (s *Balancer) Now() string {
-	return s.pick(context.Background(), "").Tag()
+	// the first one is least loaded / least ping node
+	return s.All()[0]
 }
 
 // All implements adapter.OutboundGroup
 func (s *Balancer) All() []string {
-	return s.tags
+	picked := s.pickTags(context.Background(), "")
+	if len(picked) == 0 {
+		return []string{s.fallbackTag}
+	}
+	return picked
 }
 
 // DialContext implements adapter.Outbound
@@ -147,11 +152,14 @@ func (s *Balancer) Start() error {
 }
 
 func (s *Balancer) pick(ctx context.Context, network string) adapter.Outbound {
-	tag := s.pickTag(ctx, network)
-	if tag == "" {
+	tags := s.pickTags(ctx, network)
+	ntags := len(tags)
+	if ntags == 0 {
 		s.logger.DebugContext(ctx, "(network=", network, ", candidates=0) => fallback [", s.fallbackTag, "]")
 		return s.fallback
 	}
+	tag := tags[rand.Intn(ntags)]
+	s.logger.DebugContext(ctx, "(network=", network, ", candidates=", ntags, ") => [", tag, "]")
 	outbound, ok := s.router.Outbound(tag)
 	if !ok {
 		s.logger.DebugContext(ctx, "[", tag, "] not exist, fallback to [", s.fallbackTag, "]")
@@ -160,23 +168,26 @@ func (s *Balancer) pick(ctx context.Context, network string) adapter.Outbound {
 	return outbound
 }
 
-func (s *Balancer) pickTag(ctx context.Context, network string) string {
+func (s *Balancer) pickTags(ctx context.Context, network string) []string {
 	if s.Balancer == nil {
-		// not started yet, pick a random one
-		return s.randomTag()
+		// not started yet, pick all outbounds
+		return s.allTags(network)
 	}
-	tag := s.Balancer.Pick(ctx, network)
-	if tag == "" {
-		return ""
-	}
-	return tag
+	return s.Balancer.Pick(ctx, network)
 }
 
-func (s *Balancer) randomTag() string {
-	nodes := balancer.CoveredOutbounds(s.router, s.tags)
+func (s *Balancer) allTags(network string) []string {
+	nodes := balancer.OutboundsByPrefixes(s.router, s.tags)
 	count := len(nodes)
 	if count == 0 {
-		return ""
+		return nil
 	}
-	return s.tags[rand.Intn(count)]
+	tags := make([]string, 0, count)
+	for _, node := range nodes {
+		if network != "" && !common.Contains(node.Network(), network) {
+			continue
+		}
+		tags = append(tags, node.Tag())
+	}
+	return tags
 }

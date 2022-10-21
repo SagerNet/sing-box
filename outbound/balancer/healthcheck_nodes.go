@@ -69,12 +69,12 @@ func (h *HealthCheck) Nodes(network string) *Nodes {
 	return nodes
 }
 
-// CoveredOutbounds returns the outbounds that should covered by health check
-func CoveredOutbounds(router adapter.Router, tags []string) []adapter.Outbound {
+// OutboundsByPrefixes returns the outbounds that mathes the tag prefixes
+func OutboundsByPrefixes(router adapter.Router, prefixes []string) []adapter.Outbound {
 	outbounds := router.Outbounds()
 	nodes := make([]adapter.Outbound, 0, len(outbounds))
 	for _, outbound := range outbounds {
-		for _, prefix := range tags {
+		for _, prefix := range prefixes {
 			tag := outbound.Tag()
 			if strings.HasPrefix(tag, prefix) {
 				nodes = append(nodes, outbound)
@@ -86,7 +86,7 @@ func CoveredOutbounds(router adapter.Router, tags []string) []adapter.Outbound {
 
 // refreshNodes matches nodes from router by tag prefix, and refreshes the health check results
 func (h *HealthCheck) refreshNodes() []adapter.Outbound {
-	nodes := CoveredOutbounds(h.router, h.tags)
+	nodes := OutboundsByPrefixes(h.router, h.tags)
 	tags := make(map[string]struct{})
 	for _, n := range nodes {
 		n := n

@@ -19,7 +19,7 @@ var _ Balancer = (*rttBasedBalancer)(nil)
 // Balancer is interface for load balancers
 type Balancer interface {
 	// Pick picks a qualified nodes
-	Pick(ctx context.Context, network string) string
+	Pick(ctx context.Context, network string) []string
 	// Networks returns the supported network types
 	Networks() []string
 }
@@ -96,8 +96,8 @@ func (s *rttBasedBalancer) Networks() []string {
 	}
 }
 
-// Select selects qualified nodes
-func (s *rttBasedBalancer) Pick(ctx context.Context, network string) string {
+// Pick selects qualified nodes
+func (s *rttBasedBalancer) Pick(ctx context.Context, network string) []string {
 	nodes := s.HealthCheck.Nodes(network)
 	var candidates []*Node
 	if len(nodes.Qualified) > 0 {
@@ -113,19 +113,13 @@ func (s *rttBasedBalancer) Pick(ctx context.Context, network string) string {
 	selects := selectNodes(candidates, int(s.options.Pick.Expected), s.options.Pick.Baselines)
 	count := len(selects)
 	if count == 0 {
-		return ""
+		return nil
 	}
-	picked := selects[rand.Intn(count)]
-	s.logger.DebugContext(
-		ctx,
-		"(network=", network, ", candidates=", count, ")",
-		" => [", picked.Tag, "]",
-		" +W=", picked.Weighted,
-		" STD=", picked.Deviation,
-		" AVG=", picked.Average,
-		" Fail=", picked.Fail, "/", picked.All,
-	)
-	return picked.Tag
+	tags := make([]string, 0, count)
+	for _, n := range selects {
+		tags = append(tags, n.Tag)
+	}
+	return tags
 }
 
 func sortNodes(nodes []*Node) {
