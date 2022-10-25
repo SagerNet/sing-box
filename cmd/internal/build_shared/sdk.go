@@ -1,6 +1,7 @@
-package main
+package build_shared
 
 import (
+	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,7 +19,7 @@ var (
 	androidNDKPath string
 )
 
-func findSDK() {
+func FindSDK() {
 	searchPath := []string{
 		"$ANDROID_HOME",
 		"$HOME/Android/Sdk",
@@ -78,4 +79,14 @@ func findNDK() bool {
 		}
 	}
 	return false
+}
+
+var GoBinPath string
+
+func FindMobile() {
+	goBin := filepath.Join(build.Default.GOPATH, "bin")
+	if !rw.FileExists(goBin + "/" + "gobind") {
+		log.Fatal("missing gomobile installation")
+	}
+	GoBinPath = goBin
 }

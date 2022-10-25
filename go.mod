@@ -22,6 +22,7 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/refraction-networking/utls v1.2.2
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
+	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/sing v0.1.7-0.20230209132010-5f1ef3441c13
 	github.com/sagernet/sing-dns v0.1.2-0.20230209132355-3c2e2957b455

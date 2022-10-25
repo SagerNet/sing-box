@@ -5,16 +5,18 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/common/json"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type _Options struct {
-	Log          *LogOptions          `json:"log,omitempty"`
-	DNS          *DNSOptions          `json:"dns,omitempty"`
-	Inbounds     []Inbound            `json:"inbounds,omitempty"`
-	Outbounds    []Outbound           `json:"outbounds,omitempty"`
-	Route        *RouteOptions        `json:"route,omitempty"`
-	Experimental *ExperimentalOptions `json:"experimental,omitempty"`
+	Log               *LogOptions          `json:"log,omitempty"`
+	DNS               *DNSOptions          `json:"dns,omitempty"`
+	Inbounds          []Inbound            `json:"inbounds,omitempty"`
+	Outbounds         []Outbound           `json:"outbounds,omitempty"`
+	Route             *RouteOptions        `json:"route,omitempty"`
+	Experimental      *ExperimentalOptions `json:"experimental,omitempty"`
+	PlatformInterface platform.Interface   `json:"-"`
 }
 
 type Options _Options

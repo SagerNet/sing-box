@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -34,9 +35,10 @@ type Tun struct {
 	stack                  string
 	tunIf                  tun.Tun
 	tunStack               tun.Stack
+	platformInterface      platform.Interface
 }
 
-func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (*Tun, error) {
+func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
 	tunName := options.InterfaceName
 	if tunName == "" {
 		tunName = tun.CalculateInterfaceName("")
@@ -93,6 +95,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
 		stack:                  options.Stack,
+		platformInterface:      platformInterface,
 	}, nil
 }
 
@@ -137,17 +140,25 @@ func (t *Tun) Tag() string {
 }
 
 func (t *Tun) Start() error {
-	if C.IsAndroid {
+	if C.IsAndroid && t.platformInterface == nil {
 		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
 	}
-	tunIf, err := tun.Open(t.tunOptions)
+	var (
+		tunInterface tun.Tun
+		err          error
+	)
+	if t.platformInterface != nil {
+		tunInterface, err = t.platformInterface.OpenTun(t.tunOptions)
+	} else {
+		tunInterface, err = tun.Open(t.tunOptions)
+	}
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
-	t.tunIf = tunIf
+	t.tunIf = tunInterface
 	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
 		Context:                t.ctx,
-		Tun:                    tunIf,
+		Tun:                    tunInterface,
 		MTU:                    t.tunOptions.MTU,
 		Name:                   t.tunOptions.Name,
 		Inet4Address:           t.tunOptions.Inet4Address,
