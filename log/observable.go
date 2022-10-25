@@ -14,19 +14,25 @@ import (
 var _ Factory = (*observableFactory)(nil)
 
 type observableFactory struct {
-	formatter  Formatter
-	writer     io.Writer
-	level      Level
-	subscriber *observable.Subscriber[Entry]
-	observer   *observable.Observer[Entry]
+	formatter         Formatter
+	platformFormatter Formatter
+	writer            io.Writer
+	platformWriter    io.Writer
+	level             Level
+	subscriber        *observable.Subscriber[Entry]
+	observer          *observable.Observer[Entry]
 }
 
-func NewObservableFactory(formatter Formatter, writer io.Writer) ObservableFactory {
+func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer) ObservableFactory {
 	factory := &observableFactory{
-		formatter:  formatter,
-		writer:     writer,
-		level:      LevelTrace,
-		subscriber: observable.NewSubscriber[Entry](128),
+		formatter: formatter,
+		platformFormatter: Formatter{
+			BaseTime: formatter.BaseTime,
+		},
+		writer:         writer,
+		platformWriter: platformWriter,
+		level:          LevelTrace,
+		subscriber:     observable.NewSubscriber[Entry](128),
 	}
 	factory.observer = observable.NewObserver[Entry](factory.subscriber, 64)
 	return factory
@@ -74,7 +80,8 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 	if level > l.level {
 		return
 	}
-	message, messageSimple := l.formatter.FormatWithSimple(ctx, level, l.tag, F.ToString(args...), time.Now())
+	nowTime := time.Now()
+	message, messageSimple := l.formatter.FormatWithSimple(ctx, level, l.tag, F.ToString(args...), nowTime)
 	if level == LevelPanic {
 		panic(message)
 	}
@@ -83,6 +90,9 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 		os.Exit(1)
 	}
 	l.subscriber.Emit(Entry{level, messageSimple})
+	if l.platformWriter != nil {
+		l.platformWriter.Write([]byte(l.formatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
+	}
 }
 
 func (l *observableLogger) Trace(args ...any) {

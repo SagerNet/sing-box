@@ -12,16 +12,22 @@ import (
 var _ Factory = (*simpleFactory)(nil)
 
 type simpleFactory struct {
-	formatter Formatter
-	writer    io.Writer
-	level     Level
+	formatter         Formatter
+	platformFormatter Formatter
+	writer            io.Writer
+	platformWriter    io.Writer
+	level             Level
 }
 
-func NewFactory(formatter Formatter, writer io.Writer) Factory {
+func NewFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer) Factory {
 	return &simpleFactory{
 		formatter: formatter,
-		writer:    writer,
-		level:     LevelTrace,
+		platformFormatter: Formatter{
+			BaseTime: formatter.BaseTime,
+		},
+		writer:         writer,
+		platformWriter: platformWriter,
+		level:          LevelTrace,
 	}
 }
 
@@ -53,13 +59,17 @@ func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
 	if level > l.level {
 		return
 	}
-	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), time.Now())
+	nowTime := time.Now()
+	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)
 	if level == LevelPanic {
 		panic(message)
 	}
 	l.writer.Write([]byte(message))
 	if level == LevelFatal {
 		os.Exit(1)
+	}
+	if l.platformWriter != nil {
+		l.platformWriter.Write([]byte(l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
 	}
 }
 

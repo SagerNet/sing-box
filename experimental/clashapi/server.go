@@ -42,7 +42,6 @@ type Server struct {
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
-	tcpListener    net.Listener
 	mode           string
 	storeSelected  bool
 	cacheFile      adapter.ClashCacheFile
@@ -70,6 +69,11 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		cachePath := os.ExpandEnv(options.CacheFile)
 		if cachePath == "" {
 			cachePath = "cache.db"
+		}
+		if foundPath, loaded := C.FindPath(cachePath); loaded {
+			cachePath = foundPath
+		} else {
+			cachePath = C.BasePath(cachePath)
 		}
 		cacheFile, err := cachefile.Open(cachePath)
 		if err != nil {
@@ -103,7 +107,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 	})
 	if options.ExternalUI != "" {
 		chiRouter.Group(func(r chi.Router) {
-			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(os.ExpandEnv(options.ExternalUI))))
+			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(C.BasePath(os.ExpandEnv(options.ExternalUI)))))
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
 			r.Get("/ui/*", func(w http.ResponseWriter, r *http.Request) {
 				fs.ServeHTTP(w, r)
@@ -119,7 +123,6 @@ func (s *Server) Start() error {
 		return E.Cause(err, "external controller listen error")
 	}
 	s.logger.Info("restful api listening at ", listener.Addr())
-	s.tcpListener = listener
 	go func() {
 		err = s.httpServer.Serve(listener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -132,7 +135,6 @@ func (s *Server) Start() error {
 func (s *Server) Close() error {
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
-		s.tcpListener,
 		s.trafficManager,
 		s.cacheFile,
 	)
