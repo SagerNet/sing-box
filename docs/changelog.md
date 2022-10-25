@@ -1,3 +1,13 @@
+#### 1.1-beta11
+
+* Fix shadowtls v2
+* Fix h3 dns transport
+* Fix copy pipe
+
+#### 1.0.7
+
+* Fix copy pipe
+
 #### 1.1-beta10
 
 * Add [sniff_timeout](/configuration/shared/listen#sniff_timeout) listen option
