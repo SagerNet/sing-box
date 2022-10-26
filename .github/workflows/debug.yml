@@ -149,6 +149,9 @@ jobs:
           - name: linux-mips64el
             goos: linux
             goarch: mips64le
+          - name: linux-s390x
+            goos: linux
+            goarch: s390x
           # darwin
           - name: darwin-amd64
             goos: darwin
