@@ -18,16 +18,18 @@ type ClientBind struct {
 	ctx        context.Context
 	dialer     N.Dialer
 	peerAddr   M.Socksaddr
+	reserved   [3]uint8
 	connAccess sync.Mutex
 	conn       *wireConn
 	done       chan struct{}
 }
 
-func NewClientBind(ctx context.Context, dialer N.Dialer, peerAddr M.Socksaddr) *ClientBind {
+func NewClientBind(ctx context.Context, dialer N.Dialer, peerAddr M.Socksaddr, reserved [3]uint8) *ClientBind {
 	return &ClientBind{
 		ctx:      ctx,
 		dialer:   dialer,
 		peerAddr: peerAddr,
+		reserved: reserved,
 	}
 }
 
@@ -89,6 +91,11 @@ func (c *ClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
 		}
 		return
 	}
+	if n > 3 {
+		b[1] = 0
+		b[2] = 0
+		b[3] = 0
+	}
 	ep = Endpoint(c.peerAddr)
 	return
 }
@@ -118,6 +125,11 @@ func (c *ClientBind) Send(b []byte, ep conn.Endpoint) error {
 	udpConn, err := c.connect()
 	if err != nil {
 		return err
+	}
+	if len(b) > 3 {
+		b[1] = c.reserved[0]
+		b[2] = c.reserved[1]
+		b[3] = c.reserved[2]
 	}
 	_, err = udpConn.Write(b)
 	if err != nil {

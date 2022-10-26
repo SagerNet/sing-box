@@ -9,6 +9,7 @@ type WireGuardOutboundOptions struct {
 	PrivateKey      string                 `json:"private_key"`
 	PeerPublicKey   string                 `json:"peer_public_key"`
 	PreSharedKey    string                 `json:"pre_shared_key,omitempty"`
+	Reserved        []uint8                `json:"reserved,omitempty"`
 	MTU             uint32                 `json:"mtu,omitempty"`
 	Network         NetworkList            `json:"network,omitempty"`
 }
