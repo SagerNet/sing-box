@@ -10,14 +10,11 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
 const xplusSaltLen = 16
-
-var errInalidPacket = E.New("invalid packet")
 
 func NewXPlusPacketConn(conn net.PacketConn, key []byte) net.PacketConn {
 	vectorisedWriter, isVectorised := bufio.CreateVectorisedPacketWriter(conn)
@@ -51,7 +48,8 @@ func (c *XPlusPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	if err != nil {
 		return
 	} else if n < xplusSaltLen {
-		return 0, nil, errInalidPacket
+		n = 0
+		return
 	}
 	key := sha256.Sum256(append(c.key, p[:xplusSaltLen]...))
 	for i := range p[xplusSaltLen:] {
