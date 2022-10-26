@@ -192,10 +192,15 @@ Available fingerprint values:
 
 * chrome
 * firefox
+* edge
+* safari
+* 360
+* qq
 * ios
 * android
 * random
 
+Chrome fingerprint will be used if empty.
 
 ### ACME Fields
 
