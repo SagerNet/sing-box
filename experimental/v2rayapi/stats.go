@@ -58,8 +58,8 @@ func NewStatsService(options option.V2RayStatsServiceOptions) *StatsService {
 }
 
 func (s *StatsService) RoutedConnection(inbound string, outbound string, conn net.Conn) net.Conn {
-	var readCounter *atomic.Int64
-	var writeCounter *atomic.Int64
+	var readCounter []*atomic.Int64
+	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
 	countOutbound := outbound != "" && s.outbounds[outbound]
 	if !countInbound && !countOutbound {
@@ -67,20 +67,20 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, conn ne
 	}
 	s.access.Lock()
 	if countInbound {
-		readCounter = s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink", readCounter)
-		writeCounter = s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink", writeCounter)
+		readCounter = append(readCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink"))
+		writeCounter = append(writeCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink"))
 	}
 	if countOutbound {
-		readCounter = s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink", readCounter)
-		writeCounter = s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink", writeCounter)
+		readCounter = append(readCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink"))
+		writeCounter = append(writeCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
 	return trackerconn.New(conn, readCounter, writeCounter, s.directIO)
 }
 
 func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, conn N.PacketConn) N.PacketConn {
-	var readCounter *atomic.Int64
-	var writeCounter *atomic.Int64
+	var readCounter []*atomic.Int64
+	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
 	countOutbound := outbound != "" && s.outbounds[outbound]
 	if !countInbound && !countOutbound {
@@ -88,12 +88,12 @@ func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, c
 	}
 	s.access.Lock()
 	if countInbound {
-		readCounter = s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink", readCounter)
-		writeCounter = s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink", writeCounter)
+		readCounter = append(readCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink"))
+		writeCounter = append(writeCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink"))
 	}
 	if countOutbound {
-		readCounter = s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink", readCounter)
-		writeCounter = s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink", writeCounter)
+		readCounter = append(readCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink"))
+		writeCounter = append(writeCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
 	return trackerconn.NewPacket(conn, readCounter, writeCounter)
@@ -119,7 +119,17 @@ func (s *StatsService) QueryStats(ctx context.Context, request *QueryStatsReques
 	var response QueryStatsResponse
 	s.access.Lock()
 	defer s.access.Unlock()
-	if request.Regexp {
+	if len(request.Patterns) == 0 {
+		for name, counter := range s.counters {
+			var value int64
+			if request.Reset_ {
+				value = counter.Swap(0)
+			} else {
+				value = counter.Load()
+			}
+			response.Stat = append(response.Stat, &Stat{Name: name, Value: value})
+		}
+	} else if request.Regexp {
 		matchers := make([]*regexp.Regexp, 0, len(request.Patterns))
 		for _, pattern := range request.Patterns {
 			matcher, err := regexp.Compile(pattern)
@@ -182,13 +192,12 @@ func (s *StatsService) mustEmbedUnimplementedStatsServiceServer() {
 }
 
 //nolint:staticcheck
-func (s *StatsService) loadOrCreateCounter(name string, counter *atomic.Int64) *atomic.Int64 {
+func (s *StatsService) loadOrCreateCounter(name string) *atomic.Int64 {
 	counter, loaded := s.counters[name]
-	if !loaded {
-		if counter == nil {
-			counter = atomic.NewInt64(0)
-		}
-		s.counters[name] = counter
+	if loaded {
+		return counter
 	}
+	counter = atomic.NewInt64(0)
+	s.counters[name] = counter
 	return counter
 }
