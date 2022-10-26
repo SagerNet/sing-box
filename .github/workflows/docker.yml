@@ -37,7 +37,7 @@ jobs:
       - name: Build and release Docker images
         uses: docker/build-push-action@v2
         with:
-          platforms: linux/386,linux/amd64
+          platforms: linux/386,linux/amd64,linux/arm64,linux/s390x
           target: dist
           tags: ${{ steps.tag.outputs.tag }}
           push: true
