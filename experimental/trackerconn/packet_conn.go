@@ -8,7 +8,7 @@ import (
 	"go.uber.org/atomic"
 )
 
-func NewPacket(conn N.PacketConn, readCounter *atomic.Int64, writeCounter *atomic.Int64) *PacketConn {
+func NewPacket(conn N.PacketConn, readCounter []*atomic.Int64, writeCounter []*atomic.Int64) *PacketConn {
 	return &PacketConn{conn, readCounter, writeCounter}
 }
 
@@ -18,14 +18,16 @@ func NewHookPacket(conn N.PacketConn, readCounter func(n int64), writeCounter fu
 
 type PacketConn struct {
 	N.PacketConn
-	readCounter  *atomic.Int64
-	writeCounter *atomic.Int64
+	readCounter  []*atomic.Int64
+	writeCounter []*atomic.Int64
 }
 
 func (c *PacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
 	destination, err = c.PacketConn.ReadPacket(buffer)
 	if err == nil {
-		c.readCounter.Add(int64(buffer.Len()))
+		for _, counter := range c.readCounter {
+			counter.Add(int64(buffer.Len()))
+		}
 	}
 	return
 }
@@ -36,7 +38,9 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 	if err != nil {
 		return err
 	}
-	c.writeCounter.Add(dataLen)
+	for _, counter := range c.writeCounter {
+		counter.Add(dataLen)
+	}
 	return nil
 }
 
