@@ -45,8 +45,15 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 			tag:      tag,
 		},
 	}
+	var reserved [3]uint8
+	if len(options.Reserved) > 0 {
+		if len(options.Reserved) != 3 {
+			return nil, E.New("invalid reserved value, required 3 bytes, got ", len(options.Reserved))
+		}
+		copy(reserved[:], options.Reserved)
+	}
 	peerAddr := options.ServerOptions.Build()
-	outbound.bind = wireguard.NewClientBind(ctx, dialer.New(router, options.DialerOptions), peerAddr)
+	outbound.bind = wireguard.NewClientBind(ctx, dialer.New(router, options.DialerOptions), peerAddr, reserved)
 	localPrefixes := common.Map(options.LocalAddress, option.ListenPrefix.Build)
 	if len(localPrefixes) == 0 {
 		return nil, E.New("missing local address")
