@@ -31,11 +31,11 @@ jobs:
       - name: Get tag to build
         id: tag
         run: |
-          echo ::set-output name=latest::ghcr.io/sagernet/sing-box:latest
+          echo "latest=ghcr.io/sagernet/sing-box:latest" >> $GITHUB_OUTPUT
           if [[ -z "${{ github.event.inputs.tag }}" ]]; then
-            echo ::set-output name=versioned::ghcr.io/sagernet/sing-box:${{ github.ref_name }}
+            echo "versioned=ghcr.io/sagernet/sing-box:${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo ::set-output name=versioned::ghcr.io/sagernet/sing-box:${{ github.event.inputs.tag }}
+            echo "versioned=ghcr.io/sagernet/sing-box:${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
           fi
       - name: Build and release Docker images
         uses: docker/build-push-action@v2
