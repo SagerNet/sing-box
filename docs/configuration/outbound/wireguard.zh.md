@@ -15,6 +15,7 @@
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
   "peer_public_key": "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=",
   "pre_shared_key": "31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=",
+  "reserved": [0, 0, 0],
   "mtu": 1408,
   "network": "tcp",
 
@@ -84,6 +85,10 @@ WireGuard 对等公钥。
 #### pre_shared_key
 
 WireGuard 预共享密钥。
+
+#### reserved
+
+WireGuard 保留字段字节。
 
 #### mtu
 

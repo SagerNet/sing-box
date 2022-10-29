@@ -1,12 +1,13 @@
 #### 1.1-beta11
 
+* Add option for custom wireguard reserved bytes
 * Fix shadowtls v2
 * Fix h3 dns transport
 * Fix copy pipe
-
-#### 1.0.7
-
-* Fix copy pipe
+* Fix decrypt xplus packet
+* Fix v2ray api
+* Suppress no network error
+* Improve local dns transport
 
 #### 1.1-beta10
 
