@@ -15,6 +15,7 @@
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
   "peer_public_key": "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=",
   "pre_shared_key": "31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=",
+  "reserved": [0, 0, 0],
   "mtu": 1408,
   "network": "tcp",
 
@@ -82,6 +83,10 @@ WireGuard peer public key.
 #### pre_shared_key
 
 WireGuard pre-shared key.
+
+#### reserved
+
+WireGuard reserved field bytes.
 
 #### mtu
 
