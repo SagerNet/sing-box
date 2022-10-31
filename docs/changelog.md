@@ -1,3 +1,9 @@
+#### 1.1-beta12
+
+* Fix uTLS config
+* Update quic-go to v0.30.0
+* Update cloudflare-tls to go1.18.7
+
 #### 1.1-beta11
 
 * Add option for custom wireguard reserved bytes
