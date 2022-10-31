@@ -139,6 +139,7 @@ func TestShadowTLSv2Fallback(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
+					Version:  2,
 					Password: "hello",
 				},
 			},
@@ -155,6 +156,7 @@ func TestShadowTLSv2Fallback(t *testing.T) {
 	response, err := client.Get("https://google.com")
 	require.NoError(t, err)
 	require.Equal(t, response.StatusCode, 200)
+	response.Body.Close()
 	client.CloseIdleConnections()
 }
 
@@ -262,25 +264,6 @@ func TestShadowTLSOutbound(t *testing.T) {
 				},
 			},
 			{
-				Type: C.TypeShadowTLS,
-				Tag:  "in",
-				ShadowTLSOptions: option.ShadowTLSInboundOptions{
-					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
-						ListenPort: serverPort,
-						Detour:     "detour",
-					},
-					Handshake: option.ShadowTLSHandshakeOptions{
-						ServerOptions: option.ServerOptions{
-							Server:     "google.com",
-							ServerPort: 443,
-						},
-					},
-					Version:  2,
-					Password: password,
-				},
-			},
-			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
@@ -319,6 +302,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Enabled:    true,
 						ServerName: "google.com",
 					},
+					Version:  2,
 					Password: "hello",
 				},
 			},
