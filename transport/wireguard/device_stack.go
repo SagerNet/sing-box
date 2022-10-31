@@ -201,7 +201,6 @@ func (w *StackDevice) Close() error {
 		endpoint.Abort()
 	}
 	w.stack.Wait()
-	close(w.outbound)
 	return nil
 }
 
@@ -246,7 +245,12 @@ func (ep *wireEndpoint) AddHeader(buffer *stack.PacketBuffer) {
 func (ep *wireEndpoint) WritePackets(list stack.PacketBufferList) (int, tcpip.Error) {
 	for _, packetBuffer := range list.AsSlice() {
 		packetBuffer.IncRef()
-		ep.outbound <- packetBuffer
+		select {
+		case ep.outbound <- packetBuffer:
+		case <-ep.events:
+			packetBuffer.DecRef()
+			return 0, &tcpip.ErrClosedForSend{}
+		}
 	}
 	return list.Len(), nil
 }
