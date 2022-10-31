@@ -11,9 +11,9 @@ import (
 	"net/netip"
 	"os"
 
+	cftls "github.com/sagernet/cloudflare-tls"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	cftls "github.com/sagernet/sing-box/transport/cloudflaretls"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 
