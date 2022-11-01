@@ -14,7 +14,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	utls "github.com/refraction-networking/utls"
-	"context"
 )
 
 type utlsClientConfig struct {
@@ -40,10 +39,6 @@ func (e *utlsClientConfig) Client(conn net.Conn) Conn {
 
 type utlsConnWrapper struct {
 	*utls.UConn
-}
-
-func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
-	return c.UConn.HandshakeContext(ctx)
 }
 
 func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
