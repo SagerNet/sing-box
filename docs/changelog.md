@@ -1,3 +1,9 @@
+#### 1.1-beta13
+
+* Split bind_address into ipv4 and ipv6
+* Fix WireGuard outbound panic when close
+* Fix macOS Ventura process name match
+
 #### 1.1-beta12
 
 * Fix uTLS config

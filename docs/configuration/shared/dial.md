@@ -4,7 +4,8 @@
 {
   "detour": "upstream-out",
   "bind_interface": "en0",
-  "bind_address": "0.0.0.0",
+  "inet4_bind_address": "0.0.0.0",
+  "inet6_bind_address": "::",
   "routing_mark": 1234,
   "reuse_addr": false,
   "connect_timeout": "5s",
@@ -17,9 +18,9 @@
 
 ### Fields
 
-| Field                                                                                                               | Available Context |
-|---------------------------------------------------------------------------------------------------------------------|-------------------|
-| `bind_interface` /`bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open`/ `udp_fragment` /`connect_timeout` | `detour` not set  |
+| Field                                                                                                                | Available Context |
+|----------------------------------------------------------------------------------------------------------------------|-------------------|
+| `bind_interface` /`*bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open`/ `udp_fragment` /`connect_timeout` | `detour` not set  |
 
 #### detour
 
@@ -29,9 +30,13 @@ The tag of the upstream outbound.
 
 The network interface to bind to.
 
-#### bind_address
+#### inet4_bind_address
 
-The address to bind to.
+The IPv4 address to bind to.
+
+#### inet6_bind_address
+
+The IPv6 address to bind to.
 
 #### routing_mark
 
