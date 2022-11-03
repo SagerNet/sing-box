@@ -122,7 +122,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 type DialerOptions struct {
 	Detour             string         `json:"detour,omitempty"`
 	BindInterface      string         `json:"bind_interface,omitempty"`
-	BindAddress        *ListenAddress `json:"bind_address,omitempty"`
+	Inet4BindAddress   *ListenAddress `json:"inet4_bind_address,omitempty"`
+	Inet6BindAddress   *ListenAddress `json:"inet6_bind_address,omitempty"`
 	ProtectPath        string         `json:"protect_path,omitempty"`
 	RoutingMark        int            `json:"routing_mark,omitempty"`
 	ReuseAddr          bool           `json:"reuse_addr,omitempty"`
