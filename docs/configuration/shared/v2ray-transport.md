@@ -126,10 +126,15 @@ It needs to be consistent with the server.
 ```json
 {
   "type": "grpc",
-  "service_name": "TunService"
+  "service_name": "TunService",
+  "force_lite": true
 }
 ```
 
 #### service_name
 
 Service name of gRPC.
+
+#### force_lite
+
+Force the use of gun-lite as gRPC transport implementation, even though the standard gRPC is included.

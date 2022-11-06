@@ -125,10 +125,15 @@ HTTP 请求的额外标头。
 ```json
 {
   "type": "grpc",
-  "service_name": "TunService"
+  "service_name": "TunService",
+  "force_lite": true
 }
 ```
 
 #### service_name
 
 gRPC 服务名称。
+
+#### force_lite
+
+强制使用 gun-lite 作为 gRPC 传输层实现，即使包含标准 gRPC。
