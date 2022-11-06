@@ -21,7 +21,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var _ adapter.Outbound = (*SSH)(nil)
+var (
+	_ adapter.Outbound                = (*SSH)(nil)
+	_ adapter.InterfaceUpdateListener = (*SSH)(nil)
+)
 
 type SSH struct {
 	myOutboundAdapter
@@ -147,6 +150,11 @@ func (s *SSH) connect() (*ssh.Client, error) {
 	}()
 
 	return client, nil
+}
+
+func (s *SSH) InterfaceUpdated() error {
+	common.Close(s.clientConn)
+	return nil
 }
 
 func (s *SSH) Close() error {

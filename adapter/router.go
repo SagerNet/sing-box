@@ -60,3 +60,7 @@ type DNSRule interface {
 	Rule
 	DisableCache() bool
 }
+
+type InterfaceUpdateListener interface {
+	InterfaceUpdated() error
+}

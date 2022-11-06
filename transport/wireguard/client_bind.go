@@ -100,6 +100,12 @@ func (c *ClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
 	return
 }
 
+func (c *ClientBind) Reset() {
+	c.connAccess.Lock()
+	defer c.connAccess.Unlock()
+	common.Close(common.PtrOrNil(c.conn))
+}
+
 func (c *ClientBind) Close() error {
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()

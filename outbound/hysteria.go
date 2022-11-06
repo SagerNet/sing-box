@@ -23,7 +23,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.Outbound = (*Hysteria)(nil)
+var (
+	_ adapter.Outbound                = (*Hysteria)(nil)
+	_ adapter.InterfaceUpdateListener = (*Hysteria)(nil)
+)
 
 type Hysteria struct {
 	myOutboundAdapter
@@ -234,6 +237,11 @@ func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
 		}
 		h.udpAccess.RUnlock()
 	}
+}
+
+func (h *Hysteria) InterfaceUpdated() error {
+	h.Close()
+	return nil
 }
 
 func (h *Hysteria) Close() error {
