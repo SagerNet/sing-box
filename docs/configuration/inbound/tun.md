@@ -93,15 +93,22 @@ Set the default route to the Tun.
 
 #### strict_route
 
-*In Linux*:
-
 Enforce strict routing rules when `auto_route` is enabled:
+
+*In Linux*:
 
 * Let unsupported network unreachable
 * Route all connections to tun
 
 It prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will
 not be accessible by others.
+
+*In Windows*:
+
+* Add firewall rules to prevent DNS leak caused by
+  Windows' [ordinary multihomed DNS resolution behavior](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
+
+It may prevent some applications (such as VirtualBox) from working properly in certain situations.
 
 #### inet4_route_address
 
