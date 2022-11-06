@@ -26,7 +26,10 @@ import (
 	"golang.zx2c4.com/wireguard/device"
 )
 
-var _ adapter.Outbound = (*WireGuard)(nil)
+var (
+	_ adapter.Outbound                = (*WireGuard)(nil)
+	_ adapter.InterfaceUpdateListener = (*WireGuard)(nil)
+)
 
 type WireGuard struct {
 	myOutboundAdapter
@@ -132,6 +135,11 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	outbound.device = wgDevice
 	outbound.tunDevice = wireTunDevice
 	return outbound, nil
+}
+
+func (w *WireGuard) InterfaceUpdated() error {
+	w.bind.Reset()
+	return nil
 }
 
 func (w *WireGuard) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

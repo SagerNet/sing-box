@@ -262,20 +262,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		if err != nil {
 			return nil, E.New("auto_detect_interface unsupported on current platform")
 		}
-		interfaceMonitor.RegisterCallback(func(event int) error {
-			if C.IsAndroid {
-				var vpnStatus string
-				if router.interfaceMonitor.AndroidVPNEnabled() {
-					vpnStatus = "enabled"
-				} else {
-					vpnStatus = "disabled"
-				}
-				router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
-			} else {
-				router.logger.Info("updated default interface ", router.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", router.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
-			}
-			return nil
-		})
+		interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
 		router.interfaceMonitor = interfaceMonitor
 	}
 
@@ -1013,4 +1000,29 @@ func (r *Router) NewError(ctx context.Context, err error) {
 		return
 	}
 	r.logger.ErrorContext(ctx, err)
+}
+
+func (r *Router) notifyNetworkUpdate(int) error {
+	if C.IsAndroid {
+		var vpnStatus string
+		if r.interfaceMonitor.AndroidVPNEnabled() {
+			vpnStatus = "enabled"
+		} else {
+			vpnStatus = "disabled"
+		}
+		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+	} else {
+		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+	}
+
+	for _, outbound := range r.outbounds {
+		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
+		if isListener {
+			err := listener.InterfaceUpdated()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
