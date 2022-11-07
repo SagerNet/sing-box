@@ -13,7 +13,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
-	wgTun "golang.zx2c4.com/wireguard/tun"
+	wgTun "github.com/sagernet/wireguard-go/tun"
 )
 
 var _ Device = (*SystemDevice)(nil)

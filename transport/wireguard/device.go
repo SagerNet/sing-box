@@ -3,7 +3,7 @@ package wireguard
 import (
 	N "github.com/sagernet/sing/common/network"
 
-	"golang.zx2c4.com/wireguard/tun"
+	"github.com/sagernet/wireguard-go/tun"
 )
 
 type Device interface {

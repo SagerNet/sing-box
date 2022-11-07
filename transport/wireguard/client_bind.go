@@ -9,7 +9,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
-	"golang.zx2c4.com/wireguard/conn"
+	"github.com/sagernet/wireguard-go/conn"
 )
 
 var _ conn.Bind = (*ClientBind)(nil)

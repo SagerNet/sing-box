@@ -23,7 +23,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
-	"golang.zx2c4.com/wireguard/device"
+	"github.com/sagernet/wireguard-go/device"
 )
 
 var (
@@ -124,7 +124,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		Errorf: func(format string, args ...interface{}) {
 			logger.Error(fmt.Sprintf(strings.ToLower(format), args...))
 		},
-	})
+	}, options.Workers)
 	if debug.Enabled {
 		logger.Trace("created wireguard ipc conf: \n", ipcConf)
 	}

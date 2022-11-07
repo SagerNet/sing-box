@@ -16,6 +16,7 @@
   "peer_public_key": "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=",
   "pre_shared_key": "31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=",
   "reserved": [0, 0, 0],
+  "workers": 4,
   "mtu": 1408,
   "network": "tcp",
 
@@ -88,9 +89,17 @@ WireGuard pre-shared key.
 
 WireGuard reserved field bytes.
 
+#### workers
+
+WireGuard worker count.
+
+CPU count is used by default.
+
 #### mtu
 
-WireGuard MTU. 1408 will be used if empty.
+WireGuard MTU.
+
+1408 will be used if empty.
 
 #### network
 

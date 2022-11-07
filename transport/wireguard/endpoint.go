@@ -5,7 +5,7 @@ import (
 
 	M "github.com/sagernet/sing/common/metadata"
 
-	"golang.zx2c4.com/wireguard/conn"
+	"github.com/sagernet/wireguard-go/conn"
 )
 
 var _ conn.Endpoint = (*Endpoint)(nil)
