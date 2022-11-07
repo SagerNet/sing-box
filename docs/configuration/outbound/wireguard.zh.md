@@ -16,6 +16,7 @@
   "peer_public_key": "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=",
   "pre_shared_key": "31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=",
   "reserved": [0, 0, 0],
+  "workers": 4,
   "mtu": 1408,
   "network": "tcp",
 
@@ -90,9 +91,17 @@ WireGuard 预共享密钥。
 
 WireGuard 保留字段字节。
 
+#### workers
+
+WireGuard worker 数量。
+
+默认使用 CPU 数量。
+
 #### mtu
 
-WireGuard MTU。 默认1408。
+WireGuard MTU。
+
+默认使用 1408。
 
 #### network
 

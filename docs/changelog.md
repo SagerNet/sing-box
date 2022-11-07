@@ -1,9 +1,10 @@
 #### 1.1-beta13
 
+* Add custom worker count option for WireGuard outbound
 * Split bind_address into ipv4 and ipv6
+* Move WFP manipulation to strict route
 * Fix WireGuard outbound panic when close
 * Fix macOS Ventura process name match
-* Move WFP manipulation to strict route
 
 #### 1.1-beta12
 
@@ -65,7 +66,8 @@ The `strict_route` on windows is removed.
 
 **2**:
 
-See [ShadowTLS inbound](/configuration/inbound/shadowtls#version) and [ShadowTLS outbound](/configuration/outbound/shadowtls#version)
+See [ShadowTLS inbound](/configuration/inbound/shadowtls#version)
+and [ShadowTLS outbound](/configuration/outbound/shadowtls#version)
 
 #### 1.1-beta8
 
