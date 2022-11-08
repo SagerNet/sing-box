@@ -43,7 +43,7 @@ func ParseProtocol(name string) (Protocol, error) {
 func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 	switch p {
 	case ProtocolSMux:
-		session, err := smux.Server(conn, nil)
+		session, err := smux.Server(conn, smuxConfig())
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
 	switch p {
 	case ProtocolSMux:
-		session, err := smux.Client(conn, nil)
+		session, err := smux.Client(conn, smuxConfig())
 		if err != nil {
 			return nil, err
 		}
@@ -68,6 +68,12 @@ func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
 	default:
 		panic("unknown protocol")
 	}
+}
+
+func smuxConfig() *smux.Config {
+	config := smux.DefaultConfig()
+	config.KeepAliveDisabled = true
+	return config
 }
 
 func yaMuxConfig() *yamux.Config {
