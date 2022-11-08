@@ -5,6 +5,8 @@
 * Move WFP manipulation to strict route
 * Fix WireGuard outbound panic when close
 * Fix macOS Ventura process name match
+* Fix QUIC connection migration by @HyNetwork
+* Fix handling QUIC client SNI by @HyNetwork
 
 #### 1.1-beta12
 
