@@ -12,7 +12,7 @@ body:
           required: true
         - label: Yes, I've searched similar issues on GitHub and didn't find any.
           required: true
-        - label: Yes, I've included all information below (version, config, log, etc).
+        - label: Yes, I've included all information below (version, **FULL** config, **FULL** log, etc).
           required: true
 
   - type: textarea
