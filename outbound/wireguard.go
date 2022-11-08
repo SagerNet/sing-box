@@ -22,7 +22,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
 	"github.com/sagernet/wireguard-go/device"
 )
 

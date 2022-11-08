@@ -4,7 +4,6 @@ import (
 	"net/netip"
 
 	M "github.com/sagernet/sing/common/metadata"
-
 	"github.com/sagernet/wireguard-go/conn"
 )
 
