@@ -22,7 +22,7 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/refraction-networking/utls v1.1.5
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
-	github.com/sagernet/quic-go v0.0.0-20221031051350-29d8bb1c8127
+	github.com/sagernet/quic-go v0.0.0-20221108053023-645bcc4f9b15
 	github.com/sagernet/sing v0.0.0-20221008120626-60a9910eefe4
 	github.com/sagernet/sing-dns v0.0.0-20221031055845-7de76401d403
 	github.com/sagernet/sing-shadowsocks v0.0.0-20220819002358-7461bb09a8f6
@@ -38,7 +38,7 @@ require (
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/crypto v0.1.1-0.20221024173537-a3485e174077
 	golang.org/x/net v0.1.1-0.20221102181756-a1278a7f7ee0
-	golang.org/x/sys v0.1.1-0.20221102194838-fc697a31fa06
+	golang.org/x/sys v0.2.0
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
