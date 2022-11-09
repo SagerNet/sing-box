@@ -1,3 +1,16 @@
+#### 1.1-beta14
+
+* Add multi-user support for hysteria inbound **1**
+* Add custom tls client support for std grpc
+* Fix smux keep alive
+* Fix vmess request buffer
+* Fix default local DNS server behavior
+* Fix h2c transport
+
+*1*:
+
+The `auth` and `auth_str` fields have been replaced by the `users` field.
+
 #### 1.1-beta13
 
 * Add custom worker count option for WireGuard outbound

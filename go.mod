@@ -36,8 +36,9 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
-	golang.org/x/crypto v0.1.1-0.20221024173537-a3485e174077
-	golang.org/x/net v0.1.1-0.20221102181756-a1278a7f7ee0
+	golang.org/x/crypto v0.2.0
+	golang.org/x/exp v0.0.0-20221028150844-83b7d23a625f
+	golang.org/x/net v0.2.0
 	golang.org/x/sys v0.2.0
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
@@ -68,7 +69,6 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
-	golang.org/x/exp v0.0.0-20221028150844-83b7d23a625f // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
