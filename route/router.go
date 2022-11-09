@@ -234,7 +234,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 	if defaultTransport == nil {
 		if len(transports) == 0 {
-			transports = append(transports, dns.NewLocalTransport(dialer.NewRouter(router)))
+			transports = append(transports, dns.NewLocalTransport(N.SystemDialer))
 		}
 		defaultTransport = transports[0]
 	}
