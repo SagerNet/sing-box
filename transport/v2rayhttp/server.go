@@ -18,6 +18,7 @@ import (
 	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -27,6 +28,8 @@ type Server struct {
 	handler      N.TCPConnectionHandler
 	errorHandler E.Handler
 	httpServer   *http.Server
+	h2Server     *http2.Server
+	h2cHandler   http.Handler
 	host         []string
 	path         string
 	method       string
@@ -42,6 +45,7 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		ctx:          ctx,
 		handler:      handler,
 		errorHandler: errorHandler,
+		h2Server:     new(http2.Server),
 		host:         options.Host,
 		path:         options.Path,
 		method:       options.Method,
@@ -61,6 +65,7 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
 	}
+	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
 	if tlsConfig != nil {
 		stdConfig, err := tlsConfig.Config()
 		if err != nil {
@@ -72,6 +77,10 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 }
 
 func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == "PRI" && len(request.Header) == 0 && request.URL.Path == "*" && request.Proto == "HTTP/2.0" {
+		s.h2cHandler.ServeHTTP(writer, request)
+		return
+	}
 	host := request.Host
 	if len(s.host) > 0 && !common.Contains(s.host, host) {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -124,13 +133,13 @@ func (s *Server) badRequest(request *http.Request, err error) {
 }
 
 func (s *Server) Serve(listener net.Listener) error {
+	err := http2.ConfigureServer(s.httpServer, s.h2Server)
+	if err != nil {
+		return err
+	}
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
 	} else {
-		err := http2.ConfigureServer(s.httpServer, &http2.Server{})
-		if err != nil {
-			return err
-		}
 		return s.httpServer.ServeTLS(listener, "", "")
 	}
 }
