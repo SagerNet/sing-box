@@ -19,6 +19,7 @@ import (
 	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -27,6 +28,8 @@ type Server struct {
 	handler      N.TCPConnectionHandler
 	errorHandler E.Handler
 	httpServer   *http.Server
+	h2Server     *http2.Server
+	h2cHandler   http.Handler
 	path         string
 }
 
@@ -39,10 +42,12 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 		handler:      handler,
 		errorHandler: errorHandler,
 		path:         fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
+		h2Server:     new(http2.Server),
 	}
 	server.httpServer = &http.Server{
 		Handler: server,
 	}
+	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
 	if tlsConfig != nil {
 		stdConfig, err := tlsConfig.Config()
 		if err != nil {
@@ -57,7 +62,12 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 }
 
 func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == "PRI" && len(request.Header) == 0 && request.URL.Path == "*" && request.Proto == "HTTP/2.0" {
+		s.h2cHandler.ServeHTTP(writer, request)
+		return
+	}
 	if request.URL.Path != s.path {
+		request.Write(os.Stdout)
 		writer.WriteHeader(http.StatusNotFound)
 		s.badRequest(request, E.New("bad path: ", request.URL.Path))
 		return
@@ -86,13 +96,13 @@ func (s *Server) badRequest(request *http.Request, err error) {
 }
 
 func (s *Server) Serve(listener net.Listener) error {
+	err := http2.ConfigureServer(s.httpServer, s.h2Server)
+	if err != nil {
+		return err
+	}
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
 	} else {
-		err := http2.ConfigureServer(s.httpServer, &http2.Server{})
-		if err != nil {
-			return err
-		}
 		return s.httpServer.ServeTLS(listener, "", "")
 	}
 }
