@@ -12,8 +12,15 @@
   "down": "100 Mbps",
   "down_mbps": 100,
   "obfs": "fuck me till the daylight",
-  "auth": "",
-  "auth_str": "password",
+
+  "users": [
+    {
+      "name": "sekai",
+      "auth": "",
+      "auth_str": "password"
+    }
+  ],
+
   "recv_window_conn": 0,
   "recv_window_client": 0,
   "max_conn_client": 0,
@@ -61,11 +68,19 @@
 
 混淆密码。
 
-#### auth
+#### users
+
+Hysteria 用户
+
+#### users.auth
+
+==与 auth_str 必填一个==
 
 base64 编码的认证密码。
 
-#### auth_str
+#### users.auth_str
+
+==与 auth 必填一个==
 
 认证密码。
 

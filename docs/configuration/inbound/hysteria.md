@@ -12,8 +12,15 @@
   "down": "100 Mbps",
   "down_mbps": 100,
   "obfs": "fuck me till the daylight",
-  "auth": "",
-  "auth_str": "password",
+
+  "users": [
+    {
+      "name": "sekai",
+      "auth": "",
+      "auth_str": "password"
+    }
+  ],
+  
   "recv_window_conn": 0,
   "recv_window_client": 0,
   "max_conn_client": 0,
@@ -61,11 +68,19 @@ Supported units (case sensitive, b = bits, B = bytes, 8b=1B):
 
 Obfuscated password.
 
-#### auth
+#### users
+
+Hysteria users
+
+#### users.auth
+
+==Required if `auth_str` is empty==
 
 Authentication password, in base64.
 
-#### auth_str
+#### users.auth_str
+
+==Required if `auth` is empty==
 
 Authentication password.
 
