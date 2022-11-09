@@ -15,6 +15,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+var errInsecureUnused = E.New("tls: insecure unused")
+
 type STDServerConfig struct {
 	config          *tls.Config
 	logger          log.Logger
@@ -26,6 +28,14 @@ type STDServerConfig struct {
 	watcher         *fsnotify.Watcher
 }
 
+func (c *STDServerConfig) ServerName() string {
+	return c.config.ServerName
+}
+
+func (c *STDServerConfig) SetServerName(serverName string) {
+	c.config.ServerName = serverName
+}
+
 func (c *STDServerConfig) NextProtos() []string {
 	return c.config.NextProtos
 }
@@ -34,9 +44,119 @@ func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
-var errInsecureUnused = E.New("tls: insecure unused")
+func (c *STDServerConfig) Config() (*STDConfig, error) {
+	return c.config, nil
+}
 
-func newSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+func (c *STDServerConfig) Client(conn net.Conn) Conn {
+	return tls.Client(conn, c.config)
+}
+
+func (c *STDServerConfig) Server(conn net.Conn) Conn {
+	return tls.Server(conn, c.config)
+}
+
+func (c *STDServerConfig) Clone() Config {
+	return &STDServerConfig{
+		config: c.config.Clone(),
+	}
+}
+
+func (c *STDServerConfig) Start() error {
+	if c.acmeService != nil {
+		return c.acmeService.Start()
+	} else {
+		if c.certificatePath == "" && c.keyPath == "" {
+			return nil
+		}
+		err := c.startWatcher()
+		if err != nil {
+			c.logger.Warn("create fsnotify watcher: ", err)
+		}
+		return nil
+	}
+}
+
+func (c *STDServerConfig) startWatcher() error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	if c.certificatePath != "" {
+		err = watcher.Add(c.certificatePath)
+		if err != nil {
+			return err
+		}
+	}
+	if c.keyPath != "" {
+		err = watcher.Add(c.keyPath)
+		if err != nil {
+			return err
+		}
+	}
+	c.watcher = watcher
+	go c.loopUpdate()
+	return nil
+}
+
+func (c *STDServerConfig) loopUpdate() {
+	for {
+		select {
+		case event, ok := <-c.watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&fsnotify.Write != fsnotify.Write {
+				continue
+			}
+			err := c.reloadKeyPair()
+			if err != nil {
+				c.logger.Error(E.Cause(err, "reload TLS key pair"))
+			}
+		case err, ok := <-c.watcher.Errors:
+			if !ok {
+				return
+			}
+			c.logger.Error(E.Cause(err, "fsnotify error"))
+		}
+	}
+}
+
+func (c *STDServerConfig) reloadKeyPair() error {
+	if c.certificatePath != "" {
+		certificate, err := os.ReadFile(c.certificatePath)
+		if err != nil {
+			return E.Cause(err, "reload certificate from ", c.certificatePath)
+		}
+		c.certificate = certificate
+	}
+	if c.keyPath != "" {
+		key, err := os.ReadFile(c.keyPath)
+		if err != nil {
+			return E.Cause(err, "reload key from ", c.keyPath)
+		}
+		c.key = key
+	}
+	keyPair, err := tls.X509KeyPair(c.certificate, c.key)
+	if err != nil {
+		return E.Cause(err, "reload key pair")
+	}
+	c.config.Certificates = []tls.Certificate{keyPair}
+	c.logger.Info("reloaded TLS certificate")
+	return nil
+}
+
+func (c *STDServerConfig) Close() error {
+	if c.acmeService != nil {
+		return c.acmeService.Close()
+	}
+	if c.watcher != nil {
+		return c.watcher.Close()
+	}
+	return nil
+}
+
+func NewSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
@@ -135,110 +255,4 @@ func newSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		certificatePath: options.CertificatePath,
 		keyPath:         options.KeyPath,
 	}, nil
-}
-
-func (c *STDServerConfig) Config() (*STDConfig, error) {
-	return c.config, nil
-}
-
-func (c *STDServerConfig) Client(conn net.Conn) Conn {
-	return tls.Client(conn, c.config)
-}
-
-func (c *STDServerConfig) Server(conn net.Conn) Conn {
-	return tls.Server(conn, c.config)
-}
-
-func (c *STDServerConfig) Start() error {
-	if c.acmeService != nil {
-		return c.acmeService.Start()
-	} else {
-		if c.certificatePath == "" && c.keyPath == "" {
-			return nil
-		}
-		err := c.startWatcher()
-		if err != nil {
-			c.logger.Warn("create fsnotify watcher: ", err)
-		}
-		return nil
-	}
-}
-
-func (c *STDServerConfig) startWatcher() error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	if c.certificatePath != "" {
-		err = watcher.Add(c.certificatePath)
-		if err != nil {
-			return err
-		}
-	}
-	if c.keyPath != "" {
-		err = watcher.Add(c.keyPath)
-		if err != nil {
-			return err
-		}
-	}
-	c.watcher = watcher
-	go c.loopUpdate()
-	return nil
-}
-
-func (c *STDServerConfig) loopUpdate() {
-	for {
-		select {
-		case event, ok := <-c.watcher.Events:
-			if !ok {
-				return
-			}
-			if event.Op&fsnotify.Write != fsnotify.Write {
-				continue
-			}
-			err := c.reloadKeyPair()
-			if err != nil {
-				c.logger.Error(E.Cause(err, "reload TLS key pair"))
-			}
-		case err, ok := <-c.watcher.Errors:
-			if !ok {
-				return
-			}
-			c.logger.Error(E.Cause(err, "fsnotify error"))
-		}
-	}
-}
-
-func (c *STDServerConfig) reloadKeyPair() error {
-	if c.certificatePath != "" {
-		certificate, err := os.ReadFile(c.certificatePath)
-		if err != nil {
-			return E.Cause(err, "reload certificate from ", c.certificatePath)
-		}
-		c.certificate = certificate
-	}
-	if c.keyPath != "" {
-		key, err := os.ReadFile(c.keyPath)
-		if err != nil {
-			return E.Cause(err, "reload key from ", c.keyPath)
-		}
-		c.key = key
-	}
-	keyPair, err := tls.X509KeyPair(c.certificate, c.key)
-	if err != nil {
-		return E.Cause(err, "reload key pair")
-	}
-	c.config.Certificates = []tls.Certificate{keyPair}
-	c.logger.Info("reloaded TLS certificate")
-	return nil
-}
-
-func (c *STDServerConfig) Close() error {
-	if c.acmeService != nil {
-		return c.acmeService.Close()
-	}
-	if c.watcher != nil {
-		return c.watcher.Close()
-	}
-	return nil
 }

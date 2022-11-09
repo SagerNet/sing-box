@@ -14,7 +14,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewGRPCServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+func NewGRPCServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 	return v2raygrpclite.NewServer(ctx, options, tlsConfig, handler, errorHandler)
 }
 

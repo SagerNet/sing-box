@@ -23,7 +23,7 @@ func init() {
 		return nil, C.ErrQUICNotIncluded
 	})
 	v2ray.RegisterQUICConstructor(
-		func(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+		func(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 			return nil, C.ErrQUICNotIncluded
 		},
 		func(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {

@@ -24,11 +24,11 @@ func NewDialerFromOptions(router adapter.Router, dialer N.Dialer, serverAddress 
 
 func NewClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	if options.ECH != nil && options.ECH.Enabled {
-		return newECHClient(router, serverAddress, options)
+		return NewECHClient(router, serverAddress, options)
 	} else if options.UTLS != nil && options.UTLS.Enabled {
-		return newUTLSClient(router, serverAddress, options)
+		return NewUTLSClient(router, serverAddress, options)
 	} else {
-		return newStdClient(serverAddress, options)
+		return NewSTDClient(serverAddress, options)
 	}
 }
 
