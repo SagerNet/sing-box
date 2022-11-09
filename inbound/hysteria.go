@@ -3,7 +3,6 @@
 package inbound
 
 import (
-	"bytes"
 	"context"
 	"sync"
 
@@ -16,9 +15,13 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/exp/slices"
 )
 
 var _ adapter.Inbound = (*Hysteria)(nil)
@@ -27,7 +30,8 @@ type Hysteria struct {
 	myInboundAdapter
 	quicConfig   *quic.Config
 	tlsConfig    tls.ServerConfig
-	authKey      []byte
+	authKey      []string
+	authUser     []string
 	xplusKey     []byte
 	sendBPS      uint64
 	recvBPS      uint64
@@ -60,12 +64,16 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	if quicConfig.MaxIncomingStreams == 0 {
 		quicConfig.MaxIncomingStreams = hysteria.DefaultMaxIncomingStreams
 	}
-	var auth []byte
-	if len(options.Auth) > 0 {
-		auth = options.Auth
-	} else {
-		auth = []byte(options.AuthString)
-	}
+	authKey := common.Map(options.Users, func(it option.HysteriaUser) string {
+		if len(it.Auth) > 0 {
+			return string(it.Auth)
+		} else {
+			return it.AuthString
+		}
+	})
+	authUser := common.Map(options.Users, func(it option.HysteriaUser) string {
+		return it.Name
+	})
 	var xplus []byte
 	if options.Obfs != "" {
 		xplus = []byte(options.Obfs)
@@ -104,7 +112,8 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			listenOptions: options.ListenOptions,
 		},
 		quicConfig:  quicConfig,
-		authKey:     auth,
+		authKey:     authKey,
+		authUser:    authUser,
 		xplusKey:    xplus,
 		sendBPS:     up,
 		recvBPS:     down,
@@ -158,7 +167,6 @@ func (h *Hysteria) acceptLoop() {
 		if err != nil {
 			return
 		}
-		h.logger.InfoContext(ctx, "inbound connection from ", conn.RemoteAddr())
 		go func() {
 			hErr := h.accept(ctx, conn)
 			if hErr != nil {
@@ -178,12 +186,21 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(clientHello.Auth, h.authKey) {
+	userIndex := slices.Index(h.authKey, string(clientHello.Auth))
+	if userIndex == -1 {
 		err = hysteria.WriteServerHello(controlStream, hysteria.ServerHello{
 			Message: "wrong password",
 		})
 		return E.Errors(E.New("wrong password: ", string(clientHello.Auth)), err)
 	}
+	user := h.authUser[userIndex]
+	if user == "" {
+		user = F.ToString(userIndex)
+	} else {
+		ctx = auth.ContextWithUser(ctx, user)
+	}
+	h.logger.InfoContext(ctx, "[", user, "] inbound connection from ", conn.RemoteAddr())
+	h.logger.DebugContext(ctx, "peer send speed: ", clientHello.SendBPS/1024/1024, " MBps, peer recv speed: ", clientHello.RecvBPS/1024/1024, " MBps")
 	if clientHello.SendBPS == 0 || clientHello.RecvBPS == 0 {
 		return E.New("invalid rate from client")
 	}
