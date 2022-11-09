@@ -1,3 +1,13 @@
+#### 1.1-beta15
+
+* Add support for new x/h2 deadline
+* Fix udp connect for mux client
+* Fix dns buffer
+* Fix quic dns retry
+* Fix create TLS Config
+* Fix websocket alpn
+* Fix tor geoip
+
 #### 1.1-beta14
 
 * Add multi-user support for hysteria inbound **1**
