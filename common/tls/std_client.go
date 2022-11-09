@@ -11,11 +11,39 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-type stdClientConfig struct {
+type STDClientConfig struct {
 	config *tls.Config
 }
 
-func newStdClient(serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func (s *STDClientConfig) ServerName() string {
+	return s.config.ServerName
+}
+
+func (s *STDClientConfig) SetServerName(serverName string) {
+	s.config.ServerName = serverName
+}
+
+func (s *STDClientConfig) NextProtos() []string {
+	return s.config.NextProtos
+}
+
+func (s *STDClientConfig) SetNextProtos(nextProto []string) {
+	s.config.NextProtos = nextProto
+}
+
+func (s *STDClientConfig) Config() (*STDConfig, error) {
+	return s.config, nil
+}
+
+func (s *STDClientConfig) Client(conn net.Conn) Conn {
+	return tls.Client(conn, s.config)
+}
+
+func (s *STDClientConfig) Clone() Config {
+	return &STDClientConfig{s.config.Clone()}
+}
+
+func NewSTDClient(serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -96,21 +124,5 @@ func newStdClient(serverAddress string, options option.OutboundTLSOptions) (Conf
 		}
 		tlsConfig.RootCAs = certPool
 	}
-	return &stdClientConfig{&tlsConfig}, nil
-}
-
-func (s *stdClientConfig) NextProtos() []string {
-	return s.config.NextProtos
-}
-
-func (s *stdClientConfig) SetNextProtos(nextProto []string) {
-	s.config.NextProtos = nextProto
-}
-
-func (s *stdClientConfig) Config() (*STDConfig, error) {
-	return s.config, nil
-}
-
-func (s *stdClientConfig) Client(conn net.Conn) Conn {
-	return tls.Client(conn, s.config)
+	return &STDClientConfig{&tlsConfig}, nil
 }

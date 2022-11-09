@@ -20,24 +20,38 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-type echClientConfig struct {
+type ECHClientConfig struct {
 	config *cftls.Config
 }
 
-func (e *echClientConfig) NextProtos() []string {
+func (e *ECHClientConfig) ServerName() string {
+	return e.config.ServerName
+}
+
+func (e *ECHClientConfig) SetServerName(serverName string) {
+	e.config.ServerName = serverName
+}
+
+func (e *ECHClientConfig) NextProtos() []string {
 	return e.config.NextProtos
 }
 
-func (e *echClientConfig) SetNextProtos(nextProto []string) {
+func (e *ECHClientConfig) SetNextProtos(nextProto []string) {
 	e.config.NextProtos = nextProto
 }
 
-func (e *echClientConfig) Config() (*STDConfig, error) {
+func (e *ECHClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for ECH")
 }
 
-func (e *echClientConfig) Client(conn net.Conn) Conn {
+func (e *ECHClientConfig) Client(conn net.Conn) Conn {
 	return &echConnWrapper{cftls.Client(conn, e.config)}
+}
+
+func (e *ECHClientConfig) Clone() Config {
+	return &ECHClientConfig{
+		config: e.config.Clone(),
+	}
 }
 
 type echConnWrapper struct {
@@ -62,7 +76,7 @@ func (c *echConnWrapper) ConnectionState() tls.ConnectionState {
 	}
 }
 
-func newECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -162,7 +176,7 @@ func newECHClient(router adapter.Router, serverAddress string, options option.Ou
 	} else {
 		tlsConfig.GetClientECHConfigs = fetchECHClientConfig(router)
 	}
-	return &echClientConfig{&tlsConfig}, nil
+	return &ECHClientConfig{&tlsConfig}, nil
 }
 
 func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {

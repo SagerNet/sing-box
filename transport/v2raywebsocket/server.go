@@ -34,7 +34,7 @@ type Server struct {
 	earlyDataHeaderName string
 }
 
-func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
+func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
 	server := &Server{
 		ctx:                 ctx,
 		handler:             handler,

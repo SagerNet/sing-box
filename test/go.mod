@@ -61,13 +61,13 @@ require (
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0 // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
-	github.com/sagernet/quic-go v0.0.0-20221031051350-29d8bb1c8127 // indirect
+	github.com/sagernet/quic-go v0.0.0-20221108053023-645bcc4f9b15 // indirect
 	github.com/sagernet/sing-dns v0.0.0-20221031055845-7de76401d403 // indirect
 	github.com/sagernet/sing-tun v0.0.0-20221104121441-66c48a57776f // indirect
-	github.com/sagernet/sing-vmess v0.0.0-20220925083655-063bc85ea685 // indirect
+	github.com/sagernet/sing-vmess v0.0.0-20221109021549-b446d5bdddf0 // indirect
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 // indirect
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e // indirect
-	github.com/sagernet/wireguard-go v0.0.0-20221107074148-ffff5ffac938 // indirect
+	github.com/sagernet/wireguard-go v0.0.0-20221108054404-7c2acadba17c // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
@@ -78,7 +78,7 @@ require (
 	golang.org/x/crypto v0.1.1-0.20221024173537-a3485e174077 // indirect
 	golang.org/x/exp v0.0.0-20221028150844-83b7d23a625f // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/sys v0.1.1-0.20221102194838-fc697a31fa06 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.2.0 // indirect

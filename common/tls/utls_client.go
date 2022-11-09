@@ -16,24 +16,32 @@ import (
 	utls "github.com/refraction-networking/utls"
 )
 
-type utlsClientConfig struct {
+type UTLSClientConfig struct {
 	config *utls.Config
 	id     utls.ClientHelloID
 }
 
-func (e *utlsClientConfig) NextProtos() []string {
+func (e *UTLSClientConfig) ServerName() string {
+	return e.config.ServerName
+}
+
+func (e *UTLSClientConfig) SetServerName(serverName string) {
+	e.config.ServerName = serverName
+}
+
+func (e *UTLSClientConfig) NextProtos() []string {
 	return e.config.NextProtos
 }
 
-func (e *utlsClientConfig) SetNextProtos(nextProto []string) {
+func (e *UTLSClientConfig) SetNextProtos(nextProto []string) {
 	e.config.NextProtos = nextProto
 }
 
-func (e *utlsClientConfig) Config() (*STDConfig, error) {
+func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for uTLS")
 }
 
-func (e *utlsClientConfig) Client(conn net.Conn) Conn {
+func (e *UTLSClientConfig) Client(conn net.Conn) Conn {
 	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}
 }
 
@@ -59,7 +67,14 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 	}
 }
 
-func newUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func (e *UTLSClientConfig) Clone() Config {
+	return &UTLSClientConfig{
+		config: e.config.Clone(),
+		id:     e.id,
+	}
+}
+
+func NewUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -152,5 +167,5 @@ func newUTLSClient(router adapter.Router, serverAddress string, options option.O
 	default:
 		return nil, E.New("unknown uTLS fingerprint: ", options.UTLS.Fingerprint)
 	}
-	return &utlsClientConfig{&tlsConfig, id}, nil
+	return &UTLSClientConfig{&tlsConfig, id}, nil
 }

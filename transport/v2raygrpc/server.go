@@ -13,7 +13,6 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	gM "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
@@ -26,15 +25,11 @@ type Server struct {
 	server  *grpc.Server
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler) (*Server, error) {
+func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler) (*Server, error) {
 	var serverOptions []grpc.ServerOption
 	if tlsConfig != nil {
-		stdConfig, err := tlsConfig.Config()
-		if err != nil {
-			return nil, err
-		}
-		stdConfig.NextProtos = []string{"h2"}
-		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(stdConfig)))
+		tlsConfig.SetNextProtos([]string{"h2"})
+		serverOptions = append(serverOptions, grpc.Creds(NewTLSTransportCredentials(tlsConfig)))
 	}
 	server := &Server{ctx, handler, grpc.NewServer(serverOptions...)}
 	RegisterGunServiceCustomNameServer(server.server, server, options.ServiceName)

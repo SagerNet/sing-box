@@ -15,10 +15,13 @@ type (
 )
 
 type Config interface {
+	ServerName() string
+	SetServerName(serverName string)
 	NextProtos() []string
 	SetNextProtos(nextProto []string)
 	Config() (*STDConfig, error)
 	Client(conn net.Conn) Conn
+	Clone() Config
 }
 
 type ServerConfig interface {

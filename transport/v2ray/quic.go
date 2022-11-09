@@ -22,7 +22,7 @@ func RegisterQUICConstructor(server ServerConstructor[option.V2RayQUICOptions], 
 	quicClientConstructor = client
 }
 
-func NewQUICServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.Config, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+func NewQUICServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
 	if quicServerConstructor == nil {
 		return nil, os.ErrInvalid
 	}

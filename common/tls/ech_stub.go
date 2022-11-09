@@ -8,6 +8,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func newECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	return nil, E.New(`ECH is not included in this build, rebuild with -tags with_ech`)
 }

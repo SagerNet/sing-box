@@ -12,7 +12,7 @@ import (
 )
 
 func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
-	return newSTDServer(ctx, logger, options)
+	return NewSTDServer(ctx, logger, options)
 }
 
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {
