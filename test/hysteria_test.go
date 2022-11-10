@@ -29,10 +29,12 @@ func TestHysteriaSelf(t *testing.T) {
 						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
-					UpMbps:     100,
-					DownMbps:   100,
-					AuthString: "password",
-					Obfs:       "fuck me till the daylight",
+					UpMbps:   100,
+					DownMbps: 100,
+					Users: []option.HysteriaUser{{
+						AuthString: "password",
+					}},
+					Obfs: "fuck me till the daylight",
 					TLS: &option.InboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
@@ -91,10 +93,12 @@ func TestHysteriaInbound(t *testing.T) {
 						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
-					UpMbps:     100,
-					DownMbps:   100,
-					AuthString: "password",
-					Obfs:       "fuck me till the daylight",
+					UpMbps:   100,
+					DownMbps: 100,
+					Users: []option.HysteriaUser{{
+						AuthString: "password",
+					}},
+					Obfs: "fuck me till the daylight",
 					TLS: &option.InboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
