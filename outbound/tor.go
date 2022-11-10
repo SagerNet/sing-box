@@ -41,9 +41,18 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	startConf := newConfig()
 	startConf.DataDir = os.ExpandEnv(options.DataDirectory)
 	startConf.TempDataDirBase = os.TempDir()
+	startConf.ExtraArgs = options.ExtraArgs
+	if options.DataDirectory != "" {
+		dataDirAbs, _ := filepath.Abs(startConf.DataDir)
+		if geoIPPath := filepath.Join(dataDirAbs, "geoip"); rw.FileExists(geoIPPath) && !common.Contains(options.ExtraArgs, "--GeoIPFile") {
+			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPFile", geoIPPath)
+		}
+		if geoIP6Path := filepath.Join(dataDirAbs, "geoip6"); rw.FileExists(geoIP6Path) && !common.Contains(options.ExtraArgs, "--GeoIPv6File") {
+			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPv6File", geoIP6Path)
+		}
+	}
 	if options.ExecutablePath != "" {
 		startConf.ExePath = options.ExecutablePath
-		startConf.ExtraArgs = options.ExtraArgs
 		startConf.ProcessCreator = nil
 		startConf.UseEmbeddedControlConn = false
 	}
