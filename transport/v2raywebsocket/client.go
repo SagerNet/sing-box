@@ -34,6 +34,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		HandshakeTimeout: time.Second * 8,
 	}
 	if tlsConfig != nil {
+		if len(tlsConfig.NextProtos()) == 0 {
+			tlsConfig.SetNextProtos([]string{"http/1.1"})
+		}
 		wsDialer.NetDialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			if err != nil {
