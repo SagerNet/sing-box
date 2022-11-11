@@ -16,4 +16,3 @@ popd
 sudo systemctl stop sing-box
 sudo cp $(go env GOPATH)/bin/sing-box /usr/local/bin/
 sudo systemctl start sing-box
-sudo journalctl -u sing-box --output cat -f
