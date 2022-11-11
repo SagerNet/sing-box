@@ -329,6 +329,23 @@ func (c *ClientPacketConn) Write(b []byte) (n int, err error) {
 	return c.ExtendedConn.Write(b)
 }
 
+func (c *ClientPacketConn) ReadBuffer(buffer *buf.Buffer) (err error) {
+	if !c.responseRead {
+		err = c.readResponse()
+		if err != nil {
+			return
+		}
+		c.responseRead = true
+	}
+	var length uint16
+	err = binary.Read(c.ExtendedConn, binary.BigEndian, &length)
+	if err != nil {
+		return
+	}
+	_, err = buffer.ReadFullFrom(c.ExtendedConn, int(length))
+	return
+}
+
 func (c *ClientPacketConn) WriteBuffer(buffer *buf.Buffer) error {
 	if !c.requestWrite {
 		defer buffer.Release()
@@ -341,6 +358,11 @@ func (c *ClientPacketConn) WriteBuffer(buffer *buf.Buffer) error {
 
 func (c *ClientPacketConn) FrontHeadroom() int {
 	return 2
+}
+
+func (c *ClientPacketConn) ReadPacket(buffer *buf.Buffer) (destination M.Socksaddr, err error) {
+	err = c.ReadBuffer(buffer)
+	return
 }
 
 func (c *ClientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
