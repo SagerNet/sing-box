@@ -153,13 +153,31 @@ func (c *GunConn) RemoteAddr() net.Addr {
 }
 
 func (c *GunConn) SetDeadline(t time.Time) error {
-	return os.ErrInvalid
+	responseWriter, loaded := c.writer.(interface {
+		SetWriteDeadline(time.Time) error
+	})
+	if !loaded {
+		return os.ErrInvalid
+	}
+	return responseWriter.SetWriteDeadline(t)
 }
 
 func (c *GunConn) SetReadDeadline(t time.Time) error {
-	return os.ErrInvalid
+	responseWriter, loaded := c.writer.(interface {
+		SetReadDeadline(time.Time) error
+	})
+	if !loaded {
+		return os.ErrInvalid
+	}
+	return responseWriter.SetReadDeadline(t)
 }
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
-	return os.ErrInvalid
+	responseWriter, loaded := c.writer.(interface {
+		SetWriteDeadline(time.Time) error
+	})
+	if !loaded {
+		return os.ErrInvalid
+	}
+	return responseWriter.SetWriteDeadline(t)
 }
