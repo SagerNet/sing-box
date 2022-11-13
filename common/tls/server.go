@@ -12,6 +12,9 @@ import (
 )
 
 func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+	if !options.Enabled {
+		return nil, nil
+	}
 	return NewSTDServer(ctx, logger, options)
 }
 
