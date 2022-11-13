@@ -3,12 +3,9 @@ package inbound
 import (
 	"context"
 	"net"
-	"net/http"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/pipelistener"
-	"github.com/sagernet/sing-box/common/trafficcontrol"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -16,7 +13,6 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
-	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -28,12 +24,8 @@ var (
 
 type ShadowsocksMulti struct {
 	myInboundAdapter
-	service        *shadowaead_2022.MultiService[int]
-	users          []option.ShadowsocksUser
-	controlEnabled bool
-	controller     *http.Server
-	controllerPipe *pipelistener.Listener
-	trafficManager *trafficcontrol.Manager[int]
+	service *shadowaead_2022.MultiService[int]
+	users   []option.ShadowsocksUser
 }
 
 func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksMulti, error) {
@@ -62,20 +54,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 		udpTimeout,
 		adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
 	)
-	users := options.Users
-	if options.ControlPassword != "" {
-		inbound.controlEnabled = true
-		users = append([]option.ShadowsocksUser{{
-			Name:     "control",
-			Password: options.ControlPassword,
-		}}, users...)
-		inbound.controller = &http.Server{Handler: inbound.createHandler()}
-		inbound.trafficManager = trafficcontrol.NewManager[int]()
-	}
-	if err != nil {
-		return nil, err
-	}
-	err = service.UpdateUsersWithPasswords(common.MapIndexed(users, func(index int, user option.ShadowsocksUser) int {
+	err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
 		return index
 	}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
 		return user.Password
@@ -85,28 +64,8 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	}
 	inbound.service = service
 	inbound.packetUpstream = service
-	inbound.users = users
+	inbound.users = options.Users
 	return inbound, err
-}
-
-func (h *ShadowsocksMulti) Start() error {
-	if h.controlEnabled {
-		h.controllerPipe = pipelistener.New(16)
-		go func() {
-			err := h.controller.Serve(h.controllerPipe)
-			if err != nil {
-				h.newError(E.Cause(err, "controller serve error"))
-			}
-		}()
-	}
-	return h.myInboundAdapter.Start()
-}
-
-func (h *ShadowsocksMulti) Close() error {
-	if h.controlEnabled {
-		h.controllerPipe.Close()
-	}
-	return h.myInboundAdapter.Close()
 }
 
 func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -125,11 +84,6 @@ func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, met
 	userIndex, loaded := auth.UserFromContext[int](ctx)
 	if !loaded {
 		return os.ErrInvalid
-	}
-	if userIndex == 0 && h.controlEnabled {
-		h.logger.InfoContext(ctx, "inbound control connection")
-		h.controllerPipe.Serve(conn)
-		return nil
 	}
 	user := h.users[userIndex].Name
 	if user == "" {
