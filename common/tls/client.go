@@ -15,6 +15,9 @@ import (
 )
 
 func NewDialerFromOptions(router adapter.Router, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
+	if !options.Enabled {
+		return dialer, nil
+	}
 	config, err := NewClient(router, serverAddress, options)
 	if err != nil {
 		return nil, err
@@ -23,6 +26,9 @@ func NewDialerFromOptions(router adapter.Router, dialer N.Dialer, serverAddress 
 }
 
 func NewClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+	if !options.Enabled {
+		return nil, nil
+	}
 	if options.ECH != nil && options.ECH.Enabled {
 		return NewECHClient(router, serverAddress, options)
 	} else if options.UTLS != nil && options.UTLS.Enabled {
