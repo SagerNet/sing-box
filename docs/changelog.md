@@ -1,10 +1,22 @@
+#### 1.0.7
+
+* Add support for new x/h2 deadline
+* Fix copy pipe
+* Fix decrypt xplus packet
+* Fix macOS Ventura process name match
+* Fix smux keepalive
+* Fix vmess request buffer
+* Fix h2c transport
+* Fix tor geoip
+* Fix udp connect for mux client
+
 #### 1.1-beta15
 
 * Add support for new x/h2 deadline
 * Fix udp connect for mux client
 * Fix dns buffer
 * Fix quic dns retry
-* Fix create TLS Config
+* Fix create TLS config
 * Fix websocket alpn
 * Fix tor geoip
 
