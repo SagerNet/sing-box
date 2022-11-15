@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	runtimeDebug "runtime/debug"
+	"strconv"
 	"syscall"
 
 	"github.com/sagernet/sing-box"
@@ -14,6 +16,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
+
+	_ "net/http/pprof"
 )
 
 var commandRun = &cobra.Command{
@@ -78,6 +82,9 @@ func create() (*box.Box, context.CancelFunc, error) {
 }
 
 func run() error {
+	if pprofDebug != 0 {
+		go http.ListenAndServe(":"+strconv.Itoa(int(pprofDebug)), nil)
+	}
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
