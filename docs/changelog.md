@@ -1,10 +1,16 @@
+#### 1.1-beta16
+
+* Improve shadowtls server
+* Fix default dns transport strategy
+* Update uTLS to v1.2.0
+
 #### 1.1-beta15
 
 * Add support for new x/h2 deadline
 * Fix udp connect for mux client
 * Fix dns buffer
 * Fix quic dns retry
-* Fix create TLS Config
+* Fix create TLS config
 * Fix websocket alpn
 * Fix tor geoip
 
