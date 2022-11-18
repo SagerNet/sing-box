@@ -112,19 +112,10 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	return len(b), baderror.WrapH2(err)
 }
 
-func uLen(x uint64) int {
-	i := 0
-	for x >= 0x80 {
-		x >>= 7
-		i++
-	}
-	return i + 1
-}
-
 func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	defer buffer.Release()
 	dataLen := buffer.Len()
-	varLen := uLen(uint64(dataLen))
+	varLen := rw.UVariantLen(uint64(dataLen))
 	header := buffer.ExtendHeader(6 + varLen)
 	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+dataLen))
 	header[5] = 0x0A
@@ -156,28 +147,28 @@ func (c *GunConn) SetDeadline(t time.Time) error {
 	responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
 	})
-	if !loaded {
-		return os.ErrInvalid
+	if loaded {
+		return responseWriter.SetWriteDeadline(t)
 	}
-	return responseWriter.SetWriteDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *GunConn) SetReadDeadline(t time.Time) error {
 	responseWriter, loaded := c.writer.(interface {
 		SetReadDeadline(time.Time) error
 	})
-	if !loaded {
-		return os.ErrInvalid
+	if loaded {
+		return responseWriter.SetReadDeadline(t)
 	}
-	return responseWriter.SetReadDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
 	responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
 	})
-	if !loaded {
-		return os.ErrInvalid
+	if loaded {
+		return responseWriter.SetWriteDeadline(t)
 	}
-	return responseWriter.SetWriteDeadline(t)
+	return os.ErrInvalid
 }
