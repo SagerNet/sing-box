@@ -127,6 +127,16 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.ASN) > 0 {
+		item := NewBgpItem(router, logger, options.ASN, nil)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.BGPCommunity) > 0 {
+		item := NewBgpItem(router, logger, nil, options.BGPCommunity)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
 		if err != nil {

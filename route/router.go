@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/bgp"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
@@ -24,9 +25,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -75,10 +76,13 @@ type Router struct {
 	defaultOutboundForPacketConnection adapter.Outbound
 	needGeoIPDatabase                  bool
 	needGeositeDatabase                bool
+	needBgpServer                      bool
 	geoIPOptions                       option.GeoIPOptions
 	geositeOptions                     option.GeositeOptions
+	bgpOptions                         option.BgpOptions
 	geoIPReader                        *geoip.Reader
 	geositeReader                      *geosite.Reader
+	bgpAPI                             bgp.BgpAPI
 	geositeCache                       map[string]adapter.Rule
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
@@ -119,8 +123,10 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
+		needBgpServer:         hasRule(options.Rules, isGoBgpRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
+		bgpOptions:            common.PtrValueOrDefault(options.Bgp),
 		geositeCache:          make(map[string]adapter.Rule),
 		defaultDetour:         options.Final,
 		dnsClient:             dns.NewClient(dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire),
@@ -392,6 +398,12 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	if r.needBgpServer {
+		err := r.prepareBgpServer()
+		if err != nil {
+			return err
+		}
+	}
 	for _, rule := range r.rules {
 		err := rule.Start()
 		if err != nil {
@@ -468,6 +480,10 @@ func (r *Router) Close() error {
 
 func (r *Router) GeoIPReader() *geoip.Reader {
 	return r.geoIPReader
+}
+
+func (r *Router) BgpAPI() bgp.BgpAPI {
+	return r.bgpAPI
 }
 
 func (r *Router) LoadGeosite(code string) (adapter.Rule, error) {
@@ -820,6 +836,10 @@ func isProcessDNSRule(rule option.DefaultDNSRule) bool {
 	return len(rule.ProcessName) > 0 || len(rule.ProcessPath) > 0 || len(rule.PackageName) > 0 || len(rule.User) > 0 || len(rule.UserID) > 0
 }
 
+func isGoBgpRule(rule option.DefaultRule) bool {
+	return len(rule.ASN) > 0 || len(rule.BGPCommunity) > 0
+}
+
 func notPrivateNode(code string) bool {
 	return code != "private"
 }
@@ -892,6 +912,16 @@ func (r *Router) prepareGeositeDatabase() error {
 	} else {
 		return E.Cause(err, "open geosite database")
 	}
+	return nil
+}
+
+func (r *Router) prepareBgpServer() error {
+	bgpapi, err := bgp.NewBgp(r.ctx, r.bgpOptions, r.logger)
+	if err != nil {
+		return E.Cause(err, "open bgp api")
+	}
+	r.logger.Info("successfully initialized go bgp connection")
+	r.bgpAPI = bgpapi
 	return nil
 }
 

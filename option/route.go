@@ -12,6 +12,7 @@ import (
 type RouteOptions struct {
 	GeoIP               *GeoIPOptions   `json:"geoip,omitempty"`
 	Geosite             *GeositeOptions `json:"geosite,omitempty"`
+	Bgp                 *BgpOptions     `json:"bgp,omitempty"`
 	Rules               []Rule          `json:"rules,omitempty"`
 	Final               string          `json:"final,omitempty"`
 	FindProcess         bool            `json:"find_process,omitempty"`
@@ -101,6 +102,8 @@ type DefaultRule struct {
 	PackageName     Listable[string] `json:"package_name,omitempty"`
 	User            Listable[string] `json:"user,omitempty"`
 	UserID          Listable[int32]  `json:"user_id,omitempty"`
+	ASN             Listable[string] `json:"asn,omitempty"`
+	BGPCommunity    Listable[string] `json:"bgp_community,omitempty"`
 	ClashMode       string           `json:"clash_mode,omitempty"`
 	Invert          bool             `json:"invert,omitempty"`
 	Outbound        string           `json:"outbound,omitempty"`

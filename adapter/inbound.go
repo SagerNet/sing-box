@@ -45,6 +45,8 @@ type InboundContext struct {
 	DestinationAddresses []netip.Addr
 	SourceGeoIPCode      string
 	GeoIPCode            string
+	BgpASN               string
+	BgPCommunity         string
 	ProcessInfo          *process.Info
 }
 
