@@ -37,7 +37,11 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 		}
 	}
-	return ctx, r.defaultTransport, r.defaultDomainStrategy
+	if domainStrategy, dsLoaded := r.transportDomainStrategy[r.defaultTransport]; dsLoaded {
+		return ctx, r.defaultTransport, domainStrategy
+	} else {
+		return ctx, r.defaultTransport, r.defaultDomainStrategy
+	}
 }
 
 func (r *Router) Exchange(ctx context.Context, message *dnsmessage.Message) (*dnsmessage.Message, error) {
