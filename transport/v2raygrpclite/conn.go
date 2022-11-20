@@ -106,7 +106,7 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader[:varuintLen+1]), bytes.NewReader(b)))
 	c.writeAccess.Unlock()
 	buf.Put(grpcHeader)
-	if c.flusher != nil {
+	if err == nil && c.flusher != nil {
 		c.flusher.Flush()
 	}
 	return len(b), baderror.WrapH2(err)
@@ -121,7 +121,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	header[5] = 0x0A
 	binary.PutUvarint(header[6:], uint64(dataLen))
 	err := rw.WriteBytes(c.writer, buffer.Bytes())
-	if c.flusher != nil {
+	if err == nil && c.flusher != nil {
 		c.flusher.Flush()
 	}
 	return baderror.WrapH2(err)
@@ -144,30 +144,28 @@ func (c *GunConn) RemoteAddr() net.Addr {
 }
 
 func (c *GunConn) SetDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
-	})
-	if loaded {
+	}); loaded {
 		return responseWriter.SetWriteDeadline(t)
 	}
 	return os.ErrInvalid
+
 }
 
 func (c *GunConn) SetReadDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetReadDeadline(time.Time) error
-	})
-	if loaded {
+	}); loaded {
 		return responseWriter.SetReadDeadline(t)
 	}
 	return os.ErrInvalid
 }
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
-	})
-	if loaded {
+	}); loaded {
 		return responseWriter.SetWriteDeadline(t)
 	}
 	return os.ErrInvalid
