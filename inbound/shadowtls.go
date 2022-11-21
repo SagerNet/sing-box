@@ -140,6 +140,7 @@ func (s *ShadowTLS) copyUntilHandshakeFinishedV2(dst net.Conn, src io.Reader, ha
 	var tlsHdr [5]byte
 	var applicationDataCount int
 	for {
+		println(applicationDataCount)
 		_, err := io.ReadFull(src, tlsHdr[:])
 		if err != nil {
 			return nil, err

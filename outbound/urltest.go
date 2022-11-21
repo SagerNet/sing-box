@@ -29,6 +29,8 @@ type URLTest struct {
 	link      string
 	interval  time.Duration
 	tolerance uint16
+	timeout   time.Duration
+	fallback  bool
 	group     *URLTestGroup
 }
 
@@ -43,6 +45,7 @@ func NewURLTest(router adapter.Router, logger log.ContextLogger, tag string, opt
 		tags:      options.Outbounds,
 		link:      options.URL,
 		interval:  time.Duration(options.Interval),
+		fallback:  options.Fallback,
 		tolerance: options.Tolerance,
 	}
 	if len(outbound.tags) == 0 {
@@ -67,7 +70,7 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	s.group = NewURLTestGroup(s.router, s.logger, outbounds, s.link, s.interval, s.tolerance)
+	s.group = NewURLTestGroup(s.router, s.logger, outbounds, s.link, s.interval, s.tolerance, s.timeout, s.fallback)
 	return s.group.Start()
 }
 
@@ -136,13 +139,15 @@ type URLTestGroup struct {
 	link      string
 	interval  time.Duration
 	tolerance uint16
+	timeout   time.Duration
+	fallback  bool
 	history   *urltest.HistoryStorage
 
 	ticker *time.Ticker
 	close  chan struct{}
 }
 
-func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16) *URLTestGroup {
+func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, timeout time.Duration, fallback bool) *URLTestGroup {
 	if link == "" {
 		//goland:noinspection HttpUrlsUsage
 		link = "http://www.gstatic.com/generate_204"
@@ -166,6 +171,8 @@ func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapt
 		link:      link,
 		interval:  interval,
 		tolerance: tolerance,
+		timeout:   timeout,
+		fallback:  fallback,
 		history:   history,
 		close:     make(chan struct{}),
 	}
@@ -194,6 +201,15 @@ func (g *URLTestGroup) Select(network string) adapter.Outbound {
 		history := g.history.LoadURLTestHistory(RealTag(detour))
 		if history == nil {
 			continue
+		}
+		if g.timeout > 0 && time.Duration(history.Delay)*time.Millisecond > g.timeout {
+			continue
+		}
+		if g.fallback {
+			minOutbound = detour
+			minDelay = history.Delay
+			minTime = history.Time
+			break
 		}
 		if minDelay == 0 || minDelay > history.Delay+g.tolerance || minDelay > history.Delay-g.tolerance && minTime.Before(history.Time) {
 			minDelay = history.Delay
