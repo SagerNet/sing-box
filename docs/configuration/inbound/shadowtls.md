@@ -9,6 +9,7 @@
 
   "version": 2,
   "password": "fuck me till the daylight",
+  "fallback_after": 2,
   "handshake": {
     "server": "google.com",
     "server_port": 443,
@@ -38,6 +39,15 @@ ShadowTLS protocol version.
 Set password.
 
 Only available in the ShadowTLS v2 protocol.
+
+
+#### fallback_after
+
+Packet count before perform fallback.
+
+Default is 2.
+
+Lowering this may prevent TLS 1.3 connections, but reduces the risk of being actively probed.
 
 #### handshake
 
