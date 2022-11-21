@@ -2,9 +2,10 @@ package option
 
 type ShadowTLSInboundOptions struct {
 	ListenOptions
-	Version   int                       `json:"version,omitempty"`
-	Password  string                    `json:"password,omitempty"`
-	Handshake ShadowTLSHandshakeOptions `json:"handshake"`
+	Version       int                       `json:"version,omitempty"`
+	Password      string                    `json:"password,omitempty"`
+	FallbackAfter *int                      `json:"fallback_after,omitempty"`
+	Handshake     ShadowTLSHandshakeOptions `json:"handshake"`
 }
 
 type ShadowTLSHandshakeOptions struct {
