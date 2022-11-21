@@ -132,7 +132,7 @@ func (s *ShadowTLS) copyUntilHandshakeFinished(dst io.Writer, src io.Reader) err
 func (s *ShadowTLS) copyUntilHandshakeFinishedV2(dst net.Conn, src io.Reader, hash *shadowtls.HashWriteConn) (*buf.Buffer, error) {
 	const applicationData = 0x17
 	var tlsHdr [5]byte
-	var applicationDataCount int
+	var doFallback bool
 	for {
 		_, err := io.ReadFull(src, tlsHdr[:])
 		if err != nil {
@@ -152,14 +152,13 @@ func (s *ShadowTLS) copyUntilHandshakeFinishedV2(dst net.Conn, src io.Reader, ha
 			}
 			_, err = io.Copy(dst, io.MultiReader(bytes.NewReader(tlsHdr[:]), data))
 			data.Release()
-			applicationDataCount++
+			doFallback = true
 		} else {
 			_, err = io.Copy(dst, io.MultiReader(bytes.NewReader(tlsHdr[:]), io.LimitReader(src, int64(length))))
 		}
 		if err != nil {
 			return nil, err
-		}
-		if applicationDataCount > 3 {
+		} else if doFallback {
 			return nil, os.ErrPermission
 		}
 	}
