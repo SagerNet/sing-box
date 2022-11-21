@@ -20,4 +20,5 @@ type URLTestOutboundOptions struct {
 	URL       string   `json:"url,omitempty"`
 	Interval  Duration `json:"interval,omitempty"`
 	Tolerance uint16   `json:"tolerance,omitempty"`
+	Fallback  bool     `json:"fallback,omitempty"`
 }
