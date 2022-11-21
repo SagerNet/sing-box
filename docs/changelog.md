@@ -1,3 +1,46 @@
+#### 1.0.7
+
+* Add support for new x/h2 deadline
+* Fix copy pipe
+* Fix decrypt xplus packet
+* Fix macOS Ventura process name match
+* Fix smux keepalive
+* Fix vmess request buffer
+* Fix h2c transport
+* Fix tor geoip
+* Fix udp connect for mux client
+* Fix default dns transport strategy
+
+#### 1.0.6
+
+* Fix ssh outbound
+* Fix sniff fragmented quic client hello
+* Fix naive overflow
+* Check destination before udp connect
+
+#### 1.0.5
+
+* Fix missing source address from transport connection
+* Fix fqdn socks5 outbound connection
+* Fix read source address from grpc-go
+
+#### 1.0.4
+
+* Fix close grpc conn
+* Fix port rule match logic
+* Fix clash api proxy type
+
+#### 1.0.3
+
+* Fix socks4 client
+* Fix hysteria inbound
+* Fix concurrent write
+
+#### 1.0.2
+
+* Fix socks4 request
+* Fix processing empty dns result
+
 #### 1.0.1
 
 * Fix match 4in6 address in ip_cidr
