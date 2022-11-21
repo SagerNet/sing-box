@@ -1,3 +1,16 @@
+#### 1.0.7
+
+* Add support for new x/h2 deadline
+* Fix copy pipe
+* Fix decrypt xplus packet
+* Fix macOS Ventura process name match
+* Fix smux keepalive
+* Fix vmess request buffer
+* Fix h2c transport
+* Fix tor geoip
+* Fix udp connect for mux client
+* Fix default dns transport strategy
+
 #### 1.1-beta16
 
 * Improve shadowtls server
