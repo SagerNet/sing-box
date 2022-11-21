@@ -1,3 +1,11 @@
+#### 1.1-beta17
+
+* Fix shadowtls server **1**
+
+*1*:
+
+Added [fallback_after](/configuration/inbound/shadowtls#fallback_after) options.
+
 #### 1.0.7
 
 * Add support for new x/h2 deadline

@@ -1,3 +1,3 @@
 package constant
 
-var Version = "1.1-beta16"
+var Version = "1.1-beta17"
