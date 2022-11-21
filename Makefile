@@ -1,6 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_gvisor,with_quic,with_wireguard,with_clash_api
+TAGS ?= with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_shadowsocksr
 PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-s -w -buildid="
 MAIN = ./cmd/sing-box
