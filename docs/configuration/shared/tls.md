@@ -52,7 +52,8 @@
   },
   "utls": {
     "enabled": false,
-    "fingerprint": ""
+    "fingerprint": "",
+    "shuffle": false
   }
 }
 ```
@@ -174,7 +175,7 @@ message.
 
 If you don't know how to fill in the other configuration, just set `enabled`.
 
-#### utls
+### uTLS Fields
 
 ==Client only==
 
@@ -187,6 +188,8 @@ If you don't know how to fill in the other configuration, just set `enabled`.
     uTLS is poorly maintained and the effect may be unproven, use at your own risk.
 
 uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.
+
+#### fingerprint
 
 Available fingerprint values:
 
@@ -201,6 +204,14 @@ Available fingerprint values:
 * random
 
 Chrome fingerprint will be used if empty.
+
+#### shuffle
+
+Enable TLS fingerprint shuffle.
+
+Fingerprint values that support shuffle:
+
+* chrome
 
 ### ACME Fields
 

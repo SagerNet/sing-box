@@ -167,5 +167,13 @@ func NewUTLSClient(router adapter.Router, serverAddress string, options option.O
 	default:
 		return nil, E.New("unknown uTLS fingerprint: ", options.UTLS.Fingerprint)
 	}
+	if options.UTLS.Shuffle {
+		switch id.Client {
+		case "Chrome":
+			id = utls.HelloChrome_106_Shuffle
+		default:
+			return nil, E.New(options.UTLS.Fingerprint, " does not support TLS fingerprint shuffle")
+		}
+	}
 	return &UTLSClientConfig{&tlsConfig, id}, nil
 }

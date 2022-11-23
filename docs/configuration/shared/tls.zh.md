@@ -52,7 +52,8 @@
   },
   "utls": {
     "enabled": false,
-    "fingerprint": ""
+    "fingerprint": "",
+    "shuffle": false
   }
 }
 ```
@@ -174,7 +175,7 @@ ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 
 
 如果您不知道如何填写其他配置，只需设置 `enabled` 即可。
 
-#### utls
+### uTLS 字段
 
 ==仅客户端==
 
@@ -187,6 +188,8 @@ ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 
     uTLS 维护不善且其效果可能未经证实，使用风险自负。
 
 uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻力。
+
+#### fingerprint
 
 可用的指纹值：
 
@@ -201,6 +204,14 @@ uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻
 * random
 
 默认使用 chrome 指纹。
+
+#### shuffle
+
+启用 TLS 指纹混淆。
+
+支持 TLS 指纹混淆的指纹值：
+
+* chrome
 
 ### ACME 字段
 

@@ -40,4 +40,5 @@ type OutboundECHOptions struct {
 type OutboundUTLSOptions struct {
 	Enabled     bool   `json:"enabled,omitempty"`
 	Fingerprint string `json:"fingerprint,omitempty"`
+	Shuffle     bool   `json:"shuffle,omitempty"`
 }
