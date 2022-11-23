@@ -67,33 +67,30 @@ func (c *HTTPConn) RemoteAddr() net.Addr {
 }
 
 func (c *HTTPConn) SetDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
-	})
-	if !loaded {
-		return os.ErrInvalid
+	}); loaded {
+		return responseWriter.SetWriteDeadline(t)
 	}
-	return responseWriter.SetWriteDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *HTTPConn) SetReadDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetReadDeadline(time.Time) error
-	})
-	if !loaded {
-		return os.ErrInvalid
+	}); loaded {
+		return responseWriter.SetReadDeadline(t)
 	}
-	return responseWriter.SetReadDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *HTTPConn) SetWriteDeadline(t time.Time) error {
-	responseWriter, loaded := c.writer.(interface {
+	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
-	})
-	if !loaded {
-		return os.ErrInvalid
+	}); loaded {
+		return responseWriter.SetWriteDeadline(t)
 	}
-	return responseWriter.SetWriteDeadline(t)
+	return os.ErrInvalid
 }
 
 type ServerHTTPConn struct {
