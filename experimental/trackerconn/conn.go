@@ -10,11 +10,11 @@ import (
 	"go.uber.org/atomic"
 )
 
-func New(conn net.Conn, readCounter []*atomic.Int64, writeCounter []*atomic.Int64, direct bool) *Conn {
+func New(conn net.Conn, readCounter []*atomic.Int64, writeCounter []*atomic.Int64) *Conn {
 	return &Conn{bufio.NewExtendedConn(conn), readCounter, writeCounter}
 }
 
-func NewHook(conn net.Conn, readCounter func(n int64), writeCounter func(n int64), direct bool) *HookConn {
+func NewHook(conn net.Conn, readCounter func(n int64), writeCounter func(n int64)) *HookConn {
 	return &HookConn{bufio.NewExtendedConn(conn), readCounter, writeCounter}
 }
 

@@ -150,7 +150,6 @@ func (c *GunConn) SetDeadline(t time.Time) error {
 		return responseWriter.SetWriteDeadline(t)
 	}
 	return os.ErrInvalid
-
 }
 
 func (c *GunConn) SetReadDeadline(t time.Time) error {

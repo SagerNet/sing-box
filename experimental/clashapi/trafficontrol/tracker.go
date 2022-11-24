@@ -74,7 +74,7 @@ func (tt *tcpTracker) WriterReplaceable() bool {
 	return true
 }
 
-func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule, directIO bool) *tcpTracker {
+func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router adapter.Router, rule adapter.Rule) *tcpTracker {
 	uuid, _ := uuid.NewV4()
 
 	var chain []string
@@ -107,7 +107,7 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 		}, func(n int64) {
 			download.Add(n)
 			manager.PushDownloaded(n)
-		}, directIO),
+		}),
 		manager: manager,
 		trackerInfo: &trackerInfo{
 			UUID:          uuid,
