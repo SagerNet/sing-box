@@ -29,7 +29,6 @@ var (
 
 type StatsService struct {
 	createdAt time.Time
-	directIO  bool
 	inbounds  map[string]bool
 	outbounds map[string]bool
 	access    sync.Mutex
@@ -50,7 +49,6 @@ func NewStatsService(options option.V2RayStatsServiceOptions) *StatsService {
 	}
 	return &StatsService{
 		createdAt: time.Now(),
-		directIO:  options.DirectIO,
 		inbounds:  inbounds,
 		outbounds: outbounds,
 		counters:  make(map[string]*atomic.Int64),
@@ -75,7 +73,7 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, conn ne
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
-	return trackerconn.New(conn, readCounter, writeCounter, s.directIO)
+	return trackerconn.New(conn, readCounter, writeCounter)
 }
 
 func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, conn N.PacketConn) N.PacketConn {

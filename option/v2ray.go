@@ -7,7 +7,6 @@ type V2RayAPIOptions struct {
 
 type V2RayStatsServiceOptions struct {
 	Enabled   bool     `json:"enabled,omitempty"`
-	DirectIO  bool     `json:"direct_io,omitempty"`
 	Inbounds  []string `json:"inbounds,omitempty"`
 	Outbounds []string `json:"outbounds,omitempty"`
 }
