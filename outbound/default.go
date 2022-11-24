@@ -78,12 +78,6 @@ func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metad
 }
 
 func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
-	switch metadata.Protocol {
-	case C.ProtocolQUIC, C.ProtocolDNS:
-		if !metadata.Destination.Addr.IsUnspecified() {
-			return connectPacketConnection(ctx, this, conn, metadata)
-		}
-	}
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.PacketConn
 	var err error
@@ -98,29 +92,12 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	switch metadata.Protocol {
 	case C.ProtocolSTUN:
 		ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
-}
-
-func connectPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
-	ctx = adapter.WithContext(ctx, &metadata)
-	var outConn net.Conn
-	var err error
-	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
-	} else {
-		outConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
-	}
-	if err != nil {
-		return N.HandshakeFailure(conn, err)
-	}
-	switch metadata.Protocol {
 	case C.ProtocolQUIC:
 		ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
 	case C.ProtocolDNS:
 		ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
 	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewUnbindPacketConn(outConn))
+	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {
