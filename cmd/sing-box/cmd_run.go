@@ -69,6 +69,20 @@ func create() (*box.Box, context.CancelFunc, error) {
 		cancel()
 		return nil, nil, E.Cause(err, "create service")
 	}
+
+	osSignals := make(chan os.Signal, 1)
+	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer func() {
+		signal.Stop(osSignals)
+		close(osSignals)
+	}()
+
+	go func() {
+		_, loaded := <-osSignals
+		if loaded {
+			cancel()
+		}
+	}()
 	err = instance.Start()
 	if err != nil {
 		cancel()
@@ -80,6 +94,7 @@ func create() (*box.Box, context.CancelFunc, error) {
 func run() error {
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer signal.Stop(osSignals)
 	for {
 		instance, cancel, err := create()
 		if err != nil {
