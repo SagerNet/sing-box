@@ -14,7 +14,6 @@ RUN set -ex \
         ./cmd/sing-box
 FROM alpine AS dist
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
-RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 RUN set -ex \
     && apk upgrade \
     && apk add bash tzdata ca-certificates \
