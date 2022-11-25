@@ -1,10 +1,18 @@
+#### 1.1-beta18
+
+* Enhance defense against active probe **1**
+
+**1**:
+
+The `fallback_after` option has been removed.
+
 #### 1.1-beta17
 
 * Fix shadowtls server **1**
 
 *1*:
 
-Added [fallback_after](/configuration/inbound/shadowtls#fallback_after) options.
+Added [fallback_after](/configuration/inbound/shadowtls#fallback_after) option.
 
 #### 1.0.7
 

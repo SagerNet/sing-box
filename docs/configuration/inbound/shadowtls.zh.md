@@ -9,7 +9,6 @@
 
   "version": 2,
   "password": "fuck me till the daylight",
-  "fallback_after": 2,
   "handshake": {
     "server": "google.com",
     "server_port": 443,
@@ -39,14 +38,6 @@ ShadowTLS 协议版本。
 设置密码。
 
 仅在 ShadowTLS v2 协议中可用。
-
-#### fallback_after
-
-在执行回退之前的包计数。
-
-默认值为 2。
-
-降低此值可能会阻止 TLS 1.3 连接，但会降低被主动探测的风险。
 
 #### handshake
 
