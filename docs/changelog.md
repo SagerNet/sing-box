@@ -1,6 +1,6 @@
 #### 1.1-beta18
 
-* Enhance defense against active probe **1**
+* Enhance defense against active probe for shadowtls server **1**
 
 **1**:
 
