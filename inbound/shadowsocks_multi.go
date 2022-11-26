@@ -54,6 +54,9 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 		udpTimeout,
 		adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
 	)
+	if err != nil {
+		return nil, err
+	}
 	err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
 		return index
 	}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
