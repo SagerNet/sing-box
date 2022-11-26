@@ -48,3 +48,10 @@ Conflict with `max_streams`.
 Maximum multiplexed streams in a connection before opening a new connection.
 
 Conflict with `max_connections` and `min_streams`.
+
+### Compatibility with other protocols
+
+| Protocol       | Supported inbound |
+|----------------|-------------------|
+| V2Ray Mux.Cool | All               |
+| Trojan-GO smux | Trojan            |

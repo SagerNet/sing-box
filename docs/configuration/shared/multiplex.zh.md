@@ -48,3 +48,10 @@
 在打开新连接之前，连接中的最大多路复用流数量。
 
 与 `max_connections` 和 `min_streams` 冲突。
+
+### 对其他协议的兼容性
+
+| 协议             | 支持的入站  |
+|----------------|--------|
+| V2Ray Mux.Cool | 所有     |
+| Trojan-GO smux | Trojan |
