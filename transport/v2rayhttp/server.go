@@ -133,9 +133,13 @@ func (s *Server) badRequest(request *http.Request, err error) {
 }
 
 func (s *Server) Serve(listener net.Listener) error {
+	fixTLSConfig := s.httpServer.TLSConfig == nil
 	err := http2.ConfigureServer(s.httpServer, s.h2Server)
 	if err != nil {
 		return err
+	}
+	if fixTLSConfig {
+		s.httpServer.TLSConfig = nil
 	}
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
