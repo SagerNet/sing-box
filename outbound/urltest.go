@@ -46,6 +46,7 @@ func NewURLTest(router adapter.Router, logger log.ContextLogger, tag string, opt
 		link:      options.URL,
 		interval:  time.Duration(options.Interval),
 		fallback:  options.Fallback,
+		timeout:   time.Duration(options.Timeout),
 		tolerance: options.Tolerance,
 	}
 	if len(outbound.tags) == 0 {
