@@ -53,8 +53,8 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 		if err != nil {
 			return nil, err
 		}
-		if !common.Contains(stdConfig.NextProtos, "h2") {
-			stdConfig.NextProtos = append(stdConfig.NextProtos, "h2")
+		if len(stdConfig.NextProtos) == 0 {
+			stdConfig.NextProtos = []string{http2.NextProtoTLS}
 		}
 		server.httpServer.TLSConfig = stdConfig
 	}
@@ -96,9 +96,13 @@ func (s *Server) badRequest(request *http.Request, err error) {
 }
 
 func (s *Server) Serve(listener net.Listener) error {
+	fixTLSConfig := s.httpServer.TLSConfig == nil
 	err := http2.ConfigureServer(s.httpServer, s.h2Server)
 	if err != nil {
 		return err
+	}
+	if fixTLSConfig {
+		s.httpServer.TLSConfig = nil
 	}
 	if s.httpServer.TLSConfig == nil {
 		return s.httpServer.Serve(listener)
