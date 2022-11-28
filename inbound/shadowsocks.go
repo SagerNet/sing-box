@@ -70,7 +70,7 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	case common.Contains(shadowaead_2022.List, options.Method):
 		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, udpTimeout, inbound.upstreamContextHandler())
 	default:
-		err = E.New("shadowsocks: unsupported method: ", options.Method)
+		err = E.New("unsupported method: ", options.Method)
 	}
 	inbound.packetUpstream = inbound.service
 	return inbound, err
