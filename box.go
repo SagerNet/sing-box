@@ -97,8 +97,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 
 	router, err := route.NewRouter(
 		ctx,
-		logFactory.NewLogger("router"),
-		logFactory.NewLogger("dns"),
+		logFactory,
 		common.PtrValueOrDefault(options.Route),
 		common.PtrValueOrDefault(options.DNS),
 		options.Inbounds,

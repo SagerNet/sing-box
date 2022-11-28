@@ -99,7 +99,7 @@ type Router struct {
 	v2rayServer                        adapter.V2RayServer
 }
 
-func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
+func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
 	if options.DefaultInterface != "" {
 		warnDefaultInterfaceOnUnsupportedPlatform.Check()
 	}
@@ -112,8 +112,8 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 
 	router := &Router{
 		ctx:                   ctx,
-		logger:                logger,
-		dnsLogger:             dnsLogger,
+		logger:                logFactory.NewLogger("router"),
+		dnsLogger:             logFactory.NewLogger("dns"),
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
@@ -130,14 +130,14 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 		defaultMark:           options.DefaultMark,
 	}
 	for i, ruleOptions := range options.Rules {
-		routeRule, err := NewRule(router, logger, ruleOptions)
+		routeRule, err := NewRule(router, router.logger, ruleOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule[", i, "]")
 		}
 		router.rules = append(router.rules, routeRule)
 	}
 	for i, dnsRuleOptions := range dnsOptions.Rules {
-		dnsRule, err := NewDNSRule(router, logger, dnsRuleOptions)
+		dnsRule, err := NewDNSRule(router, router.logger, dnsRuleOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse dns rule[", i, "]")
 		}
@@ -197,7 +197,7 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
-			transport, err := dns.CreateTransport(ctx, detour, server.Address)
+			transport, err := dns.CreateTransport(ctx, logFactory.NewLogger(F.ToString("dns/transport[", i, "]")), detour, server.Address)
 			if err != nil {
 				return nil, E.Cause(err, "parse dns server[", tag, "]")
 			}
@@ -279,12 +279,12 @@ func NewRouter(ctx context.Context, logger log.ContextLogger, dnsLogger log.Cont
 	}
 	if needFindProcess {
 		searcher, err := process.NewSearcher(process.Config{
-			Logger:         logger,
+			Logger:         logFactory.NewLogger("router/process"),
 			PackageManager: router.packageManager,
 		})
 		if err != nil {
 			if err != os.ErrInvalid {
-				logger.Warn(E.Cause(err, "create process searcher"))
+				router.logger.Warn(E.Cause(err, "create process searcher"))
 			}
 		} else {
 			router.processSearcher = searcher
