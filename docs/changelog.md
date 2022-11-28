@@ -1,3 +1,10 @@
+#### 1.1-rc1
+
+* Fix TLS config for h2 server
+* Fix crash when input bad method in shadowsocks multi-user inbound
+* Fix listen UDP
+* Fix check invalid packet on macOS
+
 #### 1.1-beta18
 
 * Enhance defense against active probe for shadowtls server **1**
