@@ -175,13 +175,9 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	var destinationString string
-	if destination.IsValid() && !destination.Addr.IsUnspecified() {
-		destinationString = destination.String()
-	} else if !destination.IsIPv6() {
-		destinationString = d.udpAddr4
+	if !destination.IsIPv6() {
+		return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4)
 	} else {
-		destinationString = d.udpAddr6
+		return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6)
 	}
-	return d.udpListener.ListenPacket(ctx, N.NetworkUDP, destinationString)
 }
