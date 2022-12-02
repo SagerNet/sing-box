@@ -59,3 +59,7 @@ func (c *CacheFile) StoreSelected(group, selected string) error {
 		return bucket.Put([]byte(group), []byte(selected))
 	})
 }
+
+func (c *CacheFile) Close() error {
+	return c.DB.Close()
+}
