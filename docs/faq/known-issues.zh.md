@@ -6,11 +6,11 @@
 
 ##### Android
 
-`auto-route` 无法自动劫持 DNS 请求如果 `私人 DNS` 开启.
+`auto-route` 无法自动劫持 DNS 请求如果 `私人 DNS` 开启或 `strict_route` 禁用。
 
 ##### Linux
 
-`auto-route` 无法自动劫持 DNS 请求如果 `systemd-resolved` 开启, 您可以切换到 NetworkManager.
+`auto-route` 无法自动劫持 DNS 请求如果 `systemd-resolved` 开启且 `strict_route` 禁用。
 
 #### 系统代理
 

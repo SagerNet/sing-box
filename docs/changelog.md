@@ -1,3 +1,32 @@
+#### 1.1
+
+* Fix close clash cache
+
+Important changes since 1.0:
+
+* Add support for use with android VPNService
+* Add tun support for WireGuard outbound
+* Add system tun stack
+* Add comment filter for config
+* Add option for allow optional proxy protocol header
+* Add Clash mode and persistence support
+* Add TLS ECH and uTLS support for outbound TLS options
+* Add internal simple-obfs and v2ray-plugin
+* Add ShadowsocksR outbound
+* Add VLESS outbound and XUDP
+* Skip wait for hysteria tcp handshake response
+* Add v2ray mux support for all inbound
+* Add XUDP support for VMess 
+* Improve websocket writer
+* Refine tproxy write back
+* Fix DNS leak caused by
+  Windows' ordinary multihomed DNS resolution behavior
+* Add sniff_timeout listen option
+* Add custom route support for tun
+* Add option for custom wireguard reserved bytes
+* Split bind_address into ipv4 and ipv6
+* Add ShadowTLS v1 and v2 support
+
 #### 1.1-rc1
 
 * Fix TLS config for h2 server

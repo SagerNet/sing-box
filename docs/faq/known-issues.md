@@ -7,11 +7,11 @@ the public internet.
 
 ##### on Android
 
-`auto-route` cannot automatically hijack DNS requests when Android's `Private DNS` is enabled.
+`auto-route` cannot automatically hijack DNS requests when Android's `Private DNS` enabled or `strict_route` disabled.
 
 ##### on Linux
 
-`auto-route` cannot automatically hijack DNS requests with `systemd-resolved` enabled, you can switch to NetworkManager.
+`auto-route` cannot automatically hijack DNS requests with `systemd-resolved` enabled and `strict_route` disabled.
 
 #### System proxy
 
