@@ -3,8 +3,7 @@ name: Debug build
 on:
   push:
     branches:
-      - main
-      - dev
+      - main-next
       - dev-next
     paths-ignore:
       - '**.md'
@@ -12,8 +11,7 @@ on:
       - '!.github/workflows/debug.yml'
   pull_request:
     branches:
-      - main
-      - dev
+      - main-next
       - dev-next
 
 jobs:

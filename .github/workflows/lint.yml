@@ -3,14 +3,16 @@ name: Lint
 on:
   push:
     branches:
-      - dev
+      - main-next
+      - dev-next
     paths-ignore:
       - '**.md'
       - '.github/**'
       - '!.github/workflows/debug.yml'
   pull_request:
     branches:
-      - dev
+      - main-next
+      - dev-next
 
 jobs:
   build:
