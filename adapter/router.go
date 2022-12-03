@@ -47,6 +47,20 @@ type Router interface {
 	SetV2RayServer(server V2RayServer)
 }
 
+type routerContextKey struct{}
+
+func ContextWithRouter(ctx context.Context, router Router) context.Context {
+	return context.WithValue(ctx, (*routerContextKey)(nil), router)
+}
+
+func RouterFromContext(ctx context.Context) Router {
+	metadata := ctx.Value((*routerContextKey)(nil))
+	if metadata == nil {
+		return nil
+	}
+	return metadata.(Router)
+}
+
 type Rule interface {
 	Service
 	Type() string
