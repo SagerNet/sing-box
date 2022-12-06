@@ -5,6 +5,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"os"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez/acme"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type acmeWrapper struct {
@@ -54,6 +57,11 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 	config := &certmagic.Config{
 		DefaultServerName: options.DefaultServerName,
 		Storage:           storage,
+		Logger: zap.New(zapcore.NewCore(
+			zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
+			os.Stderr,
+			zap.InfoLevel,
+		)),
 	}
 	acmeConfig := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
@@ -63,8 +71,9 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
+		Logger:                  config.Logger,
 	}
-	if options.ExternalAccount != nil {
+	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
 		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
 	}
 	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeConfig)}
