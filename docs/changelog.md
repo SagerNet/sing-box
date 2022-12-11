@@ -1,3 +1,9 @@
+#### 1.1.1
+
+* Fix acme config
+* Fix vmess packet conn
+* Suppress quic-go set DF error
+
 #### 1.1
 
 * Fix close clash cache
