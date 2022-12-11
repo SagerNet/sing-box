@@ -67,8 +67,8 @@ builds:
       - goos: android
         goarch: 386
         env:
-          - CC=i686-linux-android21-clang
-          - CXX=i686-linux-android21-clang++
+          - CC=i686-linux-android19-clang
+          - CXX=i686-linux-android19-clang++
       - goos: android
         goarch: amd64
         goamd64: v1
