@@ -1,6 +1,7 @@
 project_name: sing-box
 builds:
-  - main: ./cmd/sing-box
+  - id: main
+    main: ./cmd/sing-box
     flags:
       - -v
       - -trimpath
@@ -19,9 +20,6 @@ builds:
     env:
       - CGO_ENABLED=0
     targets:
-      - android_arm64
-      - android_amd64
-      - android_amd64_v3
       - linux_amd64_v1
       - linux_amd64_v3
       - linux_arm64
@@ -34,6 +32,54 @@ builds:
       - darwin_amd64_v1
       - darwin_amd64_v3
       - darwin_arm64
+    mod_timestamp: '{{ .CommitTimestamp }}'
+  - id: android
+    main: ./cmd/sing-box
+    flags:
+      - -v
+      - -trimpath
+    asmflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    gcflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    ldflags:
+      - -s -w -buildid=
+    tags:
+      - with_gvisor
+      - with_quic
+      - with_wireguard
+      - with_utls
+      - with_clash_api
+    env:
+      - CGO_ENABLED=1
+    overrides:
+      - goos: android
+        goarch: arm
+        goarm: 7
+        env:
+          - CC=armv7a-linux-androideabi19-clang
+          - CXX=armv7a-linux-androideabi19-clang++
+      - goos: android
+        goarch: arm64
+        env:
+          - CC=aarch64-linux-android21-clang
+          - CXX=aarch64-linux-android21-clang++
+      - goos: android
+        goarch: 386
+        env:
+          - CC=i686-linux-android21-clang
+          - CXX=i686-linux-android21-clang++
+      - goos: android
+        goarch: amd64
+        goamd64: v1
+        env:
+          - CC=x86_64-linux-android21-clang
+          - CXX=x86_64-linux-android21-clang++
+    targets:
+      - android_arm_7
+      - android_arm64
+      - android_386
+      - android_amd64
     mod_timestamp: '{{ .CommitTimestamp }}'
 snapshot:
   name_template: "{{ .Version }}.{{ .ShortCommit }}"
