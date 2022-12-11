@@ -42,14 +42,14 @@ proto_install:
 	go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 snapshot:
-	goreleaser release --rm-dist --snapshot
+	go run ./cmd/internal/build goreleaser release --rm-dist --snapshot || exit 1
 	mkdir dist/release
 	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
 	ghr --delete --draft --prerelease -p 1 nightly dist/release
 	rm -r dist
 
 release:
-	goreleaser release --rm-dist --skip-publish
+	go run ./cmd/internal/build goreleaser release --rm-dist --skip-publish || exit 1
 	mkdir dist/release
 	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
 	ghr --delete --draft --prerelease -p 3 $(shell git describe --tags) dist/release
