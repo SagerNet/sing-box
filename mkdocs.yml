@@ -69,6 +69,7 @@ nav:
           - Naive: configuration/inbound/naive.md
           - Hysteria: configuration/inbound/hysteria.md
           - ShadowTLS: configuration/inbound/shadowtls.md
+          - MTProto: configuration/inbound/mtproto.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
