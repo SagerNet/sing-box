@@ -24,9 +24,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -583,7 +583,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 	if r.v2rayServer != nil {
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), conn)
+			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
 	}
 	return detour.NewConnection(ctx, conn, metadata)
@@ -661,7 +661,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	}
 	if r.v2rayServer != nil {
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), conn)
+			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)

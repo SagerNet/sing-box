@@ -55,7 +55,7 @@ func NewStatsService(options option.V2RayStatsServiceOptions) *StatsService {
 	}
 }
 
-func (s *StatsService) RoutedConnection(inbound string, outbound string, conn net.Conn) net.Conn {
+func (s *StatsService) RoutedConnection(inbound string, outbound string, user string, conn net.Conn) net.Conn {
 	var readCounter []*atomic.Int64
 	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
@@ -67,6 +67,10 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, conn ne
 	if countInbound {
 		readCounter = append(readCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink"))
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink"))
+		if user != "" {
+			readCounter = append(readCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>uplink"))
+			writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
+		}
 	}
 	if countOutbound {
 		readCounter = append(readCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink"))
@@ -76,7 +80,7 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, conn ne
 	return trackerconn.New(conn, readCounter, writeCounter)
 }
 
-func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, conn N.PacketConn) N.PacketConn {
+func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, user string, conn N.PacketConn) N.PacketConn {
 	var readCounter []*atomic.Int64
 	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
@@ -88,6 +92,10 @@ func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, c
 	if countInbound {
 		readCounter = append(readCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink"))
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink"))
+		if user != "" {
+			readCounter = append(readCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>uplink"))
+			writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
+		}
 	}
 	if countOutbound {
 		readCounter = append(readCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink"))
