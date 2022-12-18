@@ -102,6 +102,12 @@ func (a *myInboundAdapter) newUserConnection(ctx context.Context, conn net.Conn,
 }
 
 func (a *myInboundAdapter) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	user, loaded := auth.UserFromContext[string](ctx)
+	if !loaded {
+		a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		return a.router.RoutePacketConnection(ctx, conn, metadata)
+	}
+	metadata.User = user
+	a.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }
