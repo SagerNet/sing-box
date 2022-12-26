@@ -124,7 +124,7 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	switch value {
-	case "", "AsIS":
+	case "", "as_is":
 		*s = DomainStrategy(dns.DomainStrategyAsIS)
 	case "prefer_ipv4":
 		*s = DomainStrategy(dns.DomainStrategyPreferIPv4)
