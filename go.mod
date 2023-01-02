@@ -24,7 +24,7 @@ require (
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20221206044826-d15273f58d82
 	github.com/sagernet/sing v0.1.2-0.20221226041200-d8c779c030ba
-	github.com/sagernet/sing-dns v0.1.1-0.20221219051000-4eff25693772
+	github.com/sagernet/sing-dns v0.1.1-0.20230103023532-65d2a9affde4
 	github.com/sagernet/sing-shadowsocks v0.1.0
 	github.com/sagernet/sing-tun v0.1.1-0.20221128044455-b22d9eb41b74
 	github.com/sagernet/sing-vmess v0.1.1-0.20221206050106-bcacd436d74c
