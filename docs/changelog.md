@@ -1,3 +1,12 @@
+#### 1.1.2
+
+* Fix http proxy auth
+* Fix user from stream packet conn
+* Fix DNS response TTL
+* Fix override packet conn
+* Skip override system proxy bypass list
+* Improve DNS log
+
 #### 1.1.1
 
 * Fix acme config
