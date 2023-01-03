@@ -23,11 +23,11 @@ require (
 	github.com/refraction-networking/utls v1.2.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20221206044826-d15273f58d82
-	github.com/sagernet/sing v0.1.2-0.20221226041200-d8c779c030ba
-	github.com/sagernet/sing-dns v0.1.1-0.20230103023532-65d2a9affde4
+	github.com/sagernet/sing v0.1.2
+	github.com/sagernet/sing-dns v0.1.1
 	github.com/sagernet/sing-shadowsocks v0.1.0
-	github.com/sagernet/sing-tun v0.1.1-0.20221128044455-b22d9eb41b74
-	github.com/sagernet/sing-vmess v0.1.1-0.20221206050106-bcacd436d74c
+	github.com/sagernet/sing-tun v0.1.1
+	github.com/sagernet/sing-vmess v0.1.1
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
@@ -69,7 +69,6 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sagernet/abx-go v0.0.0-20220819185957-dba1257d738e // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
