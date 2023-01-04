@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -87,8 +88,9 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
-	conn := newGunConn(request.Body, writer, writer.(http.Flusher))
+	conn := v2rayhttp.NewHTTP2Wrapper(newGunConn(request.Body, writer, writer.(http.Flusher)))
 	s.handler.NewConnection(request.Context(), conn, metadata)
+	conn.CloseWrapper()
 }
 
 func (s *Server) badRequest(request *http.Request, err error) {

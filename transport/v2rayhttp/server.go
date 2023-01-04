@@ -120,11 +120,12 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		}
 		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
-		conn := &ServerHTTPConn{
+		conn := NewHTTP2Wrapper(&ServerHTTPConn{
 			newHTTPConn(request.Body, writer),
 			writer.(http.Flusher),
-		}
+		})
 		s.handler.NewConnection(request.Context(), conn, metadata)
+		conn.CloseWrapper()
 	}
 }
 

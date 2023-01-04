@@ -5,10 +5,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	N "github.com/sagernet/sing/common/network"
 )
 
 type HTTPConn struct {
@@ -104,4 +108,44 @@ func (c *ServerHTTPConn) Write(b []byte) (n int, err error) {
 		c.flusher.Flush()
 	}
 	return
+}
+
+type HTTP2ConnWrapper struct {
+	N.ExtendedConn
+	access sync.Mutex
+	closed bool
+}
+
+func NewHTTP2Wrapper(conn net.Conn) *HTTP2ConnWrapper {
+	return &HTTP2ConnWrapper{
+		ExtendedConn: bufio.NewExtendedConn(conn),
+	}
+}
+
+func (w *HTTP2ConnWrapper) Write(p []byte) (n int, err error) {
+	w.access.Lock()
+	defer w.access.Unlock()
+	if w.closed {
+		return 0, net.ErrClosed
+	}
+	return w.ExtendedConn.Write(p)
+}
+
+func (w *HTTP2ConnWrapper) WriteBuffer(buffer *buf.Buffer) error {
+	w.access.Lock()
+	defer w.access.Unlock()
+	if w.closed {
+		return net.ErrClosed
+	}
+	return w.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (w *HTTP2ConnWrapper) CloseWrapper() {
+	w.access.Lock()
+	defer w.access.Unlock()
+	w.closed = true
+}
+
+func (w *HTTP2ConnWrapper) Upstream() any {
+	return w.ExtendedConn
 }
