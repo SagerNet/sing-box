@@ -175,11 +175,11 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 			switch server.Address {
 			case "local", "rcode":
 			default:
-				serverURL, err := url.Parse(server.Address)
-				if err != nil {
-					return nil, err
+				serverURL, _ := url.Parse(server.Address)
+				var serverAddress string
+				if serverURL != nil {
+					serverAddress = serverURL.Hostname()
 				}
-				serverAddress := serverURL.Hostname()
 				if serverAddress == "" {
 					serverAddress = server.Address
 				}
