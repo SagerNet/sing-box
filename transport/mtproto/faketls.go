@@ -68,7 +68,7 @@ var (
 	}
 )
 
-func FakeTLSHandshake(ctx context.Context, conn net.Conn, secret Secret, replay replay.Filter) (*FakeTLSConn, error) {
+func FakeTLSHandshake(ctx context.Context, conn net.Conn, secrets []*Secret, replay replay.Filter) (secretIndex int, fakeTLSConn *FakeTLSConn, err error) {
 	_record := buf.StackNew()
 	defer common.KeepAlive(_record)
 	record := common.Dup(_record)
@@ -78,44 +78,59 @@ func FakeTLSHandshake(ctx context.Context, conn net.Conn, secret Secret, replay 
 	recordHeaderLen+=1 // type
 	recordHeaderLen+=2 // version
 	recordHeaderLen+=2 // payload length*/
-	_, err := record.ReadFullFrom(conn, 5)
+	_, err = record.ReadFullFrom(conn, 5)
 	if err != nil {
-		return nil, E.Cause(err, "read FakeTLS record")
+		err = E.Cause(err, "read FakeTLS record")
+		return
 	}
 
 	recordType := record.Byte(0)
 	switch recordType {
 	case TypeChangeCipherSpec, TypeHandshake, TypeApplicationData:
 	default:
-		return nil, E.New("unknown record type: ", recordType)
+		err = E.New("unknown record type: ", recordType)
+		return
 	}
 
 	version := binary.BigEndian.Uint16(record.Range(1, 3))
 	switch version {
 	case Version10, Version11, Version12, Version13:
 	default:
-		return nil, E.New("unknown tls version: ", version)
+		err = E.New("unknown TLS version: ", version)
+		return
 	}
 
 	length := int(binary.BigEndian.Uint16(record.Range(3, 5)))
 	record.Reset()
 	_, err = record.ReadFullFrom(conn, length)
 	if err != nil {
-		return nil, E.Cause(err, "read FakeTLS record")
+		err = E.Cause(err, "read FakeTLS record")
+		return
 	}
 
-	hello, err := parseClientHello(secret, record)
-	if err != nil {
-		return nil, err
+	var clientHello *ClientHello
+	var foundSecret *Secret
+	for i, secret := range secrets {
+		clientHello, err = parseClientHello(secret, record)
+		if err != nil {
+			continue
+		}
+		err = clientHello.Valid(secret.Host, time.Minute)
+		if err != nil {
+			continue
+		}
+		secretIndex = i
+		foundSecret = secret
+		break
+	}
+	if foundSecret == nil {
+		err = E.New("bad request")
+		return
 	}
 
-	err = hello.Valid(secret.Host, time.Minute)
-	if err != nil {
-		return nil, err
-	}
-
-	if !replay.Check(hello.SessionID) {
-		return nil, E.New("replay attack detected: ", hex.EncodeToString(hello.SessionID))
+	if !replay.Check(clientHello.SessionID) {
+		err = E.New("replay attack detected: ", hex.EncodeToString(clientHello.SessionID))
+		return
 	}
 
 	_serverHello := buf.StackNew()
@@ -123,11 +138,11 @@ func FakeTLSHandshake(ctx context.Context, conn net.Conn, secret Secret, replay 
 	serverHello := common.Dup(_serverHello)
 	defer serverHello.Release()
 
-	generateServerHello(serverHello, hello)
+	generateServerHello(serverHello, clientHello)
 	common.Must1(serverHello.Write(serverChangeCipherSpec))
 
-	mac := hmac.New(sha256.New, secret.Key[:])
-	mac.Write(hello.Random[:])
+	mac := hmac.New(sha256.New, foundSecret.Key[:])
+	mac.Write(clientHello.Random[:])
 
 	appDataHeader := serverHello.Extend(5)
 	appDataRandomLen := 1024 + mrand.Intn(3092)
@@ -142,9 +157,10 @@ func FakeTLSHandshake(ctx context.Context, conn net.Conn, secret Secret, replay 
 
 	_, err = serverHello.WriteTo(conn)
 	if err != nil {
-		return nil, err
+		return
 	}
-	return &FakeTLSConn{Conn: conn}, nil
+	fakeTLSConn = &FakeTLSConn{Conn: conn}
+	return
 }
 
 type ClientHello struct {
@@ -175,7 +191,7 @@ func (c *ClientHello) Valid(hostname string, tolerateTimeSkewness time.Duration)
 	return nil
 }
 
-func parseClientHello(secret Secret, handshake *buf.Buffer) (*ClientHello, error) {
+func parseClientHello(secret *Secret, handshake *buf.Buffer) (*ClientHello, error) {
 	l := handshake.Len()
 	if l < 6 { // minimum client hello length
 		return nil, E.New("client hello too short: ", l)

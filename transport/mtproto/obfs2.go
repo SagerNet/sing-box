@@ -57,7 +57,7 @@ func (f *clientHandshakeFrame) dc() int {
 	case idx < 0:
 		return -int(idx)
 	default:
-		return DefaultDC
+		return 2
 	}
 }
 

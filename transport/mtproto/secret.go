@@ -1,26 +1,17 @@
 package mtproto
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-// kanged from https://github.com/9seconds/mtg/blob/master/mtglib/secret.go
+// mod from https://github.com/9seconds/mtg/blob/master/mtglib/secret.go
 
 const (
 	secretFakeTLSFirstByte byte = 0xEE
-
-	SecretKeyLength = 16
-)
-
-var (
-	secretEmptyKey [SecretKeyLength]byte
-
-	ErrSecretEmpty = E.New("mtproto: secret is empty")
+	secretKeyLength             = 16
 )
 
 // Secret is a data structure that presents a secret.
@@ -51,88 +42,35 @@ var (
 // forms into bytes, you'll get the same byte array. Telegram clients nowadays
 // accept all forms.
 type Secret struct {
-	// Key is a set of bytes used for traffic authentication.
-	Key [SecretKeyLength]byte
-
-	// Host is a domain fronting hostname.
+	Key  [secretKeyLength]byte
 	Host string
 }
 
-func (s *Secret) Set(text string) error {
-	if text == "" {
-		return ErrSecretEmpty
-	}
-
-	decoded, err := hex.DecodeString(text)
-	if err != nil {
-		decoded, err = base64.RawURLEncoding.DecodeString(text)
-	}
-
-	if err != nil {
-		return E.New("incorrect secret format: ", err)
-	}
-
-	l := len(decoded)
-	if l < 2 { //nolint: gomnd // we need at least 1 byte here
-		return E.New("secret is truncated, length=", l)
-	}
-
-	if decoded[0] != secretFakeTLSFirstByte {
-		return E.New("incorrect first byte of secret: ", decoded[0])
-	}
-
-	if l < 1+SecretKeyLength { // 1 for FakeTLS first byte
-		return E.New("secret has incorrect length ", len(decoded))
-	}
-
-	copy(s.Key[:], decoded[1:SecretKeyLength+1])
-	s.Host = string(decoded[1+SecretKeyLength:])
-
-	if s.Host == "" {
-		return E.New("hostname cannot be empty: ", text)
-	}
-
-	return nil
-}
-
-// Valid checks if this secret is valid and can be used in proxy.
-func (s Secret) Valid() bool {
-	return s.Key != secretEmptyKey && s.Host != ""
-}
-
-// String is to support fmt.Stringer interface.
-func (s Secret) String() string {
-	return s.Base64()
-}
-
-// Base64 returns a base64-encoded form of this secret.
-func (s Secret) Base64() string {
-	return base64.RawURLEncoding.EncodeToString(s.makeBytes())
-}
-
-// Hex returns a hex-encoded form of this secret (ee-secret).
-func (s Secret) Hex() string {
-	return hex.EncodeToString(s.makeBytes())
-}
-
-func (s *Secret) makeBytes() []byte {
+func (s *Secret) String() string {
 	data := append([]byte{secretFakeTLSFirstByte}, s.Key[:]...)
 	data = append(data, s.Host...)
-
-	return data
+	return hex.EncodeToString(data)
 }
 
-// GenerateSecret makes a new secret with a given hostname.
-func GenerateSecret(hostname string) Secret {
-	s := Secret{Host: hostname}
-	common.Must1(rand.Read(s.Key[:]))
-
-	return s
-}
-
-// ParseSecret parses a secret (both hex and base64 forms).
-func ParseSecret(secret string) (Secret, error) {
-	s := Secret{}
-
-	return s, s.Set(secret)
+func ParseSecret(plainText string) (*Secret, error) {
+	decoded, err := hex.DecodeString(plainText)
+	if err != nil {
+		decoded, err = base64.RawURLEncoding.DecodeString(plainText)
+	}
+	if err != nil {
+		return nil, E.Cause(err, "bad secret format")
+	}
+	if len(decoded) < 2 {
+		return nil, E.New("secret is truncated, length=", len(decoded))
+	}
+	if decoded[0] != secretFakeTLSFirstByte || len(decoded) < 1+secretKeyLength {
+		return nil, E.New("bad FakeTLS secret")
+	}
+	var secret Secret
+	copy(secret.Key[:], decoded[1:secretKeyLength+1])
+	secret.Host = string(decoded[1+secretKeyLength:])
+	if secret.Host == "" {
+		return nil, E.New("bad FakeTLS secret: empty server host")
+	}
+	return &secret, nil
 }
