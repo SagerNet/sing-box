@@ -3,6 +3,7 @@ package mtproto
 import (
 	"crypto/cipher"
 	"encoding/binary"
+	"io"
 	"net"
 	"sync"
 
@@ -40,7 +41,10 @@ func (c *FakeTLSConn) SetupObfs2(en, de cipher.Stream) {
 }
 
 func (c *FakeTLSConn) read(p []byte) (n int, err error) {
-	n, err = c.Conn.Read(p)
+	n, err = io.ReadFull(c.Conn, p)
+	if err != nil {
+		return
+	}
 	if c.clientDecryptor != nil {
 		c.clientDecryptor.XORKeyStream(p, p[:n])
 	}
