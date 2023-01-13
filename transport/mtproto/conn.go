@@ -150,9 +150,8 @@ read:
 		c.remain -= n
 		return n, nil
 	}
-	header := buf.Get(5)
-	defer buf.Put(header)
-	_, err = c.Conn.Read(header)
+	var header [5]byte
+	_, err = io.ReadFull(c.Conn, header[:])
 	if err != nil {
 		return 0, err
 	}
