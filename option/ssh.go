@@ -10,4 +10,5 @@ type SSHOutboundOptions struct {
 	PrivateKeyPassphrase string           `json:"private_key_passphrase,omitempty"`
 	HostKeyAlgorithms    Listable[string] `json:"host_key_algorithms,omitempty"`
 	ClientVersion        string           `json:"client_version,omitempty"`
+	HostKey              string           `json:"host_key,omitempty"` 
 }

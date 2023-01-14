@@ -2,7 +2,9 @@ package outbound
 
 import (
 	"context"
+	"encoding/base64"
 	"math/rand"
+	"errors"
 	"net"
 	"os"
 	"strconv"
@@ -38,6 +40,7 @@ type SSH struct {
 	clientAccess      sync.Mutex
 	clientConn        net.Conn
 	client            *ssh.Client
+	hostKey           string
 }
 
 func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SSHOutboundOptions) (*SSH, error) {
@@ -55,6 +58,7 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,
 		clientVersion:     options.ClientVersion,
+		hostKey:           options.HostKey,
 	}
 	if outbound.serverAddr.Port == 0 {
 		outbound.serverAddr.Port = 22
@@ -104,6 +108,11 @@ func randomVersion() string {
 	return version
 }
 
+func keyString(k ssh.PublicKey) string {
+	// e.g. "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY...."
+    return k.Type() + " " + base64.StdEncoding.EncodeToString(k.Marshal())
+}
+
 func (s *SSH) connect() (*ssh.Client, error) {
 	if s.client != nil {
 		return s.client, nil
@@ -126,6 +135,9 @@ func (s *SSH) connect() (*ssh.Client, error) {
 		ClientVersion:     s.clientVersion,
 		HostKeyAlgorithms: s.hostKeyAlgorithms,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			if s.hostKey != "" && s.hostKey != keyString(key) {
+				return errors.New("SSH Host key mismatch, expected: " + keyString(key) + " got: " + s.hostKey)
+			}
 			return nil
 		},
 	}

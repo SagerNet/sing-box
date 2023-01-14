@@ -14,6 +14,7 @@
   "private_key_passphrase": "",
   "host_key_algorithms": [],
   "client_version": "SSH-2.0-OpenSSH_7.4p1",
+  "host_key": "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdH...",
 
   ... // 拨号字段
 }
@@ -58,6 +59,10 @@ SSH 用户, 默认使用 root。
 #### client_version
 
 客户端版本，默认使用随机值。
+
+#### host_key
+
+指定主机密钥，留空接受所有主机密钥.
 
 ### 拨号字段
 

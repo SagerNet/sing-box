@@ -14,6 +14,7 @@
   "private_key_passphrase": "",
   "host_key_algorithms": [],
   "client_version": "SSH-2.0-OpenSSH_7.4p1",
+  "host_key": "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdH...",
 
   ... // Dial Fields
 }
@@ -58,6 +59,10 @@ Host key algorithms.
 #### client_version
 
 Client version. Random version will be used if empty.
+
+#### host_key
+
+Remote SSH host key. Accept any host key if empty.
 
 ### Dial Fields
 
