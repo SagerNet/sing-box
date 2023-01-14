@@ -1,3 +1,9 @@
+#### 1.1.4
+
+* Fix DNS log
+* Fix write to h2 conn after closed
+* Fix create UDP DNS transport from plain IPv6 address
+
 #### 1.1.2
 
 * Fix http proxy auth
