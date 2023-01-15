@@ -197,10 +197,9 @@ func (w *StackDevice) Events() chan tun.Event {
 
 func (w *StackDevice) Close() error {
 	select {
-	case <-w.events:
+	case <-w.done:
 		return os.ErrClosed
 	default:
-		close(w.events)
 	}
 	w.stack.Close()
 	for _, endpoint := range w.stack.CleanupEndpoints() {
