@@ -105,11 +105,5 @@ func (w *SystemDevice) Events() chan wgTun.Event {
 }
 
 func (w *SystemDevice) Close() error {
-	select {
-	case <-w.events:
-		return os.ErrClosed
-	default:
-		close(w.events)
-	}
 	return w.device.Close()
 }
