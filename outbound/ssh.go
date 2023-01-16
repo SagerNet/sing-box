@@ -1,10 +1,10 @@
 package outbound
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"math/rand"
-	"errors"
 	"net"
 	"os"
 	"strconv"
@@ -34,13 +34,13 @@ type SSH struct {
 	dialer            N.Dialer
 	serverAddr        M.Socksaddr
 	user              string
+	hostKey           []ssh.PublicKey
 	hostKeyAlgorithms []string
 	clientVersion     string
 	authMethod        []ssh.AuthMethod
 	clientAccess      sync.Mutex
 	clientConn        net.Conn
 	client            *ssh.Client
-	hostKey           string
 }
 
 func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SSHOutboundOptions) (*SSH, error) {
@@ -58,7 +58,6 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,
 		clientVersion:     options.ClientVersion,
-		hostKey:           options.HostKey,
 	}
 	if outbound.serverAddr.Port == 0 {
 		outbound.serverAddr.Port = 22
@@ -95,6 +94,15 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		}
 		outbound.authMethod = append(outbound.authMethod, ssh.PublicKeys(signer))
 	}
+	if len(options.HostKey) > 0 {
+		for _, hostKey := range options.HostKey {
+			key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(hostKey))
+			if err != nil {
+				return nil, E.New("parse host key ", key)
+			}
+			outbound.hostKey = append(outbound.hostKey, key)
+		}
+	}
 	return outbound, nil
 }
 
@@ -106,11 +114,6 @@ func randomVersion() string {
 		version += "8." + strconv.Itoa(rand.Intn(9))
 	}
 	return version
-}
-
-func keyString(k ssh.PublicKey) string {
-	// e.g. "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY...."
-    return k.Type() + " " + base64.StdEncoding.EncodeToString(k.Marshal())
 }
 
 func (s *SSH) connect() (*ssh.Client, error) {
@@ -135,10 +138,16 @@ func (s *SSH) connect() (*ssh.Client, error) {
 		ClientVersion:     s.clientVersion,
 		HostKeyAlgorithms: s.hostKeyAlgorithms,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			if s.hostKey != "" && s.hostKey != keyString(key) {
-				return errors.New("SSH Host key mismatch, expected: " + keyString(key) + " got: " + s.hostKey)
+			if len(s.hostKey) == 0 {
+				return nil
 			}
-			return nil
+			serverKey := key.Marshal()
+			for _, hostKey := range s.hostKey {
+				if bytes.Equal(serverKey, hostKey.Marshal()) {
+					return nil
+				}
+			}
+			return E.New("host key mismatch, server send ", key.Type(), " ", base64.StdEncoding.EncodeToString(serverKey))
 		},
 	}
 	clientConn, chans, reqs, err := ssh.NewClientConn(conn, s.serverAddr.Addr.String(), config)
