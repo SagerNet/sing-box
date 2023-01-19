@@ -18,7 +18,13 @@ import (
 func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
 	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
 	var lc net.ListenConfig
-	if !a.listenOptions.UDPFragment {
+	var udpFragment bool
+	if a.listenOptions.UDPFragment != nil {
+		udpFragment = *a.listenOptions.UDPFragment
+	} else {
+		udpFragment = a.listenOptions.UDPFragmentDefault
+	}
+	if !udpFragment {
 		lc.Control = control.Append(lc.Control, control.DisableUDPFragment())
 	}
 	udpConn, err := lc.ListenPacket(a.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
