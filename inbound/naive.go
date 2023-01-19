@@ -137,14 +137,13 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	var authOk bool
+	var userName string
 	authorization := request.Header.Get("Proxy-Authorization")
 	if strings.HasPrefix(authorization, "BASIC ") || strings.HasPrefix(authorization, "Basic ") {
 		userPassword, _ := base64.URLEncoding.DecodeString(authorization[6:])
 		userPswdArr := strings.SplitN(string(userPassword), ":", 2)
+		userName = userPswdArr[0]
 		authOk = n.authenticator.Verify(userPswdArr[0], userPswdArr[1])
-		if authOk {
-			ctx = auth.ContextWithUser(ctx, userPswdArr[0])
-		}
 	}
 	if !authOk {
 		rejectHTTP(writer, http.StatusProxyAuthRequired)
@@ -168,17 +167,29 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			n.badRequest(ctx, request, E.New("hijack failed"))
 			return
 		}
-		n.newConnection(ctx, &naiveH1Conn{Conn: conn}, source, destination)
+		n.newConnection(ctx, &naiveH1Conn{Conn: conn}, userName, source, destination)
 	} else {
-		n.newConnection(ctx, &naiveH2Conn{reader: request.Body, writer: writer, flusher: writer.(http.Flusher)}, source, destination)
+		n.newConnection(ctx, &naiveH2Conn{reader: request.Body, writer: writer, flusher: writer.(http.Flusher)}, userName, source, destination)
 	}
 }
 
-func (n *Naive) newConnection(ctx context.Context, conn net.Conn, source, destination M.Socksaddr) {
-	n.routeTCP(ctx, conn, n.createMetadata(conn, adapter.InboundContext{
+func (n *Naive) newConnection(ctx context.Context, conn net.Conn, userName string, source, destination M.Socksaddr) {
+	if userName != "" {
+		n.logger.InfoContext(ctx, "[", userName, "] inbound connection from ", source)
+		n.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", destination)
+	} else {
+		n.logger.InfoContext(ctx, "inbound connection from ", source)
+		n.logger.InfoContext(ctx, "inbound connection to ", destination)
+	}
+	hErr := n.router.RouteConnection(ctx, conn, n.createMetadata(conn, adapter.InboundContext{
 		Source:      source,
 		Destination: destination,
+		User:        userName,
 	}))
+	if hErr != nil {
+		conn.Close()
+		n.NewError(ctx, E.Cause(hErr, "process connection from ", source))
+	}
 }
 
 func (n *Naive) badRequest(ctx context.Context, request *http.Request, err error) {
