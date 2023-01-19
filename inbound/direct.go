@@ -25,6 +25,7 @@ type Direct struct {
 }
 
 func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectInboundOptions) *Direct {
+	options.UDPFragmentDefault = true
 	inbound := &Direct{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeDirect,

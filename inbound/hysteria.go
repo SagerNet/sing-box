@@ -43,6 +43,7 @@ type Hysteria struct {
 }
 
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaInboundOptions) (*Hysteria, error) {
+	options.UDPFragmentDefault = true
 	quicConfig := &quic.Config{
 		InitialStreamReceiveWindow:     options.ReceiveWindowConn,
 		MaxStreamReceiveWindow:         options.ReceiveWindowConn,
