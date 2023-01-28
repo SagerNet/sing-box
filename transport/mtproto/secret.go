@@ -11,7 +11,7 @@ import (
 
 const (
 	secretFakeTLSFirstByte byte = 0xEE
-	secretKeyLength             = 16
+	secretKeyLength        int  = 16
 )
 
 // Secret is a data structure that presents a secret.

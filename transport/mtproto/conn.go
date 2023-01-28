@@ -21,8 +21,7 @@ var (
 
 type FakeTLSConn struct {
 	net.Conn
-	remain    int
-	writeLock sync.Mutex
+	remain int
 
 	clientEncryptor cipher.Stream
 	clientDecryptor cipher.Stream
@@ -31,7 +30,7 @@ type FakeTLSConn struct {
 	serverDecryptor cipher.Stream
 
 	unreadServerHandshake []byte
-	serverHandshakeMutex  sync.Locker
+	serverHandshakeMutex  *sync.Mutex
 }
 
 func (c *FakeTLSConn) SetupObfs2(en, de cipher.Stream) {
@@ -67,9 +66,7 @@ func (c *FakeTLSConn) Write(p []byte) (n int, err error) {
 	if c.clientEncryptor != nil {
 		c.clientEncryptor.XORKeyStream(frame[5:], frame[5:5+lenP])
 	}
-	c.writeLock.Lock()
 	_, err = c.Conn.Write(frame)
-	c.writeLock.Unlock()
 	buf.Put(frame)
 	if err != nil {
 		return 0, err
@@ -123,9 +120,11 @@ func (c *FakeTLSConn) Read(p []byte) (n int, err error) {
 	if lenH := len(c.unreadServerHandshake); lenH > 0 {
 		if lenH < lenP {
 			copy(p, c.unreadServerHandshake)
+			c.unreadServerHandshake = nil
 			p = p[lenH:]
 		} else if lenH == lenP {
 			copy(p, c.unreadServerHandshake)
+			c.unreadServerHandshake = nil
 			return lenH, nil
 		} else { // lenH > lenP
 			copy(p, c.unreadServerHandshake)
