@@ -6,8 +6,13 @@
   "tag": "mtproto-in",
 
   ... // 监听字段
-  
-  "secret": ""
+
+  "users": [
+    {
+      "name": "sekai",
+      "secret": "ee134132e79f44020784bddce2e734b5e2676f6f676c652e636f6d"
+    }
+  ]
 }
 ```
 
@@ -21,8 +26,12 @@
 
 ### 字段
 
-#### secret
+#### users
 
 ==必填==
 
-MTProto V3 密钥。
+MTProto 用户，其中 secret 是 MTProto V3 密钥。
+
+!!! note ""
+
+    受限于其身份认证算法，MTProto 多用户入站可能性能不佳。

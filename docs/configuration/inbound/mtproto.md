@@ -6,8 +6,13 @@
   "tag": "mtproto-in",
 
   ... // Listen Fields
-  
-  "secret": ""
+
+  "users": [
+    {
+      "name": "sekai",
+      "secret": "ee134132e79f44020784bddce2e734b5e2676f6f676c652e636f6d"
+    }
+  ]
 }
 ```
 
@@ -21,8 +26,12 @@ See [Listen Fields](/configuration/shared/listen) for details.
 
 ### Fields
 
-#### secret
+#### users
 
 ==Required==
 
-MTProto V3 secret.
+MTProto users, where secret is a MTProto V3 secret.
+
+!!! note ""
+
+    MTProto multi-user inbound might be poor on performance limited to its authentication algorithm.
