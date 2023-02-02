@@ -47,6 +47,7 @@ func (r *DomainRegexItem) Match(metadata *adapter.InboundContext) bool {
 	if domainHost == "" {
 		return false
 	}
+	domainHost = strings.ToLower(domainHost)
 	for _, matcher := range r.matchers {
 		if matcher.MatchString(domainHost) {
 			return true
