@@ -1,3 +1,11 @@
+#### 1.1.5
+
+* Add Go 1.20 support
+* Fix inbound default DF value
+* Fix auth_user route for naive inbound
+* Fix gRPC lite header
+* Ignore domain case in route rules
+
 #### 1.1.4
 
 * Fix DNS log
