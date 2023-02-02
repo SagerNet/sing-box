@@ -99,6 +99,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
 		r.Mount("/cache", cacheRouter())
+		r.Mount("/dns", dnsRouter(router))
 	})
 	if options.ExternalUI != "" {
 		chiRouter.Group(func(r chi.Router) {
