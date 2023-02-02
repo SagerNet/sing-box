@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,7 +43,7 @@ func findSDK() {
 	os.Setenv("ANDROID_SDK_HOME", androidSDKPath)
 	os.Setenv("ANDROID_NDK_HOME", androidNDKPath)
 	os.Setenv("NDK", androidNDKPath)
-	os.Setenv("PATH", os.Getenv("PATH")+":"+filepath.Join(androidNDKPath, "toolchains", "llvm", "prebuilt", "linux-x86_64", "bin"))
+	os.Setenv("PATH", os.Getenv("PATH")+":"+filepath.Join(androidNDKPath, "toolchains", "llvm", "prebuilt", runtime.GOOS+"-x86_64", "bin"))
 }
 
 func findNDK() bool {
