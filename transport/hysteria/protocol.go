@@ -293,6 +293,10 @@ func ParseUDPMessage(packet []byte) (message UDPMessage, err error) {
 	if err != nil {
 		return
 	}
+	if int(6+hostLen) > len(packet) {
+		err = E.New("Invalid hostLen")
+		return
+	}
 	message.Host = string(packet[6 : 6+hostLen])
 	err = binary.Read(reader, binary.BigEndian, &message.Port)
 	if err != nil {
