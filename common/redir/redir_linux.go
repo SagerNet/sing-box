@@ -1,6 +1,7 @@
 package redir
 
 import (
+	"encoding/binary"
 	"net"
 	"net/netip"
 	"os"
@@ -29,7 +30,9 @@ func GetOriginalDestination(conn net.Conn) (destination netip.AddrPort, err erro
 			if err != nil {
 				return err
 			}
-			destination = netip.AddrPortFrom(M.AddrFromIP(raw.Addr.Addr[:]), raw.Addr.Port)
+			var port [2]byte
+			binary.BigEndian.PutUint16(port[:], raw.Addr.Port)
+			destination = netip.AddrPortFrom(M.AddrFromIP(raw.Addr.Addr[:]), binary.LittleEndian.Uint16(port[:]))
 		}
 		return nil
 	})
