@@ -1,10 +1,12 @@
 package route
 
 import (
+	"net/netip"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var _ RuleItem = (*GeoIPItem)(nil)
@@ -32,29 +34,50 @@ func NewGeoIPItem(router adapter.Router, logger log.ContextLogger, isSource bool
 }
 
 func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
+	var geoipCode string
+	if r.isSource && metadata.SourceGeoIPCode != "" {
+		geoipCode = metadata.SourceGeoIPCode
+	} else if !r.isSource && metadata.GeoIPCode != "" {
+		geoipCode = metadata.GeoIPCode
+	}
+	if geoipCode != "" {
+		return r.codeMap[geoipCode]
+	}
+	var destination netip.Addr
+	if r.isSource {
+		destination = metadata.Source.Addr
+	} else {
+		destination = metadata.Destination.Addr
+	}
+	if destination.IsValid() {
+		return r.match(metadata, destination)
+	}
+	for _, destinationAddress := range metadata.DestinationAddresses {
+		if r.match(metadata, destinationAddress) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *GeoIPItem) match(metadata *adapter.InboundContext, destination netip.Addr) bool {
+	var geoipCode string
 	geoReader := r.router.GeoIPReader()
-	if geoReader == nil {
+	if geoReader != nil {
+		geoipCode = geoReader.Lookup(destination)
+	}
+	if geoipCode == "" && !N.IsPublicAddr(destination) {
+		geoipCode = "private"
+	}
+	if geoipCode == "" {
 		return false
 	}
 	if r.isSource {
-		if metadata.SourceGeoIPCode == "" {
-			metadata.SourceGeoIPCode = geoReader.Lookup(metadata.Source.Addr)
-		}
-		return r.codeMap[metadata.SourceGeoIPCode]
+		metadata.SourceGeoIPCode = geoipCode
 	} else {
-		if metadata.Destination.IsIP() {
-			if metadata.GeoIPCode == "" {
-				metadata.GeoIPCode = geoReader.Lookup(metadata.Destination.Addr)
-			}
-			return r.codeMap[metadata.GeoIPCode]
-		}
-		for _, address := range metadata.DestinationAddresses {
-			if r.codeMap[geoReader.Lookup(address)] {
-				return true
-			}
-		}
-		return false
+		metadata.GeoIPCode = geoipCode
 	}
+	return r.codeMap[geoipCode]
 }
 
 func (r *GeoIPItem) String() string {

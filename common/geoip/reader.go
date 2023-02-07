@@ -4,7 +4,6 @@ import (
 	"net/netip"
 
 	E "github.com/sagernet/sing/common/exceptions"
-	N "github.com/sagernet/sing/common/network"
 
 	"github.com/oschwald/maxminddb-golang"
 )
@@ -30,9 +29,6 @@ func (r *Reader) Lookup(addr netip.Addr) string {
 	_ = r.reader.Lookup(addr.AsSlice(), &code)
 	if code != "" {
 		return code
-	}
-	if !N.IsPublicAddr(addr) {
-		return "private"
 	}
 	return "unknown"
 }
