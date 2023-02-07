@@ -3,8 +3,8 @@ package outbound
 import (
 	std_bufio "bufio"
 	"context"
+	"crypto/rand"
 	"encoding/hex"
-	"math/rand"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"

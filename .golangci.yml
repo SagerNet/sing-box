@@ -9,6 +9,8 @@ linters:
 
 run:
   skip-dirs:
+    - transport/simple-obfs
+    - transport/clashssr
     - transport/cloudflaretls
 
 linters-settings:
