@@ -23,11 +23,11 @@ require (
 	github.com/refraction-networking/utls v1.2.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/sing v0.1.6-0.20230114115804-bc788b027182
+	github.com/sagernet/sing v0.1.7-0.20230207063819-27d2950cdbe9
 	github.com/sagernet/sing-dns v0.1.3
 	github.com/sagernet/sing-shadowsocks v0.1.1-0.20230202035033-e3123545f2f7
 	github.com/sagernet/sing-tun v0.1.1
-	github.com/sagernet/sing-vmess v0.1.1
+	github.com/sagernet/sing-vmess v0.1.1-0.20230207064843-983dde690564
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
