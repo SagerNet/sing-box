@@ -7,7 +7,6 @@ require (
 	github.com/Dreamacro/clash v1.13.0
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go/v2 v2.0.2
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.8
@@ -29,6 +28,7 @@ require (
 	github.com/sagernet/sing-tun v0.1.1
 	github.com/sagernet/sing-vmess v0.1.1-0.20230207064843-983dde690564
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
+	github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
 	github.com/spf13/cobra v1.6.1

@@ -19,8 +19,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/cretz/bine v0.1.0/go.mod h1:6PF6fWAvYtwjRGkAuDEJeWNOv3a2hUouSP/yRYXmvHw=
 github.com/cretz/bine v0.2.0 h1:8GiDRGlTgz+o8H9DSnsl+5MeBK4HsExxgl6WgzOCuZo=
 github.com/cretz/bine v0.2.0/go.mod h1:WU4o9QR9wWp8AVKtTM1XD5vUHkEqnf2vVSo6dBqbetI=
-github.com/database64128/tfo-go/v2 v2.0.2 h1:5rGgkJeLEKlNaqredfrPQNLnctn1b+1fq/8tdKdOzJg=
-github.com/database64128/tfo-go/v2 v2.0.2/go.mod h1:FDdt4JaAsRU66wsYHxSVytYimPkKIHupVsxM+5DhvjY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -117,6 +115,8 @@ github.com/sagernet/sing-vmess v0.1.1-0.20230207064843-983dde690564 h1:+CFee8wEc
 github.com/sagernet/sing-vmess v0.1.1-0.20230207064843-983dde690564/go.mod h1:9KkmnQzTL4Gvv8U2TRAH2BOITCGsGPpHtUPP5sxn5sY=
 github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 h1:5VBIbVw9q7aKbrFdT83mjkyvQ+VaRsQ6yflTepfln38=
 github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195/go.mod h1:yedWtra8nyGJ+SyI+ziwuaGMzBatbB10P1IOOZbbSK8=
+github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d h1:trP/l6ZPWvQ/5Gv99Z7/t/v8iYy06akDMejxW1sznUk=
+github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d/go.mod h1:jk6Ii8Y3En+j2KQDLgdgQGwb3M6y7EL567jFnGYhN9g=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e h1:7uw2njHFGE+VpWamge6o56j2RWk4omF6uLKKxMmcWvs=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e/go.mod h1:45TUl8+gH4SIKr4ykREbxKWTxkDlSzFENzctB1dVRRY=
 github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c h1:vK2wyt9aWYHHvNLWniwijBu/n4pySypiKRhN32u/JGo=
