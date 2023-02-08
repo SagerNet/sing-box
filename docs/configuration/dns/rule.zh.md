@@ -9,6 +9,11 @@
           "mixed-in"
         ],
         "ip_version": 6,
+        "query_type": [
+          "A",
+          "HTTPS",
+          32768
+        ],
         "network": "tcp",
         "auth_user": [
           "usera",
@@ -117,6 +122,10 @@
 4 (A DNS 查询) 或 6 (AAAA DNS 查询)。
 
 默认不限制。
+
+#### query_type
+
+DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### network
 
