@@ -25,6 +25,9 @@
         "outbounds": [
           "proxy",
           "direct"
+        ],
+        "users": [
+          "sekai"
         ]
       }
     }
@@ -109,3 +112,7 @@ Inbound list to count traffic.
 #### stats.outbounds
 
 Outbound list to count traffic.
+
+#### stats.users
+
+User list to count traffic.

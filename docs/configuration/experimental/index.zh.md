@@ -25,6 +25,9 @@
         "outbounds": [
           "proxy",
           "direct"
+        ],
+        "users": [
+          "sekai"
         ]
       }
     }
@@ -107,3 +110,7 @@ gRPC API 监听地址。如果为空，则禁用 V2Ray API。
 #### stats.outbounds
 
 统计流量的出站列表。
+
+#### stats.users
+
+统计流量的用户列表。
