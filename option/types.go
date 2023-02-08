@@ -8,7 +8,10 @@ import (
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
+
+	mDNS "github.com/miekg/dns"
 )
 
 type ListenAddress netip.Addr
@@ -186,4 +189,41 @@ func (p *ListenPrefix) UnmarshalJSON(bytes []byte) error {
 
 func (p ListenPrefix) Build() netip.Prefix {
 	return netip.Prefix(p)
+}
+
+type DNSQueryType uint16
+
+func (t DNSQueryType) MarshalJSON() ([]byte, error) {
+	typeName, loaded := mDNS.TypeToString[uint16(t)]
+	if loaded {
+		return json.Marshal(typeName)
+	}
+	return json.Marshal(uint16(t))
+}
+
+func (t *DNSQueryType) UnmarshalJSON(bytes []byte) error {
+	var valueNumber uint16
+	err := json.Unmarshal(bytes, &valueNumber)
+	if err == nil {
+		*t = DNSQueryType(valueNumber)
+		return nil
+	}
+	var valueString string
+	err = json.Unmarshal(bytes, &valueString)
+	if err == nil {
+		queryType, loaded := mDNS.StringToType[valueString]
+		if loaded {
+			*t = DNSQueryType(queryType)
+			return nil
+		}
+	}
+	return E.New("unknown DNS query type: ", string(bytes))
+}
+
+func DNSQueryTypeToString(queryType uint16) string {
+	typeName, loaded := mDNS.TypeToString[queryType]
+	if loaded {
+		return typeName
+	}
+	return F.ToString(queryType)
 }

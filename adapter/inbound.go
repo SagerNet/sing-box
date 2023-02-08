@@ -46,6 +46,10 @@ type InboundContext struct {
 	SourceGeoIPCode      string
 	GeoIPCode            string
 	ProcessInfo          *process.Info
+
+	// dns cache
+
+	QueryType uint16
 }
 
 type inboundContextKey struct{}

@@ -9,6 +9,11 @@
           "mixed-in"
         ],
         "ip_version": 6,
+        "query_type": [
+          "A",
+          "HTTPS",
+          32768
+        ],
         "network": "tcp",
         "auth_user": [
           "usera",
@@ -118,6 +123,10 @@ Tags of [Inbound](/configuration/inbound).
 4 (A DNS query) or 6 (AAAA DNS query).
 
 Not limited if empty.
+
+#### query_type
+
+DNS query type. Values can be integers or type name strings.
 
 #### network
 
