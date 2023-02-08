@@ -50,7 +50,8 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	}
 	ctx, metadata := adapter.AppendContext(ctx)
 	if len(message.Question) > 0 {
-		switch message.Question[0].Qtype {
+		metadata.QueryType = message.Question[0].Qtype
+		switch metadata.QueryType {
 		case mDNS.TypeA:
 			metadata.IPVersion = 4
 		case mDNS.TypeAAAA:
