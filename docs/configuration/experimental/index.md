@@ -9,7 +9,6 @@
       "external_controller": "127.0.0.1:9090",
       "external_ui": "folder",
       "secret": "",
-      "direct_io": false,
       "default_mode": "rule",
       "store_selected": false,
       "cache_file": "cache.db"
@@ -18,7 +17,6 @@
       "listen": "127.0.0.1:8080",
       "stats": {
         "enabled": true,
-        "direct_io": false,
         "inbounds": [
           "socks-in"
         ],
@@ -61,10 +59,6 @@ Secret for the RESTful API (optional)
 Authenticate by spedifying HTTP header `Authorization: Bearer ${secret}`
 ALWAYS set a secret if RESTful API is listening on 0.0.0.0
 
-#### direct_io
-
-Allows lossless relays like splice without real-time traffic reporting.
-
 #### default_mode
 
 Default mode in clash, `rule` will be used if empty.
@@ -100,10 +94,6 @@ Traffic statistics service settings.
 #### stats.enabled
 
 Enable statistics service.
-
-#### stats.direct_io
-
-Allows lossless relays like splice without real-time traffic reporting.
 
 #### stats.inbounds
 
