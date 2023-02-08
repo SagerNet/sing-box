@@ -14,6 +14,7 @@ require (
 	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/hashicorp/yamux v0.1.1
+	github.com/insomniacslk/dhcp v0.0.0-20221215072855-de60144f33f8
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.0.4
 	github.com/miekg/dns v1.1.50
@@ -59,6 +60,7 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
@@ -72,6 +74,7 @@ require (
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/u-root/uio v0.0.0-20221213070652-c3537552635f // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
