@@ -1,3 +1,14 @@
+#### 1.2-beta1
+
+* Add [DHCP DNS server](/configuration/dns/server) support
+* Add SSH [host key validation](/configuration/outbound/ssh) support
+* Add [query_type](/configuration/dns/rule) DNS rule item
+* Add v2ray [user stats](/configuration/experimental#statsusers) api
+* Add new clash DNS query api
+* Improve vmess request
+* Fix ipv6 redirect on Linux
+* Fix match geoip private
+
 #### 1.1.5
 
 * Add Go 1.20 support

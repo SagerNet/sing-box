@@ -9,7 +9,6 @@
       "external_controller": "127.0.0.1:9090",
       "external_ui": "folder",
       "secret": "",
-      "direct_io": false,
       "default_mode": "rule",
       "store_selected": false,
       "cache_file": "cache.db"
@@ -18,7 +17,6 @@
       "listen": "127.0.0.1:8080",
       "stats": {
         "enabled": true,
-        "direct_io": false,
         "inbounds": [
           "socks-in"
         ],
@@ -59,10 +57,6 @@ RESTful API 的密钥（可选）
 通过指定 HTTP 标头 `Authorization: Bearer ${secret}` 进行身份验证
 如果 RESTful API 正在监听 0.0.0.0，请始终设置一个密钥。
 
-#### direct_io
-
-允许像 splice 这样的没有实时流量报告的无损中继。
-
 #### default_mode
 
 Clash 中的默认模式，默认使用 `rule`。
@@ -98,10 +92,6 @@ gRPC API 监听地址。如果为空，则禁用 V2Ray API。
 #### stats.enabled
 
 启用统计服务。
-
-#### stats.direct_io
-
-允许像 splice 这样的没有实时流量报告的无损中继。
 
 #### stats.inbounds
 
