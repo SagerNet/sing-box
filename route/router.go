@@ -159,6 +159,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		transportTags[i] = tag
 		transportTagMap[tag] = true
 	}
+	ctx = adapter.ContextWithRouter(ctx, router)
 	for {
 		lastLen := len(dummyTransportMap)
 		for i, server := range dnsOptions.Servers {
@@ -173,7 +174,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 				detour = dialer.NewDetour(router, server.Detour)
 			}
 			switch server.Address {
-			case "local", "rcode":
+			case "local":
 			default:
 				serverURL, _ := url.Parse(server.Address)
 				var serverAddress string
@@ -193,11 +194,15 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 					} else {
 						continue
 					}
-				} else if notIpAddress != nil && (serverURL == nil || serverURL.Scheme != "rcode") {
-					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
+				} else if notIpAddress != nil {
+					switch serverURL.Scheme {
+					case "rcode", "dhcp":
+					default:
+						return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
+					}
 				}
 			}
-			transport, err := dns.CreateTransport(ctx, logFactory.NewLogger(F.ToString("dns/transport[", i, "]")), detour, server.Address)
+			transport, err := dns.CreateTransport(ctx, logFactory.NewLogger(F.ToString("dns/transport[", tag, "]")), detour, server.Address)
 			if err != nil {
 				return nil, E.Cause(err, "parse dns server[", tag, "]")
 			}
@@ -392,14 +397,20 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
-	for _, rule := range r.rules {
-		err := rule.Start()
+	if r.interfaceMonitor != nil {
+		err := r.interfaceMonitor.Start()
 		if err != nil {
 			return err
 		}
 	}
-	for _, rule := range r.dnsRules {
-		err := rule.Start()
+	if r.networkMonitor != nil {
+		err := r.networkMonitor.Start()
+		if err != nil {
+			return err
+		}
+	}
+	if r.packageManager != nil {
+		err := r.packageManager.Start()
 		if err != nil {
 			return err
 		}
@@ -424,22 +435,22 @@ func (r *Router) Start() error {
 		r.geositeCache = nil
 		r.geositeReader = nil
 	}
-	if r.interfaceMonitor != nil {
-		err := r.interfaceMonitor.Start()
+	for i, rule := range r.rules {
+		err := rule.Start()
 		if err != nil {
-			return err
+			return E.Cause(err, "initialize rule[", i, "]")
 		}
 	}
-	if r.networkMonitor != nil {
-		err := r.networkMonitor.Start()
+	for i, rule := range r.dnsRules {
+		err := rule.Start()
 		if err != nil {
-			return err
+			return E.Cause(err, "initialize DNS rule[", i, "]")
 		}
 	}
-	if r.packageManager != nil {
-		err := r.packageManager.Start()
+	for i, transport := range r.transports {
+		err := transport.Start()
 		if err != nil {
-			return err
+			return E.Cause(err, "initialize DNS server[", i, "]")
 		}
 	}
 	return nil
@@ -454,6 +465,12 @@ func (r *Router) Close() error {
 	}
 	for _, rule := range r.dnsRules {
 		err := rule.Close()
+		if err != nil {
+			return err
+		}
+	}
+	for _, transport := range r.transports {
+		err := transport.Close()
 		if err != nil {
 			return err
 		}

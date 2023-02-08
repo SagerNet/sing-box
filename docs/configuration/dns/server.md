@@ -30,16 +30,17 @@ The tag of the dns server.
 
 The address of the dns server.
 
-| Protocol | Format                      |
-|----------|-----------------------------|
-| `System` | `local`                     |
-| `TCP`    | `tcp://1.0.0.1`             |
-| `UDP`    | `8.8.8.8` `udp://8.8.4.4`   |
-| `TLS`    | `tls://dns.google`          |
-| `HTTPS`  | `https://1.1.1.1/dns-query` |
-| `QUIC`   | `quic://dns.adguard.com`    |
-| `HTTP3`  | `h3://8.8.8.8/dns-query`    |
-| `RCode`  | `rcode://refused`           |
+| Protocol | Format                        |
+|----------|-------------------------------|
+| `System` | `local`                       |
+| `TCP`    | `tcp://1.0.0.1`               |
+| `UDP`    | `8.8.8.8` `udp://8.8.4.4`     |
+| `TLS`    | `tls://dns.google`            |
+| `HTTPS`  | `https://1.1.1.1/dns-query`   |
+| `QUIC`   | `quic://dns.adguard.com`      |
+| `HTTP3`  | `h3://8.8.8.8/dns-query`      |
+| `RCode`  | `rcode://refused`             |
+| `DHCP`   | `dhcp://auto` or `dhcp://en0` |
 
 !!! warning ""
 
@@ -52,6 +53,10 @@ The address of the dns server.
 !!! info ""
 
     the RCode transport is often used to block queries. Use with rules and the `disable_cache` rule option.
+
+!!! warning ""
+
+    DHCP transport is not included by default, see [Installation](/#installation).
 
 | RCode             | Description           | 
 |-------------------|-----------------------|
