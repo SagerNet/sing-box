@@ -1,7 +1,9 @@
 package outbound
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"math/rand"
 	"net"
 	"os"
@@ -32,6 +34,7 @@ type SSH struct {
 	dialer            N.Dialer
 	serverAddr        M.Socksaddr
 	user              string
+	hostKey           []ssh.PublicKey
 	hostKeyAlgorithms []string
 	clientVersion     string
 	authMethod        []ssh.AuthMethod
@@ -91,6 +94,15 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		}
 		outbound.authMethod = append(outbound.authMethod, ssh.PublicKeys(signer))
 	}
+	if len(options.HostKey) > 0 {
+		for _, hostKey := range options.HostKey {
+			key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(hostKey))
+			if err != nil {
+				return nil, E.New("parse host key ", key)
+			}
+			outbound.hostKey = append(outbound.hostKey, key)
+		}
+	}
 	return outbound, nil
 }
 
@@ -126,7 +138,16 @@ func (s *SSH) connect() (*ssh.Client, error) {
 		ClientVersion:     s.clientVersion,
 		HostKeyAlgorithms: s.hostKeyAlgorithms,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
+			if len(s.hostKey) == 0 {
+				return nil
+			}
+			serverKey := key.Marshal()
+			for _, hostKey := range s.hostKey {
+				if bytes.Equal(serverKey, hostKey.Marshal()) {
+					return nil
+				}
+			}
+			return E.New("host key mismatch, server send ", key.Type(), " ", base64.StdEncoding.EncodeToString(serverKey))
 		},
 	}
 	clientConn, chans, reqs, err := ssh.NewClientConn(conn, s.serverAddr.Addr.String(), config)

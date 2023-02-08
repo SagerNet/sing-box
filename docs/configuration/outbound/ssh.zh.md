@@ -12,6 +12,9 @@
   "private_key": "",
   "private_key_path": "$HOME/.ssh/id_rsa",
   "private_key_passphrase": "",
+  "host_key": [
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdH..."
+  ],
   "host_key_algorithms": [],
   "client_version": "SSH-2.0-OpenSSH_7.4p1",
 
@@ -50,6 +53,10 @@ SSH 用户, 默认使用 root。
 #### private_key_passphrase
 
 密钥密码。
+
+#### host_key
+
+主机密钥，留空接受所有。
 
 #### host_key_algorithms
 

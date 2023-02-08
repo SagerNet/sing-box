@@ -12,6 +12,9 @@
   "private_key": "",
   "private_key_path": "$HOME/.ssh/id_rsa",
   "private_key_passphrase": "",
+  "host_key": [
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdH..."
+  ],
   "host_key_algorithms": [],
   "client_version": "SSH-2.0-OpenSSH_7.4p1",
 
@@ -50,6 +53,10 @@ Private key path.
 #### private_key_passphrase
 
 Private key passphrase.
+
+#### host_key
+
+Host key. Accept any if empty.
 
 #### host_key_algorithms
 
