@@ -3,7 +3,7 @@ linters:
   enable:
     - gofumpt
     - govet
-#    - gci
+    - gci
     - staticcheck
     - paralleltest
 
@@ -14,10 +14,11 @@ run:
     - transport/cloudflaretls
 
 linters-settings:
-#  gci:
-#    sections:
-#      - standard
-#      - prefix(github.com/sagernet/)
-#      - default
+  gci:
+    custom-order: true
+    sections:
+      - standard
+      - prefix(github.com/sagernet/)
+      - default
   staticcheck:
-    go: '1.19'
+    go: '1.20'
