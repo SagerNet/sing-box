@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "commitMessagePrefix": "[dependencies]",
+  "extends": [
+    "config:base",
+    ":disableRateLimiting"
+  ],
+  "baseBranches": ["dev-next"],
+  "enabledManagers": ["github-actions"],
+  "groupName": "github-actions"
+}
