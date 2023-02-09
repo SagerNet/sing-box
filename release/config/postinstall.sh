@@ -1,3 +1,3 @@
 #!/bin/sh
 
-mkdir "/var/lib/sing-box"
+mkdir -p /var/lib/sing-box
