@@ -293,8 +293,8 @@ func ParseUDPMessage(packet []byte) (message UDPMessage, err error) {
 	if err != nil {
 		return
 	}
-	if int(6+hostLen) > len(packet) {
-		err = E.New("Invalid hostLen")
+	if 6+int(hostLen) > len(packet) {
+		err = E.New("invalid host length")
 		return
 	}
 	message.Host = string(packet[6 : 6+hostLen])
