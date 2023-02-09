@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "commitMessagePrefix": "[dependencies]",
+  "extends": [
+    "config:base",
+    ":disableRateLimiting"
+  ],
+  "baseBranches": [
+    "dev-next"
+  ],
+  "golang": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions"
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "groupName": "Dockerfile"
+    }
+  ]
+}
