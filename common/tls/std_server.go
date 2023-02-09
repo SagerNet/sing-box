@@ -246,6 +246,14 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
 	}
+	clientCA, err := loadCertAsPool(options.ClientCA, options.ClientCAPath)
+	if err != nil {
+		return nil, E.Cause(err, "load client CA")
+	}
+	if clientCA != nil {
+		tlsConfig.ClientCAs = clientCA
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	}
 	return &STDServerConfig{
 		config:          tlsConfig,
 		logger:          logger,

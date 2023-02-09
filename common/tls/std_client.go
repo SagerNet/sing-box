@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"net"
 	"net/netip"
-	"os"
 
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -107,22 +106,31 @@ func NewSTDClient(serverAddress string, options option.OutboundTLSOptions) (Conf
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
 	}
-	var certificate []byte
-	if options.Certificate != "" {
-		certificate = []byte(options.Certificate)
-	} else if options.CertificatePath != "" {
-		content, err := os.ReadFile(options.CertificatePath)
-		if err != nil {
-			return nil, E.Cause(err, "read certificate")
-		}
-		certificate = content
+	certPool, err := loadCertAsPool(options.Certificate, options.CertificatePath)
+	if err != nil {
+		return nil, E.Cause(err, "load certificate")
 	}
-	if len(certificate) > 0 {
-		certPool := x509.NewCertPool()
-		if !certPool.AppendCertsFromPEM(certificate) {
-			return nil, E.New("failed to parse certificate:\n\n", certificate)
-		}
+	if certPool != nil {
 		tlsConfig.RootCAs = certPool
+	}
+	clientCert, err := loadCertAsBytes(options.ClientCertificate, options.ClientCertificatePath)
+	if err != nil {
+		return nil, E.Cause(err, "load client certificate")
+	}
+	clientKey, err := loadCertAsBytes(options.ClientKey, options.ClientKeyPath)
+	if err != nil {
+		return nil, E.Cause(err, "load client certificate key")
+	}
+	if clientCert != nil && clientKey == nil {
+		return nil, E.New("Client certificate specified without a client key")
+	} else if clientCert == nil && clientKey != nil {
+		return nil, E.New("Client key specified without a client certificate")
+	} else if clientCert != nil && clientKey != nil {
+		clientKeyPair, err := tls.X509KeyPair(clientCert, clientKey)
+		if err != nil {
+			return nil, E.Cause(err, "parse client certificate/key")
+		}
+		tlsConfig.Certificates = []tls.Certificate{clientKeyPair}
 	}
 	return &STDClientConfig{&tlsConfig}, nil
 }
