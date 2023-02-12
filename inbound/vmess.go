@@ -49,7 +49,11 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		ctx:   ctx,
 		users: options.Users,
 	}
-	service := vmess.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+	var serviceOptions []vmess.ServiceOption
+	if options.Transport != nil && options.Transport.Type != "" {
+		serviceOptions = append(serviceOptions, vmess.ServiceWithDisableHeaderProtection())
+	}
+	service := vmess.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound), serviceOptions...)
 	inbound.service = service
 	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.VMessUser) int {
 		return index

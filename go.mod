@@ -27,7 +27,7 @@ require (
 	github.com/sagernet/sing-dns v0.1.2-0.20230209132355-3c2e2957b455
 	github.com/sagernet/sing-shadowsocks v0.1.1-0.20230202035033-e3123545f2f7
 	github.com/sagernet/sing-tun v0.1.1
-	github.com/sagernet/sing-vmess v0.1.1-0.20230207064843-983dde690564
+	github.com/sagernet/sing-vmess v0.1.1-0.20230212211128-cb4e47dd0acb
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
