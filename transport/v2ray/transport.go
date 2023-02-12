@@ -15,26 +15,26 @@ import (
 )
 
 type (
-	ServerConstructor[O any] func(ctx context.Context, options O, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error)
+	ServerConstructor[O any] func(ctx context.Context, options O, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (adapter.V2RayServerTransport, error)
 	ClientConstructor[O any] func(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options O, tlsConfig tls.Config) (adapter.V2RayClientTransport, error)
 )
 
-func NewServerTransport(ctx context.Context, options option.V2RayTransportOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+func NewServerTransport(ctx context.Context, options option.V2RayTransportOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (adapter.V2RayServerTransport, error) {
 	if options.Type == "" {
 		return nil, nil
 	}
 	switch options.Type {
 	case C.V2RayTransportTypeHTTP:
-		return v2rayhttp.NewServer(ctx, options.HTTPOptions, tlsConfig, handler, errorHandler)
+		return v2rayhttp.NewServer(ctx, options.HTTPOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeWebsocket:
-		return v2raywebsocket.NewServer(ctx, options.WebsocketOptions, tlsConfig, handler, errorHandler)
+		return v2raywebsocket.NewServer(ctx, options.WebsocketOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeQUIC:
 		if tlsConfig == nil {
 			return nil, C.ErrTLSRequired
 		}
-		return NewQUICServer(ctx, options.QUICOptions, tlsConfig, handler, errorHandler)
+		return NewQUICServer(ctx, options.QUICOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeGRPC:
-		return NewGRPCServer(ctx, options.GRPCOptions, tlsConfig, handler, errorHandler)
+		return NewGRPCServer(ctx, options.GRPCOptions, tlsConfig, handler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
