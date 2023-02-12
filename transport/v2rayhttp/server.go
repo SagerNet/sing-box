@@ -24,32 +24,30 @@ import (
 var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
-	ctx          context.Context
-	handler      N.TCPConnectionHandler
-	errorHandler E.Handler
-	httpServer   *http.Server
-	h2Server     *http2.Server
-	h2cHandler   http.Handler
-	host         []string
-	path         string
-	method       string
-	headers      http.Header
+	ctx        context.Context
+	handler    adapter.V2RayServerTransportHandler
+	httpServer *http.Server
+	h2Server   *http2.Server
+	h2cHandler http.Handler
+	host       []string
+	path       string
+	method     string
+	headers    http.Header
 }
 
 func (s *Server) Network() []string {
 	return []string{N.NetworkTCP}
 }
 
-func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
+func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
-		ctx:          ctx,
-		handler:      handler,
-		errorHandler: errorHandler,
-		h2Server:     new(http2.Server),
-		host:         options.Host,
-		path:         options.Path,
-		method:       options.Method,
-		headers:      make(http.Header),
+		ctx:      ctx,
+		handler:  handler,
+		h2Server: new(http2.Server),
+		host:     options.Host,
+		path:     options.Path,
+		method:   options.Method,
+		headers:  make(http.Header),
 	}
 	if server.method == "" {
 		server.method = "PUT"
@@ -83,18 +81,15 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 	host := request.Host
 	if len(s.host) > 0 && !common.Contains(s.host, host) {
-		writer.WriteHeader(http.StatusBadRequest)
-		s.badRequest(request, E.New("bad host: ", host))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusBadRequest, E.New("bad host: ", host))
 		return
 	}
 	if !strings.HasPrefix(request.URL.Path, s.path) {
-		writer.WriteHeader(http.StatusNotFound)
-		s.badRequest(request, E.New("bad path: ", request.URL.Path))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 		return
 	}
 	if request.Method != s.method {
-		writer.WriteHeader(http.StatusNotFound)
-		s.badRequest(request, E.New("bad method: ", request.Method))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad method: ", request.Method))
 		return
 	}
 
@@ -114,14 +109,13 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if h, ok := writer.(http.Hijacker); ok {
 		conn, _, err := h.Hijack()
 		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
-			s.badRequest(request, E.Cause(err, "hijack conn"))
+			s.fallbackRequest(request.Context(), writer, request, http.StatusInternalServerError, E.Cause(err, "hijack conn"))
 			return
 		}
 		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
 		conn := NewHTTP2Wrapper(&ServerHTTPConn{
-			newHTTPConn(request.Body, writer),
+			NewHTTPConn(request.Body, writer),
 			writer.(http.Flusher),
 		})
 		s.handler.NewConnection(request.Context(), conn, metadata)
@@ -129,8 +123,16 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func (s *Server) badRequest(request *http.Request, err error) {
-	s.errorHandler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
+	conn := NewHTTPConn(request.Body, writer)
+	fErr := s.handler.FallbackConnection(ctx, &conn, M.Metadata{})
+	if fErr == nil {
+		return
+	} else if fErr == os.ErrInvalid {
+		fErr = nil
+	}
+	writer.WriteHeader(statusCode)
+	s.handler.NewError(request.Context(), E.Cause(E.Errors(err, E.Cause(fErr, "fallback connection")), "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Serve(listener net.Listener) error {
