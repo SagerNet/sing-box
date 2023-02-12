@@ -72,7 +72,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		}
 	}
 	if options.Transport != nil {
-		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newTransportConnection, nil, nil), inbound)
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*vmessTransportHandler)(inbound))
 		if err != nil {
 			return nil, E.Cause(err, "create server transport: ", options.Transport.Type)
 		}
@@ -182,4 +182,19 @@ func (h *VMess) newPacketConnection(ctx context.Context, conn N.PacketConn, meta
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	}
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
+var _ adapter.V2RayServerTransportHandler = (*vmessTransportHandler)(nil)
+
+type vmessTransportHandler VMess
+
+func (t *vmessTransportHandler) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+	return (*VMess)(t).newTransportConnection(ctx, conn, adapter.InboundContext{
+		Source:      metadata.Source,
+		Destination: metadata.Destination,
+	})
+}
+
+func (t *vmessTransportHandler) FallbackConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+	return os.ErrInvalid
 }

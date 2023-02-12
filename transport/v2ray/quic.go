@@ -7,7 +7,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -22,11 +21,11 @@ func RegisterQUICConstructor(server ServerConstructor[option.V2RayQUICOptions], 
 	quicClientConstructor = client
 }
 
-func NewQUICServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+func NewQUICServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (adapter.V2RayServerTransport, error) {
 	if quicServerConstructor == nil {
 		return nil, os.ErrInvalid
 	}
-	return quicServerConstructor(ctx, options, tlsConfig, handler, errorHandler)
+	return quicServerConstructor(ctx, options, tlsConfig, handler)
 }
 
 func NewQUICClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {

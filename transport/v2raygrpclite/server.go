@@ -26,7 +26,7 @@ import (
 var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
-	handler      N.TCPConnectionHandler
+	handler      adapter.V2RayServerTransportHandler
 	errorHandler E.Handler
 	httpServer   *http.Server
 	h2Server     *http2.Server
@@ -38,12 +38,11 @@ func (s *Server) Network() []string {
 	return []string{N.NetworkTCP}
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (*Server, error) {
+func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
-		handler:      handler,
-		errorHandler: errorHandler,
-		path:         fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
-		h2Server:     new(http2.Server),
+		handler:  handler,
+		path:     fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
+		h2Server: new(http2.Server),
 	}
 	server.httpServer = &http.Server{
 		Handler: server,
@@ -68,19 +67,15 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	if request.URL.Path != s.path {
-		request.Write(os.Stdout)
-		writer.WriteHeader(http.StatusNotFound)
-		s.badRequest(request, E.New("bad path: ", request.URL.Path))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 		return
 	}
 	if request.Method != http.MethodPost {
-		writer.WriteHeader(http.StatusNotFound)
-		s.badRequest(request, E.New("bad method: ", request.Method))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad method: ", request.Method))
 		return
 	}
 	if ct := request.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/grpc") {
-		writer.WriteHeader(http.StatusNotFound)
-		s.badRequest(request, E.New("bad content type: ", ct))
+		s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad content type: ", ct))
 		return
 	}
 	writer.Header().Set("Content-Type", "application/grpc")
@@ -93,8 +88,16 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	conn.CloseWrapper()
 }
 
-func (s *Server) badRequest(request *http.Request, err error) {
-	s.errorHandler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
+	conn := v2rayhttp.NewHTTPConn(request.Body, writer)
+	fErr := s.handler.FallbackConnection(ctx, &conn, M.Metadata{})
+	if fErr == nil {
+		return
+	} else if fErr == os.ErrInvalid {
+		fErr = nil
+	}
+	writer.WriteHeader(statusCode)
+	s.handler.NewError(request.Context(), E.Cause(E.Errors(err, E.Cause(fErr, "fallback connection")), "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Serve(listener net.Listener) error {

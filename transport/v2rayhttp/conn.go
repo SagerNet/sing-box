@@ -22,7 +22,7 @@ type HTTPConn struct {
 	err    error
 }
 
-func newHTTPConn(reader io.Reader, writer io.Writer) HTTPConn {
+func NewHTTPConn(reader io.Reader, writer io.Writer) HTTPConn {
 	return HTTPConn{
 		reader: reader,
 		writer: writer,

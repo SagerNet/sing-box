@@ -23,13 +23,13 @@ type Server struct {
 	ctx          context.Context
 	tlsConfig    *tls.STDConfig
 	quicConfig   *quic.Config
-	handler      N.TCPConnectionHandler
+	handler      adapter.V2RayServerTransportHandler
 	errorHandler E.Handler
 	udpListener  net.PacketConn
 	quicListener quic.Listener
 }
 
-func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler, errorHandler E.Handler) (adapter.V2RayServerTransport, error) {
+func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (adapter.V2RayServerTransport, error) {
 	quicConfig := &quic.Config{
 		DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
 	}
@@ -41,11 +41,10 @@ func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig t
 		stdConfig.NextProtos = []string{"h2", "http/1.1"}
 	}
 	server := &Server{
-		ctx:          ctx,
-		tlsConfig:    stdConfig,
-		quicConfig:   quicConfig,
-		handler:      handler,
-		errorHandler: errorHandler,
+		ctx:        ctx,
+		tlsConfig:  stdConfig,
+		quicConfig: quicConfig,
+		handler:    handler,
 	}
 	return server, nil
 }
