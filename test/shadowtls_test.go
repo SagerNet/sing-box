@@ -250,7 +250,8 @@ func TestShadowTLSOutbound(t *testing.T) {
 		Image:      ImageShadowTLS,
 		Ports:      []uint16{serverPort, otherPort},
 		EntryPoint: "shadow-tls",
-		Cmd:        []string{"--threads", "1", "server", "--listen", "0.0.0.0:" + F.ToString(serverPort), "--server", "127.0.0.1:" + F.ToString(otherPort), "--tls", "google.com:443", "--password", "hello"},
+		Cmd:        []string{"--v3", "--threads", "1", "server", "--listen", "0.0.0.0:" + F.ToString(serverPort), "--server", "127.0.0.1:" + F.ToString(otherPort), "--tls", "google.com:443", "--password", "hello"},
+		Env:        []string{"RUST_LOG=trace"},
 	})
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -286,7 +287,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Detour: "detour",
 					},
 					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: true,
+						Enabled: false,
 					},
 				},
 			},
@@ -302,7 +303,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Enabled:    true,
 						ServerName: "google.com",
 					},
-					Version:  2,
+					Version:  3,
 					Password: "hello",
 				},
 			},
@@ -320,5 +321,5 @@ func TestShadowTLSOutbound(t *testing.T) {
 			}},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }

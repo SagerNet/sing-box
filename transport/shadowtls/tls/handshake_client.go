@@ -146,6 +146,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		if err := config.SessionIDGenerator(hello.marshal(), hello.sessionId); err != nil {
 			return nil, nil, errors.New("tls: generate session id failed: " + err.Error())
 		}
+		hello.raw = nil
 	} else {
 		if _, err := io.ReadFull(config.rand(), hello.sessionId); err != nil {
 			return nil, nil, errors.New("tls: short read from Rand: " + err.Error())

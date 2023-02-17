@@ -2,6 +2,8 @@ package outbound
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"net"
 	"os"
 
@@ -25,7 +27,7 @@ type ShadowTLS struct {
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
 	tlsConfig  tls.Config
-	v2         bool
+	version    int
 	password   string
 }
 
@@ -45,6 +47,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
+	outbound.version = options.Version
 	switch options.Version {
 	case 0:
 		fallthrough
@@ -52,12 +55,18 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		options.TLS.MinVersion = "1.2"
 		options.TLS.MaxVersion = "1.2"
 	case 2:
-		outbound.v2 = true
+	case 3:
+		options.TLS.MinVersion = "1.3"
+		options.TLS.MaxVersion = "1.3"
 	default:
 		return nil, E.New("unknown shadowtls protocol version: ", options.Version)
 	}
 	var err error
-	outbound.tlsConfig, err = tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
+	if options.Version != 3 {
+		outbound.tlsConfig, err = tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
+	} else {
+		outbound.tlsConfig, err = shadowtls.NewClientTLSConfig(options.Server, common.PtrValueOrDefault(options.TLS), options.Password)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -74,19 +83,42 @@ func (s *ShadowTLS) DialContext(ctx context.Context, network string, destination
 	if err != nil {
 		return nil, err
 	}
-	if !s.v2 {
+	switch s.version {
+	default:
+		fallthrough
+	case 1:
 		_, err = tls.ClientHandshake(ctx, conn, s.tlsConfig)
 		if err != nil {
 			return nil, err
 		}
 		return conn, nil
-	} else {
+	case 2:
 		hashConn := shadowtls.NewHashReadConn(conn, s.password)
 		_, err = tls.ClientHandshake(ctx, hashConn, s.tlsConfig)
 		if err != nil {
 			return nil, err
 		}
 		return shadowtls.NewClientConn(hashConn), nil
+	case 3:
+		streamWrapper := shadowtls.NewStreamWrapper(conn, s.password)
+		_, err = tls.ClientHandshake(ctx, streamWrapper, s.tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		authorized, serverRandom, readHMAC := streamWrapper.Authorized()
+		if !authorized {
+			return nil, E.New("traffic hijacked or TLS1.3 is not supported")
+		}
+
+		hmacAdd := hmac.New(sha1.New, []byte(s.password))
+		hmacAdd.Write(serverRandom)
+		hmacAdd.Write([]byte("C"))
+
+		hmacVerify := hmac.New(sha1.New, []byte(s.password))
+		hmacVerify.Write(serverRandom)
+		hmacVerify.Write([]byte("S"))
+
+		return shadowtls.NewVerifiedConn(conn, hmacAdd, hmacVerify, readHMAC), nil
 	}
 }
 
