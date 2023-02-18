@@ -1,3 +1,11 @@
+#### 1.2-beta2
+
+* Add [ShadowTLS protocol v3](https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-v3-en.md)
+* Add fallback support for v2ray transport
+* Fix parse hysteria UDP message
+* Fix socks connect response
+* Disable vmess header protection if transport enabled
+
 #### 1.2-beta1
 
 * Add [DHCP DNS server](/configuration/dns/server) support
