@@ -3,7 +3,10 @@ package inbound
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"net"
 	"os"
@@ -27,7 +30,7 @@ type ShadowTLS struct {
 	myInboundAdapter
 	handshakeDialer N.Dialer
 	handshakeAddr   M.Socksaddr
-	v2              bool
+	version         int
 	password        string
 	fallbackAfter   int
 }
@@ -47,17 +50,18 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		handshakeAddr:   options.Handshake.ServerOptions.Build(),
 		password:        options.Password,
 	}
+	inbound.version = options.Version
 	switch options.Version {
 	case 0:
 		fallthrough
 	case 1:
 	case 2:
-		inbound.v2 = true
 		if options.FallbackAfter == nil {
 			inbound.fallbackAfter = 2
 		} else {
 			inbound.fallbackAfter = *options.FallbackAfter
 		}
+	case 3:
 	default:
 		return nil, E.New("unknown shadowtls protocol version: ", options.Version)
 	}
@@ -70,7 +74,8 @@ func (s *ShadowTLS) NewConnection(ctx context.Context, conn net.Conn, metadata a
 	if err != nil {
 		return err
 	}
-	if !s.v2 {
+	switch s.version {
+	case 1:
 		var handshake task.Group
 		handshake.Append("client handshake", func(ctx context.Context) error {
 			return s.copyUntilHandshakeFinished(handshakeConn, conn)
@@ -87,7 +92,7 @@ func (s *ShadowTLS) NewConnection(ctx context.Context, conn net.Conn, metadata a
 			return err
 		}
 		return s.newConnection(ctx, conn, metadata)
-	} else {
+	case 2:
 		hashConn := shadowtls.NewHashWriteConn(conn, s.password)
 		go bufio.Copy(hashConn, handshakeConn)
 		var request *buf.Buffer
@@ -102,6 +107,97 @@ func (s *ShadowTLS) NewConnection(ctx context.Context, conn net.Conn, metadata a
 		} else {
 			return err
 		}
+	default:
+		fallthrough
+	case 3:
+		var clientHelloFrame *buf.Buffer
+		clientHelloFrame, err = shadowtls.ExtractFrame(conn)
+		if err != nil {
+			return E.Cause(err, "read client handshake")
+		}
+		_, err = handshakeConn.Write(clientHelloFrame.Bytes())
+		if err != nil {
+			clientHelloFrame.Release()
+			return E.Cause(err, "write client handshake")
+		}
+		err = shadowtls.VerifyClientHello(clientHelloFrame.Bytes(), s.password)
+		if err != nil {
+			s.logger.WarnContext(ctx, E.Cause(err, "client hello verify failed"))
+			return bufio.CopyConn(ctx, conn, handshakeConn)
+		}
+		s.logger.TraceContext(ctx, "client hello verify success")
+		clientHelloFrame.Release()
+
+		var serverHelloFrame *buf.Buffer
+		serverHelloFrame, err = shadowtls.ExtractFrame(handshakeConn)
+		if err != nil {
+			return E.Cause(err, "read server handshake")
+		}
+
+		_, err = conn.Write(serverHelloFrame.Bytes())
+		if err != nil {
+			serverHelloFrame.Release()
+			return E.Cause(err, "write server handshake")
+		}
+
+		serverRandom := shadowtls.ExtractServerRandom(serverHelloFrame.Bytes())
+
+		if serverRandom == nil {
+			s.logger.WarnContext(ctx, "server random extract failed, will copy bidirectional")
+			return bufio.CopyConn(ctx, conn, handshakeConn)
+		}
+
+		if !shadowtls.IsServerHelloSupportTLS13(serverHelloFrame.Bytes()) {
+			s.logger.WarnContext(ctx, "TLS 1.3 is not supported, will copy bidirectional")
+			return bufio.CopyConn(ctx, conn, handshakeConn)
+		}
+
+		serverHelloFrame.Release()
+		s.logger.TraceContext(ctx, "client authenticated. server random extracted: ", hex.EncodeToString(serverRandom))
+
+		hmacWrite := hmac.New(sha1.New, []byte(s.password))
+		hmacWrite.Write(serverRandom)
+
+		hmacAdd := hmac.New(sha1.New, []byte(s.password))
+		hmacAdd.Write(serverRandom)
+		hmacAdd.Write([]byte("S"))
+
+		hmacVerify := hmac.New(sha1.New, []byte(s.password))
+		hmacVerifyReset := func() {
+			hmacVerify.Reset()
+			hmacVerify.Write(serverRandom)
+			hmacVerify.Write([]byte("C"))
+		}
+
+		var clientFirstFrame *buf.Buffer
+		var group task.Group
+		var handshakeFinished bool
+		group.Append("client handshake relay", func(ctx context.Context) error {
+			clientFrame, cErr := shadowtls.CopyByFrameUntilHMACMatches(conn, handshakeConn, hmacVerify, hmacVerifyReset)
+			if cErr == nil {
+				clientFirstFrame = clientFrame
+				handshakeFinished = true
+				handshakeConn.Close()
+			}
+			return cErr
+		})
+		group.Append("server handshake relay", func(ctx context.Context) error {
+			cErr := shadowtls.CopyByFrameWithModification(handshakeConn, conn, s.password, serverRandom, hmacWrite)
+			if E.IsClosedOrCanceled(cErr) && handshakeFinished {
+				return nil
+			}
+			return cErr
+		})
+		group.Cleanup(func() {
+			handshakeConn.Close()
+		})
+		err = group.Run(ctx)
+		if err != nil {
+			return E.Cause(err, "handshake relay")
+		}
+
+		s.logger.TraceContext(ctx, "handshake relay finished")
+		return s.newConnection(ctx, bufio.NewCachedConn(shadowtls.NewVerifiedConn(conn, hmacAdd, hmacVerify, nil), clientFirstFrame), metadata)
 	}
 }
 

@@ -12,6 +12,8 @@ run:
     - transport/simple-obfs
     - transport/clashssr
     - transport/cloudflaretls
+    - transport/shadowtls/tls
+    - transport/shadowtls/tls_go119
 
 linters-settings:
   gci:
