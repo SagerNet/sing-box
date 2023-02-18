@@ -56,8 +56,6 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		options.TLS.MaxVersion = "1.2"
 	case 2:
 	case 3:
-		options.TLS.MinVersion = "1.3"
-		options.TLS.MaxVersion = "1.3"
 	default:
 		return nil, E.New("unknown shadowtls protocol version: ", options.Version)
 	}
