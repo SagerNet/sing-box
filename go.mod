@@ -16,18 +16,18 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/mholt/acmez v1.0.4
+	github.com/mholt/acmez v1.1.0
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
-	github.com/refraction-networking/utls v1.2.1
+	github.com/refraction-networking/utls v1.2.2
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/sing v0.1.7-0.20230209132010-5f1ef3441c13
-	github.com/sagernet/sing-dns v0.1.2-0.20230209132355-3c2e2957b455
-	github.com/sagernet/sing-shadowsocks v0.1.1-0.20230202035033-e3123545f2f7
+	github.com/sagernet/sing v0.1.7
+	github.com/sagernet/sing-dns v0.1.4
+	github.com/sagernet/sing-shadowsocks v0.1.1
 	github.com/sagernet/sing-tun v0.1.1
-	github.com/sagernet/sing-vmess v0.1.1-0.20230212211128-cb4e47dd0acb
+	github.com/sagernet/sing-vmess v0.1.2
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
@@ -37,9 +37,9 @@ require (
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
 	go4.org/netipx v0.0.0-20230125063823-8449b0a6169f
-	golang.org/x/crypto v0.5.0
-	golang.org/x/exp v0.0.0-20230105202349-8879d0199aa3
-	golang.org/x/net v0.5.0
+	golang.org/x/crypto v0.6.0
+	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
+	golang.org/x/net v0.7.0
 	golang.org/x/sys v0.5.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -75,7 +75,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
