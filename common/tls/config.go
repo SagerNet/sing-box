@@ -10,8 +10,9 @@ import (
 )
 
 type (
-	STDConfig = tls.Config
-	STDConn   = tls.Conn
+	STDConfig       = tls.Config
+	STDConn         = tls.Conn
+	ConnectionState = tls.ConnectionState
 )
 
 type Config interface {
@@ -33,7 +34,7 @@ type ServerConfig interface {
 type Conn interface {
 	net.Conn
 	HandshakeContext(ctx context.Context) error
-	ConnectionState() tls.ConnectionState
+	ConnectionState() ConnectionState
 }
 
 func ParseTLSVersion(version string) (uint16, error) {

@@ -17,22 +17,19 @@ import (
 
 func TestShadowTLS(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
-		testShadowTLS(t, "")
+		testShadowTLS(t, 1, "")
 	})
 	t.Run("v2", func(t *testing.T) {
-		testShadowTLS(t, "hello")
+		testShadowTLS(t, 2, "hello")
+	})
+	t.Run("v3", func(t *testing.T) {
+		testShadowTLS(t, 3, "hello")
 	})
 }
 
-func testShadowTLS(t *testing.T, password string) {
+func testShadowTLS(t *testing.T, version int, password string) {
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
-	var version int
-	if password != "" {
-		version = 2
-	} else {
-		version = 1
-	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -123,7 +120,7 @@ func testShadowTLS(t *testing.T, password string) {
 	testSuit(t, clientPort, testPort)
 }
 
-func TestShadowTLSv2Fallback(t *testing.T) {
+func TestShadowTLSFallback(t *testing.T) {
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -139,7 +136,7 @@ func TestShadowTLSv2Fallback(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  2,
+					Version:  3,
 					Password: "hello",
 				},
 			},
@@ -167,7 +164,7 @@ func TestShadowTLSInbound(t *testing.T) {
 		Image:      ImageShadowTLS,
 		Ports:      []uint16{serverPort, otherPort},
 		EntryPoint: "shadow-tls",
-		Cmd:        []string{"--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
+		Cmd:        []string{"--v3", "--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
 	})
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -195,7 +192,7 @@ func TestShadowTLSInbound(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  2,
+					Version:  3,
 					Password: password,
 				},
 			},
@@ -225,9 +222,6 @@ func TestShadowTLSInbound(t *testing.T) {
 					},
 					Method:   method,
 					Password: password,
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: true,
-					},
 				},
 			},
 		},
@@ -240,7 +234,7 @@ func TestShadowTLSInbound(t *testing.T) {
 			}},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }
 
 func TestShadowTLSOutbound(t *testing.T) {
@@ -250,7 +244,8 @@ func TestShadowTLSOutbound(t *testing.T) {
 		Image:      ImageShadowTLS,
 		Ports:      []uint16{serverPort, otherPort},
 		EntryPoint: "shadow-tls",
-		Cmd:        []string{"--threads", "1", "server", "--listen", "0.0.0.0:" + F.ToString(serverPort), "--server", "127.0.0.1:" + F.ToString(otherPort), "--tls", "google.com:443", "--password", "hello"},
+		Cmd:        []string{"--v3", "--threads", "1", "server", "--listen", "0.0.0.0:" + F.ToString(serverPort), "--server", "127.0.0.1:" + F.ToString(otherPort), "--tls", "google.com:443", "--password", "hello"},
+		Env:        []string{"RUST_LOG=trace"},
 	})
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -285,9 +280,6 @@ func TestShadowTLSOutbound(t *testing.T) {
 					DialerOptions: option.DialerOptions{
 						Detour: "detour",
 					},
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: true,
-					},
 				},
 			},
 			{
@@ -302,7 +294,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Enabled:    true,
 						ServerName: "google.com",
 					},
-					Version:  2,
+					Version:  3,
 					Password: "hello",
 				},
 			},
@@ -320,5 +312,5 @@ func TestShadowTLSOutbound(t *testing.T) {
 			}},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }
