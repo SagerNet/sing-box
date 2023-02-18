@@ -7,6 +7,7 @@ type ShadowsocksInboundOptions struct {
 	Password     string                   `json:"password"`
 	Users        []ShadowsocksUser        `json:"users,omitempty"`
 	Destinations []ShadowsocksDestination `json:"destinations,omitempty"`
+	Managed      bool                     `json:"managed,omitempty"`
 }
 
 type ShadowsocksUser struct {

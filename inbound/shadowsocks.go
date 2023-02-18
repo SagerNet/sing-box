@@ -22,7 +22,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	if len(options.Users) > 0 && len(options.Destinations) > 0 {
 		return nil, E.New("users and destinations options must not be combined")
 	}
-	if len(options.Users) > 0 {
+	if len(options.Users) > 0 || options.Managed {
 		return newShadowsocksMulti(ctx, router, logger, tag, options)
 	} else if len(options.Destinations) > 0 {
 		return newShadowsocksRelay(ctx, router, logger, tag, options)
@@ -32,8 +32,9 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 }
 
 var (
-	_ adapter.Inbound           = (*Shadowsocks)(nil)
-	_ adapter.InjectableInbound = (*Shadowsocks)(nil)
+	_ adapter.Inbound                  = (*Shadowsocks)(nil)
+	_ adapter.InjectableInbound        = (*Shadowsocks)(nil)
+	_ adapter.ManagedShadowsocksServer = (*Shadowsocks)(nil)
 )
 
 type Shadowsocks struct {
@@ -74,6 +75,18 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	}
 	inbound.packetUpstream = inbound.service
 	return inbound, err
+}
+
+func (h *Shadowsocks) Method() string {
+	return h.service.Name()
+}
+
+func (h *Shadowsocks) Password() string {
+	return h.service.Password()
+}
+
+func (h *Shadowsocks) UpdateUsers(names []string, uPSKs []string) error {
+	return os.ErrInvalid
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

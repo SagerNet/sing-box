@@ -97,6 +97,7 @@ type Router struct {
 	processSearcher                    process.Searcher
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
+	ssmServer                          adapter.SSMServer
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound) (*Router, error) {
@@ -380,8 +381,26 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 	return nil
 }
 
+func (r *Router) Inbound(tag string) (adapter.Inbound, bool) {
+	inbound, loaded := r.inboundByTag[tag]
+	return inbound, loaded
+}
+
 func (r *Router) Outbounds() []adapter.Outbound {
 	return r.outbounds
+}
+
+func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
+	outbound, loaded := r.outboundByTag[tag]
+	return outbound, loaded
+}
+
+func (r *Router) DefaultOutbound(network string) adapter.Outbound {
+	if network == N.NetworkTCP {
+		return r.defaultOutboundForConnection
+	} else {
+		return r.defaultOutboundForPacketConnection
+	}
 }
 
 func (r *Router) Start() error {
@@ -504,19 +523,6 @@ func (r *Router) LoadGeosite(code string) (adapter.Rule, error) {
 	return rule, nil
 }
 
-func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
-	outbound, loaded := r.outboundByTag[tag]
-	return outbound, loaded
-}
-
-func (r *Router) DefaultOutbound(network string) adapter.Outbound {
-	if network == N.NetworkTCP {
-		return r.defaultOutboundForConnection
-	} else {
-		return r.defaultOutboundForPacketConnection
-	}
-}
-
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if metadata.InboundDetour != "" {
 		if metadata.LastInbound == metadata.InboundDetour {
@@ -603,6 +609,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
 	}
+	if r.ssmServer != nil {
+		conn = r.ssmServer.RoutedConnection(metadata, conn)
+	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
 
@@ -680,6 +689,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
 			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
+	}
+	if r.ssmServer != nil {
+		conn = r.ssmServer.RoutedPacketConnection(metadata, conn)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
@@ -775,6 +787,14 @@ func (r *Router) V2RayServer() adapter.V2RayServer {
 
 func (r *Router) SetV2RayServer(server adapter.V2RayServer) {
 	r.v2rayServer = server
+}
+
+func (r *Router) SSMServer() adapter.SSMServer {
+	return r.ssmServer
+}
+
+func (r *Router) SetSSMServer(server adapter.SSMServer) {
+	r.ssmServer = server
 }
 
 func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool {

@@ -32,6 +32,7 @@ type Box struct {
 	logFile     *os.File
 	clashServer adapter.ClashServer
 	v2rayServer adapter.V2RayServer
+	ssmServer   adapter.SSMServer
 	done        chan struct{}
 }
 
@@ -41,12 +42,16 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 
 	var needClashAPI bool
 	var needV2RayAPI bool
+	var needSSMAPI bool
 	if options.Experimental != nil {
 		if options.Experimental.ClashAPI != nil && options.Experimental.ClashAPI.ExternalController != "" {
 			needClashAPI = true
 		}
 		if options.Experimental.V2RayAPI != nil && options.Experimental.V2RayAPI.Listen != "" {
 			needV2RayAPI = true
+		}
+		if options.Experimental.SSMAPI != nil && options.Experimental.SSMAPI.Listen != "" {
+			needSSMAPI = true
 		}
 	}
 
@@ -156,6 +161,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 
 	var clashServer adapter.ClashServer
 	var v2rayServer adapter.V2RayServer
+	var ssmServer adapter.SSMServer
 	if needClashAPI {
 		clashServer, err = experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
 		if err != nil {
@@ -170,6 +176,13 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		}
 		router.SetV2RayServer(v2rayServer)
 	}
+	if needSSMAPI {
+		ssmServer, err = experimental.NewSSMServer(router, logFactory.NewLogger("ssm-api"), common.PtrValueOrDefault(options.Experimental.SSMAPI))
+		if err != nil {
+			return nil, E.Cause(err, "create ssm api server")
+		}
+		router.SetSSMServer(ssmServer)
+	}
 	return &Box{
 		router:      router,
 		inbounds:    inbounds,
@@ -180,6 +193,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		logFile:     logFile,
 		clashServer: clashServer,
 		v2rayServer: v2rayServer,
+		ssmServer:   ssmServer,
 		done:        make(chan struct{}),
 	}, nil
 }
@@ -244,6 +258,12 @@ func (s *Box) start() error {
 			return E.Cause(err, "start v2ray api server")
 		}
 	}
+	if s.ssmServer != nil {
+		err = s.ssmServer.Start()
+		if err != nil {
+			return E.Cause(err, "start ssm api server")
+		}
+	}
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
 	return nil
 }
@@ -266,6 +286,7 @@ func (s *Box) Close() error {
 		s.logFactory,
 		s.clashServer,
 		s.v2rayServer,
+		s.ssmServer,
 		common.PtrOrNil(s.logFile),
 	)
 }

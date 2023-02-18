@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*ShadowsocksMulti)(nil)
-	_ adapter.InjectableInbound = (*ShadowsocksMulti)(nil)
+	_ adapter.Inbound                  = (*ShadowsocksMulti)(nil)
+	_ adapter.InjectableInbound        = (*ShadowsocksMulti)(nil)
+	_ adapter.ManagedShadowsocksServer = (*ShadowsocksMulti)(nil)
 )
 
 type ShadowsocksMulti struct {
@@ -61,11 +62,13 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	if err != nil {
 		return nil, err
 	}
-	err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
-		return index
-	}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
-		return user.Password
-	}))
+	if len(options.Users) > 0 {
+		err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
+			return index
+		}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
+			return user.Password
+		}))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +76,29 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	inbound.packetUpstream = service
 	inbound.users = options.Users
 	return inbound, err
+}
+
+func (h *ShadowsocksMulti) Method() string {
+	return h.service.Name()
+}
+
+func (h *ShadowsocksMulti) Password() string {
+	return h.service.Password()
+}
+
+func (h *ShadowsocksMulti) UpdateUsers(users []string, uPSKs []string) error {
+	err := h.service.UpdateUsersWithPasswords(common.MapIndexed(users, func(index int, user string) int {
+		return index
+	}), uPSKs)
+	if err != nil {
+		return err
+	}
+	h.users = common.Map(users, func(user string) option.ShadowsocksUser {
+		return option.ShadowsocksUser{
+			Name: user,
+		}
+	})
+	return nil
 }
 
 func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

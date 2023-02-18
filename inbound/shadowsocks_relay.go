@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*ShadowsocksRelay)(nil)
-	_ adapter.InjectableInbound = (*ShadowsocksRelay)(nil)
+	_ adapter.Inbound                  = (*ShadowsocksRelay)(nil)
+	_ adapter.InjectableInbound        = (*ShadowsocksRelay)(nil)
+	_ adapter.ManagedShadowsocksServer = (*ShadowsocksRelay)(nil)
 )
 
 type ShadowsocksRelay struct {
@@ -69,6 +70,18 @@ func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.
 	inbound.service = service
 	inbound.packetUpstream = service
 	return inbound, err
+}
+
+func (h *ShadowsocksRelay) Method() string {
+	return h.service.Name()
+}
+
+func (h *ShadowsocksRelay) Password() string {
+	return h.service.Password()
+}
+
+func (h *ShadowsocksRelay) UpdateUsers(users []string, uPSKs []string) error {
+	return os.ErrInvalid
 }
 
 func (h *ShadowsocksRelay) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

@@ -17,6 +17,7 @@ builds:
       - with_wireguard
       - with_utls
       - with_clash_api
+      - with_ssm_api
     env:
       - CGO_ENABLED=0
     targets:
@@ -50,6 +51,7 @@ builds:
       - with_wireguard
       - with_utls
       - with_clash_api
+      - with_ssm_api
     env:
       - CGO_ENABLED=1
     overrides:

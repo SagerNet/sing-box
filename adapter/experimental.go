@@ -48,3 +48,16 @@ type V2RayStatsService interface {
 	RoutedConnection(inbound string, outbound string, user string, conn net.Conn) net.Conn
 	RoutedPacketConnection(inbound string, outbound string, user string, conn N.PacketConn) N.PacketConn
 }
+
+type SSMServer interface {
+	Service
+	RoutedConnection(metadata InboundContext, conn net.Conn) net.Conn
+	RoutedPacketConnection(metadata InboundContext, conn N.PacketConn) N.PacketConn
+}
+
+type ManagedShadowsocksServer interface {
+	Inbound
+	Method() string
+	Password() string
+	UpdateUsers(users []string, uPSKs []string) error
+}

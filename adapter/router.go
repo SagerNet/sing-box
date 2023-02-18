@@ -17,6 +17,7 @@ import (
 type Router interface {
 	Service
 
+	Inbound(tag string) (Inbound, bool)
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
 	DefaultOutbound(network string) Outbound
@@ -45,6 +46,9 @@ type Router interface {
 
 	V2RayServer() V2RayServer
 	SetV2RayServer(server V2RayServer)
+
+	SSMServer() SSMServer
+	SetSSMServer(server SSMServer)
 }
 
 type routerContextKey struct{}
