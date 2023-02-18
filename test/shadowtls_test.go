@@ -17,22 +17,20 @@ import (
 
 func TestShadowTLS(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
-		testShadowTLS(t, "")
+		testShadowTLS(t, 1, "")
 	})
 	t.Run("v2", func(t *testing.T) {
-		testShadowTLS(t, "hello")
+		testShadowTLS(t, 2, "hello")
 	})
 }
 
-func testShadowTLS(t *testing.T, password string) {
+func TestShadowTLSv3(t *testing.T) {
+	testShadowTLS(t, 3, "hello")
+}
+
+func testShadowTLS(t *testing.T, version int, password string) {
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
-	var version int
-	if password != "" {
-		version = 2
-	} else {
-		version = 1
-	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{

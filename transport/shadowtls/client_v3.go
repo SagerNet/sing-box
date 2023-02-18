@@ -105,10 +105,7 @@ func (w *StreamWrapper) Read(p []byte) (n int, err error) {
 			copy(w.serverRandom, buffer[serverRandomIndex:serverRandomIndex+tlsRandomSize])
 			w.readHMAC = hmac.New(sha1.New, []byte(w.password))
 			w.readHMAC.Write(w.serverRandom)
-			hasher := sha256.New()
-			hasher.Write([]byte(w.password))
-			hasher.Write(w.serverRandom)
-			w.readHMACKey = hasher.Sum(nil)
+			w.readHMACKey = kdf(w.password, w.serverRandom)
 		}
 	case applicationData:
 		w.authorized = false
@@ -124,6 +121,13 @@ func (w *StreamWrapper) Read(p []byte) (n int, err error) {
 		}
 	}
 	return w.buffer.Read(p)
+}
+
+func kdf(password string, serverRandom []byte) []byte {
+	hasher := sha256.New()
+	hasher.Write([]byte(password))
+	hasher.Write(serverRandom)
+	return hasher.Sum(nil)
 }
 
 func xorSlice(data []byte, key []byte) {
