@@ -188,7 +188,7 @@ func (c *VerifiedConn) Read(b []byte) (n int, err error) {
 		buffer := c.buffer.Bytes()
 		switch buffer[0] {
 		case alert:
-			err = E.New("remote alert")
+			err = E.Cause(net.ErrClosed, "remote alert")
 			return
 		case applicationData:
 			if c.hmacIgnore != nil {

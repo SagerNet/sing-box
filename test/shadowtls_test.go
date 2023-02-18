@@ -22,10 +22,9 @@ func TestShadowTLS(t *testing.T) {
 	t.Run("v2", func(t *testing.T) {
 		testShadowTLS(t, 2, "hello")
 	})
-}
-
-func TestShadowTLSv3(t *testing.T) {
-	testShadowTLS(t, 3, "hello")
+	t.Run("v3", func(t *testing.T) {
+		testShadowTLS(t, 3, "hello")
+	})
 }
 
 func testShadowTLS(t *testing.T, version int, password string) {
@@ -121,7 +120,7 @@ func testShadowTLS(t *testing.T, version int, password string) {
 	testSuit(t, clientPort, testPort)
 }
 
-func TestShadowTLSv2Fallback(t *testing.T) {
+func TestShadowTLSFallback(t *testing.T) {
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -137,7 +136,7 @@ func TestShadowTLSv2Fallback(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  2,
+					Version:  3,
 					Password: "hello",
 				},
 			},
@@ -165,7 +164,7 @@ func TestShadowTLSInbound(t *testing.T) {
 		Image:      ImageShadowTLS,
 		Ports:      []uint16{serverPort, otherPort},
 		EntryPoint: "shadow-tls",
-		Cmd:        []string{"--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
+		Cmd:        []string{"--v3", "--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
 	})
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -193,7 +192,7 @@ func TestShadowTLSInbound(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  2,
+					Version:  3,
 					Password: password,
 				},
 			},
@@ -223,9 +222,6 @@ func TestShadowTLSInbound(t *testing.T) {
 					},
 					Method:   method,
 					Password: password,
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: true,
-					},
 				},
 			},
 		},
@@ -238,7 +234,7 @@ func TestShadowTLSInbound(t *testing.T) {
 			}},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }
 
 func TestShadowTLSOutbound(t *testing.T) {
@@ -283,9 +279,6 @@ func TestShadowTLSOutbound(t *testing.T) {
 					Password: password,
 					DialerOptions: option.DialerOptions{
 						Detour: "detour",
-					},
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: false,
 					},
 				},
 			},
