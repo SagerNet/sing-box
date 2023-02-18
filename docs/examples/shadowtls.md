@@ -7,7 +7,7 @@
       "type": "shadowtls",
       "listen": "::",
       "listen_port": 4443,
-      "version": 2,
+      "version": 3,
       "password": "fuck me till the daylight",
       "handshake": {
         "server": "google.com",
@@ -47,7 +47,7 @@
       "tag": "shadowtls-out",
       "server": "127.0.0.1",
       "server_port": 4443,
-      "version": 2,
+      "version": 3,
       "password": "fuck me till the daylight",
       "tls": {
         "enabled": true,
