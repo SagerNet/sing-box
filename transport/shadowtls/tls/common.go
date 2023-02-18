@@ -733,6 +733,8 @@ type Config struct {
 	// used for debugging.
 	KeyLogWriter io.Writer
 
+	SessionIDGenerator func(clientHello []byte, sessionID []byte) error
+
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
