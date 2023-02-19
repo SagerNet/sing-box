@@ -100,9 +100,10 @@ type tproxyPacketWriter struct {
 
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	if w.destination == destination && w.conn != nil {
-		_, err := w.conn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr()))
-		if err == nil {
+	conn := w.conn
+	if w.destination == destination && conn != nil {
+		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr()))
+		if err != nil {
 			w.conn = nil
 		}
 		return err
