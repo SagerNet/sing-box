@@ -1,3 +1,8 @@
+#### 1.2-beta3
+
+* Update QUIC v2 version number and initial salt
+* Fix shadowtls v3 implementation
+
 #### 1.2-beta2
 
 * Add [ShadowTLS protocol v3](https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-v3-en.md)
