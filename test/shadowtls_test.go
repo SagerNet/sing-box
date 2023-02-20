@@ -82,9 +82,6 @@ func testShadowTLS(t *testing.T, version int, password string) {
 					DialerOptions: option.DialerOptions{
 						Detour: "detour",
 					},
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled: true,
-					},
 				},
 			},
 			{
@@ -117,7 +114,7 @@ func testShadowTLS(t *testing.T, version int, password string) {
 			}},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testTCP(t, clientPort, testPort)
 }
 
 func TestShadowTLSFallback(t *testing.T) {
