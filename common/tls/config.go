@@ -25,6 +25,10 @@ type Config interface {
 	Clone() Config
 }
 
+type ConfigWithSessionIDGenerator interface {
+	SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error)
+}
+
 type ServerConfig interface {
 	Config
 	adapter.Service

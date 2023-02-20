@@ -17,17 +17,23 @@ import (
 
 func TestShadowTLS(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
-		testShadowTLS(t, 1, "")
+		testShadowTLS(t, 1, "", false)
 	})
 	t.Run("v2", func(t *testing.T) {
-		testShadowTLS(t, 2, "hello")
+		testShadowTLS(t, 2, "hello", false)
 	})
 	t.Run("v3", func(t *testing.T) {
-		testShadowTLS(t, 3, "hello")
+		testShadowTLS(t, 3, "hello", false)
+	})
+	t.Run("v2-utls", func(t *testing.T) {
+		testShadowTLS(t, 2, "hello", true)
+	})
+	t.Run("v3-utls", func(t *testing.T) {
+		testShadowTLS(t, 3, "hello", true)
 	})
 }
 
-func testShadowTLS(t *testing.T, version int, password string) {
+func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool) {
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
 	startInstance(t, option.Options{
@@ -95,6 +101,9 @@ func testShadowTLS(t *testing.T, version int, password string) {
 					TLS: &option.OutboundTLSOptions{
 						Enabled:    true,
 						ServerName: "google.com",
+						UTLS: &option.OutboundUTLSOptions{
+							Enabled: utlsEanbled,
+						},
 					},
 					Version:  version,
 					Password: password,
