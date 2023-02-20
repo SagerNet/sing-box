@@ -53,11 +53,18 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 			return common.Error(tls.ClientHandshake(ctx, conn, tlsConfig))
 		}
 	case 3:
-		stdTLSConfig, err := tlsConfig.Config()
-		if err != nil {
-			return nil, err
+		if idConfig, loaded := tlsConfig.(tls.ConfigWithSessionIDGenerator); loaded {
+			tlsHandshakeFunc = func(ctx context.Context, conn net.Conn, sessionIDGenerator shadowtls.TLSSessionIDGeneratorFunc) error {
+				idConfig.SetSessionIDGenerator(sessionIDGenerator)
+				return common.Error(tls.ClientHandshake(ctx, conn, tlsConfig))
+			}
+		} else {
+			stdTLSConfig, err := tlsConfig.Config()
+			if err != nil {
+				return nil, err
+			}
+			tlsHandshakeFunc = shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
 		}
-		tlsHandshakeFunc = shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
 	}
 	client, err := shadowtls.NewClient(shadowtls.ClientConfig{
 		Version:      options.Version,

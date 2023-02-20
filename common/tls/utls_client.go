@@ -12,8 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
-
-	utls "github.com/refraction-networking/utls"
+	utls "github.com/sagernet/utls"
 )
 
 type UTLSClientConfig struct {
@@ -43,6 +42,10 @@ func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 
 func (e *UTLSClientConfig) Client(conn net.Conn) Conn {
 	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}
+}
+
+func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
+	e.config.SessionIDGenerator = generator
 }
 
 type utlsConnWrapper struct {

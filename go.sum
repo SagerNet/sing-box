@@ -4,8 +4,8 @@ github.com/Dreamacro/clash v1.13.0 h1:gF0E0TluE1LCmuhhg0/bjqABYDmSnXkUjXjRhZxyrm
 github.com/Dreamacro/clash v1.13.0/go.mod h1:hf0RkWPsQ0e8oS8WVJBIRocY/1ILYzQQg9zeMwd8LsM=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
-github.com/andybalholm/brotli v1.0.4 h1:V7DdXeJtZscaqfNuAdSRuRFzuiKlHSC/Zh3zl9qY3JY=
-github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
+github.com/andybalholm/brotli v1.0.5 h1:8uQZIdzKmjc/iuPu7O2ioW48L81FgatrcpfFmiq/cCs=
+github.com/andybalholm/brotli v1.0.5/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/caddyserver/certmagic v0.17.2 h1:o30seC1T/dBqBCNNGNHWwj2i5/I/FMjBbTAhjADP3nE=
 github.com/caddyserver/certmagic v0.17.2/go.mod h1:ouWUuC490GOLJzkyN35eXfV8bSbwMwSf4bdhkIxtdQE=
@@ -114,8 +114,6 @@ github.com/quic-go/qtls-go1-19 v0.2.0 h1:Cvn2WdhyViFUHoOqK52i51k4nDX8EwIh5VJiVM4
 github.com/quic-go/qtls-go1-19 v0.2.0/go.mod h1:ySOI96ew8lnoKPtSqx2BlI5wCpUVPT05RMAlajtnyOI=
 github.com/quic-go/qtls-go1-20 v0.1.0 h1:d1PK3ErFy9t7zxKsG3NXBJXZjp/kMLoIb3y/kV54oAI=
 github.com/quic-go/qtls-go1-20 v0.1.0/go.mod h1:JKtK6mjbAVcUTN/9jZpvLbGxvdWIKS8uT7EiStoU1SM=
-github.com/refraction-networking/utls v1.2.2 h1:uBE6V173CwG8MQrSBpNZHAix1fxOvuLKYyjFAu3uqo0=
-github.com/refraction-networking/utls v1.2.2/go.mod h1:L1goe44KvhnTfctUffM2isnJpSjPlYShrhXDeZaoYKw=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0 h1:KyhtFFt1Jtp5vW2ohNvstvQffTOQ/s5vENuGXzdA+TM=
 github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0/go.mod h1:D4SFEOkJK+4W1v86ZhX0jPM0rAL498fyQAChqMtes/I=
@@ -145,6 +143,8 @@ github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 h1:5VBIbVw9q7aKbrFdT
 github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195/go.mod h1:yedWtra8nyGJ+SyI+ziwuaGMzBatbB10P1IOOZbbSK8=
 github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d h1:trP/l6ZPWvQ/5Gv99Z7/t/v8iYy06akDMejxW1sznUk=
 github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d/go.mod h1:jk6Ii8Y3En+j2KQDLgdgQGwb3M6y7EL567jFnGYhN9g=
+github.com/sagernet/utls v0.0.0-20230220130002-c08891932056 h1:gDXi/0uYe8dA48UyUI1LM2la5QYN0IvsDvR2H2+kFnA=
+github.com/sagernet/utls v0.0.0-20230220130002-c08891932056/go.mod h1:JKQMZq/O2qnZjdrt+B57olmfgEmLtY9iiSIEYtWvoSM=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e h1:7uw2njHFGE+VpWamge6o56j2RWk4omF6uLKKxMmcWvs=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e/go.mod h1:45TUl8+gH4SIKr4ykREbxKWTxkDlSzFENzctB1dVRRY=
 github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c h1:vK2wyt9aWYHHvNLWniwijBu/n4pySypiKRhN32u/JGo=

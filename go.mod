@@ -20,7 +20,6 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
-	github.com/refraction-networking/utls v1.2.2
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
@@ -32,6 +31,7 @@ require (
 	github.com/sagernet/sing-vmess v0.1.2
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d
+	github.com/sagernet/utls v0.0.0-20230220130002-c08891932056
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
 	github.com/spf13/cobra v1.6.1
@@ -53,7 +53,7 @@ require (
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
-	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/cloudflare/circl v1.2.1-0.20221019164342-6ab4dfed8f3c // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
