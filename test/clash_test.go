@@ -75,7 +75,8 @@ func init() {
 
 	list, err := dockerClient.ImageList(context.Background(), types.ImageListOptions{All: true})
 	if err != nil {
-		panic(err)
+		log.Warn(err)
+		return
 	}
 
 	imageExist := func(image string) bool {
