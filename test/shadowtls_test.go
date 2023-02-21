@@ -64,6 +64,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 					},
 					Version:  version,
 					Password: password,
+					Users:    []option.ShadowTLSUser{{Password: password}},
 				},
 			},
 			{

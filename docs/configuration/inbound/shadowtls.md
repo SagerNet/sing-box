@@ -9,11 +9,25 @@
 
   "version": 3,
   "password": "fuck me till the daylight",
+  "users": [
+    {
+      "name": "sekai",
+      "password": "8JCsPssfgS8tiRwiMlhARg=="
+    }
+  ],
   "handshake": {
     "server": "google.com",
     "server_port": 443,
     
     ... // Dial Fields
+  },
+  "handshake_for_server_name": {
+    "example.com": {
+      "server": "example.com",
+      "server_port": 443,
+
+      ... // Dial Fields
+    }
   }
 }
 ```
@@ -36,12 +50,25 @@ ShadowTLS protocol version.
 
 #### password
 
-Set password.
+ShadowTLS password.
 
-Only available in the ShadowTLS v2/v3 protocol.
+Only available in the ShadowTLS protocol 2.
+
+
+#### users
+
+ShadowTLS users.
+
+Only available in the ShadowTLS protocol 3.
 
 #### handshake
 
 ==Required==
 
 Handshake server address and [Dial options](/configuration/shared/dial).
+
+#### handshake
+
+Handshake server address and [Dial options](/configuration/shared/dial) for specific server name.
+
+Only available in the ShadowTLS protocol 2/3.

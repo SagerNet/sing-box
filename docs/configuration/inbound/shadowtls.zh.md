@@ -9,11 +9,25 @@
 
   "version": 3,
   "password": "fuck me till the daylight",
+  "users": [
+    {
+      "name": "sekai",
+      "password": "8JCsPssfgS8tiRwiMlhARg=="
+    }
+  ],
   "handshake": {
     "server": "google.com",
     "server_port": 443,
 
     ... // 拨号字段
+  },
+  "handshake_for_server_name": {
+    "example.com": {
+      "server": "example.com",
+      "server_port": 443,
+      
+      ... // 拨号字段
+    }
   }
 }
 ```
@@ -36,12 +50,26 @@ ShadowTLS 协议版本。
 
 #### password
 
-设置密码。
+ShadowTLS 密码。
 
-仅在 ShadowTLS v2/v3 协议中可用。
+仅在 ShadowTLS 协议版本 2 中可用。
+
+#### users
+
+ShadowTLS 用户。
+
+仅在 ShadowTLS 协议版本 3 中可用。
 
 #### handshake
 
 ==必填==
 
 握手服务器地址和 [拨号参数](/zh/configuration/shared/dial/)。
+
+#### handshake
+
+==必填==
+
+对于特定服务器名称的握手服务器地址和 [拨号参数](/zh/configuration/shared/dial/)。
+
+仅在 ShadowTLS 协议版本 2/3 中可用。
