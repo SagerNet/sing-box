@@ -90,6 +90,7 @@ func NewECHClient(router adapter.Router, serverAddress string, options option.Ou
 	}
 
 	var tlsConfig cftls.Config
+	tlsConfig.Time = router.TimeFunc()
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {

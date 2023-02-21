@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-func GenerateKeyPair(serverName string) (*tls.Certificate, error) {
+func GenerateKeyPair(timeFunc func() time.Time, serverName string) (*tls.Certificate, error) {
+	if timeFunc == nil {
+		timeFunc = time.Now
+	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -22,8 +25,8 @@ func GenerateKeyPair(serverName string) (*tls.Certificate, error) {
 	}
 	template := &x509.Certificate{
 		SerialNumber:          serialNumber,
-		NotBefore:             time.Now().Add(time.Hour * -1),
-		NotAfter:              time.Now().Add(time.Hour),
+		NotBefore:             timeFunc().Add(time.Hour * -1),
+		NotAfter:              timeFunc().Add(time.Hour),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,

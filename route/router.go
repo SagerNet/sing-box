@@ -24,6 +24,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/ntp"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
@@ -96,12 +97,21 @@ type Router struct {
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
 	processSearcher                    process.Searcher
+	timeService                        adapter.TimeService
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
 	platformInterface                  platform.Interface
 }
 
-func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions, inbounds []option.Inbound, platformInterface platform.Interface) (*Router, error) {
+func NewRouter(
+	ctx context.Context,
+	logFactory log.Factory,
+	options option.RouteOptions,
+	dnsOptions option.DNSOptions,
+	ntpOptions option.NTPOptions,
+	inbounds []option.Inbound,
+	platformInterface platform.Interface,
+) (*Router, error) {
 	if options.DefaultInterface != "" {
 		warnDefaultInterfaceOnUnsupportedPlatform.Check()
 	}
@@ -302,6 +312,9 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 			}
 		}
 	}
+	if ntpOptions.Enabled {
+		router.timeService = ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
+	}
 	return router, nil
 }
 
@@ -460,6 +473,12 @@ func (r *Router) Start() error {
 			return E.Cause(err, "initialize DNS server[", i, "]")
 		}
 	}
+	if r.timeService != nil {
+		err := r.timeService.Start()
+		if err != nil {
+			return E.Cause(err, "initialize time service")
+		}
+	}
 	return nil
 }
 
@@ -487,6 +506,7 @@ func (r *Router) Close() error {
 		r.interfaceMonitor,
 		r.networkMonitor,
 		r.packageManager,
+		r.timeService,
 	)
 }
 
@@ -781,6 +801,13 @@ func (r *Router) InterfaceMonitor() tun.DefaultInterfaceMonitor {
 
 func (r *Router) PackageManager() tun.PackageManager {
 	return r.packageManager
+}
+
+func (r *Router) TimeFunc() func() time.Time {
+	if r.timeService == nil {
+		return nil
+	}
+	return r.timeService.TimeFunc()
 }
 
 func (r *Router) ClashServer() adapter.ClashServer {

@@ -34,7 +34,7 @@ func NewClient(router adapter.Router, serverAddress string, options option.Outbo
 	} else if options.UTLS != nil && options.UTLS.Enabled {
 		return NewUTLSClient(router, serverAddress, options)
 	} else {
-		return NewSTDClient(serverAddress, options)
+		return NewSTDClient(router, serverAddress, options)
 	}
 }
 

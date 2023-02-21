@@ -156,7 +156,7 @@ func (c *STDServerConfig) Close() error {
 	return nil
 }
 
-func NewSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
@@ -175,6 +175,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 	} else {
 		tlsConfig = &tls.Config{}
 	}
+	tlsConfig.Time = router.TimeFunc()
 	if options.ServerName != "" {
 		tlsConfig.ServerName = options.ServerName
 	}
@@ -230,7 +231,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		}
 		if certificate == nil && key == nil && options.Insecure {
 			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				return GenerateKeyPair(info.ServerName)
+				return GenerateKeyPair(router.TimeFunc(), info.ServerName)
 			}
 		} else {
 			if certificate == nil {

@@ -107,6 +107,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		logFactory,
 		common.PtrValueOrDefault(options.Route),
 		common.PtrValueOrDefault(options.DNS),
+		common.PtrValueOrDefault(options.NTP),
 		options.Inbounds,
 		options.PlatformInterface,
 	)

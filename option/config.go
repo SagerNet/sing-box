@@ -12,6 +12,7 @@ import (
 type _Options struct {
 	Log               *LogOptions          `json:"log,omitempty"`
 	DNS               *DNSOptions          `json:"dns,omitempty"`
+	NTP               *NTPOptions          `json:"ntp,omitempty"`
 	Inbounds          []Inbound            `json:"inbounds,omitempty"`
 	Outbounds         []Outbound           `json:"outbounds,omitempty"`
 	Route             *RouteOptions        `json:"route,omitempty"`

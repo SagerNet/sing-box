@@ -34,7 +34,7 @@ type Shadowsocks struct {
 }
 
 func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
-	method, err := shadowimpl.FetchMethod(options.Method, options.Password)
+	method, err := shadowimpl.FetchMethod(options.Method, options.Password, router.TimeFunc())
 	if err != nil {
 		return nil, err
 	}

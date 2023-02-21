@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"os"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -43,7 +44,7 @@ func (s *STDClientConfig) Clone() Config {
 	return &STDClientConfig{s.config.Clone()}
 }
 
-func NewSTDClient(serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewSTDClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -57,6 +58,7 @@ func NewSTDClient(serverAddress string, options option.OutboundTLSOptions) (Conf
 	}
 
 	var tlsConfig tls.Config
+	tlsConfig.Time = router.TimeFunc()
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {

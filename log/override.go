@@ -12,7 +12,7 @@ func ContextWithOverrideLevel(ctx context.Context, level Level) context.Context 
 
 func OverrideLevelFromContext(origin Level, ctx context.Context) Level {
 	level, loaded := ctx.Value((*overrideLevelKey)(nil)).(Level)
-	if !loaded || origin < level {
+	if !loaded || origin > level {
 		return origin
 	}
 	return level
