@@ -1,3 +1,9 @@
+#### 1.2-beta4
+
+* Add [NTP service](/configuration/ntp)
+* Add Add multiple server names and multi-user support for shadowtls
+* Add strict mode support for shadowtls v3
+
 #### 1.2-beta3
 
 * Update QUIC v2 version number and initial salt
