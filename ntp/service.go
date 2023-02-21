@@ -37,7 +37,7 @@ func NewService(ctx context.Context, router adapter.Router, logger logger.Logger
 	}
 	var interval time.Duration
 	if options.Interval > 0 {
-		interval = time.Duration(options.Interval) * time.Second
+		interval = time.Duration(options.Interval)
 	} else {
 		interval = 30 * time.Minute
 	}
