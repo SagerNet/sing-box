@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowtls"
+	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -31,13 +32,29 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		},
 	}
 
+	var handshakeForServerName map[string]shadowtls.HandshakeConfig
+	if options.Version > 1 {
+		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
+		for serverName, serverOptions := range options.HandshakeForServerName {
+			handshakeForServerName[serverName] = shadowtls.HandshakeConfig{
+				Server: serverOptions.ServerOptions.Build(),
+				Dialer: dialer.New(router, serverOptions.DialerOptions),
+			}
+		}
+	}
 	service, err := shadowtls.NewService(shadowtls.ServiceConfig{
-		Version:         options.Version,
-		Password:        options.Password,
-		HandshakeServer: options.Handshake.ServerOptions.Build(),
-		HandshakeDialer: dialer.New(router, options.Handshake.DialerOptions),
-		Handler:         inbound.upstreamContextHandler(),
-		Logger:          logger,
+		Version:  options.Version,
+		Password: options.Password,
+		Users: common.Map(options.Users, func(it option.ShadowTLSUser) shadowtls.User {
+			return (shadowtls.User)(it)
+		}),
+		Handshake: shadowtls.HandshakeConfig{
+			Server: options.Handshake.ServerOptions.Build(),
+			Dialer: dialer.New(router, options.Handshake.DialerOptions),
+		},
+		HandshakeForServerName: handshakeForServerName,
+		Handler:                inbound.upstreamContextHandler(),
+		Logger:                 logger,
 	})
 	if err != nil {
 		return nil, err
