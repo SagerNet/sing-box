@@ -7,6 +7,7 @@ type ShadowTLSInboundOptions struct {
 	Users                  []ShadowTLSUser                      `json:"users,omitempty"`
 	Handshake              ShadowTLSHandshakeOptions            `json:"handshake,omitempty"`
 	HandshakeForServerName map[string]ShadowTLSHandshakeOptions `json:"handshake_for_server_name,omitempty"`
+	StrictMode             bool                                 `json:"strict_mode,omitempty"`
 }
 
 type ShadowTLSUser struct {

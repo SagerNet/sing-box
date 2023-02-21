@@ -53,6 +53,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 			Dialer: dialer.New(router, options.Handshake.DialerOptions),
 		},
 		HandshakeForServerName: handshakeForServerName,
+		StrictMode:             options.StrictMode,
 		Handler:                inbound.upstreamContextHandler(),
 		Logger:                 logger,
 	})
