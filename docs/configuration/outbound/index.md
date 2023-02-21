@@ -28,6 +28,7 @@
 | `hysteria`     | [Hysteria](./hysteria)         |
 | `shadowsocksr` | [ShadowsocksR](./shadowsocksr) |
 | `vless`        | [VLESS](./vless)               |
+| `shadowtls`    | [ShadowTLS](./shadowtls)       |
 | `tor`          | [Tor](./tor)                   |
 | `ssh`          | [SSH](./ssh)                   |
 | `dns`          | [DNS](./dns)                   |

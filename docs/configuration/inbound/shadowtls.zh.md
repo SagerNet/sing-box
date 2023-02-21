@@ -28,7 +28,8 @@
       
       ... // 拨号字段
     }
-  }
+  },
+  "strict_mode": false
 }
 ```
 
@@ -73,3 +74,9 @@ ShadowTLS 用户。
 对于特定服务器名称的握手服务器地址和 [拨号参数](/zh/configuration/shared/dial/)。
 
 仅在 ShadowTLS 协议版本 2/3 中可用。
+
+#### strict_mode
+
+ShadowTLS 严格模式。
+
+仅在 ShadowTLS 协议版本 3 中可用。

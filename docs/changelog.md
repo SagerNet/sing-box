@@ -3,6 +3,7 @@
 * Add [NTP service](/configuration/ntp)
 * Add Add multiple server names and multi-user support for shadowtls
 * Add strict mode support for shadowtls v3
+* Add uTLS support for shadowtls v3
 
 #### 1.2-beta3
 

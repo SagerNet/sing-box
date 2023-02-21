@@ -26,6 +26,7 @@
 | `trojan`      | [Trojan](./trojan)           | TCP        |
 | `naive`       | [Naive](./naive)             | X          |
 | `hysteria`    | [Hysteria](./hysteria)       | X          |
+| `shadowtls`   | [ShadowTLS](./shadowtls)     | TCP        |
 | `tun`         | [Tun](./tun)                 | X          |
 | `redirect`    | [Redirect](./redirect)       | X          |
 | `tproxy`      | [TProxy](./tproxy)           | X          |
