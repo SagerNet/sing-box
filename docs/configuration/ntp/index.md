@@ -11,7 +11,7 @@ synchronization is not possible.
 {
   "ntp": {
     "enabled": false,
-    "server": "ntp.apple.com",
+    "server": "time.apple.com",
     "server_port": 123,
     "interval": "30m",
     
