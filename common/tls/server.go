@@ -5,17 +5,18 @@ import (
 	"crypto/tls"
 	"net"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 )
 
-func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+func NewServer(ctx context.Context, router adapter.Router, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
-	return NewSTDServer(ctx, logger, options)
+	return NewSTDServer(ctx, router, logger, options)
 }
 
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {

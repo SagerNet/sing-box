@@ -50,6 +50,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		users: options.Users,
 	}
 	var serviceOptions []vmess.ServiceOption
+	if timeFunc := router.TimeFunc(); timeFunc != nil {
+		serviceOptions = append(serviceOptions, vmess.ServiceWithTimeFunc(timeFunc))
+	}
 	if options.Transport != nil && options.Transport.Type != "" {
 		serviceOptions = append(serviceOptions, vmess.ServiceWithDisableHeaderProtection())
 	}
@@ -66,7 +69,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, err
 	}
 	if options.TLS != nil {
-		inbound.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		inbound.tlsConfig, err = tls.NewServer(ctx, router, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}

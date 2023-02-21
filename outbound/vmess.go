@@ -74,6 +74,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, E.New("unknown packet encoding: ", options.PacketEncoding)
 	}
 	var clientOptions []vmess.ClientOption
+	if timeFunc := router.TimeFunc(); timeFunc != nil {
+		clientOptions = append(clientOptions, vmess.ClientWithTimeFunc(timeFunc))
+	}
 	if options.GlobalPadding {
 		clientOptions = append(clientOptions, vmess.ClientWithGlobalPadding())
 	}
