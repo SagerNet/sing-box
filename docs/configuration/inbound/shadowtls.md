@@ -28,7 +28,8 @@
 
       ... // Dial Fields
     }
-  }
+  },
+  "strict_mode": false
 }
 ```
 
@@ -72,3 +73,9 @@ Handshake server address and [Dial options](/configuration/shared/dial).
 Handshake server address and [Dial options](/configuration/shared/dial) for specific server name.
 
 Only available in the ShadowTLS protocol 2/3.
+
+#### strict_mode
+
+ShadowTLS strict mode.
+
+Only available in the ShadowTLS protocol 3.
