@@ -8,7 +8,12 @@
       "listen": "::",
       "listen_port": 4443,
       "version": 3,
-      "password": "fuck me till the daylight",
+      "users": [
+        {
+          "name": "sekai",
+          "password": "8JCsPssfgS8tiRwiMlhARg=="
+        }
+      ],
       "handshake": {
         "server": "google.com",
         "server_port": 443
@@ -51,7 +56,11 @@
       "password": "fuck me till the daylight",
       "tls": {
         "enabled": true,
-        "server_name": "google.com"
+        "server_name": "google.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
       }
     }
   ]
