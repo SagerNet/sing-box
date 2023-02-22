@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -23,7 +24,8 @@ func NewFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer)
 	return &simpleFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
-			BaseTime: formatter.BaseTime,
+			BaseTime:      formatter.BaseTime,
+			DisableColors: C.IsIos,
 		},
 		writer:         writer,
 		platformWriter: platformWriter,

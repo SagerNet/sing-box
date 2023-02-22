@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/sagernet/sing-box"
@@ -27,6 +28,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	if err != nil {
 		return nil, err
 	}
+	platformInterface.WriteLog("Hello " + runtime.GOOS + "/" + runtime.GOARCH)
 	options.PlatformInterface = &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()}
 	ctx, cancel := context.WithCancel(context.Background())
 	instance, err := box.New(ctx, options)
