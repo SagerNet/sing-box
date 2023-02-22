@@ -1,3 +1,13 @@
+#### 1.1.6
+
+* Improve vmess request
+* Fix ipv6 redirect on Linux
+* Fix match geoip private
+* Fix parse hysteria UDP message
+* Fix socks connect response
+* Disable vmess header protection if transport enabled
+* Update QUIC v2 version number and initial salt
+
 #### 1.1.5
 
 * Add Go 1.20 support
