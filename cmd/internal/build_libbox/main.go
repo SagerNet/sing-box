@@ -12,15 +12,31 @@ import (
 	"github.com/sagernet/sing/common/rw"
 )
 
-var debugEnabled bool
+var (
+	debugEnabled bool
+	target       string
+)
 
 func init() {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable debug")
+	flag.StringVar(&target, "target", "android", "target platform")
 }
 
 func main() {
-	build_shared.FindSDK()
+	flag.Parse()
+
 	build_shared.FindMobile()
+
+	switch target {
+	case "android":
+		buildAndroid()
+	case "ios":
+		buildiOS()
+	}
+}
+
+func buildAndroid() {
+	build_shared.FindSDK()
 
 	args := []string{
 		"bind",
@@ -32,10 +48,10 @@ func main() {
 	if !debugEnabled {
 		args = append(args,
 			"-trimpath", "-ldflags=-s -w -buildid=",
-			"-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug",
+			"-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api",
 		)
 	} else {
-		args = append(args, "-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api")
+		args = append(args, "-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug")
 	}
 
 	args = append(args, "./experimental/libbox")
@@ -57,5 +73,40 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Info("copied to ", copyPath)
+	}
+}
+
+func buildiOS() {
+	args := []string{
+		"bind",
+		"-v",
+		"-target", "ios,iossimulator,macos",
+		"-libname=box",
+	}
+	if !debugEnabled {
+		args = append(args,
+			"-trimpath", "-ldflags=-s -w -buildid=",
+		)
+	} else {
+		args = append(args, "-tags", "debug")
+	}
+
+	args = append(args, "./experimental/libbox")
+
+	command := exec.Command(build_shared.GoBinPath+"/gomobile", args...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	err := command.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	copyPath := filepath.Join("..", "sfi")
+	if rw.FileExists(copyPath) {
+		targetDir := filepath.Join(copyPath, "Libbox.xcframework")
+		targetDir, _ = filepath.Abs(targetDir)
+		os.RemoveAll(targetDir)
+		os.Rename("Libbox.xcframework", targetDir)
+		log.Info("copied to ", targetDir)
 	}
 }

@@ -78,28 +78,28 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			}
 			logWriter = logFile
 		}
-	}
-	logFormatter := log.Formatter{
-		BaseTime:         createdAt,
-		DisableColors:    logOptions.DisableColor || logFile != nil,
-		DisableTimestamp: !logOptions.Timestamp && logFile != nil,
-		FullTimestamp:    logOptions.Timestamp,
-		TimestampFormat:  "-0700 2006-01-02 15:04:05",
-	}
-	if needClashAPI {
-		observableLogFactory = log.NewObservableFactory(logFormatter, logWriter, options.PlatformInterface)
-		logFactory = observableLogFactory
-	} else {
-		logFactory = log.NewFactory(logFormatter, logWriter, options.PlatformInterface)
-	}
-	if logOptions.Level != "" {
-		logLevel, err := log.ParseLevel(logOptions.Level)
-		if err != nil {
-			return nil, E.Cause(err, "parse log level")
+		logFormatter := log.Formatter{
+			BaseTime:         createdAt,
+			DisableColors:    logOptions.DisableColor || logFile != nil,
+			DisableTimestamp: !logOptions.Timestamp && logFile != nil,
+			FullTimestamp:    logOptions.Timestamp,
+			TimestampFormat:  "-0700 2006-01-02 15:04:05",
 		}
-		logFactory.SetLevel(logLevel)
-	} else {
-		logFactory.SetLevel(log.LevelTrace)
+		if needClashAPI {
+			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter, options.PlatformInterface)
+			logFactory = observableLogFactory
+		} else {
+			logFactory = log.NewFactory(logFormatter, logWriter, options.PlatformInterface)
+		}
+		if logOptions.Level != "" {
+			logLevel, err := log.ParseLevel(logOptions.Level)
+			if err != nil {
+				return nil, E.Cause(err, "parse log level")
+			}
+			logFactory.SetLevel(logLevel)
+		} else {
+			logFactory.SetLevel(log.LevelTrace)
+		}
 	}
 
 	router, err := route.NewRouter(
