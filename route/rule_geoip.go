@@ -63,11 +63,10 @@ func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 func (r *GeoIPItem) match(metadata *adapter.InboundContext, destination netip.Addr) bool {
 	var geoipCode string
 	geoReader := r.router.GeoIPReader()
-	if geoReader != nil {
-		geoipCode = geoReader.Lookup(destination)
-	}
-	if geoipCode == "" && !N.IsPublicAddr(destination) {
+	if !N.IsPublicAddr(destination) {
 		geoipCode = "private"
+	} else if geoReader != nil {
+		geoipCode = geoReader.Lookup(destination)
 	}
 	if geoipCode == "" {
 		return false
