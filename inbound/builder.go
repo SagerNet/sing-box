@@ -42,6 +42,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 		return NewHysteria(ctx, router, logger, options.Tag, options.HysteriaOptions)
 	case C.TypeShadowTLS:
 		return NewShadowTLS(ctx, router, logger, options.Tag, options.ShadowTLSOptions)
+	case C.TypeVLESS:
+		return NewVLESS(ctx, router, logger, options.Tag, options.VLESSOptions)
 	default:
 		return nil, E.New("unknown inbound type: ", options.Type)
 	}
