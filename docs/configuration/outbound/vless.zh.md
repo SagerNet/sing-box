@@ -8,6 +8,7 @@
   "server": "127.0.0.1",
   "server_port": 1080,
   "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+  "flow": "xtls-rprx-vision",
   "network": "tcp",
   "tls": {},
   "packet_encoding": "",
@@ -16,10 +17,6 @@
   ... // 拨号字段
 }
 ```
-
-!!! warning ""
-
-    VLESS 协议与 v2ray 架构耦合且无人维护。 提供此出站仅出于兼容性目的。
 
 ### 字段
 
@@ -40,6 +37,14 @@
 ==必填==
 
 VLESS 用户 ID。
+
+#### flow
+
+VLESS 子协议。
+
+可用值：
+
+* `xtls-rprx-vision`
 
 #### network
 

@@ -21,7 +21,7 @@ type Config interface {
 	NextProtos() []string
 	SetNextProtos(nextProto []string)
 	Config() (*STDConfig, error)
-	Client(conn net.Conn) Conn
+	Client(conn net.Conn) (Conn, error)
 	Clone() Config
 }
 
@@ -32,7 +32,12 @@ type ConfigWithSessionIDGenerator interface {
 type ServerConfig interface {
 	Config
 	adapter.Service
-	Server(conn net.Conn) Conn
+	Server(conn net.Conn) (Conn, error)
+}
+
+type ServerConfigCompat interface {
+	ServerConfig
+	ServerHandshake(ctx context.Context, conn net.Conn) (Conn, error)
 }
 
 type Conn interface {

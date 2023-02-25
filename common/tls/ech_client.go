@@ -44,8 +44,8 @@ func (e *ECHClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for ECH")
 }
 
-func (e *ECHClientConfig) Client(conn net.Conn) Conn {
-	return &echConnWrapper{cftls.Client(conn, e.config)}
+func (e *ECHClientConfig) Client(conn net.Conn) (Conn, error) {
+	return &echConnWrapper{cftls.Client(conn, e.config)}, nil
 }
 
 func (e *ECHClientConfig) Clone() Config {
@@ -74,6 +74,10 @@ func (c *echConnWrapper) ConnectionState() tls.ConnectionState {
 		OCSPResponse:                state.OCSPResponse,
 		TLSUnique:                   state.TLSUnique,
 	}
+}
+
+func (c *echConnWrapper) Upstream() any {
+	return c.Conn
 }
 
 func NewECHClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
