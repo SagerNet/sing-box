@@ -1,3 +1,9 @@
+#### 1.2-beta5
+
+* Add [VLESS server](/configuration/inbound/vless) and [vision](/configuration/outbound/vless#flow) support
+* Add [reality TLS](/configuration/shared/tls) support
+* Fix match private address
+
 #### 1.1.6
 
 * Improve vmess request
