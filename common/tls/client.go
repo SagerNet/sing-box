@@ -31,6 +31,8 @@ func NewClient(router adapter.Router, serverAddress string, options option.Outbo
 	}
 	if options.ECH != nil && options.ECH.Enabled {
 		return NewECHClient(router, serverAddress, options)
+	} else if options.Reality != nil && options.Reality.Enabled {
+		return NewRealityClient(router, serverAddress, options)
 	} else if options.UTLS != nil && options.UTLS.Enabled {
 		return NewUTLSClient(router, serverAddress, options)
 	} else {
@@ -39,10 +41,13 @@ func NewClient(router adapter.Router, serverAddress string, options option.Outbo
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {
-	tlsConn := config.Client(conn)
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
-	err := tlsConn.HandshakeContext(ctx)
+	tlsConn, err := config.Client(conn)
+	if err != nil {
+		return nil, err
+	}
+	err = tlsConn.HandshakeContext(ctx)
 	if err != nil {
 		return nil, err
 	}

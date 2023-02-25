@@ -36,7 +36,7 @@ func (c *Client) prepareConn(conn net.Conn) (net.Conn, error) {
 	if c.flow == FlowVision {
 		vConn, err := NewVisionConn(conn, c.key)
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "initialize vision")
 		}
 		conn = vConn
 	}

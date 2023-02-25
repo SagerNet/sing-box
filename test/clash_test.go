@@ -58,7 +58,6 @@ var allImages = []string{
 var localIP = netip.MustParseAddr("127.0.0.1")
 
 func init() {
-
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)

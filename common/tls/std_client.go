@@ -36,8 +36,8 @@ func (s *STDClientConfig) Config() (*STDConfig, error) {
 	return s.config, nil
 }
 
-func (s *STDClientConfig) Client(conn net.Conn) Conn {
-	return tls.Client(conn, s.config)
+func (s *STDClientConfig) Client(conn net.Conn) (Conn, error) {
+	return tls.Client(conn, s.config), nil
 }
 
 func (s *STDClientConfig) Clone() Config {

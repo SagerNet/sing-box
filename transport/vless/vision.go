@@ -17,8 +17,19 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
-	utls "github.com/sagernet/utls"
 )
+
+var tlsRegistry []func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer uintptr)
+
+func init() {
+	tlsRegistry = append(tlsRegistry, func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer uintptr) {
+		tlsConn, loaded := conn.(*tls.Conn)
+		if !loaded {
+			return
+		}
+		return true, tlsConn.NetConn(), reflect.TypeOf(tlsConn).Elem(), uintptr(unsafe.Pointer(tlsConn))
+	})
+}
 
 type VisionConn struct {
 	net.Conn
@@ -46,18 +57,19 @@ type VisionConn struct {
 }
 
 func NewVisionConn(conn net.Conn, userUUID [16]byte) (*VisionConn, error) {
-	var reflectType reflect.Type
-	var reflectPointer uintptr
-	var netConn net.Conn
-	if tlsConn, ok := conn.(*tls.Conn); ok {
-		netConn = tlsConn.NetConn()
-		reflectType = reflect.TypeOf(tlsConn).Elem()
-		reflectPointer = uintptr(unsafe.Pointer(tlsConn))
-	} else if uConn, ok := conn.(*utls.UConn); ok {
-		netConn = uConn.NetConn()
-		reflectType = reflect.TypeOf(uConn).Elem()
-		reflectPointer = uintptr(unsafe.Pointer(uConn))
-	} else {
+	var (
+		loaded         bool
+		reflectType    reflect.Type
+		reflectPointer uintptr
+		netConn        net.Conn
+	)
+	for _, tlsCreator := range tlsRegistry {
+		loaded, netConn, reflectType, reflectPointer = tlsCreator(conn)
+		if loaded {
+			break
+		}
+	}
+	if !loaded {
 		return nil, C.ErrTLSRequired
 	}
 	input, _ := reflectType.FieldByName("input")
