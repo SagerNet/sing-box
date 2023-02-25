@@ -26,6 +26,20 @@
       "key_id": "",
       "mac_key": ""
     }
+  },
+  "reality": {
+    "enabled": false,
+    "handshake": {
+      "server": "google.com",
+      "server_port": 443,
+
+      ... // 拨号字段
+    },
+    "private_key": "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
+    "short_id": [
+      "0123456789abcdef"
+    ],
+    "max_time_difference": "1m"
   }
 }
 ```
@@ -53,6 +67,11 @@
   "utls": {
     "enabled": false,
     "fingerprint": ""
+  },
+  "reality": {
+    "enabled": false,
+    "public_key": "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
+    "short_id": "0123456789abcdef"
   }
 }
 ```
@@ -270,6 +289,52 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 #### external_account.mac_key
 
 MAC 密钥。
+
+### Reality 字段
+
+!!! warning ""
+
+    默认安装不包含 reality 服务器，参阅 [安装](/zh/#_2)。
+
+!!! warning ""
+
+    默认安装不包含被 reality 客户端需要的 uTLS, 参阅 [安装](/zh/#_2)。
+
+#### handshake
+
+==仅服务器==
+
+==必填==
+
+握手服务器地址和 [拨号参数](/zh/configuration/shared/dial/)。
+
+#### private_key
+
+==仅服务器==
+
+==必填==
+
+私钥，由 `./xray x25519` 生成。
+
+#### public_key
+
+==仅客户端==
+
+==必填==
+
+公钥，由 `./xray x25519` 生成。
+
+#### short_id
+
+==必填==
+
+一个八位十六进制的字符串。
+
+#### max_time_difference
+
+服务器与和客户端之间允许的最大时间差。
+
+默认禁用检查。
 
 ### 重载
 

@@ -40,12 +40,19 @@ func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for uTLS")
 }
 
-func (e *UTLSClientConfig) Client(conn net.Conn) Conn {
-	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}
+func (e *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
+	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, nil
 }
 
 func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
 	e.config.SessionIDGenerator = generator
+}
+
+func (e *UTLSClientConfig) Clone() Config {
+	return &UTLSClientConfig{
+		config: e.config.Clone(),
+		id:     e.id,
+	}
 }
 
 type utlsConnWrapper struct {
@@ -70,14 +77,11 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 	}
 }
 
-func (e *UTLSClientConfig) Clone() Config {
-	return &UTLSClientConfig{
-		config: e.config.Clone(),
-		id:     e.id,
-	}
+func (c *utlsConnWrapper) Upstream() any {
+	return c.UConn
 }
 
-func NewUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (*UTLSClientConfig, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -148,28 +152,34 @@ func NewUTLSClient(router adapter.Router, serverAddress string, options option.O
 		}
 		tlsConfig.RootCAs = certPool
 	}
-	var id utls.ClientHelloID
-	switch options.UTLS.Fingerprint {
-	case "chrome", "":
-		id = utls.HelloChrome_Auto
-	case "firefox":
-		id = utls.HelloFirefox_Auto
-	case "edge":
-		id = utls.HelloEdge_Auto
-	case "safari":
-		id = utls.HelloSafari_Auto
-	case "360":
-		id = utls.Hello360_Auto
-	case "qq":
-		id = utls.HelloQQ_Auto
-	case "ios":
-		id = utls.HelloIOS_Auto
-	case "android":
-		id = utls.HelloAndroid_11_OkHttp
-	case "random":
-		id = utls.HelloRandomized
-	default:
-		return nil, E.New("unknown uTLS fingerprint: ", options.UTLS.Fingerprint)
+	id, err := uTLSClientHelloID(options.UTLS.Fingerprint)
+	if err != nil {
+		return nil, err
 	}
 	return &UTLSClientConfig{&tlsConfig, id}, nil
+}
+
+func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
+	switch name {
+	case "chrome", "":
+		return utls.HelloChrome_Auto, nil
+	case "firefox":
+		return utls.HelloFirefox_Auto, nil
+	case "edge":
+		return utls.HelloEdge_Auto, nil
+	case "safari":
+		return utls.HelloSafari_Auto, nil
+	case "360":
+		return utls.Hello360_Auto, nil
+	case "qq":
+		return utls.HelloQQ_Auto, nil
+	case "ios":
+		return utls.HelloIOS_Auto, nil
+	case "android":
+		return utls.HelloAndroid_11_OkHttp, nil
+	case "random":
+		return utls.HelloRandomized, nil
+	default:
+		return utls.ClientHelloID{}, E.New("unknown uTLS fingerprint: ", name)
+	}
 }

@@ -27,6 +27,7 @@
 | `naive`       | [Naive](./naive)             | X          |
 | `hysteria`    | [Hysteria](./hysteria)       | X          |
 | `shadowtls`   | [ShadowTLS](./shadowtls)     | TCP        |
+| `vless`       | [VLESS](./vless)             | TCP        |
 | `tun`         | [Tun](./tun)                 | X          |
 | `redirect`    | [Redirect](./redirect)       | X          |
 | `tproxy`      | [TProxy](./tproxy)           | X          |

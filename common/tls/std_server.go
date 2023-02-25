@@ -48,12 +48,12 @@ func (c *STDServerConfig) Config() (*STDConfig, error) {
 	return c.config, nil
 }
 
-func (c *STDServerConfig) Client(conn net.Conn) Conn {
-	return tls.Client(conn, c.config)
+func (c *STDServerConfig) Client(conn net.Conn) (Conn, error) {
+	return tls.Client(conn, c.config), nil
 }
 
-func (c *STDServerConfig) Server(conn net.Conn) Conn {
-	return tls.Server(conn, c.config)
+func (c *STDServerConfig) Server(conn net.Conn) (Conn, error) {
+	return tls.Server(conn, c.config), nil
 }
 
 func (c *STDServerConfig) Clone() Config {

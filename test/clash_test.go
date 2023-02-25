@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/control"
 	F "github.com/sagernet/sing/common/format"
@@ -59,14 +58,6 @@ var allImages = []string{
 var localIP = netip.MustParseAddr("127.0.0.1")
 
 func init() {
-	if C.IsDarwin {
-		var err error
-		localIP, err = defaultRouteIP()
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
