@@ -10,3 +10,4 @@
 /*.jar
 /*.aar
 /*.xcframework/
+.DS_Store
