@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/reality"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/log"
@@ -19,8 +20,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"github.com/nekohasekai/reality"
 )
 
 var _ ServerConfigCompat = (*RealityServerConfig)(nil)

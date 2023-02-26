@@ -18,8 +18,6 @@ require (
 	golang.org/x/net v0.7.0
 )
 
-replace github.com/xtls/reality => github.com/nekohasekai/reality v0.0.0-20230225043811-04070a6bdbea
-
 require (
 	berty.tech/go-libtor v1.0.385 // indirect
 	github.com/Dreamacro/clash v1.13.0 // indirect
@@ -53,7 +51,6 @@ require (
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/moby/term v0.0.0-20221105221325-4eb28fa6025c // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/nekohasekai/reality v0.0.0-20230225080858-d70c703b04cd // indirect
 	github.com/onsi/ginkgo/v2 v2.2.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
@@ -70,9 +67,10 @@ require (
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32 // indirect
+	github.com/sagernet/reality v0.0.0-20230226124550-f98d51fa21b5 // indirect
 	github.com/sagernet/sing-dns v0.1.4 // indirect
 	github.com/sagernet/sing-shadowtls v0.0.0-20230221123345-78e50cd7b587 // indirect
-	github.com/sagernet/sing-tun v0.1.1 // indirect
+	github.com/sagernet/sing-tun v0.1.2-0.20230226091124-0cdb0eed74d9 // indirect
 	github.com/sagernet/sing-vmess v0.1.2 // indirect
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d // indirect
