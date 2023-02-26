@@ -7,9 +7,8 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/sagernet/reality"
 	"github.com/sagernet/sing/common"
-
-	"github.com/nekohasekai/reality"
 )
 
 func init() {
