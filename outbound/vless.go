@@ -135,7 +135,7 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 }
 
 func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewEarlyConnection(ctx, h, conn, metadata)
+	return NewConnection(ctx, h, conn, metadata)
 }
 
 func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {

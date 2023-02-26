@@ -26,6 +26,8 @@ const (
 
 var CRLF = []byte{'\r', '\n'}
 
+var _ N.EarlyConn = (*ClientConn)(nil)
+
 type ClientConn struct {
 	N.ExtendedConn
 	key           [KeyLength]byte
@@ -39,6 +41,10 @@ func NewClientConn(conn net.Conn, key [KeyLength]byte, destination M.Socksaddr) 
 		key:          key,
 		destination:  destination,
 	}
+}
+
+func (c *ClientConn) NeedHandshake() bool {
+	return !c.headerWritten
 }
 
 func (c *ClientConn) Write(p []byte) (n int, err error) {
@@ -99,6 +105,10 @@ func NewClientPacketConn(conn net.Conn, key [KeyLength]byte) *ClientPacketConn {
 		Conn: conn,
 		key:  key,
 	}
+}
+
+func (c *ClientPacketConn) NeedHandshake() bool {
+	return !c.headerWritten
 }
 
 func (c *ClientPacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {

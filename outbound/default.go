@@ -50,30 +50,6 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
 	}
-	if cachedReader, isCached := conn.(N.CachedReader); isCached {
-		payload := cachedReader.ReadCached()
-		if payload != nil && !payload.IsEmpty() {
-			_, err = outConn.Write(payload.Bytes())
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return bufio.CopyConn(ctx, conn, outConn)
-}
-
-func NewEarlyConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {
-	ctx = adapter.WithContext(ctx, &metadata)
-	var outConn net.Conn
-	var err error
-	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
-	} else {
-		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
-	}
-	if err != nil {
-		return N.HandshakeFailure(conn, err)
-	}
 	return CopyEarlyConn(ctx, conn, outConn)
 }
 
@@ -111,28 +87,30 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 			return bufio.CopyConn(ctx, conn, serverConn)
 		}
 	}
-	_payload := buf.StackNew()
-	payload := common.Dup(_payload)
-	err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
-	if err != os.ErrInvalid {
+	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](conn); isEarlyConn && earlyConn.NeedHandshake() {
+		_payload := buf.StackNew()
+		payload := common.Dup(_payload)
+		err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
+		if err != os.ErrInvalid {
+			if err != nil {
+				return err
+			}
+			_, err = payload.ReadOnceFrom(conn)
+			if err != nil && !E.IsTimeout(err) {
+				return E.Cause(err, "read payload")
+			}
+			err = conn.SetReadDeadline(time.Time{})
+			if err != nil {
+				payload.Release()
+				return err
+			}
+		}
+		_, err = serverConn.Write(payload.Bytes())
 		if err != nil {
-			return err
+			return N.HandshakeFailure(conn, err)
 		}
-		_, err = payload.ReadOnceFrom(conn)
-		if err != nil && !E.IsTimeout(err) {
-			return E.Cause(err, "read payload")
-		}
-		err = conn.SetReadDeadline(time.Time{})
-		if err != nil {
-			payload.Release()
-			return err
-		}
+		runtime.KeepAlive(_payload)
+		payload.Release()
 	}
-	_, err = serverConn.Write(payload.Bytes())
-	if err != nil {
-		return N.HandshakeFailure(conn, err)
-	}
-	runtime.KeepAlive(_payload)
-	payload.Release()
 	return bufio.CopyConn(ctx, conn, serverConn)
 }

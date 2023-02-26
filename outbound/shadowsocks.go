@@ -125,7 +125,7 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 }
 
 func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewEarlyConnection(ctx, h, conn, metadata)
+	return NewConnection(ctx, h, conn, metadata)
 }
 
 func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
