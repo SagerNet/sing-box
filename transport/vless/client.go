@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/gofrs/uuid"
 )
@@ -82,6 +83,8 @@ func (c *Client) DialEarlyXUDPPacketConn(conn net.Conn, destination M.Socksaddr)
 	return vmess.NewXUDPConn(&Conn{Conn: conn, protocolConn: conn, key: c.key, command: vmess.CommandMux, destination: destination, flow: c.flow}, destination), nil
 }
 
+var _ N.EarlyConn = (*Conn)(nil)
+
 type Conn struct {
 	net.Conn
 	protocolConn   net.Conn
@@ -91,6 +94,10 @@ type Conn struct {
 	flow           string
 	requestWritten bool
 	responseRead   bool
+}
+
+func (c *Conn) NeedHandshake() bool {
+	return !c.requestWritten
 }
 
 func (c *Conn) Read(b []byte) (n int, err error) {
