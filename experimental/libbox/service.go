@@ -3,7 +3,6 @@ package libbox
 import (
 	"context"
 	"net/netip"
-	"os"
 	"runtime"
 	"syscall"
 
@@ -76,17 +75,12 @@ func (w *platformInterfaceWrapper) OpenTun(options tun.Options) (tun.Tun, error)
 	}
 
 	optionsWrapper := tunOptions(options)
-	tunInterface, err := w.iif.OpenTun(&optionsWrapper)
+	tunFd, err := w.iif.OpenTun(&optionsWrapper)
 	if err != nil {
 		return nil, err
 	}
-	tunFd := tunInterface.FileDescriptor()
-	return &nativeTun{
-		tunFd:   int(tunFd),
-		tunFile: os.NewFile(uintptr(tunFd), "tun"),
-		tunMTU:  options.MTU,
-		closer:  tunInterface,
-	}, nil
+	options.FileDescriptor = int(tunFd)
+	return tun.New(options)
 }
 
 func (w *platformInterfaceWrapper) Write(p []byte) (n int, err error) {

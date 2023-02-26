@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/observable"
@@ -27,7 +28,8 @@ func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter 
 	factory := &observableFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
-			BaseTime: formatter.BaseTime,
+			BaseTime:      formatter.BaseTime,
+			DisableColors: C.IsDarwin || C.IsIos,
 		},
 		writer:         writer,
 		platformWriter: platformWriter,
@@ -91,7 +93,7 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 	}
 	l.subscriber.Emit(Entry{level, messageSimple})
 	if l.platformWriter != nil {
-		l.platformWriter.Write([]byte(l.formatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
+		l.platformWriter.Write([]byte(l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
 	}
 }
 

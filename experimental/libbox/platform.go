@@ -2,7 +2,7 @@ package libbox
 
 type PlatformInterface interface {
 	AutoDetectInterfaceControl(fd int32) error
-	OpenTun(options TunOptions) (TunInterface, error)
+	OpenTun(options TunOptions) (int32, error)
 	WriteLog(message string)
 	UseProcFS() bool
 	FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (int32, error)

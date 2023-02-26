@@ -150,7 +150,7 @@ func (t *Tun) Start() error {
 	if t.platformInterface != nil {
 		tunInterface, err = t.platformInterface.OpenTun(t.tunOptions)
 	} else {
-		tunInterface, err = tun.Open(t.tunOptions)
+		tunInterface, err = tun.New(t.tunOptions)
 	}
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
