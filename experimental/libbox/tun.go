@@ -1,13 +1,13 @@
 package libbox
 
 import (
-	"io"
+	"net"
 	"net/netip"
-	"os"
 
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 type TunOptions interface {
@@ -26,6 +26,16 @@ type TunOptions interface {
 type RoutePrefix struct {
 	Address string
 	Prefix  int32
+}
+
+func (p *RoutePrefix) Mask() string {
+	var bits int
+	if M.ParseSocksaddr(p.Address).Addr.Is6() {
+		bits = 128
+	} else {
+		bits = 32
+	}
+	return net.IP(net.CIDRMask(int(p.Prefix), bits)).String()
 }
 
 type RoutePrefixIterator interface {
@@ -87,23 +97,4 @@ func (o *tunOptions) GetIncludePackage() StringIterator {
 
 func (o *tunOptions) GetExcludePackage() StringIterator {
 	return newIterator(o.ExcludePackage)
-}
-
-type nativeTun struct {
-	tunFd   int
-	tunFile *os.File
-	tunMTU  uint32
-	closer  io.Closer
-}
-
-func (t *nativeTun) Read(p []byte) (n int, err error) {
-	return t.tunFile.Read(p)
-}
-
-func (t *nativeTun) Write(p []byte) (n int, err error) {
-	return t.tunFile.Write(p)
-}
-
-func (t *nativeTun) Close() error {
-	return t.closer.Close()
 }

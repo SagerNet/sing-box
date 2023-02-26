@@ -46,7 +46,7 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 	if interfaceName == "" {
 		interfaceName = tun.CalculateInterfaceName("wg")
 	}
-	tunInterface, err := tun.Open(tun.Options{
+	tunInterface, err := tun.New(tun.Options{
 		Name:         interfaceName,
 		Inet4Address: inet4Addresses,
 		Inet6Address: inet6Addresses,
