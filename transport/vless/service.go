@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -19,6 +20,7 @@ import (
 
 type Service[T any] struct {
 	userMap map[[16]byte]T
+	logger  logger.Logger
 	handler Handler
 }
 
@@ -28,8 +30,9 @@ type Handler interface {
 	E.Handler
 }
 
-func NewService[T any](handler Handler) *Service[T] {
+func NewService[T any](logger logger.Logger, handler Handler) *Service[T] {
 	return &Service[T]{
+		logger:  logger,
 		handler: handler,
 	}
 }
@@ -64,7 +67,7 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 	switch request.Flow {
 	case "":
 	case FlowVision:
-		protocolConn, err = NewVisionConn(conn, request.UUID)
+		protocolConn, err = NewVisionConn(conn, request.UUID, s.logger)
 		if err != nil {
 			return E.Cause(err, "initialize vision")
 		}
