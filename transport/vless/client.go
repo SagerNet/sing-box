@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -16,11 +17,12 @@ import (
 )
 
 type Client struct {
-	key  [16]byte
-	flow string
+	key    [16]byte
+	flow   string
+	logger logger.Logger
 }
 
-func NewClient(userId string, flow string) (*Client, error) {
+func NewClient(userId string, flow string, logger logger.Logger) (*Client, error) {
 	user := uuid.FromStringOrNil(userId)
 	if user == uuid.Nil {
 		user = uuid.NewV5(user, userId)
@@ -30,12 +32,12 @@ func NewClient(userId string, flow string) (*Client, error) {
 	default:
 		return nil, E.New("unsupported flow: " + flow)
 	}
-	return &Client{user, flow}, nil
+	return &Client{user, flow, logger}, nil
 }
 
 func (c *Client) prepareConn(conn net.Conn) (net.Conn, error) {
 	if c.flow == FlowVision {
-		vConn, err := NewVisionConn(conn, c.key)
+		vConn, err := NewVisionConn(conn, c.key, c.logger)
 		if err != nil {
 			return nil, E.Cause(err, "initialize vision")
 		}

@@ -50,7 +50,7 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		ctx:   ctx,
 		users: options.Users,
 	}
-	service := vless.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+	service := vless.NewService[int](logger, adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
 	service.UpdateUsers(common.MapIndexed(inbound.users, func(index int, _ option.VLESSUser) int {
 		return index
 	}), common.Map(inbound.users, func(it option.VLESSUser) string {
