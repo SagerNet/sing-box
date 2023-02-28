@@ -1,4 +1,4 @@
-//go:build !go1.20
+//go:build go1.20 && !go1.21
 
 package v2raywebsocket
 
@@ -6,10 +6,11 @@ import (
 	"context"
 	"encoding/base64"
 	"net"
-	"net/http"
+	stdHTTP "net/http"
 	"os"
 	"strings"
 
+	"github.com/sagernet/badhttp"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -51,20 +52,14 @@ func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsCon
 		Handler:           server,
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
-	}
-	if tlsConfig != nil {
-		stdConfig, err := tlsConfig.Config()
-		if err != nil {
-			return nil, err
-		}
-		server.httpServer.TLSConfig = stdConfig
+		TLSConfig:         tlsConfig,
 	}
 	return server, nil
 }
 
 var upgrader = websocket.Upgrader{
 	HandshakeTimeout: C.TCPTimeout,
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin: func(r *stdHTTP.Request) bool {
 		return true
 	},
 }
@@ -99,13 +94,13 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.fallbackRequest(request.Context(), writer, request, http.StatusBadRequest, E.Cause(err, "decode early data"))
 		return
 	}
-	wsConn, err := upgrader.Upgrade(writer, request, nil)
+	wsConn, err := upgrader.Upgrade(&v2rayhttp.BadResponseWriter{ResponseWriter: writer}, v2rayhttp.BadRequest(request), nil)
 	if err != nil {
 		s.fallbackRequest(request.Context(), writer, request, http.StatusBadRequest, E.Cause(err, "upgrade websocket connection"))
 		return
 	}
 	var metadata M.Metadata
-	metadata.Source = sHttp.SourceAddress(request)
+	metadata.Source = sHttp.SourceAddress(v2rayhttp.BadRequest(request))
 	conn = NewServerConn(wsConn, metadata.Source.TCPAddr())
 	if len(earlyData) > 0 {
 		conn = bufio.NewCachedConn(conn, buf.As(earlyData))

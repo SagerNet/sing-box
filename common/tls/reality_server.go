@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net"
-	"os"
 	"time"
 
 	"github.com/sagernet/reality"
@@ -135,7 +134,7 @@ func (c *RealityServerConfig) Config() (*tls.Config, error) {
 }
 
 func (c *RealityServerConfig) Client(conn net.Conn) (Conn, error) {
-	return nil, os.ErrInvalid
+	return ClientHandshake(context.Background(), conn, c)
 }
 
 func (c *RealityServerConfig) Start() error {
@@ -147,7 +146,7 @@ func (c *RealityServerConfig) Close() error {
 }
 
 func (c *RealityServerConfig) Server(conn net.Conn) (Conn, error) {
-	return nil, os.ErrInvalid
+	return ServerHandshake(context.Background(), conn, c)
 }
 
 func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn) (Conn, error) {
