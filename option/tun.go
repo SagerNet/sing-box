@@ -19,5 +19,6 @@ type TunInboundOptions struct {
 	EndpointIndependentNat bool                   `json:"endpoint_independent_nat,omitempty"`
 	UDPTimeout             int64                  `json:"udp_timeout,omitempty"`
 	Stack                  string                 `json:"stack,omitempty"`
+	Platform               *TunPlatformOptions    `json:"platform,omitempty"`
 	InboundOptions
 }

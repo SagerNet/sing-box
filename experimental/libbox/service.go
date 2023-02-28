@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -28,9 +29,8 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		return nil, err
 	}
 	platformInterface.WriteLog("Hello " + runtime.GOOS + "/" + runtime.GOARCH)
-	options.PlatformInterface = &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()}
 	ctx, cancel := context.WithCancel(context.Background())
-	instance, err := box.New(ctx, options)
+	instance, err := box.New(ctx, options, &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()})
 	if err != nil {
 		cancel()
 		return nil, E.Cause(err, "create service")
@@ -66,16 +66,14 @@ func (w *platformInterfaceWrapper) AutoDetectInterfaceControl() control.Func {
 	}
 }
 
-func (w *platformInterfaceWrapper) OpenTun(options tun.Options) (tun.Tun, error) {
+func (w *platformInterfaceWrapper) OpenTun(options tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
 		return nil, E.New("android: unsupported uid options")
 	}
 	if len(options.IncludeAndroidUser) > 0 {
 		return nil, E.New("android: unsupported android_user option")
 	}
-
-	optionsWrapper := tunOptions(options)
-	tunFd, err := w.iif.OpenTun(&optionsWrapper)
+	tunFd, err := w.iif.OpenTun(&tunOptions{options, platformOptions})
 	if err != nil {
 		return nil, err
 	}

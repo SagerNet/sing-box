@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -36,7 +37,7 @@ type Box struct {
 	done        chan struct{}
 }
 
-func New(ctx context.Context, options option.Options) (*Box, error) {
+func New(ctx context.Context, options option.Options, platformInterface platform.Interface) (*Box, error) {
 	createdAt := time.Now()
 	logOptions := common.PtrValueOrDefault(options.Log)
 
@@ -61,7 +62,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 	} else {
 		switch logOptions.Output {
 		case "":
-			if options.PlatformInterface != nil {
+			if platformInterface != nil {
 				logWriter = io.Discard
 			} else {
 				logWriter = os.Stdout
@@ -86,10 +87,10 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			TimestampFormat:  "-0700 2006-01-02 15:04:05",
 		}
 		if needClashAPI {
-			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter, options.PlatformInterface)
+			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter, platformInterface)
 			logFactory = observableLogFactory
 		} else {
-			logFactory = log.NewFactory(logFormatter, logWriter, options.PlatformInterface)
+			logFactory = log.NewFactory(logFormatter, logWriter, platformInterface)
 		}
 		if logOptions.Level != "" {
 			logLevel, err := log.ParseLevel(logOptions.Level)
@@ -109,7 +110,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 		common.PtrValueOrDefault(options.DNS),
 		common.PtrValueOrDefault(options.NTP),
 		options.Inbounds,
-		options.PlatformInterface,
+		platformInterface,
 	)
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
@@ -129,7 +130,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			router,
 			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
 			inboundOptions,
-			options.PlatformInterface,
+			platformInterface,
 		)
 		if err != nil {
 			return nil, E.Cause(err, "parse inbound[", i, "]")

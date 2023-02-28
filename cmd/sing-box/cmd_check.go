@@ -31,7 +31,7 @@ func check() error {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err = box.New(ctx, options)
+	_, err = box.New(ctx, options, nil)
 	cancel()
 	return err
 }

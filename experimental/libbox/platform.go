@@ -1,5 +1,7 @@
 package libbox
 
+import "github.com/sagernet/sing-box/option"
+
 type PlatformInterface interface {
 	AutoDetectInterfaceControl(fd int32) error
 	OpenTun(options TunOptions) (int32, error)
@@ -13,4 +15,52 @@ type PlatformInterface interface {
 type TunInterface interface {
 	FileDescriptor() int32
 	Close() error
+}
+
+type OnDemandRuleIterator interface {
+	Next() OnDemandRule
+	HasNext() bool
+}
+
+type OnDemandRule interface {
+	Target() int32
+	DNSSearchDomainMatch() StringIterator
+	DNSServerAddressMatch() StringIterator
+	InterfaceTypeMatch() int32
+	SSIDMatch() StringIterator
+	ProbeURL() string
+}
+
+type onDemandRule struct {
+	option.OnDemandRule
+}
+
+func (r *onDemandRule) Target() int32 {
+	if r.OnDemandRule.Action == nil {
+		return -1
+	}
+	return int32(*r.OnDemandRule.Action)
+}
+
+func (r *onDemandRule) DNSSearchDomainMatch() StringIterator {
+	return newIterator(r.OnDemandRule.DNSSearchDomainMatch)
+}
+
+func (r *onDemandRule) DNSServerAddressMatch() StringIterator {
+	return newIterator(r.OnDemandRule.DNSServerAddressMatch)
+}
+
+func (r *onDemandRule) InterfaceTypeMatch() int32 {
+	if r.OnDemandRule.InterfaceTypeMatch == nil {
+		return -1
+	}
+	return int32(*r.OnDemandRule.InterfaceTypeMatch)
+}
+
+func (r *onDemandRule) SSIDMatch() StringIterator {
+	return newIterator(r.OnDemandRule.SSIDMatch)
+}
+
+func (r *onDemandRule) ProbeURL() string {
+	return r.OnDemandRule.ProbeURL
 }
