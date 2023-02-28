@@ -86,6 +86,8 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
 #### packet_encoding
 
+UDP 包编码。
+
 | 编码         | 描述            |
 |------------|---------------|
 | (空)        | 禁用            |

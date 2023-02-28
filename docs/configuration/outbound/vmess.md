@@ -86,6 +86,8 @@ TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 #### packet_encoding
 
+UDP packet encoding.
+
 | Encoding   | Description           |
 |------------|-----------------------|
 | (none)     | Disabled              |

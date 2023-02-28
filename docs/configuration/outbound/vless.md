@@ -60,6 +60,8 @@ TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 #### packet_encoding
 
+UDP packet encoding, xudp is used by default.
+
 | Encoding   | Description           |
 |------------|-----------------------|
 | (none)     | Disabled              |
