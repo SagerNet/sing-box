@@ -58,14 +58,18 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
-	switch options.PacketEncoding {
-	case "":
-	case "packetaddr":
-		outbound.packetAddr = true
-	case "xudp":
+	if options.PacketEncoding == nil {
 		outbound.xudp = true
-	default:
-		return nil, E.New("unknown packet encoding: ", options.PacketEncoding)
+	} else {
+		switch *options.PacketEncoding {
+		case "":
+		case "packetaddr":
+			outbound.packetAddr = true
+		case "xudp":
+			outbound.xudp = true
+		default:
+			return nil, E.New("unknown packet encoding: ", options.PacketEncoding)
+		}
 	}
 	outbound.client, err = vless.NewClient(options.UUID, options.Flow, logger)
 	if err != nil {
