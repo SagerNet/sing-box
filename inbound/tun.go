@@ -36,6 +36,7 @@ type Tun struct {
 	tunIf                  tun.Tun
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
+	platformOptions        option.TunPlatformOptions
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -96,6 +97,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		udpTimeout:             udpTimeout,
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
+		platformOptions:        common.PtrValueOrDefault(options.Platform),
 	}, nil
 }
 
@@ -148,7 +150,7 @@ func (t *Tun) Start() error {
 		err          error
 	)
 	if t.platformInterface != nil {
-		tunInterface, err = t.platformInterface.OpenTun(t.tunOptions)
+		tunInterface, err = t.platformInterface.OpenTun(t.tunOptions, t.platformOptions)
 	} else {
 		tunInterface, err = tun.New(t.tunOptions)
 	}
