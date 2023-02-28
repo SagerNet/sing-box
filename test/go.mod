@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/sagernet/sing v0.1.8-0.20230221060643-3401d210384b
+	github.com/sagernet/sing v0.1.8-0.20230228034829-bb617490652c
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.1
@@ -63,11 +63,13 @@ require (
 	github.com/quic-go/qtls-go1-18 v0.2.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.2.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.1.0 // indirect
+	github.com/sagernet/badhttp v0.0.0-20230228035330-e77eb9a689fd // indirect
+	github.com/sagernet/badhttp2 v0.0.0-20230228040529-408b0b8e774d // indirect
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0 // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32 // indirect
-	github.com/sagernet/reality v0.0.0-20230226124550-f98d51fa21b5 // indirect
+	github.com/sagernet/reality v0.0.0-20230228045158-d3e085a8e5d1 // indirect
 	github.com/sagernet/sing-dns v0.1.4 // indirect
 	github.com/sagernet/sing-shadowtls v0.0.0-20230221123345-78e50cd7b587 // indirect
 	github.com/sagernet/sing-tun v0.1.2-0.20230226091124-0cdb0eed74d9 // indirect

@@ -20,11 +20,13 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
+	github.com/sagernet/badhttp v0.0.0-20230228035330-e77eb9a689fd
+	github.com/sagernet/badhttp2 v0.0.0-20230228040529-408b0b8e774d
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/reality v0.0.0-20230226124550-f98d51fa21b5
-	github.com/sagernet/sing v0.1.8-0.20230228031050-b60f6390dfe8
+	github.com/sagernet/reality v0.0.0-20230228045158-d3e085a8e5d1
+	github.com/sagernet/sing v0.1.8-0.20230228034829-bb617490652c
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/sagernet/sing-shadowtls v0.0.0-20230221123345-78e50cd7b587

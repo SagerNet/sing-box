@@ -1,14 +1,19 @@
-//go:build !go1.20
+//go:build go1.20 && !go1.21
 
 package v2rayhttp
 
 import (
+	std_bufio "bufio"
 	"context"
 	"net"
-	"net/http"
+	stdHTTP "net/http"
 	"os"
 	"strings"
+	"unsafe"
 
+	"github.com/sagernet/badhttp"
+	"github.com/sagernet/badhttp2"
+	"github.com/sagernet/badhttp2/h2c"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -18,9 +23,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	sHttp "github.com/sagernet/sing/protocol/http"
-
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -64,15 +66,9 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		Handler:           server,
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
+		TLSConfig:         tlsConfig,
 	}
 	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
-	if tlsConfig != nil {
-		stdConfig, err := tlsConfig.Config()
-		if err != nil {
-			return nil, err
-		}
-		server.httpServer.TLSConfig = stdConfig
-	}
 	return server, nil
 }
 
@@ -107,7 +103,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.(http.Flusher).Flush()
 
 	var metadata M.Metadata
-	metadata.Source = sHttp.SourceAddress(request)
+	metadata.Source = sHttp.SourceAddress(BadRequest(request))
 	if h, ok := writer.(http.Hijacker); ok {
 		conn, _, err := h.Hijack()
 		if err != nil {
@@ -159,4 +155,28 @@ func (s *Server) ServePacket(listener net.PacketConn) error {
 
 func (s *Server) Close() error {
 	return common.Close(common.PtrOrNil(s.httpServer))
+}
+
+var (
+	_ stdHTTP.ResponseWriter = (*BadResponseWriter)(nil)
+	_ stdHTTP.Hijacker       = (*BadResponseWriter)(nil)
+)
+
+type BadResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w *BadResponseWriter) Header() stdHTTP.Header {
+	return stdHTTP.Header(w.ResponseWriter.Header())
+}
+
+func (w *BadResponseWriter) Hijack() (net.Conn, *std_bufio.ReadWriter, error) {
+	if hijacker, loaded := common.Cast[http.Hijacker](w.ResponseWriter); loaded {
+		return hijacker.Hijack()
+	}
+	return nil, nil, os.ErrInvalid
+}
+
+func BadRequest(r *http.Request) *stdHTTP.Request {
+	return (*stdHTTP.Request)(unsafe.Pointer(r))
 }
