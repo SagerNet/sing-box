@@ -87,7 +87,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 			return bufio.CopyConn(ctx, conn, serverConn)
 		}
 	}
-	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](conn); isEarlyConn && earlyConn.NeedHandshake() {
+	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](serverConn); isEarlyConn && earlyConn.NeedHandshake() {
 		_payload := buf.StackNew()
 		payload := common.Dup(_payload)
 		err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
