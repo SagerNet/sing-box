@@ -14,6 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	utls "github.com/refraction-networking/utls"
+	"golang.org/x/net/http2"
 )
 
 type UTLSClientConfig struct {
@@ -34,6 +35,9 @@ func (e *UTLSClientConfig) NextProtos() []string {
 }
 
 func (e *UTLSClientConfig) SetNextProtos(nextProto []string) {
+	if len(nextProto) == 1 && nextProto[0] == http2.NextProtoTLS {
+		nextProto = append(nextProto, "http/1.1")
+	}
 	e.config.NextProtos = nextProto
 }
 
