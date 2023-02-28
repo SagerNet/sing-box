@@ -50,7 +50,7 @@ Encryption methods:
 * `none`
 * `zero`
 * `aes-128-gcm`
-* `chancha20-poly1305`
+* `chacha20-poly1305`
 
 Legacy encryption methods:
 

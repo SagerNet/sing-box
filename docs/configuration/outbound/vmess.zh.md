@@ -50,7 +50,7 @@ VMess 用户 ID。
 * `none`
 * `zero`
 * `aes-128-gcm`
-* `chancha20-poly1305`
+* `chacha20-poly1305`
 
 旧加密方法：
 
