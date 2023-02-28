@@ -5,6 +5,7 @@ package tls
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"math/rand"
 	"net"
 	"net/netip"
 	"os"
@@ -159,6 +160,20 @@ func NewUTLSClient(router adapter.Router, serverAddress string, options option.O
 	return &UTLSClientConfig{&tlsConfig, id}, nil
 }
 
+var randomFingerprint utls.ClientHelloID
+
+func init() {
+	modernFingerprints := []utls.ClientHelloID{
+		utls.HelloChrome_Auto,
+		utls.HelloFirefox_Auto,
+		utls.HelloEdge_Auto,
+		utls.HelloSafari_Auto,
+		utls.HelloIOS_Auto,
+		utls.HelloAndroid_11_OkHttp,
+	}
+	randomFingerprint = modernFingerprints[rand.Intn(len(modernFingerprints))]
+}
+
 func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
 	switch name {
 	case "chrome", "":
@@ -178,7 +193,15 @@ func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
 	case "android":
 		return utls.HelloAndroid_11_OkHttp, nil
 	case "random":
-		return utls.HelloRandomized, nil
+		return randomFingerprint, nil
+	case "randomized":
+		weights := utls.DefaultWeights
+		weights.TLSVersMax_Set_VersionTLS13 = 1
+		weights.FirstKeyShare_Set_CurveP256 = 0
+		randomized := utls.HelloRandomized
+		randomized.Seed, _ = utls.NewPRNGSeed()
+		randomized.Weights = &weights
+		return randomized, nil
 	default:
 		return utls.ClientHelloID{}, E.New("unknown uTLS fingerprint: ", name)
 	}

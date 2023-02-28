@@ -218,6 +218,7 @@ uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻
 * ios
 * android
 * random
+* randomized
 
 默认使用 chrome 指纹。
 
