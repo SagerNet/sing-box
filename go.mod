@@ -24,7 +24,7 @@ require (
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230226124550-f98d51fa21b5
-	github.com/sagernet/sing v0.1.8-0.20230226145949-3f0b21359af6
+	github.com/sagernet/sing v0.1.8-0.20230228031050-b60f6390dfe8
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/sagernet/sing-shadowtls v0.0.0-20230221123345-78e50cd7b587
@@ -49,6 +49,8 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
+
+//replace github.com/sagernet/sing-tun => ../sing-tun
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
