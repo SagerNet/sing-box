@@ -218,6 +218,7 @@ Available fingerprint values:
 * ios
 * android
 * random
+* randomized
 
 Chrome fingerprint will be used if empty.
 
