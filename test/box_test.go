@@ -37,7 +37,7 @@ func startInstance(t *testing.T, options option.Options) *box.Box {
 	var instance *box.Box
 	var err error
 	for retry := 0; retry < 3; retry++ {
-		instance, err = box.New(ctx, options)
+		instance, err = box.New(ctx, options, nil)
 		require.NoError(t, err)
 		err = instance.Start()
 		if err != nil {
