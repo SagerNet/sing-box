@@ -134,18 +134,14 @@ func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter
 }
 
 func (s *Server) Serve(listener net.Listener) error {
-	fixTLSConfig := s.httpServer.TLSConfig == nil
-	err := http2.ConfigureServer(s.httpServer, s.h2Server)
-	if err != nil {
-		return err
-	}
-	if fixTLSConfig {
-		s.httpServer.TLSConfig = nil
-	}
-	if s.httpServer.TLSConfig == nil {
-		return s.httpServer.Serve(listener)
-	} else {
+	if s.httpServer.TLSConfig != nil {
+		err := http2.ConfigureServer(s.httpServer, s.h2Server)
+		if err != nil {
+			return err
+		}
 		return s.httpServer.ServeTLS(listener, "", "")
+	} else {
+		return s.httpServer.Serve(listener)
 	}
 }
 
