@@ -167,7 +167,7 @@ func testVLESSXray(t *testing.T, packetEncoding string, flow string) {
 					},
 					UUID:           userID.String(),
 					Flow:           flow,
-					PacketEncoding: packetEncoding,
+					PacketEncoding: &packetEncoding,
 					TLS: &option.OutboundTLSOptions{
 						Enabled:         true,
 						ServerName:      "example.org",
