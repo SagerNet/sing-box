@@ -39,10 +39,17 @@ func (a *myInboundAdapter) loopTCPIn() {
 	for {
 		conn, err := tcpListener.Accept()
 		if err != nil {
-			if E.IsClosed(err) {
+			//goland:noinspection GoDeprecation
+			//nolint:staticcheck
+			if netError, isNetError := err.(net.Error); isNetError && netError.Temporary() {
+				a.logger.Error(err)
+				continue
+			}
+			if a.inShutdown.Load() && E.IsClosed(err) {
 				return
 			}
-			a.logger.Error("accept: ", err)
+			a.tcpListener.Close()
+			a.logger.Error("serve error: ", err)
 			continue
 		}
 		go a.injectTCP(conn, adapter.InboundContext{})

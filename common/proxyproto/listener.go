@@ -24,13 +24,13 @@ func (l *Listener) Accept() (net.Conn, error) {
 	bufReader := std_bufio.NewReader(conn)
 	header, err := proxyproto.Read(bufReader)
 	if err != nil && !(l.AcceptNoHeader && err == proxyproto.ErrNoProxyProtocol) {
-		return nil, err
+		return nil, &Error{err}
 	}
 	if bufReader.Buffered() > 0 {
 		cache := buf.NewSize(bufReader.Buffered())
 		_, err = cache.ReadFullFrom(bufReader, cache.FreeLen())
 		if err != nil {
-			return nil, err
+			return nil, &Error{err}
 		}
 		conn = bufio.NewCachedConn(conn, cache)
 	}
@@ -41,4 +41,22 @@ func (l *Listener) Accept() (net.Conn, error) {
 		}}, nil
 	}
 	return conn, nil
+}
+
+var _ net.Error = (*Error)(nil)
+
+type Error struct {
+	error
+}
+
+func (e *Error) Unwrap() error {
+	return e.error
+}
+
+func (e *Error) Timeout() bool {
+	return false
+}
+
+func (e *Error) Temporary() bool {
+	return true
 }
