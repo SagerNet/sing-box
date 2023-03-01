@@ -36,6 +36,7 @@ func TestVLESSVisionReality(t *testing.T) {
 						{
 							Name: "sekai",
 							UUID: userUUID.String(),
+							Flow: vless.FlowVision,
 						},
 					},
 					TLS: &option.InboundTLSOptions{

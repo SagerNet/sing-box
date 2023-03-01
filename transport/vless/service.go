@@ -69,7 +69,7 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 
 	userFlow := s.userFlow[user]
 	if request.Flow != userFlow {
-		return E.New("flow mismatch: expected ", userFlow, ", but got ", request.Flow)
+		return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
 	}
 
 	protocolConn := conn
@@ -92,6 +92,13 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 	default:
 		return E.New("unknown command: ", request.Command)
 	}
+}
+
+func flowName(value string) string {
+	if value == "" {
+		return "none"
+	}
+	return value
 }
 
 type serverConn struct {
