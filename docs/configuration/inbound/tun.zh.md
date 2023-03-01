@@ -148,19 +148,19 @@ TCP/IP 栈。
 
     UID 规则仅在 Linux 下被支持，并且需要 `auto_route`。
 
-限制被路由的的用户。默认不限制。
+限制被路由的用户。默认不限制。
 
 #### include_uid_range
 
-限制被路由的的用户范围。
+限制被路由的用户范围。
 
 #### exclude_uid
 
-排除路由的的用户。
+排除路由的用户。
 
 #### exclude_uid_range
 
-排除路由的的用户范围。
+排除路由的用户范围。
 
 #### include_android_user
 
