@@ -13,6 +13,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"go.uber.org/atomic"
 )
 
 var _ adapter.Inbound = (*myInboundAdapter)(nil)
@@ -42,6 +44,8 @@ type myInboundAdapter struct {
 	udpAddr              M.Socksaddr
 	packetOutboundClosed chan struct{}
 	packetOutbound       chan *myInboundPacket
+
+	inShutdown atomic.Bool
 }
 
 func (a *myInboundAdapter) Type() string {
@@ -97,6 +101,7 @@ func (a *myInboundAdapter) Start() error {
 }
 
 func (a *myInboundAdapter) Close() error {
+	a.inShutdown.Store(true)
 	var err error
 	if a.clearSystemProxy != nil {
 		err = a.clearSystemProxy()
