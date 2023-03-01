@@ -234,6 +234,7 @@ func testVLESSSelf(t *testing.T, flow string) {
 						{
 							Name: "sekai",
 							UUID: userUUID.String(),
+							Flow: flow,
 						},
 					},
 					TLS: &option.InboundTLSOptions{
@@ -308,6 +309,7 @@ func testVLESSSelfTLS(t *testing.T, flow string) {
 						{
 							Name: "sekai",
 							UUID: userUUID.String(),
+							Flow: flow,
 						},
 					},
 					TLS: &option.InboundTLSOptions{
