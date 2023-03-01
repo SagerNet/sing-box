@@ -55,6 +55,8 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return index
 	}), common.Map(inbound.users, func(it option.VLESSUser) string {
 		return it.UUID
+	}), common.Map(inbound.users, func(it option.VLESSUser) string {
+		return it.Flow
 	}))
 	inbound.service = service
 	var err error
