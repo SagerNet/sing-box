@@ -898,10 +898,9 @@ func (r *Router) prepareGeoIPDatabase() error {
 		geoPath = "geoip.db"
 		if foundPath, loaded := C.FindPath(geoPath); loaded {
 			geoPath = foundPath
-		} else {
-			geoPath = C.BasePath(geoPath)
 		}
 	}
+	geoPath = C.BasePath(geoPath)
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geoip database not exists: ", geoPath)
 		var err error
@@ -935,10 +934,9 @@ func (r *Router) prepareGeositeDatabase() error {
 		geoPath = "geosite.db"
 		if foundPath, loaded := C.FindPath(geoPath); loaded {
 			geoPath = foundPath
-		} else {
-			geoPath = C.BasePath(geoPath)
 		}
 	}
+	geoPath = C.BasePath(geoPath)
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geosite database not exists: ", geoPath)
 		var err error
