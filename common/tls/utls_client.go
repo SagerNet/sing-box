@@ -174,7 +174,6 @@ func init() {
 		utls.HelloEdge_Auto,
 		utls.HelloSafari_Auto,
 		utls.HelloIOS_Auto,
-		utls.HelloAndroid_11_OkHttp,
 	}
 	randomFingerprint = modernFingerprints[rand.Intn(len(modernFingerprints))]
 }
