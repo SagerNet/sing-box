@@ -86,10 +86,10 @@ func buildiOS() {
 	if !debugEnabled {
 		args = append(
 			args, "-trimpath", "-ldflags=-s -w -buildid=",
-			"-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api",
+			"-tags", "with_gvisor,with_utls,with_clash_api",
 		)
 	} else {
-		args = append(args, "-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug")
+		args = append(args, "-tags", "with_gvisor,with_utls,with_clash_api,debug")
 	}
 
 	args = append(args, "./experimental/libbox")
@@ -102,7 +102,7 @@ func buildiOS() {
 		log.Fatal(err)
 	}
 
-	copyPath := filepath.Join("..", "sfi")
+	copyPath := filepath.Join("..", "sing-box-for-ios")
 	if rw.FileExists(copyPath) {
 		targetDir := filepath.Join(copyPath, "Libbox.xcframework")
 		targetDir, _ = filepath.Abs(targetDir)
