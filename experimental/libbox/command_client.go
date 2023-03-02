@@ -53,12 +53,14 @@ func (c *CommandClient) Connect() error {
 	}
 	switch c.options.Command {
 	case CommandLog:
+		c.handler.Connected()
 		go c.handleLogConn(conn)
 	case CommandStatus:
 		err = binary.Write(conn, binary.BigEndian, c.options.StatusInterval)
 		if err != nil {
 			return E.Cause(err, "write interval")
 		}
+		c.handler.Connected()
 		go c.handleStatusConn(conn)
 	}
 	return nil

@@ -78,7 +78,6 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 }
 
 func (c *CommandClient) handleLogConn(conn net.Conn) {
-	c.handler.Connected()
 	for {
 		message, err := readLog(conn)
 		if err != nil {

@@ -48,7 +48,6 @@ func (s *CommandServer) handleStatusConn(conn net.Conn) error {
 }
 
 func (c *CommandClient) handleStatusConn(conn net.Conn) {
-	c.handler.Connected()
 	for {
 		var message StatusMessage
 		err := binary.Read(conn, binary.BigEndian, &message)
