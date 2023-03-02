@@ -20,7 +20,7 @@ func readStatus() StatusMessage {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	var message StatusMessage
-	message.Memory = int64(memStats.HeapInuse + memStats.StackInuse + memStats.MSpanInuse)
+	message.Memory = int64(memStats.Sys - memStats.HeapReleased)
 	message.Goroutines = int32(runtime.NumGoroutine())
 	return message
 }
