@@ -109,11 +109,13 @@ func (h *ShadowsocksR) DialContext(ctx context.Context, network string, destinat
 		conn = h.cipher.StreamConn(h.obfs.StreamConn(conn))
 		writeIv, err := conn.(*shadowstream.Conn).ObtainWriteIV()
 		if err != nil {
+			conn.Close()
 			return nil, err
 		}
 		conn = h.protocol.StreamConn(conn, writeIv)
 		err = M.SocksaddrSerializer.WriteAddrPort(conn, destination)
 		if err != nil {
+			conn.Close()
 			return nil, E.Cause(err, "write request")
 		}
 		return conn, nil

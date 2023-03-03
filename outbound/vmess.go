@@ -157,6 +157,7 @@ func (h *vmessDialer) DialContext(ctx context.Context, network string, destinati
 		}
 	}
 	if err != nil {
+		common.Close(conn)
 		return nil, err
 	}
 	switch N.NetworkName(network) {

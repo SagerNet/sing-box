@@ -124,6 +124,7 @@ func (h *trojanDialer) DialContext(ctx context.Context, network string, destinat
 		}
 	}
 	if err != nil {
+		common.Close(conn)
 		return nil, err
 	}
 	switch N.NetworkName(network) {
