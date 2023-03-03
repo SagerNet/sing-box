@@ -134,6 +134,7 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 		}
 	}
 	if err != nil {
+		common.Close(conn)
 		return nil, err
 	}
 	if h.xudp {
