@@ -27,6 +27,7 @@ type CommandServer struct {
 }
 
 type CommandServerHandler interface {
+	ServiceStop() error
 	ServiceReload() error
 }
 
@@ -50,6 +51,7 @@ func (s *CommandServer) Start() error {
 	if err != nil {
 		return err
 	}
+	s.listener = listener
 	go s.loopConnection(listener)
 	return nil
 }
@@ -85,6 +87,8 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleLogConn(conn)
 	case CommandStatus:
 		return s.handleStatusConn(conn)
+	case CommandServiceStop:
+		return s.handleServiceStop(conn)
 	case CommandServiceReload:
 		return s.handleServiceReload(conn)
 	case CommandCloseConnections:

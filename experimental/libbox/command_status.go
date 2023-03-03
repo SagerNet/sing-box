@@ -22,7 +22,7 @@ func readStatus() StatusMessage {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	var message StatusMessage
-	message.Memory = int64(memStats.Sys - memStats.HeapReleased)
+	message.Memory = int64(memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased)
 	message.Goroutines = int32(runtime.NumGoroutine())
 	message.Connections = int32(conntrack.Count())
 	return message
