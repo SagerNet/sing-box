@@ -6,6 +6,7 @@
 /bin/
 /dist/
 /sing-box
+/sing-box.exe
 /build/
 /*.jar
 /*.aar
