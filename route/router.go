@@ -579,7 +579,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
 	case uot.UOTMagicAddress:
 		r.logger.InfoContext(ctx, "inbound UoT connection")
-		metadata.Destination = M.Socksaddr{}
+		metadata.Destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
 		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
 	}
 	if metadata.InboundOptions.SniffEnabled {
