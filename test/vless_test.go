@@ -192,7 +192,7 @@ func testVLESSXray(t *testing.T, packetEncoding string, flow string) {
 		},
 	})
 
-	testTCP(t, clientPort, testPort)
+	testSuit(t, clientPort, testPort)
 }
 
 func TestVLESSSelf(t *testing.T) {

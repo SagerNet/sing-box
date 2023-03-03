@@ -128,7 +128,7 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 	requestLen += 1  // protobuf length
 
 	var addonsLen int
-	if request.Flow != "" {
+	if request.Command == vmess.CommandTCP && request.Flow != "" {
 		addonsLen += 1 // protobuf header
 		addonsLen += UvarintLen(uint64(len(request.Flow)))
 		addonsLen += len(request.Flow)
