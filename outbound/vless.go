@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -101,7 +102,17 @@ func (h *VLESS) DialContext(ctx context.Context, network string, destination M.S
 		return h.client.DialEarlyConn(conn, destination)
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-		return h.client.DialEarlyPacketConn(conn, destination)
+		if h.xudp {
+			return h.client.DialEarlyXUDPPacketConn(conn, destination)
+		} else if h.packetAddr {
+			packetConn, err := h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress})
+			if err != nil {
+				return nil, err
+			}
+			return &bufio.BindPacketConn{PacketConn: dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(packetConn, destination)), Addr: destination}, nil
+		} else {
+			return h.client.DialEarlyPacketConn(conn, destination)
+		}
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}

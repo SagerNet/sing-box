@@ -68,27 +68,30 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 	metadata.Destination = request.Destination
 
 	userFlow := s.userFlow[user]
-	if request.Flow != userFlow {
-		return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
-	}
 
-	protocolConn := conn
-	switch userFlow {
-	case "":
-	case FlowVision:
-		protocolConn, err = NewVisionConn(conn, request.UUID, s.logger)
-		if err != nil {
-			return E.Cause(err, "initialize vision")
+	var responseWriter io.Writer
+	if request.Command == vmess.CommandTCP {
+		if request.Flow != userFlow {
+			return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
+		}
+		switch userFlow {
+		case "":
+		case FlowVision:
+			responseWriter = conn
+			conn, err = NewVisionConn(conn, request.UUID, s.logger)
+			if err != nil {
+				return E.Cause(err, "initialize vision")
+			}
 		}
 	}
 
 	switch request.Command {
 	case vmess.CommandTCP:
-		return s.handler.NewConnection(ctx, &serverConn{Conn: protocolConn, responseWriter: conn}, metadata)
+		return s.handler.NewConnection(ctx, &serverConn{Conn: conn, responseWriter: responseWriter}, metadata)
 	case vmess.CommandUDP:
 		return s.handler.NewPacketConnection(ctx, &serverPacketConn{ExtendedConn: bufio.NewExtendedConn(conn), destination: request.Destination}, metadata)
 	case vmess.CommandMux:
-		return vmess.HandleMuxConnection(ctx, &serverConn{Conn: conn}, s.handler)
+		return vmess.HandleMuxConnection(ctx, &serverConn{Conn: conn, responseWriter: responseWriter}, s.handler)
 	default:
 		return E.New("unknown command: ", request.Command)
 	}
