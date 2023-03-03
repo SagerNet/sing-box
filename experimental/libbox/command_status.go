@@ -8,12 +8,14 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sagernet/sing-box/common/dialer/conntrack"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type StatusMessage struct {
-	Memory     int64
-	Goroutines int32
+	Memory      int64
+	Goroutines  int32
+	Connections int32
 }
 
 func readStatus() StatusMessage {
@@ -22,6 +24,7 @@ func readStatus() StatusMessage {
 	var message StatusMessage
 	message.Memory = int64(memStats.Sys - memStats.HeapReleased)
 	message.Goroutines = int32(runtime.NumGoroutine())
+	message.Connections = int32(conntrack.Count())
 	return message
 }
 

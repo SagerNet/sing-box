@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer/conntrack"
 	"github.com/sagernet/sing-box/common/warning"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -159,16 +160,30 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 		}
 	}
 	if !address.IsIPv6() {
-		return DialSlowContext(&d.dialer4, ctx, network, address)
+		return trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
 	} else {
-		return DialSlowContext(&d.dialer6, ctx, network, address)
+		return trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
 	}
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if !destination.IsIPv6() {
-		return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4)
+		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4))
 	} else {
-		return d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6)
+		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6))
 	}
+}
+
+func trackConn(conn net.Conn, err error) (net.Conn, error) {
+	if !conntrack.Enabled || err != nil {
+		return conn, err
+	}
+	return conntrack.NewConn(conn), nil
+}
+
+func trackPacketConn(conn net.PacketConn, err error) (net.PacketConn, error) {
+	if !conntrack.Enabled || err != nil {
+		return conn, err
+	}
+	return conntrack.NewPacketConn(conn), nil
 }
