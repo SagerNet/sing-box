@@ -5,4 +5,6 @@ package libbox
 const (
 	CommandLog int32 = iota
 	CommandStatus
+	CommandServiceReload
+	CommandCloseConnections
 )

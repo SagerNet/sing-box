@@ -12,10 +12,10 @@ import (
 )
 
 type CommandClient struct {
-	sockPath string
-	handler  CommandClientHandler
-	conn     net.Conn
-	options  CommandClientOptions
+	sharedDirectory string
+	handler         CommandClientHandler
+	conn            net.Conn
+	options         CommandClientOptions
 }
 
 type CommandClientOptions struct {
@@ -32,17 +32,21 @@ type CommandClientHandler interface {
 
 func NewCommandClient(sharedDirectory string, handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
 	return &CommandClient{
-		sockPath: filepath.Join(sharedDirectory, "command.sock"),
-		handler:  handler,
-		options:  common.PtrValueOrDefault(options),
+		sharedDirectory: sharedDirectory,
+		handler:         handler,
+		options:         common.PtrValueOrDefault(options),
 	}
 }
 
-func (c *CommandClient) Connect() error {
-	conn, err := net.DialUnix("unix", nil, &net.UnixAddr{
-		Name: c.sockPath,
+func clientConnect(sharedDirectory string) (net.Conn, error) {
+	return net.DialUnix("unix", nil, &net.UnixAddr{
+		Name: filepath.Join(sharedDirectory, "command.sock"),
 		Net:  "unix",
 	})
+}
+
+func (c *CommandClient) Connect() error {
+	conn, err := clientConnect(c.sharedDirectory)
 	if err != nil {
 		return err
 	}

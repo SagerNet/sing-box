@@ -86,10 +86,10 @@ func buildiOS() {
 	if !debugEnabled {
 		args = append(
 			args, "-trimpath", "-ldflags=-s -w -buildid=",
-			"-tags", "with_gvisor,with_utls,with_clash_api",
+			"-tags", "with_gvisor,with_utls,with_clash_api,with_conntrack",
 		)
 	} else {
-		args = append(args, "-tags", "with_gvisor,with_utls,with_clash_api,debug")
+		args = append(args, "-tags", "with_gvisor,with_utls,with_clash_api,with_conntrack,debug")
 	}
 
 	args = append(args, "./experimental/libbox")

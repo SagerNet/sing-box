@@ -18,6 +18,7 @@ import (
 type CommandServer struct {
 	sockPath string
 	listener net.Listener
+	handler  CommandServerHandler
 
 	access     sync.Mutex
 	savedLines *list.List[string]
@@ -25,9 +26,14 @@ type CommandServer struct {
 	observer   *observable.Observer[string]
 }
 
-func NewCommandServer(sharedDirectory string) *CommandServer {
+type CommandServerHandler interface {
+	ServiceReload() error
+}
+
+func NewCommandServer(sharedDirectory string, handler CommandServerHandler) *CommandServer {
 	server := &CommandServer{
 		sockPath:   filepath.Join(sharedDirectory, "command.sock"),
+		handler:    handler,
 		savedLines: new(list.List[string]),
 		subscriber: observable.NewSubscriber[string](128),
 	}
@@ -79,6 +85,10 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleLogConn(conn)
 	case CommandStatus:
 		return s.handleStatusConn(conn)
+	case CommandServiceReload:
+		return s.handleServiceReload(conn)
+	case CommandCloseConnections:
+		return s.handleCloseConnections(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}
