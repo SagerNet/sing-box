@@ -23,7 +23,7 @@ require (
 	github.com/refraction-networking/utls v1.2.2
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/sing v0.1.7
+	github.com/sagernet/sing v0.1.8-0.20230309082535-3ccf42b7d589
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.1
 	github.com/sagernet/sing-tun v0.1.1
