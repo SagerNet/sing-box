@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-tun v0.1.2-0.20230226091124-0cdb0eed74d9
 	github.com/sagernet/sing-vmess v0.1.2
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
-	github.com/sagernet/tfo-go v0.0.0-20230207095944-549363a7327d
+	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230225061716-536a007c8b01
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
