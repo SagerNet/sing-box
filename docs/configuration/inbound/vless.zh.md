@@ -36,7 +36,7 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 !!! error ""
 
-    VLESS 强制开启 flow: `xtls-rprx-vision`
+    VLESS 强制开启 flow: `xtls-rprx-vision`。
 
 #### transport
 
