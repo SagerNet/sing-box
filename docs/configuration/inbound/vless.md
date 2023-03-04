@@ -34,6 +34,11 @@ VLESS users.
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
+
+!!! error ""
+
+    VLESS makes it mandatory to use flow `xtls-rprx-vision`.
+
 #### transport
 
 V2Ray Transport configuration, see [V2Ray Transport](/configuration/shared/v2ray-transport).
