@@ -10,7 +10,8 @@
   "users": [
     {
       "name": "sekai",
-      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661"
+      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+      "flow": "xtls-rprx-vision"
     }
   ],
   "tls": {},
@@ -34,10 +35,6 @@ VLESS users.
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
-
-!!! error ""
-
-   If sing-box as a server, then the VLESS service provides flow `xtls-rprx-vision` for compulsory use.
 
 #### transport
 

@@ -10,7 +10,8 @@
   "users": [
     {
       "name": "sekai",
-      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661"
+      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+      "flow": "xtls-rprx-vision"
     }
   ],
   "tls": {},
@@ -34,9 +35,6 @@ VLESS 用户。
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
-!!! error ""
-
-    如果 sing-box 作为 VLESS 的服务端，将会强制开启流控 `xtls-rprx-vision`。
 
 #### transport
 
