@@ -36,7 +36,7 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 !!! error ""
 
-    VLESS 强制开启 flow: `xtls-rprx-vision`。
+    如果 sing-box 作为 VLESS 的服务端，将会强制开启流控 `xtls-rprx-vision`。
 
 #### transport
 

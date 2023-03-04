@@ -37,7 +37,7 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 !!! error ""
 
-    VLESS makes it mandatory to use flow `xtls-rprx-vision`.
+   If sing-box as a server, then the VLESS service provides flow `xtls-rprx-vision` for compulsory use.
 
 #### transport
 
