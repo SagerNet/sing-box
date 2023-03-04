@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/sagernet/sing-box/cmd/sing-box/internal/generate"
+
+	"github.com/spf13/cobra"
 )
 
 var commandGenerate = &cobra.Command{
