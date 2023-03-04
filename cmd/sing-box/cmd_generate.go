@@ -12,8 +12,8 @@ var commandGenerate = &cobra.Command{
 }
 
 func init() {
-	commandGenerate.AddCommand(generate.CommandGeneratePSK)
+	commandGenerate.AddCommand(generate.CommandGenerateRandom)
 	commandGenerate.AddCommand(generate.CommandGenerateUUID)
-	commandGenerate.AddCommand(generate.CommandGenerateX25519)
+	commandGenerate.AddCommand(generate.CommandGenerateReality)
 	mainCommand.AddCommand(commandGenerate)
 }

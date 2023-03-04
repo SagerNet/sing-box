@@ -77,11 +77,11 @@ Both if empty.
 
 ==Required==
 
-| Method        | Password Format                         |
-|---------------|-----------------------------------------|
-| none          | /                                       |
-| 2022 methods  | `sing-box generate psk -s <Key Length>` |
-| other methods | any string                              |
+| Method        | Password Format                       |
+|---------------|---------------------------------------|
+| none          | /                                     |
+| 2022 methods  | `sing-box generate rand <Key Length>` |
+| other methods | any string                            |
 
 ### Listen Fields
 

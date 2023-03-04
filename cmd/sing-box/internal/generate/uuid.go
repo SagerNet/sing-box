@@ -12,6 +12,7 @@ import (
 var CommandGenerateUUID = &cobra.Command{
 	Use:   "uuid",
 	Short: "Generate a UUID",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
 			newUUID uuid.UUID

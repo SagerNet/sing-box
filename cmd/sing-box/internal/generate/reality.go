@@ -13,9 +13,10 @@ import (
 	"golang.org/x/crypto/curve25519"
 )
 
-var CommandGenerateX25519 = &cobra.Command{
-	Use:   "x25519",
-	Short: "Generate a X25519 key pair",
+var CommandGenerateReality = &cobra.Command{
+	Use:   "reality-key",
+	Short: "Generate a REALITY protocol X25519 key pair",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		encoder := base64.RawURLEncoding.EncodeToString
 		if outputHex {
@@ -51,6 +52,6 @@ var CommandGenerateX25519 = &cobra.Command{
 }
 
 func init() {
-	CommandGenerateX25519.Flags().BoolVarP(&outputHex, "hex", "H", false, "print hex format")
-	CommandGenerateX25519.Flags().StringVarP(&input, "input", "i", "", "generate from specified private key")
+	CommandGenerateReality.Flags().BoolVarP(&outputHex, "hex", "H", false, "print hex format")
+	CommandGenerateReality.Flags().StringVarP(&input, "input", "i", "", "generate from specified private key")
 }
