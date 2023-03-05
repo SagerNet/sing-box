@@ -32,8 +32,11 @@ func init() {
 	})
 }
 
+const xrayChunkSize = 8192
+
 type VisionConn struct {
 	net.Conn
+	reader   *bufio.ChunkReader
 	writer   N.VectorisedWriter
 	input    *bytes.Reader
 	rawInput *bytes.Buffer
@@ -78,6 +81,7 @@ func NewVisionConn(conn net.Conn, userUUID [16]byte, logger logger.Logger) (*Vis
 	rawInput, _ := reflectType.FieldByName("rawInput")
 	return &VisionConn{
 		Conn:     conn,
+		reader:   bufio.NewChunkReader(conn, xrayChunkSize),
 		writer:   bufio.NewVectorisedWriter(conn),
 		input:    (*bytes.Reader)(unsafe.Pointer(reflectPointer + input.Offset)),
 		rawInput: (*bytes.Buffer)(unsafe.Pointer(reflectPointer + rawInput.Offset)),
@@ -100,22 +104,31 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 		n, err = c.remainingReader.Read(p)
 		if err == io.EOF {
 			c.remainingReader = nil
-			if n > 0 {
-				err = nil
-				return
-			}
+		}
+		if n > 0 {
+			return
 		}
 	}
 	if c.directRead {
 		return c.netConn.Read(p)
 	}
-	n, err = c.Conn.Read(p)
-	if err != nil {
-		return
+	var bufferBytes []byte
+	if len(p) > xrayChunkSize {
+		n, err = c.Conn.Read(p)
+		if err != nil {
+			return
+		}
+		bufferBytes = p[:n]
+	} else {
+		buffer, err := c.reader.ReadChunk()
+		if err != nil {
+			return 0, err
+		}
+		defer buffer.FullReset()
+		bufferBytes = buffer.Bytes()
 	}
-	buffer := p[:n]
 	if c.withinPaddingBuffers || c.numberOfPacketToFilter > 0 {
-		buffers := c.unPadding(buffer)
+		buffers := c.unPadding(bufferBytes)
 		if c.remainingContent == 0 && c.remainingPadding == 0 {
 			if c.currentCommand == 1 {
 				c.withinPaddingBuffers = false
@@ -156,7 +169,7 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 		return c.remainingReader.Read(p)
 	} else {
 		if c.numberOfPacketToFilter > 0 {
-			c.filterTLS([][]byte{buffer})
+			c.filterTLS([][]byte{bufferBytes})
 		}
 		return
 	}
