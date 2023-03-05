@@ -36,7 +36,7 @@ The server port.
 
 ==Required==
 
-The VLESS user id.
+VLESS user id.
 
 #### flow
 
