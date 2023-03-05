@@ -10,7 +10,8 @@
   "users": [
     {
       "name": "sekai",
-      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661"
+      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+      "flow": ""
     }
   ],
   "tls": {},
@@ -29,6 +30,20 @@ See [Listen Fields](/configuration/shared/listen) for details.
 ==Required==
 
 VLESS users.
+
+#### users.uuid
+
+==Required==
+
+VLESS user id.
+
+#### users.flow
+
+VLESS Sub-protocol.
+
+Available values:
+
+* `xtls-rprx-vision`
 
 #### tls
 

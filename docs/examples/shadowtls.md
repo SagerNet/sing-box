@@ -53,7 +53,7 @@
       "server": "127.0.0.1",
       "server_port": 4443,
       "version": 3,
-      "password": "fuck me till the daylight",
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
       "tls": {
         "enabled": true,
         "server_name": "google.com",

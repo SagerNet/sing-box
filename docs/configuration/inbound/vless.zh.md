@@ -10,7 +10,8 @@
   "users": [
     {
       "name": "sekai",
-      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661"
+      "uuid": "bf000d23-0752-40b4-affe-68f7707a9661",
+      "flow": ""
     }
   ],
   "tls": {},
@@ -29,6 +30,20 @@
 ==必填==
 
 VLESS 用户。
+
+#### users.uuid
+
+==必填==
+
+VLESS 用户 ID。
+
+#### users.flow
+
+VLESS 子协议。
+
+可用值：
+
+* `xtls-rprx-vision`
 
 #### tls
 
