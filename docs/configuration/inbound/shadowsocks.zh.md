@@ -77,8 +77,8 @@ See [Listen Fields](/configuration/shared/listen) for details.
 
 ==必填==
 
-| 方法            | 密码格式                          |
-|---------------|-------------------------------|
-| none          | /                             |
-| 2022 methods  | `openssl rand -base64 <密钥长度>` |
-| other methods | 任意字符串                         |
+| 方法            | 密码格式                                     |
+|---------------|------------------------------------------|
+| none          | /                                        |
+| 2022 methods  | `sing-box generate rand --base64 <密钥长度>` |
+| other methods | 任意字符串                                    |

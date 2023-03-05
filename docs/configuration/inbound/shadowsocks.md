@@ -77,11 +77,11 @@ Both if empty.
 
 ==Required==
 
-| Method        | Password Format                     |
-|---------------|-------------------------------------|
-| none          | /                                   |
-| 2022 methods  | `openssl rand -base64 <Key Length>` |
-| other methods | any string                          |
+| Method        | Password Format                                |
+|---------------|------------------------------------------------|
+| none          | /                                              |
+| 2022 methods  | `sing-box generate rand --base64 <Key Length>` |
+| other methods | any string                                     |
 
 ### Listen Fields
 
