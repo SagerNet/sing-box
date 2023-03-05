@@ -165,7 +165,10 @@ func NewUTLSClient(router adapter.Router, serverAddress string, options option.O
 	return &UTLSClientConfig{&tlsConfig, id}, nil
 }
 
-var randomFingerprint utls.ClientHelloID
+var (
+	randomFingerprint     utls.ClientHelloID
+	randomizedFingerprint utls.ClientHelloID
+)
 
 func init() {
 	modernFingerprints := []utls.ClientHelloID{
@@ -176,6 +179,13 @@ func init() {
 		utls.HelloIOS_Auto,
 	}
 	randomFingerprint = modernFingerprints[rand.Intn(len(modernFingerprints))]
+
+	weights := utls.DefaultWeights
+	weights.TLSVersMax_Set_VersionTLS13 = 1
+	weights.FirstKeyShare_Set_CurveP256 = 0
+	randomizedFingerprint = utls.HelloRandomized
+	randomizedFingerprint.Seed, _ = utls.NewPRNGSeed()
+	randomizedFingerprint.Weights = &weights
 }
 
 func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
@@ -199,13 +209,7 @@ func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
 	case "random":
 		return randomFingerprint, nil
 	case "randomized":
-		weights := utls.DefaultWeights
-		weights.TLSVersMax_Set_VersionTLS13 = 1
-		weights.FirstKeyShare_Set_CurveP256 = 0
-		randomized := utls.HelloRandomized
-		randomized.Seed, _ = utls.NewPRNGSeed()
-		randomized.Weights = &weights
-		return randomized, nil
+		return randomizedFingerprint, nil
 	default:
 		return utls.ClientHelloID{}, E.New("unknown uTLS fingerprint: ", name)
 	}
