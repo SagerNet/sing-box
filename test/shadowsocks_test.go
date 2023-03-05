@@ -19,6 +19,7 @@ const (
 	clientPort
 	testPort
 	otherPort
+	otherClientPort
 )
 
 func TestShadowsocks(t *testing.T) {

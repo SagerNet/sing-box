@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/vless"
 
+	"github.com/gofrs/uuid"
 	"github.com/spyzhov/ajson"
 	"github.com/stretchr/testify/require"
 )
@@ -65,17 +66,17 @@ func TestVLESS(t *testing.T) {
 
 func TestVLESSXRay(t *testing.T) {
 	t.Run("origin", func(t *testing.T) {
-		testVLESSXray(t, "", "")
+		testVLESSXrayOutbound(t, "", "")
 	})
 	t.Run("xudp", func(t *testing.T) {
-		testVLESSXray(t, "xudp", "")
+		testVLESSXrayOutbound(t, "xudp", "")
 	})
 	t.Run("vision", func(t *testing.T) {
-		testVLESSXray(t, "", vless.FlowVision)
+		testVLESSXrayOutbound(t, "xudp", vless.FlowVision)
 	})
 }
 
-func testVLESSXray(t *testing.T, packetEncoding string, flow string) {
+func testVLESSXrayOutbound(t *testing.T, packetEncoding string, flow string) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 
 	content, err := os.ReadFile("config/vless-tls-server.json")
@@ -396,4 +397,139 @@ func testVLESSSelfTLS(t *testing.T, flow string) {
 		},
 	})
 	testSuit(t, clientPort, testPort)
+}
+
+func TestVLESSXrayInbound(t *testing.T) {
+	testVLESSXrayInbound(t, vless.FlowVision)
+}
+
+func testVLESSXrayInbound(t *testing.T, flow string) {
+	userId, err := uuid.DefaultGenerator.NewV4()
+	require.NoError(t, err)
+	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeVLESS,
+				VLESSOptions: option.VLESSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					Users: []option.VLESSUser{
+						{
+							Name: "sekai",
+							UUID: userId.String(),
+							Flow: flow,
+						},
+					},
+					TLS: &option.InboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+						KeyPath:         keyPem,
+					},
+				},
+			},
+			{
+				Type: C.TypeTrojan,
+				Tag:  "trojan",
+				TrojanOptions: option.TrojanInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: otherPort,
+					},
+					Users: []option.TrojanUser{
+						{
+							Name:     "sekai",
+							Password: userId.String(),
+						},
+					},
+					TLS: &option.InboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+						KeyPath:         keyPem,
+					},
+				},
+			},
+		},
+	})
+
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						ListenPort: otherClientPort,
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeTrojan,
+				Tag:  "trojan-out",
+				TrojanOptions: option.TrojanOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: otherPort,
+					},
+					Password: userId.String(),
+					TLS: &option.OutboundTLSOptions{
+						Enabled:         true,
+						ServerName:      "example.org",
+						CertificatePath: certPem,
+					},
+					DialerOptions: option.DialerOptions{
+						Detour: "vless-out",
+					},
+				},
+			},
+			{
+				Type: C.TypeSocks,
+				Tag:  "vless-out",
+				SocksOptions: option.SocksOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: clientPort,
+					},
+				},
+			},
+		},
+	})
+
+	content, err := os.ReadFile("config/vless-tls-client.json")
+	require.NoError(t, err)
+	config, err := ajson.Unmarshal(content)
+	require.NoError(t, err)
+
+	config.MustKey("inbounds").MustIndex(0).MustKey("port").SetNumeric(float64(clientPort))
+	outbound := config.MustKey("outbounds").MustIndex(0)
+	settings := outbound.MustKey("settings").MustKey("vnext").MustIndex(0)
+	settings.MustKey("port").SetNumeric(float64(serverPort))
+	user := settings.MustKey("users").MustIndex(0)
+	user.MustKey("id").SetString(userId.String())
+	user.MustKey("flow").SetString(flow)
+	content, err = ajson.Marshal(config)
+	require.NoError(t, err)
+
+	content, err = ajson.Marshal(config)
+	require.NoError(t, err)
+
+	startDockerContainer(t, DockerOptions{
+		Image:      ImageXRayCore,
+		Ports:      []uint16{clientPort},
+		EntryPoint: "xray",
+		Stdin:      content,
+		Bind: map[string]string{
+			certPem: "/path/to/certificate.crt",
+			keyPem:  "/path/to/private.key",
+		},
+	})
+	testTCP(t, otherClientPort, testPort)
 }
