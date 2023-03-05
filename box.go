@@ -213,6 +213,18 @@ func (s *Box) Start() error {
 }
 
 func (s *Box) start() error {
+	if s.clashServer != nil {
+		err := s.clashServer.Start()
+		if err != nil {
+			return E.Cause(err, "start clash api server")
+		}
+	}
+	if s.v2rayServer != nil {
+		err := s.v2rayServer.Start()
+		if err != nil {
+			return E.Cause(err, "start v2ray api server")
+		}
+	}
 	for i, out := range s.outbounds {
 		if starter, isStarter := out.(common.Starter); isStarter {
 			err := starter.Start()
@@ -243,18 +255,7 @@ func (s *Box) start() error {
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
-	if s.clashServer != nil {
-		err = s.clashServer.Start()
-		if err != nil {
-			return E.Cause(err, "start clash api server")
-		}
-	}
-	if s.v2rayServer != nil {
-		err = s.v2rayServer.Start()
-		if err != nil {
-			return E.Cause(err, "start v2ray api server")
-		}
-	}
+
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
 	return nil
 }
