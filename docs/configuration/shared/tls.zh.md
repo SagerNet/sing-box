@@ -315,7 +315,7 @@ MAC 密钥。
 
 ==必填==
 
-私钥，由 `./xray x25519` 生成。
+私钥，由 `sing-box generate reality-keypair` 生成。
 
 #### public_key
 
@@ -323,7 +323,7 @@ MAC 密钥。
 
 ==必填==
 
-公钥，由 `./xray x25519` 生成。
+公钥，由 `sing-box generate reality-keypair` 生成。
 
 #### short_id
 
