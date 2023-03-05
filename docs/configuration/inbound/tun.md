@@ -46,8 +46,15 @@
   "exclude_package": [
     "com.android.captiveportallogin"
   ],
-  ...
-  // Listen Fields
+  "platform": {
+    "http_proxy": {
+      "enabled": false,
+      "server": "127.0.0.1",
+      "server_port": 8080
+    }
+  },
+  
+  ... // Listen Fields
 }
 ```
 
@@ -186,6 +193,14 @@ Limit android packages in route.
 #### exclude_package
 
 Exclude android packages in route.
+
+#### platform
+
+Platform-specific settings, provided by client applications.
+
+#### platform.http_proxy
+
+System HTTP proxy settings.
 
 ### Listen Fields
 
