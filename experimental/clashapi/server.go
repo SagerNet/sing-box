@@ -44,6 +44,7 @@ type Server struct {
 	urlTestHistory *urltest.HistoryStorage
 	mode           string
 	storeSelected  bool
+	cacheFilePath  string
 	cacheFile      adapter.ClashCacheFile
 }
 
@@ -75,11 +76,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		} else {
 			cachePath = C.BasePath(cachePath)
 		}
-		cacheFile, err := cachefile.Open(cachePath)
-		if err != nil {
-			return nil, E.Cause(err, "open cache file")
-		}
-		server.cacheFile = cacheFile
+		server.cacheFilePath = cachePath
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -118,6 +115,13 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 }
 
 func (s *Server) Start() error {
+	if s.cacheFilePath != "" {
+		cacheFile, err := cachefile.Open(s.cacheFilePath)
+		if err != nil {
+			return E.Cause(err, "open cache file")
+		}
+		s.cacheFile = cacheFile
+	}
 	listener, err := net.Listen("tcp", s.httpServer.Addr)
 	if err != nil {
 		return E.Cause(err, "external controller listen error")
