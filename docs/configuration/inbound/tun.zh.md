@@ -46,8 +46,15 @@
   "exclude_package": [
     "com.android.captiveportallogin"
   ],
-  ...
-  // 监听字段
+  "platform": {
+    "http_proxy": {
+      "enabled": false,
+      "server": "127.0.0.1",
+      "server_port": 8080
+    }
+  },
+  
+  ... // 监听字段
 }
 ```
 
@@ -182,6 +189,14 @@ TCP/IP 栈。
 #### exclude_package
 
 排除路由的 Android 应用包名。
+
+#### platform
+
+平台特定的设置，由客户端应用提供。
+
+#### platform.http_proxy
+
+系统 HTTP 代理设置。
 
 ### 监听字段
 
