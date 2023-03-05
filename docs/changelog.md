@@ -1,3 +1,16 @@
+#### 1.2-beta6
+
+* Introducing our [new iOS client application](/installation/clients/sfi)
+* Add [platform options](/configuration/inbound/tun#platform) for tun inbound
+* Add custom TLS server support for http based v2ray transports
+* Add generate commands
+* Enable XUDP by default in VLESS
+* Update reality server
+* Update vision protocol
+* Fixed [user flow in vless server](/configuration/inbound/vless#usersflow)
+* Bug fixes
+* Update dependencies
+
 #### 1.2-beta5
 
 * Add [VLESS server](/configuration/inbound/vless) and [vision](/configuration/outbound/vless#flow) support

@@ -8,8 +8,8 @@ remote_branch: docs
 edit_uri: ""
 theme:
   name: material
-  icon:
-    logo: material/tools
+  logo: assets/icon.svg
+  favicon: assets/icon.svg
   palette:
     - scheme: default
       primary: white
@@ -35,6 +35,11 @@ nav:
       - Features: features.md
       - Support: support.md
       - Change Log: changelog.md
+  - Installation:
+      - From source: installation/from-source.md
+      - Clients:
+          - SFI:
+            - installation/clients/sfi/index.md
   - Configuration:
       - configuration/index.md
       - Log:
@@ -152,6 +157,10 @@ plugins:
           Features: 特性
           Support: 支持
           Change Log: 更新日志
+
+          Installation: 安装
+          From source: 从源代码
+          Clients: 客户端
 
           Configuration: 配置
           Log: 日志
