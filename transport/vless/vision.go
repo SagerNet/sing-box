@@ -166,7 +166,7 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 			c.filterTLS(buffers)
 		}
 		c.remainingReader = io.MultiReader(common.Map(buffers, func(it []byte) io.Reader { return bytes.NewReader(it) })...)
-		return c.remainingReader.Read(p)
+		return c.Read(p)
 	} else {
 		if c.numberOfPacketToFilter > 0 {
 			c.filterTLS([][]byte{bufferBytes})
