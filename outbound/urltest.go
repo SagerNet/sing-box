@@ -25,11 +25,13 @@ var (
 
 type URLTest struct {
 	myOutboundAdapter
-	tags      []string
-	link      string
-	interval  time.Duration
-	tolerance uint16
-	group     *URLTestGroup
+	tags          []string
+	link          string
+	interval      time.Duration
+	tolerance     uint16
+	fallback      bool
+	maxAllowDelay uint16
+	group         *URLTestGroup
 }
 
 func NewURLTest(router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (*URLTest, error) {
@@ -40,10 +42,12 @@ func NewURLTest(router adapter.Router, logger log.ContextLogger, tag string, opt
 			logger:   logger,
 			tag:      tag,
 		},
-		tags:      options.Outbounds,
-		link:      options.URL,
-		interval:  time.Duration(options.Interval),
-		tolerance: options.Tolerance,
+		tags:          options.Outbounds,
+		link:          options.URL,
+		interval:      time.Duration(options.Interval),
+		tolerance:     options.Tolerance,
+		fallback:      options.Fallback,
+		maxAllowDelay: options.MaxAllowDelay,
 	}
 	if len(outbound.tags) == 0 {
 		return nil, E.New("missing tags")
@@ -67,7 +71,7 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	s.group = NewURLTestGroup(s.router, s.logger, outbounds, s.link, s.interval, s.tolerance)
+	s.group = NewURLTestGroup(s.router, s.logger, outbounds, s.link, s.interval, s.tolerance, s.fallback, s.maxAllowDelay)
 	return s.group.Start()
 }
 
@@ -130,19 +134,21 @@ func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, me
 }
 
 type URLTestGroup struct {
-	router    adapter.Router
-	logger    log.Logger
-	outbounds []adapter.Outbound
-	link      string
-	interval  time.Duration
-	tolerance uint16
-	history   *urltest.HistoryStorage
+	router        adapter.Router
+	logger        log.Logger
+	outbounds     []adapter.Outbound
+	link          string
+	interval      time.Duration
+	tolerance     uint16
+	fallback      bool
+	maxAllowDelay uint16
+	history       *urltest.HistoryStorage
 
 	ticker *time.Ticker
 	close  chan struct{}
 }
 
-func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16) *URLTestGroup {
+func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, fallback bool, maxAllowDelay uint16) *URLTestGroup {
 	if link == "" {
 		//goland:noinspection HttpUrlsUsage
 		link = "http://www.gstatic.com/generate_204"
@@ -160,14 +166,17 @@ func NewURLTestGroup(router adapter.Router, logger log.Logger, outbounds []adapt
 		history = urltest.NewHistoryStorage()
 	}
 	return &URLTestGroup{
-		router:    router,
-		logger:    logger,
-		outbounds: outbounds,
-		link:      link,
-		interval:  interval,
-		tolerance: tolerance,
-		history:   history,
-		close:     make(chan struct{}),
+		router:        router,
+		logger:        logger,
+		outbounds:     outbounds,
+		link:          link,
+		interval:      interval,
+		tolerance:     tolerance,
+		history:       history,
+		fallback:      fallback,
+		maxAllowDelay: maxAllowDelay,
+
+		close: make(chan struct{}),
 	}
 }
 
@@ -195,10 +204,16 @@ func (g *URLTestGroup) Select(network string) adapter.Outbound {
 		if history == nil {
 			continue
 		}
+		if history.Delay > g.maxAllowDelay {
+			continue
+		}
 		if minDelay == 0 || minDelay > history.Delay+g.tolerance || minDelay > history.Delay-g.tolerance && minTime.Before(history.Time) {
 			minDelay = history.Delay
 			minTime = history.Time
 			minOutbound = detour
+			if g.fallback {
+				break
+			}
 		}
 	}
 	if minOutbound == nil {
