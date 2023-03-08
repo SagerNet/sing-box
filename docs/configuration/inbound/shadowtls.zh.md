@@ -67,7 +67,7 @@ ShadowTLS 用户。
 
 握手服务器地址和 [拨号参数](/zh/configuration/shared/dial/)。
 
-#### handshake
+#### handshake_for_server_name
 
 ==必填==
 
