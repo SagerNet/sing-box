@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
 	C "github.com/sagernet/sing-box/constant"
@@ -18,8 +19,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	currentTag = strings.TrimSpace(currentTag)
+
 	if "v"+C.Version != currentTag {
-		log.Fatal("version mismatch, update constant.Version to ", currentTag[1:])
+		log.Fatal("version mismatch, update constant.Version (", C.Version, ")", " to ", currentTag[1:])
 	}
 
 	command := exec.Command(os.Args[1], os.Args[2:]...)
