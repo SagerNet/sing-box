@@ -1,3 +1,8 @@
+#### 1.2-beta7
+
+* Fix the compatibility issue between VLESS's vision sub-protocol and the Xray-core client
+* Improve the stability of the VMESS server
+
 #### 1.2-beta6
 
 * Introducing our [new iOS client application](/installation/clients/sfi)

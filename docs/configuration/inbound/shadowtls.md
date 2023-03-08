@@ -68,7 +68,7 @@ Only available in the ShadowTLS protocol 3.
 
 Handshake server address and [Dial options](/configuration/shared/dial).
 
-#### handshake
+#### handshake_for_server_name
 
 Handshake server address and [Dial options](/configuration/shared/dial) for specific server name.
 
