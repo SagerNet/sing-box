@@ -35,6 +35,23 @@ func main() {
 	}
 }
 
+var (
+	sharedFlags []string
+	debugFlags  []string
+)
+
+func init() {
+	sharedFlags = append(sharedFlags, "-trimpath")
+	sharedFlags = append(sharedFlags, "-ldflags")
+
+	currentTag, err := build_shared.ReadTag()
+	if err != nil {
+		currentTag = "unknown"
+	}
+	sharedFlags = append(sharedFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
+	debugFlags = append(debugFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
+}
+
 func buildAndroid() {
 	build_shared.FindSDK()
 
@@ -46,14 +63,17 @@ func buildAndroid() {
 		"-libname=box",
 	}
 	if !debugEnabled {
-		args = append(args,
-			"-trimpath", "-ldflags=-s -w -buildid=",
-			"-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api",
-		)
+		args = append(args, sharedFlags...)
 	} else {
-		args = append(args, "-tags", "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug")
+		args = append(args, debugFlags...)
 	}
 
+	args = append(args, "-tags")
+	if !debugEnabled {
+		args = append(args, "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api")
+	} else {
+		args = append(args, "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug")
+	}
 	args = append(args, "./experimental/libbox")
 
 	command := exec.Command(build_shared.GoBinPath+"/gomobile", args...)
@@ -84,14 +104,17 @@ func buildiOS() {
 		"-libname=box",
 	}
 	if !debugEnabled {
-		args = append(
-			args, "-trimpath", "-ldflags=-s -w -buildid=",
-			"-tags", "with_gvisor,with_utls,with_clash_api,with_conntrack",
-		)
+		args = append(args, sharedFlags...)
 	} else {
-		args = append(args, "-tags", "with_gvisor,with_utls,with_clash_api,with_conntrack,debug")
+		args = append(args, debugFlags...)
 	}
 
+	args = append(args, "-tags")
+	if !debugEnabled {
+		args = append(args, "with_gvisor,with_utls,with_clash_api,with_conntrack")
+	} else {
+		args = append(args, "with_gvisor,with_utls,with_clash_api,with_conntrack,debug")
+	}
 	args = append(args, "./experimental/libbox")
 
 	command := exec.Command(build_shared.GoBinPath+"/gomobile", args...)
