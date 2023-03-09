@@ -140,7 +140,7 @@ func (t *Tun) Start() error {
 	if C.IsAndroid {
 		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
 	}
-	tunIf, err := tun.Open(t.tunOptions)
+	tunIf, err := tun.New(t.tunOptions)
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
