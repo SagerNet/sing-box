@@ -1,3 +1,8 @@
+#### 1.2-beta8
+
+* Update reality and uTLS libraries
+* Fix `auto_detect_interface` incorrectly identifying the default interface on Windows
+
 #### 1.2-beta7
 
 * Fix the compatibility issue between VLESS's vision sub-protocol and the Xray-core client
