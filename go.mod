@@ -14,7 +14,7 @@ require (
 	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/hashicorp/yamux v0.1.1
-	github.com/insomniacslk/dhcp v0.0.0-20230301142404-3e45eea5edd7
+	github.com/insomniacslk/dhcp v0.0.0-20230307103557-e252950ab961
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.1.0
 	github.com/miekg/dns v1.1.51
@@ -26,12 +26,12 @@ require (
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230309024642-952cb58391a0
-	github.com/sagernet/sing v0.1.8-0.20230309082535-3ccf42b7d589
+	github.com/sagernet/sing v0.1.8
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/sagernet/sing-shadowtls v0.1.0
-	github.com/sagernet/sing-tun v0.1.2-0.20230309075141-8507bb3a0a3d
-	github.com/sagernet/sing-vmess v0.1.3-0.20230307060529-d110e81a50bc
+	github.com/sagernet/sing-tun v0.1.2
+	github.com/sagernet/sing-vmess v0.1.3
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
@@ -44,12 +44,12 @@ require (
 	go.uber.org/zap v1.24.0
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/crypto v0.7.0
-	golang.org/x/exp v0.0.0-20230304125523-9ff063c70017
+	golang.org/x/exp v0.0.0-20230307190834-24139beb5833
 	golang.org/x/net v0.8.0
 	golang.org/x/sys v0.6.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230215201556-9c5414ab4bde
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.29.0
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 
