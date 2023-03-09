@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/reality v0.0.0-20230228045158-d3e085a8e5d1
+	github.com/sagernet/reality v0.0.0-20230309024642-952cb58391a0
 	github.com/sagernet/sing v0.1.8-0.20230307054559-0560a4da412b
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
@@ -34,7 +34,7 @@ require (
 	github.com/sagernet/sing-vmess v0.1.3-0.20230307060529-d110e81a50bc
 	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
-	github.com/sagernet/utls v0.0.0-20230225061716-536a007c8b01
+	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
 	github.com/spf13/cobra v1.6.1

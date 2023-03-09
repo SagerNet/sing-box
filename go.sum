@@ -109,8 +109,8 @@ github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6E
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32 h1:tztuJB+giOWNRKQEBVY2oI3PsheTooMdh+/yxemYQYY=
 github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32/go.mod h1:QMCkxXAC3CvBgDZVIJp43NWTuwGBScCzMLVLynjERL8=
-github.com/sagernet/reality v0.0.0-20230228045158-d3e085a8e5d1 h1:8mSzchN6DkM26JKLalPwj2KLMIsEjzlp/pYgznlKE2Q=
-github.com/sagernet/reality v0.0.0-20230228045158-d3e085a8e5d1/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
+github.com/sagernet/reality v0.0.0-20230309024642-952cb58391a0 h1:ffgI5Jo3imRx3AKejBOagcKkd8MTF+WYSQkr64EWBGc=
+github.com/sagernet/reality v0.0.0-20230309024642-952cb58391a0/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.0.0-20220812082120-05f9836bff8f/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
 github.com/sagernet/sing v0.1.8-0.20230307054559-0560a4da412b h1:wxqf3O+cLHm1ZWEQG1DRwApwLlTV/NLKGqF1kNCk3Ms=
@@ -129,8 +129,8 @@ github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195 h1:5VBIbVw9q7aKbrFdT
 github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195/go.mod h1:yedWtra8nyGJ+SyI+ziwuaGMzBatbB10P1IOOZbbSK8=
 github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9 h1:2ItpW1nMNkPzmBTxV0/eClCklHrFSQMnUGcpUmJxVeE=
 github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9/go.mod h1:FUyTEc5ye5NjKnDTDMuiLF2M6T4BE6y6KZuax//UCEg=
-github.com/sagernet/utls v0.0.0-20230225061716-536a007c8b01 h1:m4MI13+NRKddIvbdSN0sFHK8w5ROTa60Zi9diZ7EE08=
-github.com/sagernet/utls v0.0.0-20230225061716-536a007c8b01/go.mod h1:JKQMZq/O2qnZjdrt+B57olmfgEmLtY9iiSIEYtWvoSM=
+github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2 h1:kDUqhc9Vsk5HJuhfIATJ8oQwBmpOZJuozQG7Vk88lL4=
+github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2/go.mod h1:JKQMZq/O2qnZjdrt+B57olmfgEmLtY9iiSIEYtWvoSM=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e h1:7uw2njHFGE+VpWamge6o56j2RWk4omF6uLKKxMmcWvs=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e/go.mod h1:45TUl8+gH4SIKr4ykREbxKWTxkDlSzFENzctB1dVRRY=
 github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c h1:vK2wyt9aWYHHvNLWniwijBu/n4pySypiKRhN32u/JGo=
