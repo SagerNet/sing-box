@@ -90,7 +90,7 @@ func (w *StackDevice) NewEndpoint() (stack.LinkEndpoint, error) {
 	return (*wireEndpoint)(w), nil
 }
 
-func (w *StackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (w *StackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (conn net.Conn, err error) {
 	addr := tcpip.FullAddress{
 		NIC:  defaultNIC,
 		Port: destination.Port,
@@ -109,15 +109,19 @@ func (w *StackDevice) DialContext(ctx context.Context, network string, destinati
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		return gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		conn, err = gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
 	case N.NetworkUDP:
-		return gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
+		conn, err = gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
 	default:
-		return nil, E.Extend(N.ErrUnknownNetwork, network)
+		err = E.Extend(N.ErrUnknownNetwork, network)
 	}
+	if err != nil {
+		conn = nil // conn maybe non-nil interface containing nil pointer
+	}
+	return
 }
 
-func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (pc net.PacketConn, err error) {
 	bind := tcpip.FullAddress{
 		NIC: defaultNIC,
 	}
@@ -129,7 +133,11 @@ func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 		networkProtocol = header.IPv6ProtocolNumber
 		bind.Addr = w.addr6
 	}
-	return gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
+	pc, err = gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
+	if err != nil {
+		pc = nil // pc maybe non-nil interface containing nil pointer
+	}
+	return
 }
 
 func (w *StackDevice) Start() error {
