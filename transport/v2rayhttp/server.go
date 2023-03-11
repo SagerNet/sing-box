@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -46,11 +47,13 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		ctx:       ctx,
 		tlsConfig: tlsConfig,
 		handler:   handler,
-		h2Server:  new(http2.Server),
-		host:      options.Host,
-		path:      options.Path,
-		method:    options.Method,
-		headers:   make(http.Header),
+		h2Server: &http2.Server{
+			IdleTimeout: time.Duration(options.IdleTimeout),
+		},
+		host:    options.Host,
+		path:    options.Path,
+		method:  options.Method,
+		headers: make(http.Header),
 	}
 	if server.method == "" {
 		server.method = "PUT"

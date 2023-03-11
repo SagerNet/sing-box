@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -45,7 +46,9 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 		tlsConfig: tlsConfig,
 		handler:   handler,
 		path:      fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
-		h2Server:  new(http2.Server),
+		h2Server: &http2.Server{
+			IdleTimeout: time.Duration(options.IdleTimeout),
+		},
 	}
 	server.httpServer = &http.Server{
 		Handler: server,

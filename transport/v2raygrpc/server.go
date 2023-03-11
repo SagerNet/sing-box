@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -13,6 +14,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	gM "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
@@ -30,6 +32,12 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 	if tlsConfig != nil {
 		tlsConfig.SetNextProtos([]string{"h2"})
 		serverOptions = append(serverOptions, grpc.Creds(NewTLSTransportCredentials(tlsConfig)))
+	}
+	if options.IdleTimeout > 0 {
+		serverOptions = append(serverOptions, grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    time.Duration(options.IdleTimeout),
+			Timeout: time.Duration(options.PingTimeout),
+		}))
 	}
 	server := &Server{ctx, handler, grpc.NewServer(serverOptions...)}
 	RegisterGunServiceCustomNameServer(server.server, server, options.ServiceName)
