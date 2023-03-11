@@ -37,6 +37,11 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
+
+	if options.Version == 0 {
+		options.Version = 1
+	}
+
 	if options.Version == 1 {
 		options.TLS.MinVersion = "1.2"
 		options.TLS.MaxVersion = "1.2"
