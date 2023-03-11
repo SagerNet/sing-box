@@ -61,10 +61,12 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 }
 
 type V2RayHTTPOptions struct {
-	Host    Listable[string]  `json:"host,omitempty"`
-	Path    string            `json:"path,omitempty"`
-	Method  string            `json:"method,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
+	Host        Listable[string]  `json:"host,omitempty"`
+	Path        string            `json:"path,omitempty"`
+	Method      string            `json:"method,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	IdleTimeout Duration          `json:"idle_timeout,omitempty"`
+	PingTimeout Duration          `json:"ping_timeout,omitempty"`
 }
 
 type V2RayWebsocketOptions struct {
@@ -77,6 +79,9 @@ type V2RayWebsocketOptions struct {
 type V2RayQUICOptions struct{}
 
 type V2RayGRPCOptions struct {
-	ServiceName string `json:"service_name,omitempty"`
-	ForceLite   bool   `json:"-"` // for test
+	ServiceName         string   `json:"service_name,omitempty"`
+	IdleTimeout         Duration `json:"idle_timeout,omitempty"`
+	PingTimeout         Duration `json:"ping_timeout,omitempty"`
+	PermitWithoutStream bool     `json:"permit_without_stream,omitempty"`
+	ForceLite           bool     `json:"-"` // for test
 }

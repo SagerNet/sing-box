@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -45,6 +46,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	} else {
 		tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
 		transport = &http2.Transport{
+			ReadIdleTimeout: time.Duration(options.IdleTimeout),
+			PingTimeout:     time.Duration(options.PingTimeout),
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
 				conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 				if err != nil {
