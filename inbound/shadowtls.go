@@ -32,6 +32,10 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		},
 	}
 
+	if options.Version == 0 {
+		options.Version = 1
+	}
+
 	var handshakeForServerName map[string]shadowtls.HandshakeConfig
 	if options.Version > 1 {
 		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
