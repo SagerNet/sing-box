@@ -89,16 +89,16 @@ func NewRealityServer(ctx context.Context, router adapter.Router, logger log.Log
 	tlsConfig.MaxTimeDiff = time.Duration(options.Reality.MaxTimeDifference)
 
 	tlsConfig.ShortIds = make(map[[8]byte]bool)
-	for i, shortID := range options.Reality.ShortID {
-		var shortIDBytesArray [8]byte
-		decodedLen, err := hex.Decode(shortIDBytesArray[:], []byte(shortID))
+	for i, shortIDString := range options.Reality.ShortID {
+		var shortID [8]byte
+		decodedLen, err := hex.Decode(shortID[:], []byte(shortIDString))
 		if err != nil {
-			return nil, E.Cause(err, "decode short_id[", i, "]: ", shortID)
+			return nil, E.Cause(err, "decode short_id[", i, "]: ", shortIDString)
 		}
-		if decodedLen != 8 {
-			return nil, E.New("invalid short_id[", i, "]: ", shortID)
+		if decodedLen > 8 {
+			return nil, E.New("invalid short_id[", i, "]: ", shortIDString)
 		}
-		tlsConfig.ShortIds[shortIDBytesArray] = true
+		tlsConfig.ShortIds[shortID] = true
 	}
 
 	handshakeDialer := dialer.New(router, options.Reality.Handshake.DialerOptions)

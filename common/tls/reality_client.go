@@ -42,7 +42,7 @@ var _ ConfigCompat = (*RealityClientConfig)(nil)
 type RealityClientConfig struct {
 	uClient   *UTLSClientConfig
 	publicKey []byte
-	shortID   []byte
+	shortID   [8]byte
 }
 
 func NewRealityClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (*RealityClientConfig, error) {
@@ -62,11 +62,12 @@ func NewRealityClient(router adapter.Router, serverAddress string, options optio
 	if len(publicKey) != 32 {
 		return nil, E.New("invalid public_key")
 	}
-	shortID, err := hex.DecodeString(options.Reality.ShortID)
+	var shortID [8]byte
+	decodedLen, err := hex.Decode(shortID[:], []byte(options.Reality.ShortID))
 	if err != nil {
 		return nil, E.Cause(err, "decode short_id")
 	}
-	if len(shortID) != 8 {
+	if decodedLen > 8 {
 		return nil, E.New("invalid short_id")
 	}
 	return &RealityClientConfig{uClient, publicKey, shortID}, nil
@@ -125,7 +126,7 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	hello.SessionId[0] = 1
 	hello.SessionId[1] = 7
 	hello.SessionId[2] = 5
-	copy(hello.SessionId[8:], e.shortID)
+	copy(hello.SessionId[8:], e.shortID[:])
 
 	if debug.Enabled {
 		fmt.Printf("REALITY hello.sessionId[:16]: %v\n", hello.SessionId[:16])
