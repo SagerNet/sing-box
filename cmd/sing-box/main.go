@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	_ "github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
@@ -33,6 +34,9 @@ func main() {
 }
 
 func preRun(cmd *cobra.Command, args []string) {
+	if disableColor {
+		log.SetStdLogger(log.NewFactory(log.Formatter{BaseTime: time.Now(), DisableColors: true}, os.Stderr, nil).Logger())
+	}
 	if workingDir != "" {
 		if err := os.Chdir(workingDir); err != nil {
 			log.Fatal(err)

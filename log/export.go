@@ -16,6 +16,10 @@ func StdLogger() ContextLogger {
 	return std
 }
 
+func SetStdLogger(logger ContextLogger) {
+	std = logger
+}
+
 func Trace(args ...any) {
 	std.Trace(args...)
 }
