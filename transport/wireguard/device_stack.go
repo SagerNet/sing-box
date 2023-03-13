@@ -109,9 +109,17 @@ func (w *StackDevice) DialContext(ctx context.Context, network string, destinati
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		return gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		tcpConn, err := gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		if err != nil {
+			return nil, err
+		}
+		return tcpConn, nil
 	case N.NetworkUDP:
-		return gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
+		udpConn, err := gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
+		if err != nil {
+			return nil, err
+		}
+		return udpConn, nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
@@ -129,7 +137,11 @@ func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 		networkProtocol = header.IPv6ProtocolNumber
 		bind.Addr = w.addr6
 	}
-	return gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
+	udpConn, err := gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
+	if err != nil {
+		return nil, err
+	}
+	return udpConn, nil
 }
 
 func (w *StackDevice) Start() error {
