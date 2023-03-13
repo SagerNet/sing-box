@@ -6,8 +6,8 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/shell"
 )
 
 var (
@@ -26,9 +26,9 @@ func init() {
 
 func runAndroidShell(name string, args ...string) error {
 	if !useRish {
-		return common.Exec(name, args...).Attach().Run()
+		return shell.Exec(name, args...).Attach().Run()
 	} else {
-		return common.Exec("sh", rishPath, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
+		return shell.Exec("sh", rishPath, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
 	}
 }
 
