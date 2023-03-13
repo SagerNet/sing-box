@@ -78,13 +78,13 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 			if h.uot {
 				h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 				tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-					Fqdn: uot.UOTMagicAddress,
+					Fqdn: uot.LegacyMagicAddress,
 					Port: destination.Port,
 				})
 				if err != nil {
 					return nil, err
 				}
-				return uot.NewClientConn(tcpConn), nil
+				return uot.NewConn(tcpConn, uot.Request{}), nil
 			}
 			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		}
@@ -108,13 +108,13 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 		if h.uot {
 			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 			tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-				Fqdn: uot.UOTMagicAddress,
+				Fqdn: uot.LegacyMagicAddress,
 				Port: destination.Port,
 			})
 			if err != nil {
 				return nil, err
 			}
-			return uot.NewClientConn(tcpConn), nil
+			return uot.NewConn(tcpConn, uot.Request{}), nil
 		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		return (*shadowsocksDialer)(h).ListenPacket(ctx, destination)

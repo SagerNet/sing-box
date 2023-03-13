@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/shell"
 )
 
 var (
@@ -27,9 +28,9 @@ func init() {
 
 func runAsUser(name string, args ...string) error {
 	if os.Getuid() != 0 {
-		return common.Exec(name, args...).Attach().Run()
+		return shell.Exec(name, args...).Attach().Run()
 	} else if sudoUser != "" {
-		return common.Exec("su", "-", sudoUser, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
+		return shell.Exec("su", "-", sudoUser, "-c", F.ToString(name, " ", strings.Join(args, " "))).Attach().Run()
 	} else {
 		return E.New("set system proxy: unable to set as root")
 	}

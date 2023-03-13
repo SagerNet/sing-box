@@ -17,32 +17,32 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.1.0
-	github.com/miekg/dns v1.1.50
+	github.com/miekg/dns v1.1.52
 	github.com/oschwald/maxminddb-golang v1.10.0
-	github.com/pires/go-proxyproto v0.6.2
-	github.com/refraction-networking/utls v1.2.2
+	github.com/pires/go-proxyproto v0.7.0
+	github.com/refraction-networking/utls v1.3.1
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/sing v0.1.8
+	github.com/sagernet/sing v0.2.0
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.1
 	github.com/sagernet/sing-tun v0.1.2
 	github.com/sagernet/sing-vmess v0.1.3
-	github.com/sagernet/smux v0.0.0-20220831015742-e0f1988e3195
+	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
-	go4.org/netipx v0.0.0-20230125063823-8449b0a6169f
+	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/crypto v0.7.0
-	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 	golang.org/x/net v0.8.0
-	golang.org/x/sys v0.5.0
+	golang.org/x/sys v0.6.0
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.30.0
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 

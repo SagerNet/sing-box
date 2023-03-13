@@ -62,13 +62,13 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 		if h.uot {
 			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 			tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-				Fqdn: uot.UOTMagicAddress,
+				Fqdn: uot.LegacyMagicAddress,
 				Port: destination.Port,
 			})
 			if err != nil {
 				return nil, err
 			}
-			return uot.NewClientConn(tcpConn), nil
+			return uot.NewConn(tcpConn, uot.Request{}), nil
 		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
@@ -91,13 +91,13 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	if h.uot {
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 		tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-			Fqdn: uot.UOTMagicAddress,
+			Fqdn: uot.LegacyMagicAddress,
 			Port: destination.Port,
 		})
 		if err != nil {
 			return nil, err
 		}
-		return uot.NewClientConn(tcpConn), nil
+		return uot.NewConn(tcpConn, uot.Request{}), nil
 	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)

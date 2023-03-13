@@ -6,9 +6,9 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/shell"
 	"github.com/sagernet/sing/common/x/list"
 )
 
@@ -34,13 +34,13 @@ func (p *systemProxy) update(event int) error {
 		return err
 	}
 	if p.isMixed {
-		err = common.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
+		err = shell.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	if err == nil {
-		err = common.Exec("networksetup", "-setwebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
+		err = shell.Exec("networksetup", "-setwebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	if err == nil {
-		err = common.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
+		err = shell.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	return err
 }
@@ -51,19 +51,19 @@ func (p *systemProxy) unset() error {
 		return err
 	}
 	if p.isMixed {
-		err = common.Exec("networksetup", "-setsocksfirewallproxystate", interfaceDisplayName, "off").Attach().Run()
+		err = shell.Exec("networksetup", "-setsocksfirewallproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	if err == nil {
-		err = common.Exec("networksetup", "-setwebproxystate", interfaceDisplayName, "off").Attach().Run()
+		err = shell.Exec("networksetup", "-setwebproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	if err == nil {
-		err = common.Exec("networksetup", "-setsecurewebproxystate", interfaceDisplayName, "off").Attach().Run()
+		err = shell.Exec("networksetup", "-setsecurewebproxystate", interfaceDisplayName, "off").Attach().Run()
 	}
 	return err
 }
 
 func getInterfaceDisplayName(name string) (string, error) {
-	content, err := common.Exec("networksetup", "-listallhardwareports").Read()
+	content, err := shell.Exec("networksetup", "-listallhardwareports").ReadOutput()
 	if err != nil {
 		return "", err
 	}

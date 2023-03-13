@@ -533,10 +533,10 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	case vmess.MuxDestination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound legacy multiplex connection")
 		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
-	case uot.UOTMagicAddress:
+	case uot.LegacyMagicAddress:
 		r.logger.InfoContext(ctx, "inbound UoT connection")
 		metadata.Destination = M.Socksaddr{}
-		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
+		return r.RoutePacketConnection(ctx, uot.NewConn(conn, uot.Request{}), metadata)
 	}
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
@@ -641,7 +641,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, destination)
 	}
-	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.UOTMagicAddress && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
+	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.LegacyMagicAddress && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
 			return err
