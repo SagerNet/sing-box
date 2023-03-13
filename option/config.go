@@ -9,6 +9,7 @@ import (
 )
 
 type _Options struct {
+	Schema       string               `json:"$schema,omitempty"`
 	Log          *LogOptions          `json:"log,omitempty"`
 	DNS          *DNSOptions          `json:"dns,omitempty"`
 	NTP          *NTPOptions          `json:"ntp,omitempty"`
