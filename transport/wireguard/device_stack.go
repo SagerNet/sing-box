@@ -90,7 +90,7 @@ func (w *StackDevice) NewEndpoint() (stack.LinkEndpoint, error) {
 	return (*wireEndpoint)(w), nil
 }
 
-func (w *StackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (conn net.Conn, err error) {
+func (w *StackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	addr := tcpip.FullAddress{
 		NIC:  defaultNIC,
 		Port: destination.Port,
@@ -109,19 +109,23 @@ func (w *StackDevice) DialContext(ctx context.Context, network string, destinati
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		conn, err = gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		tcpConn, err := gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		if err != nil {
+			return nil, err
+		}
+		return tcpConn, nil
 	case N.NetworkUDP:
-		conn, err = gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
+		udpConn, err := gonet.DialUDP(w.stack, &bind, &addr, networkProtocol)
+		if err != nil {
+			return nil, err
+		}
+		return udpConn, nil
 	default:
-		err = E.Extend(N.ErrUnknownNetwork, network)
+		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
-	if err != nil {
-		conn = nil // conn maybe non-nil interface containing nil pointer
-	}
-	return
 }
 
-func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (pc net.PacketConn, err error) {
+func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	bind := tcpip.FullAddress{
 		NIC: defaultNIC,
 	}
@@ -133,11 +137,11 @@ func (w *StackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 		networkProtocol = header.IPv6ProtocolNumber
 		bind.Addr = w.addr6
 	}
-	pc, err = gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
+	udpConn, err := gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
 	if err != nil {
-		pc = nil // pc maybe non-nil interface containing nil pointer
+		return nil, err
 	}
-	return
+	return udpConn, nil
 }
 
 func (w *StackDevice) Start() error {
