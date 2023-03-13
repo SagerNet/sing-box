@@ -2,7 +2,11 @@ NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
 TAGS ?= with_gvisor,with_quic,with_wireguard,with_utls,with_reality_server,with_clash_api
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server,with_shadowsocksr
-VERSION=$(shell go run ./cmd/internal/read_tag)
+
+GOHOSTOS = $(shell go env GOHOSTOS)
+GOHOSTARCH = $(shell go env GOHOSTARCH)
+VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run ./cmd/internal/read_tag)
+
 PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=$(VERSION)\" -s -w -buildid="
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
