@@ -75,7 +75,11 @@ func (w *platformInterfaceWrapper) OpenTun(options tun.Options, platformOptions 
 	if err != nil {
 		return nil, err
 	}
-	options.FileDescriptor = int(tunFd)
+	dupFd, err := syscall.Dup(int(tunFd))
+	if err != nil {
+		return nil, E.Cause(err, "dup tun file descriptor")
+	}
+	options.FileDescriptor = dupFd
 	return tun.New(options)
 }
 
