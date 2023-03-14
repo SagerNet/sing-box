@@ -5,9 +5,9 @@ import (
 	"io"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/adapter"
+	C "github.com/jobberrt/sing-box/constant"
+	"github.com/jobberrt/sing-box/log"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )

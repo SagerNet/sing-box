@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sagernet/sing-box/common/json"
-	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
+	"github.com/jobberrt/sing-box/common/json"
+	"github.com/jobberrt/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/websocket"
 
 	"github.com/go-chi/chi/v5"

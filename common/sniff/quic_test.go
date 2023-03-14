@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/sagernet/sing-box/common/sniff"
+	"github.com/jobberrt/sing-box/common/sniff"
 
 	"github.com/stretchr/testify/require"
 )

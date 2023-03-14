@@ -3,7 +3,7 @@ package debugio
 import (
 	"net"
 
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/log"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"

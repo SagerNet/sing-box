@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/sagernet/sing-box/common/json"
+	"github.com/jobberrt/sing-box/common/json"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 

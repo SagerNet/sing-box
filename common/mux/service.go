@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"

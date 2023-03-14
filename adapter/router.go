@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/sagernet/sing-box/common/geoip"
+	"github.com/jobberrt/sing-box/common/geoip"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"

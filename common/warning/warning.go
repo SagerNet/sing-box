@@ -3,7 +3,7 @@ package warning
 import (
 	"sync"
 
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/log"
 )
 
 type Warning struct {

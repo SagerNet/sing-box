@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	C "github.com/sagernet/sing-box/constant"
+	C "github.com/jobberrt/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"

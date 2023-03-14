@@ -3,9 +3,9 @@ package experimental
 import (
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/log"
+	"github.com/jobberrt/sing-box/option"
 )
 
 type ClashServerConstructor = func(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error)

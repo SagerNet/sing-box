@@ -3,7 +3,7 @@ package route
 import (
 	"strings"
 
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 	F "github.com/sagernet/sing/common/format"
 )
 

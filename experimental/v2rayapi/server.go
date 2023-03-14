@@ -5,10 +5,10 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/experimental"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/experimental"
+	"github.com/jobberrt/sing-box/log"
+	"github.com/jobberrt/sing-box/option"
 	"github.com/sagernet/sing/common"
 
 	"google.golang.org/grpc"

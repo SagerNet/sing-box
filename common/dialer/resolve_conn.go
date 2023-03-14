@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"

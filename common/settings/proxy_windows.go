@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/wininet"
 )

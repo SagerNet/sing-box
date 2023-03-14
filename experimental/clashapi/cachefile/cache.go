@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 
 	"go.etcd.io/bbolt"
 )

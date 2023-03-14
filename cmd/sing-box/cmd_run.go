@@ -8,9 +8,9 @@ import (
 	runtimeDebug "runtime/debug"
 	"syscall"
 
-	"github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box"
+	"github.com/jobberrt/sing-box/log"
+	"github.com/jobberrt/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"

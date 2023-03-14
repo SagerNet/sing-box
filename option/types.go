@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing-box/common/json"
+	"github.com/jobberrt/sing-box/common/json"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"

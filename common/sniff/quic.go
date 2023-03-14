@@ -9,9 +9,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/sniff/internal/qtls"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/common/sniff/internal/qtls"
+	C "github.com/jobberrt/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"golang.org/x/crypto/hkdf"

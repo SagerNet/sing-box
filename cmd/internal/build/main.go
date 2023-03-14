@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/log"
 )
 
 func main() {

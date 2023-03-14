@@ -3,7 +3,7 @@ package trafficontrol
 import (
 	"time"
 
-	"github.com/sagernet/sing-box/experimental/clashapi/compatible"
+	"github.com/jobberrt/sing-box/experimental/clashapi/compatible"
 
 	"go.uber.org/atomic"
 )

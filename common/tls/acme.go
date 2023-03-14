@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/caddyserver/certmagic"

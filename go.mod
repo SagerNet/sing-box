@@ -1,6 +1,6 @@
-module github.com/sagernet/sing-box
+module github.com/jobberrt/sing-box
 
-go 1.18
+go 1.20
 
 require (
 	berty.tech/go-libtor v1.0.385

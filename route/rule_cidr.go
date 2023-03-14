@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"go4.org/netipx"

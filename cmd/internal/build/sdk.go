@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/rw"
 )

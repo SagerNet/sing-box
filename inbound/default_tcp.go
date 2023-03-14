@@ -5,9 +5,9 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/proxyproto"
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/common/proxyproto"
+	"github.com/jobberrt/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"

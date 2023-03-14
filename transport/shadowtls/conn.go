@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/sagernet/sing-box/common/tls"
+	"github.com/jobberrt/sing-box/common/tls"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"

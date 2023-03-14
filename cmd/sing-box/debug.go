@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/sagernet/sing-box/common/badjson"
-	"github.com/sagernet/sing-box/log"
+	"github.com/jobberrt/sing-box/common/badjson"
+	"github.com/jobberrt/sing-box/log"
 
 	"github.com/dustin/go-humanize"
 )

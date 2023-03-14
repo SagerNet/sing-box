@@ -1,8 +1,8 @@
 package option
 
 import (
-	"github.com/sagernet/sing-box/common/json"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/jobberrt/sing-box/common/json"
+	C "github.com/jobberrt/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 )

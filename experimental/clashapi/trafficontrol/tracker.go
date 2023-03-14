@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/experimental/trackerconn"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/experimental/trackerconn"
 	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
 

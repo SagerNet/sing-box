@@ -4,8 +4,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/transport/simple-obfs"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/transport/simple-obfs"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"

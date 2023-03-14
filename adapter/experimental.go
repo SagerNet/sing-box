@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/common/urltest"
+	"github.com/jobberrt/sing-box/common/urltest"
 	N "github.com/sagernet/sing/common/network"
 )
 

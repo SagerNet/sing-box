@@ -5,7 +5,7 @@ package settings
 import (
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
+	"github.com/jobberrt/sing-box/adapter"
 )
 
 func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {

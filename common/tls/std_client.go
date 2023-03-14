@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 

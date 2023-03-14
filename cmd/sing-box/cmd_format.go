@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sagernet/sing-box/common/json"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/common/json"
+	"github.com/jobberrt/sing-box/log"
+	"github.com/jobberrt/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"

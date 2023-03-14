@@ -6,10 +6,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/badtls"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/common/badtls"
+	C "github.com/jobberrt/sing-box/constant"
+	"github.com/jobberrt/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )

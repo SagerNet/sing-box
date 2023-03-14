@@ -5,10 +5,10 @@ import (
 	"crypto/tls"
 	"net"
 
-	"github.com/sagernet/sing-box/common/badtls"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
+	"github.com/jobberrt/sing-box/common/badtls"
+	C "github.com/jobberrt/sing-box/constant"
+	"github.com/jobberrt/sing-box/log"
+	"github.com/jobberrt/sing-box/option"
 )
 
 func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {

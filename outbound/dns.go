@@ -6,9 +6,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/canceler"
-	C "github.com/sagernet/sing-box/constant"
+	"github.com/jobberrt/sing-box/adapter"
+	"github.com/jobberrt/sing-box/common/canceler"
+	C "github.com/jobberrt/sing-box/constant"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
