@@ -76,7 +76,7 @@ func New(ctx context.Context, options option.Options) (*Box, error) {
 			DisableColors:    logOptions.DisableColor || logFile != nil,
 			DisableTimestamp: !logOptions.Timestamp && logFile != nil,
 			FullTimestamp:    logOptions.Timestamp,
-			TimestampFormat:  "-0700 2006-01-02 15:04:05",
+			TimestampFormat:  "2006-01-02 15:04:05",
 		}
 		if needClashAPI {
 			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter)
