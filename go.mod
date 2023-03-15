@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230312150606-35ea9af0e0b8
-	github.com/sagernet/sing v0.1.9-0.20230315063014-2731df16725b
+	github.com/sagernet/sing v0.1.9-0.20230315163130-ed73785ecc78
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/sagernet/sing-shadowtls v0.1.0
