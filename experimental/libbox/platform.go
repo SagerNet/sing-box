@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 package libbox
 
 import "github.com/sagernet/sing-box/option"
