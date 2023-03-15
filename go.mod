@@ -18,6 +18,7 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.1.0
 	github.com/miekg/dns v1.1.52
+	github.com/ooni/go-libtor v1.1.7
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
