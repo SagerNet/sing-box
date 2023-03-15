@@ -577,10 +577,24 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	case vmess.MuxDestination.Fqdn:
 		r.logger.InfoContext(ctx, "inbound legacy multiplex connection")
 		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
-	case uot.UOTMagicAddress:
-		r.logger.InfoContext(ctx, "inbound UoT connection")
+	case uot.MagicAddress:
+		request, err := uot.ReadRequest(conn)
+		if err != nil {
+			return E.Cause(err, "read UoT request")
+		}
+		if request.IsConnect {
+			r.logger.InfoContext(ctx, "inbound UoT connect connection to ", request.Destination)
+		} else {
+			r.logger.InfoContext(ctx, "inbound UoT connection to ", request.Destination)
+		}
+		metadata.Domain = metadata.Destination.Fqdn
+		metadata.Destination = request.Destination
+		return r.RoutePacketConnection(ctx, uot.NewConn(conn, request.IsConnect, metadata.Destination), metadata)
+	case uot.LegacyMagicAddress:
+		r.logger.InfoContext(ctx, "inbound legacy UoT connection")
+		metadata.Domain = metadata.Destination.Fqdn
 		metadata.Destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
-		return r.RoutePacketConnection(ctx, uot.NewClientConn(conn), metadata)
+		return r.RoutePacketConnection(ctx, uot.NewConn(conn, false, metadata.Destination), metadata)
 	}
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
@@ -685,7 +699,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, destination)
 	}
-	if metadata.Destination.IsFqdn() && metadata.Destination.Fqdn != uot.UOTMagicAddress && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
+	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
 			return err

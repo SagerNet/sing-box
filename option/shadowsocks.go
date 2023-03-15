@@ -29,5 +29,6 @@ type ShadowsocksOutboundOptions struct {
 	PluginOptions    string            `json:"plugin_opts,omitempty"`
 	Network          NetworkList       `json:"network,omitempty"`
 	UoT              bool              `json:"udp_over_tcp,omitempty"`
+	UoTVersion       int               `json:"udp_over_tcp_version,omitempty"`
 	MultiplexOptions *MultiplexOptions `json:"multiplex,omitempty"`
 }

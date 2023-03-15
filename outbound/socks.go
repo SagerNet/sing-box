@@ -20,13 +20,13 @@ var _ adapter.Outbound = (*Socks)(nil)
 
 type Socks struct {
 	myOutboundAdapter
-	client  *socks.Client
-	resolve bool
-	uot     bool
+	client     *socks.Client
+	resolve    bool
+	uot        bool
+	uotVersion int
 }
 
 func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
-	detour := dialer.New(router, options.DialerOptions)
 	var version socks.Version
 	var err error
 	if options.Version != "" {
@@ -37,18 +37,27 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 	if err != nil {
 		return nil, err
 	}
-	return &Socks{
-		myOutboundAdapter{
+	outbound := &Socks{
+		myOutboundAdapter: myOutboundAdapter{
 			protocol: C.TypeSocks,
 			network:  options.Network.Build(),
 			router:   router,
 			logger:   logger,
 			tag:      tag,
 		},
-		socks.NewClient(detour, options.ServerOptions.Build(), version, options.Username, options.Password),
-		version == socks.Version4,
-		options.UoT,
-	}, nil
+		client:  socks.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), version, options.Username, options.Password),
+		resolve: version == socks.Version4,
+		uot:     options.UoT,
+	}
+	switch options.UoTVersion {
+	case uot.LegacyVersion:
+		outbound.uotVersion = uot.LegacyVersion
+	case 0, uot.Version:
+		outbound.uotVersion = uot.Version
+	default:
+		return nil, E.New("unknown udp over tcp protocol version ", options.UoTVersion)
+	}
+	return outbound, nil
 }
 
 func (h *Socks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -61,14 +70,21 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 	case N.NetworkUDP:
 		if h.uot {
 			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-			tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-				Fqdn: uot.UOTMagicAddress,
-				Port: destination.Port,
-			})
+			var uotDestination M.Socksaddr
+			if h.uotVersion == uot.Version {
+				uotDestination.Fqdn = uot.MagicAddress
+			} else {
+				uotDestination.Fqdn = uot.LegacyMagicAddress
+			}
+			tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, uotDestination)
 			if err != nil {
 				return nil, err
 			}
-			return uot.NewClientConn(tcpConn), nil
+			if h.uotVersion == uot.Version {
+				return uot.NewLazyConn(tcpConn, uot.Request{IsConnect: true, Destination: destination}), nil
+			} else {
+				return uot.NewConn(tcpConn, false, destination), nil
+			}
 		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
@@ -90,14 +106,21 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	metadata.Destination = destination
 	if h.uot {
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-		tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
-			Fqdn: uot.UOTMagicAddress,
-			Port: destination.Port,
-		})
+		var uotDestination M.Socksaddr
+		if h.uotVersion == uot.Version {
+			uotDestination.Fqdn = uot.MagicAddress
+		} else {
+			uotDestination.Fqdn = uot.LegacyMagicAddress
+		}
+		tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, uotDestination)
 		if err != nil {
 			return nil, err
 		}
-		return uot.NewClientConn(tcpConn), nil
+		if h.uotVersion == uot.Version {
+			return uot.NewLazyConn(tcpConn, uot.Request{Destination: destination}), nil
+		} else {
+			return uot.NewConn(tcpConn, false, destination), nil
+		}
 	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
