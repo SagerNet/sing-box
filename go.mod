@@ -29,7 +29,7 @@ require (
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/sagernet/sing-shadowtls v0.1.0
-	github.com/sagernet/sing-tun v0.1.3-0.20230313113643-839f1792e46c
+	github.com/sagernet/sing-tun v0.1.3-0.20230315134716-fe89bbded22d
 	github.com/sagernet/sing-vmess v0.1.3
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
