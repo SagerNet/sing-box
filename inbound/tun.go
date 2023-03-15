@@ -169,6 +169,7 @@ func (t *Tun) Start() error {
 		UDPTimeout:             t.udpTimeout,
 		Handler:                t,
 		Logger:                 t.logger,
+		UnderPlatform:          t.platformInterface != nil,
 	})
 	if err != nil {
 		return err
