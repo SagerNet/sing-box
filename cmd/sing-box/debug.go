@@ -25,9 +25,9 @@ func init() {
 		runtime.ReadMemStats(&memStats)
 
 		var memObject badjson.JSONObject
-		memObject.Put("heap", humanize.Bytes(memStats.HeapInuse))
-		memObject.Put("stack", humanize.Bytes(memStats.StackInuse))
-		memObject.Put("idle", humanize.Bytes(memStats.HeapIdle-memStats.HeapReleased))
+		memObject.Put("heap", humanize.IBytes(memStats.HeapInuse))
+		memObject.Put("stack", humanize.IBytes(memStats.StackInuse))
+		memObject.Put("idle", humanize.IBytes(memStats.HeapIdle-memStats.HeapReleased))
 		memObject.Put("goroutines", runtime.NumGoroutine())
 		memObject.Put("rss", rusageMaxRSS())
 
