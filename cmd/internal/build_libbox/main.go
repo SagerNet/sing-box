@@ -111,9 +111,9 @@ func buildiOS() {
 
 	args = append(args, "-tags")
 	if !debugEnabled {
-		args = append(args, "with_gvisor,with_utls,with_clash_api,with_low_memory,with_conntrack")
+		args = append(args, "with_gvisor,with_quic,with_utls,with_clash_api,with_low_memory,with_conntrack")
 	} else {
-		args = append(args, "with_gvisor,with_utls,with_clash_api,with_low_memory,with_conntrack,debug")
+		args = append(args, "with_gvisor,with_quic,with_utls,with_clash_api,with_low_memory,with_conntrack,debug")
 	}
 	args = append(args, "./experimental/libbox")
 
