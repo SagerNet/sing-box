@@ -17,5 +17,5 @@ func Version() string {
 }
 
 func FormatBytes(length int64) string {
-	return humanize.Bytes(uint64(length))
+	return humanize.IBytes(uint64(length))
 }
