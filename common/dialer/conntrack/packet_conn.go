@@ -1,29 +1,32 @@
 package conntrack
 
 import (
+	"io"
 	"net"
-	"runtime/debug"
 
 	"github.com/sagernet/sing/common/x/list"
 )
 
 type PacketConn struct {
 	net.PacketConn
-	element *list.Element[*ConnEntry]
+	element *list.Element[io.Closer]
 }
 
-func NewPacketConn(conn net.PacketConn) *PacketConn {
-	entry := &ConnEntry{
-		Conn:  conn,
-		Stack: debug.Stack(),
-	}
+func NewPacketConn(conn net.PacketConn) (*PacketConn, error) {
 	connAccess.Lock()
-	element := openConnection.PushBack(entry)
+	element := openConnection.PushBack(conn)
 	connAccess.Unlock()
+	if KillerEnabled {
+		err := killerCheck()
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
 	return &PacketConn{
 		PacketConn: conn,
 		element:    element,
-	}
+	}, nil
 }
 
 func (c *PacketConn) Close() error {

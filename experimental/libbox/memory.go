@@ -2,9 +2,17 @@
 
 package libbox
 
-import "runtime/debug"
+import (
+	runtimeDebug "runtime/debug"
+
+	"github.com/sagernet/sing-box/common/dialer/conntrack"
+)
+
+const memoryLimit = 30 * 1024 * 1024
 
 func SetMemoryLimit() {
-	debug.SetGCPercent(10)
-	debug.SetMemoryLimit(30 * 1024 * 1024)
+	runtimeDebug.SetGCPercent(10)
+	runtimeDebug.SetMemoryLimit(memoryLimit)
+	conntrack.KillerEnabled = true
+	conntrack.MemoryLimit = memoryLimit
 }

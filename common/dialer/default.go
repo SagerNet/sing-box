@@ -178,12 +178,12 @@ func trackConn(conn net.Conn, err error) (net.Conn, error) {
 	if !conntrack.Enabled || err != nil {
 		return conn, err
 	}
-	return conntrack.NewConn(conn), nil
+	return conntrack.NewConn(conn)
 }
 
 func trackPacketConn(conn net.PacketConn, err error) (net.PacketConn, error) {
 	if !conntrack.Enabled || err != nil {
 		return conn, err
 	}
-	return conntrack.NewPacketConn(conn), nil
+	return conntrack.NewPacketConn(conn)
 }
