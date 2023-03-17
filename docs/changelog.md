@@ -1,3 +1,10 @@
+#### 1.2-beta9
+
+* Introducing the [UDP over TCP protocol version 2](/configuration/shared/udp-over-tcp)
+* Add health check support for http-based v2ray transports
+* Remove length limit on short_id for reality TLS config
+* Fix bugs and update dependencies
+
 #### 1.2-beta8
 
 * Update reality and uTLS libraries
@@ -115,7 +122,7 @@ Important changes since 1.0:
 * Add VLESS outbound and XUDP
 * Skip wait for hysteria tcp handshake response
 * Add v2ray mux support for all inbound
-* Add XUDP support for VMess 
+* Add XUDP support for VMess
 * Improve websocket writer
 * Refine tproxy write back
 * Fix DNS leak caused by
