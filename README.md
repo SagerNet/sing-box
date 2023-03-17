@@ -2,6 +2,8 @@
 
 The universal proxy platform.
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/sing-box.svg)](https://repology.org/project/sing-box/versions)
+
 ## Documentation
 
 https://sing-box.sagernet.org
