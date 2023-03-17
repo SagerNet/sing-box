@@ -1,3 +1,9 @@
+#### 1.1.7
+
+* Improve the stability of the VMESS server
+* Fix `auto_detect_interface` incorrectly identifying the default interface on Windows
+* Fix bugs and update dependencies
+
 #### 1.2-beta9
 
 * Introducing the [UDP over TCP protocol version 2](/configuration/shared/udp-over-tcp)
