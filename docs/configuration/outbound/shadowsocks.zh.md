@@ -12,7 +12,7 @@
   "plugin": "",
   "plugin_opts": "",
   "network": "udp",
-  "udp_over_tcp": false,
+  "udp_over_tcp": false | {},
   "multiplex": {},
 
   ... // 拨号字段
@@ -87,7 +87,9 @@ Shadowsocks SIP003 插件参数。
 
 #### udp_over_tcp
 
-启用 UDP over TCP 协议。
+UDP over TCP 配置。
+
+参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp)。
 
 与 `multiplex` 冲突。
 

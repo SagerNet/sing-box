@@ -29,8 +29,7 @@ type Shadowsocks struct {
 	method          shadowsocks.Method
 	serverAddr      M.Socksaddr
 	plugin          sip003.Plugin
-	uot             bool
-	uotVersion      int
+	uotClient       *uot.Client
 	multiplexDialer N.Dialer
 }
 
@@ -50,7 +49,6 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		dialer:     dialer.New(router, options.DialerOptions),
 		method:     method,
 		serverAddr: options.ServerOptions.Build(),
-		uot:        options.UoT,
 	}
 	if options.Plugin != "" {
 		outbound.plugin, err = sip003.CreatePlugin(options.Plugin, options.PluginOptions, router, outbound.dialer, outbound.serverAddr)
@@ -58,19 +56,18 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 			return nil, err
 		}
 	}
-	if !options.UoT {
+	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
+	if !uotOptions.Enabled {
 		outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
 		if err != nil {
 			return nil, err
 		}
 	}
-	switch options.UoTVersion {
-	case uot.LegacyVersion:
-		outbound.uotVersion = uot.LegacyVersion
-	case 0, uot.Version:
-		outbound.uotVersion = uot.Version
-	default:
-		return nil, E.New("unknown udp over tcp protocol version ", options.UoTVersion)
+	if uotOptions.Enabled {
+		outbound.uotClient = &uot.Client{
+			Dialer:  (*shadowsocksDialer)(outbound),
+			Version: uotOptions.Version,
+		}
 	}
 	return outbound, nil
 }
@@ -84,25 +81,12 @@ func (h *Shadowsocks) DialContext(ctx context.Context, network string, destinati
 		case N.NetworkTCP:
 			h.logger.InfoContext(ctx, "outbound connection to ", destination)
 		case N.NetworkUDP:
-			if h.uot {
-				h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-				var uotDestination M.Socksaddr
-				if h.uotVersion == uot.Version {
-					uotDestination.Fqdn = uot.MagicAddress
-				} else {
-					uotDestination.Fqdn = uot.LegacyMagicAddress
-				}
-				tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, uotDestination)
-				if err != nil {
-					return nil, err
-				}
-				if h.uotVersion == uot.Version {
-					return uot.NewLazyConn(tcpConn, uot.Request{IsConnect: true, Destination: destination}), nil
-				} else {
-					return uot.NewConn(tcpConn, false, destination), nil
-				}
+			if h.uotClient != nil {
+				h.logger.InfoContext(ctx, "outbound UoT connect packet connection to ", destination)
+				return h.uotClient.DialContext(ctx, network, destination)
+			} else {
+				h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 			}
-			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		}
 		return (*shadowsocksDialer)(h).DialContext(ctx, network, destination)
 	} else {
@@ -121,23 +105,11 @@ func (h *Shadowsocks) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	if h.multiplexDialer == nil {
-		if h.uot {
+		if h.uotClient != nil {
 			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-			var uotDestination M.Socksaddr
-			if h.uotVersion == uot.Version {
-				uotDestination.Fqdn = uot.MagicAddress
-			} else {
-				uotDestination.Fqdn = uot.LegacyMagicAddress
-			}
-			tcpConn, err := (*shadowsocksDialer)(h).DialContext(ctx, N.NetworkTCP, uotDestination)
-			if err != nil {
-				return nil, err
-			}
-			if h.uotVersion == uot.Version {
-				return uot.NewLazyConn(tcpConn, uot.Request{Destination: destination}), nil
-			} else {
-				return uot.NewConn(tcpConn, false, destination), nil
-			}
+			return h.uotClient.ListenPacket(ctx, destination)
+		} else {
+			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 		return (*shadowsocksDialer)(h).ListenPacket(ctx, destination)

@@ -64,6 +64,7 @@ nav:
           - TLS: configuration/shared/tls.md
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
+          - UDP over TCP: configuration/shared/udp-over-tcp.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
