@@ -1,5 +1,9 @@
 # Shadowsocks
 
+!!! warning ""
+
+    For censorship bypass usage in China, we recommend using UDP over TCP and disabling UDP on the server.
+
 ## Single User
 
 #### Server
@@ -11,6 +15,7 @@
       "type": "shadowsocks",
       "listen": "::",
       "listen_port": 8080,
+      "network": "tcp",
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg=="
     }
@@ -35,7 +40,8 @@
       "server": "127.0.0.1",
       "server_port": 8080,
       "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
+      "udp_over_tcp": true
     }
   ]
 }

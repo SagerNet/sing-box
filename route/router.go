@@ -589,12 +589,12 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 		metadata.Domain = metadata.Destination.Fqdn
 		metadata.Destination = request.Destination
-		return r.RoutePacketConnection(ctx, uot.NewConn(conn, request.IsConnect, metadata.Destination), metadata)
+		return r.RoutePacketConnection(ctx, uot.NewConn(conn, *request), metadata)
 	case uot.LegacyMagicAddress:
 		r.logger.InfoContext(ctx, "inbound legacy UoT connection")
 		metadata.Domain = metadata.Destination.Fqdn
 		metadata.Destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
-		return r.RoutePacketConnection(ctx, uot.NewConn(conn, false, metadata.Destination), metadata)
+		return r.RoutePacketConnection(ctx, uot.NewConn(conn, uot.Request{}), metadata)
 	}
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()

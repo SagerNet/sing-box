@@ -9,6 +9,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -20,10 +21,9 @@ var _ adapter.Outbound = (*Socks)(nil)
 
 type Socks struct {
 	myOutboundAdapter
-	client     *socks.Client
-	resolve    bool
-	uot        bool
-	uotVersion int
+	client    *socks.Client
+	resolve   bool
+	uotClient *uot.Client
 }
 
 func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
@@ -47,15 +47,13 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 		},
 		client:  socks.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), version, options.Username, options.Password),
 		resolve: version == socks.Version4,
-		uot:     options.UoT,
 	}
-	switch options.UoTVersion {
-	case uot.LegacyVersion:
-		outbound.uotVersion = uot.LegacyVersion
-	case 0, uot.Version:
-		outbound.uotVersion = uot.Version
-	default:
-		return nil, E.New("unknown udp over tcp protocol version ", options.UoTVersion)
+	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
+	if uotOptions.Enabled {
+		outbound.uotClient = &uot.Client{
+			Dialer:  outbound.client,
+			Version: uotOptions.Version,
+		}
 	}
 	return outbound, nil
 }
@@ -68,23 +66,9 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 	case N.NetworkUDP:
-		if h.uot {
-			h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-			var uotDestination M.Socksaddr
-			if h.uotVersion == uot.Version {
-				uotDestination.Fqdn = uot.MagicAddress
-			} else {
-				uotDestination.Fqdn = uot.LegacyMagicAddress
-			}
-			tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, uotDestination)
-			if err != nil {
-				return nil, err
-			}
-			if h.uotVersion == uot.Version {
-				return uot.NewLazyConn(tcpConn, uot.Request{IsConnect: true, Destination: destination}), nil
-			} else {
-				return uot.NewConn(tcpConn, false, destination), nil
-			}
+		if h.uotClient != nil {
+			h.logger.InfoContext(ctx, "outbound UoT connect packet connection to ", destination)
+			return h.uotClient.DialContext(ctx, network, destination)
 		}
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	default:
@@ -104,23 +88,9 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
-	if h.uot {
+	if h.uotClient != nil {
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
-		var uotDestination M.Socksaddr
-		if h.uotVersion == uot.Version {
-			uotDestination.Fqdn = uot.MagicAddress
-		} else {
-			uotDestination.Fqdn = uot.LegacyMagicAddress
-		}
-		tcpConn, err := h.client.DialContext(ctx, N.NetworkTCP, uotDestination)
-		if err != nil {
-			return nil, err
-		}
-		if h.uotVersion == uot.Version {
-			return uot.NewLazyConn(tcpConn, uot.Request{Destination: destination}), nil
-		} else {
-			return uot.NewConn(tcpConn, false, destination), nil
-		}
+		return h.uotClient.ListenPacket(ctx, destination)
 	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)

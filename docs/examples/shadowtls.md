@@ -24,6 +24,7 @@
       "type": "shadowsocks",
       "tag": "shadowsocks-in",
       "listen": "127.0.0.1",
+      "network": "tcp",
       "method": "2022-blake3-aes-128-gcm",
       "password": "8JCsPssfgS8tiRwiMlhARg=="
     }
@@ -46,6 +47,7 @@
         "max_connections": 4,
         "min_streams": 4
       }
+      // or "udp_over_tcp": true
     },
     {
       "type": "shadowtls",

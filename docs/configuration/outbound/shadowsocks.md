@@ -12,7 +12,7 @@
   "plugin": "",
   "plugin_opts": "",
   "network": "udp",
-  "udp_over_tcp": false,
+  "udp_over_tcp": false | {},
   "multiplex": {},
 
   ... // Dial Fields
@@ -87,7 +87,9 @@ Both is enabled by default.
 
 #### udp_over_tcp
 
-Enable the UDP over TCP protocol.
+UDP over TCP configuration.
+
+See [UDP Over TCP](/configuration/shared/udp-over-tcp) for details.
 
 Conflict with `multiplex`.
 
