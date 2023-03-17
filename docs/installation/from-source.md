@@ -36,4 +36,4 @@ sing-box version
 ```
 
 It is also recommended to use systemd to manage sing-box service,
-see [Linux server installation example](./examples/linux-server-installation).
+see [Linux server installation example](/examples/linux-server-installation).
