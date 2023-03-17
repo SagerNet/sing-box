@@ -39,18 +39,20 @@ type Box struct {
 
 func New(ctx context.Context, options option.Options, platformInterface platform.Interface) (*Box, error) {
 	createdAt := time.Now()
-	logOptions := common.PtrValueOrDefault(options.Log)
+
+	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
+	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
 
 	var needClashAPI bool
 	var needV2RayAPI bool
-	if options.Experimental != nil {
-		if options.Experimental.ClashAPI != nil && options.Experimental.ClashAPI.ExternalController != "" {
-			needClashAPI = true
-		}
-		if options.Experimental.V2RayAPI != nil && options.Experimental.V2RayAPI.Listen != "" {
-			needV2RayAPI = true
-		}
+	if experimentalOptions.ClashAPI != nil && experimentalOptions.ClashAPI.ExternalController != "" {
+		needClashAPI = true
 	}
+	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
+		needV2RayAPI = true
+	}
+
+	logOptions := common.PtrValueOrDefault(options.Log)
 
 	var logFactory log.Factory
 	var observableLogFactory log.ObservableFactory
