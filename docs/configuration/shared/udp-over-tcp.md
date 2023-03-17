@@ -64,8 +64,6 @@ Protocol version 2 uses a new magic address: `sp.v2.udp-over-tcp.arpa`
 |-----------|------|----------|-------|
 | u8        | u8   | variable | u16be |
 
-**version**: Fixed to 2.
-
 **isConnect**: Set to 1 to indicates that the stream uses the connect format, 0 to disable.
 
 **ATYP / address / port**: Request destination, uses the SOCKS address format.
