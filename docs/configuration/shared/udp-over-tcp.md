@@ -52,7 +52,7 @@ The client requests the magic address to the upper layer proxy protocol to indic
 |------|----------|-------|--------|----------|
 | u8   | variable | u16be | u16be  | variable |
 
-*ATYP / address / port*: Uses the SOCKS address format.
+**ATYP / address / port**: Uses the SOCKS address format.
 
 #### Protocol version 2
 
