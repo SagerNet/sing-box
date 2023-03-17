@@ -36,4 +36,4 @@ sing-box version
 ```
 
 同时推荐使用 systemd 来管理 sing-box 服务器实例。
-参阅 [Linux 服务器安装示例](./examples/linux-server-installation)。
+参阅 [Linux 服务器安装示例](/examples/linux-server-installation)。
