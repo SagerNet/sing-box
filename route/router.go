@@ -169,6 +169,9 @@ func NewRouter(
 		} else {
 			tag = F.ToString(i)
 		}
+		if transportTagMap[tag] {
+			return nil, E.New("duplicate dns server tag: ", tag)
+		}
 		transportTags[i] = tag
 		transportTagMap[tag] = true
 	}
@@ -241,6 +244,9 @@ func NewRouter(
 		}), func(index int, server option.DNSServerOptions) string {
 			return transportTags[index]
 		})
+		if len(unresolvedTags) == 0 {
+			panic(F.ToString("unexpected unresolved dns servers: ", len(transports), " ", len(dummyTransportMap), " ", len(transportMap)))
+		}
 		return nil, E.New("found circular reference in dns servers: ", strings.Join(unresolvedTags, " "))
 	}
 	var defaultTransport dns.Transport
