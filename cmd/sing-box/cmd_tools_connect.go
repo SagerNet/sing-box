@@ -15,11 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var commandFlagNetwork string
+var (
+	commandConnectFlagNetwork  string
+	commandConnectFlagOutbound string
+)
 
 var commandConnect = &cobra.Command{
 	Use:   "connect [address]",
-	Short: "connect to a address through default outbound",
+	Short: "Connect to an address",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := connect(args[0])
@@ -30,25 +33,27 @@ var commandConnect = &cobra.Command{
 }
 
 func init() {
-	commandConnect.Flags().StringVar(&commandFlagNetwork, "network", "tcp", "network type")
+	commandConnect.Flags().StringVar(&commandConnectFlagNetwork, "network", "tcp", "network type")
+	commandConnect.Flags().StringVar(&commandConnectFlagOutbound, "outbound", "", "outbound tag")
 	commandTools.AddCommand(commandConnect)
 }
 
 func connect(address string) error {
-	switch N.NetworkName(commandFlagNetwork) {
+	switch N.NetworkName(commandConnectFlagNetwork) {
 	case N.NetworkTCP, N.NetworkUDP:
 	default:
-		return E.Cause(N.ErrUnknownNetwork, commandFlagNetwork)
+		return E.Cause(N.ErrUnknownNetwork, commandConnectFlagNetwork)
 	}
 	instance, err := createPreStartedClient()
 	if err != nil {
 		return err
 	}
-	outbound := instance.Router().DefaultOutbound(commandFlagNetwork)
-	if outbound == nil {
-		return E.New("missing default outbound")
+	defer instance.Close()
+	dialer, err := createDialer(instance, commandConnectFlagNetwork, commandConnectFlagOutbound)
+	if err != nil {
+		return err
 	}
-	conn, err := outbound.DialContext(context.Background(), commandFlagNetwork, M.ParseSocksaddr(address))
+	conn, err := dialer.DialContext(context.Background(), commandConnectFlagNetwork, M.ParseSocksaddr(address))
 	if err != nil {
 		return E.Cause(err, "connect to server")
 	}
@@ -58,6 +63,9 @@ func connect(address string) error {
 	})
 	group.Append("download", func(ctx context.Context) error {
 		return common.Error(bufio.Copy(os.Stdout, conn))
+	})
+	group.Cleanup(func() {
+		conn.Close()
 	})
 	err = group.Run(context.Background())
 	if E.IsClosed(err) {
