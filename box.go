@@ -25,16 +25,16 @@ import (
 var _ adapter.Service = (*Box)(nil)
 
 type Box struct {
-	createdAt   time.Time
-	router      adapter.Router
-	inbounds    []adapter.Inbound
-	outbounds   []adapter.Outbound
-	logFactory  log.Factory
-	logger      log.ContextLogger
-	logFile     *os.File
-	clashServer adapter.ClashServer
-	v2rayServer adapter.V2RayServer
-	done        chan struct{}
+	createdAt    time.Time
+	router       adapter.Router
+	inbounds     []adapter.Inbound
+	outbounds    []adapter.Outbound
+	logFactory   log.Factory
+	logger       log.ContextLogger
+	logFile      *os.File
+	preServices  map[string]adapter.Service
+	postServices map[string]adapter.Service
+	done         chan struct{}
 }
 
 func New(ctx context.Context, options option.Options, platformInterface platform.Interface) (*Box, error) {
@@ -166,35 +166,55 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 	if err != nil {
 		return nil, err
 	}
-
-	var clashServer adapter.ClashServer
-	var v2rayServer adapter.V2RayServer
+	preServices := make(map[string]adapter.Service)
+	postServices := make(map[string]adapter.Service)
 	if needClashAPI {
-		clashServer, err = experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		clashServer, err := experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}
 		router.SetClashServer(clashServer)
+		preServices["clash api"] = clashServer
 	}
 	if needV2RayAPI {
-		v2rayServer, err = experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(options.Experimental.V2RayAPI))
+		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(options.Experimental.V2RayAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create v2ray api server")
 		}
 		router.SetV2RayServer(v2rayServer)
+		preServices["v2ray api"] = v2rayServer
 	}
 	return &Box{
-		router:      router,
-		inbounds:    inbounds,
-		outbounds:   outbounds,
-		createdAt:   createdAt,
-		logFactory:  logFactory,
-		logger:      logFactory.Logger(),
-		logFile:     logFile,
-		clashServer: clashServer,
-		v2rayServer: v2rayServer,
-		done:        make(chan struct{}),
+		router:       router,
+		inbounds:     inbounds,
+		outbounds:    outbounds,
+		createdAt:    createdAt,
+		logFactory:   logFactory,
+		logger:       logFactory.Logger(),
+		logFile:      logFile,
+		preServices:  preServices,
+		postServices: postServices,
+		done:         make(chan struct{}),
 	}, nil
+}
+
+func (s *Box) PreStart() error {
+	err := s.preStart()
+	if err != nil {
+		// TODO: remove catch error
+		defer func() {
+			v := recover()
+			if v != nil {
+				log.Error(E.Cause(err, "origin error"))
+				debug.PrintStack()
+				panic("panic on early close: " + fmt.Sprint(v))
+			}
+		}()
+		s.Close()
+		return err
+	}
+	s.logger.Info("sing-box pre-started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
+	return nil
 }
 
 func (s *Box) Start() error {
@@ -210,21 +230,17 @@ func (s *Box) Start() error {
 			}
 		}()
 		s.Close()
+		return err
 	}
-	return err
+	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
+	return nil
 }
 
-func (s *Box) start() error {
-	if s.clashServer != nil {
-		err := s.clashServer.Start()
+func (s *Box) preStart() error {
+	for serviceName, service := range s.preServices {
+		err := adapter.PreStart(service)
 		if err != nil {
-			return E.Cause(err, "start clash api server")
-		}
-	}
-	if s.v2rayServer != nil {
-		err := s.v2rayServer.Start()
-		if err != nil {
-			return E.Cause(err, "start v2ray api server")
+			return E.Cause(err, "pre-start ", serviceName)
 		}
 	}
 	for i, out := range s.outbounds {
@@ -241,9 +257,19 @@ func (s *Box) start() error {
 			}
 		}
 	}
-	err := s.router.Start()
+	return s.router.Start()
+}
+
+func (s *Box) start() error {
+	err := s.preStart()
 	if err != nil {
 		return err
+	}
+	for serviceName, service := range s.preServices {
+		err = service.Start()
+		if err != nil {
+			return E.Cause(err, "start ", serviceName)
+		}
 	}
 	for i, in := range s.inbounds {
 		err = in.Start()
@@ -257,8 +283,12 @@ func (s *Box) start() error {
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
-
-	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
+	for serviceName, service := range s.postServices {
+		err = service.Start()
+		if err != nil {
+			return E.Cause(err, "start ", serviceName)
+		}
+	}
 	return nil
 }
 
@@ -270,6 +300,11 @@ func (s *Box) Close() error {
 		close(s.done)
 	}
 	var errors error
+	for serviceName, service := range s.postServices {
+		errors = E.Append(errors, service.Close(), func(err error) error {
+			return E.Cause(err, "close ", serviceName)
+		})
+	}
 	for i, in := range s.inbounds {
 		errors = E.Append(errors, in.Close(), func(err error) error {
 			return E.Cause(err, "close inbound/", in.Type(), "[", i, "]")
@@ -285,19 +320,14 @@ func (s *Box) Close() error {
 			return E.Cause(err, "close router")
 		})
 	}
+	for serviceName, service := range s.preServices {
+		errors = E.Append(errors, service.Close(), func(err error) error {
+			return E.Cause(err, "close ", serviceName)
+		})
+	}
 	if err := common.Close(s.logFactory); err != nil {
 		errors = E.Append(errors, err, func(err error) error {
 			return E.Cause(err, "close log factory")
-		})
-	}
-	if err := common.Close(s.clashServer); err != nil {
-		errors = E.Append(errors, err, func(err error) error {
-			return E.Cause(err, "close clash api server")
-		})
-	}
-	if err := common.Close(s.v2rayServer); err != nil {
-		errors = E.Append(errors, err, func(err error) error {
-			return E.Cause(err, "close v2ray api server")
 		})
 	}
 	if s.logFile != nil {

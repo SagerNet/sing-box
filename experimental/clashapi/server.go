@@ -114,7 +114,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 	return server, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) PreStart() error {
 	if s.cacheFilePath != "" {
 		cacheFile, err := cachefile.Open(s.cacheFilePath)
 		if err != nil {
@@ -122,6 +122,10 @@ func (s *Server) Start() error {
 		}
 		s.cacheFile = cacheFile
 	}
+	return nil
+}
+
+func (s *Server) Start() error {
 	listener, err := net.Listen("tcp", s.httpServer.Addr)
 	if err != nil {
 		return E.Cause(err, "external controller listen error")

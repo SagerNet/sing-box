@@ -10,6 +10,7 @@ import (
 
 type ClashServer interface {
 	Service
+	PreStarter
 	Mode() string
 	StoreSelected() bool
 	CacheFile() ClashCacheFile
