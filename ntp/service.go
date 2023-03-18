@@ -6,6 +6,8 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/settings"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -14,19 +16,17 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 )
 
-const timeLayout = "2006-01-02 15:04:05 -0700"
-
 var _ adapter.TimeService = (*Service)(nil)
 
 type Service struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	server M.Socksaddr
-	dialer N.Dialer
-	logger logger.Logger
-
-	ticker      *time.Ticker
-	clockOffset time.Duration
+	ctx           context.Context
+	cancel        context.CancelFunc
+	server        M.Socksaddr
+	writeToSystem bool
+	dialer        N.Dialer
+	logger        logger.Logger
+	ticker        *time.Ticker
+	clockOffset   time.Duration
 }
 
 func NewService(ctx context.Context, router adapter.Router, logger logger.Logger, options option.NTPOptions) *Service {
@@ -42,12 +42,13 @@ func NewService(ctx context.Context, router adapter.Router, logger logger.Logger
 		interval = 30 * time.Minute
 	}
 	return &Service{
-		ctx:    ctx,
-		cancel: cancel,
-		server: server,
-		dialer: dialer.New(router, options.DialerOptions),
-		logger: logger,
-		ticker: time.NewTicker(interval),
+		ctx:           ctx,
+		cancel:        cancel,
+		server:        server,
+		writeToSystem: options.WriteToSystem,
+		dialer:        dialer.New(router, options.DialerOptions),
+		logger:        logger,
+		ticker:        time.NewTicker(interval),
 	}
 }
 
@@ -56,7 +57,7 @@ func (s *Service) Start() error {
 	if err != nil {
 		return E.Cause(err, "initialize time")
 	}
-	s.logger.Info("updated time: ", s.TimeFunc()().Local().Format(timeLayout))
+	s.logger.Info("updated time: ", s.TimeFunc()().Local().Format(C.TimeLayout))
 	go s.loopUpdate()
 	return nil
 }
@@ -82,7 +83,7 @@ func (s *Service) loopUpdate() {
 		}
 		err := s.update()
 		if err == nil {
-			s.logger.Debug("updated time: ", s.TimeFunc()().Local().Format(timeLayout))
+			s.logger.Debug("updated time: ", s.TimeFunc()().Local().Format(C.TimeLayout))
 		} else {
 			s.logger.Warn("update time: ", err)
 		}
@@ -95,5 +96,11 @@ func (s *Service) update() error {
 		return err
 	}
 	s.clockOffset = response.ClockOffset
+	if s.writeToSystem {
+		writeErr := settings.SetSystemTime(s.TimeFunc()())
+		if writeErr != nil {
+			s.logger.Warn("write time to system: ", writeErr)
+		}
+	}
 	return nil
 }

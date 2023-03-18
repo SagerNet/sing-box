@@ -4,12 +4,13 @@ import (
 	"context"
 
 	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 
 	"github.com/spf13/cobra"
 )
+
+var commandToolsFlagOutbound string
 
 var commandTools = &cobra.Command{
 	Use:   "tools",
@@ -17,6 +18,7 @@ var commandTools = &cobra.Command{
 }
 
 func init() {
+	commandTools.PersistentFlags().StringVarP(&commandToolsFlagOutbound, "outbound", "o", "", "Use specified tag instead of default outbound")
 	mainCommand.AddCommand(commandTools)
 }
 
@@ -25,10 +27,6 @@ func createPreStartedClient() (*box.Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	if options.Log == nil {
-		options.Log = &option.LogOptions{}
-	}
-	options.Log.Disabled = true
 	instance, err := box.New(context.Background(), options, nil)
 	if err != nil {
 		return nil, E.Cause(err, "create service")
@@ -42,7 +40,7 @@ func createPreStartedClient() (*box.Box, error) {
 
 func createDialer(instance *box.Box, network string, outboundTag string) (N.Dialer, error) {
 	if outboundTag == "" {
-		outbound := instance.Router().DefaultOutbound(network)
+		outbound := instance.Router().DefaultOutbound(N.NetworkName(network))
 		if outbound == nil {
 			return nil, E.New("missing default outbound")
 		}
