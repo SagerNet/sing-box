@@ -12,12 +12,9 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 
 	"github.com/spf13/cobra"
 )
-
-var commandFetchFlagOutbound string
 
 var commandFetch = &cobra.Command{
 	Use:   "fetch",
@@ -32,7 +29,6 @@ var commandFetch = &cobra.Command{
 }
 
 func init() {
-	commandFetch.Flags().StringVar(&commandFetchFlagOutbound, "outbound", "", "outbound tag")
 	commandTools.AddCommand(commandFetch)
 }
 
@@ -47,7 +43,7 @@ func fetch(args []string) error {
 	httpClient = &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer, err := createDialer(instance, N.NetworkTCP, commandFetchFlagOutbound)
+				dialer, err := createDialer(instance, network, commandToolsFlagOutbound)
 				if err != nil {
 					return nil, err
 				}

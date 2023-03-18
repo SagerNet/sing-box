@@ -15,10 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	commandConnectFlagNetwork  string
-	commandConnectFlagOutbound string
-)
+var commandConnectFlagNetwork string
 
 var commandConnect = &cobra.Command{
 	Use:   "connect [address]",
@@ -33,8 +30,7 @@ var commandConnect = &cobra.Command{
 }
 
 func init() {
-	commandConnect.Flags().StringVar(&commandConnectFlagNetwork, "network", "tcp", "network type")
-	commandConnect.Flags().StringVar(&commandConnectFlagOutbound, "outbound", "", "outbound tag")
+	commandConnect.Flags().StringVarP(&commandConnectFlagNetwork, "network", "n", "tcp", "network type")
 	commandTools.AddCommand(commandConnect)
 }
 
@@ -49,7 +45,7 @@ func connect(address string) error {
 		return err
 	}
 	defer instance.Close()
-	dialer, err := createDialer(instance, commandConnectFlagNetwork, commandConnectFlagOutbound)
+	dialer, err := createDialer(instance, commandConnectFlagNetwork, commandToolsFlagOutbound)
 	if err != nil {
 		return err
 	}
