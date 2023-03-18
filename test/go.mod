@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/sagernet/sing v0.1.9-0.20230313033500-448948d26d1a
+	github.com/sagernet/sing v0.2.1-0.20230318083058-18cd006d266e
 	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
 	github.com/spyzhov/ajson v0.7.1
 	github.com/stretchr/testify v1.8.2
@@ -30,6 +30,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-chi/chi/v5 v5.0.8 // indirect
 	github.com/go-chi/cors v1.2.1 // indirect
@@ -52,11 +53,12 @@ require (
 	github.com/moby/term v0.0.0-20221105221325-4eb28fa6025c // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.2.0 // indirect
+	github.com/ooni/go-libtor v1.1.7 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	github.com/pires/go-proxyproto v0.6.2 // indirect
+	github.com/pires/go-proxyproto v0.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
@@ -70,7 +72,7 @@ require (
 	github.com/sagernet/reality v0.0.0-20230312150606-35ea9af0e0b8 // indirect
 	github.com/sagernet/sing-dns v0.1.4 // indirect
 	github.com/sagernet/sing-shadowtls v0.1.0 // indirect
-	github.com/sagernet/sing-tun v0.1.3-0.20230313113643-839f1792e46c // indirect
+	github.com/sagernet/sing-tun v0.1.3-0.20230315134716-fe89bbded22d // indirect
 	github.com/sagernet/sing-vmess v0.1.3 // indirect
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9 // indirect
@@ -86,7 +88,7 @@ require (
 	go.uber.org/zap v1.24.0 // indirect
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/exp v0.0.0-20230314191032-db074128a8ec // indirect
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
@@ -94,7 +96,7 @@ require (
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/grpc v1.53.0 // indirect
-	google.golang.org/protobuf v1.29.1 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c // indirect
