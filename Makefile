@@ -7,7 +7,7 @@ GOHOSTOS = $(shell go env GOHOSTOS)
 GOHOSTARCH = $(shell go env GOHOSTARCH)
 VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run ./cmd/internal/read_tag)
 
-PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=$(VERSION)\" -s -w -buildid="
+PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
 
