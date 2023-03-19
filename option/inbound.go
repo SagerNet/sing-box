@@ -117,14 +117,14 @@ type InboundOptions struct {
 }
 
 type ListenOptions struct {
-	Listen                      ListenAddress `json:"listen"`
-	ListenPort                  uint16        `json:"listen_port,omitempty"`
-	TCPFastOpen                 bool          `json:"tcp_fast_open,omitempty"`
-	UDPFragment                 *bool         `json:"udp_fragment,omitempty"`
-	UDPFragmentDefault          bool          `json:"-"`
-	UDPTimeout                  int64         `json:"udp_timeout,omitempty"`
-	ProxyProtocol               bool          `json:"proxy_protocol,omitempty"`
-	ProxyProtocolAcceptNoHeader bool          `json:"proxy_protocol_accept_no_header,omitempty"`
-	Detour                      string        `json:"detour,omitempty"`
+	Listen                      *ListenAddress `json:"listen,omitempty"`
+	ListenPort                  uint16         `json:"listen_port,omitempty"`
+	TCPFastOpen                 bool           `json:"tcp_fast_open,omitempty"`
+	UDPFragment                 *bool          `json:"udp_fragment,omitempty"`
+	UDPFragmentDefault          bool           `json:"-"`
+	UDPTimeout                  int64          `json:"udp_timeout,omitempty"`
+	ProxyProtocol               bool           `json:"proxy_protocol,omitempty"`
+	ProxyProtocolAcceptNoHeader bool           `json:"proxy_protocol_accept_no_header,omitempty"`
+	Detour                      string         `json:"detour,omitempty"`
 	InboundOptions
 }

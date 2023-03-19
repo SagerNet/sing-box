@@ -16,7 +16,7 @@ func TestProxyProtocol(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -25,7 +25,7 @@ func TestProxyProtocol(t *testing.T) {
 				Type: C.TypeDirect,
 				DirectOptions: option.DirectInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:        option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:        option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort:    serverPort,
 						ProxyProtocol: true,
 					},

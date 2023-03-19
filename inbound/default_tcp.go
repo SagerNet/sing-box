@@ -3,7 +3,6 @@ package inbound
 import (
 	"context"
 	"net"
-	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/proxyproto"
@@ -16,7 +15,7 @@ import (
 
 func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 	var err error
-	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
+	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var tcpListener net.Listener
 	if !a.listenOptions.TCPFastOpen {
 		tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())

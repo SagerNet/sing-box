@@ -2,7 +2,6 @@ package inbound
 
 import (
 	"net"
-	"net/netip"
 	"os"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 )
 
 func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
-	bindAddr := M.SocksaddrFrom(netip.Addr(a.listenOptions.Listen), a.listenOptions.ListenPort)
+	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var lc net.ListenConfig
 	var udpFragment bool
 	if a.listenOptions.UDPFragment != nil {
