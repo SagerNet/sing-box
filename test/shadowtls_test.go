@@ -42,7 +42,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -52,7 +52,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				Tag:  "in",
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 						Detour:     "detour",
 					},
@@ -72,7 +72,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Method:   method,
@@ -134,7 +134,7 @@ func TestShadowTLSFallback(t *testing.T) {
 				Type: C.TypeShadowTLS,
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Handshake: option.ShadowTLSHandshakeOptions{
@@ -180,7 +180,7 @@ func TestShadowTLSInbound(t *testing.T) {
 				Tag:  "in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -189,7 +189,7 @@ func TestShadowTLSInbound(t *testing.T) {
 				Type: C.TypeShadowTLS,
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 						Detour:     "detour",
 					},
@@ -208,7 +208,7 @@ func TestShadowTLSInbound(t *testing.T) {
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen: option.ListenAddress(netip.IPv4Unspecified()),
+						Listen: option.NewListenAddress(netip.IPv4Unspecified()),
 					},
 					Method:   method,
 					Password: password,
@@ -260,7 +260,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -270,7 +270,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Method:   method,

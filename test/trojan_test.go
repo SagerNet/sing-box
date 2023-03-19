@@ -25,7 +25,7 @@ func TestTrojanOutbound(t *testing.T) {
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -61,7 +61,7 @@ func TestTrojanSelf(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -70,7 +70,7 @@ func TestTrojanSelf(t *testing.T) {
 				Type: C.TypeTrojan,
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.TrojanUser{
@@ -131,7 +131,7 @@ func TestTrojanPlainSelf(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -140,7 +140,7 @@ func TestTrojanPlainSelf(t *testing.T) {
 				Type: C.TypeTrojan,
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.TrojanUser{

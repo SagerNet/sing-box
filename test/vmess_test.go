@@ -185,7 +185,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authe
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -232,7 +232,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -267,7 +267,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -276,7 +276,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{

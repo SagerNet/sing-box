@@ -18,7 +18,7 @@ func TestNaiveInboundWithNginx(t *testing.T) {
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []auth.User{
@@ -64,7 +64,7 @@ func TestNaiveInbound(t *testing.T) {
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []auth.User{
@@ -106,7 +106,7 @@ func TestNaiveHTTP3Inbound(t *testing.T) {
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []auth.User{

@@ -20,7 +20,7 @@ func TestVLESSVisionReality(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -29,7 +29,7 @@ func TestVLESSVisionReality(t *testing.T) {
 				Type: C.TypeVLESS,
 				VLESSOptions: option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VLESSUser{
@@ -61,7 +61,7 @@ func TestVLESSVisionReality(t *testing.T) {
 				Tag:  "trojan",
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []option.TrojanUser{
@@ -170,7 +170,7 @@ func testVLESSRealityTransport(t *testing.T, transport *option.V2RayTransportOpt
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -179,7 +179,7 @@ func testVLESSRealityTransport(t *testing.T, transport *option.V2RayTransportOpt
 				Type: C.TypeVLESS,
 				VLESSOptions: option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VLESSUser{
@@ -211,7 +211,7 @@ func testVLESSRealityTransport(t *testing.T, transport *option.V2RayTransportOpt
 				Tag:  "trojan",
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []option.TrojanUser{

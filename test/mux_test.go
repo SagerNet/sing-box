@@ -39,7 +39,7 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -48,7 +48,7 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Method:   method,
@@ -100,7 +100,7 @@ func testVMessMux(t *testing.T, protocol string) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -109,7 +109,7 @@ func testVMessMux(t *testing.T, protocol string) {
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{

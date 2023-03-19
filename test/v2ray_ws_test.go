@@ -66,7 +66,7 @@ func testV2RayWebsocketInbound(t *testing.T, maxEarlyData uint32, earlyDataHeade
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -160,7 +160,7 @@ func testV2RayWebsocketOutbound(t *testing.T, maxEarlyData uint32, earlyDataHead
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},

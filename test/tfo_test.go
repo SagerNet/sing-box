@@ -19,7 +19,7 @@ func TestTCPSlowOpen(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -28,7 +28,7 @@ func TestTCPSlowOpen(t *testing.T) {
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:      option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:      option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort:  serverPort,
 						TCPFastOpen: true,
 					},

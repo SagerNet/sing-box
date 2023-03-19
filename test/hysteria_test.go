@@ -17,7 +17,7 @@ func TestHysteriaSelf(t *testing.T) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -26,7 +26,7 @@ func TestHysteriaSelf(t *testing.T) {
 				Type: C.TypeHysteria,
 				HysteriaOptions: option.HysteriaInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					UpMbps:   100,
@@ -90,7 +90,7 @@ func TestHysteriaInbound(t *testing.T) {
 				Type: C.TypeHysteria,
 				HysteriaOptions: option.HysteriaInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					UpMbps:   100,
@@ -139,7 +139,7 @@ func TestHysteriaOutbound(t *testing.T) {
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},

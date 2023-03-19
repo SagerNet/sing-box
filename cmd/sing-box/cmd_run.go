@@ -102,6 +102,9 @@ func readConfigAndMerge() (option.Options, error) {
 	if err != nil {
 		return option.Options{}, err
 	}
+	if len(optionsList) == 1 {
+		return optionsList[0].options, nil
+	}
 	var mergedOptions option.Options
 	for _, options := range optionsList {
 		mergedOptions, err = badjsonmerge.MergeOptions(options.options, mergedOptions)

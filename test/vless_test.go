@@ -42,7 +42,7 @@ func TestVLESS(t *testing.T) {
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -111,7 +111,7 @@ func testVLESSXrayOutbound(t *testing.T, packetEncoding string, flow string) {
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -121,7 +121,7 @@ func testVLESSXrayOutbound(t *testing.T, packetEncoding string, flow string) {
 				Tag:  "trojan",
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []option.TrojanUser{
@@ -219,7 +219,7 @@ func testVLESSSelf(t *testing.T, flow string) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -228,7 +228,7 @@ func testVLESSSelf(t *testing.T, flow string) {
 				Type: C.TypeVLESS,
 				VLESSOptions: option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VLESSUser{
@@ -294,7 +294,7 @@ func testVLESSSelfTLS(t *testing.T, flow string) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: clientPort,
 					},
 				},
@@ -303,7 +303,7 @@ func testVLESSSelfTLS(t *testing.T, flow string) {
 				Type: C.TypeVLESS,
 				VLESSOptions: option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VLESSUser{
@@ -326,7 +326,7 @@ func testVLESSSelfTLS(t *testing.T, flow string) {
 				Tag:  "trojan",
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []option.TrojanUser{
@@ -414,7 +414,7 @@ func testVLESSXrayInbound(t *testing.T, flow string) {
 				Type: C.TypeVLESS,
 				VLESSOptions: option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
 					Users: []option.VLESSUser{
@@ -437,7 +437,7 @@ func testVLESSXrayInbound(t *testing.T, flow string) {
 				Tag:  "trojan",
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherPort,
 					},
 					Users: []option.TrojanUser{
@@ -464,7 +464,7 @@ func testVLESSXrayInbound(t *testing.T, flow string) {
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.ListenAddress(netip.IPv4Unspecified()),
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: otherClientPort,
 					},
 				},
