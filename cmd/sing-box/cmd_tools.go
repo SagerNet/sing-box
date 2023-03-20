@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	box "github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 
