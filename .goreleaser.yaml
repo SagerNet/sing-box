@@ -16,6 +16,7 @@ builds:
       - with_quic
       - with_wireguard
       - with_utls
+      - with_reality_server
       - with_clash_api
     env:
       - CGO_ENABLED=0
