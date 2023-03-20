@@ -74,13 +74,9 @@ Hysteria 用户
 
 #### users.auth
 
-==与 auth_str 必填一个==
-
 base64 编码的认证密码。
 
 #### users.auth_str
-
-==与 auth 必填一个==
 
 认证密码。
 

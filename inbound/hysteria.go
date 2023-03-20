@@ -187,20 +187,24 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 	if err != nil {
 		return err
 	}
-	userIndex := slices.Index(h.authKey, string(clientHello.Auth))
-	if userIndex == -1 {
-		err = hysteria.WriteServerHello(controlStream, hysteria.ServerHello{
-			Message: "wrong password",
-		})
-		return E.Errors(E.New("wrong password: ", string(clientHello.Auth)), err)
-	}
-	user := h.authUser[userIndex]
-	if user == "" {
-		user = F.ToString(userIndex)
+	if len(h.authKey) > 0 {
+		userIndex := slices.Index(h.authKey, string(clientHello.Auth))
+		if userIndex == -1 {
+			err = hysteria.WriteServerHello(controlStream, hysteria.ServerHello{
+				Message: "wrong password",
+			})
+			return E.Errors(E.New("wrong password: ", string(clientHello.Auth)), err)
+		}
+		user := h.authUser[userIndex]
+		if user == "" {
+			user = F.ToString(userIndex)
+		} else {
+			ctx = auth.ContextWithUser(ctx, user)
+		}
+		h.logger.InfoContext(ctx, "[", user, "] inbound connection from ", conn.RemoteAddr())
 	} else {
-		ctx = auth.ContextWithUser(ctx, user)
+		h.logger.InfoContext(ctx, "inbound connection from ", conn.RemoteAddr())
 	}
-	h.logger.InfoContext(ctx, "[", user, "] inbound connection from ", conn.RemoteAddr())
 	h.logger.DebugContext(ctx, "peer send speed: ", clientHello.SendBPS/1024/1024, " MBps, peer recv speed: ", clientHello.RecvBPS/1024/1024, " MBps")
 	if clientHello.SendBPS == 0 || clientHello.RecvBPS == 0 {
 		return E.New("invalid rate from client")
