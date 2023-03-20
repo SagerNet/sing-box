@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	berty.tech/go-libtor v1.0.385
-	github.com/Dreamacro/clash v1.13.0
+	github.com/Dreamacro/clash v1.14.0
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cretz/bine v0.2.0
 	github.com/dustin/go-humanize v1.0.1
@@ -27,7 +27,7 @@ require (
 	github.com/sagernet/reality v0.0.0-20230312150606-35ea9af0e0b8
 	github.com/sagernet/sing v0.2.1-0.20230318094614-4bbf5f2c3046
 	github.com/sagernet/sing-dns v0.1.4
-	github.com/sagernet/sing-shadowsocks v0.1.2-0.20230221080503-769c01d6bba9
+	github.com/sagernet/sing-shadowsocks v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.0
 	github.com/sagernet/sing-tun v0.1.3-0.20230315134716-fe89bbded22d
 	github.com/sagernet/sing-vmess v0.1.3
