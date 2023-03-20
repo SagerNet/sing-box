@@ -40,6 +40,10 @@ func preRun(cmd *cobra.Command, args []string) {
 		log.SetStdLogger(log.NewFactory(log.Formatter{BaseTime: time.Now(), DisableColors: true}, os.Stderr, nil).Logger())
 	}
 	if workingDir != "" {
+		_, err := os.Stat(workingDir)
+		if err != nil {
+			os.MkdirAll(workingDir, 0o777)
+		}
 		if err := os.Chdir(workingDir); err != nil {
 			log.Fatal(err)
 		}
