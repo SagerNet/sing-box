@@ -118,7 +118,6 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
     scripts:
-      postinstall: release/config/postinstall.sh
       postremove: release/config/postremove.sh
 source:
   enabled: false
