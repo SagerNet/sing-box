@@ -74,13 +74,9 @@ Hysteria users
 
 #### users.auth
 
-==Required if `auth_str` is empty==
-
 Authentication password, in base64.
 
 #### users.auth_str
-
-==Required if `auth` is empty==
 
 Authentication password.
 
