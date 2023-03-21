@@ -13,4 +13,5 @@ type WireGuardOutboundOptions struct {
 	Workers         int                    `json:"workers,omitempty"`
 	MTU             uint32                 `json:"mtu,omitempty"`
 	Network         NetworkList            `json:"network,omitempty"`
+	IPRewrite       bool                   `json:"ip_rewrite,omitempty"`
 }

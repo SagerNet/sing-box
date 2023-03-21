@@ -3,7 +3,7 @@
 ```json
 {
   "route": {
-    "rules": [
+    "ip_rules": [
       {
         "inbound": [
           "mixed-in"
@@ -11,15 +11,6 @@
         "ip_version": 6,
         "network": [
           "tcp"
-        ],
-        "auth_user": [
-          "usera",
-          "userb"
-        ],
-        "protocol": [
-          "tls",
-          "http",
-          "quic"
         ],
         "domain": [
           "test.com"
@@ -67,31 +58,17 @@
           ":3000",
           "4000:"
         ],
-        "process_name": [
-          "curl"
-        ],
-        "process_path": [
-          "/usr/bin/curl"
-        ],
-        "package_name": [
-          "com.termux"
-        ],
-        "user": [
-          "sekai"
-        ],
-        "user_id": [
-          1000
-        ],
-        "clash_mode": "direct",
         "invert": false,
-        "outbound": "direct"
+        "action": "direct",
+        "outbound": "wireguard"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "invert": false,
-        "outbound": "direct"
+        "action": "direct",
+        "outbound": "wireguard"
       }
     ]
   }
@@ -124,17 +101,16 @@ Tags of [Inbound](/configuration/inbound).
 
 Not limited if empty.
 
-#### auth_user
-
-Username, see each inbound for details.
-
-#### protocol
-
-Sniffed protocol, see [Sniff](/configuration/route/sniff/) for details.
-
 #### network
 
-`tcp` or `udp`.
+Match network protocol.
+
+Available values:
+
+* `tcp`
+* `udp`
+* `icmpv4`
+* `icmpv6`
 
 #### domain
 
@@ -188,55 +164,27 @@ Match port.
 
 Match port range.
 
-#### process_name
-
-!!! error ""
-
-    Only supported on Linux, Windows, and macOS.
-
-Match process name.
-
-#### process_path
-
-!!! error ""
-
-    Only supported on Linux, Windows, and macOS.
-
-Match process path.
-
-#### package_name
-
-Match android package name.
-
-#### user
-
-!!! error ""
-
-    Only supported on Linux.
-
-Match user name.
-
-#### user_id
-
-!!! error ""
-
-    Only supported on Linux.
-
-Match user id.
-
-#### clash_mode
-
-Match Clash mode.
-
 #### invert
 
 Invert match result.
 
-#### outbound
+#### action
 
 ==Required==
 
+| Action | Description                                                        |
+|--------|--------------------------------------------------------------------|
+| return | Stop IP routing and assemble the connection to the transport layer |
+| block  | Block the connection                                               |
+| direct | Directly forward the connection                                    |
+
+#### outbound
+
+==Required if action is direct==
+
 Tag of the target outbound.
+
+Only outbound which supports IP connection can be used, see [Outbounds that support IP connection](/configuration/outbound/#outbounds-that-support-ip-connection).
 
 ### Logical Fields
 
