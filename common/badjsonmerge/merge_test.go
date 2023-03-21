@@ -21,7 +21,7 @@ func TestMergeJSON(t *testing.T) {
 				{
 					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Network:  N.NetworkTCP,
+						Network:  []string{N.NetworkTCP},
 						Outbound: "direct",
 					},
 				},
@@ -42,7 +42,7 @@ func TestMergeJSON(t *testing.T) {
 				{
 					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Network:  N.NetworkUDP,
+						Network:  []string{N.NetworkUDP},
 						Outbound: "direct",
 					},
 				},
