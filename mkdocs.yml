@@ -39,7 +39,7 @@ nav:
       - From source: installation/from-source.md
       - Clients:
           - SFI:
-            - installation/clients/sfi/index.md
+              - installation/clients/sfi/index.md
   - Configuration:
       - configuration/index.md
       - Log:
@@ -54,6 +54,7 @@ nav:
           - configuration/route/index.md
           - GeoIP: configuration/route/geoip.md
           - Geosite: configuration/route/geosite.md
+          - IP Route Rule: configuration/route/ip-rule.md
           - Route Rule: configuration/route/rule.md
           - Protocol Sniff: configuration/route/sniff.md
       - Experimental:
@@ -169,6 +170,7 @@ plugins:
           DNS Rule: DNS 规则
 
           Route: 路由
+          IP Route Rule: IP 路由规则
           Route Rule: 路由规则
           Protocol Sniff: 协议探测
 
