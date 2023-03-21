@@ -1,9 +1,9 @@
-### Structure
+### 结构
 
 ```json
 {
   "route": {
-    "rules": [
+    "ip_rules": [
       {
         "inbound": [
           "mixed-in"
@@ -11,15 +11,6 @@
         "ip_version": 6,
         "network": [
           "tcp"
-        ],
-        "auth_user": [
-          "usera",
-          "userb"
-        ],
-        "protocol": [
-          "tls",
-          "http",
-          "quic"
         ],
         "domain": [
           "test.com"
@@ -67,31 +58,17 @@
           ":3000",
           "4000:"
         ],
-        "process_name": [
-          "curl"
-        ],
-        "process_path": [
-          "/usr/bin/curl"
-        ],
-        "package_name": [
-          "com.termux"
-        ],
-        "user": [
-          "sekai"
-        ],
-        "user_id": [
-          1000
-        ],
-        "clash_mode": "direct",
         "invert": false,
-        "outbound": "direct"
+        "action": "direct",
+        "outbound": "wireguard"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "invert": false,
-        "outbound": "direct"
+        "action": "direct",
+        "outbound": "wireguard"
       }
     ]
   }
@@ -101,13 +78,13 @@
 
 !!! note ""
 
-    You can ignore the JSON Array [] tag when the content is only one item
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签。
 
 ### Default Fields
 
 !!! note ""
 
-    The default rule uses the following matching logic:  
+    默认规则使用以下匹配逻辑:  
     (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr`) &&  
     (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr`) &&  
@@ -116,129 +93,99 @@
 
 #### inbound
 
-Tags of [Inbound](/configuration/inbound).
+[入站](/zh/configuration/inbound) 标签。
 
 #### ip_version
 
-4 or 6.
+4 或 6。
 
-Not limited if empty.
-
-#### auth_user
-
-Username, see each inbound for details.
-
-#### protocol
-
-Sniffed protocol, see [Sniff](/configuration/route/sniff/) for details.
+默认不限制。
 
 #### network
 
-`tcp` or `udp`.
+匹配网络协议。
+
+可用值：
+
+* `tcp`
+* `udp`
+* `icmpv4`
+* `icmpv6`
 
 #### domain
 
-Match full domain.
+匹配完整域名。
 
 #### domain_suffix
 
-Match domain suffix.
+匹配域名后缀。
 
 #### domain_keyword
 
-Match domain using keyword.
+匹配域名关键字。
 
 #### domain_regex
 
-Match domain using regular expression.
+匹配域名正则表达式。
 
 #### geosite
 
-Match geosite.
+匹配 GeoSite。
 
 #### source_geoip
 
-Match source geoip.
+匹配源 GeoIP。
 
 #### geoip
 
-Match geoip.
+匹配 GeoIP。
 
 #### source_ip_cidr
 
-Match source ip cidr.
+匹配源 IP CIDR。
 
 #### ip_cidr
 
-Match ip cidr.
+匹配 IP CIDR。
 
 #### source_port
 
-Match source port.
+匹配源端口。
 
 #### source_port_range
 
-Match source port range.
+匹配源端口范围。
 
 #### port
 
-Match port.
+匹配端口。
 
 #### port_range
 
-Match port range.
-
-#### process_name
-
-!!! error ""
-
-    Only supported on Linux, Windows, and macOS.
-
-Match process name.
-
-#### process_path
-
-!!! error ""
-
-    Only supported on Linux, Windows, and macOS.
-
-Match process path.
-
-#### package_name
-
-Match android package name.
-
-#### user
-
-!!! error ""
-
-    Only supported on Linux.
-
-Match user name.
-
-#### user_id
-
-!!! error ""
-
-    Only supported on Linux.
-
-Match user id.
-
-#### clash_mode
-
-Match Clash mode.
+匹配端口范围。
 
 #### invert
 
-Invert match result.
+反选匹配结果。
+
+#### action
+
+==必填==
+
+| Action | 描述                  |
+|--------|---------------------|
+| return | 停止 IP 路由并将该连接组装到传输层 |
+| block  | 屏蔽该连接               |
+| direct | 直接转发该连接             |
+
 
 #### outbound
 
-==Required==
+==action 为 direct 则必填==
 
-Tag of the target outbound.
+目标出站的标签。
 
-### Logical Fields
+### 逻辑字段
 
 #### type
 
@@ -246,12 +193,12 @@ Tag of the target outbound.
 
 #### mode
 
-==Required==
+==必填==
 
-`and` or `or`
+`and` 或 `or`
 
 #### rules
 
-==Required==
+==必填==
 
-Included default rules.
+包括的默认规则。

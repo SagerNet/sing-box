@@ -9,7 +9,9 @@
           "mixed-in"
         ],
         "ip_version": 6,
-        "network": "tcp",
+        "network": [
+          "tcp"
+        ],
         "auth_user": [
           "usera",
           "userb"
@@ -242,18 +244,12 @@
 
 #### mode
 
+==必填==
+
 `and` 或 `or`
 
 #### rules
 
-包括的默认规则。
-
-#### invert
-
-反选匹配结果。
-
-#### outbound
-
 ==必填==
 
-目标出站的标签。
+包括的默认规则。

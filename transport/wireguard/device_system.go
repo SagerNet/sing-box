@@ -23,6 +23,8 @@ type SystemDevice struct {
 	name   string
 	mtu    int
 	events chan wgTun.Event
+	addr4  netip.Addr
+	addr6  netip.Addr
 }
 
 /*func (w *SystemDevice) NewEndpoint() (stack.LinkEndpoint, error) {
@@ -55,11 +57,24 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 	if err != nil {
 		return nil, err
 	}
+	var inet4Address netip.Addr
+	var inet6Address netip.Addr
+	if len(inet4Addresses) > 0 {
+		inet4Address = inet4Addresses[0].Addr()
+	}
+	if len(inet6Addresses) > 0 {
+		inet6Address = inet6Addresses[0].Addr()
+	}
 	return &SystemDevice{
-		dialer.NewDefault(router, option.DialerOptions{
+		dialer: dialer.NewDefault(router, option.DialerOptions{
 			BindInterface: interfaceName,
 		}),
-		tunInterface, interfaceName, int(mtu), make(chan wgTun.Event),
+		device: tunInterface,
+		name:   interfaceName,
+		mtu:    int(mtu),
+		events: make(chan wgTun.Event),
+		addr4:  inet4Address,
+		addr6:  inet6Address,
 	}, nil
 }
 
@@ -71,6 +86,14 @@ func (w *SystemDevice) ListenPacket(ctx context.Context, destination M.Socksaddr
 	return w.dialer.ListenPacket(ctx, destination)
 }
 
+func (w *SystemDevice) Inet4Address() netip.Addr {
+	return w.addr4
+}
+
+func (w *SystemDevice) Inet6Address() netip.Addr {
+	return w.addr6
+}
+
 func (w *SystemDevice) Start() error {
 	w.events <- wgTun.EventUp
 	return nil
@@ -80,12 +103,12 @@ func (w *SystemDevice) File() *os.File {
 	return nil
 }
 
-func (w *SystemDevice) Read(bytes []byte, index int) (int, error) {
-	return w.device.Read(bytes[index-tun.PacketOffset:])
+func (w *SystemDevice) Read(p []byte, offset int) (int, error) {
+	return w.device.Read(p[offset-tun.PacketOffset:])
 }
 
-func (w *SystemDevice) Write(bytes []byte, index int) (int, error) {
-	return w.device.Write(bytes[index:])
+func (w *SystemDevice) Write(p []byte, offset int) (int, error) {
+	return w.device.Write(p[offset:])
 }
 
 func (w *SystemDevice) Flush() error {
