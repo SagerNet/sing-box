@@ -1,16 +1,11 @@
 package route
 
 import (
-	"strings"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
-	N "github.com/sagernet/sing/common/network"
 )
 
 func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rule) (adapter.Rule, error) {
@@ -39,14 +34,7 @@ func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rul
 var _ adapter.Rule = (*DefaultRule)(nil)
 
 type DefaultRule struct {
-	items                   []RuleItem
-	sourceAddressItems      []RuleItem
-	sourcePortItems         []RuleItem
-	destinationAddressItems []RuleItem
-	destinationPortItems    []RuleItem
-	allItems                []RuleItem
-	invert                  bool
-	outbound                string
+	abstractDefaultRule
 }
 
 type RuleItem interface {
@@ -56,8 +44,10 @@ type RuleItem interface {
 
 func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
 	rule := &DefaultRule{
-		invert:   options.Invert,
-		outbound: options.Outbound,
+		abstractDefaultRule{
+			invert:   options.Invert,
+			outbound: options.Outbound,
+		},
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -74,15 +64,10 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 			return nil, E.New("invalid ip version: ", options.IPVersion)
 		}
 	}
-	if options.Network != "" {
-		switch options.Network {
-		case N.NetworkTCP, N.NetworkUDP:
-			item := NewNetworkItem(options.Network)
-			rule.items = append(rule.items, item)
-			rule.allItems = append(rule.allItems, item)
-		default:
-			return nil, E.New("invalid network: ", options.Network)
-		}
+	if len(options.Network) > 0 {
+		item := NewNetworkItem(options.Network)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.AuthUser) > 0 {
 		item := NewAuthUserItem(options.AuthUser)
@@ -202,130 +187,19 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	return rule, nil
 }
 
-func (r *DefaultRule) Type() string {
-	return C.RuleTypeDefault
-}
-
-func (r *DefaultRule) Start() error {
-	for _, item := range r.allItems {
-		err := common.Start(item)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *DefaultRule) Close() error {
-	for _, item := range r.allItems {
-		err := common.Close(item)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *DefaultRule) UpdateGeosite() error {
-	for _, item := range r.allItems {
-		if geositeItem, isSite := item.(*GeositeItem); isSite {
-			err := geositeItem.Update()
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r *DefaultRule) Match(metadata *adapter.InboundContext) bool {
-	for _, item := range r.items {
-		if !item.Match(metadata) {
-			return r.invert
-		}
-	}
-
-	if len(r.sourceAddressItems) > 0 {
-		var sourceAddressMatch bool
-		for _, item := range r.sourceAddressItems {
-			if item.Match(metadata) {
-				sourceAddressMatch = true
-				break
-			}
-		}
-		if !sourceAddressMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.sourcePortItems) > 0 {
-		var sourcePortMatch bool
-		for _, item := range r.sourcePortItems {
-			if item.Match(metadata) {
-				sourcePortMatch = true
-				break
-			}
-		}
-		if !sourcePortMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.destinationAddressItems) > 0 {
-		var destinationAddressMatch bool
-		for _, item := range r.destinationAddressItems {
-			if item.Match(metadata) {
-				destinationAddressMatch = true
-				break
-			}
-		}
-		if !destinationAddressMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.destinationPortItems) > 0 {
-		var destinationPortMatch bool
-		for _, item := range r.destinationPortItems {
-			if item.Match(metadata) {
-				destinationPortMatch = true
-				break
-			}
-		}
-		if !destinationPortMatch {
-			return r.invert
-		}
-	}
-
-	return !r.invert
-}
-
-func (r *DefaultRule) Outbound() string {
-	return r.outbound
-}
-
-func (r *DefaultRule) String() string {
-	if !r.invert {
-		return strings.Join(F.MapToString(r.allItems), " ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
-	}
-}
-
 var _ adapter.Rule = (*LogicalRule)(nil)
 
 type LogicalRule struct {
-	mode     string
-	rules    []*DefaultRule
-	invert   bool
-	outbound string
+	abstractLogicalRule
 }
 
 func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
 	r := &LogicalRule{
-		rules:    make([]*DefaultRule, len(options.Rules)),
-		invert:   options.Invert,
-		outbound: options.Outbound,
+		abstractLogicalRule{
+			rules:    make([]adapter.Rule, len(options.Rules)),
+			invert:   options.Invert,
+			outbound: options.Outbound,
+		},
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -343,69 +217,4 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 		r.rules[i] = rule
 	}
 	return r, nil
-}
-
-func (r *LogicalRule) Type() string {
-	return C.RuleTypeLogical
-}
-
-func (r *LogicalRule) UpdateGeosite() error {
-	for _, rule := range r.rules {
-		err := rule.UpdateGeosite()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalRule) Start() error {
-	for _, rule := range r.rules {
-		err := rule.Start()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalRule) Close() error {
-	for _, rule := range r.rules {
-		err := rule.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalRule) Match(metadata *adapter.InboundContext) bool {
-	if r.mode == C.LogicalTypeAnd {
-		return common.All(r.rules, func(it *DefaultRule) bool {
-			return it.Match(metadata)
-		}) != r.invert
-	} else {
-		return common.Any(r.rules, func(it *DefaultRule) bool {
-			return it.Match(metadata)
-		}) != r.invert
-	}
-}
-
-func (r *LogicalRule) Outbound() string {
-	return r.outbound
-}
-
-func (r *LogicalRule) String() string {
-	var op string
-	switch r.mode {
-	case C.LogicalTypeAnd:
-		op = "&&"
-	case C.LogicalTypeOr:
-		op = "||"
-	}
-	if !r.invert {
-		return strings.Join(F.MapToString(r.rules), " "+op+" ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
-	}
 }

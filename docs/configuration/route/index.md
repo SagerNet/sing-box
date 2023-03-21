@@ -7,6 +7,7 @@
   "route": {
     "geoip": {},
     "geosite": {},
+    "ip_rules": [],
     "rules": [],
     "final": "",
     "auto_detect_interface": false,
@@ -19,11 +20,12 @@
 
 ### Fields
 
-| Key       | Format                       |
-|-----------|------------------------------|
-| `geoip`   | [GeoIP](./geoip)             |
-| `geosite` | [Geosite](./geosite)         |
-| `rules`   | List of [Route Rule](./rule) |
+| Key        | Format                             |
+|------------|------------------------------------|
+| `geoip`    | [GeoIP](./geoip)                   |
+| `geosite`  | [Geosite](./geosite)               |
+| `ip_rules` | List of [IP Route Rule](./ip-rule) |
+| `rules`    | List of [Route Rule](./rule)       |
 
 #### final
 
