@@ -27,7 +27,12 @@ type slowOpenConn struct {
 
 func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if dialer.DisableTFO || N.NetworkName(network) != N.NetworkTCP {
-		return dialer.DialContext(ctx, network, destination.String(), nil)
+		switch N.NetworkName(network) {
+		case N.NetworkTCP, N.NetworkUDP:
+			return dialer.Dialer.DialContext(ctx, network, destination.String())
+		default:
+			return dialer.Dialer.DialContext(ctx, network, destination.AddrString())
+		}
 	}
 	return &slowOpenConn{
 		dialer:      dialer,
