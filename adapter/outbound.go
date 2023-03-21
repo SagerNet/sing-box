@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/sagernet/sing-tun"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -16,4 +17,9 @@ type Outbound interface {
 	N.Dialer
 	NewConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
+}
+
+type IPOutbound interface {
+	Outbound
+	NewIPConnection(ctx context.Context, conn tun.RouteContext, metadata InboundContext) (tun.DirectDestination, error)
 }

@@ -19,7 +19,10 @@ import (
 	"github.com/sagernet/sing/common/ranges"
 )
 
-var _ adapter.Inbound = (*Tun)(nil)
+var (
+	_ adapter.Inbound = (*Tun)(nil)
+	_ tun.Router      = (*Tun)(nil)
+)
 
 type Tun struct {
 	tag                    string
@@ -38,10 +41,6 @@ type Tun struct {
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
-	tunName := options.InterfaceName
-	if tunName == "" {
-		tunName = tun.CalculateInterfaceName("")
-	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
 		tunMTU = 9000
@@ -75,7 +74,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		logger:         logger,
 		inboundOptions: options.InboundOptions,
 		tunOptions: tun.Options{
-			Name:               tunName,
+			Name:               options.InterfaceName,
 			MTU:                tunMTU,
 			Inet4Address:       common.Map(options.Inet4Address, option.ListenPrefix.Build),
 			Inet6Address:       common.Map(options.Inet6Address, option.ListenPrefix.Build),
@@ -141,12 +140,17 @@ func (t *Tun) Tag() string {
 
 func (t *Tun) Start() error {
 	if C.IsAndroid && t.platformInterface == nil {
+		t.logger.Trace("building android rules")
 		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
+	}
+	if t.tunOptions.Name == "" {
+		t.tunOptions.Name = tun.CalculateInterfaceName("")
 	}
 	var (
 		tunInterface tun.Tun
 		err          error
 	)
+	t.logger.Trace("opening interface")
 	if t.platformInterface != nil {
 		tunInterface, err = t.platformInterface.OpenTun(t.tunOptions, t.platformOptions)
 	} else {
@@ -155,7 +159,12 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
+	t.logger.Trace("creating stack")
 	t.tunIf = tunInterface
+	var tunRouter tun.Router
+	if len(t.router.IPRules()) > 0 {
+		tunRouter = t
+	}
 	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
 		Context:                t.ctx,
 		Tun:                    tunInterface,
@@ -165,6 +174,7 @@ func (t *Tun) Start() error {
 		Inet6Address:           t.tunOptions.Inet6Address,
 		EndpointIndependentNat: t.endpointIndependentNat,
 		UDPTimeout:             t.udpTimeout,
+		Router:                 tunRouter,
 		Handler:                t,
 		Logger:                 t.logger,
 		UnderPlatform:          t.platformInterface != nil,
@@ -172,6 +182,7 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
+	t.logger.Trace("starting stack")
 	err = t.tunStack.Start()
 	if err != nil {
 		return err
@@ -185,6 +196,21 @@ func (t *Tun) Close() error {
 		t.tunStack,
 		t.tunIf,
 	)
+}
+
+func (t *Tun) RouteConnection(session tun.RouteSession, conn tun.RouteContext) tun.RouteAction {
+	ctx := log.ContextWithNewID(t.ctx)
+	var metadata adapter.InboundContext
+	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
+	metadata.IPVersion = session.IPVersion
+	metadata.Network = tun.NetworkName(session.Network)
+	metadata.Source = M.SocksaddrFromNetIP(session.Source)
+	metadata.Destination = M.SocksaddrFromNetIP(session.Destination)
+	metadata.InboundOptions = t.inboundOptions
+	t.logger.DebugContext(ctx, "incoming connection from ", metadata.Source)
+	t.logger.DebugContext(ctx, "incoming connection to ", metadata.Destination)
+	return t.router.RouteIPConnection(ctx, conn, metadata)
 }
 
 func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {

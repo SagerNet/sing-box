@@ -47,6 +47,9 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 			if rule.DisableCache() {
 				ctx = dns.ContextWithDisableCache(ctx, true)
 			}
+			if rewriteTTL := rule.RewriteTTL(); rewriteTTL != nil {
+				ctx = dns.ContextWithRewriteTTL(ctx, *rewriteTTL)
+			}
 			detour := rule.Outbound()
 			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if transport, loaded := r.transportMap[detour]; loaded {
