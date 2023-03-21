@@ -5,46 +5,48 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.DNSRule, error) {
+func NewIPRule(router adapter.Router, logger log.ContextLogger, options option.IPRule) (adapter.IPRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.DefaultOptions.Server == "" {
-			return nil, E.New("missing server field")
+		if common.IsEmpty(options.DefaultOptions.Action) {
+			return nil, E.New("missing action")
 		}
-		return NewDefaultDNSRule(router, logger, options.DefaultOptions)
+		return NewDefaultIPRule(router, logger, options.DefaultOptions)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.LogicalOptions.Server == "" {
-			return nil, E.New("missing server field")
+		if common.IsEmpty(options.DefaultOptions.Action) {
+			return nil, E.New("missing action")
 		}
-		return NewLogicalDNSRule(router, logger, options.LogicalOptions)
+		return NewLogicalIPRule(router, logger, options.LogicalOptions)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
 }
 
-var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
+var _ adapter.IPRule = (*DefaultIPRule)(nil)
 
-type DefaultDNSRule struct {
+type DefaultIPRule struct {
 	abstractDefaultRule
-	disableCache bool
+	action tun.ActionType
 }
 
-func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
-	rule := &DefaultDNSRule{
+func NewDefaultIPRule(router adapter.Router, logger log.ContextLogger, options option.DefaultIPRule) (*DefaultIPRule, error) {
+	rule := &DefaultIPRule{
 		abstractDefaultRule: abstractDefaultRule{
 			invert:   options.Invert,
-			outbound: options.Server,
+			outbound: options.Outbound,
 		},
-		disableCache: options.DisableCache,
+		action: tun.ActionType(options.Action),
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -61,23 +63,8 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 			return nil, E.New("invalid ip version: ", options.IPVersion)
 		}
 	}
-	if len(options.QueryType) > 0 {
-		item := NewQueryTypeItem(options.QueryType)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
 	if len(options.Network) > 0 {
 		item := NewNetworkItem(options.Network)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.AuthUser) > 0 {
-		item := NewAuthUserItem(options.AuthUser)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.Protocol) > 0 {
-		item := NewProtocolItem(options.Protocol)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -143,63 +130,28 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.destinationPortItems = append(rule.destinationPortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if len(options.ProcessName) > 0 {
-		item := NewProcessItem(options.ProcessName)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.ProcessPath) > 0 {
-		item := NewProcessPathItem(options.ProcessPath)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.PackageName) > 0 {
-		item := NewPackageNameItem(options.PackageName)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.User) > 0 {
-		item := NewUserItem(options.User)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.UserID) > 0 {
-		item := NewUserIDItem(options.UserID)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if len(options.Outbound) > 0 {
-		item := NewOutboundRule(options.Outbound)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if options.ClashMode != "" {
-		item := NewClashModeItem(router, options.ClashMode)
-		rule.items = append(rule.items, item)
-		rule.allItems = append(rule.allItems, item)
-	}
 	return rule, nil
 }
 
-func (r *DefaultDNSRule) DisableCache() bool {
-	return r.disableCache
+func (r *DefaultIPRule) Action() tun.ActionType {
+	return r.action
 }
 
-var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
+var _ adapter.IPRule = (*LogicalIPRule)(nil)
 
-type LogicalDNSRule struct {
+type LogicalIPRule struct {
 	abstractLogicalRule
-	disableCache bool
+	action tun.ActionType
 }
 
-func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
-	r := &LogicalDNSRule{
+func NewLogicalIPRule(router adapter.Router, logger log.ContextLogger, options option.LogicalIPRule) (*LogicalIPRule, error) {
+	r := &LogicalIPRule{
 		abstractLogicalRule: abstractLogicalRule{
 			rules:    make([]adapter.Rule, len(options.Rules)),
 			invert:   options.Invert,
-			outbound: options.Server,
+			outbound: options.Outbound,
 		},
-		disableCache: options.DisableCache,
+		action: tun.ActionType(options.Action),
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -210,7 +162,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDefaultDNSRule(router, logger, subRule)
+		rule, err := NewDefaultIPRule(router, logger, subRule)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
@@ -219,6 +171,6 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	return r, nil
 }
 
-func (r *LogicalDNSRule) DisableCache() bool {
-	return r.disableCache
+func (r *LogicalIPRule) Action() tun.ActionType {
+	return r.action
 }

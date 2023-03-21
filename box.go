@@ -238,6 +238,7 @@ func (s *Box) Start() error {
 
 func (s *Box) preStart() error {
 	for serviceName, service := range s.preServices {
+		s.logger.Trace("pre-starting ", serviceName)
 		err := adapter.PreStart(service)
 		if err != nil {
 			return E.Cause(err, "pre-start ", serviceName)
@@ -245,14 +246,15 @@ func (s *Box) preStart() error {
 	}
 	for i, out := range s.outbounds {
 		if starter, isStarter := out.(common.Starter); isStarter {
+			var tag string
+			if out.Tag() == "" {
+				tag = F.ToString(i)
+			} else {
+				tag = out.Tag()
+			}
+			s.logger.Trace("initializing outbound ", tag)
 			err := starter.Start()
 			if err != nil {
-				var tag string
-				if out.Tag() == "" {
-					tag = F.ToString(i)
-				} else {
-					tag = out.Tag()
-				}
 				return E.Cause(err, "initialize outbound/", out.Type(), "[", tag, "]")
 			}
 		}
@@ -266,27 +268,30 @@ func (s *Box) start() error {
 		return err
 	}
 	for serviceName, service := range s.preServices {
+		s.logger.Trace("starting ", serviceName)
 		err = service.Start()
 		if err != nil {
 			return E.Cause(err, "start ", serviceName)
 		}
 	}
 	for i, in := range s.inbounds {
+		var tag string
+		if in.Tag() == "" {
+			tag = F.ToString(i)
+		} else {
+			tag = in.Tag()
+		}
+		s.logger.Trace("initializing inbound ", tag)
 		err = in.Start()
 		if err != nil {
-			var tag string
-			if in.Tag() == "" {
-				tag = F.ToString(i)
-			} else {
-				tag = in.Tag()
-			}
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
 	for serviceName, service := range s.postServices {
+		s.logger.Trace("start ", serviceName)
 		err = service.Start()
 		if err != nil {
-			return E.Cause(err, "start ", serviceName)
+			return E.Cause(err, "starting ", serviceName)
 		}
 	}
 	return nil
@@ -302,29 +307,47 @@ func (s *Box) Close() error {
 	var errors error
 	for serviceName, service := range s.postServices {
 		errors = E.Append(errors, service.Close(), func(err error) error {
+			s.logger.Trace("closing ", serviceName)
 			return E.Cause(err, "close ", serviceName)
 		})
 	}
 	for i, in := range s.inbounds {
+		var tag string
+		if in.Tag() == "" {
+			tag = F.ToString(i)
+		} else {
+			tag = in.Tag()
+		}
+		s.logger.Trace("closing inbound ", tag)
 		errors = E.Append(errors, in.Close(), func(err error) error {
 			return E.Cause(err, "close inbound/", in.Type(), "[", i, "]")
 		})
 	}
 	for i, out := range s.outbounds {
+		var tag string
+		if out.Tag() == "" {
+			tag = F.ToString(i)
+		} else {
+			tag = out.Tag()
+		}
+		s.logger.Trace("closing outbound ", tag)
 		errors = E.Append(errors, common.Close(out), func(err error) error {
 			return E.Cause(err, "close inbound/", out.Type(), "[", i, "]")
 		})
 	}
+	s.logger.Trace("closing router")
 	if err := common.Close(s.router); err != nil {
 		errors = E.Append(errors, err, func(err error) error {
 			return E.Cause(err, "close router")
 		})
 	}
 	for serviceName, service := range s.preServices {
+		s.logger.Trace("closing ", serviceName)
 		errors = E.Append(errors, service.Close(), func(err error) error {
 			return E.Cause(err, "close ", serviceName)
 		})
 	}
+	s.logger.Trace("closing logger")
 	if err := common.Close(s.logFactory); err != nil {
 		errors = E.Append(errors, err, func(err error) error {
 			return E.Cause(err, "close log factory")
