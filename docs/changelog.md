@@ -1,3 +1,7 @@
+#### 1.2-rc1
+
+* Fix bugs and update dependencies
+
 #### 1.2-beta10
 
 * Add multiple configuration support **1**
@@ -5,9 +9,11 @@
 
 *1*:
 
-Now you can pass the parameter `--config` or `-c` multiple times, or use the new parameter `--config-directory` or `-C` to load all configuration files in a directory.
+Now you can pass the parameter `--config` or `-c` multiple times, or use the new parameter `--config-directory` or `-C`
+to load all configuration files in a directory.
 
-Loaded configuration files are sorted by name. If you want to control the merge order, add a numeric prefix to the file name.
+Loaded configuration files are sorted by name. If you want to control the merge order, add a numeric prefix to the file
+name.
 
 #### 1.1.7
 
