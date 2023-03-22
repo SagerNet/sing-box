@@ -11,7 +11,7 @@ description: 欢迎来到该 sing-box 项目的文档页。
 ## 授权
 
 ```
-Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
+Copyright (C) 2023 by nekohasekai <contact-sagernet@sekai.icu>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
