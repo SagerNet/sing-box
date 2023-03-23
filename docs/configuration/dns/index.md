@@ -10,7 +10,8 @@
     "final": "",
     "strategy": "",
     "disable_cache": false,
-    "disable_expire": false
+    "disable_expire": false,
+    "reverse_mapping": false
   }
 }
 
@@ -44,3 +45,9 @@ Disable dns cache.
 #### disable_expire
 
 Disable dns cache expire.
+
+#### reverse_mapping
+
+Stores a reverse mapping of IP addresses after responding to a DNS query in order to provide domain names when routing.
+
+Since this process relies on the act of resolving domain names by an application before making a request, it can be problematic in environments such as macOS, where DNS is proxied and cached by the system.
