@@ -10,9 +10,10 @@ import (
 )
 
 type DNSOptions struct {
-	Servers []DNSServerOptions `json:"servers,omitempty"`
-	Rules   []DNSRule          `json:"rules,omitempty"`
-	Final   string             `json:"final,omitempty"`
+	Servers        []DNSServerOptions `json:"servers,omitempty"`
+	Rules          []DNSRule          `json:"rules,omitempty"`
+	Final          string             `json:"final,omitempty"`
+	ReverseMapping bool               `json:"reverse_mapping,omitempty"`
 	DNSClientOptions
 }
 
