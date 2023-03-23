@@ -89,6 +89,7 @@ type Router struct {
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
 	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
+	dnsReverseMapping                  *DNSReverseMapping
 	interfaceFinder                    myInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
@@ -266,6 +267,10 @@ func NewRouter(
 	router.transports = transports
 	router.transportMap = transportMap
 	router.transportDomainStrategy = transportDomainStrategy
+
+	if dnsOptions.ReverseMapping {
+		router.dnsReverseMapping = NewDNSReverseMapping()
+	}
 
 	needInterfaceMonitor := platformInterface == nil && (options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
 		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
@@ -627,6 +632,15 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			buffer.Release()
 		}
 	}
+
+	if r.dnsReverseMapping != nil && metadata.Domain == "" {
+		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
+		if loaded {
+			metadata.Domain = domain
+			r.logger.DebugContext(ctx, "found reserve mapped domain: ", metadata.Domain)
+		}
+	}
+
 	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
