@@ -24,7 +24,7 @@ require (
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
-	github.com/sagernet/reality v0.0.0-20230312150606-35ea9af0e0b8
+	github.com/sagernet/reality v0.0.0-20230323230523-5fa25e693e7f
 	github.com/sagernet/sing v0.2.1-0.20230323071235-f8038854d286
 	github.com/sagernet/sing-dns v0.1.4
 	github.com/sagernet/sing-shadowsocks v0.2.0
