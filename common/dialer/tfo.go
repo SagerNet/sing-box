@@ -119,6 +119,10 @@ func (c *slowOpenConn) LazyHeadroom() bool {
 	return c.conn == nil
 }
 
+func (c *slowOpenConn) NeedHandshake() bool {
+	return c.conn == nil
+}
+
 func (c *slowOpenConn) ReadFrom(r io.Reader) (n int64, err error) {
 	if c.conn != nil {
 		return bufio.Copy(c.conn, r)
