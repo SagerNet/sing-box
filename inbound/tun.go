@@ -5,10 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/canceler"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -208,9 +206,6 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 
 func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
 	ctx = log.ContextWithNewID(ctx)
-	if tun.NeedTimeoutFromContext(ctx) {
-		ctx, conn = canceler.NewPacketConn(ctx, conn, time.Duration(t.udpTimeout)*time.Second)
-	}
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.InboundType = C.TypeTun
