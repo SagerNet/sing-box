@@ -40,4 +40,8 @@ No authentication required if empty.
 
     Only supported on Linux, Android, Windows, and macOS.
 
+!!! warning ""
+
+    To work on Android and iOS without privileges, use tun.platform.http_proxy instead.
+
 Automatically set system proxy configuration when start and clean up when stop.
