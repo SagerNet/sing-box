@@ -4,16 +4,38 @@ import (
 	"context"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing/common/cache"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 
 	mDNS "github.com/miekg/dns"
 )
+
+type DNSReverseMapping struct {
+	cache *cache.LruCache[netip.Addr, string]
+}
+
+func NewDNSReverseMapping() *DNSReverseMapping {
+	return &DNSReverseMapping{
+		cache: cache.New[netip.Addr, string](),
+	}
+}
+
+func (m *DNSReverseMapping) Save(address netip.Addr, domain string, ttl int) {
+	m.cache.StoreWithExpire(address, domain, time.Now().Add(time.Duration(ttl)*time.Second))
+}
+
+func (m *DNSReverseMapping) Query(address netip.Addr) (string, bool) {
+	domain, loaded := m.cache.Load(address)
+	return domain, loaded
+}
 
 func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, dns.DomainStrategy) {
 	metadata := adapter.ContextFrom(ctx)
@@ -68,6 +90,16 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	}
 	if len(message.Question) > 0 && response != nil {
 		LogDNSAnswers(r.dnsLogger, ctx, message.Question[0].Name, response.Answer)
+	}
+	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
+		for _, answer := range response.Answer {
+			switch record := answer.(type) {
+			case *mDNS.A:
+				r.dnsReverseMapping.Save(M.AddrFromIP(record.A), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
+			case *mDNS.AAAA:
+				r.dnsReverseMapping.Save(M.AddrFromIP(record.AAAA), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
+			}
+		}
 	}
 	return response, err
 }
