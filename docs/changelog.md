@@ -1,3 +1,24 @@
+#### 1.2.0
+
+* Fix bugs and update dependencies
+
+Important changes since 1.1:
+
+* Introducing our [new iOS client application](/installation/clients/sfi)
+* Introducing [UDP over TCP protocol version 2](/configuration/shared/udp-over-tcp)
+* Add [platform options](/configuration/inbound/tun#platform) for tun inbound
+* Add [ShadowTLS protocol v3](https://github.com/ihciah/shadow-tls/blob/master/docs/protocol-v3-en.md)
+* Add [VLESS server](/configuration/inbound/vless) and [vision](/configuration/outbound/vless#flow) support
+* Add [reality TLS](/configuration/shared/tls) support
+* Add [NTP service](/configuration/ntp)
+* Add [DHCP DNS server](/configuration/dns/server) support
+* Add SSH [host key validation](/configuration/outbound/ssh) support
+* Add [query_type](/configuration/dns/rule) DNS rule item
+* Add fallback support for v2ray transport
+* Add custom TLS server support for http based v2ray transports
+* Add health check support for http-based v2ray transports
+* Add multiple configuration support
+
 #### 1.2-rc1
 
 * Fix bugs and update dependencies
