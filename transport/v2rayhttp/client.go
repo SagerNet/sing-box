@@ -111,6 +111,7 @@ func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
 	case 0:
+		request.Host = c.serverAddr.AddrString()
 	case 1:
 		request.Host = c.host[0]
 	default:
@@ -144,6 +145,8 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
 	case 0:
+		// https://github.com/v2fly/v2ray-core/blob/master/transport/internet/http/config.go#L13
+		request.Host = "www.example.com"
 	case 1:
 		request.Host = c.host[0]
 	default:
