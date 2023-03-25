@@ -11,12 +11,6 @@ it doesn't fit, because it compromises performance or design clarity, or because
 If it bothers you that sing-box is missing feature X, please forgive us and investigate the features that sing-box does
 have. You might find that they compensate in interesting ways for the lack of X.
 
-#### Fake IP
-
-Fake IP (also called Fake DNS) is an invasive and imperfect DNS solution that breaks expected behavior, causes DNS leaks
-and makes many software unusable. It is recommended by some software that lacks DNS processing and caching, but sing-box
-does not need this.
-
 #### Naive outbound
 
 NaïveProxy's main function is chromium's network stack, and it makes no sense to implement only its transport protocol.

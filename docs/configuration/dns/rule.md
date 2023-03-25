@@ -84,14 +84,16 @@
           "direct"
         ],
         "server": "local",
-        "disable_cache": false
+        "disable_cache": false,
+        "rewrite_ttl": 100
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "server": "local",
-        "disable_cache": false
+        "disable_cache": false,
+        "rewrite_ttl": 100
       }
     ]
   }
@@ -243,6 +245,10 @@ Tag of the target dns server.
 #### disable_cache
 
 Disable cache and save cache in this query.
+
+#### rewrite_ttl
+
+Rewrite TTL in DNS responses.
 
 ### Logical Fields
 
