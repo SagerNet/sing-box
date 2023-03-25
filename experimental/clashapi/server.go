@@ -44,6 +44,7 @@ type Server struct {
 	urlTestHistory *urltest.HistoryStorage
 	mode           string
 	storeSelected  bool
+	storeFakeIP    bool
 	cacheFilePath  string
 	cacheFile      adapter.ClashCacheFile
 }
@@ -61,12 +62,13 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		trafficManager: trafficManager,
 		urlTestHistory: urltest.NewHistoryStorage(),
 		mode:           strings.ToLower(options.DefaultMode),
+		storeSelected:  options.StoreSelected,
+		storeFakeIP:    options.StoreFakeIP,
 	}
 	if server.mode == "" {
 		server.mode = "rule"
 	}
-	if options.StoreSelected {
-		server.storeSelected = true
+	if options.StoreSelected || options.StoreFakeIP {
 		cachePath := os.ExpandEnv(options.CacheFile)
 		if cachePath == "" {
 			cachePath = "cache.db"
@@ -99,7 +101,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Mount("/providers/rules", ruleProviderRouter())
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
-		r.Mount("/cache", cacheRouter())
+		r.Mount("/cache", cacheRouter(router))
 		r.Mount("/dns", dnsRouter(router))
 	})
 	if options.ExternalUI != "" {
@@ -154,6 +156,10 @@ func (s *Server) Mode() string {
 
 func (s *Server) StoreSelected() bool {
 	return s.storeSelected
+}
+
+func (s *Server) StoreFakeIP() bool {
+	return s.storeFakeIP
 }
 
 func (s *Server) CacheFile() adapter.ClashCacheFile {
