@@ -57,6 +57,10 @@ func (r *abstractDefaultRule) UpdateGeosite() error {
 }
 
 func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
+	if len(r.allItems) == 0 {
+		return true
+	}
+
 	for _, item := range r.items {
 		if !item.Match(metadata) {
 			return r.invert

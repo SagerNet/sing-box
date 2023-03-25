@@ -11,7 +11,8 @@
     "strategy": "",
     "disable_cache": false,
     "disable_expire": false,
-    "reverse_mapping": false
+    "reverse_mapping": false,
+    "fakeip": {}
   }
 }
 
@@ -23,6 +24,7 @@
 |----------|--------------------------------|
 | `server` | List of [DNS Server](./server) |
 | `rules`  | List of [DNS Rule](./rule)     |
+| `fakeip` | [FakeIP](./fakeip)             |
 
 #### final
 
@@ -50,4 +52,9 @@ Disable dns cache expire.
 
 Stores a reverse mapping of IP addresses after responding to a DNS query in order to provide domain names when routing.
 
-Since this process relies on the act of resolving domain names by an application before making a request, it can be problematic in environments such as macOS, where DNS is proxied and cached by the system.
+Since this process relies on the act of resolving domain names by an application before making a request, it can be
+problematic in environments such as macOS, where DNS is proxied and cached by the system.
+
+#### fakeip
+
+[FakeIP](./fakeip) settings.
