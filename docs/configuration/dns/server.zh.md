@@ -30,17 +30,18 @@ DNS 服务器的标签。
 
 DNS 服务器的地址。
 
-| 协议       | 格式                           |
-|----------|------------------------------|
-| `System` | `local`                      |
-| `TCP`    | `tcp://1.0.0.1`              |
-| `UDP`    | `8.8.8.8` `udp://8.8.4.4`    |
-| `TLS`    | `tls://dns.google`           |
-| `HTTPS`  | `https://1.1.1.1/dns-query`  |
-| `QUIC`   | `quic://dns.adguard.com`     |
-| `HTTP3`  | `h3://8.8.8.8/dns-query`     |
-| `RCode`  | `rcode://refused`            |
-| `DHCP`   | `dhcp://auto` 或 `dhcp://en0` |
+| 协议                 | 格式                           |
+|--------------------|------------------------------|
+| `System`           | `local`                      |
+| `TCP`              | `tcp://1.0.0.1`              |
+| `UDP`              | `8.8.8.8` `udp://8.8.4.4`    |
+| `TLS`              | `tls://dns.google`           |
+| `HTTPS`            | `https://1.1.1.1/dns-query`  |
+| `QUIC`             | `quic://dns.adguard.com`     |
+| `HTTP3`            | `h3://8.8.8.8/dns-query`     |
+| `RCode`            | `rcode://refused`            |
+| `DHCP`             | `dhcp://auto` 或 `dhcp://en0` |
+| [FakeIP](./fakeip) | `fakeip`                     |
 
 !!! warning ""
 

@@ -8,9 +8,22 @@ import (
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 func (r *Router) RouteIPConnection(ctx context.Context, conn tun.RouteContext, metadata adapter.InboundContext) tun.RouteAction {
+	if r.fakeIPStore != nil && r.fakeIPStore.Contains(metadata.Destination.Addr) {
+		domain, loaded := r.fakeIPStore.Lookup(metadata.Destination.Addr)
+		if !loaded {
+			r.logger.ErrorContext(ctx, "missing fakeip context")
+			return (*tun.ActionReturn)(nil)
+		}
+		metadata.Destination = M.Socksaddr{
+			Fqdn: domain,
+			Port: metadata.Destination.Port,
+		}
+		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
+	}
 	if r.dnsReverseMapping != nil && metadata.Domain == "" {
 		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
 		if loaded {
