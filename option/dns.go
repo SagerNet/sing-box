@@ -5,13 +5,8 @@ type DNSOptions struct {
 	Rules          []DNSRule          `json:"rules,omitempty"`
 	Final          string             `json:"final,omitempty"`
 	ReverseMapping bool               `json:"reverse_mapping,omitempty"`
+	FakeIP         *DNSFakeIPOptions  `json:"fakeip,omitempty"`
 	DNSClientOptions
-}
-
-type DNSClientOptions struct {
-	Strategy      DomainStrategy `json:"strategy,omitempty"`
-	DisableCache  bool           `json:"disable_cache,omitempty"`
-	DisableExpire bool           `json:"disable_expire,omitempty"`
 }
 
 type DNSServerOptions struct {
@@ -22,4 +17,16 @@ type DNSServerOptions struct {
 	AddressFallbackDelay Duration       `json:"address_fallback_delay,omitempty"`
 	Strategy             DomainStrategy `json:"strategy,omitempty"`
 	Detour               string         `json:"detour,omitempty"`
+}
+
+type DNSClientOptions struct {
+	Strategy      DomainStrategy `json:"strategy,omitempty"`
+	DisableCache  bool           `json:"disable_cache,omitempty"`
+	DisableExpire bool           `json:"disable_expire,omitempty"`
+}
+
+type DNSFakeIPOptions struct {
+	Enabled    bool          `json:"enabled,omitempty"`
+	Inet4Range *ListenPrefix `json:"inet4_range,omitempty"`
+	Inet6Range *ListenPrefix `json:"inet6_range,omitempty"`
 }
