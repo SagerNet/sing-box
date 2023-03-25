@@ -48,6 +48,7 @@ nav:
           - configuration/dns/index.md
           - DNS Server: configuration/dns/server.md
           - DNS Rule: configuration/dns/rule.md
+          - FakeIP: configuration/dns/fakeip.md
       - NTP:
           - configuration/ntp/index.md
       - Route:
@@ -103,6 +104,7 @@ nav:
           - URLTest: configuration/outbound/urltest.md
   - FAQ:
       - faq/index.md
+      - FakeIP: faq/fakeip.md
       - Known Issues: faq/known-issues.md
   - Examples:
       - examples/index.md
@@ -112,6 +114,7 @@ nav:
       - Shadowsocks: examples/shadowsocks.md
       - ShadowTLS: examples/shadowtls.md
       - Clash API: examples/clash-api.md
+      - WireGuard Direct: examples/wireguard-direct.md
   - Contributing:
       - contributing/index.md
       - Developing:
