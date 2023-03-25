@@ -30,17 +30,18 @@ The tag of the dns server.
 
 The address of the dns server.
 
-| Protocol | Format                        |
-|----------|-------------------------------|
-| `System` | `local`                       |
-| `TCP`    | `tcp://1.0.0.1`               |
-| `UDP`    | `8.8.8.8` `udp://8.8.4.4`     |
-| `TLS`    | `tls://dns.google`            |
-| `HTTPS`  | `https://1.1.1.1/dns-query`   |
-| `QUIC`   | `quic://dns.adguard.com`      |
-| `HTTP3`  | `h3://8.8.8.8/dns-query`      |
-| `RCode`  | `rcode://refused`             |
-| `DHCP`   | `dhcp://auto` or `dhcp://en0` |
+| Protocol            | Format                        |
+|---------------------|-------------------------------|
+| `System`            | `local`                       |
+| `TCP`               | `tcp://1.0.0.1`               |
+| `UDP`               | `8.8.8.8` `udp://8.8.4.4`     |
+| `TLS`               | `tls://dns.google`            |
+| `HTTPS`             | `https://1.1.1.1/dns-query`   |
+| `QUIC`              | `quic://dns.adguard.com`      |
+| `HTTP3`             | `h3://8.8.8.8/dns-query`      |
+| `RCode`             | `rcode://refused`             |
+| `DHCP`              | `dhcp://auto` or `dhcp://en0` |
+|  [FakeIP](./fakeip) | `fakeip`                      |
 
 !!! warning ""
 
