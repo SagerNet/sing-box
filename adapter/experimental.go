@@ -13,6 +13,7 @@ type ClashServer interface {
 	PreStarter
 	Mode() string
 	StoreSelected() bool
+	StoreFakeIP() bool
 	CacheFile() ClashCacheFile
 	HistoryStorage() *urltest.HistoryStorage
 	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule) (net.Conn, Tracker)
@@ -22,6 +23,7 @@ type ClashServer interface {
 type ClashCacheFile interface {
 	LoadSelected(group string) string
 	StoreSelected(group string, selected string) error
+	FakeIPStorage
 }
 
 type Tracker interface {
