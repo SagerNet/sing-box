@@ -6,6 +6,7 @@ type ClashAPIOptions struct {
 	Secret             string `json:"secret,omitempty"`
 	DefaultMode        string `json:"default_mode,omitempty"`
 	StoreSelected      bool   `json:"store_selected,omitempty"`
+	StoreFakeIP        bool   `json:"store_fakeip,omitempty"`
 	CacheFile          string `json:"cache_file,omitempty"`
 }
 
