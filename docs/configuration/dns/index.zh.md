@@ -11,7 +11,8 @@
     "strategy": "",
     "disable_cache": false,
     "disable_expire": false,
-    "reverse_mapping": false
+    "reverse_mapping": false,
+    "fakeip": {}
   }
 }
 
@@ -51,3 +52,7 @@
 在响应 DNS 查询后存储 IP 地址的反向映射以为路由目的提供域名。
 
 由于此过程依赖于应用程序在发出请求之前解析域名的行为，因此在 macOS 等 DNS 由系统代理和缓存的环境中可能会出现问题。
+
+#### fakeip
+
+[FakeIP](./fakeip) 设置。

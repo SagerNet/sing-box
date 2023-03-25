@@ -24,6 +24,7 @@ import (
 	"github.com/sagernet/sing-box/ntp"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/transport/fakeip"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
@@ -66,6 +67,7 @@ type Router struct {
 	transportMap                       map[string]dns.Transport
 	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
 	dnsReverseMapping                  *DNSReverseMapping
+	fakeIPStore                        adapter.FakeIPStore
 	interfaceFinder                    myInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
@@ -178,12 +180,8 @@ func NewRouter(
 					} else {
 						continue
 					}
-				} else if notIpAddress != nil {
-					switch serverURL.Scheme {
-					case "rcode", "dhcp":
-					default:
-						return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
-					}
+				} else if notIpAddress != nil && strings.Contains(server.Address, ".") {
+					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
 			transport, err := dns.CreateTransport(tag, ctx, logFactory.NewLogger(F.ToString("dns/transport[", tag, "]")), detour, server.Address)
@@ -237,6 +235,18 @@ func NewRouter(
 
 	if dnsOptions.ReverseMapping {
 		router.dnsReverseMapping = NewDNSReverseMapping()
+	}
+
+	if fakeIPOptions := dnsOptions.FakeIP; fakeIPOptions != nil && dnsOptions.FakeIP.Enabled {
+		var inet4Range netip.Prefix
+		var inet6Range netip.Prefix
+		if fakeIPOptions.Inet4Range != nil {
+			inet4Range = fakeIPOptions.Inet4Range.Build()
+		}
+		if fakeIPOptions.Inet6Range != nil {
+			inet6Range = fakeIPOptions.Inet6Range.Build()
+		}
+		router.fakeIPStore = fakeip.NewStore(router, inet4Range, inet6Range)
 	}
 
 	usePlatformDefaultInterfaceMonitor := platformInterface != nil && platformInterface.UsePlatformDefaultInterfaceMonitor()
@@ -452,6 +462,12 @@ func (r *Router) Start() error {
 			return E.Cause(err, "initialize DNS rule[", i, "]")
 		}
 	}
+	if r.fakeIPStore != nil {
+		err := r.fakeIPStore.Start()
+		if err != nil {
+			return err
+		}
+	}
 	for i, transport := range r.transports {
 		err := transport.Start()
 		if err != nil {
@@ -517,6 +533,12 @@ func (r *Router) Close() error {
 			return E.Cause(err, "close time service")
 		})
 	}
+	if r.fakeIPStore != nil {
+		r.logger.Trace("closing fakeip store")
+		err = E.Append(err, r.fakeIPStore.Close(), func(err error) error {
+			return E.Cause(err, "close fakeip store")
+		})
+	}
 	return err
 }
 
@@ -531,6 +553,10 @@ func (r *Router) DefaultOutbound(network string) adapter.Outbound {
 	} else {
 		return r.defaultOutboundForPacketConnection
 	}
+}
+
+func (r *Router) FakeIPStore() adapter.FakeIPStore {
+	return r.fakeIPStore
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -585,6 +611,19 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.Destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
 		return r.RoutePacketConnection(ctx, uot.NewConn(conn, uot.Request{}), metadata)
 	}
+
+	if r.fakeIPStore != nil && r.fakeIPStore.Contains(metadata.Destination.Addr) {
+		domain, loaded := r.fakeIPStore.Lookup(metadata.Destination.Addr)
+		if !loaded {
+			return E.New("missing fakeip context")
+		}
+		metadata.Destination = M.Socksaddr{
+			Fqdn: domain,
+			Port: metadata.Destination.Port,
+		}
+		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
+	}
+
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
@@ -675,6 +714,21 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		return nil
 	}
 	metadata.Network = N.NetworkUDP
+
+	var originAddress M.Socksaddr
+	if r.fakeIPStore != nil && r.fakeIPStore.Contains(metadata.Destination.Addr) {
+		domain, loaded := r.fakeIPStore.Lookup(metadata.Destination.Addr)
+		if !loaded {
+			return E.New("missing fakeip context")
+		}
+		originAddress = metadata.Destination
+		metadata.Destination = M.Socksaddr{
+			Fqdn: domain,
+			Port: metadata.Destination.Port,
+		}
+		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
+	}
+
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
@@ -732,6 +786,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
 			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
+	}
+	if originAddress.IsValid() {
+		conn = fakeip.NewNATPacketConn(conn, originAddress, metadata.Destination)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
