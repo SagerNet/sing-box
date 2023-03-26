@@ -14,6 +14,7 @@ go install -v -trimpath -ldflags "-s -w -buildid=" -tags with_quic,with_wireguar
 popd
 
 sudo cp $(go env GOPATH)/bin/sing-box /usr/local/bin/
+sudo mkdir -p /var/lib/sing-box
 sudo mkdir -p /usr/local/etc/sing-box
 sudo cp $PROJECT/release/config/config.json /usr/local/etc/sing-box/config.json
 sudo cp $DIR/sing-box.service /etc/systemd/system
