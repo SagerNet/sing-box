@@ -1,3 +1,9 @@
+#### 1.2.1
+
+* Fix missing default host in v2ray http transport`s request
+* Flush DNS cache for macOS when tun start/close
+* Fix tun's DNS hijacking compatibility with systemd-resolved
+
 #### 1.2.0
 
 * Fix bugs and update dependencies

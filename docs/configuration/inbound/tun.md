@@ -107,8 +107,7 @@ Enforce strict routing rules when `auto_route` is enabled:
 * Let unsupported network unreachable
 * Route all connections to tun
 
-It prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will
-not be accessible by others.
+It prevents address leaks and makes DNS hijacking work on Android, but your device will not be accessible by others.
 
 *In Windows*:
 
