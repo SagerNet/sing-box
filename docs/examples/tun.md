@@ -23,7 +23,10 @@
         "disable_cache": true
       },
       {
-        "domain": "mydomain.com",
+        "outbound": "any",
+        "server": "local"
+      },
+      {
         "geosite": "cn",
         "server": "local"
       }
