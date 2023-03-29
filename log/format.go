@@ -36,15 +36,16 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 	if tag != "" {
 		message = tag + ": " + message
 	}
-	var id uint32
+	var id ID
 	var hasId bool
 	if ctx != nil {
 		id, hasId = IDFromContext(ctx)
 	}
 	if hasId {
+		activeDuration := formatDuration(time.Since(id.CreatedAt))
 		if !f.DisableColors {
 			var color aurora.Color
-			color = aurora.Color(uint8(id))
+			color = aurora.Color(uint8(id.ID))
 			color %= 215
 			row := uint(color / 36)
 			column := uint(color % 36)
@@ -62,9 +63,9 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 			color += 16
 			color = color << 16
 			color |= 1 << 14
-			message = F.ToString("[", aurora.Colorize(id, color).String(), "] ", message)
+			message = F.ToString("[", aurora.Colorize(id.ID, color).String(), " ", activeDuration, "] ", message)
 		} else {
-			message = F.ToString("[", id, "] ", message)
+			message = F.ToString("[", id.ID, " ", activeDuration, "] ", message)
 		}
 	}
 	switch {
@@ -99,15 +100,16 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 		message = tag + ": " + message
 	}
 	messageSimple := message
-	var id uint32
+	var id ID
 	var hasId bool
 	if ctx != nil {
 		id, hasId = IDFromContext(ctx)
 	}
 	if hasId {
+		activeDuration := formatDuration(time.Since(id.CreatedAt))
 		if !f.DisableColors {
 			var color aurora.Color
-			color = aurora.Color(uint8(id))
+			color = aurora.Color(uint8(id.ID))
 			color %= 215
 			row := uint(color / 36)
 			column := uint(color % 36)
@@ -125,11 +127,11 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 			color += 16
 			color = color << 16
 			color |= 1 << 14
-			message = F.ToString("[", aurora.Colorize(id, color).String(), "] ", message)
+			message = F.ToString("[", aurora.Colorize(id.ID, color).String(), " ", activeDuration, "] ", message)
 		} else {
-			message = F.ToString("[", id, "] ", message)
+			message = F.ToString("[", id.ID, " ", activeDuration, "] ", message)
 		}
-		messageSimple = F.ToString("[", id, "] ", messageSimple)
+		messageSimple = F.ToString("[", id.ID, " ", activeDuration, "] ", messageSimple)
 
 	}
 	switch {
@@ -152,4 +154,14 @@ func xd(value int, x int) string {
 		message = "0" + message
 	}
 	return message
+}
+
+func formatDuration(duration time.Duration) string {
+	if duration < time.Second {
+		return F.ToString(duration.Milliseconds(), "ms")
+	} else if duration < time.Minute {
+		return F.ToString(int64(duration.Seconds()), ".", int64(duration.Seconds()*100)%100, "s")
+	} else {
+		return F.ToString(int64(duration.Minutes()), "m", int64(duration.Seconds())%60, "s")
+	}
 }
