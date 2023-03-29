@@ -7,9 +7,9 @@
 #### 安装
 
 ```shell
-git clone https://github.com/SagerNet/sing-box
+git clone -b main https://github.com/SagerNet/sing-box
 cd sing-box
-./release/local/install_go.sh # 如果已安装 go1.19 则跳过
+./release/local/install_go.sh # 如果已安装 golang 则跳过
 ./release/local/install.sh
 ```
 
