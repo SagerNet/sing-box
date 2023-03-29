@@ -99,6 +99,9 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 }
 
 func (h *ShadowsocksR) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	switch network {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
@@ -131,6 +134,9 @@ func (h *ShadowsocksR) DialContext(ctx context.Context, network string, destinat
 }
 
 func (h *ShadowsocksR) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	outConn, err := h.dialer.DialContext(ctx, N.NetworkUDP, h.serverAddr)
 	if err != nil {
