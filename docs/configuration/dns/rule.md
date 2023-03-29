@@ -232,6 +232,8 @@ Invert match result.
 
 Match outbound.
 
+`any` can be used as a value to match any outbound.
+
 #### server
 
 ==Required==
@@ -255,17 +257,3 @@ Disable cache and save cache in this query.
 #### rules
 
 Included default rules.
-
-#### invert
-
-Invert match result.
-
-#### server
-
-==Required==
-
-Tag of the target dns server.
-
-#### disable_cache
-
-Disable cache and save cache in this query.
