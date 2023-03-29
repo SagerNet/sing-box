@@ -136,6 +136,9 @@ var _ N.Dialer = (*shadowsocksDialer)(nil)
 type shadowsocksDialer Shadowsocks
 
 func (h *shadowsocksDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		var outConn net.Conn
@@ -161,6 +164,9 @@ func (h *shadowsocksDialer) DialContext(ctx context.Context, network string, des
 }
 
 func (h *shadowsocksDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = h.tag
+	metadata.Destination = destination
 	outConn, err := h.dialer.DialContext(ctx, N.NetworkUDP, h.serverAddr)
 	if err != nil {
 		return nil, err
