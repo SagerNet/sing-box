@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -92,4 +93,9 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		}
 	}()
 	return conn, nil
+}
+
+func (c *Client) Close() error {
+	v2rayhttp.CloseIdleConnections(c.transport)
+	return nil
 }
