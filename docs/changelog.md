@@ -1,3 +1,12 @@
+#### 1.2.2
+
+* Accept `any` outbound in dns rule **1**
+* Fix bugs and update dependencies
+
+*1*:
+
+Now you can use the `any` outbound rule to match server address queries instead of filling in all server domains to `domain` rule.
+
 #### 1.2.1
 
 * Fix missing default host in v2ray http transport`s request
