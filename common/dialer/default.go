@@ -154,9 +154,9 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 	switch N.NetworkName(network) {
 	case N.NetworkUDP:
 		if !address.IsIPv6() {
-			return d.udpDialer4.DialContext(ctx, network, address.String())
+			return trackConn(d.udpDialer4.DialContext(ctx, network, address.String()))
 		} else {
-			return d.udpDialer6.DialContext(ctx, network, address.String())
+			return trackConn(d.udpDialer6.DialContext(ctx, network, address.String()))
 		}
 	}
 	if !address.IsIPv6() {
