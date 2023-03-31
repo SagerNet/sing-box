@@ -57,13 +57,22 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		}
 		copy(reserved[:], options.Reserved)
 	}
-	peerAddr := options.ServerOptions.Build()
-	outbound.bind = wireguard.NewClientBind(ctx, dialer.New(router, options.DialerOptions), peerAddr, reserved)
+	var isConnect bool
+	var connectAddr M.Socksaddr
+	if len(options.Peers) < 2 {
+		isConnect = true
+		if len(options.Peers) == 1 {
+			connectAddr = options.Peers[0].ServerOptions.Build()
+		} else {
+			connectAddr = options.ServerOptions.Build()
+		}
+	}
+	outbound.bind = wireguard.NewClientBind(ctx, dialer.New(router, options.DialerOptions), isConnect, connectAddr, reserved)
 	localPrefixes := common.Map(options.LocalAddress, option.ListenPrefix.Build)
 	if len(localPrefixes) == 0 {
 		return nil, E.New("missing local address")
 	}
-	var privateKey, peerPublicKey, preSharedKey string
+	var privateKey string
 	{
 		bytes, err := base64.StdEncoding.DecodeString(options.PrivateKey)
 		if err != nil {
@@ -71,39 +80,79 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		}
 		privateKey = hex.EncodeToString(bytes)
 	}
-	{
-		bytes, err := base64.StdEncoding.DecodeString(options.PeerPublicKey)
-		if err != nil {
-			return nil, E.Cause(err, "decode peer public key")
-		}
-		peerPublicKey = hex.EncodeToString(bytes)
-	}
-	if options.PreSharedKey != "" {
-		bytes, err := base64.StdEncoding.DecodeString(options.PreSharedKey)
-		if err != nil {
-			return nil, E.Cause(err, "decode pre shared key")
-		}
-		preSharedKey = hex.EncodeToString(bytes)
-	}
 	ipcConf := "private_key=" + privateKey
-	ipcConf += "\npublic_key=" + peerPublicKey
-	ipcConf += "\nendpoint=" + peerAddr.String()
-	if preSharedKey != "" {
-		ipcConf += "\npreshared_key=" + preSharedKey
-	}
-	var has4, has6 bool
-	for _, address := range localPrefixes {
-		if address.Addr().Is4() {
-			has4 = true
-		} else {
-			has6 = true
+	if len(options.Peers) > 0 {
+		for i, peer := range options.Peers {
+			var peerPublicKey, preSharedKey string
+			{
+				bytes, err := base64.StdEncoding.DecodeString(peer.PublicKey)
+				if err != nil {
+					return nil, E.Cause(err, "decode public key for peer ", i)
+				}
+				peerPublicKey = hex.EncodeToString(bytes)
+			}
+			if peer.PreSharedKey != "" {
+				bytes, err := base64.StdEncoding.DecodeString(peer.PreSharedKey)
+				if err != nil {
+					return nil, E.Cause(err, "decode pre shared key for peer ", i)
+				}
+				preSharedKey = hex.EncodeToString(bytes)
+			}
+			destination := peer.ServerOptions.Build()
+			ipcConf += "\npublic_key=" + peerPublicKey
+			ipcConf += "\nendpoint=" + destination.String()
+			if preSharedKey != "" {
+				ipcConf += "\npreshared_key=" + preSharedKey
+			}
+			if len(peer.AllowedIPs) == 0 {
+				return nil, E.New("missing allowed_ips for peer ", i)
+			}
+			for _, allowedIP := range peer.AllowedIPs {
+				ipcConf += "\nallowed_ip=" + allowedIP
+			}
+			if len(peer.Reserved) > 0 {
+				if len(peer.Reserved) != 3 {
+					return nil, E.New("invalid reserved value for peer ", i, ", required 3 bytes, got ", len(peer.Reserved))
+				}
+				copy(reserved[:], options.Reserved)
+				outbound.bind.SetReservedForEndpoint(destination, reserved)
+			}
 		}
-	}
-	if has4 {
-		ipcConf += "\nallowed_ip=0.0.0.0/0"
-	}
-	if has6 {
-		ipcConf += "\nallowed_ip=::/0"
+	} else {
+		var peerPublicKey, preSharedKey string
+		{
+			bytes, err := base64.StdEncoding.DecodeString(options.PeerPublicKey)
+			if err != nil {
+				return nil, E.Cause(err, "decode peer public key")
+			}
+			peerPublicKey = hex.EncodeToString(bytes)
+		}
+		if options.PreSharedKey != "" {
+			bytes, err := base64.StdEncoding.DecodeString(options.PreSharedKey)
+			if err != nil {
+				return nil, E.Cause(err, "decode pre shared key")
+			}
+			preSharedKey = hex.EncodeToString(bytes)
+		}
+		ipcConf += "\npublic_key=" + peerPublicKey
+		ipcConf += "\nendpoint=" + options.ServerOptions.Build().String()
+		if preSharedKey != "" {
+			ipcConf += "\npreshared_key=" + preSharedKey
+		}
+		var has4, has6 bool
+		for _, address := range localPrefixes {
+			if address.Addr().Is4() {
+				has4 = true
+			} else {
+				has6 = true
+			}
+		}
+		if has4 {
+			ipcConf += "\nallowed_ip=0.0.0.0/0"
+		}
+		if has6 {
+			ipcConf += "\nallowed_ip=::/0"
+		}
 	}
 	mtu := options.MTU
 	if mtu == 0 {
