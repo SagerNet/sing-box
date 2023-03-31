@@ -17,7 +17,7 @@ require (
 	github.com/insomniacslk/dhcp v0.0.0-20230307103557-e252950ab961
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.1.0
-	github.com/miekg/dns v1.1.52
+	github.com/miekg/dns v1.1.53
 	github.com/ooni/go-libtor v1.1.7
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.7.0
@@ -26,7 +26,7 @@ require (
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230323230523-5fa25e693e7f
 	github.com/sagernet/sing v0.2.1
-	github.com/sagernet/sing-dns v0.1.4
+	github.com/sagernet/sing-dns v0.1.5-0.20230331013337-06044a57b1da
 	github.com/sagernet/sing-shadowsocks v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.0
 	github.com/sagernet/sing-tun v0.1.4-0.20230326080954-8848c0e4cbab
