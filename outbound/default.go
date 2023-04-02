@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"net"
+	"net/netip"
 	"os"
 	"runtime"
 	"time"
@@ -56,14 +57,20 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.PacketConn
+	var destinationAddress netip.Addr
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
 	} else {
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}
 	if err != nil {
 		return N.HandshakeFailure(conn, err)
+	}
+	if destinationAddress.IsValid() {
+		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
+			natConn.UpdateDestination(destinationAddress)
+		}
 	}
 	switch metadata.Protocol {
 	case C.ProtocolSTUN:

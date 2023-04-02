@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -68,11 +69,11 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	conn, err := N.ListenSerial(ctx, d.dialer, destination, addresses)
+	conn, destinationAddress, err := N.ListenSerial(ctx, d.dialer, destination, addresses)
 	if err != nil {
 		return nil, err
 	}
-	return NewResolvePacketConn(ctx, d.router, d.strategy, conn), nil
+	return bufio.NewNATPacketConn(bufio.NewPacketConn(conn), destination, M.SocksaddrFrom(destinationAddress, destination.Port)), nil
 }
 
 func (d *ResolveDialer) Upstream() any {
