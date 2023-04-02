@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-box/transport/vless"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -105,11 +104,14 @@ func (h *VLESS) DialContext(ctx context.Context, network string, destination M.S
 		if h.xudp {
 			return h.client.DialEarlyXUDPPacketConn(conn, destination)
 		} else if h.packetAddr {
+			if destination.IsFqdn() {
+				return nil, E.New("packetaddr: domain destination is not supported")
+			}
 			packetConn, err := h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress})
 			if err != nil {
 				return nil, err
 			}
-			return &bufio.BindPacketConn{PacketConn: dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(packetConn, destination)), Addr: destination}, nil
+			return &bufio.BindPacketConn{PacketConn: packetaddr.NewConn(packetConn, destination), Addr: destination}, nil
 		} else {
 			return h.client.DialEarlyPacketConn(conn, destination)
 		}
@@ -140,11 +142,14 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	if h.xudp {
 		return h.client.DialEarlyXUDPPacketConn(conn, destination)
 	} else if h.packetAddr {
+		if destination.IsFqdn() {
+			return nil, E.New("packetaddr: domain destination is not supported")
+		}
 		conn, err := h.client.DialEarlyPacketConn(conn, M.Socksaddr{Fqdn: packetaddr.SeqPacketMagicAddress})
 		if err != nil {
 			return nil, err
 		}
-		return dialer.NewResolvePacketConn(ctx, h.router, dns.DomainStrategyAsIS, packetaddr.NewConn(conn, destination)), nil
+		return packetaddr.NewConn(conn, destination), nil
 	} else {
 		return h.client.DialEarlyPacketConn(conn, destination)
 	}
