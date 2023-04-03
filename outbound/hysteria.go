@@ -251,17 +251,44 @@ func (h *Hysteria) Close() error {
 	defer h.udpAccess.Unlock()
 	if h.conn != nil {
 		h.conn.CloseWithError(0, "")
+		h.conn = nil
 		h.rawConn.Close()
+		h.rawConn = nil
 	}
 	for _, session := range h.udpSessions {
 		close(session)
 	}
 	h.udpSessions = make(map[uint32]chan *hysteria.UDPMessage)
+	h.udpDefragger = hysteria.Defragger{}
 	return nil
 }
 
-func (h *Hysteria) open(ctx context.Context) (quic.Connection, quic.Stream, error) {
+func (h *Hysteria) openWithReconnect(ctx context.Context) (quic.Connection, quic.Stream, error) {
 	conn, err := h.offer(ctx)
+	if err != nil {
+		if nErr, ok := err.(net.Error); ok && nErr.Temporary() {
+			// Temporary error, just return
+			return nil, nil, err
+		}
+		return h.reconnect(ctx)
+	}
+	stream, err := conn.OpenStream()
+	if err != nil {
+		if nErr, ok := err.(net.Error); ok && nErr.Temporary() {
+			// Temporary error, just return
+			return nil, nil, err
+		}
+		return h.reconnect(ctx)
+	}
+	return conn, &hysteria.StreamWrapper{Stream: stream}, nil
+}
+
+func (h *Hysteria) reconnect(ctx context.Context) (quic.Connection, quic.Stream, error) {
+	err := h.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+	conn, err := h.offerNew(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -276,7 +303,7 @@ func (h *Hysteria) DialContext(ctx context.Context, network string, destination 
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		_, stream, err := h.open(ctx)
+		_, stream, err := h.openWithReconnect(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -302,7 +329,7 @@ func (h *Hysteria) DialContext(ctx context.Context, network string, destination 
 
 func (h *Hysteria) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-	conn, stream, err := h.open(ctx)
+	conn, stream, err := h.openWithReconnect(ctx)
 	if err != nil {
 		return nil, err
 	}
