@@ -15,6 +15,7 @@ type Factory interface {
 	SetLevel(level Level)
 	Logger() ContextLogger
 	NewLogger(tag string) ContextLogger
+	Close() error
 }
 
 type ObservableFactory interface {

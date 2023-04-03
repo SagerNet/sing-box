@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/inbound"
@@ -31,18 +30,25 @@ type Box struct {
 	outbounds    []adapter.Outbound
 	logFactory   log.Factory
 	logger       log.ContextLogger
-	logFile      *os.File
 	preServices  map[string]adapter.Service
 	postServices map[string]adapter.Service
 	done         chan struct{}
 }
 
-func New(ctx context.Context, options option.Options, platformInterface platform.Interface) (*Box, error) {
-	createdAt := time.Now()
+type Options struct {
+	option.Options
+	Context           context.Context
+	PlatformInterface platform.Interface
+}
 
+func New(options Options) (*Box, error) {
+	ctx := options.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	createdAt := time.Now()
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
-
 	var needClashAPI bool
 	var needV2RayAPI bool
 	if experimentalOptions.ClashAPI != nil && experimentalOptions.ClashAPI.ExternalController != "" {
@@ -51,60 +57,20 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
 		needV2RayAPI = true
 	}
-
-	logOptions := common.PtrValueOrDefault(options.Log)
-
-	var logFactory log.Factory
-	var observableLogFactory log.ObservableFactory
-	var logFile *os.File
-	var logWriter io.Writer
-	if logOptions.Disabled {
-		observableLogFactory = log.NewNOPFactory()
-		logFactory = observableLogFactory
-	} else {
-		switch logOptions.Output {
-		case "":
-			if platformInterface != nil {
-				logWriter = io.Discard
-			} else {
-				logWriter = os.Stdout
-			}
-		case "stderr":
-			logWriter = os.Stderr
-		case "stdout":
-			logWriter = os.Stdout
-		default:
-			var err error
-			logFile, err = os.OpenFile(C.BasePath(logOptions.Output), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-			if err != nil {
-				return nil, err
-			}
-			logWriter = logFile
-		}
-		logFormatter := log.Formatter{
-			BaseTime:         createdAt,
-			DisableColors:    logOptions.DisableColor || logFile != nil,
-			DisableTimestamp: !logOptions.Timestamp && logFile != nil,
-			FullTimestamp:    logOptions.Timestamp,
-			TimestampFormat:  "-0700 2006-01-02 15:04:05",
-		}
-		if needClashAPI {
-			observableLogFactory = log.NewObservableFactory(logFormatter, logWriter, platformInterface)
-			logFactory = observableLogFactory
-		} else {
-			logFactory = log.NewFactory(logFormatter, logWriter, platformInterface)
-		}
-		if logOptions.Level != "" {
-			logLevel, err := log.ParseLevel(logOptions.Level)
-			if err != nil {
-				return nil, E.Cause(err, "parse log level")
-			}
-			logFactory.SetLevel(logLevel)
-		} else {
-			logFactory.SetLevel(log.LevelTrace)
-		}
+	var defaultLogWriter io.Writer
+	if options.PlatformInterface != nil {
+		defaultLogWriter = io.Discard
 	}
-
+	logFactory, err := log.New(log.Options{
+		Options:        common.PtrValueOrDefault(options.Log),
+		Observable:     needClashAPI,
+		DefaultWriter:  defaultLogWriter,
+		BaseTime:       createdAt,
+		PlatformWriter: options.PlatformInterface,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "create log factory")
+	}
 	router, err := route.NewRouter(
 		ctx,
 		logFactory,
@@ -112,7 +78,7 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 		common.PtrValueOrDefault(options.DNS),
 		common.PtrValueOrDefault(options.NTP),
 		options.Inbounds,
-		platformInterface,
+		options.PlatformInterface,
 	)
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
@@ -132,7 +98,7 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 			router,
 			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
 			inboundOptions,
-			platformInterface,
+			options.PlatformInterface,
 		)
 		if err != nil {
 			return nil, E.Cause(err, "parse inbound[", i, "]")
@@ -169,7 +135,7 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 	preServices := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needClashAPI {
-		clashServer, err := experimental.NewClashServer(router, observableLogFactory, common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		clashServer, err := experimental.NewClashServer(router, logFactory.(log.ObservableFactory), common.PtrValueOrDefault(options.Experimental.ClashAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}
@@ -191,7 +157,6 @@ func New(ctx context.Context, options option.Options, platformInterface platform
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
-		logFile:      logFile,
 		preServices:  preServices,
 		postServices: postServices,
 		done:         make(chan struct{}),
@@ -328,11 +293,6 @@ func (s *Box) Close() error {
 	if err := common.Close(s.logFactory); err != nil {
 		errors = E.Append(errors, err, func(err error) error {
 			return E.Cause(err, "close log factory")
-		})
-	}
-	if s.logFile != nil {
-		errors = E.Append(errors, s.logFile.Close(), func(err error) error {
-			return E.Cause(err, "close log file")
 		})
 	}
 	return errors

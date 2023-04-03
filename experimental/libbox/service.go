@@ -30,7 +30,11 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	instance, err := box.New(ctx, options, &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()})
+	instance, err := box.New(box.Options{
+		Context:           ctx,
+		Options:           options,
+		PlatformInterface: &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()},
+	})
 	if err != nil {
 		cancel()
 		return nil, E.Cause(err, "create service")

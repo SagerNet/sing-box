@@ -26,7 +26,10 @@ func CheckConfig(configContent string) error {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	instance, err := box.New(ctx, options, nil)
+	instance, err := box.New(box.Options{
+		Context: ctx,
+		Options: options,
+	})
 	if err == nil {
 		instance.Close()
 	}

@@ -49,6 +49,10 @@ func (f *simpleFactory) NewLogger(tag string) ContextLogger {
 	return &simpleLogger{f, tag}
 }
 
+func (f *simpleFactory) Close() error {
+	return nil
+}
+
 var _ ContextLogger = (*simpleLogger)(nil)
 
 type simpleLogger struct {
