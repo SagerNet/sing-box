@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/sagernet/sing-box"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -27,7 +25,7 @@ func createPreStartedClient() (*box.Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	instance, err := box.New(context.Background(), options, nil)
+	instance, err := box.New(box.Options{Options: options})
 	if err != nil {
 		return nil, E.Cause(err, "create service")
 	}

@@ -127,7 +127,10 @@ func create() (*box.Box, context.CancelFunc, error) {
 		options.Log.DisableColor = true
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	instance, err := box.New(ctx, options, nil)
+	instance, err := box.New(box.Options{
+		Context: ctx,
+		Options: options,
+	})
 	if err != nil {
 		cancel()
 		return nil, nil, E.Cause(err, "create service")
