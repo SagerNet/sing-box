@@ -2,7 +2,6 @@ package v2raygrpclite
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common/bufio/deadline"
+	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -32,56 +32,56 @@ type Client struct {
 	ctx        context.Context
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
-	transport  http.RoundTripper
+	transport  *http2.Transport
 	options    option.V2RayGRPCOptions
 	url        *url.URL
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
-	var transport http.RoundTripper
-	if tlsConfig == nil {
-		transport = &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-		}
-	} else {
-		tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
-		transport = &http2.Transport{
-			ReadIdleTimeout: time.Duration(options.IdleTimeout),
-			PingTimeout:     time.Duration(options.PingTimeout),
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
-				conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-				if err != nil {
-					return nil, err
-				}
-				return tls.ClientHandshake(ctx, conn, tlsConfig)
-			},
-		}
-	}
-	return &Client{
+	client := &Client{
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
 		options:    options,
-		transport:  transport,
+		transport: &http2.Transport{
+			ReadIdleTimeout:    time.Duration(options.IdleTimeout),
+			PingTimeout:        time.Duration(options.PingTimeout),
+			DisableCompression: true,
+		},
 		url: &url.URL{
 			Scheme: "https",
 			Host:   serverAddr.String(),
-			Path:   fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
+			Path:   F.ToString("/", url.QueryEscape(options.ServiceName), "/Tun"),
 		},
 	}
+
+	if tlsConfig == nil {
+		client.transport.DialTLSContext = func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+		}
+	} else {
+		if len(tlsConfig.NextProtos()) == 0 {
+			tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
+		}
+		client.transport.DialTLSContext = func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
+			conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			if err != nil {
+				return nil, err
+			}
+			return tls.ClientHandshake(ctx, conn, tlsConfig)
+		}
+	}
+
+	return client
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
 	request := &http.Request{
-		Method:     http.MethodPost,
-		Body:       pipeInReader,
-		URL:        c.url,
-		Proto:      "HTTP/2",
-		ProtoMajor: 2,
-		Header:     defaultClientHeader,
+		Method: http.MethodPost,
+		Body:   pipeInReader,
+		URL:    c.url,
+		Header: defaultClientHeader,
 	}
 	request = request.WithContext(ctx)
 	conn := newLateGunConn(pipeInWriter)
@@ -97,6 +97,8 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) Close() error {
-	v2rayhttp.CloseIdleConnections(c.transport)
+	if c.transport != nil {
+		v2rayhttp.CloseIdleConnections(c.transport)
+	}
 	return nil
 }
