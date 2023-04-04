@@ -36,7 +36,9 @@ type Client struct {
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
 	var dialOptions []grpc.DialOption
 	if tlsConfig != nil {
-		tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
+		if len(tlsConfig.NextProtos()) == 0 {
+			tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
+		}
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(NewTLSTransportCredentials(tlsConfig)))
 	} else {
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(insecure.NewCredentials()))
