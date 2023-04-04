@@ -1,9 +1,9 @@
-//go:build linux || darwin
-
 package libbox
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/option"
@@ -34,4 +34,20 @@ func CheckConfig(configContent string) error {
 		instance.Close()
 	}
 	return err
+}
+
+func FormatConfig(configContent string) (string, error) {
+	options, err := parseConfig(configContent)
+	if err != nil {
+		return "", err
+	}
+	var buffer bytes.Buffer
+	json.NewEncoder(&buffer)
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(options)
+	if err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }

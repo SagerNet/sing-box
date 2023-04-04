@@ -1,5 +1,3 @@
-//go:build darwin
-
 package libbox
 
 import (
@@ -46,6 +44,7 @@ func clientConnect(sharedDirectory string) (net.Conn, error) {
 }
 
 func (c *CommandClient) Connect() error {
+	common.Close(c.conn)
 	conn, err := clientConnect(c.sharedDirectory)
 	if err != nil {
 		return err

@@ -14,10 +14,16 @@ var (
 )
 
 func Count() int {
+	if !Enabled {
+		return 0
+	}
 	return openConnection.Len()
 }
 
 func List() []io.Closer {
+	if !Enabled {
+		return nil
+	}
 	connAccess.RLock()
 	defer connAccess.RUnlock()
 	connList := make([]io.Closer, 0, openConnection.Len())
@@ -28,6 +34,9 @@ func List() []io.Closer {
 }
 
 func Close() {
+	if !Enabled {
+		return
+	}
 	connAccess.Lock()
 	defer connAccess.Unlock()
 	for element := openConnection.Front(); element != nil; element = element.Next() {

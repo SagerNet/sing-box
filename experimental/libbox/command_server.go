@@ -1,5 +1,3 @@
-//go:build darwin
-
 package libbox
 
 import (
@@ -10,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/x/list"
@@ -57,7 +56,10 @@ func (s *CommandServer) Start() error {
 }
 
 func (s *CommandServer) Close() error {
-	return s.listener.Close()
+	return common.Close(
+		s.listener,
+		s.observer,
+	)
 }
 
 func (s *CommandServer) loopConnection(listener net.Listener) {
