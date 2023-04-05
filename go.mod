@@ -52,6 +52,7 @@ require (
 	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
 )
 
+replace github.com/sagernet/sing v0.2.2-0.20230402035613-6d63c1a7dca5 => github.com/adlyq/sing v0.0.0-20230405113504-d36b73539636
 //replace github.com/sagernet/sing => ../sing
 
 require (
