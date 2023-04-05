@@ -277,7 +277,7 @@ func (s *Box) Close() error {
 	}
 	for i, out := range s.outbounds {
 		errors = E.Append(errors, common.Close(out), func(err error) error {
-			return E.Cause(err, "close inbound/", out.Type(), "[", i, "]")
+			return E.Cause(err, "close outbound/", out.Type(), "[", i, "]")
 		})
 	}
 	if err := common.Close(s.router); err != nil {
