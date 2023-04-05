@@ -179,5 +179,6 @@ func (w *WireGuard) Close() error {
 	if w.device != nil {
 		w.device.Close()
 	}
-	return common.Close(w.tunDevice)
+	w.tunDevice.Close()
+	return nil
 }
