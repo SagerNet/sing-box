@@ -38,8 +38,8 @@ nav:
   - Installation:
       - From source: installation/from-source.md
       - Clients:
-          - SFI:
-            - installation/clients/sfi/index.md
+          - iOS: installation/clients/sfi.md
+          - Android: installation/clients/sfa.md
   - Configuration:
       - configuration/index.md
       - Log:

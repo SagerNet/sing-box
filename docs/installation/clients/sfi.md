@@ -1,6 +1,6 @@
 # SFI
 
-Experimental official iOS client for sing-box.
+Experimental iOS client for sing-box.
 
 #### Requirements
 
@@ -11,9 +11,10 @@ Experimental official iOS client for sing-box.
 
 * [TestFlight](https://testflight.apple.com/join/c6ylui2j)
 
-#### Limit
+#### Note
 
-* `system` tun stack not working
+* `system` tun stack not working on iOS
+* User Agent is `SFI/$version ($version_code; sing-box $sing_box_version)` in the remote profile request
 
 #### Privacy policy
 
