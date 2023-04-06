@@ -1,6 +1,6 @@
 # SFI
 
-实验性的官方 iOS sing-box 客户端。
+实验性的 iOS sing-box 客户端。
 
 #### 要求
 
@@ -11,9 +11,10 @@
 
 * [TestFlight](https://testflight.apple.com/join/c6ylui2j)
 
-#### 限制
+#### 注意事项
 
-* `system` tun stack 不工作
+* `system` tun stack 在 iOS 不工作
+* 远程配置文件请求中的 User Agent 为 `SFI/$version ($version_code; sing-box $sing_box_version)`
 
 #### 隐私政策
 
