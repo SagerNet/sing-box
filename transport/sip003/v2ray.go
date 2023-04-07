@@ -66,8 +66,8 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 		transportOptions = option.V2RayTransportOptions{
 			Type: C.V2RayTransportTypeWebsocket,
 			WebsocketOptions: option.V2RayWebsocketOptions{
-				Headers: map[string]string{
-					"Host": host,
+				Headers: map[string]option.Listable[string]{
+					"Host": []string{host},
 				},
 				Path: path,
 			},

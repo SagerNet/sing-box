@@ -13,6 +13,8 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -62,7 +64,7 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		server.path = "/" + server.path
 	}
 	for key, value := range options.Headers {
-		server.headers.Set(key, value)
+		server.headers[key] = value
 	}
 	server.httpServer = &http.Server{
 		Handler:           server,
@@ -106,10 +108,19 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
-		conn, _, err := h.Hijack()
+		conn, reader, err := h.Hijack()
 		if err != nil {
 			s.fallbackRequest(request.Context(), writer, request, http.StatusInternalServerError, E.Cause(err, "hijack conn"))
 			return
+		}
+		if cacheLen := reader.Reader.Buffered(); cacheLen > 0 {
+			cache := buf.NewSize(cacheLen)
+			_, err = cache.ReadFullFrom(reader.Reader, cacheLen)
+			if err != nil {
+				s.fallbackRequest(request.Context(), writer, request, http.StatusInternalServerError, E.Cause(err, "read cache"))
+				return
+			}
+			conn = bufio.NewCachedConn(conn, cache)
 		}
 		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
