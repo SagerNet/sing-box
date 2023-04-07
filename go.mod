@@ -14,7 +14,7 @@ require (
 	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/hashicorp/yamux v0.1.1
-	github.com/insomniacslk/dhcp v0.0.0-20230307103557-e252950ab961
+	github.com/insomniacslk/dhcp v0.0.0-20230327135226-74ae03f2425e
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mholt/acmez v1.1.0
 	github.com/miekg/dns v1.1.53
@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.2-0.20230402035613-6d63c1a7dca5
+	github.com/sagernet/sing v0.2.2-0.20230407053809-308e421e33c2
 	github.com/sagernet/sing-dns v0.1.5-0.20230407051120-06f541bbed0e
 	github.com/sagernet/sing-shadowsocks v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.0
@@ -36,7 +36,7 @@ require (
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
-	github.com/spf13/cobra v1.6.1
+	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.10.0
@@ -44,8 +44,8 @@ require (
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/crypto v0.7.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	golang.org/x/net v0.8.0
-	golang.org/x/sys v0.6.0
+	golang.org/x/net v0.9.0
+	golang.org/x/sys v0.7.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230215201556-9c5414ab4bde
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
@@ -64,7 +64,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect

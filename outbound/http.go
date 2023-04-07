@@ -37,7 +37,7 @@ func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, option
 			logger:   logger,
 			tag:      tag,
 		},
-		http.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password),
+		http.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password, nil),
 	}, nil
 }
 
