@@ -1,3 +1,12 @@
+#### 1.2.3
+
+* Introducing our [new Android client application](/installation/clients/sfa)
+* Improve UDP domain destination NAT
+* Update reality protocol
+* Fix TTL calculation for DNS response
+* Fix v2ray HTTP transport compatibility
+* Fix bugs and update dependencies
+
 #### 1.2.2
 
 * Accept `any` outbound in dns rule **1**
@@ -5,7 +14,8 @@
 
 *1*:
 
-Now you can use the `any` outbound rule to match server address queries instead of filling in all server domains to `domain` rule.
+Now you can use the `any` outbound rule to match server address queries instead of filling in all server domains
+to `domain` rule.
 
 #### 1.2.1
 
