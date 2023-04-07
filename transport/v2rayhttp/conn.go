@@ -1,10 +1,12 @@
 package v2rayhttp
 
 import (
+	std_bufio "bufio"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,37 +14,146 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 )
 
 type HTTPConn struct {
+	net.Conn
+	request        *http.Request
+	requestWritten bool
+	responseRead   bool
+	responseCache  *buf.Buffer
+}
+
+func NewHTTP1Conn(conn net.Conn, request *http.Request) *HTTPConn {
+	return &HTTPConn{
+		Conn:    conn,
+		request: request,
+	}
+}
+
+func (c *HTTPConn) Read(b []byte) (n int, err error) {
+	if !c.responseRead {
+		reader := std_bufio.NewReader(c.Conn)
+		response, err := http.ReadResponse(reader, c.request)
+		if err != nil {
+			return 0, E.Cause(err, "read response")
+		}
+		if response.StatusCode != 200 {
+			return 0, E.New("unexpected status: ", response.Status)
+		}
+		if cacheLen := reader.Buffered(); cacheLen > 0 {
+			c.responseCache = buf.NewSize(cacheLen)
+			_, err = c.responseCache.ReadFullFrom(reader, cacheLen)
+			if err != nil {
+				c.responseCache.Release()
+				return 0, E.Cause(err, "read cache")
+			}
+		}
+		c.responseRead = true
+	}
+	if c.responseCache != nil {
+		n, err = c.responseCache.Read(b)
+		if err == io.EOF {
+			c.responseCache.Release()
+			c.responseCache = nil
+		}
+		if n > 0 {
+			return n, nil
+		}
+	}
+	return c.Conn.Read(b)
+}
+
+func (c *HTTPConn) Write(b []byte) (int, error) {
+	if !c.requestWritten {
+		err := c.writeRequest(b)
+		if err != nil {
+			return 0, E.Cause(err, "write request")
+		}
+		c.requestWritten = true
+		return len(b), nil
+	}
+	return c.Conn.Write(b)
+}
+
+func (c *HTTPConn) writeRequest(payload []byte) error {
+	writer := bufio.NewBufferedWriter(c.Conn, buf.New())
+	const CRLF = "\r\n"
+	_, err := writer.Write([]byte(F.ToString(c.request.Method, " ", c.request.URL.RequestURI(), " HTTP/1.1", CRLF)))
+	if err != nil {
+		return err
+	}
+	if c.request.Header.Get("Host") == "" {
+		c.request.Header.Set("Host", c.request.Host)
+	}
+	for key, value := range c.request.Header {
+		_, err = writer.Write([]byte(F.ToString(key, ": ", strings.Join(value, ", "), CRLF)))
+		if err != nil {
+			return err
+		}
+	}
+	_, err = writer.Write([]byte(CRLF))
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(payload)
+	if err != nil {
+		return err
+	}
+	err = writer.Fallthrough()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *HTTPConn) ReaderReplaceable() bool {
+	return c.responseRead
+}
+
+func (c *HTTPConn) WriterReplaceable() bool {
+	return c.requestWritten
+}
+
+func (c *HTTPConn) NeedHandshake() bool {
+	return !c.requestWritten
+}
+
+func (c *HTTPConn) Upstream() any {
+	return c.Conn
+}
+
+type HTTP2Conn struct {
 	reader io.Reader
 	writer io.Writer
 	create chan struct{}
 	err    error
 }
 
-func NewHTTPConn(reader io.Reader, writer io.Writer) HTTPConn {
-	return HTTPConn{
+func NewHTTPConn(reader io.Reader, writer io.Writer) HTTP2Conn {
+	return HTTP2Conn{
 		reader: reader,
 		writer: writer,
 	}
 }
 
-func newLateHTTPConn(writer io.Writer) *HTTPConn {
-	return &HTTPConn{
+func newLateHTTPConn(writer io.Writer) *HTTP2Conn {
+	return &HTTP2Conn{
 		create: make(chan struct{}),
 		writer: writer,
 	}
 }
 
-func (c *HTTPConn) setup(reader io.Reader, err error) {
+func (c *HTTP2Conn) setup(reader io.Reader, err error) {
 	c.reader = reader
 	c.err = err
 	close(c.create)
 }
 
-func (c *HTTPConn) Read(b []byte) (n int, err error) {
+func (c *HTTP2Conn) Read(b []byte) (n int, err error) {
 	if c.reader == nil {
 		<-c.create
 		if c.err != nil {
@@ -53,24 +164,24 @@ func (c *HTTPConn) Read(b []byte) (n int, err error) {
 	return n, baderror.WrapH2(err)
 }
 
-func (c *HTTPConn) Write(b []byte) (n int, err error) {
+func (c *HTTP2Conn) Write(b []byte) (n int, err error) {
 	n, err = c.writer.Write(b)
 	return n, baderror.WrapH2(err)
 }
 
-func (c *HTTPConn) Close() error {
+func (c *HTTP2Conn) Close() error {
 	return common.Close(c.reader, c.writer)
 }
 
-func (c *HTTPConn) LocalAddr() net.Addr {
+func (c *HTTP2Conn) LocalAddr() net.Addr {
 	return nil
 }
 
-func (c *HTTPConn) RemoteAddr() net.Addr {
+func (c *HTTP2Conn) RemoteAddr() net.Addr {
 	return nil
 }
 
-func (c *HTTPConn) SetDeadline(t time.Time) error {
+func (c *HTTP2Conn) SetDeadline(t time.Time) error {
 	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
 	}); loaded {
@@ -79,7 +190,7 @@ func (c *HTTPConn) SetDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
-func (c *HTTPConn) SetReadDeadline(t time.Time) error {
+func (c *HTTP2Conn) SetReadDeadline(t time.Time) error {
 	if responseWriter, loaded := c.writer.(interface {
 		SetReadDeadline(time.Time) error
 	}); loaded {
@@ -88,7 +199,7 @@ func (c *HTTPConn) SetReadDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
-func (c *HTTPConn) SetWriteDeadline(t time.Time) error {
+func (c *HTTP2Conn) SetWriteDeadline(t time.Time) error {
 	if responseWriter, loaded := c.writer.(interface {
 		SetWriteDeadline(time.Time) error
 	}); loaded {
@@ -98,7 +209,7 @@ func (c *HTTPConn) SetWriteDeadline(t time.Time) error {
 }
 
 type ServerHTTPConn struct {
-	HTTPConn
+	HTTP2Conn
 	flusher http.Flusher
 }
 

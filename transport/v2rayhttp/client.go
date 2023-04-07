@@ -1,7 +1,6 @@
 package v2rayhttp
 
 import (
-	"bufio"
 	"context"
 	"io"
 	"math/rand"
@@ -81,8 +80,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	if !strings.HasPrefix(uri.Path, "/") {
 		uri.Path = "/" + uri.Path
 	}
-	for key, value := range options.Headers {
-		client.headers.Set(key, value)
+	for key, valueList := range options.Headers {
+		client.headers[key] = valueList
 	}
 	client.url = &uri
 	return client
@@ -97,18 +96,16 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
-	conn, err := c.dialer.DialContext(c.ctx, N.NetworkTCP, c.serverAddr)
+	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, err
 	}
+
 	request := &http.Request{
-		Method:     c.method,
-		URL:        c.url,
-		ProtoMajor: 1,
-		Proto:      "HTTP/1.1",
-		Header:     c.headers.Clone(),
+		Method: c.method,
+		URL:    c.url,
+		Header: c.headers.Clone(),
 	}
-	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
 	case 0:
 		request.Host = c.serverAddr.AddrString()
@@ -117,30 +114,17 @@ func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 	default:
 		request.Host = c.host[rand.Intn(hostLen)]
 	}
-	err = request.Write(conn)
-	if err != nil {
-		return nil, err
-	}
-	reader := bufio.NewReader(conn)
-	response, err := http.ReadResponse(reader, request)
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode != 200 {
-		return nil, E.New("unexpected status: ", response.Status)
-	}
-	return conn, nil
+
+	return NewHTTP1Conn(conn, request), nil
 }
 
 func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
 	request := &http.Request{
-		Method:     c.method,
-		Body:       pipeInReader,
-		URL:        c.url,
-		ProtoMajor: 2,
-		Proto:      "HTTP/2",
-		Header:     c.headers.Clone(),
+		Method: c.method,
+		Body:   pipeInReader,
+		URL:    c.url,
+		Header: c.headers.Clone(),
 	}
 	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
@@ -152,8 +136,6 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	default:
 		request.Host = c.host[rand.Intn(hostLen)]
 	}
-	// Disable any compression method from server.
-	request.Header.Set("Accept-Encoding", "identity")
 	conn := newLateHTTPConn(pipeInWriter)
 	go func() {
 		response, err := c.transport.RoundTrip(request)

@@ -62,7 +62,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}
 	headers := make(http.Header)
 	for key, value := range options.Headers {
-		headers.Set(key, value)
+		headers[key] = value
 	}
 	return &Client{
 		wsDialer,
