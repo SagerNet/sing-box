@@ -70,6 +70,9 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		Handler:           server,
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
 	}
 	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
 	return server, nil

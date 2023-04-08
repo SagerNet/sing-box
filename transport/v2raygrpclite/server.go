@@ -50,6 +50,9 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 	}
 	server.httpServer = &http.Server{
 		Handler: server,
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
 	}
 	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
 	return server, nil
