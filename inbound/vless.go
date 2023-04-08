@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -171,7 +172,7 @@ func (h *VLESS) newPacketConnection(ctx context.Context, conn N.PacketConn, meta
 	}
 	if metadata.Destination.Fqdn == packetaddr.SeqPacketMagicAddress {
 		metadata.Destination = M.Socksaddr{}
-		conn = packetaddr.NewConn(conn.(vmess.PacketConn), metadata.Destination)
+		conn = deadline.NewPacketConn(packetaddr.NewConn(conn.(vmess.PacketConn), metadata.Destination))
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet addr connection")
 	} else {
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)

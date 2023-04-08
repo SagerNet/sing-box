@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -107,5 +108,5 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		cancel()
 		return nil, err
 	}
-	return NewGRPCConn(stream, cancel), nil
+	return deadline.NewConn(NewGRPCConn(stream, cancel)), nil
 }

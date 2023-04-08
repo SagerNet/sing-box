@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -67,7 +68,7 @@ func newConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 			logger.InfoContext(ctx, "inbound multiplex packet connection")
 			packetConn = &ServerPacketAddrConn{ExtendedConn: bufio.NewExtendedConn(stream)}
 		}
-		hErr := router.RoutePacketConnection(ctx, packetConn, metadata)
+		hErr := router.RoutePacketConnection(ctx, deadline.NewPacketConn(bufio.NewNetPacketConn(packetConn)), metadata)
 		stream.Close()
 		if hErr != nil {
 			errorHandler.NewError(ctx, hErr)

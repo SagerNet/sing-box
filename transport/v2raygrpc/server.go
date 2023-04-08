@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -62,7 +63,7 @@ func (s *Server) Tun(server GunService_TunServer) error {
 			}
 		}
 	}
-	go s.handler.NewConnection(ctx, conn, metadata)
+	go s.handler.NewConnection(ctx, deadline.NewConn(conn), metadata)
 	<-ctx.Done()
 	return nil
 }

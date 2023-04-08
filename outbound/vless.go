@@ -111,7 +111,7 @@ func (h *VLESS) DialContext(ctx context.Context, network string, destination M.S
 			if err != nil {
 				return nil, err
 			}
-			return &bufio.BindPacketConn{PacketConn: packetaddr.NewConn(packetConn, destination), Addr: destination}, nil
+			return bufio.NewBindPacketConn(packetaddr.NewConn(packetConn, destination), destination), nil
 		} else {
 			return h.client.DialEarlyPacketConn(conn, destination)
 		}
