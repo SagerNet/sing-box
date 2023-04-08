@@ -489,31 +489,56 @@ func (r *Router) Start() error {
 }
 
 func (r *Router) Close() error {
-	for _, rule := range r.rules {
-		err := rule.Close()
-		if err != nil {
-			return err
-		}
+	var err error
+	for i, rule := range r.rules {
+		r.logger.Trace("closing rule[", i, "]")
+		err = E.Append(err, rule.Close(), func(err error) error {
+			return E.Cause(err, "close rule[", i, "]")
+		})
 	}
-	for _, rule := range r.dnsRules {
-		err := rule.Close()
-		if err != nil {
-			return err
-		}
+	for i, rule := range r.dnsRules {
+		r.logger.Trace("closing dns rule[", i, "]")
+		err = E.Append(err, rule.Close(), func(err error) error {
+			return E.Cause(err, "close dns rule[", i, "]")
+		})
 	}
-	for _, transport := range r.transports {
-		err := transport.Close()
-		if err != nil {
-			return err
-		}
+	for i, transport := range r.transports {
+		r.logger.Trace("closing transport[", i, "] ")
+		err = E.Append(err, transport.Close(), func(err error) error {
+			return E.Cause(err, "close dns transport[", i, "]")
+		})
 	}
-	return common.Close(
-		common.PtrOrNil(r.geoIPReader),
-		r.interfaceMonitor,
-		r.networkMonitor,
-		r.packageManager,
-		r.timeService,
-	)
+	if r.geositeReader != nil {
+		r.logger.Trace("closing geoip reader")
+		err = E.Append(err, common.Close(r.geoIPReader), func(err error) error {
+			return E.Cause(err, "close geoip reader")
+		})
+	}
+	if r.interfaceMonitor != nil {
+		r.logger.Trace("closing interface monitor")
+		err = E.Append(err, r.interfaceMonitor.Close(), func(err error) error {
+			return E.Cause(err, "close interface monitor")
+		})
+	}
+	if r.networkMonitor != nil {
+		r.logger.Trace("closing network monitor")
+		err = E.Append(err, r.networkMonitor.Close(), func(err error) error {
+			return E.Cause(err, "close network monitor")
+		})
+	}
+	if r.packageManager != nil {
+		r.logger.Trace("closing package manager")
+		err = E.Append(err, r.packageManager.Close(), func(err error) error {
+			return E.Cause(err, "close package manager")
+		})
+	}
+	if r.timeService != nil {
+		r.logger.Trace("closing time service")
+		err = E.Append(err, r.timeService.Close(), func(err error) error {
+			return E.Cause(err, "close time service")
+		})
+	}
+	return err
 }
 
 func (r *Router) GeoIPReader() *geoip.Reader {
