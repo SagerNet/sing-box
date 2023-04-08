@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	dns.RegisterTransport([]string{"dhcp"}, func(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
+	dns.RegisterTransport([]string{"dhcp"}, func(name string, ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
 		return nil, E.New(`DHCP is not included in this build, rebuild with -tags with_dhcp`)
 	})
 }
