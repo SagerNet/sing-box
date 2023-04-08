@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/common/badjsonmerge"
@@ -177,11 +178,24 @@ func run() error {
 				}
 			}
 			cancel()
+			closeCtx, closed := context.WithCancel(context.Background())
+			go closeMonitor(closeCtx)
 			instance.Close()
+			closed()
 			if osSignal != syscall.SIGHUP {
 				return nil
 			}
 			break
 		}
 	}
+}
+
+func closeMonitor(ctx context.Context) {
+	time.Sleep(3 * time.Second)
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+	log.Fatal("sing-box did not close!")
 }
