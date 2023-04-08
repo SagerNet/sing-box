@@ -5,8 +5,8 @@
 ```json
 {
   "enabled": true,
-  "inet4_range": "172.19.0.1/15",
-  "inet6_range": "fdfe:dcba:9876::1/18"
+  "inet4_range": "198.18.0.0/15",
+  "inet6_range": "fc00::/18"
 }
 ```
 

@@ -1,3 +1,22 @@
+#### 1.3-beta1
+
+* Add [DNS reverse mapping](/configuration/dns#reverse_mapping) support
+* Add [L3 routing](/configuration/route/ip-rule) support **1**
+* Add `rewrite_ttl` DNS rule action
+* Add [FakeIP](/configuration/dns/fakeip) support **2**
+* Add `store_fakeip` Clash API option
+* Add multi-peer support for [WireGuard](/configuration/outbound/wireguard#peers) outbound
+* Add loopback detect
+
+*1*:
+
+It can currently be used to [route connections directly to WireGuard](/examples/wireguard-direct) or block connections
+at the IP layer.
+
+*2*:
+
+See [FAQ](/faq/fakeip) for more information.
+
 #### 1.2.3
 
 * Introducing our [new Android client application](/installation/clients/sfa)
