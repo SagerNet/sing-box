@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -80,7 +81,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
 	conn := v2rayhttp.NewHTTP2Wrapper(newGunConn(request.Body, writer, writer.(http.Flusher)))
-	s.handler.NewConnection(request.Context(), conn, metadata)
+	s.handler.NewConnection(request.Context(), deadline.NewConn(conn), metadata)
 	conn.CloseWrapper()
 }
 

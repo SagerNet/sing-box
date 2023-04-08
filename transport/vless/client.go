@@ -8,6 +8,8 @@ import (
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -46,30 +48,30 @@ func (c *Client) prepareConn(conn net.Conn) (net.Conn, error) {
 	return conn, nil
 }
 
-func (c *Client) DialConn(conn net.Conn, destination M.Socksaddr) (*Conn, error) {
+func (c *Client) DialConn(conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
 	vConn, err := c.prepareConn(conn)
 	if err != nil {
 		return nil, err
 	}
 	serverConn := &Conn{Conn: conn, protocolConn: vConn, key: c.key, command: vmess.CommandTCP, destination: destination, flow: c.flow}
-	return serverConn, common.Error(serverConn.Write(nil))
+	return deadline.NewConn(serverConn), common.Error(serverConn.Write(nil))
 }
 
-func (c *Client) DialEarlyConn(conn net.Conn, destination M.Socksaddr) (*Conn, error) {
+func (c *Client) DialEarlyConn(conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
 	vConn, err := c.prepareConn(conn)
 	if err != nil {
 		return nil, err
 	}
-	return &Conn{Conn: conn, protocolConn: vConn, key: c.key, command: vmess.CommandTCP, destination: destination, flow: c.flow}, nil
+	return deadline.NewConn(&Conn{Conn: conn, protocolConn: vConn, key: c.key, command: vmess.CommandTCP, destination: destination, flow: c.flow}), nil
 }
 
-func (c *Client) DialPacketConn(conn net.Conn, destination M.Socksaddr) (*PacketConn, error) {
+func (c *Client) DialPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
 	serverConn := &PacketConn{Conn: conn, key: c.key, destination: destination, flow: c.flow}
-	return serverConn, common.Error(serverConn.Write(nil))
+	return bufio.NewBindPacketConn(deadline.NewPacketConn(bufio.NewPacketConn(serverConn)), destination), common.Error(serverConn.Write(nil))
 }
 
-func (c *Client) DialEarlyPacketConn(conn net.Conn, destination M.Socksaddr) (*PacketConn, error) {
-	return &PacketConn{Conn: conn, key: c.key, destination: destination, flow: c.flow}, nil
+func (c *Client) DialEarlyPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
+	return bufio.NewBindPacketConn(deadline.NewPacketConn(bufio.NewPacketConn(&PacketConn{Conn: conn, key: c.key, destination: destination, flow: c.flow})), destination), nil
 }
 
 func (c *Client) DialXUDPPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
@@ -78,11 +80,11 @@ func (c *Client) DialXUDPPacketConn(conn net.Conn, destination M.Socksaddr) (vme
 	if err != nil {
 		return nil, err
 	}
-	return vmess.NewXUDPConn(serverConn, destination), nil
+	return bufio.NewBindPacketConn(deadline.NewPacketConn(vmess.NewXUDPConn(serverConn, destination)), destination), nil
 }
 
 func (c *Client) DialEarlyXUDPPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
-	return vmess.NewXUDPConn(&Conn{Conn: conn, protocolConn: conn, key: c.key, command: vmess.CommandMux, destination: destination, flow: c.flow}, destination), nil
+	return bufio.NewBindPacketConn(deadline.NewPacketConn(vmess.NewXUDPConn(&Conn{Conn: conn, protocolConn: conn, key: c.key, command: vmess.CommandMux, destination: destination, flow: c.flow}, destination)), destination), nil
 }
 
 var _ N.EarlyConn = (*Conn)(nil)

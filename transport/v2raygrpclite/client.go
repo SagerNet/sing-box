@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -92,7 +93,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 			conn.setup(nil, err)
 		}
 	}()
-	return conn, nil
+	return deadline.NewConn(conn), nil
 }
 
 func (c *Client) Close() error {
