@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
-	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -48,9 +47,10 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			DisableCompression: true,
 		},
 		url: &url.URL{
-			Scheme: "https",
-			Host:   serverAddr.String(),
-			Path:   F.ToString("/", url.QueryEscape(options.ServiceName), "/Tun"),
+			Scheme:  "https",
+			Host:    serverAddr.String(),
+			Path:    "/" + options.ServiceName + "/Tun",
+			RawPath: "/" + url.PathEscape(options.ServiceName) + "/Tun",
 		},
 	}
 
