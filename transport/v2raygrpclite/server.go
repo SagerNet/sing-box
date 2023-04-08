@@ -2,10 +2,8 @@ package v2raygrpclite
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -45,7 +43,7 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 	server := &Server{
 		tlsConfig: tlsConfig,
 		handler:   handler,
-		path:      fmt.Sprintf("/%s/Tun", url.QueryEscape(options.ServiceName)),
+		path:      "/" + options.ServiceName + "/Tun",
 		h2Server: &http2.Server{
 			IdleTimeout: time.Duration(options.IdleTimeout),
 		},
