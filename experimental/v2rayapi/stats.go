@@ -12,10 +12,9 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/experimental/trackerconn"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/atomic"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
-
-	"go.uber.org/atomic"
 )
 
 func init() {
@@ -211,7 +210,7 @@ func (s *StatsService) loadOrCreateCounter(name string) *atomic.Int64 {
 	if loaded {
 		return counter
 	}
-	counter = atomic.NewInt64(0)
+	counter = &atomic.Int64{}
 	s.counters[name] = counter
 	return counter
 }

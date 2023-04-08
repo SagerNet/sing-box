@@ -25,12 +25,12 @@ require (
 	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.2-0.20230408041759-3f81b77e6314
+	github.com/sagernet/sing v0.2.2-0.20230408135335-14c8c38f67f2
 	github.com/sagernet/sing-dns v0.1.5-0.20230408004833-5adaf486d440
-	github.com/sagernet/sing-shadowsocks v0.2.0
+	github.com/sagernet/sing-shadowsocks v0.2.1-0.20230408064153-75848ae8c6a2
 	github.com/sagernet/sing-shadowtls v0.1.0
 	github.com/sagernet/sing-tun v0.1.4-0.20230326080954-8848c0e4cbab
-	github.com/sagernet/sing-vmess v0.1.3
+	github.com/sagernet/sing-vmess v0.1.4-0.20230408065245-5bca9ddcac72
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
@@ -39,7 +39,6 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
 	go.etcd.io/bbolt v1.3.7
-	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/crypto v0.7.0
@@ -82,6 +81,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
