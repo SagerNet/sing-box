@@ -34,7 +34,7 @@ require (
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
-	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
+	github.com/sagernet/websocket v0.0.0-20230408031047-747f09585739
 	github.com/sagernet/wireguard-go v0.0.0-20221116151939-c99467f53f2c
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
