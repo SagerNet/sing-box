@@ -26,6 +26,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/ntp"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
@@ -218,7 +219,7 @@ func NewRouter(
 					}
 				}
 			}
-			transport, err := dns.CreateTransport(ctx, logFactory.NewLogger(F.ToString("dns/transport[", tag, "]")), detour, server.Address)
+			transport, err := dns.CreateTransport(tag, ctx, logFactory.NewLogger(F.ToString("dns/transport[", tag, "]")), detour, server.Address)
 			if err != nil {
 				return nil, E.Cause(err, "parse dns server[", tag, "]")
 			}
@@ -258,7 +259,7 @@ func NewRouter(
 	}
 	if defaultTransport == nil {
 		if len(transports) == 0 {
-			transports = append(transports, dns.NewLocalTransport(N.SystemDialer))
+			transports = append(transports, dns.NewLocalTransport("local", N.SystemDialer))
 		}
 		defaultTransport = transports[0]
 	}
@@ -660,9 +661,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForConnection)
+	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
+	if err != nil {
+		return err
+	}
 	if !common.Contains(detour.Network(), N.NetworkTCP) {
-		conn.Close()
 		return E.New("missing supported outbound, closing connection")
 	}
 	if r.clashServer != nil {
@@ -738,9 +741,11 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
-	matchedRule, detour := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
+	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
+	if err != nil {
+		return err
+	}
 	if !common.Contains(detour.Network(), N.NetworkUDP) {
-		conn.Close()
 		return E.New("missing supported outbound, closing packet connection")
 	}
 	if r.clashServer != nil {
@@ -756,7 +761,18 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
 
-func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
+func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (context.Context, adapter.Rule, adapter.Outbound, error) {
+	matchRule, matchOutbound := r.match0(ctx, metadata, defaultOutbound)
+	if contextOutbound, loaded := outbound.TagFromContext(ctx); loaded {
+		if contextOutbound == matchOutbound.Tag() {
+			return nil, nil, nil, E.New("connection loopback in outbound/", matchOutbound.Type(), "[", matchOutbound.Tag(), "]")
+		}
+	}
+	ctx = outbound.ContextWithTag(ctx, matchOutbound.Tag())
+	return ctx, matchRule, matchOutbound, nil
+}
+
+func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
 	if r.processSearcher != nil {
 		var originDestination netip.AddrPort
 		if metadata.OriginDestination.IsValid() {

@@ -35,6 +35,7 @@ func init() {
 }
 
 type Transport struct {
+	name              string
 	ctx               context.Context
 	router            adapter.Router
 	logger            logger.Logger
@@ -46,7 +47,7 @@ type Transport struct {
 	updatedAt         time.Time
 }
 
-func NewTransport(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
+func NewTransport(name string, ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
 	linkURL, err := url.Parse(link)
 	if err != nil {
 		return nil, err
@@ -59,6 +60,7 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, dialer N.Dia
 		return nil, E.New("missing router in context")
 	}
 	transport := &Transport{
+		name:          name,
 		ctx:           ctx,
 		router:        router,
 		logger:        logger,
@@ -66,6 +68,10 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, dialer N.Dia
 		autoInterface: linkURL.Host == "auto",
 	}
 	return transport, nil
+}
+
+func (t *Transport) Name() string {
+	return t.name
 }
 
 func (t *Transport) Start() error {
@@ -247,7 +253,7 @@ func (t *Transport) recreateServers(iface *net.Interface, serverAddrs []netip.Ad
 	})
 	var transports []dns.Transport
 	for _, serverAddr := range serverAddrs {
-		serverTransport, err := dns.NewUDPTransport(t.ctx, serverDialer, M.Socksaddr{Addr: serverAddr, Port: 53})
+		serverTransport, err := dns.NewUDPTransport(t.name, t.ctx, serverDialer, M.Socksaddr{Addr: serverAddr, Port: 53})
 		if err != nil {
 			return err
 		}
