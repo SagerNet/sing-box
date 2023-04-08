@@ -52,6 +52,9 @@ func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsCon
 		Handler:           server,
 		ReadHeaderTimeout: C.TCPTimeout,
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
 	}
 	return server, nil
 }
