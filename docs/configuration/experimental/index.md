@@ -8,6 +8,8 @@
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
       "external_ui": "folder",
+      "external_ui_download_url": "",
+      "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "rule",
       "store_selected": false,
@@ -52,6 +54,18 @@ RESTful web API listening address. Clash API will be disabled if empty.
 A relative path to the configuration directory or an absolute path to a
 directory in which you put some static web resource. sing-box will then
 serve it at `http://{{external-controller}}/ui`.
+
+#### external_ui_download_url
+
+ZIP download URL for the external UI, will be used if the specified `external_ui` directory is empty.
+
+`https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip` will be used if empty.
+
+#### external_ui_download_detour
+
+The tag of the outbound to download the external UI.
+
+Default outbound will be used if empty.
 
 #### secret
 
