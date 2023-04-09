@@ -8,6 +8,8 @@
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
       "external_ui": "folder",
+      "external_ui_download_url": "",
+      "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "rule",
       "store_selected": false,
@@ -50,6 +52,18 @@ RESTful web API 监听地址。如果为空，则禁用 Clash API。
 #### external_ui
 
 到静态网页资源目录的相对路径或绝对路径。sing-box 会在 `http://{{external-controller}}/ui` 下提供它。
+
+#### external_ui_download_url
+
+静态网页资源的 ZIP 下载 URL，如果指定的 `external_ui` 目录为空，将使用。
+
+默认使用 `https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip`。
+
+#### external_ui_download_detour
+
+用于下载静态网页资源的出站的标签。
+
+如果为空，将使用默认出站。
 
 #### secret
 
