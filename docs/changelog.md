@@ -1,3 +1,7 @@
+#### 1.3-beta4
+
+* Fix bugs
+
 #### 1.3-beta2
 
 * Download clash-dashboard if the specified Clash `external_ui` directory is empty
