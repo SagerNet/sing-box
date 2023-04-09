@@ -1,3 +1,8 @@
+#### 1.3-beta2
+
+* Download clash-dashboard if the specified Clash `external_ui` directory is empty
+* Fix bugs and update dependencies
+
 #### 1.3-beta1
 
 * Add [DNS reverse mapping](/configuration/dns#reverse_mapping) support
