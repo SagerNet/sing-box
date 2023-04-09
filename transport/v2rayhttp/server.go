@@ -110,14 +110,14 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if h, ok := writer.(http.Hijacker); ok {
 		conn, reader, err := h.Hijack()
 		if err != nil {
-			s.fallbackRequest(request.Context(), writer, request, http.StatusInternalServerError, E.Cause(err, "hijack conn"))
+			s.fallbackRequest(request.Context(), writer, request, 0, E.Cause(err, "hijack conn"))
 			return
 		}
 		if cacheLen := reader.Reader.Buffered(); cacheLen > 0 {
 			cache := buf.NewSize(cacheLen)
 			_, err = cache.ReadFullFrom(reader.Reader, cacheLen)
 			if err != nil {
-				s.fallbackRequest(request.Context(), writer, request, http.StatusInternalServerError, E.Cause(err, "read cache"))
+				s.fallbackRequest(request.Context(), writer, request, 0, E.Cause(err, "read cache"))
 				return
 			}
 			conn = bufio.NewCachedConn(conn, cache)
@@ -141,7 +141,9 @@ func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter
 	} else if fErr == os.ErrInvalid {
 		fErr = nil
 	}
-	writer.WriteHeader(statusCode)
+	if statusCode > 0 {
+		writer.WriteHeader(statusCode)
+	}
 	s.handler.NewError(request.Context(), E.Cause(E.Errors(err, E.Cause(fErr, "fallback connection")), "process connection from ", request.RemoteAddr))
 }
 
