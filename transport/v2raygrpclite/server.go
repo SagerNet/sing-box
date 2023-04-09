@@ -92,7 +92,9 @@ func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter
 	} else if fErr == os.ErrInvalid {
 		fErr = nil
 	}
-	writer.WriteHeader(statusCode)
+	if statusCode > 0 {
+		writer.WriteHeader(statusCode)
+	}
 	s.handler.NewError(request.Context(), E.Cause(E.Errors(err, E.Cause(fErr, "fallback connection")), "process connection from ", request.RemoteAddr))
 }
 
