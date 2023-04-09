@@ -9,7 +9,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/vless"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 	"github.com/spyzhov/ajson"
 	"github.com/stretchr/testify/require"
 )
