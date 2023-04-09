@@ -12,7 +12,7 @@ import (
 	"github.com/sagernet/sing/common/atomic"
 	N "github.com/sagernet/sing/common/network"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 )
 
 type Metadata struct {

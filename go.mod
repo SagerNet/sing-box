@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.2
-	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/gofrs/uuid/v5 v5.0.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/insomniacslk/dhcp v0.0.0-20230407062729-974c6f05fe16
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -30,7 +30,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.1-0.20230408141421-e40d6a4e42d4
 	github.com/sagernet/sing-shadowtls v0.1.1-0.20230408141548-81d74d2a8661
 	github.com/sagernet/sing-tun v0.1.4-0.20230326080954-8848c0e4cbab
-	github.com/sagernet/sing-vmess v0.1.4-0.20230408141409-03460e4b014a
+	github.com/sagernet/sing-vmess v0.1.4-0.20230409073451-6921c3dd77c7
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
