@@ -9,7 +9,7 @@ import (
 
 	"github.com/sagernet/sing-box/log"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 	"github.com/spf13/cobra"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
