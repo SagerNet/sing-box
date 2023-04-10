@@ -63,7 +63,7 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case message := <-subscription:
 			err = writeLog(conn, []byte(message))
 			if err != nil {
