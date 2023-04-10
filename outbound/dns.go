@@ -102,11 +102,10 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
-	fastClose, cancel := context.WithCancel(ctx)
+	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
 	group.Append0(func(ctx context.Context) error {
-		defer cancel()
 		_buffer := buf.StackNewSize(dns.FixedPacketSize)
 		defer common.KeepAlive(_buffer)
 		buffer := common.Dup(_buffer)
@@ -115,11 +114,13 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			buffer.FullReset()
 			destination, err := conn.ReadPacket(buffer)
 			if err != nil {
+				cancel(err)
 				return err
 			}
 			var message mDNS.Msg
 			err = message.Unpack(buffer.Bytes())
 			if err != nil {
+				cancel(err)
 				return err
 			}
 			timeout.Update()
@@ -127,17 +128,22 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			go func() error {
 				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
+					cancel(err)
 					return err
 				}
 				timeout.Update()
 				responseBuffer := buf.NewPacket()
 				n, err := response.PackBuffer(responseBuffer.FreeBytes())
 				if err != nil {
+					cancel(err)
 					responseBuffer.Release()
 					return err
 				}
 				responseBuffer.Truncate(len(n))
 				err = conn.WritePacket(responseBuffer, destination)
+				if err != nil {
+					cancel(err)
+				}
 				return err
 			}()
 		}

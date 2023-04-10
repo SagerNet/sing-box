@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -45,7 +46,7 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 }
 
 func (s *Server) Tun(server GunService_TunServer) error {
-	ctx, cancel := context.WithCancel(s.ctx)
+	ctx, cancel := common.ContextWithCancelCause(s.ctx)
 	conn := NewGRPCConn(server, cancel)
 	var metadata M.Metadata
 	if remotePeer, loaded := peer.FromContext(server.Context()); loaded {
