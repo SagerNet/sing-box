@@ -102,10 +102,10 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	client := NewGunServiceClient(clientConn).(GunServiceCustomNameClient)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := common.ContextWithCancelCause(ctx)
 	stream, err := client.TunCustomName(ctx, c.serviceName)
 	if err != nil {
-		cancel()
+		cancel(err)
 		return nil, err
 	}
 	return deadline.NewConn(NewGRPCConn(stream, cancel)), nil
