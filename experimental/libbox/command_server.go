@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/x/list"
@@ -71,7 +72,9 @@ func (s *CommandServer) loopConnection(listener net.Listener) {
 		go func() {
 			hErr := s.handleConnection(conn)
 			if hErr != nil && !E.IsClosed(err) {
-				log.Warn("log-server: process connection: ", hErr)
+				if debug.Enabled {
+					log.Warn("log-server: process connection: ", hErr)
+				}
 			}
 		}()
 	}
