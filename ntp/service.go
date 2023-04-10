@@ -2,6 +2,7 @@ package ntp
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -9,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/settings"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -20,7 +22,7 @@ var _ adapter.TimeService = (*Service)(nil)
 
 type Service struct {
 	ctx           context.Context
-	cancel        context.CancelFunc
+	cancel        common.ContextCancelCauseFunc
 	server        M.Socksaddr
 	writeToSystem bool
 	dialer        N.Dialer
@@ -30,7 +32,7 @@ type Service struct {
 }
 
 func NewService(ctx context.Context, router adapter.Router, logger logger.Logger, options option.NTPOptions) *Service {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := common.ContextWithCancelCause(ctx)
 	server := options.ServerOptions.Build()
 	if server.Port == 0 {
 		server.Port = 123
@@ -64,7 +66,7 @@ func (s *Service) Start() error {
 
 func (s *Service) Close() error {
 	s.ticker.Stop()
-	s.cancel()
+	s.cancel(os.ErrClosed)
 	return nil
 }
 
