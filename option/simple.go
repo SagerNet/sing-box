@@ -27,7 +27,8 @@ type SocksOutboundOptions struct {
 type HTTPOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Username string              `json:"username,omitempty"`
-	Password string              `json:"password,omitempty"`
-	TLS      *OutboundTLSOptions `json:"tls,omitempty"`
+	Username string              		`json:"username,omitempty"`
+	Password string              		`json:"password,omitempty"`
+	TLS      *OutboundTLSOptions 		`json:"tls,omitempty"`
+	Headers  map[string]Listable[string]	`json:"headers,omitempty"`
 }
