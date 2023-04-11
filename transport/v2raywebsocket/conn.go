@@ -69,6 +69,14 @@ func (c *WebsocketConn) SetDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
+func (c *WebsocketConn) SetReadDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *WebsocketConn) SetWriteDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
 func (c *WebsocketConn) Upstream() any {
 	return c.Conn.NetConn()
 }
@@ -195,24 +203,15 @@ func (c *EarlyWebsocketConn) RemoteAddr() net.Addr {
 }
 
 func (c *EarlyWebsocketConn) SetDeadline(t time.Time) error {
-	if c.conn == nil {
-		return os.ErrInvalid
-	}
-	return c.conn.SetDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *EarlyWebsocketConn) SetReadDeadline(t time.Time) error {
-	if c.conn == nil {
-		return os.ErrInvalid
-	}
-	return c.conn.SetReadDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
-	if c.conn == nil {
-		return os.ErrInvalid
-	}
-	return c.conn.SetWriteDeadline(t)
+	return os.ErrInvalid
 }
 
 func (c *EarlyWebsocketConn) Upstream() any {
