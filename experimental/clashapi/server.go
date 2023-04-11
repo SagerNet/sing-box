@@ -109,6 +109,8 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		r.Mount("/profile", profileRouter())
 		r.Mount("/cache", cacheRouter(router))
 		r.Mount("/dns", dnsRouter(router))
+
+		server.setupMetaAPI(r)
 	})
 	if options.ExternalUI != "" {
 		server.externalUI = C.BasePath(os.ExpandEnv(options.ExternalUI))
@@ -406,5 +408,5 @@ func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *ht
 }
 
 func version(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, render.M{"version": "sing-box " + C.Version, "premium": true})
+	render.JSON(w, r, render.M{"version": "sing-box " + C.Version, "premium": true, "meta": true})
 }
