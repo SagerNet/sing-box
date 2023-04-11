@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"net"
+	"net/http"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,20 +15,27 @@ import (
 	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/protocol/http"
+	sHTTP "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.Outbound = (*HTTP)(nil)
 
 type HTTP struct {
 	myOutboundAdapter
-	client *http.Client
+	client *sHTTP.Client
 }
 
 func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) (*HTTP, error) {
 	detour, err := tls.NewDialerFromOptions(router, dialer.New(router, options.DialerOptions), options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
+	}
+	var headers http.Header
+	if options.Headers != nil {
+		headers = make(http.Header)
+		for key, values := range options.Headers {
+			headers[key] = values
+		}
 	}
 	return &HTTP{
 		myOutboundAdapter{
@@ -37,7 +45,7 @@ func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, option
 			logger:   logger,
 			tag:      tag,
 		},
-		http.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password, nil),
+		sHTTP.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password, headers),
 	}, nil
 }
 
