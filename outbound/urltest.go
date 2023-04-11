@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -71,7 +72,7 @@ func (s *URLTest) Start() error {
 	return s.group.Start()
 }
 
-func (s URLTest) Close() error {
+func (s *URLTest) Close() error {
 	return common.Close(
 		common.PtrOrNil(s.group),
 	)
@@ -83,6 +84,10 @@ func (s *URLTest) Now() string {
 
 func (s *URLTest) All() []string {
 	return s.tags
+}
+
+func (s *URLTest) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
+	return s.group.URLTest(ctx, link)
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -249,8 +254,14 @@ func (g *URLTestGroup) loopCheck() {
 }
 
 func (g *URLTestGroup) checkOutbounds() {
-	b, _ := batch.New(context.Background(), batch.WithConcurrencyNum[any](10))
+	_, _ = g.URLTest(context.Background(), g.link)
+}
+
+func (g *URLTestGroup) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
+	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
 	checked := make(map[string]bool)
+	result := make(map[string]uint16)
+	var resultAccess sync.Mutex
 	for _, detour := range g.outbounds {
 		tag := detour.Tag()
 		realTag := RealTag(detour)
@@ -269,7 +280,7 @@ func (g *URLTestGroup) checkOutbounds() {
 		b.Go(realTag, func() (any, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), C.TCPTimeout)
 			defer cancel()
-			t, err := urltest.URLTest(ctx, g.link, p)
+			t, err := urltest.URLTest(ctx, link, p)
 			if err != nil {
 				g.logger.Debug("outbound ", tag, " unavailable: ", err)
 				g.history.DeleteURLTestHistory(realTag)
@@ -279,9 +290,13 @@ func (g *URLTestGroup) checkOutbounds() {
 					Time:  time.Now(),
 					Delay: t,
 				})
+				resultAccess.Lock()
+				result[tag] = t
+				resultAccess.Unlock()
 			}
 			return nil, nil
 		})
 	}
 	b.Wait()
+	return result, nil
 }

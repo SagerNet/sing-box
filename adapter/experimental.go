@@ -35,6 +35,11 @@ type OutboundGroup interface {
 	All() []string
 }
 
+type URLTestGroup interface {
+	OutboundGroup
+	URLTest(ctx context.Context, url string) (map[string]uint16, error)
+}
+
 func OutboundTag(detour Outbound) string {
 	if group, isGroup := detour.(OutboundGroup); isGroup {
 		return group.Now()
