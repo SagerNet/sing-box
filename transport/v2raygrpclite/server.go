@@ -100,8 +100,8 @@ func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter
 
 func (s *Server) Serve(listener net.Listener) error {
 	if s.tlsConfig != nil {
-		if len(s.tlsConfig.NextProtos()) == 0 {
-			s.tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
+		if !common.Contains(s.tlsConfig.NextProtos(), http2.NextProtoTLS) {
+			s.tlsConfig.SetNextProtos(append([]string{"h2"}, s.tlsConfig.NextProtos()...))
 		}
 		listener = aTLS.NewListener(listener, s.tlsConfig)
 	}
