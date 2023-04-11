@@ -1,6 +1,7 @@
 package trafficontrol
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/sagernet/sing-box/experimental/clashapi/compatible"
@@ -18,12 +19,15 @@ type Manager struct {
 	connections compatible.Map[string, tracker]
 	ticker      *time.Ticker
 	done        chan struct{}
+	// process     *process.Process
+	memory uint64
 }
 
 func NewManager() *Manager {
 	manager := &Manager{
 		ticker: time.NewTicker(time.Second),
 		done:   make(chan struct{}),
+		// process: &process.Process{Pid: int32(os.Getpid())},
 	}
 	go manager.handle()
 	return manager
@@ -58,10 +62,18 @@ func (m *Manager) Snapshot() *Snapshot {
 		return true
 	})
 
+	//if memoryInfo, err := m.process.MemoryInfo(); err == nil {
+	//	m.memory = memoryInfo.RSS
+	//} else {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	m.memory = memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased
+
 	return &Snapshot{
 		UploadTotal:   m.uploadTotal.Load(),
 		DownloadTotal: m.downloadTotal.Load(),
 		Connections:   connections,
+		Memory:        m.memory,
 	}
 }
 
@@ -100,4 +112,5 @@ type Snapshot struct {
 	DownloadTotal int64     `json:"downloadTotal"`
 	UploadTotal   int64     `json:"uploadTotal"`
 	Connections   []tracker `json:"connections"`
+	Memory        uint64    `json:"memory"`
 }
