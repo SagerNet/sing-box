@@ -57,7 +57,7 @@ RESTful web API 监听地址。如果为空，则禁用 Clash API。
 
 静态网页资源的 ZIP 下载 URL，如果指定的 `external_ui` 目录为空，将使用。
 
-默认使用 `https://github.com/Dreamacro/clash-dashboard/archive/refs/heads/gh-pages.zip`。
+默认使用 `https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip`。
 
 #### external_ui_download_detour
 

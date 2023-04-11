@@ -59,7 +59,7 @@ serve it at `http://{{external-controller}}/ui`.
 
 ZIP download URL for the external UI, will be used if the specified `external_ui` directory is empty.
 
-`https://github.com/Dreamacro/clash-dashboard/archive/refs/heads/gh-pages.zip` will be used if empty.
+`https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip` will be used if empty.
 
 #### external_ui_download_detour
 
