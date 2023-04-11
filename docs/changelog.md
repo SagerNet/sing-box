@@ -1,3 +1,10 @@
+#### 1.3-beta5
+
+* Add Clash.Meta API compatibility for Clash API
+* Download Yacd-meta by default if the specified Clash `external_ui` directory is empty
+* Add path and headers option for HTTP outbound
+* Fixes and improvements
+
 #### 1.3-beta4
 
 * Fix bugs
