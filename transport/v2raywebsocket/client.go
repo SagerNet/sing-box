@@ -60,6 +60,10 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	if !strings.HasPrefix(uri.Path, "/") {
 		uri.Path = "/" + uri.Path
 	}
+	if strings.HasSuffix(uri.Path, "?") {
+		uri.ForceQuery = true
+		uri.Path = strings.TrimSuffix(uri.Path, "?")
+	}
 	headers := make(http.Header)
 	for key, value := range options.Headers {
 		headers[key] = value
