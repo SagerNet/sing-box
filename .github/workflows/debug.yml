@@ -31,12 +31,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ steps.version.outputs.go_version }}
-      - name: Cache go module
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: go-${{ hashFiles('**/go.sum') }}
       - name: Add cache to Go proxy
         run: |
           version=`git rev-parse HEAD`
@@ -196,12 +190,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ steps.version.outputs.go_version }}
-      - name: Cache go module
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: go-${{ hashFiles('**/go.sum') }}
       - name: Build
         id: build
         run: make
