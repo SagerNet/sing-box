@@ -17,6 +17,7 @@ type HTTPMixedInboundOptions struct {
 type SocksOutboundOptions struct {
 	DialerOptions
 	ServerOptions
+	SniffOptions
 	Version           string             `json:"version,omitempty"`
 	Username          string             `json:"username,omitempty"`
 	Password          string             `json:"password,omitempty"`

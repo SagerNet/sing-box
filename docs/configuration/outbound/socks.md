@@ -14,6 +14,7 @@
   "password": "admin",
   "network": "udp",
   "udp_over_tcp": false | {},
+  "use_sniffed_destination": false
 
   ... // Dial Fields
 }
@@ -60,6 +61,10 @@ Both is enabled by default.
 UDP over TCP protocol settings.
 
 See [UDP Over TCP](/configuration/shared/udp-over-tcp) for details.
+
+#### use_sniffed_destination
+
+When an inbound request is routed to the outbound, the detected domain name will be used to override the connection target address before establishing a connection. This option is only effective when `sniff` is set to `true` and `sniff_override_destination` is `false` in the inbound.
 
 ### Dial Fields
 

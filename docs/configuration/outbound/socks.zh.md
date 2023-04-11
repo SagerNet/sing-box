@@ -14,6 +14,7 @@
   "password": "admin",
   "network": "udp",
   "udp_over_tcp": false | {},
+  "use_sniffed_destination": false
 
   ... // 拨号字段
 }
@@ -60,6 +61,10 @@ SOCKS5 密码。
 UDP over TCP 配置。
 
 参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp)。
+
+#### use_sniffed_destination
+
+当入站请求路由到该出站时，在建立连接前会用探测出的域名覆盖连接目标地址，仅当入站设置了`sniff`为`true`同时`sniff_override_destination`为`false`时该选项有效。
 
 ### 拨号字段
 

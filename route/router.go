@@ -657,6 +657,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
 	}
 
+	var sniffedDestination M.Socksaddr
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
@@ -664,10 +665,13 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
-			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
-				metadata.Destination = M.Socksaddr{
+			if M.IsDomainName(metadata.Domain) {
+				sniffedDestination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
+				}
+				if metadata.InboundOptions.SniffOverrideDestination {
+					metadata.Destination = sniffedDestination
 				}
 			}
 			if metadata.Domain != "" {
@@ -705,6 +709,13 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 	if !common.Contains(detour.Network(), N.NetworkTCP) {
 		return E.New("missing supported outbound, closing connection")
+	}
+	if metadata.InboundOptions.SniffEnabled && !metadata.InboundOptions.SniffOverrideDestination && sniffedDestination.IsValid() {
+		sniffOutbound, loaded := detour.(adapter.SniffOutbound)
+		if loaded && sniffOutbound.UseSniffedDestination() {
+			r.logger.DebugContext(ctx, "use sniffed destination, detor: ", detour.Tag(), ", domain: ", metadata.Domain)
+			metadata.Destination = sniffedDestination
+		}
 	}
 	if r.clashServer != nil {
 		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
@@ -760,6 +771,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
 	}
 
+	var sniffedDestination M.Socksaddr
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
@@ -772,10 +784,13 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
-			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
-				metadata.Destination = M.Socksaddr{
+			if M.IsDomainName(metadata.Domain) {
+				sniffedDestination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
+				}
+				if metadata.InboundOptions.SniffOverrideDestination {
+					metadata.Destination = sniffedDestination
 				}
 			}
 			if metadata.Domain != "" {
@@ -807,6 +822,13 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	}
 	if !common.Contains(detour.Network(), N.NetworkUDP) {
 		return E.New("missing supported outbound, closing packet connection")
+	}
+	if metadata.InboundOptions.SniffEnabled && !metadata.InboundOptions.SniffOverrideDestination && sniffedDestination.IsValid() {
+		sniffOutbound, loaded := detour.(adapter.SniffOutbound)
+		if loaded && sniffOutbound.UseSniffedDestination() {
+			r.logger.DebugContext(ctx, "use sniffed destination, detor: ", detour.Tag(), ", domain: ", metadata.Domain)
+			metadata.Destination = sniffedDestination
+		}
 	}
 	if r.clashServer != nil {
 		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)

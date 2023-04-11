@@ -19,6 +19,11 @@ type Outbound interface {
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 }
 
+type SniffOutbound interface {
+	Outbound
+	UseSniffedDestination() bool
+}
+
 type IPOutbound interface {
 	Outbound
 	NewIPConnection(ctx context.Context, conn tun.RouteContext, metadata InboundContext) (tun.DirectDestination, error)

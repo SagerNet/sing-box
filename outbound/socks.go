@@ -17,13 +17,18 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 )
 
-var _ adapter.Outbound = (*Socks)(nil)
+var _ adapter.SniffOutbound = (*Socks)(nil)
 
 type Socks struct {
 	myOutboundAdapter
-	client    *socks.Client
-	resolve   bool
-	uotClient *uot.Client
+	client                *socks.Client
+	resolve               bool
+	uotClient             *uot.Client
+	useSniffedDestination bool
+}
+
+func (h *Socks) UseSniffedDestination() bool {
+	return h.useSniffedDestination
 }
 
 func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
@@ -45,8 +50,9 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 			logger:   logger,
 			tag:      tag,
 		},
-		client:  socks.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), version, options.Username, options.Password),
-		resolve: version == socks.Version4,
+		client:                socks.NewClient(dialer.New(router, options.DialerOptions), options.ServerOptions.Build(), version, options.Username, options.Password),
+		resolve:               version == socks.Version4,
+		useSniffedDestination: options.UseSniffedDestination,
 	}
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
 	if uotOptions.Enabled {

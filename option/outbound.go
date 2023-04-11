@@ -144,6 +144,10 @@ func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
 }
 
+type SniffOptions struct {
+	UseSniffedDestination bool `json:"use_sniffed_destination,omitempty"`
+}
+
 type MultiplexOptions struct {
 	Enabled        bool   `json:"enabled,omitempty"`
 	Protocol       string `json:"protocol,omitempty"`
