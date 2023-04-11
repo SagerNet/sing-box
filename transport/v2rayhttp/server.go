@@ -102,12 +102,20 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 
-	writer.WriteHeader(http.StatusOK)
-	writer.(http.Flusher).Flush()
-
 	var metadata M.Metadata
 	metadata.Source = sHttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
+		var requestBody *buf.Buffer
+		if contentLength := int(request.ContentLength); contentLength > 0 {
+			requestBody = buf.NewSize(contentLength)
+			_, err := requestBody.ReadFullFrom(request.Body, contentLength)
+			if err != nil {
+				s.fallbackRequest(request.Context(), writer, request, 0, E.Cause(err, "read request"))
+				return
+			}
+		}
+		writer.WriteHeader(http.StatusOK)
+		writer.(http.Flusher).Flush()
 		conn, reader, err := h.Hijack()
 		if err != nil {
 			s.fallbackRequest(request.Context(), writer, request, 0, E.Cause(err, "hijack conn"))
@@ -122,8 +130,12 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			}
 			conn = bufio.NewCachedConn(conn, cache)
 		}
+		if requestBody != nil {
+			conn = bufio.NewCachedConn(conn, requestBody)
+		}
 		s.handler.NewConnection(request.Context(), conn, metadata)
 	} else {
+		writer.WriteHeader(http.StatusOK)
 		conn := NewHTTP2Wrapper(&ServerHTTPConn{
 			NewHTTPConn(request.Body, writer),
 			writer.(http.Flusher),
