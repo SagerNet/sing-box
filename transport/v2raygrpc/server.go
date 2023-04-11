@@ -14,6 +14,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
+	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	gM "google.golang.org/grpc/metadata"
@@ -31,7 +32,9 @@ type Server struct {
 func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler) (*Server, error) {
 	var serverOptions []grpc.ServerOption
 	if tlsConfig != nil {
-		tlsConfig.SetNextProtos([]string{"h2"})
+		if !common.Contains(tlsConfig.NextProtos(), http2.NextProtoTLS) {
+			tlsConfig.SetNextProtos(append([]string{"h2"}, tlsConfig.NextProtos()...))
+		}
 		serverOptions = append(serverOptions, grpc.Creds(NewTLSTransportCredentials(tlsConfig)))
 	}
 	if options.IdleTimeout > 0 {

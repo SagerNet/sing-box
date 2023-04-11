@@ -180,7 +180,7 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 		tlsConfig.ServerName = options.ServerName
 	}
 	if len(options.ALPN) > 0 {
-		tlsConfig.NextProtos = append(tlsConfig.NextProtos, options.ALPN...)
+		tlsConfig.NextProtos = append(options.ALPN, tlsConfig.NextProtos...)
 	}
 	if options.MinVersion != "" {
 		minVersion, err := ParseTLSVersion(options.MinVersion)
