@@ -14,14 +14,14 @@ import (
 	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/protocol/http"
+	sHTTP "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.Outbound = (*HTTP)(nil)
 
 type HTTP struct {
 	myOutboundAdapter
-	client *http.Client
+	client *sHTTP.Client
 }
 
 func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) (*HTTP, error) {
@@ -37,7 +37,12 @@ func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, option
 			logger:   logger,
 			tag:      tag,
 		},
-		http.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password, nil),
+		sHTTP.NewClient(sHTTP.Options{
+			Dialer:   detour,
+			Server:   options.ServerOptions.Build(),
+			Username: options.Username,
+			Password: options.Password,
+		}),
 	}, nil
 }
 

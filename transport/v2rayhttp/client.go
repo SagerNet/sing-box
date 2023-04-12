@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -16,6 +15,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	sHTTP "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
 )
@@ -34,7 +34,7 @@ type Client struct {
 	headers    http.Header
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayHTTPOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayHTTPOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
 	var transport http.RoundTripper
 	if tlsConfig == nil {
 		transport = &http.Transport{
@@ -77,14 +77,15 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}
 	uri.Host = serverAddr.String()
 	uri.Path = options.Path
-	if !strings.HasPrefix(uri.Path, "/") {
-		uri.Path = "/" + uri.Path
+	err := sHTTP.URLSetPath(&uri, options.Path)
+	if err != nil {
+		return nil, E.New("failed to set path: " + err.Error())
 	}
 	for key, valueList := range options.Headers {
 		client.headers[key] = valueList
 	}
 	client.url = &uri
-	return client
+	return client, nil
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
