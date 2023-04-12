@@ -27,3 +27,5 @@ const (
 	TypeSelector = "selector"
 	TypeURLTest  = "urltest"
 )
+
+const TypeSubscribe = "subscribe"

@@ -147,6 +147,80 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 	}
 }
 
+func NewSimple(options option.DialerOptions) *DefaultDialer {
+	var dialer net.Dialer
+	var listener net.ListenConfig
+	if options.BindInterface != "" {
+		warnBindInterfaceOnUnsupportedPlatform.Check()
+		bindFunc := control.BindToInterface(control.DefaultInterfaceFinder(), options.BindInterface, -1)
+		dialer.Control = control.Append(dialer.Control, bindFunc)
+		listener.Control = control.Append(listener.Control, bindFunc)
+	}
+	if options.RoutingMark != 0 {
+		warnRoutingMarkOnUnsupportedPlatform.Check()
+		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
+		listener.Control = control.Append(listener.Control, control.RoutingMark(options.RoutingMark))
+	}
+	if options.ReuseAddr {
+		warnReuseAdderOnUnsupportedPlatform.Check()
+		listener.Control = control.Append(listener.Control, control.ReuseAddr())
+	}
+	if options.ProtectPath != "" {
+		warnProtectPathOnNonAndroid.Check()
+		dialer.Control = control.Append(dialer.Control, control.ProtectPath(options.ProtectPath))
+		listener.Control = control.Append(listener.Control, control.ProtectPath(options.ProtectPath))
+	}
+	if options.ConnectTimeout != 0 {
+		dialer.Timeout = time.Duration(options.ConnectTimeout)
+	} else {
+		dialer.Timeout = C.TCPTimeout
+	}
+	if options.TCPFastOpen {
+		warnTFOOnUnsupportedPlatform.Check()
+	}
+	var udpFragment bool
+	if options.UDPFragment != nil {
+		udpFragment = *options.UDPFragment
+	} else {
+		udpFragment = options.UDPFragmentDefault
+	}
+	if !udpFragment {
+		dialer.Control = control.Append(dialer.Control, control.DisableUDPFragment())
+		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
+	}
+	var (
+		dialer4    = dialer
+		udpDialer4 = dialer
+		udpAddr4   string
+	)
+	if options.Inet4BindAddress != nil {
+		bindAddr := options.Inet4BindAddress.Build()
+		dialer4.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
+		udpDialer4.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
+		udpAddr4 = M.SocksaddrFrom(bindAddr, 0).String()
+	}
+	var (
+		dialer6    = dialer
+		udpDialer6 = dialer
+		udpAddr6   string
+	)
+	if options.Inet6BindAddress != nil {
+		bindAddr := options.Inet6BindAddress.Build()
+		dialer6.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
+		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
+		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()
+	}
+	return &DefaultDialer{
+		tfo.Dialer{Dialer: dialer4, DisableTFO: !options.TCPFastOpen},
+		tfo.Dialer{Dialer: dialer6, DisableTFO: !options.TCPFastOpen},
+		udpDialer4,
+		udpDialer6,
+		listener,
+		udpAddr4,
+		udpAddr6,
+	}
+}
+
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
 	if !address.IsValid() {
 		return nil, E.New("invalid address")

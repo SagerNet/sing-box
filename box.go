@@ -106,23 +106,23 @@ func New(options Options) (*Box, error) {
 		inbounds = append(inbounds, in)
 	}
 	for i, outboundOptions := range options.Outbounds {
-		var out adapter.Outbound
+		var outs []adapter.Outbound
 		var tag string
 		if outboundOptions.Tag != "" {
 			tag = outboundOptions.Tag
 		} else {
 			tag = F.ToString(i)
 		}
-		out, err = outbound.New(
+		outs, err = outbound.NewGroup(
 			ctx,
 			router,
-			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
+			logFactory,
 			tag,
 			outboundOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
-		outbounds = append(outbounds, out)
+		outbounds = append(outbounds, outs...)
 	}
 	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
 		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.Outbound{Type: "direct", Tag: "default"})
