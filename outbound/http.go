@@ -45,7 +45,14 @@ func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, option
 			logger:   logger,
 			tag:      tag,
 		},
-		sHTTP.NewClient(detour, options.ServerOptions.Build(), options.Username, options.Password, headers),
+		sHTTP.NewClient(sHTTP.Options{
+			Dialer:   detour,
+			Server:   options.ServerOptions.Build(),
+			Username: options.Username,
+			Password: options.Password,
+			Path:     options.Path,
+			Headers:  headers,
+		}),
 	}, nil
 }
 

@@ -46,7 +46,7 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 	}
 	switch options.Type {
 	case C.V2RayTransportTypeHTTP:
-		return v2rayhttp.NewClient(ctx, dialer, serverAddr, options.HTTPOptions, tlsConfig), nil
+		return v2rayhttp.NewClient(ctx, dialer, serverAddr, options.HTTPOptions, tlsConfig)
 	case C.V2RayTransportTypeGRPC:
 		return NewGRPCClient(ctx, dialer, serverAddr, options.GRPCOptions, tlsConfig)
 	case C.V2RayTransportTypeWebsocket:
