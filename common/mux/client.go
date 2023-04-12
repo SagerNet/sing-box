@@ -413,7 +413,11 @@ func (c *ClientPacketAddrConn) ReadFrom(p []byte) (n int, addr net.Addr, err err
 	if err != nil {
 		return
 	}
-	addr = destination.UDPAddr()
+	if destination.IsFqdn() {
+		addr = destination
+	} else {
+		addr = destination.UDPAddr()
+	}
 	var length uint16
 	err = binary.Read(c.ExtendedConn, binary.BigEndian, &length)
 	if err != nil {

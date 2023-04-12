@@ -498,7 +498,12 @@ func (c *PacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		return
 	}
 	n = copy(p, msg.Data)
-	addr = M.ParseSocksaddrHostPort(msg.Host, msg.Port).UDPAddr()
+	destination := M.ParseSocksaddrHostPort(msg.Host, msg.Port)
+	if destination.IsFqdn() {
+		addr = destination
+	} else {
+		addr = destination.UDPAddr()
+	}
 	return
 }
 
