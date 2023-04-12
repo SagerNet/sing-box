@@ -147,7 +147,11 @@ func (c *serverPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) 
 	if err != nil {
 		return
 	}
-	addr = c.destination.UDPAddr()
+	if c.destination.IsFqdn() {
+		addr = c.destination
+	} else {
+		addr = c.destination.UDPAddr()
+	}
 	return
 }
 

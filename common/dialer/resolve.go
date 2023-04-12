@@ -73,7 +73,7 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if err != nil {
 		return nil, err
 	}
-	return bufio.NewNATPacketConn(bufio.NewPacketConn(conn), destination, M.SocksaddrFrom(destinationAddress, destination.Port)), nil
+	return bufio.NewNATPacketConn(bufio.NewPacketConn(conn), M.SocksaddrFrom(destinationAddress, destination.Port), destination), nil
 }
 
 func (d *ResolveDialer) Upstream() any {
