@@ -10,7 +10,7 @@
     "proxy-b",
     "proxy-c"
   ],
-  "url": "http://www.gstatic.com/generate_204",
+  "url": "https://www.gstatic.com/generate_204",
   "interval": "1m",
   "tolerance": 50
 }
@@ -26,7 +26,7 @@
 
 #### url
 
-用于测试的链接。默认使用 `http://www.gstatic.com/generate_204`。
+用于测试的链接。默认使用 `https://www.gstatic.com/generate_204`。
 
 #### interval
 
