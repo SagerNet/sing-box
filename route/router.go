@@ -631,7 +631,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
 		buffer.FullReset()
-		sniffMetadata, _ := sniff.PeekStream(ctx, conn, buffer, time.Duration(metadata.InboundOptions.SniffTimeout), sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
+		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, time.Duration(metadata.InboundOptions.SniffTimeout), sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
@@ -646,6 +646,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
 			}
+		} else if err != nil {
+			r.logger.TraceContext(ctx, "sniffed no protocol: ", err)
 		}
 		if !buffer.IsEmpty() {
 			conn = bufio.NewCachedConn(conn, buffer)
