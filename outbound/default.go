@@ -39,6 +39,10 @@ func (a *myOutboundAdapter) Network() []string {
 	return a.network
 }
 
+func (a *myOutboundAdapter) NewError(ctx context.Context, err error) {
+	NewError(a.logger, ctx, err)
+}
+
 func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.Conn
@@ -120,4 +124,13 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 		payload.Release()
 	}
 	return bufio.CopyConn(ctx, conn, serverConn)
+}
+
+func NewError(logger log.ContextLogger, ctx context.Context, err error) {
+	common.Close(err)
+	if E.IsClosedOrCanceled(err) {
+		logger.DebugContext(ctx, "connection closed: ", err)
+		return
+	}
+	logger.ErrorContext(ctx, err)
 }
