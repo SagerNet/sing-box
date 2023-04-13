@@ -24,12 +24,12 @@ func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout 
 	}
 	err := conn.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "set read deadline")
 	}
 	_, err = buffer.ReadOnceFrom(conn)
 	err = E.Errors(err, conn.SetReadDeadline(time.Time{}))
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "read payload")
 	}
 	var metadata *adapter.InboundContext
 	var errors []error
