@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	_ adapter.Outbound      = (*URLTest)(nil)
-	_ adapter.OutboundGroup = (*URLTest)(nil)
+	_ adapter.Outbound                = (*URLTest)(nil)
+	_ adapter.OutboundGroup           = (*URLTest)(nil)
+	_ adapter.InterfaceUpdateListener = (*URLTest)(nil)
 )
 
 type URLTest struct {
@@ -120,6 +121,11 @@ func (s *URLTest) NewConnection(ctx context.Context, conn net.Conn, metadata ada
 
 func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewPacketConnection(ctx, s, conn, metadata)
+}
+
+func (s *URLTest) InterfaceUpdated() error {
+	go s.group.checkOutbounds()
+	return nil
 }
 
 type URLTestGroup struct {
