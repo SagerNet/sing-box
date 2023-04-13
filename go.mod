@@ -22,10 +22,10 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
-	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
+	github.com/sagernet/gomobile v0.0.0-20230413023804-244d7ff07035
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.3-0.20230413012039-2fb7e38ac4bf
+	github.com/sagernet/sing v0.2.3-0.20230413023204-48b019b13e78
 	github.com/sagernet/sing-dns v0.1.5-0.20230408004833-5adaf486d440
 	github.com/sagernet/sing-shadowsocks v0.2.1-0.20230412123110-1a7c32b4e2e7
 	github.com/sagernet/sing-shadowtls v0.1.1-0.20230409094821-9abef019436f
