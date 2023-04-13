@@ -12,7 +12,7 @@ type PacketConn struct {
 	element *list.Element[io.Closer]
 }
 
-func NewPacketConn(conn net.PacketConn) (*PacketConn, error) {
+func NewPacketConn(conn net.PacketConn) (net.PacketConn, error) {
 	connAccess.Lock()
 	element := openConnection.PushBack(conn)
 	connAccess.Unlock()
