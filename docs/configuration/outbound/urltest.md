@@ -10,7 +10,7 @@
     "proxy-b",
     "proxy-c"
   ],
-  "url": "http://www.gstatic.com/generate_204",
+  "url": "https://www.gstatic.com/generate_204",
   "interval": "1m",
   "tolerance": 50
 }
@@ -26,7 +26,7 @@ List of outbound tags to test.
 
 #### url
 
-The URL to test. `http://www.gstatic.com/generate_204` will be used if empty.
+The URL to test. `https://www.gstatic.com/generate_204` will be used if empty.
 
 #### interval
 
