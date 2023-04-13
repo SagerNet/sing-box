@@ -13,6 +13,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.2
 	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/gofrs/uuid/v5 v5.0.0
 	github.com/hashicorp/yamux v0.1.1
 	github.com/insomniacslk/dhcp v0.0.0-20230327135226-74ae03f2425e
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -22,7 +23,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.10.0
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
-	github.com/sagernet/gomobile v0.0.0-20221130124640-349ebaa752ca
+	github.com/sagernet/gomobile v0.0.0-20230413023804-244d7ff07035
 	github.com/sagernet/quic-go v0.0.0-20230202071646-a8c8afb18b32
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.2.3-0.20230413112320-59e662e6e2ed
