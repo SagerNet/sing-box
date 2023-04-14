@@ -131,7 +131,7 @@ func (h *trojanDialer) DialContext(ctx context.Context, network string, destinat
 	case N.NetworkTCP:
 		return trojan.NewClientConn(conn, h.key, destination), nil
 	case N.NetworkUDP:
-		return &bufio.BindPacketConn{PacketConn: trojan.NewClientPacketConn(conn, h.key), Addr: destination}, nil
+		return bufio.NewBindPacketConn(trojan.NewClientPacketConn(conn, h.key), destination), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
