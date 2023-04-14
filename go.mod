@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	berty.tech/go-libtor v1.0.385
-	github.com/Dreamacro/clash v1.14.0
+	github.com/Dreamacro/clash v1.15.0
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cretz/bine v0.2.0
 	github.com/dustin/go-humanize v1.0.1

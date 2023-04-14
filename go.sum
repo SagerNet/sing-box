@@ -1,7 +1,7 @@
 berty.tech/go-libtor v1.0.385 h1:RWK94C3hZj6Z2GdvePpHJLnWYobFr3bY/OdUJ5aoEXw=
 berty.tech/go-libtor v1.0.385/go.mod h1:9swOOQVb+kmvuAlsgWUK/4c52pm69AdbJsxLzk+fJEw=
-github.com/Dreamacro/clash v1.14.0 h1:ehJ/C/1m9LEjmME72WSE/Y2YqbR3Q54AbjqiRCvtyW4=
-github.com/Dreamacro/clash v1.14.0/go.mod h1:ia2CU7V713H1QdCqMwOLK9U9V5Ay8X0voj3yQr2tk+I=
+github.com/Dreamacro/clash v1.15.0 h1:mlpD950VEggXZBNahV66hyKDRxcczkj3vymoAt78KyE=
+github.com/Dreamacro/clash v1.15.0/go.mod h1:WNH69bN11LiAdgdSr4hpkEuXVMfBbWyhEKMCTx9BtNE=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/andybalholm/brotli v1.0.5 h1:8uQZIdzKmjc/iuPu7O2ioW48L81FgatrcpfFmiq/cCs=
