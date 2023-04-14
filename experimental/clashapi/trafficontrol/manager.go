@@ -4,32 +4,26 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/experimental/clashapi/compatible"
-
-	"go.uber.org/atomic"
+	"github.com/sagernet/sing/common/atomic"
 )
 
 type Manager struct {
-	connections   compatible.Map[string, tracker]
-	uploadTemp    *atomic.Int64
-	downloadTemp  *atomic.Int64
-	uploadBlip    *atomic.Int64
-	downloadBlip  *atomic.Int64
-	uploadTotal   *atomic.Int64
-	downloadTotal *atomic.Int64
-	ticker        *time.Ticker
-	done          chan struct{}
+	uploadTemp    atomic.Int64
+	downloadTemp  atomic.Int64
+	uploadBlip    atomic.Int64
+	downloadBlip  atomic.Int64
+	uploadTotal   atomic.Int64
+	downloadTotal atomic.Int64
+
+	connections compatible.Map[string, tracker]
+	ticker      *time.Ticker
+	done        chan struct{}
 }
 
 func NewManager() *Manager {
 	manager := &Manager{
-		uploadTemp:    atomic.NewInt64(0),
-		downloadTemp:  atomic.NewInt64(0),
-		uploadBlip:    atomic.NewInt64(0),
-		downloadBlip:  atomic.NewInt64(0),
-		uploadTotal:   atomic.NewInt64(0),
-		downloadTotal: atomic.NewInt64(0),
-		ticker:        time.NewTicker(time.Second),
-		done:          make(chan struct{}),
+		ticker: time.NewTicker(time.Second),
+		done:   make(chan struct{}),
 	}
 	go manager.handle()
 	return manager
