@@ -14,6 +14,7 @@ type DebugOptions struct {
 	TraceBack    string      `json:"trace_back,omitempty"`
 	MemoryLimit  BytesLength `json:"memory_limit,omitempty"`
 	OOMKiller    *bool       `json:"oom_killer,omitempty"`
+	Pprof        string      `json:"pprof,omitempty"`
 }
 
 type BytesLength int64

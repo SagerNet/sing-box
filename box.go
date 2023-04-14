@@ -48,7 +48,7 @@ func New(options Options) (*Box, error) {
 	}
 	createdAt := time.Now()
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
-	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
+	applyDebugOptions(ctx, common.PtrValueOrDefault(experimentalOptions.Debug))
 	var needClashAPI bool
 	var needV2RayAPI bool
 	if experimentalOptions.ClashAPI != nil && experimentalOptions.ClashAPI.ExternalController != "" {

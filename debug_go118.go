@@ -3,13 +3,15 @@
 package box
 
 import (
+	"context"
+	"github.com/sagernet/sing-box/experimental/pprof"
 	"runtime/debug"
 
 	"github.com/sagernet/sing-box/common/dialer/conntrack"
 	"github.com/sagernet/sing-box/option"
 )
 
-func applyDebugOptions(options option.DebugOptions) {
+func applyDebugOptions(ctx context.Context, options option.DebugOptions) {
 	if options.GCPercent != nil {
 		debug.SetGCPercent(*options.GCPercent)
 	}
@@ -31,5 +33,8 @@ func applyDebugOptions(options option.DebugOptions) {
 	}
 	if options.OOMKiller != nil {
 		conntrack.KillerEnabled = *options.OOMKiller
+	}
+	if options.Pprof != "" {
+		pprof.NewPprof(ctx, options.Pprof)
 	}
 }
