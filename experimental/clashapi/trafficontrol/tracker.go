@@ -1,6 +1,7 @@
 package trafficontrol
 
 import (
+	"encoding/json"
 	"net"
 	"net/netip"
 	"time"
@@ -8,10 +9,10 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/experimental/trackerconn"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/atomic"
 	N "github.com/sagernet/sing/common/network"
 
-	"github.com/gofrs/uuid"
-	"go.uber.org/atomic"
+	"github.com/gofrs/uuid/v5"
 )
 
 type Metadata struct {
@@ -41,6 +42,19 @@ type trackerInfo struct {
 	Chain         []string      `json:"chains"`
 	Rule          string        `json:"rule"`
 	RulePayload   string        `json:"rulePayload"`
+}
+
+func (t trackerInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"id":          t.UUID.String(),
+		"metadata":    t.Metadata,
+		"upload":      t.UploadTotal.Load(),
+		"download":    t.DownloadTotal.Load(),
+		"start":       t.Start,
+		"chains":      t.Chain,
+		"rule":        t.Rule,
+		"rulePayload": t.RulePayload,
+	})
 }
 
 type tcpTracker struct {
@@ -97,8 +111,8 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata Metadata, router ad
 		next = group.Now()
 	}
 
-	upload := atomic.NewInt64(0)
-	download := atomic.NewInt64(0)
+	upload := new(atomic.Int64)
+	download := new(atomic.Int64)
 
 	t := &tcpTracker{
 		ExtendedConn: trackerconn.NewHook(conn, func(n int64) {
@@ -184,8 +198,8 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata Metadata, route
 		next = group.Now()
 	}
 
-	upload := atomic.NewInt64(0)
-	download := atomic.NewInt64(0)
+	upload := new(atomic.Int64)
+	download := new(atomic.Int64)
 
 	ut := &udpTracker{
 		PacketConn: trackerconn.NewHookPacket(conn, func(n int64) {
