@@ -4,7 +4,7 @@ type ShadowsocksInboundOptions struct {
 	ListenOptions
 	Network      NetworkList              `json:"network,omitempty"`
 	Method       string                   `json:"method"`
-	Password     string                   `json:"password"`
+	Password     string                   `json:"password,omitempty"`
 	Users        []ShadowsocksUser        `json:"users,omitempty"`
 	Destinations []ShadowsocksDestination `json:"destinations,omitempty"`
 }
