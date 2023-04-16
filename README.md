@@ -8,6 +8,10 @@ The universal proxy platform.
 
 https://sing-box.sagernet.org
 
+## Support
+
+https://community.sagernet.org/c/sing-box/
+
 ## License
 
 ```

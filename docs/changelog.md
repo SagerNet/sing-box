@@ -1,3 +1,7 @@
+#### 1.2.4
+
+* Fixes and improvements
+
 #### 1.2.3
 
 * Introducing our [new Android client application](/installation/clients/sfa)
