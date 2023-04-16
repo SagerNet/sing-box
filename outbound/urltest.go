@@ -72,7 +72,8 @@ func (s *URLTest) Start() error {
 		outbounds = append(outbounds, detour)
 	}
 	s.group = NewURLTestGroup(s.ctx, s.router, s.logger, outbounds, s.link, s.interval, s.tolerance)
-	return s.group.Start()
+	go s.group.CheckOutbounds()
+	return nil
 }
 
 func (s *URLTest) Close() error {
@@ -94,6 +95,7 @@ func (s *URLTest) URLTest(ctx context.Context, link string) (map[string]uint16, 
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	s.group.Start()
 	outbound := s.group.Select(network)
 	conn, err := outbound.DialContext(ctx, network, destination)
 	if err == nil {
@@ -105,6 +107,7 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 }
 
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	s.group.Start()
 	outbound := s.group.Select(N.NetworkUDP)
 	conn, err := outbound.ListenPacket(ctx, destination)
 	if err == nil {
@@ -124,7 +127,7 @@ func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, me
 }
 
 func (s *URLTest) InterfaceUpdated() error {
-	go s.group.checkOutbounds()
+	go s.group.CheckOutbounds()
 	return nil
 }
 
@@ -138,6 +141,7 @@ type URLTestGroup struct {
 	tolerance uint16
 	history   *urltest.HistoryStorage
 
+	access sync.Mutex
 	ticker *time.Ticker
 	close  chan struct{}
 }
@@ -168,13 +172,23 @@ func NewURLTestGroup(ctx context.Context, router adapter.Router, logger log.Logg
 	}
 }
 
-func (g *URLTestGroup) Start() error {
+func (g *URLTestGroup) Start() {
+	if g.ticker != nil {
+		return
+	}
+	g.access.Lock()
+	defer g.access.Unlock()
+	if g.ticker != nil {
+		return
+	}
 	g.ticker = time.NewTicker(g.interval)
 	go g.loopCheck()
-	return nil
 }
 
 func (g *URLTestGroup) Close() error {
+	if g.ticker == nil {
+		return nil
+	}
 	g.ticker.Stop()
 	close(g.close)
 	return nil
@@ -234,18 +248,18 @@ func (g *URLTestGroup) Fallback(used adapter.Outbound) []adapter.Outbound {
 }
 
 func (g *URLTestGroup) loopCheck() {
-	go g.checkOutbounds()
+	go g.CheckOutbounds()
 	for {
 		select {
 		case <-g.close:
 			return
 		case <-g.ticker.C:
-			g.checkOutbounds()
+			g.CheckOutbounds()
 		}
 	}
 }
 
-func (g *URLTestGroup) checkOutbounds() {
+func (g *URLTestGroup) CheckOutbounds() {
 	_, _ = g.URLTest(g.ctx, g.link)
 }
 
