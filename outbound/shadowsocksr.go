@@ -127,7 +127,7 @@ func (h *ShadowsocksR) DialContext(ctx context.Context, network string, destinat
 		if err != nil {
 			return nil, err
 		}
-		return &bufio.BindPacketConn{PacketConn: conn, Addr: destination}, nil
+		return bufio.NewBindPacketConn(conn, destination), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
