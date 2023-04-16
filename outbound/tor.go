@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -35,6 +36,8 @@ type Tor struct {
 	events      chan control.Event
 	instance    *tor.Tor
 	socksClient *socks.Client
+
+	startup atomic.Bool
 }
 
 func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TorOutboundOptions) (*Tor, error) {
@@ -142,21 +145,30 @@ func (t *Tor) start() error {
 			}
 		}
 	}
-	err = torInstance.EnableNetwork(t.ctx, true)
+	go t.waitStartup()
+	return nil
+}
+
+func (t *Tor) waitStartup() {
+	err := t.instance.EnableNetwork(t.ctx, true)
 	if err != nil {
-		return err
+		t.logger.Error("enable tor network fail: ", err.Error())
+		return
 	}
-	info, err := torInstance.Control.GetInfo("net/listeners/socks")
+	info, err := t.instance.Control.GetInfo("net/listeners/socks")
 	if err != nil {
-		return err
+		t.logger.Error("get tor socks proxy address fail: ", err.Error())
+		return
 	}
 	if len(info) != 1 || info[0].Key != "net/listeners/socks" {
-		return E.New("get socks proxy address")
+		t.logger.Error("get socks proxy address")
+		return
 	}
 	t.logger.Trace("obtained tor socks5 address ", info[0].Val)
 	// TODO: set password for tor socks5 server if supported
 	t.socksClient = socks.NewClient(N.SystemDialer, M.ParseSocksaddr(info[0].Val), socks.Version5, "", "")
-	return nil
+	t.startup.Store(true)
+	t.logger.Info("tor startup complete")
 }
 
 func (t *Tor) recvLoop() {
@@ -196,6 +208,9 @@ func (t *Tor) Close() error {
 
 func (t *Tor) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	t.logger.InfoContext(ctx, "outbound connection to ", destination)
+	if !t.startup.Load() {
+		return nil, E.New("tor startup not complete")
+	}
 	return t.socksClient.DialContext(ctx, network, destination)
 }
 
