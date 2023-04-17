@@ -81,6 +81,10 @@ func (c *GRPCConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
+func (c *GRPCConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *GRPCConn) Upstream() any {
 	return c.GunService
 }

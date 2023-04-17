@@ -136,3 +136,11 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 func (c *PacketConn) FrontHeadroom() int {
 	return M.MaxSocksaddrLength + 4
 }
+
+func (c *PacketConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
+func (c *PacketConn) Upstream() any {
+	return c.Conn
+}

@@ -131,6 +131,10 @@ func (c *ServerConn) FrontHeadroom() int {
 	return 0
 }
 
+func (c *ServerConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *ServerConn) Upstream() any {
 	return c.ExtendedConn
 }
@@ -181,6 +185,10 @@ func (c *ServerPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksad
 		c.responseWrite = true
 	}
 	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *ServerPacketConn) NeedAdditionalReadDeadline() bool {
+	return true
 }
 
 func (c *ServerPacketConn) Upstream() any {
@@ -243,6 +251,10 @@ func (c *ServerPacketAddrConn) WritePacket(buffer *buf.Buffer, destination M.Soc
 		c.responseWrite = true
 	}
 	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *ServerPacketAddrConn) NeedAdditionalReadDeadline() bool {
+	return true
 }
 
 func (c *ServerPacketAddrConn) Upstream() any {

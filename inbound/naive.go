@@ -609,6 +609,10 @@ func (c *naiveH2Conn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
+func (c *naiveH2Conn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *naiveH2Conn) UpstreamReader() any {
 	return c.reader
 }

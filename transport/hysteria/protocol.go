@@ -535,6 +535,10 @@ func (c *PacketConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
+func (c *PacketConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *PacketConn) Read(b []byte) (n int, err error) {
 	return 0, os.ErrInvalid
 }
