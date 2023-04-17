@@ -68,7 +68,7 @@ func (w *platformInterfaceWrapper) AutoDetectInterfaceControl() control.Func {
 	}
 }
 
-func (w *platformInterfaceWrapper) OpenTun(options tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
 		return nil, E.New("android: unsupported uid options")
 	}
@@ -79,12 +79,16 @@ func (w *platformInterfaceWrapper) OpenTun(options tun.Options, platformOptions 
 	if err != nil {
 		return nil, err
 	}
+	options.Name, err = getTunnelName(tunFd)
+	if err != nil {
+		return nil, E.Cause(err, "query tun name")
+	}
 	dupFd, err := dup(int(tunFd))
 	if err != nil {
 		return nil, E.Cause(err, "dup tun file descriptor")
 	}
 	options.FileDescriptor = dupFd
-	return tun.New(options)
+	return tun.New(*options)
 }
 
 func (w *platformInterfaceWrapper) Write(p []byte) (n int, err error) {

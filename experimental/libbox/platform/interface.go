@@ -11,7 +11,7 @@ import (
 
 type Interface interface {
 	AutoDetectInterfaceControl() control.Func
-	OpenTun(options tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
+	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
 	process.Searcher
 	io.Writer
 }
