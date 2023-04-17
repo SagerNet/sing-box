@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dialer/conntrack"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/mux"
@@ -290,9 +291,9 @@ func NewRouter(
 		router.fakeIPStore = fakeip.NewStore(router, inet4Range, inet6Range)
 	}
 
-	needInterfaceMonitor := platformInterface == nil && (options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
+	needInterfaceMonitor := options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
 		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
-	}))
+	})
 
 	if needInterfaceMonitor {
 		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
@@ -1000,6 +1001,10 @@ func (r *Router) notifyNetworkUpdate(int) error {
 				return err
 			}
 		}
+	}
+
+	if conntrack.Enabled {
+		conntrack.Close()
 	}
 	return nil
 }
