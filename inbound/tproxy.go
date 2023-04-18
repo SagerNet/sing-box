@@ -45,7 +45,7 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 	}
 	tproxy.connHandler = tproxy
 	tproxy.oobPacketHandler = tproxy
-	tproxy.udpNat = udpnat.New[netip.AddrPort](udpTimeout, tproxy.upstreamContextHandler())
+	tproxy.udpNat = udpnat.New[netip.AddrPort](ctx, udpTimeout, tproxy.upstreamContextHandler())
 	tproxy.packetUpstream = tproxy.udpNat
 	return tproxy
 }

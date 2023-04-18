@@ -64,11 +64,11 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	var err error
 	switch {
 	case options.Method == shadowsocks.MethodNone:
-		inbound.service = shadowsocks.NewNoneService(options.UDPTimeout, inbound.upstreamContextHandler())
+		inbound.service = shadowsocks.NewNoneService(ctx, options.UDPTimeout, inbound.upstreamContextHandler())
 	case common.Contains(shadowaead.List, options.Method):
-		inbound.service, err = shadowaead.NewService(options.Method, nil, options.Password, udpTimeout, inbound.upstreamContextHandler())
+		inbound.service, err = shadowaead.NewService(ctx, options.Method, nil, options.Password, udpTimeout, inbound.upstreamContextHandler())
 	case common.Contains(shadowaead_2022.List, options.Method):
-		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, udpTimeout, inbound.upstreamContextHandler(), router.TimeFunc())
+		inbound.service, err = shadowaead_2022.NewServiceWithPassword(ctx, options.Method, options.Password, udpTimeout, inbound.upstreamContextHandler(), router.TimeFunc())
 	default:
 		err = E.New("unsupported method: ", options.Method)
 	}

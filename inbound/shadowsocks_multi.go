@@ -57,6 +57,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	)
 	if common.Contains(shadowaead_2022.List, options.Method) {
 		service, err = shadowaead_2022.NewMultiServiceWithPassword[int](
+			ctx,
 			options.Method,
 			options.Password,
 			udpTimeout,
@@ -65,6 +66,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 		)
 	} else if common.Contains(shadowaead.List, options.Method) {
 		service, err = shadowaead.NewMultiService[int](
+			ctx,
 			options.Method,
 			udpTimeout,
 			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
