@@ -1,9 +1,8 @@
-//go:build go1.19 && !go.1.20
+//go:build go1.20 && !go.1.21
 
 package badtls
 
 import (
-	"crypto/tls"
 	"reflect"
 	_ "unsafe"
 )
@@ -15,9 +14,6 @@ const (
 
 //go:linkname errShutdown crypto/tls.errShutdown
 var errShutdown error
-
-//go:linkname handshakeComplete crypto/tls.(*Conn).handshakeComplete
-func handshakeComplete(conn *tls.Conn) bool
 
 //go:linkname incSeq crypto/tls.(*halfConn).incSeq
 func incSeq(conn uintptr)
