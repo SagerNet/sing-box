@@ -11,10 +11,12 @@ var (
 	tlsClientHandShakeStart = []byte{0x16, 0x03}
 	tlsServerHandShakeStart = []byte{0x16, 0x03, 0x03}
 	tlsApplicationDataStart = []byte{0x17, 0x03, 0x03}
+)
 
-	commandPaddingContinue byte = 0
-	commandPaddingEnd      byte = 1
-	commandPaddingDirect   byte = 2
+const (
+	commandPaddingContinue byte = iota
+	commandPaddingEnd
+	commandPaddingDirect
 )
 
 var tls13CipherSuiteDic = map[uint16]string{
