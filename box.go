@@ -133,6 +133,12 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	if options.PlatformInterface != nil {
+		err = options.PlatformInterface.Initialize(ctx, router)
+		if err != nil {
+			return nil, E.Cause(err, "initialize platform interface")
+		}
+	}
 	preServices := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needClashAPI {

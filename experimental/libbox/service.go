@@ -6,11 +6,13 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -31,7 +33,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
-		PlatformInterface: &platformInterfaceWrapper{platformInterface, platformInterface.UseProcFS()},
+		PlatformInterface: &platformInterfaceWrapper{iif: platformInterface, useProcFS: platformInterface.UseProcFS()},
 	})
 	if err != nil {
 		cancel()
@@ -58,6 +60,12 @@ var _ platform.Interface = (*platformInterfaceWrapper)(nil)
 type platformInterfaceWrapper struct {
 	iif       PlatformInterface
 	useProcFS bool
+	router    adapter.Router
+}
+
+func (w *platformInterfaceWrapper) Initialize(ctx context.Context, router adapter.Router) error {
+	w.router = router
+	return nil
 }
 
 func (w *platformInterfaceWrapper) AutoDetectInterfaceControl() control.Func {
@@ -121,4 +129,37 @@ func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network 
 	}
 	packageName, _ := w.iif.PackageNameByUid(uid)
 	return &process.Info{UserId: uid, PackageName: packageName}, nil
+}
+
+func (w *platformInterfaceWrapper) UsePlatformDefaultInterfaceMonitor() bool {
+	return w.iif.UsePlatformDefaultInterfaceMonitor()
+}
+
+func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(errorHandler E.Handler) tun.DefaultInterfaceMonitor {
+	return &platformDefaultInterfaceMonitor{
+		platformInterfaceWrapper: w,
+		errorHandler:             errorHandler,
+		defaultInterfaceIndex:    -1,
+	}
+}
+
+func (w *platformInterfaceWrapper) UsePlatformInterfaceGetter() bool {
+	return w.iif.UsePlatformInterfaceGetter()
+}
+
+func (w *platformInterfaceWrapper) Interfaces() ([]platform.NetworkInterface, error) {
+	interfaceIterator, err := w.iif.GetInterfaces()
+	if err != nil {
+		return nil, err
+	}
+	var interfaces []platform.NetworkInterface
+	for _, netInterface := range iteratorToArray[*NetworkInterface](interfaceIterator) {
+		interfaces = append(interfaces, platform.NetworkInterface{
+			Index:     int(netInterface.Index),
+			MTU:       int(netInterface.MTU),
+			Name:      netInterface.Name,
+			Addresses: common.Map(iteratorToArray[string](netInterface.Addresses), netip.MustParsePrefix),
+		})
+	}
+	return interfaces, nil
 }
