@@ -1,4 +1,4 @@
-//go:build !go1.19 || go1.20
+//go:build !go1.19 || go1.21
 
 package badtls
 
