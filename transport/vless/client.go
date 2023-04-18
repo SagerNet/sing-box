@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -35,32 +36,28 @@ func NewClient(userId string, flow string, logger logger.Logger) (*Client, error
 	return &Client{user, flow, logger}, nil
 }
 
-func (c *Client) prepareConn(conn net.Conn) (net.Conn, error) {
+func (c *Client) prepareConn(conn net.Conn, tlsConn net.Conn) (net.Conn, error) {
 	if c.flow == FlowVision {
-		vConn, err := NewVisionConn(conn, c.key, c.logger)
+		protocolConn, err := NewVisionConn(conn, tlsConn, c.key, c.logger)
 		if err != nil {
 			return nil, E.Cause(err, "initialize vision")
 		}
-		conn = vConn
+		conn = protocolConn
 	}
 	return conn, nil
 }
 
-func (c *Client) DialConn(conn net.Conn, destination M.Socksaddr) (*Conn, error) {
-	vConn, err := c.prepareConn(conn)
+func (c *Client) DialConn(conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
+	remoteConn := NewConn(conn, c.key, vmess.CommandTCP, destination, c.flow)
+	protocolConn, err := c.prepareConn(remoteConn, conn)
 	if err != nil {
 		return nil, err
 	}
-	serverConn := &Conn{Conn: conn, protocolConn: vConn, key: c.key, command: vmess.CommandTCP, destination: destination, flow: c.flow}
-	return serverConn, common.Error(serverConn.Write(nil))
+	return protocolConn, common.Error(remoteConn.Write(nil))
 }
 
-func (c *Client) DialEarlyConn(conn net.Conn, destination M.Socksaddr) (*Conn, error) {
-	vConn, err := c.prepareConn(conn)
-	if err != nil {
-		return nil, err
-	}
-	return &Conn{Conn: conn, protocolConn: vConn, key: c.key, command: vmess.CommandTCP, destination: destination, flow: c.flow}, nil
+func (c *Client) DialEarlyConn(conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
+	return c.prepareConn(NewConn(conn, c.key, vmess.CommandTCP, destination, c.flow), conn)
 }
 
 func (c *Client) DialPacketConn(conn net.Conn, destination M.Socksaddr) (*PacketConn, error) {
@@ -73,71 +70,122 @@ func (c *Client) DialEarlyPacketConn(conn net.Conn, destination M.Socksaddr) (*P
 }
 
 func (c *Client) DialXUDPPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
-	serverConn := &Conn{Conn: conn, protocolConn: conn, key: c.key, command: vmess.CommandMux, destination: destination, flow: c.flow}
-	err := common.Error(serverConn.Write(nil))
+	remoteConn := NewConn(conn, c.key, vmess.CommandTCP, destination, c.flow)
+	protocolConn, err := c.prepareConn(remoteConn, conn)
 	if err != nil {
 		return nil, err
 	}
-	return vmess.NewXUDPConn(serverConn, destination), nil
+	return vmess.NewXUDPConn(protocolConn, destination), common.Error(remoteConn.Write(nil))
 }
 
 func (c *Client) DialEarlyXUDPPacketConn(conn net.Conn, destination M.Socksaddr) (vmess.PacketConn, error) {
-	return vmess.NewXUDPConn(&Conn{Conn: conn, protocolConn: conn, key: c.key, command: vmess.CommandMux, destination: destination, flow: c.flow}, destination), nil
+	remoteConn := NewConn(conn, c.key, vmess.CommandMux, destination, c.flow)
+	protocolConn, err := c.prepareConn(remoteConn, conn)
+	if err != nil {
+		return nil, err
+	}
+	return vmess.NewXUDPConn(protocolConn, destination), common.Error(remoteConn.Write(nil))
 }
 
-var _ N.EarlyConn = (*Conn)(nil)
+var (
+	_ N.EarlyConn        = (*Conn)(nil)
+	_ N.VectorisedWriter = (*Conn)(nil)
+)
 
 type Conn struct {
-	net.Conn
-	protocolConn   net.Conn
-	key            [16]byte
-	command        byte
-	destination    M.Socksaddr
-	flow           string
+	N.ExtendedConn
+	writer         N.VectorisedWriter
+	request        Request
 	requestWritten bool
 	responseRead   bool
+}
+
+func NewConn(conn net.Conn, uuid [16]byte, command byte, destination M.Socksaddr, flow string) *Conn {
+	return &Conn{
+		ExtendedConn: bufio.NewExtendedConn(conn),
+		writer:       bufio.NewVectorisedWriter(conn),
+		request: Request{
+			UUID:        uuid,
+			Command:     command,
+			Destination: destination,
+			Flow:        flow,
+		},
+	}
+}
+
+func (c *Conn) Read(b []byte) (n int, err error) {
+	if !c.responseRead {
+		err = ReadResponse(c.ExtendedConn)
+		if err != nil {
+			return
+		}
+		c.responseRead = true
+	}
+	return c.ExtendedConn.Read(b)
+}
+
+func (c *Conn) ReadBuffer(buffer *buf.Buffer) error {
+	if !c.responseRead {
+		err := ReadResponse(c.ExtendedConn)
+		if err != nil {
+			return err
+		}
+		c.responseRead = true
+	}
+	return c.ExtendedConn.ReadBuffer(buffer)
+}
+
+func (c *Conn) Write(b []byte) (n int, err error) {
+	if !c.requestWritten {
+		err = WriteRequest(c.ExtendedConn, c.request, b)
+		if err == nil {
+			n = len(b)
+		}
+		c.requestWritten = true
+		return
+	}
+	return c.ExtendedConn.Write(b)
+}
+
+func (c *Conn) WriteBuffer(buffer *buf.Buffer) error {
+	if !c.requestWritten {
+		EncodeRequest(c.request, buf.With(buffer.ExtendHeader(RequestLen(c.request))))
+		c.requestWritten = true
+	}
+	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *Conn) WriteVectorised(buffers []*buf.Buffer) error {
+	if !c.requestWritten {
+		buffer := buf.NewSize(RequestLen(c.request))
+		EncodeRequest(c.request, buffer)
+		c.requestWritten = true
+		return c.writer.WriteVectorised(append([]*buf.Buffer{buffer}, buffers...))
+	}
+	return c.writer.WriteVectorised(buffers)
+}
+
+func (c *Conn) ReaderReplaceable() bool {
+	return c.responseRead
+}
+
+func (c *Conn) WriterReplaceable() bool {
+	return c.requestWritten
 }
 
 func (c *Conn) NeedHandshake() bool {
 	return !c.requestWritten
 }
 
-func (c *Conn) Read(b []byte) (n int, err error) {
-	if !c.responseRead {
-		err = ReadResponse(c.Conn)
-		if err != nil {
-			return
-		}
-		c.responseRead = true
+func (c *Conn) FrontHeadroom() int {
+	if c.requestWritten {
+		return 0
 	}
-	return c.protocolConn.Read(b)
-}
-
-func (c *Conn) Write(b []byte) (n int, err error) {
-	if !c.requestWritten {
-		request := Request{c.key, c.command, c.destination, c.flow}
-		if c.protocolConn != nil {
-			err = WriteRequest(c.Conn, request, nil)
-		} else {
-			err = WriteRequest(c.Conn, request, b)
-		}
-		if err == nil {
-			n = len(b)
-		}
-		c.requestWritten = true
-		if c.protocolConn == nil {
-			return
-		}
-	}
-	return c.protocolConn.Write(b)
-}
-
-func (c *Conn) NeedAdditionalReadDeadline() bool {
-	return true
+	return RequestLen(c.request)
 }
 
 func (c *Conn) Upstream() any {
-	return c.Conn
+	return c.ExtendedConn
 }
 
 type PacketConn struct {
