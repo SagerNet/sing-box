@@ -72,7 +72,7 @@ func (s *URLTest) Start() error {
 		outbounds = append(outbounds, detour)
 	}
 	s.group = NewURLTestGroup(s.ctx, s.router, s.logger, outbounds, s.link, s.interval, s.tolerance)
-	go s.group.CheckOutbounds()
+	go s.group.CheckOutbounds(false)
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, me
 }
 
 func (s *URLTest) InterfaceUpdated() error {
-	go s.group.CheckOutbounds()
+	go s.group.CheckOutbounds(true)
 	return nil
 }
 
@@ -248,22 +248,26 @@ func (g *URLTestGroup) Fallback(used adapter.Outbound) []adapter.Outbound {
 }
 
 func (g *URLTestGroup) loopCheck() {
-	go g.CheckOutbounds()
+	go g.CheckOutbounds(true)
 	for {
 		select {
 		case <-g.close:
 			return
 		case <-g.ticker.C:
-			g.CheckOutbounds()
+			g.CheckOutbounds(false)
 		}
 	}
 }
 
-func (g *URLTestGroup) CheckOutbounds() {
-	_, _ = g.URLTest(g.ctx, g.link)
+func (g *URLTestGroup) CheckOutbounds(force bool) {
+	_, _ = g.urlTest(g.ctx, g.link, force)
 }
 
 func (g *URLTestGroup) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
+	return g.urlTest(ctx, link, false)
+}
+
+func (g *URLTestGroup) urlTest(ctx context.Context, link string, force bool) (map[string]uint16, error) {
 	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
 	checked := make(map[string]bool)
 	result := make(map[string]uint16)
@@ -275,7 +279,7 @@ func (g *URLTestGroup) URLTest(ctx context.Context, link string) (map[string]uin
 			continue
 		}
 		history := g.history.LoadURLTestHistory(realTag)
-		if history != nil && time.Now().Sub(history.Time) < g.interval {
+		if !force && history != nil && time.Now().Sub(history.Time) < g.interval {
 			continue
 		}
 		checked[realTag] = true
