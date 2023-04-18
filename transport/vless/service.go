@@ -68,30 +68,32 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 	metadata.Destination = request.Destination
 
 	userFlow := s.userFlow[user]
-
-	var responseWriter io.Writer
-	if request.Command == vmess.CommandTCP {
-		if request.Flow != userFlow {
-			return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
-		}
-		switch userFlow {
-		case "":
-		case FlowVision:
-			responseWriter = conn
-			conn, err = NewVisionConn(conn, request.UUID, s.logger)
-			if err != nil {
-				return E.Cause(err, "initialize vision")
-			}
-		}
+	if request.Flow == FlowVision && request.Command == vmess.NetworkUDP {
+		return E.New(FlowVision, " flow does not support UDP")
+	} else if request.Flow != userFlow {
+		return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
 	}
 
+	if request.Command == vmess.CommandUDP {
+		return s.handler.NewPacketConnection(ctx, &serverPacketConn{ExtendedConn: bufio.NewExtendedConn(conn), destination: request.Destination}, metadata)
+	}
+	responseConn := &serverConn{ExtendedConn: bufio.NewExtendedConn(conn), writer: bufio.NewVectorisedWriter(conn)}
+	switch userFlow {
+	case FlowVision:
+		conn, err = NewVisionConn(responseConn, conn, request.UUID, s.logger)
+		if err != nil {
+			return E.Cause(err, "initialize vision")
+		}
+	case "":
+		conn = responseConn
+	default:
+		return E.New("unknown flow: ", userFlow)
+	}
 	switch request.Command {
 	case vmess.CommandTCP:
-		return s.handler.NewConnection(ctx, &serverConn{Conn: conn, responseWriter: responseWriter}, metadata)
-	case vmess.CommandUDP:
-		return s.handler.NewPacketConnection(ctx, &serverPacketConn{ExtendedConn: bufio.NewExtendedConn(conn), destination: request.Destination}, metadata)
+		return s.handler.NewConnection(ctx, conn, metadata)
 	case vmess.CommandMux:
-		return vmess.HandleMuxConnection(ctx, &serverConn{Conn: conn, responseWriter: responseWriter}, s.handler)
+		return vmess.HandleMuxConnection(ctx, conn, s.handler)
 	default:
 		return E.New("unknown command: ", request.Command)
 	}
@@ -104,42 +106,70 @@ func flowName(value string) string {
 	return value
 }
 
+var _ N.VectorisedWriter = (*serverConn)(nil)
+
 type serverConn struct {
-	net.Conn
-	responseWriter  io.Writer
+	N.ExtendedConn
+	writer          N.VectorisedWriter
 	responseWritten bool
 }
 
 func (c *serverConn) Read(b []byte) (n int, err error) {
-	return c.Conn.Read(b)
+	return c.ExtendedConn.Read(b)
 }
 
 func (c *serverConn) Write(b []byte) (n int, err error) {
 	if !c.responseWritten {
-		if c.responseWriter == nil {
-			_, err = bufio.WriteVectorised(bufio.NewVectorisedWriter(c.Conn), [][]byte{{Version, 0}, b})
-			if err == nil {
-				n = len(b)
-			}
-			c.responseWritten = true
-			return
-		} else {
-			_, err = c.responseWriter.Write([]byte{Version, 0})
-			if err != nil {
-				return
-			}
-			c.responseWritten = true
+		_, err = bufio.WriteVectorised(c.writer, [][]byte{{Version, 0}, b})
+		if err == nil {
+			n = len(b)
 		}
+		c.responseWritten = true
+		return
 	}
-	return c.Conn.Write(b)
+	return c.ExtendedConn.Write(b)
+}
+
+func (c *serverConn) WriteBuffer(buffer *buf.Buffer) error {
+	if !c.responseWritten {
+		header := buffer.ExtendHeader(2)
+		header[0] = Version
+		header[1] = 0
+		c.responseWritten = true
+	}
+	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *serverConn) WriteVectorised(buffers []*buf.Buffer) error {
+	if !c.responseWritten {
+		err := c.writer.WriteVectorised(append([]*buf.Buffer{buf.As([]byte{Version, 0})}, buffers...))
+		c.responseWritten = true
+		return err
+	}
+	return c.writer.WriteVectorised(buffers)
 }
 
 func (c *serverConn) NeedAdditionalReadDeadline() bool {
 	return true
 }
 
+func (c *serverConn) FrontHeadroom() int {
+	if c.responseWritten {
+		return 0
+	}
+	return 2
+}
+
+func (c *serverConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *serverConn) WriterReplaceable() bool {
+	return c.responseWritten
+}
+
 func (c *serverConn) Upstream() any {
-	return c.Conn
+	return c.ExtendedConn
 }
 
 type serverPacketConn struct {

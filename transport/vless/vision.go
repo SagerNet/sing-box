@@ -56,12 +56,12 @@ type VisionConn struct {
 	withinPaddingBuffers   bool
 	remainingContent       int
 	remainingPadding       int
-	currentCommand         int
+	currentCommand         byte
 	directRead             bool
 	remainingReader        io.Reader
 }
 
-func NewVisionConn(conn net.Conn, userUUID [16]byte, logger logger.Logger) (*VisionConn, error) {
+func NewVisionConn(conn net.Conn, tlsConn net.Conn, userUUID [16]byte, logger logger.Logger) (*VisionConn, error) {
 	var (
 		loaded         bool
 		reflectType    reflect.Type
@@ -69,7 +69,7 @@ func NewVisionConn(conn net.Conn, userUUID [16]byte, logger logger.Logger) (*Vis
 		netConn        net.Conn
 	)
 	for _, tlsCreator := range tlsRegistry {
-		loaded, netConn, reflectType, reflectPointer = tlsCreator(conn)
+		loaded, netConn, reflectType, reflectPointer = tlsCreator(tlsConn)
 		if loaded {
 			break
 		}
@@ -103,6 +103,7 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 	if c.remainingReader != nil {
 		n, err = c.remainingReader.Read(p)
 		if err == io.EOF {
+			err = nil
 			c.remainingReader = nil
 		}
 		if n > 0 {
@@ -113,6 +114,7 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 		return c.netConn.Read(p)
 	}
 	var bufferBytes []byte
+	var chunkBuffer *buf.Buffer
 	if len(p) > xrayChunkSize {
 		n, err = c.Conn.Read(p)
 		if err != nil {
@@ -120,21 +122,26 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 		}
 		bufferBytes = p[:n]
 	} else {
-		buffer, err := c.reader.ReadChunk()
+		chunkBuffer, err = c.reader.ReadChunk()
 		if err != nil {
 			return 0, err
 		}
-		defer buffer.FullReset()
-		bufferBytes = buffer.Bytes()
+		bufferBytes = chunkBuffer.Bytes()
 	}
 	if c.withinPaddingBuffers || c.numberOfPacketToFilter > 0 {
 		buffers := c.unPadding(bufferBytes)
+		if chunkBuffer != nil {
+			buffers = common.Map(buffers, func(it *buf.Buffer) *buf.Buffer {
+				return it.ToOwned()
+			})
+			chunkBuffer.FullReset()
+		}
 		if c.remainingContent == 0 && c.remainingPadding == 0 {
-			if c.currentCommand == 1 {
+			if c.currentCommand == commandPaddingEnd {
 				c.withinPaddingBuffers = false
 				c.remainingContent = -1
 				c.remainingPadding = -1
-			} else if c.currentCommand == 2 {
+			} else if c.currentCommand == commandPaddingDirect {
 				c.withinPaddingBuffers = false
 				c.directRead = true
 
@@ -142,17 +149,17 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 				if err != nil {
 					return 0, err
 				}
-				buffers = append(buffers, inputBuffer)
+				buffers = append(buffers, buf.As(inputBuffer))
 
 				rawInputBuffer, err := io.ReadAll(c.rawInput)
 				if err != nil {
 					return 0, err
 				}
 
-				buffers = append(buffers, rawInputBuffer)
+				buffers = append(buffers, buf.As(rawInputBuffer))
 
 				c.logger.Trace("XtlsRead readV")
-			} else if c.currentCommand == 0 {
+			} else if c.currentCommand == commandPaddingContinue {
 				c.withinPaddingBuffers = true
 			} else {
 				return 0, E.New("unknown command ", c.currentCommand)
@@ -163,13 +170,17 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 			c.withinPaddingBuffers = false
 		}
 		if c.numberOfPacketToFilter > 0 {
-			c.filterTLS(buffers)
+			c.filterTLS(buf.ToSliceMulti(buffers))
 		}
-		c.remainingReader = io.MultiReader(common.Map(buffers, func(it []byte) io.Reader { return bytes.NewReader(it) })...)
+		c.remainingReader = io.MultiReader(common.Map(buffers, func(it *buf.Buffer) io.Reader { return it })...)
 		return c.Read(p)
 	} else {
 		if c.numberOfPacketToFilter > 0 {
 			c.filterTLS([][]byte{bufferBytes})
+		}
+		if chunkBuffer != nil {
+			n = copy(p, bufferBytes)
+			chunkBuffer.Advance(n)
 		}
 		return
 	}
@@ -310,7 +321,7 @@ func (c *VisionConn) padding(buffer *buf.Buffer, command byte) *buf.Buffer {
 	return newBuffer
 }
 
-func (c *VisionConn) unPadding(buffer []byte) [][]byte {
+func (c *VisionConn) unPadding(buffer []byte) []*buf.Buffer {
 	var bufferIndex int
 	if c.remainingContent == -1 && c.remainingPadding == -1 {
 		if len(buffer) >= 21 && bytes.Equal(c.userUUID[:], buffer[:16]) {
@@ -321,17 +332,17 @@ func (c *VisionConn) unPadding(buffer []byte) [][]byte {
 		}
 	}
 	if c.remainingContent == -1 && c.remainingPadding == -1 {
-		return [][]byte{buffer}
+		return []*buf.Buffer{buf.As(buffer)}
 	}
-	var buffers [][]byte
+	var buffers []*buf.Buffer
 	for bufferIndex < len(buffer) {
 		if c.remainingContent <= 0 && c.remainingPadding <= 0 {
 			if c.currentCommand == 1 {
-				buffers = append(buffers, buffer[bufferIndex:])
+				buffers = append(buffers, buf.As(buffer[bufferIndex:]))
 				break
 			} else {
 				paddingInfo := buffer[bufferIndex : bufferIndex+5]
-				c.currentCommand = int(paddingInfo[0])
+				c.currentCommand = paddingInfo[0]
 				c.remainingContent = int(paddingInfo[1])<<8 | int(paddingInfo[2])
 				c.remainingPadding = int(paddingInfo[3])<<8 | int(paddingInfo[4])
 				bufferIndex += 5
@@ -342,7 +353,7 @@ func (c *VisionConn) unPadding(buffer []byte) [][]byte {
 			if end > len(buffer)-bufferIndex {
 				end = len(buffer) - bufferIndex
 			}
-			buffers = append(buffers, buffer[bufferIndex:bufferIndex+end])
+			buffers = append(buffers, buf.As(buffer[bufferIndex:bufferIndex+end]))
 			c.remainingContent -= end
 			bufferIndex += end
 		} else {
