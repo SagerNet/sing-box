@@ -119,7 +119,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 func (t *Transport) fetchInterface() (*net.Interface, error) {
 	interfaceName := t.interfaceName
 	if t.autoInterface {
-		if t.router.NetworkMonitor() == nil {
+		if t.router.InterfaceMonitor() == nil {
 			return nil, E.New("missing monitor for auto DHCP, set route.auto_detect_interface")
 		}
 		interfaceName = t.router.InterfaceMonitor().DefaultInterfaceName(netip.Addr{})

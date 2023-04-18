@@ -1,6 +1,8 @@
 package libbox
 
-import "github.com/sagernet/sing-box/option"
+import (
+	"github.com/sagernet/sing-box/option"
+)
 
 type PlatformInterface interface {
 	AutoDetectInterfaceControl(fd int32) error
@@ -10,6 +12,11 @@ type PlatformInterface interface {
 	FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (int32, error)
 	PackageNameByUid(uid int32) (string, error)
 	UIDByPackageName(packageName string) (int32, error)
+	UsePlatformDefaultInterfaceMonitor() bool
+	StartDefaultInterfaceMonitor(listener InterfaceUpdateListener) error
+	CloseDefaultInterfaceMonitor(listener InterfaceUpdateListener) error
+	UsePlatformInterfaceGetter() bool
+	GetInterfaces() (NetworkInterfaceIterator, error)
 }
 
 type TunInterface interface {
@@ -17,8 +24,19 @@ type TunInterface interface {
 	Close() error
 }
 
-type OnDemandRuleIterator interface {
-	Next() OnDemandRule
+type InterfaceUpdateListener interface {
+	UpdateDefaultInterface(interfaceName string, interfaceIndex int32)
+}
+
+type NetworkInterface struct {
+	Index     int32
+	MTU       int32
+	Name      string
+	Addresses StringIterator
+}
+
+type NetworkInterfaceIterator interface {
+	Next() *NetworkInterface
 	HasNext() bool
 }
 
@@ -29,6 +47,11 @@ type OnDemandRule interface {
 	InterfaceTypeMatch() int32
 	SSIDMatch() StringIterator
 	ProbeURL() string
+}
+
+type OnDemandRuleIterator interface {
+	Next() OnDemandRule
+	HasNext() bool
 }
 
 type onDemandRule struct {

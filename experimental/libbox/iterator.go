@@ -29,3 +29,19 @@ func (i *iterator[T]) Next() T {
 func (i *iterator[T]) HasNext() bool {
 	return len(i.values) > 0
 }
+
+type abstractIterator[T any] interface {
+	Next() T
+	HasNext() bool
+}
+
+func iteratorToArray[T any](iterator abstractIterator[T]) []T {
+	if iterator == nil {
+		return nil
+	}
+	var values []T
+	for iterator.HasNext() {
+		values = append(values, iterator.Next())
+	}
+	return values
+}
