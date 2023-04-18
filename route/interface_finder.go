@@ -9,7 +9,7 @@ import (
 var _ control.InterfaceFinder = (*myInterfaceFinder)(nil)
 
 type myInterfaceFinder struct {
-	ifs []net.Interface
+	interfaces []net.Interface
 }
 
 func (f *myInterfaceFinder) update() error {
@@ -17,12 +17,16 @@ func (f *myInterfaceFinder) update() error {
 	if err != nil {
 		return err
 	}
-	f.ifs = ifs
+	f.interfaces = ifs
 	return nil
 }
 
+func (f *myInterfaceFinder) updateInterfaces(interfaces []net.Interface) {
+	f.interfaces = interfaces
+}
+
 func (f *myInterfaceFinder) InterfaceIndexByName(name string) (interfaceIndex int, err error) {
-	for _, netInterface := range f.ifs {
+	for _, netInterface := range f.interfaces {
 		if netInterface.Name == name {
 			return netInterface.Index, nil
 		}
@@ -36,7 +40,7 @@ func (f *myInterfaceFinder) InterfaceIndexByName(name string) (interfaceIndex in
 }
 
 func (f *myInterfaceFinder) InterfaceNameByIndex(index int) (interfaceName string, err error) {
-	for _, netInterface := range f.ifs {
+	for _, netInterface := range f.interfaces {
 		if netInterface.Index == index {
 			return netInterface.Name, nil
 		}

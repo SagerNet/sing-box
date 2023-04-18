@@ -269,27 +269,31 @@ func NewRouter(
 	router.transportMap = transportMap
 	router.transportDomainStrategy = transportDomainStrategy
 
+	usePlatformDefaultInterfaceMonitor := platformInterface != nil && platformInterface.UsePlatformDefaultInterfaceMonitor()
 	needInterfaceMonitor := options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
 		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
 	})
 
 	if needInterfaceMonitor {
-		networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
-		if err == nil {
-			router.networkMonitor = networkMonitor
-			networkMonitor.RegisterCallback(router.interfaceFinder.update)
+		if !usePlatformDefaultInterfaceMonitor {
+			networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
+			if err == nil {
+				router.networkMonitor = networkMonitor
+				networkMonitor.RegisterCallback(router.interfaceFinder.update)
+			}
+			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
+				OverrideAndroidVPN: options.OverrideAndroidVPN,
+			})
+			if err != nil {
+				return nil, E.New("auto_detect_interface unsupported on current platform")
+			}
+			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
+			router.interfaceMonitor = interfaceMonitor
+		} else {
+			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router)
+			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
+			router.interfaceMonitor = interfaceMonitor
 		}
-	}
-
-	if router.networkMonitor != nil && needInterfaceMonitor {
-		interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
-			OverrideAndroidVPN: options.OverrideAndroidVPN,
-		})
-		if err != nil {
-			return nil, E.New("auto_detect_interface unsupported on current platform")
-		}
-		interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
-		router.interfaceMonitor = interfaceMonitor
 	}
 
 	needFindProcess := hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
@@ -824,6 +828,25 @@ func (r *Router) InterfaceFinder() control.InterfaceFinder {
 	return &r.interfaceFinder
 }
 
+func (r *Router) UpdateInterfaces() error {
+	if r.platformInterface == nil || !r.platformInterface.UsePlatformInterfaceGetter() {
+		return r.interfaceFinder.update()
+	} else {
+		interfaces, err := r.platformInterface.Interfaces()
+		if err != nil {
+			return err
+		}
+		r.interfaceFinder.updateInterfaces(common.Map(interfaces, func(it platform.NetworkInterface) net.Interface {
+			return net.Interface{
+				Name:  it.Name,
+				Index: it.Index,
+				MTU:   it.MTU,
+			}
+		}))
+		return nil
+	}
+}
+
 func (r *Router) AutoDetectInterface() bool {
 	return r.autoDetectInterface
 }
@@ -1137,7 +1160,7 @@ func (r *Router) NewError(ctx context.Context, err error) {
 }
 
 func (r *Router) notifyNetworkUpdate(int) error {
-	if C.IsAndroid {
+	if C.IsAndroid && r.platformInterface == nil {
 		var vpnStatus string
 		if r.interfaceMonitor.AndroidVPNEnabled() {
 			vpnStatus = "enabled"
@@ -1149,6 +1172,10 @@ func (r *Router) notifyNetworkUpdate(int) error {
 		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
 	}
 
+	if conntrack.Enabled {
+		conntrack.Close()
+	}
+
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
@@ -1157,10 +1184,6 @@ func (r *Router) notifyNetworkUpdate(int) error {
 				return err
 			}
 		}
-	}
-
-	if conntrack.Enabled {
-		conntrack.Close()
 	}
 	return nil
 }
