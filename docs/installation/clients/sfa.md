@@ -12,5 +12,6 @@ Experimental Android client for sing-box.
 
 #### Note
 
-* Working directory is at `/sdcard/Android/data/io.nekohasekai.sfa/files` (External files directory)
-* User Agent is `SFA/$version ($version_code; sing-box $sing_box_version)` in the remote profile request
+* User Agent in remote profile request is `SFA/$version ($version_code; sing-box $sing_box_version)`
+* The working directory is located at `/sdcard/Android/data/io.nekohasekai.sfa/files` (External files directory)
+* Crash logs is located in `$working_directory/stderr.log`

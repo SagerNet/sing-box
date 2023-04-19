@@ -13,8 +13,8 @@
 
 #### 注意事项
 
-* `system` tun stack 在 iOS 不工作
 * 远程配置文件请求中的 User Agent 为 `SFI/$version ($version_code; sing-box $sing_box_version)`
+* 崩溃日志位于 `设置` -> `查看服务日志`
 
 #### 隐私政策
 
