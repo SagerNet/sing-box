@@ -53,6 +53,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 		return nil, E.New("unsupported method: " + options.Method)
 	}
 	service, err := shadowaead_2022.NewMultiServiceWithPassword[int](
+		ctx,
 		options.Method,
 		options.Password,
 		udpTimeout,
