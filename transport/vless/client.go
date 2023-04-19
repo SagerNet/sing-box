@@ -132,6 +132,10 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 	return c.protocolConn.Write(b)
 }
 
+func (c *Conn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *Conn) Upstream() any {
 	return c.Conn
 }
@@ -210,6 +214,10 @@ func (c *PacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 
 func (c *PacketConn) FrontHeadroom() int {
 	return 2
+}
+
+func (c *PacketConn) NeedAdditionalReadDeadline() bool {
+	return true
 }
 
 func (c *PacketConn) Upstream() any {

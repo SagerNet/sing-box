@@ -145,28 +145,17 @@ func (c *GunConn) RemoteAddr() net.Addr {
 }
 
 func (c *GunConn) SetDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetWriteDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetWriteDeadline(t)
-	}
 	return os.ErrInvalid
 }
 
 func (c *GunConn) SetReadDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetReadDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetReadDeadline(t)
-	}
 	return os.ErrInvalid
 }
 
 func (c *GunConn) SetWriteDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetWriteDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetWriteDeadline(t)
-	}
 	return os.ErrInvalid
+}
+
+func (c *GunConn) NeedAdditionalReadDeadline() bool {
+	return true
 }

@@ -77,6 +77,10 @@ func (c *WebsocketConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
 }
 
+func (c *WebsocketConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
 func (c *WebsocketConn) Upstream() any {
 	return c.Conn.NetConn()
 }
@@ -212,6 +216,10 @@ func (c *EarlyWebsocketConn) SetReadDeadline(t time.Time) error {
 
 func (c *EarlyWebsocketConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
+}
+
+func (c *EarlyWebsocketConn) NeedAdditionalReadDeadline() bool {
+	return true
 }
 
 func (c *EarlyWebsocketConn) Upstream() any {
