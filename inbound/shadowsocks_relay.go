@@ -50,6 +50,7 @@ func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.
 		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
 	service, err := shadowaead_2022.NewRelayServiceWithPassword[int](
+		ctx,
 		options.Method,
 		options.Password,
 		udpTimeout,
