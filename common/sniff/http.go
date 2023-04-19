@@ -4,6 +4,7 @@ import (
 	std_bufio "bufio"
 	"context"
 	"io"
+	"net"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -15,5 +16,10 @@ func HTTPHost(ctx context.Context, reader io.Reader) (*adapter.InboundContext, e
 	if err != nil {
 		return nil, err
 	}
-	return &adapter.InboundContext{Protocol: C.ProtocolHTTP, Domain: request.Host}, nil
+	domain := request.Host
+	host, _, err := net.SplitHostPort(domain)
+	if err == nil {
+		domain = host
+	}
+	return &adapter.InboundContext{Protocol: C.ProtocolHTTP, Domain: domain}, nil
 }
