@@ -4,14 +4,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/warning"
-	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
-)
-
-var warnUserIDOnNonLinux = warning.New(
-	func() bool { return !C.IsLinux },
-	"rule item `user_id` is only supported on Linux",
 )
 
 var _ RuleItem = (*UserIdItem)(nil)
@@ -22,7 +15,6 @@ type UserIdItem struct {
 }
 
 func NewUserIDItem(userIdList []int32) *UserIdItem {
-	warnUserIDOnNonLinux.Check()
 	rule := &UserIdItem{
 		userIds:   userIdList,
 		userIdMap: make(map[int32]bool),
