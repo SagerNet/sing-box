@@ -134,6 +134,14 @@ func (c *serverConn) Write(b []byte) (n int, err error) {
 	return c.Conn.Write(b)
 }
 
+func (c *serverConn) NeedAdditionalReadDeadline() bool {
+	return true
+}
+
+func (c *serverConn) Upstream() any {
+	return c.Conn
+}
+
 type serverPacketConn struct {
 	N.ExtendedConn
 	responseWriter  io.Writer

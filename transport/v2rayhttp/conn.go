@@ -182,30 +182,19 @@ func (c *HTTP2Conn) RemoteAddr() net.Addr {
 }
 
 func (c *HTTP2Conn) SetDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetWriteDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetWriteDeadline(t)
-	}
 	return os.ErrInvalid
 }
 
 func (c *HTTP2Conn) SetReadDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetReadDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetReadDeadline(t)
-	}
 	return os.ErrInvalid
 }
 
 func (c *HTTP2Conn) SetWriteDeadline(t time.Time) error {
-	if responseWriter, loaded := c.writer.(interface {
-		SetWriteDeadline(time.Time) error
-	}); loaded {
-		return responseWriter.SetWriteDeadline(t)
-	}
 	return os.ErrInvalid
+}
+
+func (c *HTTP2Conn) NeedAdditionalReadDeadline() bool {
+	return true
 }
 
 type ServerHTTPConn struct {
