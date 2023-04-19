@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -140,6 +141,7 @@ type URLTestGroup struct {
 	interval  time.Duration
 	tolerance uint16
 	history   *urltest.HistoryStorage
+	checking  atomic.Bool
 
 	access sync.Mutex
 	ticker *time.Ticker
@@ -268,9 +270,13 @@ func (g *URLTestGroup) URLTest(ctx context.Context, link string) (map[string]uin
 }
 
 func (g *URLTestGroup) urlTest(ctx context.Context, link string, force bool) (map[string]uint16, error) {
+	result := make(map[string]uint16)
+	if g.checking.Swap(true) {
+		return result, nil
+	}
+	defer g.checking.Store(false)
 	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
 	checked := make(map[string]bool)
-	result := make(map[string]uint16)
 	var resultAccess sync.Mutex
 	for _, detour := range g.outbounds {
 		tag := detour.Tag()

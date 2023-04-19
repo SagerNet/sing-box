@@ -299,18 +299,21 @@ func NewRouter(
 	if needInterfaceMonitor {
 		if !usePlatformDefaultInterfaceMonitor {
 			networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
-			if err == nil {
+			if err != os.ErrInvalid {
+				if err != nil {
+					return nil, err
+				}
 				router.networkMonitor = networkMonitor
 				networkMonitor.RegisterCallback(router.interfaceFinder.update)
+				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
+					OverrideAndroidVPN: options.OverrideAndroidVPN,
+				})
+				if err != nil {
+					return nil, E.New("auto_detect_interface unsupported on current platform")
+				}
+				interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
+				router.interfaceMonitor = interfaceMonitor
 			}
-			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
-				OverrideAndroidVPN: options.OverrideAndroidVPN,
-			})
-			if err != nil {
-				return nil, E.New("auto_detect_interface unsupported on current platform")
-			}
-			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
-			router.interfaceMonitor = interfaceMonitor
 		} else {
 			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router)
 			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
