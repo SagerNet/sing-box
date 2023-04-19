@@ -13,8 +13,8 @@ Experimental iOS client for sing-box.
 
 #### Note
 
-* `system` tun stack not working on iOS
-* User Agent is `SFI/$version ($version_code; sing-box $sing_box_version)` in the remote profile request
+* User Agent in remote profile request is `SFA/$version ($version_code; sing-box $sing_box_version)`
+* Crash logs is located in `Settings` -> `View Service Log`
 
 #### Privacy policy
 
