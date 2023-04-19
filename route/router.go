@@ -18,7 +18,6 @@ import (
 	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
-	"github.com/sagernet/sing-box/common/warning"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -39,27 +38,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
-)
-
-var warnDefaultInterfaceOnUnsupportedPlatform = warning.New(
-	func() bool {
-		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
-	},
-	"route option `default_mark` is only supported on Linux and Windows",
-)
-
-var warnDefaultMarkOnNonLinux = warning.New(
-	func() bool {
-		return !C.IsLinux
-	},
-	"route option `default_mark` is only supported on Linux",
-)
-
-var warnFindProcessOnUnsupportedPlatform = warning.New(
-	func() bool {
-		return !(C.IsLinux || C.IsWindows || C.IsDarwin)
-	},
-	"route option `find_process` is only supported on Linux, Windows, and macOS",
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -115,16 +93,6 @@ func NewRouter(
 	inbounds []option.Inbound,
 	platformInterface platform.Interface,
 ) (*Router, error) {
-	if options.DefaultInterface != "" {
-		warnDefaultInterfaceOnUnsupportedPlatform.Check()
-	}
-	if options.DefaultMark != 0 {
-		warnDefaultMarkOnNonLinux.Check()
-	}
-	if options.FindProcess {
-		warnFindProcessOnUnsupportedPlatform.Check()
-	}
-
 	router := &Router{
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),

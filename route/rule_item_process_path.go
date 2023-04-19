@@ -4,13 +4,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/warning"
-	C "github.com/sagernet/sing-box/constant"
-)
-
-var warnProcessPathOnNonSupportedPlatform = warning.New(
-	func() bool { return !(C.IsLinux || C.IsWindows || C.IsDarwin) },
-	"rule item `process_path` is only supported on Linux, Windows and macOS",
 )
 
 var _ RuleItem = (*ProcessPathItem)(nil)
@@ -21,7 +14,6 @@ type ProcessPathItem struct {
 }
 
 func NewProcessPathItem(processNameList []string) *ProcessPathItem {
-	warnProcessPathOnNonSupportedPlatform.Check()
 	rule := &ProcessPathItem{
 		processes:  processNameList,
 		processMap: make(map[string]bool),
