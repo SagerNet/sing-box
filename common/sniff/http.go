@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/http"
 )
 
@@ -15,5 +16,5 @@ func HTTPHost(ctx context.Context, reader io.Reader) (*adapter.InboundContext, e
 	if err != nil {
 		return nil, err
 	}
-	return &adapter.InboundContext{Protocol: C.ProtocolHTTP, Domain: request.Host}, nil
+	return &adapter.InboundContext{Protocol: C.ProtocolHTTP, Domain: M.ParseSocksaddr(request.Host).AddrString()}, nil
 }
