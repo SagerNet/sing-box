@@ -4,14 +4,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/warning"
-	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
-)
-
-var warnUserOnNonLinux = warning.New(
-	func() bool { return !C.IsLinux },
-	"rule item `user` is only supported on Linux",
 )
 
 var _ RuleItem = (*UserItem)(nil)
@@ -22,7 +15,6 @@ type UserItem struct {
 }
 
 func NewUserItem(users []string) *UserItem {
-	warnUserOnNonLinux.Check()
 	userMap := make(map[string]bool)
 	for _, protocol := range users {
 		userMap[protocol] = true

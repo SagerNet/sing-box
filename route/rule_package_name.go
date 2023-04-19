@@ -4,13 +4,6 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/warning"
-	C "github.com/sagernet/sing-box/constant"
-)
-
-var warnPackageNameOnNonAndroid = warning.New(
-	func() bool { return !C.IsAndroid },
-	"rule item `package_name` is only supported on Android",
 )
 
 var _ RuleItem = (*PackageNameItem)(nil)
@@ -21,7 +14,6 @@ type PackageNameItem struct {
 }
 
 func NewPackageNameItem(packageNameList []string) *PackageNameItem {
-	warnPackageNameOnNonAndroid.Check()
 	rule := &PackageNameItem{
 		packageNames: packageNameList,
 		packageMap:   make(map[string]bool),
