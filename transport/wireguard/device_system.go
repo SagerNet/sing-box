@@ -27,14 +27,6 @@ type SystemDevice struct {
 	addr6  netip.Addr
 }
 
-/*func (w *SystemDevice) NewEndpoint() (stack.LinkEndpoint, error) {
-	gTun, isGTun := w.device.(tun.GVisorTun)
-	if !isGTun {
-		return nil, tun.ErrGVisorUnsupported
-	}
-	return gTun.NewEndpoint()
-}*/
-
 func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32) (*SystemDevice, error) {
 	var inet4Addresses []netip.Prefix
 	var inet6Addresses []netip.Prefix
@@ -103,12 +95,23 @@ func (w *SystemDevice) File() *os.File {
 	return nil
 }
 
-func (w *SystemDevice) Read(p []byte, offset int) (int, error) {
-	return w.device.Read(p[offset-tun.PacketOffset:])
+func (w *SystemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
+	sizes[0], err = w.device.Read(bufs[0][offset-tun.PacketOffset:])
+	if err == nil {
+		count = 1
+	}
+	return
 }
 
-func (w *SystemDevice) Write(p []byte, offset int) (int, error) {
-	return w.device.Write(p[offset:])
+func (w *SystemDevice) Write(bufs [][]byte, offset int) (count int, err error) {
+	for _, b := range bufs {
+		_, err = w.device.Write(b[offset:])
+		if err != nil {
+			return
+		}
+		count++
+	}
+	return
 }
 
 func (w *SystemDevice) Flush() error {
@@ -123,10 +126,14 @@ func (w *SystemDevice) Name() (string, error) {
 	return w.name, nil
 }
 
-func (w *SystemDevice) Events() chan wgTun.Event {
+func (w *SystemDevice) Events() <-chan wgTun.Event {
 	return w.events
 }
 
 func (w *SystemDevice) Close() error {
 	return w.device.Close()
+}
+
+func (w *SystemDevice) BatchSize() int {
+	return 1
 }

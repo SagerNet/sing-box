@@ -26,23 +26,24 @@ func NewNATDevice(upstream Device, ipRewrite bool) NatDevice {
 	return wrapper
 }
 
-func (d *natDeviceWrapper) Read(p []byte, offset int) (int, error) {
+func (d *natDeviceWrapper) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
 	select {
 	case packet := <-d.outbound:
 		defer packet.Release()
-		return copy(p[offset:], packet.Bytes()), nil
+		sizes[0] = copy(bufs[0][offset:], packet.Bytes())
+		return 1, nil
 	default:
 	}
-	return d.Device.Read(p, offset)
+	return d.Device.Read(bufs, sizes, offset)
 }
 
-func (d *natDeviceWrapper) Write(p []byte, offset int) (int, error) {
-	packet := p[offset:]
+func (d *natDeviceWrapper) Write(bufs [][]byte, offset int) (count int, err error) {
+	packet := bufs[0][offset:]
 	handled, err := d.mapping.WritePacket(packet)
 	if handled {
-		return len(packet), err
+		return 1, err
 	}
-	return d.Device.Write(p, offset)
+	return d.Device.Write(bufs, offset)
 }
 
 func (d *natDeviceWrapper) CreateDestination(session tun.RouteSession, conn tun.RouteContext) tun.DirectDestination {

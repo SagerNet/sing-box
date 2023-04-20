@@ -171,49 +171,60 @@ func (w *StackDevice) File() *os.File {
 	return nil
 }
 
-func (w *StackDevice) Read(p []byte, offset int) (n int, err error) {
+func (w *StackDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
 	select {
 	case packetBuffer, ok := <-w.outbound:
 		if !ok {
 			return 0, os.ErrClosed
 		}
 		defer packetBuffer.DecRef()
+		p := bufs[0]
 		p = p[offset:]
+		n := 0
 		for _, slice := range packetBuffer.AsSlices() {
 			n += copy(p[n:], slice)
 		}
+		sizes[0] = n
+		count = 1
 		return
 	case packet := <-w.packetOutbound:
 		defer packet.Release()
-		n = copy(p[offset:], packet.Bytes())
+		sizes[0] = copy(bufs[0][offset:], packet.Bytes())
+		count = 1
 		return
 	case <-w.done:
 		return 0, os.ErrClosed
 	}
 }
 
-func (w *StackDevice) Write(p []byte, offset int) (n int, err error) {
-	p = p[offset:]
-	if len(p) == 0 {
-		return
+func (w *StackDevice) Write(bufs [][]byte, offset int) (count int, err error) {
+	for _, b := range bufs {
+		b = b[offset:]
+		if len(b) == 0 {
+			continue
+		}
+		handled, err := w.mapping.WritePacket(b)
+		if handled {
+			count++
+			if err != nil {
+				return count, err
+			}
+			continue
+		}
+		var networkProtocol tcpip.NetworkProtocolNumber
+		switch header.IPVersion(b) {
+		case header.IPv4Version:
+			networkProtocol = header.IPv4ProtocolNumber
+		case header.IPv6Version:
+			networkProtocol = header.IPv6ProtocolNumber
+		}
+		packetBuffer := stack.NewPacketBuffer(stack.PacketBufferOptions{
+			Payload: bufferv2.MakeWithData(b),
+		})
+		w.dispatcher.DeliverNetworkPacket(networkProtocol, packetBuffer)
+		packetBuffer.DecRef()
+		count++
 	}
-	handled, err := w.mapping.WritePacket(p)
-	if handled {
-		return len(p), err
-	}
-	var networkProtocol tcpip.NetworkProtocolNumber
-	switch header.IPVersion(p) {
-	case header.IPv4Version:
-		networkProtocol = header.IPv4ProtocolNumber
-	case header.IPv6Version:
-		networkProtocol = header.IPv6ProtocolNumber
-	}
-	packetBuffer := stack.NewPacketBuffer(stack.PacketBufferOptions{
-		Payload: bufferv2.MakeWithData(p),
-	})
-	defer packetBuffer.DecRef()
-	w.dispatcher.DeliverNetworkPacket(networkProtocol, packetBuffer)
-	n = len(p)
 	return
 }
 
@@ -229,7 +240,7 @@ func (w *StackDevice) Name() (string, error) {
 	return "sing-box", nil
 }
 
-func (w *StackDevice) Events() chan wgTun.Event {
+func (w *StackDevice) Events() <-chan wgTun.Event {
 	return w.events
 }
 
@@ -246,6 +257,10 @@ func (w *StackDevice) Close() error {
 	w.stack.Wait()
 	close(w.done)
 	return nil
+}
+
+func (w *StackDevice) BatchSize() int {
+	return 1
 }
 
 func (w *StackDevice) CreateDestination(session tun.RouteSession, conn tun.RouteContext) tun.DirectDestination {
