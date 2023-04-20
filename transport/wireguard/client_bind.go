@@ -101,7 +101,7 @@ func (c *ClientBind) Open(port uint16) (fns []conn.ReceiveFunc, actualPort uint1
 	return []conn.ReceiveFunc{c.receive}, 0, nil
 }
 
-func (c *ClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
+func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint) (count int, err error) {
 	udpConn, err := c.connect()
 	if err != nil {
 		select {
@@ -113,22 +113,26 @@ func (c *ClientBind) receive(b []byte) (n int, ep conn.Endpoint, err error) {
 		err = nil
 		return
 	}
-	n, addr, err := udpConn.ReadFrom(b)
+	n, addr, err := udpConn.ReadFrom(packets[0])
 	if err != nil {
 		udpConn.Close()
 		select {
 		case <-c.done:
 		default:
 			c.errorHandler.NewError(context.Background(), E.Cause(err, "read packet"))
+			err = nil
 		}
 		return
 	}
+	sizes[0] = n
 	if n > 3 {
+		b := packets[0]
 		b[1] = 0
 		b[2] = 0
 		b[3] = 0
 	}
-	ep = Endpoint(M.SocksaddrFromNet(addr))
+	eps[0] = Endpoint(M.SocksaddrFromNet(addr))
+	count = 1
 	return
 }
 
@@ -155,30 +159,37 @@ func (c *ClientBind) SetMark(mark uint32) error {
 	return nil
 }
 
-func (c *ClientBind) Send(b []byte, ep conn.Endpoint) error {
+func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint) error {
 	udpConn, err := c.connect()
 	if err != nil {
 		return err
 	}
 	destination := M.Socksaddr(ep.(Endpoint))
-	if len(b) > 3 {
-		reserved, loaded := c.reservedForEndpoint[destination]
-		if !loaded {
-			reserved = c.reserved
+	for _, b := range bufs {
+		if len(b) > 3 {
+			reserved, loaded := c.reservedForEndpoint[destination]
+			if !loaded {
+				reserved = c.reserved
+			}
+			b[1] = reserved[0]
+			b[2] = reserved[1]
+			b[3] = reserved[2]
 		}
-		b[1] = reserved[0]
-		b[2] = reserved[1]
-		b[3] = reserved[2]
+		_, err = udpConn.WriteTo(b, destination)
+		if err != nil {
+			udpConn.Close()
+			return err
+		}
 	}
-	_, err = udpConn.WriteTo(b, destination)
-	if err != nil {
-		udpConn.Close()
-	}
-	return err
+	return nil
 }
 
 func (c *ClientBind) ParseEndpoint(s string) (conn.Endpoint, error) {
 	return Endpoint(M.ParseSocksaddr(s)), nil
+}
+
+func (c *ClientBind) BatchSize() int {
+	return 1
 }
 
 type wireConn struct {
