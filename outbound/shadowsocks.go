@@ -30,7 +30,7 @@ type Shadowsocks struct {
 	serverAddr      M.Socksaddr
 	plugin          sip003.Plugin
 	uotClient       *uot.Client
-	multiplexDialer N.Dialer
+	multiplexDialer *mux.Client
 }
 
 func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
@@ -58,7 +58,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	}
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
 	if !uotOptions.Enabled {
-		outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
+		outbound.multiplexDialer, err = mux.NewClientWithOptions((*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
 		if err != nil {
 			return nil, err
 		}
@@ -127,8 +127,15 @@ func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
+func (h *Shadowsocks) InterfaceUpdated() error {
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.Reset()
+	}
+	return nil
+}
+
 func (h *Shadowsocks) Close() error {
-	return common.Close(h.multiplexDialer)
+	return common.Close(common.PtrOrNil(h.multiplexDialer))
 }
 
 var _ N.Dialer = (*shadowsocksDialer)(nil)

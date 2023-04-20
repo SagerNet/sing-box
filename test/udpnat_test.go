@@ -19,7 +19,7 @@ func TestUDPNatClose(t *testing.T) {
 	defer cancel()
 	connCtx, connCancel := common.ContextWithCancelCause(context.Background())
 	defer connCancel(net.ErrClosed)
-	service := udpnat.New[int](ctx, 1, &testUDPNatCloseHandler{connCancel})
+	service := udpnat.New[int](1, &testUDPNatCloseHandler{connCancel})
 	service.NewPacket(ctx, 0, buf.As([]byte("Hello")), M.Metadata{}, func(natConn N.PacketConn) N.PacketWriter {
 		return &testPacketWriter{}
 	})
