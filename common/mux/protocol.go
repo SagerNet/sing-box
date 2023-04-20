@@ -25,6 +25,7 @@ var Destination = M.Socksaddr{
 const (
 	ProtocolSMux Protocol = iota
 	ProtocolYAMux
+	ProtocolH2Mux
 )
 
 type Protocol byte
@@ -35,8 +36,10 @@ func ParseProtocol(name string) (Protocol, error) {
 		return ProtocolSMux, nil
 	case "yamux":
 		return ProtocolYAMux, nil
+	case "h2mux":
+		return ProtocolH2Mux, nil
 	default:
-		return ProtocolYAMux, E.New("unknown multiplex protocol: ", name)
+		return ProtocolSMux, E.New("unknown multiplex protocol: ", name)
 	}
 }
 
@@ -49,7 +52,13 @@ func (p Protocol) newServer(conn net.Conn) (abstractSession, error) {
 		}
 		return &smuxSession{session}, nil
 	case ProtocolYAMux:
-		return yamux.Server(conn, yaMuxConfig())
+		session, err := yamux.Server(conn, yaMuxConfig())
+		if err != nil {
+			return nil, err
+		}
+		return &yamuxSession{session}, nil
+	case ProtocolH2Mux:
+		return NewH2MuxServer(conn), nil
 	default:
 		panic("unknown protocol")
 	}
@@ -64,7 +73,13 @@ func (p Protocol) newClient(conn net.Conn) (abstractSession, error) {
 		}
 		return &smuxSession{session}, nil
 	case ProtocolYAMux:
-		return yamux.Client(conn, yaMuxConfig())
+		session, err := yamux.Client(conn, yaMuxConfig())
+		if err != nil {
+			return nil, err
+		}
+		return &yamuxSession{session}, nil
+	case ProtocolH2Mux:
+		return NewH2MuxClient(conn)
 	default:
 		panic("unknown protocol")
 	}
@@ -90,6 +105,8 @@ func (p Protocol) String() string {
 		return "smux"
 	case ProtocolYAMux:
 		return "yamux"
+	case ProtocolH2Mux:
+		return "h2mux"
 	default:
 		return "unknown"
 	}
@@ -114,9 +131,6 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 	protocol, err := rw.ReadByte(reader)
 	if err != nil {
 		return nil, err
-	}
-	if protocol > byte(ProtocolYAMux) {
-		return nil, E.New("unsupported protocol: ", protocol)
 	}
 	return &Request{Protocol: Protocol(protocol)}, nil
 }

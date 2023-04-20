@@ -27,7 +27,7 @@ type Trojan struct {
 	dialer          N.Dialer
 	serverAddr      M.Socksaddr
 	key             [56]byte
-	multiplexDialer N.Dialer
+	multiplexDialer *mux.Client
 	tlsConfig       tls.Config
 	transport       adapter.V2RayClientTransport
 }
@@ -103,8 +103,15 @@ func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, met
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
+func (h *Trojan) InterfaceUpdated() error {
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.Reset()
+	}
+	return nil
+}
+
 func (h *Trojan) Close() error {
-	return common.Close(h.multiplexDialer, h.transport)
+	return common.Close(common.PtrOrNil(h.multiplexDialer), h.transport)
 }
 
 type trojanDialer Trojan

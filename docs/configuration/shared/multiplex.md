@@ -28,6 +28,7 @@ Multiplex protocol.
 |----------|------------------------------------|
 | smux     | https://github.com/xtaci/smux      |
 | yamux    | https://github.com/hashicorp/yamux |
+| h2mux    | https://golang.org/x/net/http2     |
 
 SMux is used by default.
 

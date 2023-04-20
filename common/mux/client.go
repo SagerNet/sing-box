@@ -41,7 +41,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, protocol Protocol, maxConne
 	}
 }
 
-func NewClientWithOptions(ctx context.Context, dialer N.Dialer, options option.MultiplexOptions) (N.Dialer, error) {
+func NewClientWithOptions(ctx context.Context, dialer N.Dialer, options option.MultiplexOptions) (*Client, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
@@ -120,17 +120,16 @@ func (c *Client) offer() (abstractSession, error) {
 		sessions = append(sessions, element.Value)
 		element = element.Next()
 	}
-	sLen := len(sessions)
-	if sLen == 0 {
+	session := common.MinBy(common.Filter(sessions, abstractSession.CanTakeNewRequest), abstractSession.NumStreams)
+	if session == nil {
 		return c.offerNew()
 	}
-	session := common.MinBy(sessions, abstractSession.NumStreams)
 	numStreams := session.NumStreams()
 	if numStreams == 0 {
 		return session, nil
 	}
 	if c.maxConnections > 0 {
-		if sLen >= c.maxConnections || numStreams < c.minStreams {
+		if len(sessions) >= c.maxConnections || numStreams < c.minStreams {
 			return session, nil
 		}
 	} else {
@@ -157,6 +156,15 @@ func (c *Client) offerNew() (abstractSession, error) {
 	}
 	c.connections.PushBack(session)
 	return session, nil
+}
+
+func (c *Client) Reset() {
+	c.access.Lock()
+	defer c.access.Unlock()
+	for _, session := range c.connections.Array() {
+		session.Close()
+	}
+	c.connections.Init()
 }
 
 func (c *Client) Close() error {

@@ -9,6 +9,8 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/smux"
+
+	"github.com/hashicorp/yamux"
 )
 
 type abstractSession interface {
@@ -17,6 +19,7 @@ type abstractSession interface {
 	NumStreams() int
 	Close() error
 	IsClosed() bool
+	CanTakeNewRequest() bool
 }
 
 var _ abstractSession = (*smuxSession)(nil)
@@ -31,6 +34,18 @@ func (s *smuxSession) Open() (net.Conn, error) {
 
 func (s *smuxSession) Accept() (net.Conn, error) {
 	return s.AcceptStream()
+}
+
+func (s *smuxSession) CanTakeNewRequest() bool {
+	return true
+}
+
+type yamuxSession struct {
+	*yamux.Session
+}
+
+func (y *yamuxSession) CanTakeNewRequest() bool {
+	return true
 }
 
 type protocolConn struct {

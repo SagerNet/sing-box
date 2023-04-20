@@ -29,6 +29,10 @@ func TestShadowsocksMux(t *testing.T) {
 	}
 }
 
+func TestShadowsockH2Mux(t *testing.T) {
+	testShadowsocksMux(t, mux.ProtocolH2Mux.String())
+}
+
 func testShadowsocksMux(t *testing.T, protocol string) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
