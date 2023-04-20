@@ -28,8 +28,9 @@
 |-------|------------------------------------|
 | smux  | https://github.com/xtaci/smux      |
 | yamux | https://github.com/hashicorp/yamux |
+| h2mux | https://golang.org/x/net/http2     |
 
-默认使用 SMux。
+默认使用 h2mux。
 
 #### max_connections
 
@@ -48,3 +49,12 @@
 在打开新连接之前，连接中的最大多路复用流数量。
 
 与 `max_connections` 和 `min_streams` 冲突。
+
+#### padding
+
+!!! info
+
+    需要 sing-box 服务器版本 1.3-beta9 或更高。
+
+启用填充。
+

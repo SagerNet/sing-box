@@ -199,13 +199,13 @@ func (c *HTTP2Conn) NeedAdditionalReadDeadline() bool {
 
 type ServerHTTPConn struct {
 	HTTP2Conn
-	flusher http.Flusher
+	Flusher http.Flusher
 }
 
 func (c *ServerHTTPConn) Write(b []byte) (n int, err error) {
 	n, err = c.writer.Write(b)
 	if err == nil {
-		c.flusher.Flush()
+		c.Flusher.Flush()
 	}
 	return
 }
@@ -244,6 +244,11 @@ func (w *HTTP2ConnWrapper) CloseWrapper() {
 	w.access.Lock()
 	defer w.access.Unlock()
 	w.closed = true
+}
+
+func (w *HTTP2ConnWrapper) Close() error {
+	w.CloseWrapper()
+	return w.ExtendedConn.Close()
 }
 
 func (w *HTTP2ConnWrapper) Upstream() any {

@@ -27,7 +27,7 @@ type VMess struct {
 	dialer          N.Dialer
 	client          *vmess.Client
 	serverAddr      M.Socksaddr
-	multiplexDialer N.Dialer
+	multiplexDialer *mux.Client
 	tlsConfig       tls.Config
 	transport       adapter.V2RayClientTransport
 	packetAddr      bool
@@ -59,7 +59,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +97,15 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	return outbound, nil
 }
 
+func (h *VMess) InterfaceUpdated() error {
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.Reset()
+	}
+	return nil
+}
+
 func (h *VMess) Close() error {
-	return common.Close(h.multiplexDialer, h.transport)
+	return common.Close(common.PtrOrNil(h.multiplexDialer), h.transport)
 }
 
 func (h *VMess) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

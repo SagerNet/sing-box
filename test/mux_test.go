@@ -18,18 +18,40 @@ var muxProtocols = []mux.Protocol{
 }
 
 func TestVMessSMux(t *testing.T) {
-	testVMessMux(t, mux.ProtocolSMux.String())
+	testVMessMux(t, option.MultiplexOptions{
+		Enabled:  true,
+		Protocol: mux.ProtocolSMux.String(),
+	})
 }
 
 func TestShadowsocksMux(t *testing.T) {
 	for _, protocol := range muxProtocols {
 		t.Run(protocol.String(), func(t *testing.T) {
-			testShadowsocksMux(t, protocol.String())
+			testShadowsocksMux(t, option.MultiplexOptions{
+				Enabled:  true,
+				Protocol: protocol.String(),
+			})
 		})
 	}
 }
 
-func testShadowsocksMux(t *testing.T, protocol string) {
+func TestShadowsockH2Mux(t *testing.T) {
+	testShadowsocksMux(t, option.MultiplexOptions{
+		Enabled:  true,
+		Protocol: mux.ProtocolH2Mux.String(),
+		Padding:  true,
+	})
+}
+
+func TestShadowsockSMuxPadding(t *testing.T) {
+	testShadowsocksMux(t, option.MultiplexOptions{
+		Enabled:  true,
+		Protocol: mux.ProtocolSMux.String(),
+		Padding:  true,
+	})
+}
+
+func testShadowsocksMux(t *testing.T, options option.MultiplexOptions) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
@@ -68,12 +90,9 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					Method:   method,
-					Password: password,
-					MultiplexOptions: &option.MultiplexOptions{
-						Enabled:  true,
-						Protocol: protocol,
-					},
+					Method:           method,
+					Password:         password,
+					MultiplexOptions: &options,
 				},
 			},
 		},
@@ -91,7 +110,7 @@ func testShadowsocksMux(t *testing.T, protocol string) {
 	testSuit(t, clientPort, testPort)
 }
 
-func testVMessMux(t *testing.T, protocol string) {
+func testVMessMux(t *testing.T, options option.MultiplexOptions) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -132,12 +151,9 @@ func testVMessMux(t *testing.T, protocol string) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					Security: "auto",
-					UUID:     user.String(),
-					Multiplex: &option.MultiplexOptions{
-						Enabled:  true,
-						Protocol: protocol,
-					},
+					Security:  "auto",
+					UUID:      user.String(),
+					Multiplex: &options,
 				},
 			},
 		},
