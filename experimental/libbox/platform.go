@@ -5,6 +5,7 @@ import (
 )
 
 type PlatformInterface interface {
+	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int32) error
 	OpenTun(options TunOptions) (int32, error)
 	WriteLog(message string)
