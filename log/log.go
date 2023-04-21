@@ -1,14 +1,15 @@
 package log
 
 import (
+	"context"
 	"io"
 	"os"
 	"time"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 type factoryWithFile struct {
@@ -36,6 +37,7 @@ func (f *observableFactoryWithFile) Close() error {
 }
 
 type Options struct {
+	Context        context.Context
 	Options        option.LogOptions
 	Observable     bool
 	DefaultWriter  io.Writer
@@ -65,7 +67,7 @@ func New(options Options) (Factory, error) {
 		logWriter = os.Stdout
 	default:
 		var err error
-		logFile, err = os.OpenFile(C.BasePath(logOptions.Output), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		logFile, err = filemanager.OpenFile(options.Context, logOptions.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return nil, err
 		}

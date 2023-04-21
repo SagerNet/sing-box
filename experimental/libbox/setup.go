@@ -1,17 +1,31 @@
 package libbox
 
 import (
+	"os"
+
 	C "github.com/sagernet/sing-box/constant"
 
 	"github.com/dustin/go-humanize"
 )
 
-func SetBasePath(path string) {
-	C.SetBasePath(path)
-}
+var (
+	sBasePath string
+	sTempPath string
+	sUserID   int
+	sGroupID  int
+)
 
-func SetTempPath(path string) {
-	C.SetTempPath(path)
+func Setup(basePath string, tempPath string, userID int, groupID int) {
+	sBasePath = basePath
+	sTempPath = tempPath
+	sUserID = userID
+	sGroupID = groupID
+	if sUserID == -1 {
+		sUserID = os.Getuid()
+	}
+	if sGroupID == -1 {
+		sGroupID = os.Getgid()
+	}
 }
 
 func Version() string {
