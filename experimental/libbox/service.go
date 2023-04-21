@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 type BoxService struct {
@@ -30,6 +31,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx = filemanager.WithDefault(ctx, sBasePath, sTempPath, sUserID, sGroupID)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,

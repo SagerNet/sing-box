@@ -23,6 +23,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/websocket"
 
 	"github.com/go-chi/chi/v5"
@@ -37,6 +38,7 @@ func init() {
 var _ adapter.ClashServer = (*Server)(nil)
 
 type Server struct {
+	ctx            context.Context
 	router         adapter.Router
 	logger         log.Logger
 	httpServer     *http.Server
@@ -53,10 +55,11 @@ type Server struct {
 	externalUIDownloadDetour string
 }
 
-func NewServer(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
+func NewServer(ctx context.Context, router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	server := &Server{
+		ctx:    ctx,
 		router: router,
 		logger: logFactory.NewLogger("clash-api"),
 		httpServer: &http.Server{
@@ -82,7 +85,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		if foundPath, loaded := C.FindPath(cachePath); loaded {
 			cachePath = foundPath
 		} else {
-			cachePath = C.BasePath(cachePath)
+			cachePath = filemanager.BasePath(ctx, cachePath)
 		}
 		server.cacheFilePath = cachePath
 	}
@@ -113,7 +116,7 @@ func NewServer(router adapter.Router, logFactory log.ObservableFactory, options 
 		server.setupMetaAPI(r)
 	})
 	if options.ExternalUI != "" {
-		server.externalUI = C.BasePath(os.ExpandEnv(options.ExternalUI))
+		server.externalUI = filemanager.BasePath(ctx, os.ExpandEnv(options.ExternalUI))
 		chiRouter.Group(func(r chi.Router) {
 			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(server.externalUI)))
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
