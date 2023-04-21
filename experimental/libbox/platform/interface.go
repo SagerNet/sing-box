@@ -15,6 +15,7 @@ import (
 
 type Interface interface {
 	Initialize(ctx context.Context, router adapter.Router) error
+	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl() control.Func
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
 	UsePlatformDefaultInterfaceMonitor() bool

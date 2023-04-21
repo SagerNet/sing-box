@@ -823,7 +823,7 @@ func (r *Router) AutoDetectInterface() bool {
 }
 
 func (r *Router) AutoDetectInterfaceFunc() control.Func {
-	if r.platformInterface != nil {
+	if r.platformInterface != nil && r.platformInterface.UsePlatformAutoDetectInterfaceControl() {
 		return r.platformInterface.AutoDetectInterfaceControl()
 	} else {
 		return control.BindToInterfaceFunc(r.InterfaceFinder(), func(network string, address string) (interfaceName string, interfaceIndex int) {

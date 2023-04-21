@@ -68,6 +68,10 @@ func (w *platformInterfaceWrapper) Initialize(ctx context.Context, router adapte
 	return nil
 }
 
+func (w *platformInterfaceWrapper) UsePlatformAutoDetectInterfaceControl() bool {
+	return w.iif.UsePlatformAutoDetectInterfaceControl()
+}
+
 func (w *platformInterfaceWrapper) AutoDetectInterfaceControl() control.Func {
 	return func(network, address string, conn syscall.RawConn) error {
 		return control.Raw(conn, func(fd uintptr) error {
