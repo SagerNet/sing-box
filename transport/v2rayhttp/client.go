@@ -139,16 +139,16 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	default:
 		request.Host = c.host[rand.Intn(hostLen)]
 	}
-	conn := newLateHTTPConn(pipeInWriter)
+	conn := NewLateHTTPConn(pipeInWriter)
 	go func() {
 		response, err := c.transport.RoundTrip(request)
 		if err != nil {
-			conn.setup(nil, err)
+			conn.Setup(nil, err)
 		} else if response.StatusCode != 200 {
 			response.Body.Close()
-			conn.setup(nil, E.New("unexpected status: ", response.StatusCode, " ", response.Status))
+			conn.Setup(nil, E.New("unexpected status: ", response.StatusCode, " ", response.Status))
 		} else {
-			conn.setup(response.Body, nil)
+			conn.Setup(response.Body, nil)
 		}
 	}()
 	return conn, nil
