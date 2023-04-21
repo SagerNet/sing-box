@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 func (s *Server) checkAndDownloadExternalUI() {
@@ -79,7 +79,7 @@ func (s *Server) downloadExternalUI() error {
 }
 
 func (s *Server) downloadZIP(name string, body io.Reader, output string) error {
-	tempFile, err := C.CreateTemp(name)
+	tempFile, err := filemanager.CreateTemp(s.ctx, name)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Server) downloadZIP(name string, body io.Reader, output string) error {
 			return err
 		}
 		savePath := filepath.Join(saveDirectory, pathElements[len(pathElements)-1])
-		err = downloadZIPEntry(file, savePath)
+		err = downloadZIPEntry(s.ctx, file, savePath)
 		if err != nil {
 			return err
 		}
@@ -120,8 +120,8 @@ func (s *Server) downloadZIP(name string, body io.Reader, output string) error {
 	return nil
 }
 
-func downloadZIPEntry(zipFile *zip.File, savePath string) error {
-	saveFile, err := os.Create(savePath)
+func downloadZIPEntry(ctx context.Context, zipFile *zip.File, savePath string) error {
+	saveFile, err := filemanager.Create(ctx, savePath)
 	if err != nil {
 		return err
 	}

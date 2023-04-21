@@ -3,6 +3,8 @@
 package include
 
 import (
+	"context"
+
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/log"
@@ -11,7 +13,7 @@ import (
 )
 
 func init() {
-	experimental.RegisterClashServerConstructor(func(router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
+	experimental.RegisterClashServerConstructor(func(ctx context.Context, router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 		return nil, E.New(`clash api is not included in this build, rebuild with -tags with_clash_api`)
 	})
 }

@@ -18,6 +18,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 func (r *Router) GeoIPReader() *geoip.Reader {
@@ -51,7 +52,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	geoPath = C.BasePath(geoPath)
+	geoPath = filemanager.BasePath(r.ctx, geoPath)
 	if rw.FileExists(geoPath) {
 		geoReader, codes, err := geoip.Open(geoPath)
 		if err == nil {
@@ -95,7 +96,7 @@ func (r *Router) prepareGeositeDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	geoPath = C.BasePath(geoPath)
+	geoPath = filemanager.BasePath(r.ctx, geoPath)
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geosite database not exists: ", geoPath)
 		var err error
@@ -142,10 +143,10 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	}
 
 	if parentDir := filepath.Dir(savePath); parentDir != "" {
-		os.MkdirAll(parentDir, 0o755)
+		filemanager.MkdirAll(r.ctx, parentDir, 0o755)
 	}
 
-	saveFile, err := os.OpenFile(savePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	saveFile, err := filemanager.Create(r.ctx, savePath)
 	if err != nil {
 		return E.Cause(err, "open output file: ", downloadURL)
 	}
@@ -190,10 +191,10 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	}
 
 	if parentDir := filepath.Dir(savePath); parentDir != "" {
-		os.MkdirAll(parentDir, 0o755)
+		filemanager.MkdirAll(r.ctx, parentDir, 0o755)
 	}
 
-	saveFile, err := os.OpenFile(savePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	saveFile, err := filemanager.Create(r.ctx, savePath)
 	if err != nil {
 		return E.Cause(err, "open output file: ", downloadURL)
 	}
