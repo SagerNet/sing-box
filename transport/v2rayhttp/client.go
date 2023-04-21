@@ -145,6 +145,7 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 		if err != nil {
 			conn.setup(nil, err)
 		} else if response.StatusCode != 200 {
+			response.Body.Close()
 			conn.setup(nil, E.New("unexpected status: ", response.StatusCode, " ", response.Status))
 		} else {
 			conn.setup(response.Body, nil)
