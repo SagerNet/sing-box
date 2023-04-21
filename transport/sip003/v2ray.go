@@ -45,6 +45,7 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 
 	if hostOpt, loaded := pluginOpts.Get("host"); loaded {
 		host = hostOpt
+		tlsOptions.ServerName = hostOpt
 	}
 	if pathOpt, loaded := pluginOpts.Get("path"); loaded {
 		path = pathOpt
