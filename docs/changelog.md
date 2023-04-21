@@ -1,6 +1,6 @@
-#### 1.2.4
+#### 1.2.6
 
-* Fixes and improvements
+* Fix bugs and update dependencies
 
 #### 1.2.3
 
