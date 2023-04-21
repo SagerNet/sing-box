@@ -36,6 +36,12 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
+	var host string
+	if tlsConfig != nil && tlsConfig.ServerName() != "" {
+		host = M.ParseSocksaddrHostPort(tlsConfig.ServerName(), serverAddr.Port).String()
+	} else {
+		host = serverAddr.String()
+	}
 	client := &Client{
 		ctx:        ctx,
 		dialer:     dialer,
@@ -48,7 +54,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		},
 		url: &url.URL{
 			Scheme:  "https",
-			Host:    serverAddr.String(),
+			Host:    host,
 			Path:    "/" + options.ServiceName + "/Tun",
 			RawPath: "/" + url.PathEscape(options.ServiceName) + "/Tun",
 		},
