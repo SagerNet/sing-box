@@ -9,7 +9,7 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
-func (d *natDestinationWrapper) WritePacketBuffer(buffer *stack.PacketBuffer) error {
+func (d *natDestinationWrapper) WritePacketBuffer(buffer stack.PacketBufferPtr) error {
 	defer buffer.DecRef()
 	if d.device.writer != nil {
 		d.device.writer.RewritePacketBuffer(buffer)
