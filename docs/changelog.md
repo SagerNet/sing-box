@@ -1,6 +1,77 @@
+#### 1.3-beta9
+
+* Improve multiplex **1**
+* Fixes and improvements
+
+*1*:
+
+Added new `h2mux` multiplex protocol and `padding` multiplex option, see [Multiplex](/configuration/shared/multiplex).
+
 #### 1.2.6
 
 * Fix bugs and update dependencies
+
+#### 1.3-beta8
+
+* Fix `system` tun stack for ios
+* Fix network monitor for android/ios
+* Update VLESS and XUDP protocol **1**
+* Fixes and improvements
+
+*1:
+
+This is an incompatible update for XUDP in VLESS if vision flow is enabled.
+
+#### 1.3-beta7
+
+* Add `path` and `headers` options for HTTP outbound
+* Add multi-user support for Shadowsocks legacy AEAD inbound
+* Fixes and improvements
+
+#### 1.2.4
+
+* Fixes and improvements
+
+#### 1.3-beta6
+
+* Fix WireGuard reconnect
+* Perform URLTest recheck after network changes
+* Fix bugs and update dependencies
+
+#### 1.3-beta5
+
+* Add Clash.Meta API compatibility for Clash API
+* Download Yacd-meta by default if the specified Clash `external_ui` directory is empty
+* Add path and headers option for HTTP outbound
+* Fixes and improvements
+
+#### 1.3-beta4
+
+* Fix bugs
+
+#### 1.3-beta2
+
+* Download clash-dashboard if the specified Clash `external_ui` directory is empty
+* Fix bugs and update dependencies
+
+#### 1.3-beta1
+
+* Add [DNS reverse mapping](/configuration/dns#reverse_mapping) support
+* Add [L3 routing](/configuration/route/ip-rule) support **1**
+* Add `rewrite_ttl` DNS rule action
+* Add [FakeIP](/configuration/dns/fakeip) support **2**
+* Add `store_fakeip` Clash API option
+* Add multi-peer support for [WireGuard](/configuration/outbound/wireguard#peers) outbound
+* Add loopback detect
+
+*1*:
+
+It can currently be used to [route connections directly to WireGuard](/examples/wireguard-direct) or block connections
+at the IP layer.
+
+*2*:
+
+See [FAQ](/faq/fakeip) for more information.
 
 #### 1.2.3
 
