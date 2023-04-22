@@ -29,7 +29,7 @@ require (
 	github.com/sagernet/sing-dns v0.1.5-0.20230415085626-111ecf799dfc
 	github.com/sagernet/sing-shadowsocks v0.2.2-0.20230417102954-f77257340507
 	github.com/sagernet/sing-shadowtls v0.1.2-0.20230417103049-4f682e05f19b
-	github.com/sagernet/sing-tun v0.1.4
+	github.com/sagernet/sing-tun v0.1.5-0.20230422121432-209ec123ca7b
 	github.com/sagernet/sing-vmess v0.1.5-0.20230417103030-8c3070ae3fb3
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
@@ -48,7 +48,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
-	gvisor.dev/gvisor v0.0.0-20220901235040-6ca97ef2ce1c
+	gvisor.dev/gvisor v0.0.0-20230415003630-3981d5d5e523
 )
 
 //replace github.com/sagernet/sing => ../sing
@@ -85,7 +85,7 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
