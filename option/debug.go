@@ -7,6 +7,7 @@ import (
 )
 
 type DebugOptions struct {
+	Listen       string      `json:"listen,omitempty"`
 	GCPercent    *int        `json:"gc_percent,omitempty"`
 	MaxStack     *int        `json:"max_stack,omitempty"`
 	MaxThreads   *int        `json:"max_threads,omitempty"`
