@@ -1,6 +1,4 @@
-//go:build debug
-
-package main
+package box
 
 import (
 	"runtime"

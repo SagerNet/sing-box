@@ -1,6 +1,6 @@
-//go:build debug && !linux
+//go:build !linux
 
-package main
+package box
 
 func rusageMaxRSS() float64 {
 	return -1
