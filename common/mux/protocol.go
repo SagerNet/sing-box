@@ -3,6 +3,7 @@ package mux
 import (
 	"encoding/binary"
 	"io"
+	"math/rand"
 	"net"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -113,11 +114,14 @@ func (p Protocol) String() string {
 }
 
 const (
-	version0 = 0
+	Version0 = iota
+	Version1
 )
 
 type Request struct {
-	Protocol Protocol
+	Version        byte
+	Protocol       Protocol
+	PaddingEnabled bool
 }
 
 func ReadRequest(reader io.Reader) (*Request, error) {
@@ -125,19 +129,60 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	if version != version0 {
+	if version < Version0 || version > Version1 {
 		return nil, E.New("unsupported version: ", version)
 	}
 	protocol, err := rw.ReadByte(reader)
 	if err != nil {
 		return nil, err
 	}
-	return &Request{Protocol: Protocol(protocol)}, nil
+	var paddingEnabled bool
+	if version == Version1 {
+		err = binary.Read(reader, binary.BigEndian, &paddingEnabled)
+		if err != nil {
+			return nil, err
+		}
+		if paddingEnabled {
+			var paddingLen uint16
+			err = binary.Read(reader, binary.BigEndian, &paddingLen)
+			if err != nil {
+				return nil, err
+			}
+			err = rw.SkipN(reader, int(paddingLen))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &Request{Version: version, Protocol: Protocol(protocol), PaddingEnabled: paddingEnabled}, nil
 }
 
-func EncodeRequest(buffer *buf.Buffer, request Request) {
-	buffer.WriteByte(version0)
-	buffer.WriteByte(byte(request.Protocol))
+func EncodeRequest(request Request, payload []byte) *buf.Buffer {
+	var requestLen int
+	requestLen += 2
+	var paddingLen uint16
+	if request.Version == Version1 {
+		requestLen += 1
+		if request.PaddingEnabled {
+			requestLen += 2
+			paddingLen = uint16(256 + rand.Intn(512))
+			requestLen += int(paddingLen)
+		}
+	}
+	buffer := buf.NewSize(requestLen + len(payload))
+	common.Must(
+		buffer.WriteByte(request.Version),
+		buffer.WriteByte(byte(request.Protocol)),
+	)
+	if request.Version == Version1 {
+		common.Must(binary.Write(buffer, binary.BigEndian, request.PaddingEnabled))
+		if request.PaddingEnabled {
+			common.Must(binary.Write(buffer, binary.BigEndian, paddingLen))
+			buffer.Extend(int(paddingLen))
+		}
+	}
+	common.Must1(buffer.Write(payload))
+	return buffer
 }
 
 const (
@@ -174,7 +219,7 @@ func ReadStreamRequest(reader io.Reader) (*StreamRequest, error) {
 	return &StreamRequest{network, destination, udpAddr}, nil
 }
 
-func requestLen(request StreamRequest) int {
+func streamRequestLen(request StreamRequest) int {
 	var rLen int
 	rLen += 1 // version
 	rLen += 2 // flags

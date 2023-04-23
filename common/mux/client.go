@@ -28,9 +28,10 @@ type Client struct {
 	maxConnections int
 	minStreams     int
 	maxStreams     int
+	paddingEnabled bool
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, protocol Protocol, maxConnections int, minStreams int, maxStreams int) *Client {
+func NewClient(ctx context.Context, dialer N.Dialer, protocol Protocol, maxConnections int, minStreams int, maxStreams int, paddingEnabled bool) (*Client, error) {
 	return &Client{
 		ctx:            ctx,
 		dialer:         dialer,
@@ -38,7 +39,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, protocol Protocol, maxConne
 		maxConnections: maxConnections,
 		minStreams:     minStreams,
 		maxStreams:     maxStreams,
-	}
+		paddingEnabled: paddingEnabled,
+	}, nil
 }
 
 func NewClientWithOptions(ctx context.Context, dialer N.Dialer, options option.MultiplexOptions) (*Client, error) {
@@ -52,7 +54,7 @@ func NewClientWithOptions(ctx context.Context, dialer N.Dialer, options option.M
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(ctx, dialer, protocol, options.MaxConnections, options.MinStreams, options.MaxStreams), nil
+	return NewClient(ctx, dialer, protocol, options.MaxConnections, options.MinStreams, options.MaxStreams, options.Padding)
 }
 
 func (c *Client) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -145,10 +147,19 @@ func (c *Client) offerNew() (abstractSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	if vectorisedWriter, isVectorised := bufio.CreateVectorisedWriter(conn); isVectorised {
-		conn = &vectorisedProtocolConn{protocolConn{Conn: conn, protocol: c.protocol}, vectorisedWriter}
+	var version byte
+	if c.paddingEnabled {
+		version = Version1
 	} else {
-		conn = &protocolConn{Conn: conn, protocol: c.protocol}
+		version = Version0
+	}
+	conn = newProtocolConn(conn, Request{
+		Version:        version,
+		Protocol:       c.protocol,
+		PaddingEnabled: c.paddingEnabled,
+	})
+	if c.paddingEnabled {
+		conn = newPaddingConn(conn)
 	}
 	session, err := c.protocol.newClient(conn)
 	if err != nil {
@@ -213,7 +224,7 @@ func (c *ClientConn) Write(b []byte) (n int, err error) {
 		Network:     N.NetworkTCP,
 		Destination: c.destination,
 	}
-	_buffer := buf.StackNewSize(requestLen(request) + len(b))
+	_buffer := buf.StackNewSize(streamRequestLen(request) + len(b))
 	defer common.KeepAlive(_buffer)
 	buffer := common.Dup(_buffer)
 	defer buffer.Release()
@@ -307,7 +318,7 @@ func (c *ClientPacketConn) writeRequest(payload []byte) (n int, err error) {
 		Network:     N.NetworkUDP,
 		Destination: c.destination,
 	}
-	rLen := requestLen(request)
+	rLen := streamRequestLen(request)
 	if len(payload) > 0 {
 		rLen += 2 + len(payload)
 	}
@@ -452,7 +463,7 @@ func (c *ClientPacketAddrConn) writeRequest(payload []byte, destination M.Socksa
 		Destination: c.destination,
 		PacketAddr:  true,
 	}
-	rLen := requestLen(request)
+	rLen := streamRequestLen(request)
 	if len(payload) > 0 {
 		rLen += M.SocksaddrSerializer.AddrPortLen(destination) + 2 + len(payload)
 	}

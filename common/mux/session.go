@@ -4,7 +4,6 @@ import (
 	"io"
 	"net"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
@@ -50,23 +49,35 @@ func (y *yamuxSession) CanTakeNewRequest() bool {
 
 type protocolConn struct {
 	net.Conn
-	protocol        Protocol
+	request         Request
 	protocolWritten bool
+}
+
+func newProtocolConn(conn net.Conn, request Request) net.Conn {
+	writer, isVectorised := bufio.CreateVectorisedWriter(conn)
+	if isVectorised {
+		return &vectorisedProtocolConn{
+			protocolConn{
+				Conn:    conn,
+				request: request,
+			},
+			writer,
+		}
+	} else {
+		return &protocolConn{
+			Conn:    conn,
+			request: request,
+		}
+	}
 }
 
 func (c *protocolConn) Write(p []byte) (n int, err error) {
 	if c.protocolWritten {
 		return c.Conn.Write(p)
 	}
-	_buffer := buf.StackNewSize(2 + len(p))
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
-	defer buffer.Release()
-	EncodeRequest(buffer, Request{
-		Protocol: c.protocol,
-	})
-	common.Must(common.Error(buffer.Write(p)))
+	buffer := EncodeRequest(c.request, p)
 	n, err = c.Conn.Write(buffer.Bytes())
+	buffer.Release()
 	if err == nil {
 		n--
 	}
@@ -87,20 +98,14 @@ func (c *protocolConn) Upstream() any {
 
 type vectorisedProtocolConn struct {
 	protocolConn
-	N.VectorisedWriter
+	writer N.VectorisedWriter
 }
 
 func (c *vectorisedProtocolConn) WriteVectorised(buffers []*buf.Buffer) error {
 	if c.protocolWritten {
-		return c.VectorisedWriter.WriteVectorised(buffers)
+		return c.writer.WriteVectorised(buffers)
 	}
 	c.protocolWritten = true
-	_buffer := buf.StackNewSize(2)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
-	defer buffer.Release()
-	EncodeRequest(buffer, Request{
-		Protocol: c.protocol,
-	})
-	return c.VectorisedWriter.WriteVectorised(append([]*buf.Buffer{buffer}, buffers...))
+	buffer := EncodeRequest(c.request, nil)
+	return c.writer.WriteVectorised(append([]*buf.Buffer{buffer}, buffers...))
 }

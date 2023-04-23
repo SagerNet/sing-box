@@ -22,6 +22,9 @@ func NewConnection(ctx context.Context, router adapter.Router, errorHandler E.Ha
 	if err != nil {
 		return err
 	}
+	if request.PaddingEnabled {
+		conn = newPaddingConn(conn)
+	}
 	session, err := request.Protocol.newServer(conn)
 	if err != nil {
 		return err
