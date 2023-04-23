@@ -122,7 +122,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+dataLen))
 	header[5] = 0x0A
 	binary.PutUvarint(header[6:], uint64(dataLen))
-	err := rw.WriteBytes(c.writer, buffer.Bytes())
+	_, err := c.writer.Write(buffer.Bytes())
 	if err == nil && c.flusher != nil {
 		c.flusher.Flush()
 	}

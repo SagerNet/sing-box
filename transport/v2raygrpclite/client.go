@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -28,39 +29,33 @@ var defaultClientHeader = http.Header{
 }
 
 type Client struct {
-	ctx        context.Context
-	dialer     N.Dialer
-	serverAddr M.Socksaddr
-	transport  *http2.Transport
-	options    option.V2RayGRPCOptions
-	url        *url.URL
-	host       string
+	transport *http2.Transport
+	request   *http.Request
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
 	var host string
 	if tlsConfig != nil && tlsConfig.ServerName() != "" {
-		host = M.ParseSocksaddrHostPort(tlsConfig.ServerName(), serverAddr.Port).String()
-	} else {
-		host = serverAddr.String()
+		host = net.JoinHostPort(tlsConfig.ServerName(), strconv.Itoa(int(serverAddr.Port)))
 	}
+
 	client := &Client{
-		ctx:        ctx,
-		dialer:     dialer,
-		serverAddr: serverAddr,
-		options:    options,
 		transport: &http2.Transport{
 			ReadIdleTimeout:    time.Duration(options.IdleTimeout),
 			PingTimeout:        time.Duration(options.PingTimeout),
 			DisableCompression: true,
 		},
-		url: &url.URL{
-			Scheme:  "https",
-			Host:    serverAddr.String(),
-			Path:    "/" + options.ServiceName + "/Tun",
-			RawPath: "/" + url.PathEscape(options.ServiceName) + "/Tun",
+		request: &http.Request{
+			Method: http.MethodPost,
+			URL: &url.URL{
+				Scheme:  "https",
+				Host:    serverAddr.String(),
+				Path:    "/" + options.ServiceName + "/Tun",
+				RawPath: "/" + url.PathEscape(options.ServiceName) + "/Tun",
+			},
+			Host:   host,
+			Header: defaultClientHeader,
 		},
-		host: host,
 	}
 
 	if tlsConfig == nil {
@@ -85,14 +80,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
-	request := &http.Request{
-		Method: http.MethodPost,
-		Body:   pipeInReader,
-		URL:    c.url,
-		Header: defaultClientHeader,
-		Host:   c.host,
-	}
-	request = request.WithContext(ctx)
+	request := c.request.WithContext(ctx)
+	request.Body = pipeInReader
 	conn := newLateGunConn(pipeInWriter)
 	go func() {
 		response, err := c.transport.RoundTrip(request)
