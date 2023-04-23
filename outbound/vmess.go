@@ -59,7 +59,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vmessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}

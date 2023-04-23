@@ -58,7 +58,7 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions(ctx, (*trojanDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions((*trojanDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
