@@ -20,6 +20,7 @@ type VLESSOutboundOptions struct {
 	Flow           string                 `json:"flow,omitempty"`
 	Network        NetworkList            `json:"network,omitempty"`
 	TLS            *OutboundTLSOptions    `json:"tls,omitempty"`
+	Multiplex      *MultiplexOptions      `json:"multiplex,omitempty"`
 	Transport      *V2RayTransportOptions `json:"transport,omitempty"`
 	PacketEncoding *string                `json:"packet_encoding,omitempty"`
 }
