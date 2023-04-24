@@ -51,6 +51,8 @@ type Router interface {
 
 	V2RayServer() V2RayServer
 	SetV2RayServer(server V2RayServer)
+
+	ResetNetwork() error
 }
 
 type routerContextKey struct{}
