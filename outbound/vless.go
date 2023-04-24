@@ -6,6 +6,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -24,13 +25,14 @@ var _ adapter.Outbound = (*VLESS)(nil)
 
 type VLESS struct {
 	myOutboundAdapter
-	dialer     N.Dialer
-	client     *vless.Client
-	serverAddr M.Socksaddr
-	tlsConfig  tls.Config
-	transport  adapter.V2RayClientTransport
-	packetAddr bool
-	xudp       bool
+	dialer          N.Dialer
+	client          *vless.Client
+	serverAddr      M.Socksaddr
+	multiplexDialer *mux.Client
+	tlsConfig       tls.Config
+	transport       adapter.V2RayClientTransport
+	packetAddr      bool
+	xudp            bool
 }
 
 func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSOutboundOptions) (*VLESS, error) {
@@ -75,10 +77,65 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
+	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vlessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	if err != nil {
+		return nil, err
+	}
 	return outbound, nil
 }
 
 func (h *VLESS) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	if h.multiplexDialer == nil {
+		switch N.NetworkName(network) {
+		case N.NetworkTCP:
+			h.logger.InfoContext(ctx, "outbound connection to ", destination)
+		case N.NetworkUDP:
+			h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+		}
+		return (*vlessDialer)(h).DialContext(ctx, network, destination)
+	} else {
+		switch N.NetworkName(network) {
+		case N.NetworkTCP:
+			h.logger.InfoContext(ctx, "outbound multiplex connection to ", destination)
+		case N.NetworkUDP:
+			h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
+		}
+		return h.multiplexDialer.DialContext(ctx, network, destination)
+	}
+}
+
+func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	if h.multiplexDialer == nil {
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+		return (*vlessDialer)(h).ListenPacket(ctx, destination)
+	} else {
+		h.logger.InfoContext(ctx, "outbound multiplex packet connection to ", destination)
+		return h.multiplexDialer.ListenPacket(ctx, destination)
+	}
+}
+
+func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	return NewConnection(ctx, h, conn, metadata)
+}
+
+func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return NewPacketConnection(ctx, h, conn, metadata)
+}
+
+func (h *VLESS) InterfaceUpdated() error {
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.Reset()
+	}
+	return nil
+}
+
+func (h *VLESS) Close() error {
+	return common.Close(common.PtrOrNil(h.multiplexDialer), h.transport)
+}
+
+type vlessDialer VLESS
+
+func (h *vlessDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
@@ -120,7 +177,7 @@ func (h *VLESS) DialContext(ctx context.Context, network string, destination M.S
 	}
 }
 
-func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (h *vlessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Outbound = h.tag
@@ -153,16 +210,4 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	} else {
 		return h.client.DialEarlyPacketConn(conn, destination)
 	}
-}
-
-func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
-}
-
-func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
-func (h *VLESS) Close() error {
-	return common.Close(h.transport)
 }
