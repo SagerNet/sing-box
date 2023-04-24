@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/websocket"
@@ -14,10 +15,10 @@ import (
 	"github.com/go-chi/render"
 )
 
-func connectionRouter(trafficManager *trafficontrol.Manager) http.Handler {
+func connectionRouter(router adapter.Router, trafficManager *trafficontrol.Manager) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConnections(trafficManager))
-	r.Delete("/", closeAllConnections(trafficManager))
+	r.Delete("/", closeAllConnections(router, trafficManager))
 	r.Delete("/{id}", closeConnection(trafficManager))
 	return r
 }
@@ -86,12 +87,13 @@ func closeConnection(trafficManager *trafficontrol.Manager) func(w http.Response
 	}
 }
 
-func closeAllConnections(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
+func closeAllConnections(router adapter.Router, trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshot := trafficManager.Snapshot()
 		for _, c := range snapshot.Connections {
 			c.Close()
 		}
+		router.ResetNetwork()
 		render.NoContent(w, r)
 	}
 }
