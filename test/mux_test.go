@@ -4,7 +4,6 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/sagernet/sing-box/common/mux"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -12,43 +11,30 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
-var muxProtocols = []mux.Protocol{
-	mux.ProtocolYAMux,
-	mux.ProtocolSMux,
+var muxProtocols = []string{
+	"smux",
+	"yamux",
+	"h2mux",
 }
 
-func TestVMessSMux(t *testing.T) {
-	testVMessMux(t, option.MultiplexOptions{
-		Enabled:  true,
-		Protocol: mux.ProtocolSMux.String(),
-	})
-}
-
-func TestShadowsocksMux(t *testing.T) {
+func TestMux(t *testing.T) {
 	for _, protocol := range muxProtocols {
-		t.Run(protocol.String(), func(t *testing.T) {
-			testShadowsocksMux(t, option.MultiplexOptions{
+		t.Run(protocol, func(t *testing.T) {
+			options := option.MultiplexOptions{
 				Enabled:  true,
-				Protocol: protocol.String(),
+				Protocol: protocol,
+			}
+			t.Run("shadowsocks", func(t *testing.T) {
+				testShadowsocksMux(t, options)
+			})
+			t.Run("vmess", func(t *testing.T) {
+				testVMessMux(t, options)
+			})
+			t.Run("vless", func(t *testing.T) {
+				testVLESSMux(t, options)
 			})
 		})
 	}
-}
-
-func TestShadowsockH2Mux(t *testing.T) {
-	testShadowsocksMux(t, option.MultiplexOptions{
-		Enabled:  true,
-		Protocol: mux.ProtocolH2Mux.String(),
-		Padding:  true,
-	})
-}
-
-func TestShadowsockSMuxPadding(t *testing.T) {
-	testShadowsocksMux(t, option.MultiplexOptions{
-		Enabled:  true,
-		Protocol: mux.ProtocolSMux.String(),
-		Padding:  true,
-	})
 }
 
 func testShadowsocksMux(t *testing.T, options option.MultiplexOptions) {
@@ -163,6 +149,66 @@ func testVMessMux(t *testing.T, options option.MultiplexOptions) {
 					DefaultOptions: option.DefaultRule{
 						Inbound:  []string{"mixed-in"},
 						Outbound: "vmess-out",
+					},
+				},
+			},
+		},
+	})
+	testSuit(t, clientPort, testPort)
+}
+
+func testVLESSMux(t *testing.T, options option.MultiplexOptions) {
+	user, _ := uuid.NewV4()
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeVLESS,
+				VLESSOptions: option.VLESSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					Users: []option.VLESSUser{
+						{
+							UUID: user.String(),
+						},
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeVLESS,
+				Tag:  "vless-out",
+				VLESSOptions: option.VLESSOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					UUID:      user.String(),
+					Multiplex: &options,
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					DefaultOptions: option.DefaultRule{
+						Inbound:  []string{"mixed-in"},
+						Outbound: "vless-out",
 					},
 				},
 			},
