@@ -974,9 +974,22 @@ func (r *Router) notifyNetworkUpdate(int) error {
 		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
 	}
 
-	if conntrack.Enabled {
-		conntrack.Close()
+	conntrack.Close()
+
+	for _, outbound := range r.outbounds {
+		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
+		if isListener {
+			err := listener.InterfaceUpdated()
+			if err != nil {
+				return err
+			}
+		}
 	}
+	return nil
+}
+
+func (r *Router) ResetNetwork() error {
+	conntrack.Close()
 
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
