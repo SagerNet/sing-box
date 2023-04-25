@@ -73,23 +73,31 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	if len(message.Question) > 0 {
 		r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()))
 	}
-	ctx, metadata := adapter.AppendContext(ctx)
-	if len(message.Question) > 0 {
-		metadata.QueryType = message.Question[0].Qtype
-		switch metadata.QueryType {
-		case mDNS.TypeA:
-			metadata.IPVersion = 4
-		case mDNS.TypeAAAA:
-			metadata.IPVersion = 6
+	var (
+		response *mDNS.Msg
+		cached   bool
+		err      error
+	)
+	response, cached = r.dnsClient.ExchangeCache(ctx, message)
+	if !cached {
+		ctx, metadata := adapter.AppendContext(ctx)
+		if len(message.Question) > 0 {
+			metadata.QueryType = message.Question[0].Qtype
+			switch metadata.QueryType {
+			case mDNS.TypeA:
+				metadata.IPVersion = 4
+			case mDNS.TypeAAAA:
+				metadata.IPVersion = 6
+			}
+			metadata.Domain = fqdnToDomain(message.Question[0].Name)
 		}
-		metadata.Domain = fqdnToDomain(message.Question[0].Name)
-	}
-	ctx, transport, strategy := r.matchDNS(ctx)
-	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
-	defer cancel()
-	response, err := r.dnsClient.Exchange(ctx, transport, message, strategy)
-	if err != nil && len(message.Question) > 0 {
-		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", formatQuestion(message.Question[0].String())))
+		ctx, transport, strategy := r.matchDNS(ctx)
+		ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
+		defer cancel()
+		response, err = r.dnsClient.Exchange(ctx, transport, message, strategy)
+		if err != nil && len(message.Question) > 0 {
+			r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", formatQuestion(message.Question[0].String())))
+		}
 	}
 	if len(message.Question) > 0 && response != nil {
 		LogDNSAnswers(r.dnsLogger, ctx, message.Question[0].Name, response.Answer)
