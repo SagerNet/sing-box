@@ -104,18 +104,18 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	var reader N.PacketReader = conn
 	var counters []N.CountFunc
-	var cachedBuffer []*N.PacketBuffer
+	var cachedPackets []*N.PacketBuffer
 	for {
 		reader, counters = N.UnwrapCountPacketReader(reader, counters)
 		if cachedReader, isCached := reader.(N.CachedPacketReader); isCached {
 			packet := cachedReader.ReadCachedPacket()
 			if packet != nil {
-				cachedBuffer = append([]*N.PacketBuffer{packet}, cachedBuffer...)
+				cachedPackets = append(cachedPackets, packet)
 				continue
 			}
 		}
 		if readWaiter, created := bufio.CreatePacketReadWaiter(reader); created {
-			return d.newPacketConnection(ctx, conn, readWaiter, counters, cachedBuffer, metadata)
+			return d.newPacketConnection(ctx, conn, readWaiter, counters, cachedPackets, metadata)
 		}
 		break
 	}
