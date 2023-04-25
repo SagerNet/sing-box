@@ -130,7 +130,7 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 	var addonsLen int
 	if request.Flow != "" {
 		addonsLen += 1 // protobuf header
-		addonsLen += UvarintLen(uint64(len(request.Flow)))
+		addonsLen += rw.UVariantLen(uint64(len(request.Flow)))
 		addonsLen += len(request.Flow)
 		requestLen += addonsLen
 	}
@@ -150,8 +150,8 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 	)
 	if addonsLen > 0 {
 		common.Must(buffer.WriteByte(10))
-		binary.PutUvarint(buffer.Extend(UvarintLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
-		common.Must(common.Error(buffer.Write([]byte(request.Flow))))
+		binary.PutUvarint(buffer.Extend(rw.UVariantLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
+		common.Must(common.Error(buffer.WriteString(request.Flow)))
 	}
 	common.Must(
 		buffer.WriteByte(request.Command),
@@ -174,7 +174,7 @@ func EncodeRequest(request Request, buffer *buf.Buffer) {
 	var addonsLen int
 	if request.Flow != "" {
 		addonsLen += 1 // protobuf header
-		addonsLen += UvarintLen(uint64(len(request.Flow)))
+		addonsLen += rw.UVariantLen(uint64(len(request.Flow)))
 		addonsLen += len(request.Flow)
 		requestLen += addonsLen
 	}
@@ -189,8 +189,8 @@ func EncodeRequest(request Request, buffer *buf.Buffer) {
 	)
 	if addonsLen > 0 {
 		common.Must(buffer.WriteByte(10))
-		binary.PutUvarint(buffer.Extend(UvarintLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
-		common.Must(common.Error(buffer.Write([]byte(request.Flow))))
+		binary.PutUvarint(buffer.Extend(rw.UVariantLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
+		common.Must(common.Error(buffer.WriteString(request.Flow)))
 	}
 	common.Must(
 		buffer.WriteByte(request.Command),
@@ -210,7 +210,7 @@ func RequestLen(request Request) int {
 	var addonsLen int
 	if request.Flow != "" {
 		addonsLen += 1 // protobuf header
-		addonsLen += UvarintLen(uint64(len(request.Flow)))
+		addonsLen += rw.UVariantLen(uint64(len(request.Flow)))
 		addonsLen += len(request.Flow)
 		requestLen += addonsLen
 	}
@@ -229,7 +229,7 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 	var addonsLen int
 	/*if request.Flow != "" {
 		addonsLen += 1 // protobuf header
-		addonsLen += UvarintLen(uint64(len(request.Flow)))
+		addonsLen += rw.UVariantLen(uint64(len(request.Flow)))
 		addonsLen += len(request.Flow)
 		requestLen += addonsLen
 	}*/
@@ -251,8 +251,8 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 
 	if addonsLen > 0 {
 		common.Must(buffer.WriteByte(10))
-		binary.PutUvarint(buffer.Extend(UvarintLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
-		common.Must(common.Error(buffer.Write([]byte(request.Flow))))
+		binary.PutUvarint(buffer.Extend(rw.UVariantLen(uint64(len(request.Flow)))), uint64(len(request.Flow)))
+		common.Must(common.Error(buffer.WriteString(request.Flow)))
 	}
 
 	common.Must(
@@ -289,9 +289,4 @@ func ReadResponse(reader io.Reader) error {
 		}
 	}
 	return nil
-}
-
-func UvarintLen(value uint64) int {
-	var buffer [binary.MaxVarintLen64]byte
-	return binary.PutUvarint(buffer[:], value)
 }
