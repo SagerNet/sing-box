@@ -20,9 +20,10 @@ type DNSServerOptions struct {
 }
 
 type DNSClientOptions struct {
-	Strategy      DomainStrategy `json:"strategy,omitempty"`
-	DisableCache  bool           `json:"disable_cache,omitempty"`
-	DisableExpire bool           `json:"disable_expire,omitempty"`
+	Strategy         DomainStrategy `json:"strategy,omitempty"`
+	DisableCache     bool           `json:"disable_cache,omitempty"`
+	DisableExpire    bool           `json:"disable_expire,omitempty"`
+	IndependentCache bool           `json:"independent_cache,omitempty"`
 }
 
 type DNSFakeIPOptions struct {

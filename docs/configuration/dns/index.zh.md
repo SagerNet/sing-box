@@ -11,6 +11,7 @@
     "strategy": "",
     "disable_cache": false,
     "disable_expire": false,
+    "independent_cache": false,
     "reverse_mapping": false,
     "fakeip": {}
   }
@@ -46,6 +47,10 @@
 #### disable_expire
 
 禁用 DNS 缓存过期。
+
+#### independent_cache
+
+使每个 DNS 服务器的缓存独立，以满足特殊目的。如果启用，将轻微降低性能。
 
 #### reverse_mapping
 
