@@ -143,6 +143,7 @@ extra:
       link: https://github.com/SagerNet/sing-box
   generator: false
 plugins:
+  - search
   - i18n:
       default_language: en
       languages:
