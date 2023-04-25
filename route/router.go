@@ -111,7 +111,12 @@ func NewRouter(
 		defaultMark:           options.DefaultMark,
 		platformInterface:     platformInterface,
 	}
-	router.dnsClient = dns.NewClient(dnsOptions.DNSClientOptions.DisableCache, dnsOptions.DNSClientOptions.DisableExpire, router.dnsLogger)
+	router.dnsClient = dns.NewClient(dns.ClientOptions{
+		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
+		DisableExpire:    dnsOptions.DNSClientOptions.DisableExpire,
+		IndependentCache: dnsOptions.DNSClientOptions.IndependentCache,
+		Logger:           router.dnsLogger,
+	})
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, router.logger, ruleOptions)
 		if err != nil {

@@ -11,6 +11,7 @@
     "strategy": "",
     "disable_cache": false,
     "disable_expire": false,
+    "independent_cache": false,
     "reverse_mapping": false,
     "fakeip": {}
   }
@@ -47,6 +48,10 @@ Disable dns cache.
 #### disable_expire
 
 Disable dns cache expire.
+
+#### independent_cache
+
+Make each DNS server's cache independent for special purposes. If enabled, will slightly degrade performance.
 
 #### reverse_mapping
 
