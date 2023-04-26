@@ -112,7 +112,7 @@ func (w *StackDevice) DialContext(ctx context.Context, network string, destinati
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		tcpConn, err := gonet.DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
+		tcpConn, err := DialTCPWithBind(ctx, w.stack, bind, addr, networkProtocol)
 		if err != nil {
 			return nil, err
 		}
