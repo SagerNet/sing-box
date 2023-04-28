@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/sagernet/gomobile/event/key"
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
@@ -38,18 +39,23 @@ func main() {
 var (
 	sharedFlags []string
 	debugFlags  []string
+	sharedTags  []string
+	debugTags   []string
 )
 
 func init() {
 	sharedFlags = append(sharedFlags, "-trimpath")
 	sharedFlags = append(sharedFlags, "-ldflags")
-
 	currentTag, err := build_shared.ReadTag()
 	if err != nil {
 		currentTag = "unknown"
 	}
 	sharedFlags = append(sharedFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
 	debugFlags = append(debugFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
+
+	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
+	sharedTags = append(sharedTags, "test_sing_shadowsocks2")
+	debugTags = append(debugTags, "debug")
 }
 
 func buildAndroid() {
@@ -70,9 +76,9 @@ func buildAndroid() {
 
 	args = append(args, "-tags")
 	if !debugEnabled {
-		args = append(args, "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api")
+		args = append(args, strings.Join(sharedTags, ","))
 	} else {
-		args = append(args, "with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,debug")
+		args = append(args, strings.Join(append(sharedTags, debugTags...), ","))
 	}
 	args = append(args, "./experimental/libbox")
 
@@ -109,11 +115,12 @@ func buildiOS() {
 		args = append(args, debugFlags...)
 	}
 
+	tags := append(sharedTags, "with_low_memory", "with_conntrack")
 	args = append(args, "-tags")
 	if !debugEnabled {
-		args = append(args, "with_gvisor,with_quic,with_utls,with_clash_api,with_low_memory,with_conntrack")
+		args = append(args, strings.Join(tags, ","))
 	} else {
-		args = append(args, "with_gvisor,with_quic,with_utls,with_clash_api,with_low_memory,with_conntrack,debug")
+		args = append(args, strings.Join(append(tags, debugTags...), ","))
 	}
 	args = append(args, "./experimental/libbox")
 
