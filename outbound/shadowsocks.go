@@ -11,8 +11,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/sip003"
-	"github.com/sagernet/sing-shadowsocks"
-	"github.com/sagernet/sing-shadowsocks/shadowimpl"
+	"github.com/sagernet/sing-shadowsocks2"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -34,7 +33,9 @@ type Shadowsocks struct {
 }
 
 func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
-	method, err := shadowimpl.FetchMethod(options.Method, options.Password, router.TimeFunc())
+	method, err := shadowsocks.CreateMethod(ctx, options.Method, shadowsocks.MethodOptions{
+		Password: options.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
