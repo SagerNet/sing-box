@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/x/list"
 )
 
@@ -42,7 +43,7 @@ func (c *PacketConn) Close() error {
 }
 
 func (c *PacketConn) Upstream() any {
-	return c.PacketConn
+	return bufio.NewPacketConn(c.PacketConn)
 }
 
 func (c *PacketConn) ReaderReplaceable() bool {
