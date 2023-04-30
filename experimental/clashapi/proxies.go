@@ -133,7 +133,7 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			defaultTag = allProxies[0]
 		}
 
-		sort.Slice(allProxies, func(i, j int) bool {
+		sort.SliceStable(allProxies, func(i, j int) bool {
 			return allProxies[i] == defaultTag
 		})
 
