@@ -1,3 +1,22 @@
+#### 1.3-beta10
+
+* Improve direct copy **1**
+* Improve DNS caching
+* Add `independent_cache` [option](/configuration/dns#independent_cache) for DNS
+* Reimplemented shadowsocks client **2**
+* Add multiplex support for VLESS outbound
+* Set TCP keepalive for WireGuard gVisor TCP connections
+* Fixes and improvements
+
+**1**:
+
+* Make splice work with traffic statistics systems like Clash API
+* Significantly reduces memory usage of idle connections
+
+**2**:
+
+Improved performance and reduced memory usage.
+
 #### 1.3-beta9
 
 * Improve multiplex **1**
