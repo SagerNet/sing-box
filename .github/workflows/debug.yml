@@ -43,8 +43,8 @@ jobs:
       - name: Run Test
         run: |
           go test -v ./...
-  build_go118:
-    name: Debug build (Go 1.18)
+  build_go120:
+    name: Debug build (Go 1.20)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,13 +54,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18.10
+          go-version: 1.20.3
       - name: Cache go module
         uses: actions/cache@v3
         with:
           path: |
             ~/go/pkg/mod
-          key: go118-${{ hashFiles('**/go.sum') }}
+          key: go120-${{ hashFiles('**/go.sum') }}
       - name: Run Test
         run: make
   cross:
@@ -176,7 +176,7 @@ jobs:
       GOARM: ${{ matrix.goarm }}
       GOMIPS: ${{ matrix.gomips }}
       CGO_ENABLED: 0
-      TAGS: with_clash_api,with_quic
+      TAGS: with_clash_api,with_quic,with_dhcp,with_grpc,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_acme,with_v2ray_api,with_gvisor
     steps:
       - name: Checkout
         uses: actions/checkout@v3
