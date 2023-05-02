@@ -176,6 +176,7 @@ jobs:
       GOARM: ${{ matrix.goarm }}
       GOMIPS: ${{ matrix.gomips }}
       CGO_ENABLED: 1
+      CGO_LDFLAGS: "-static"
       TAGS: with_clash_api,with_quic,with_dhcp,with_grpc,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_acme,with_v2ray_api,with_gvisor,with_embedded_tor,with_lwip
     steps:
       - name: Checkout
