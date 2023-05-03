@@ -1,3 +1,7 @@
+#### 1.3-beta11
+
+* Fix bugs and update dependencies
+
 #### 1.3-beta10
 
 * Improve direct copy **1**
