@@ -22,7 +22,7 @@ install:
 fmt:
 	@gofumpt -l -w .
 	@gofmt -s -w .
-	@gci write --custom-order -s "standard,prefix(github.com/sagernet/),default" .
+	@gci write --custom-order -s standard -s "prefix(github.com/sagernet/)" -s "default" .
 
 fmt_install:
 	go install -v mvdan.cc/gofumpt@latest
