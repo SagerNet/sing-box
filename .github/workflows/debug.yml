@@ -176,7 +176,7 @@ jobs:
       GOARM: ${{ matrix.goarm }}
       GOMIPS: ${{ matrix.gomips }}
       CGO_ENABLED: 0
-      TAGS: with_clash_api,with_quic,with_dhcp,with_grpc,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_acme,with_v2ray_api,with_gvisor
+      # TAGS: with_clash_api,with_quic,with_dhcp,with_grpc,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_acme,with_v2ray_api,with_gvisor
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -192,9 +192,12 @@ jobs:
           go-version: ${{ steps.version.outputs.go_version }}
       - name: Build
         id: build
-        run: make
+        run: |
+          cd ./cmd/sing-box
+          go build -v -tags with_clash_api,with_quic,with_dhcp,with_grpc,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_acme,with_v2ray_api,with_gvisor
+          # make
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: sing-box-${{ matrix.name }}
-          path: sing-box*
+          path: ./cmd/sing-box/sing-box*
