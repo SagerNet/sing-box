@@ -47,7 +47,7 @@ func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 }
 
 func (e *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
-	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, nil
+	return &UTLSConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, nil
 }
 
 func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
@@ -61,11 +61,38 @@ func (e *UTLSClientConfig) Clone() Config {
 	}
 }
 
-type utlsConnWrapper struct {
+type UTLSConnWrapper struct {
 	*utls.UConn
 }
 
-func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
+// WebsocketHandshake basically calls UConn.Handshake inside it but it will only send
+// http/1.1 in its ALPN.
+func (c *UTLSConnWrapper) WebsocketHandshake() error {
+	// Build the handshake state. This will apply every variable of the TLS of the
+	// fingerprint in the UConn
+	if err := c.BuildHandshakeState(); err != nil {
+		return err
+	}
+	// Iterate over extensions and check for utls.ALPNExtension
+	hasALPNExtension := false
+	for _, extension := range c.Extensions {
+		if alpn, ok := extension.(*utls.ALPNExtension); ok {
+			hasALPNExtension = true
+			alpn.AlpnProtocols = []string{"http/1.1"}
+			break
+		}
+	}
+	if !hasALPNExtension { // Append extension if doesn't exists
+		c.Extensions = append(c.Extensions, &utls.ALPNExtension{AlpnProtocols: []string{"http/1.1"}})
+	}
+	// Rebuild the client hello and do the handshake
+	if err := c.BuildHandshakeState(); err != nil {
+		return err
+	}
+	return c.Handshake()
+}
+
+func (c *UTLSConnWrapper) ConnectionState() tls.ConnectionState {
 	state := c.Conn.ConnectionState()
 	return tls.ConnectionState{
 		Version:                     state.Version,
@@ -83,7 +110,7 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 	}
 }
 
-func (c *utlsConnWrapper) Upstream() any {
+func (c *UTLSConnWrapper) Upstream() any {
 	return c.UConn
 }
 

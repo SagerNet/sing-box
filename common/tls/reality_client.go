@@ -165,7 +165,7 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 		return nil, E.New("reality verification failed")
 	}
 
-	return &utlsConnWrapper{uConn}, nil
+	return &UTLSConnWrapper{uConn}, nil
 }
 
 func realityClientFallback(uConn net.Conn, serverName string, fingerprint utls.ClientHelloID) {

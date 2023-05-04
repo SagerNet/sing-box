@@ -42,6 +42,19 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			if err != nil {
 				return nil, err
 			}
+			if x, ok := tlsConfig.(*tls.UTLSClientConfig); ok {
+				cl, err := x.Client(conn)
+				if err != nil {
+					return nil, err
+				}
+				if ucl, ok := cl.(*tls.UTLSConnWrapper); ok {
+					if err := ucl.WebsocketHandshake(); err != nil {
+						return nil, err
+					}
+					return ucl, nil
+				}
+
+			}
 			return tls.ClientHandshake(ctx, conn, tlsConfig)
 		}
 	} else {
