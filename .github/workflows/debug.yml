@@ -193,13 +193,8 @@ jobs:
       - name: Build
         id: build
         run: make
-      - name: 'Get next minor version'
-        id: semvers
-        uses: "WyriHaximus/github-action-next-semvers@v1"
-        with:
-          version: ${{ steps.previoustag.outputs.tag }}
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: sing-box-${{ matrix.name }}-${{ steps.previoustag.outputs.tag }}
+          name: sing-box-${{ matrix.name }}
           path: sing-box*
