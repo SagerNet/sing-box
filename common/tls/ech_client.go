@@ -14,7 +14,7 @@ import (
 	cftls "github.com/sagernet/cloudflare-tls"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	mDNS "github.com/miekg/dns"
@@ -179,13 +179,16 @@ func NewECHClient(router adapter.Router, serverAddress string, options option.Ou
 		}
 		tlsConfig.ClientECHConfigs = clientConfig
 	} else {
-		tlsConfig.GetClientECHConfigs = fetchECHClientConfig(router)
+		tlsConfig.GetClientECHConfigs = fetchECHClientConfig(router, options.ECH.EchDomain)
 	}
 	return &ECHClientConfig{&tlsConfig}, nil
 }
 
-func fetchECHClientConfig(router adapter.Router) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
+func fetchECHClientConfig(router adapter.Router, EchDomain string) func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
 	return func(ctx context.Context, serverName string) ([]cftls.ECHConfig, error) {
+		if EchDomain != "" {
+			serverName = EchDomain
+		}
 		message := &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{
 				RecursionDesired: true,

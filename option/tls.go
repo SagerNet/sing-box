@@ -50,6 +50,7 @@ type OutboundECHOptions struct {
 	PQSignatureSchemesEnabled   bool   `json:"pq_signature_schemes_enabled,omitempty"`
 	DynamicRecordSizingDisabled bool   `json:"dynamic_record_sizing_disabled,omitempty"`
 	Config                      string `json:"config,omitempty"`
+	EchDomain                   string `json:"ech_domain,omitempty"`
 }
 
 type OutboundUTLSOptions struct {
