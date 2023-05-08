@@ -47,7 +47,9 @@ func applyDebugListenOption(options option.DebugOptions) {
 			encoder.SetIndent("", "  ")
 			encoder.Encode(memObject)
 		})
-		r.HandleFunc("/pprof", pprof.Index)
+		r.HandleFunc("/pprof", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+		})
 		r.HandleFunc("/pprof/*", pprof.Index)
 		r.HandleFunc("/pprof/cmdline", pprof.Cmdline)
 		r.HandleFunc("/pprof/profile", pprof.Profile)
