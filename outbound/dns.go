@@ -119,30 +119,47 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 		}
 		break
 	}
-
 	ctx = adapter.WithContext(ctx, &metadata)
 	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
 	group.Append0(func(ctx context.Context) error {
-		_buffer := buf.StackNewSize(dns.FixedPacketSize)
-		defer common.KeepAlive(_buffer)
-		buffer := common.Dup(_buffer)
-		defer buffer.Release()
 		for {
-			buffer.FullReset()
-			destination, err := conn.ReadPacket(buffer)
-			if err != nil {
-				cancel(err)
-				return err
-			}
 			var message mDNS.Msg
-			err = message.Unpack(buffer.Bytes())
-			if err != nil {
-				cancel(err)
-				return err
+			var destination M.Socksaddr
+			var err error
+			if len(cachedPackets) > 0 {
+				packet := cachedPackets[0]
+				cachedPackets = cachedPackets[1:]
+				for _, counter := range counters {
+					counter(int64(packet.Buffer.Len()))
+				}
+				err = message.Unpack(packet.Buffer.Bytes())
+				packet.Buffer.Release()
+				if err != nil {
+					cancel(err)
+					return err
+				}
+				destination = packet.Destination
+			} else {
+				buffer := buf.NewPacket()
+				destination, err = conn.ReadPacket(buffer)
+				if err != nil {
+					buffer.Release()
+					cancel(err)
+					return err
+				}
+				for _, counter := range counters {
+					counter(int64(buffer.Len()))
+				}
+				err = message.Unpack(buffer.Bytes())
+				buffer.Release()
+				if err != nil {
+					cancel(err)
+					return err
+				}
+				timeout.Update()
 			}
-			timeout.Update()
 			metadataInQuery := metadata
 			go func() error {
 				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
