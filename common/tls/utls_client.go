@@ -3,6 +3,7 @@
 package tls
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"math/rand"
@@ -47,7 +48,7 @@ func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 }
 
 func (e *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
-	return &utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, nil
+	return &utlsALPNWrapper{utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, e.config.NextProtos}, nil
 }
 
 func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
@@ -85,6 +86,31 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 
 func (c *utlsConnWrapper) Upstream() any {
 	return c.UConn
+}
+
+type utlsALPNWrapper struct {
+	utlsConnWrapper
+	nextProtocols []string
+}
+
+func (c *utlsALPNWrapper) HandshakeContext(ctx context.Context) error {
+	if len(c.nextProtocols) > 0 {
+		err := c.BuildHandshakeState()
+		if err != nil {
+			return err
+		}
+		for _, extension := range c.Extensions {
+			if alpnExtension, isALPN := extension.(*utls.ALPNExtension); isALPN {
+				alpnExtension.AlpnProtocols = c.nextProtocols
+				err = c.BuildHandshakeState()
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	return c.UConn.HandshakeContext(ctx)
 }
 
 func NewUTLSClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (*UTLSClientConfig, error) {
