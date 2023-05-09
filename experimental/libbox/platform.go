@@ -18,6 +18,7 @@ type PlatformInterface interface {
 	CloseDefaultInterfaceMonitor(listener InterfaceUpdateListener) error
 	UsePlatformInterfaceGetter() bool
 	GetInterfaces() (NetworkInterfaceIterator, error)
+	UnderNetworkExtension() bool
 }
 
 type TunInterface interface {

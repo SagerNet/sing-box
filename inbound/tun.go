@@ -38,6 +38,7 @@ type Tun struct {
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
 	platformOptions        option.TunPlatformOptions
+	fixWindowsFirewall     bool
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -95,6 +96,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),
+		fixWindowsFirewall:     options.ExperimentalFixWindowsFirewall,
 	}, nil
 }
 
@@ -166,19 +168,20 @@ func (t *Tun) Start() error {
 		tunRouter = t
 	}
 	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
-		Context:                t.ctx,
-		Tun:                    tunInterface,
-		MTU:                    t.tunOptions.MTU,
-		Name:                   t.tunOptions.Name,
-		Inet4Address:           t.tunOptions.Inet4Address,
-		Inet6Address:           t.tunOptions.Inet6Address,
-		EndpointIndependentNat: t.endpointIndependentNat,
-		UDPTimeout:             t.udpTimeout,
-		Router:                 tunRouter,
-		Handler:                t,
-		Logger:                 t.logger,
-		ForwarderBindInterface: t.platformInterface != nil,
-		InterfaceFinder:        t.router.InterfaceFinder(),
+		Context:                        t.ctx,
+		Tun:                            tunInterface,
+		MTU:                            t.tunOptions.MTU,
+		Name:                           t.tunOptions.Name,
+		Inet4Address:                   t.tunOptions.Inet4Address,
+		Inet6Address:                   t.tunOptions.Inet6Address,
+		EndpointIndependentNat:         t.endpointIndependentNat,
+		UDPTimeout:                     t.udpTimeout,
+		Router:                         tunRouter,
+		Handler:                        t,
+		Logger:                         t.logger,
+		ForwarderBindInterface:         t.platformInterface != nil,
+		InterfaceFinder:                t.router.InterfaceFinder(),
+		ExperimentalFixWindowsFirewall: t.fixWindowsFirewall,
 	})
 	if err != nil {
 		return err
