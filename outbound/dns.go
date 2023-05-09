@@ -197,14 +197,12 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 	var group task.Group
 	group.Append0(func(ctx context.Context) error {
 		var buffer *buf.Buffer
-		newBuffer := func() *buf.Buffer {
-			if buffer != nil {
-				buffer.Release()
-			}
+		readWaiter.InitializeReadWaiter(func() *buf.Buffer {
 			buffer = buf.NewSize(dns.FixedPacketSize)
 			buffer.FullReset()
 			return buffer
-		}
+		})
+		defer readWaiter.InitializeReadWaiter(nil)
 		for {
 			var message mDNS.Msg
 			var destination M.Socksaddr
@@ -223,11 +221,9 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				}
 				destination = packet.Destination
 			} else {
-				destination, err = readWaiter.WaitReadPacket(newBuffer)
+				destination, err = readWaiter.WaitReadPacket()
 				if err != nil {
-					if buffer != nil {
-						buffer.Release()
-					}
+					buffer.Release()
 					cancel(err)
 					return err
 				}
