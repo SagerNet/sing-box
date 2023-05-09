@@ -10,6 +10,7 @@ type ClashAPIOptions struct {
 	StoreSelected            bool   `json:"store_selected,omitempty"`
 	StoreFakeIP              bool   `json:"store_fakeip,omitempty"`
 	CacheFile                string `json:"cache_file,omitempty"`
+	CacheID                  string `json:"cache_id,omitempty"`
 }
 
 type SelectorOutboundOptions struct {

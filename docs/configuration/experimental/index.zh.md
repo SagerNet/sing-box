@@ -7,13 +7,14 @@
   "experimental": {
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
-      "external_ui": "folder",
+      "external_ui": "",
       "external_ui_download_url": "",
       "external_ui_download_detour": "",
       "secret": "",
-      "default_mode": "rule",
+      "default_mode": "",
       "store_selected": false,
-      "cache_file": "cache.db"
+      "cache_file": "",
+      "cache_id": ""
     },
     "v2ray_api": {
       "listen": "127.0.0.1:8080",
@@ -88,6 +89,12 @@ Clash 中的默认模式，默认使用 `rule`。
 #### cache_file
 
 缓存文件路径，默认使用`cache.db`。
+
+#### cache_id
+
+缓存 ID。
+
+如果不为空，`store_selected` 将会使用以此为键的独立存储。
 
 ### V2Ray API 字段
 
