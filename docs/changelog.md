@@ -1,3 +1,9 @@
+#### 1.3-beta12
+
+* Add `experimental_fix_windows_firewall` [option](/configuration/inbound/tun#experimental_fix_windows_firewall) for system tun stack
+* Add `cache_id` [option](/configuration/experimental#cache_id) for Clash cache file
+* Fixes and improvements
+
 #### 1.3-beta11
 
 * Fix bugs and update dependencies
