@@ -1,3 +1,7 @@
+#### 1.2.7
+
+* Fix bugs and update dependencies
+
 #### 1.2.6
 
 * Fix bugs and update dependencies
