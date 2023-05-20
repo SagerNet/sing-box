@@ -41,7 +41,7 @@ func getConfigs(server *Server, logFactory log.Factory) func(w http.ResponseWrit
 			logLevel = log.LevelError
 		}
 		render.JSON(w, r, &configSchema{
-			Mode:        server.mode,
+			Mode:        server.mode.Load().(string),
 			BindAddress: "*",
 			LogLevel:    log.FormatLevel(logLevel),
 		})
@@ -59,8 +59,8 @@ func patchConfigs(server *Server, logger log.Logger) func(w http.ResponseWriter,
 		}
 		if newConfig.Mode != "" {
 			mode := strings.ToLower(newConfig.Mode)
-			if server.mode != mode {
-				server.mode = mode
+			if server.mode.Load().(string) != mode {
+				server.mode.Store(mode)
 				logger.Info("updated mode: ", mode)
 			}
 		}

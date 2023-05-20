@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -44,7 +45,7 @@ type Server struct {
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
-	mode           string
+	mode           atomic.Value
 	storeSelected  bool
 	storeFakeIP    bool
 	cacheFilePath  string
@@ -69,14 +70,14 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		},
 		trafficManager:           trafficManager,
 		urlTestHistory:           urltest.NewHistoryStorage(),
-		mode:                     strings.ToLower(options.DefaultMode),
 		storeSelected:            options.StoreSelected,
 		storeFakeIP:              options.StoreFakeIP,
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
-	if server.mode == "" {
-		server.mode = "rule"
+	server.mode.Store(strings.ToLower(options.DefaultMode))
+	if server.mode.Load().(string) == "" {
+		server.mode.Store("rule")
 	}
 	if options.StoreSelected || options.StoreFakeIP {
 		cachePath := os.ExpandEnv(options.CacheFile)
@@ -166,7 +167,7 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) Mode() string {
-	return s.mode
+	return s.mode.Load().(string)
 }
 
 func (s *Server) StoreSelected() bool {
