@@ -53,9 +53,8 @@
       "server_port": 8080
     }
   },
-  "experimental_fix_windows_firewall": false,
-  ...
-  // Listen Fields
+  
+  ... // Listen Fields
 }
 ```
 
@@ -181,10 +180,10 @@ Exclude users in route, but in range.
 
 Limit android users in route.
 
-| Common user  | ID |
-|--------------|----|
-| Main         | 0  |
-| Work Profile | 10 |
+| Common user  | ID  |
+|--------------|-----|
+| Main         | 0   |
+| Work Profile | 10  |
 
 #### include_package
 
@@ -201,12 +200,6 @@ Platform-specific settings, provided by client applications.
 #### platform.http_proxy
 
 System HTTP proxy settings.
-
-#### experimental_fix_windows_firewall
-
-Automatically add Windows firewall rules in order for the system stack to work.
-
-This causes some start delays and does not work with existing firewall rules.
 
 ### Listen Fields
 

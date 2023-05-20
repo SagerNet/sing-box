@@ -53,9 +53,8 @@
       "server_port": 8080
     }
   },
-  "experimental_fix_windows_firewall": false,
-  ...
-  // 监听字段
+  
+  ... // 监听字段
 }
 ```
 
@@ -179,8 +178,8 @@ TCP/IP 栈。
 限制被路由的 Android 用户。
 
 | 常用用户 | ID |
-|------|----|
-| 您    | 0  |
+|--|-----|
+| 您 | 0 |
 | 工作资料 | 10 |
 
 #### include_package
@@ -198,12 +197,6 @@ TCP/IP 栈。
 #### platform.http_proxy
 
 系统 HTTP 代理设置。
-
-#### experimental_fix_windows_firewall
-
-自动添加 Windows 防火墙规则，以使 system 栈正常工作。
-
-这会导致一些启动延迟，并且无法与现有防火墙规则一起使用。
 
 ### 监听字段
 
