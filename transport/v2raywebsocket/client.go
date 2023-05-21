@@ -42,11 +42,19 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			if err != nil {
 				return nil, err
 			}
-			return tls.ClientHandshake(ctx, conn, tlsConfig)
+			tlsConn, err := tls.ClientHandshake(ctx, conn, tlsConfig)
+			if err != nil {
+				return nil, err
+			}
+			return &deadConn{tlsConn}, nil
 		}
 	} else {
 		wsDialer.NetDialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			if err != nil {
+				return nil, err
+			}
+			return &deadConn{conn}, nil
 		}
 	}
 	var uri url.URL

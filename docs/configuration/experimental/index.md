@@ -7,13 +7,14 @@
   "experimental": {
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
-      "external_ui": "folder",
+      "external_ui": "",
       "external_ui_download_url": "",
       "external_ui_download_detour": "",
       "secret": "",
-      "default_mode": "rule",
+      "default_mode": "",
       "store_selected": false,
-      "cache_file": "cache.db"
+      "cache_file": "",
+      "cache_id": ""
     },
     "v2ray_api": {
       "listen": "127.0.0.1:8080",
@@ -90,6 +91,12 @@ Store selected outbound for the `Selector` outbound in cache file.
 #### cache_file
 
 Cache file path, `cache.db` will be used if empty.
+
+#### cache_id
+
+Cache ID.
+
+If not empty, `store_selected` will use a separate store keyed by it.
 
 ### V2Ray API Fields
 

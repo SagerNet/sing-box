@@ -48,6 +48,7 @@ type Server struct {
 	storeSelected  bool
 	storeFakeIP    bool
 	cacheFilePath  string
+	cacheID        string
 	cacheFile      adapter.ClashCacheFile
 
 	externalUI               string
@@ -88,6 +89,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 			cachePath = filemanager.BasePath(ctx, cachePath)
 		}
 		server.cacheFilePath = cachePath
+		server.cacheID = options.CacheID
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -130,7 +132,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 
 func (s *Server) PreStart() error {
 	if s.cacheFilePath != "" {
-		cacheFile, err := cachefile.Open(s.cacheFilePath)
+		cacheFile, err := cachefile.Open(s.cacheFilePath, s.cacheID)
 		if err != nil {
 			return E.Cause(err, "open cache file")
 		}

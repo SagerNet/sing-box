@@ -111,6 +111,16 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	if err != nil {
 		return nil, err
 	}
+
+	if len(uConfig.NextProtos) > 0 {
+		for _, extension := range uConn.Extensions {
+			if alpnExtension, isALPN := extension.(*utls.ALPNExtension); isALPN {
+				alpnExtension.AlpnProtocols = uConfig.NextProtos
+				break
+			}
+		}
+	}
+
 	hello := uConn.HandshakeState.Hello
 	hello.SessionId = make([]byte, 32)
 	copy(hello.Raw[39:], hello.SessionId)

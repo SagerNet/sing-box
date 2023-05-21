@@ -279,7 +279,8 @@ func NewRouter(
 				router.networkMonitor = networkMonitor
 				networkMonitor.RegisterCallback(router.interfaceFinder.update)
 				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
-					OverrideAndroidVPN: options.OverrideAndroidVPN,
+					OverrideAndroidVPN:    options.OverrideAndroidVPN,
+					UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
 				})
 				if err != nil {
 					return nil, E.New("auto_detect_interface unsupported on current platform")

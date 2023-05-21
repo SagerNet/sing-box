@@ -22,6 +22,7 @@ type Interface interface {
 	CreateDefaultInterfaceMonitor(errorHandler E.Handler) tun.DefaultInterfaceMonitor
 	UsePlatformInterfaceGetter() bool
 	Interfaces() ([]NetworkInterface, error)
+	UnderNetworkExtension() bool
 	process.Searcher
 	io.Writer
 }
