@@ -1,6 +1,7 @@
 #### 1.3-beta12
 
-* Add `experimental_fix_windows_firewall` [option](/configuration/inbound/tun#experimental_fix_windows_firewall) for system tun stack
+* Automatically add Windows firewall rules in order for the system tun stack to work
+* Fix TLS 1.2 support for shadow-tls client
 * Add `cache_id` [option](/configuration/experimental#cache_id) for Clash cache file
 * Fixes and improvements
 
