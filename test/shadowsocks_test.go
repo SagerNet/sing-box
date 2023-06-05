@@ -40,6 +40,10 @@ func TestShadowsocks(t *testing.T) {
 	}
 }
 
+func TestShadowsocksNone(t *testing.T) {
+	testShadowsocksSelf(t, "none", "")
+}
+
 func TestShadowsocks2022(t *testing.T) {
 	for _, method16 := range []string{
 		"2022-blake3-aes-128-gcm",
