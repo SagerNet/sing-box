@@ -114,6 +114,7 @@ nav:
       - ShadowTLS: examples/shadowtls.md
       - Clash API: examples/clash-api.md
       - WireGuard Direct: examples/wireguard-direct.md
+      - FakeIP: examples/fakeip.md
   - Contributing:
       - contributing/index.md
       - Developing:
