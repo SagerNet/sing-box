@@ -169,3 +169,7 @@ func (w *platformInterfaceWrapper) Interfaces() ([]platform.NetworkInterface, er
 	}
 	return interfaces, nil
 }
+
+func (w *platformInterfaceWrapper) UnderNetworkExtension() bool {
+	return w.iif.UnderNetworkExtension()
+}

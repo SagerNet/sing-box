@@ -30,7 +30,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.2-0.20230417102954-f77257340507
 	github.com/sagernet/sing-shadowsocks2 v0.0.0-20230501032827-681c9c4ee0e9
 	github.com/sagernet/sing-shadowtls v0.1.2-0.20230417103049-4f682e05f19b
-	github.com/sagernet/sing-tun v0.1.5-0.20230422121432-209ec123ca7b
+	github.com/sagernet/sing-tun v0.1.5-0.20230520041100-b02f2529160e
 	github.com/sagernet/sing-vmess v0.1.5-0.20230417103030-8c3070ae3fb3
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
@@ -59,6 +59,7 @@ require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/cloudflare/circl v1.2.1-0.20221019164342-6ab4dfed8f3c // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -80,6 +81,7 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.1.0 // indirect
 	github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
+	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
