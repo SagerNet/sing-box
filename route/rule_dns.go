@@ -1,16 +1,11 @@
 package route
 
 import (
-	"strings"
-
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
-	N "github.com/sagernet/sing/common/network"
 )
 
 func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.DNSRule, error) {
@@ -39,22 +34,19 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
-	items                   []RuleItem
-	sourceAddressItems      []RuleItem
-	sourcePortItems         []RuleItem
-	destinationAddressItems []RuleItem
-	destinationPortItems    []RuleItem
-	allItems                []RuleItem
-	invert                  bool
-	outbound                string
-	disableCache            bool
+	abstractDefaultRule
+	disableCache bool
+	rewriteTTL   *uint32
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
-		invert:       options.Invert,
-		outbound:     options.Server,
+		abstractDefaultRule: abstractDefaultRule{
+			invert:   options.Invert,
+			outbound: options.Server,
+		},
 		disableCache: options.DisableCache,
+		rewriteTTL:   options.RewriteTTL,
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -76,15 +68,10 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if options.Network != "" {
-		switch options.Network {
-		case N.NetworkTCP, N.NetworkUDP:
-			item := NewNetworkItem(options.Network)
-			rule.items = append(rule.items, item)
-			rule.allItems = append(rule.allItems, item)
-		default:
-			return nil, E.New("invalid network: ", options.Network)
-		}
+	if len(options.Network) > 0 {
+		item := NewNetworkItem(options.Network)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.AuthUser) > 0 {
 		item := NewAuthUserItem(options.AuthUser)
@@ -196,132 +183,31 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	return rule, nil
 }
 
-func (r *DefaultDNSRule) Type() string {
-	return C.RuleTypeDefault
-}
-
-func (r *DefaultDNSRule) Start() error {
-	for _, item := range r.allItems {
-		err := common.Start(item)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *DefaultDNSRule) Close() error {
-	for _, item := range r.allItems {
-		err := common.Close(item)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *DefaultDNSRule) UpdateGeosite() error {
-	for _, item := range r.allItems {
-		if geositeItem, isSite := item.(*GeositeItem); isSite {
-			err := geositeItem.Update()
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
-	for _, item := range r.items {
-		if !item.Match(metadata) {
-			return r.invert
-		}
-	}
-
-	if len(r.sourceAddressItems) > 0 {
-		var sourceAddressMatch bool
-		for _, item := range r.sourceAddressItems {
-			if item.Match(metadata) {
-				sourceAddressMatch = true
-				break
-			}
-		}
-		if !sourceAddressMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.sourcePortItems) > 0 {
-		var sourcePortMatch bool
-		for _, item := range r.sourcePortItems {
-			if item.Match(metadata) {
-				sourcePortMatch = true
-				break
-			}
-		}
-		if !sourcePortMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.destinationAddressItems) > 0 {
-		var destinationAddressMatch bool
-		for _, item := range r.destinationAddressItems {
-			if item.Match(metadata) {
-				destinationAddressMatch = true
-				break
-			}
-		}
-		if !destinationAddressMatch {
-			return r.invert
-		}
-	}
-
-	if len(r.destinationPortItems) > 0 {
-		var destinationPortMatch bool
-		for _, item := range r.destinationPortItems {
-			if item.Match(metadata) {
-				destinationPortMatch = true
-				break
-			}
-		}
-		if !destinationPortMatch {
-			return r.invert
-		}
-	}
-
-	return !r.invert
-}
-
-func (r *DefaultDNSRule) Outbound() string {
-	return r.outbound
-}
-
 func (r *DefaultDNSRule) DisableCache() bool {
 	return r.disableCache
 }
 
-func (r *DefaultDNSRule) String() string {
-	return strings.Join(F.MapToString(r.allItems), " ")
+func (r *DefaultDNSRule) RewriteTTL() *uint32 {
+	return r.rewriteTTL
 }
 
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
-	mode         string
-	rules        []*DefaultDNSRule
-	invert       bool
-	outbound     string
+	abstractLogicalRule
 	disableCache bool
+	rewriteTTL   *uint32
 }
 
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
-		rules:        make([]*DefaultDNSRule, len(options.Rules)),
-		invert:       options.Invert,
-		outbound:     options.Server,
+		abstractLogicalRule: abstractLogicalRule{
+			rules:    make([]adapter.Rule, len(options.Rules)),
+			invert:   options.Invert,
+			outbound: options.Server,
+		},
 		disableCache: options.DisableCache,
+		rewriteTTL:   options.RewriteTTL,
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -341,71 +227,10 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	return r, nil
 }
 
-func (r *LogicalDNSRule) Type() string {
-	return C.RuleTypeLogical
-}
-
-func (r *LogicalDNSRule) UpdateGeosite() error {
-	for _, rule := range r.rules {
-		err := rule.UpdateGeosite()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalDNSRule) Start() error {
-	for _, rule := range r.rules {
-		err := rule.Start()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalDNSRule) Close() error {
-	for _, rule := range r.rules {
-		err := rule.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
-	if r.mode == C.LogicalTypeAnd {
-		return common.All(r.rules, func(it *DefaultDNSRule) bool {
-			return it.Match(metadata)
-		}) != r.invert
-	} else {
-		return common.Any(r.rules, func(it *DefaultDNSRule) bool {
-			return it.Match(metadata)
-		}) != r.invert
-	}
-}
-
-func (r *LogicalDNSRule) Outbound() string {
-	return r.outbound
-}
-
 func (r *LogicalDNSRule) DisableCache() bool {
 	return r.disableCache
 }
 
-func (r *LogicalDNSRule) String() string {
-	var op string
-	switch r.mode {
-	case C.LogicalTypeAnd:
-		op = "&&"
-	case C.LogicalTypeOr:
-		op = "||"
-	}
-	if !r.invert {
-		return strings.Join(F.MapToString(r.rules), " "+op+" ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
-	}
+func (r *LogicalDNSRule) RewriteTTL() *uint32 {
+	return r.rewriteTTL
 }

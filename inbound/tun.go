@@ -38,10 +38,6 @@ type Tun struct {
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
-	tunName := options.InterfaceName
-	if tunName == "" {
-		tunName = tun.CalculateInterfaceName("")
-	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
 		tunMTU = 9000
@@ -75,7 +71,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		logger:         logger,
 		inboundOptions: options.InboundOptions,
 		tunOptions: tun.Options{
-			Name:               tunName,
+			Name:               options.InterfaceName,
 			MTU:                tunMTU,
 			Inet4Address:       common.Map(options.Inet4Address, option.ListenPrefix.Build),
 			Inet6Address:       common.Map(options.Inet6Address, option.ListenPrefix.Build),
@@ -141,12 +137,17 @@ func (t *Tun) Tag() string {
 
 func (t *Tun) Start() error {
 	if C.IsAndroid && t.platformInterface == nil {
+		t.logger.Trace("building android rules")
 		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
+	}
+	if t.tunOptions.Name == "" {
+		t.tunOptions.Name = tun.CalculateInterfaceName("")
 	}
 	var (
 		tunInterface tun.Tun
 		err          error
 	)
+	t.logger.Trace("opening interface")
 	if t.platformInterface != nil {
 		tunInterface, err = t.platformInterface.OpenTun(&t.tunOptions, t.platformOptions)
 	} else {
@@ -155,6 +156,7 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
+	t.logger.Trace("creating stack")
 	t.tunIf = tunInterface
 	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
 		Context:                t.ctx,
@@ -172,6 +174,7 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
+	t.logger.Trace("starting stack")
 	err = t.tunStack.Start()
 	if err != nil {
 		return err
