@@ -8,3 +8,5 @@ Configuration examples for sing-box.
 * [Shadowsocks](./shadowsocks)
 * [ShadowTLS](./shadowtls)
 * [Clash API](./clash-api)
+* [WireGuard Direct](./wireguard-direct)
+* [FakeIP](./fakeip)
