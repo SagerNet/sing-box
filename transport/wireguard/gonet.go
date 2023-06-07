@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 
+	"github.com/sagernet/sing-tun"
 	M "github.com/sagernet/sing/common/metadata"
 
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -62,7 +64,7 @@ func DialTCPWithBind(ctx context.Context, s *stack.Stack, localAddr, remoteAddr 
 		return nil, &net.OpError{
 			Op:   "connect",
 			Net:  "tcp",
-			Addr: M.SocksaddrFrom(M.AddrFromIP(net.IP(remoteAddr.Addr)), remoteAddr.Port).TCPAddr(),
+			Addr: M.SocksaddrFromNetIP(netip.AddrPortFrom(tun.AddrFromAddress(remoteAddr.Addr), remoteAddr.Port)).TCPAddr(),
 			Err:  errors.New(err.String()),
 		}
 	}
