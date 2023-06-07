@@ -5,7 +5,7 @@ responds to DNS requests with virtual results and restores mapping when acceptin
 
 #### Advantage
 
-* 
+*
 
 #### Limitation
 
