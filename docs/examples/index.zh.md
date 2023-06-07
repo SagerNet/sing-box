@@ -8,3 +8,5 @@ sing-box 的配置示例。
 * [Shadowsocks](./shadowsocks)
 * [ShadowTLS](./shadowtls)
 * [Clash API](./clash-api)
+* [WireGuard Direct](./wireguard-direct)
+* [FakeIP](./fakeip)
