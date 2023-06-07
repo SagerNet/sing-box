@@ -77,6 +77,7 @@ type Rule interface {
 type DNSRule interface {
 	Rule
 	DisableCache() bool
+	RewriteTTL() *uint32
 }
 
 type InterfaceUpdateListener interface {
