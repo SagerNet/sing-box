@@ -44,22 +44,27 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 	}
 	for i, rule := range r.dnsRules {
 		if rule.Match(metadata) {
+			detour := rule.Outbound()
+			transport, loaded := r.transportMap[detour]
+			if !loaded {
+				r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
+				continue
+			}
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && metadata.FakeIP {
+				continue
+			}
+			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if rule.DisableCache() {
 				ctx = dns.ContextWithDisableCache(ctx, true)
 			}
 			if rewriteTTL := rule.RewriteTTL(); rewriteTTL != nil {
 				ctx = dns.ContextWithRewriteTTL(ctx, *rewriteTTL)
 			}
-			detour := rule.Outbound()
-			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
-			if transport, loaded := r.transportMap[detour]; loaded {
-				if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
-					return ctx, transport, domainStrategy
-				} else {
-					return ctx, transport, r.defaultDomainStrategy
-				}
+			if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
+				return ctx, transport, domainStrategy
+			} else {
+				return ctx, transport, r.defaultDomainStrategy
 			}
-			r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 		}
 	}
 	if domainStrategy, dsLoaded := r.transportDomainStrategy[r.defaultTransport]; dsLoaded {

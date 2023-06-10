@@ -21,3 +21,8 @@ type FakeIPStorage interface {
 	FakeIPLoad(address netip.Addr) (string, bool)
 	FakeIPReset() error
 }
+
+type FakeIPTransport interface {
+	dns.Transport
+	Store() FakeIPStore
+}
