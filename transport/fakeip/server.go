@@ -14,13 +14,16 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-var _ dns.Transport = (*Server)(nil)
+var (
+	_ dns.Transport           = (*Transport)(nil)
+	_ adapter.FakeIPTransport = (*Transport)(nil)
+)
 
 func init() {
 	dns.RegisterTransport([]string{"fakeip"}, NewTransport)
 }
 
-type Server struct {
+type Transport struct {
 	name   string
 	router adapter.Router
 	store  adapter.FakeIPStore
@@ -32,18 +35,18 @@ func NewTransport(name string, ctx context.Context, logger logger.ContextLogger,
 	if router == nil {
 		return nil, E.New("missing router in context")
 	}
-	return &Server{
+	return &Transport{
 		name:   name,
 		router: router,
 		logger: logger,
 	}, nil
 }
 
-func (s *Server) Name() string {
+func (s *Transport) Name() string {
 	return s.name
 }
 
-func (s *Server) Start() error {
+func (s *Transport) Start() error {
 	s.store = s.router.FakeIPStore()
 	if s.store == nil {
 		return E.New("fakeip not enabled")
@@ -51,19 +54,19 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) Close() error {
+func (s *Transport) Close() error {
 	return nil
 }
 
-func (s *Server) Raw() bool {
+func (s *Transport) Raw() bool {
 	return false
 }
 
-func (s *Server) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (s *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	return nil, os.ErrInvalid
 }
 
-func (s *Server) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
+func (s *Transport) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	var addresses []netip.Addr
 	if strategy != dns.DomainStrategyUseIPv6 {
 		inet4Address, err := s.store.Create(domain, dns.DomainStrategyUseIPv4)
@@ -80,4 +83,8 @@ func (s *Server) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 		addresses = append(addresses, inet6Address)
 	}
 	return addresses, nil
+}
+
+func (s *Transport) Store() adapter.FakeIPStore {
+	return s.store
 }
