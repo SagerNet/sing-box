@@ -53,8 +53,7 @@ func init() {
 	sharedFlags = append(sharedFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
 	debugFlags = append(debugFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
 
-	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
-	sharedTags = append(sharedTags, "test_sing_shadowsocks2")
+	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_dhcp", "with_wireguard", "with_utls", "with_clash_api")
 	debugTags = append(debugTags, "debug")
 }
 

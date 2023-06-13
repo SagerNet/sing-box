@@ -14,6 +14,7 @@ builds:
     tags:
       - with_gvisor
       - with_quic
+      - with_dhcp
       - with_wireguard
       - with_utls
       - with_reality_server
@@ -48,6 +49,7 @@ builds:
     tags:
       - with_gvisor
       - with_quic
+      - with_dhcp
       - with_wireguard
       - with_utls
       - with_clash_api
