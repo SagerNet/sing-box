@@ -267,12 +267,14 @@ func (h *Hysteria) open(ctx context.Context, reconnect bool) (quic.Connection, q
 		if nErr, ok := err.(net.Error); ok && !nErr.Temporary() && reconnect {
 			return h.open(ctx, false)
 		}
+		return nil, nil, err
 	}
 	stream, err := conn.OpenStream()
 	if err != nil {
 		if nErr, ok := err.(net.Error); ok && !nErr.Temporary() && reconnect {
 			return h.open(ctx, false)
 		}
+		return nil, nil, err
 	}
 	return conn, &hysteria.StreamWrapper{Stream: stream}, nil
 }
