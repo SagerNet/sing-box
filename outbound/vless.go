@@ -38,11 +38,12 @@ type VLESS struct {
 func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSOutboundOptions) (*VLESS, error) {
 	outbound := &VLESS{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeVLESS,
-			network:  options.Network.Build(),
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeVLESS,
+			network:      options.Network.Build(),
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		dialer:     dialer.New(router, options.DialerOptions),
 		serverAddr: options.ServerOptions.Build(),

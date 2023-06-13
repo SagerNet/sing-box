@@ -119,11 +119,12 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	return &Hysteria{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeHysteria,
-			network:  options.Network.Build(),
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeHysteria,
+			network:      options.Network.Build(),
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		ctx:        ctx,
 		dialer:     dialer.New(router, options.DialerOptions),

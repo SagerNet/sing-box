@@ -40,11 +40,12 @@ type WireGuard struct {
 func NewWireGuard(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WireGuardOutboundOptions) (*WireGuard, error) {
 	outbound := &WireGuard{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeWireGuard,
-			network:  options.Network.Build(),
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeWireGuard,
+			network:      options.Network.Build(),
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: withDialerDependency(options.DialerOptions),
 		},
 	}
 	var reserved [3]uint8

@@ -40,11 +40,12 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 	options.UDPFragmentDefault = true
 	outbound := &Direct{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeDirect,
-			network:  []string{N.NetworkTCP, N.NetworkUDP},
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeDirect,
+			network:      []string{N.NetworkTCP, N.NetworkUDP},
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		domainStrategy: dns.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),

@@ -217,20 +217,9 @@ func (s *Box) preStart() error {
 			return E.Cause(err, "pre-starting ", serviceName)
 		}
 	}
-	for i, out := range s.outbounds {
-		var tag string
-		if out.Tag() == "" {
-			tag = F.ToString(i)
-		} else {
-			tag = out.Tag()
-		}
-		if starter, isStarter := out.(common.Starter); isStarter {
-			s.logger.Trace("initializing outbound/", out.Type(), "[", tag, "]")
-			err := starter.Start()
-			if err != nil {
-				return E.Cause(err, "initialize outbound/", out.Type(), "[", tag, "]")
-			}
-		}
+	err := s.startOutbounds()
+	if err != nil {
+		return err
 	}
 	return s.router.Start()
 }
