@@ -29,10 +29,11 @@ type Selector struct {
 func NewSelector(router adapter.Router, logger log.ContextLogger, tag string, options option.SelectorOutboundOptions) (*Selector, error) {
 	outbound := &Selector{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeSelector,
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeSelector,
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: options.Outbounds,
 		},
 		tags:       options.Outbounds,
 		defaultTag: options.Default,

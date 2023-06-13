@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -20,11 +21,12 @@ import (
 )
 
 type myOutboundAdapter struct {
-	protocol string
-	network  []string
-	router   adapter.Router
-	logger   log.ContextLogger
-	tag      string
+	protocol     string
+	network      []string
+	router       adapter.Router
+	logger       log.ContextLogger
+	tag          string
+	dependencies []string
 }
 
 func (a *myOutboundAdapter) Type() string {
@@ -39,8 +41,19 @@ func (a *myOutboundAdapter) Network() []string {
 	return a.network
 }
 
+func (a *myOutboundAdapter) Dependencies() []string {
+	return a.dependencies
+}
+
 func (a *myOutboundAdapter) NewError(ctx context.Context, err error) {
 	NewError(a.logger, ctx, err)
+}
+
+func withDialerDependency(options option.DialerOptions) []string {
+	if options.Detour != "" {
+		return []string{options.Detour}
+	}
+	return nil
 }
 
 func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {

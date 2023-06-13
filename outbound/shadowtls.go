@@ -27,11 +27,12 @@ type ShadowTLS struct {
 func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowTLSOutboundOptions) (*ShadowTLS, error) {
 	outbound := &ShadowTLS{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol: C.TypeShadowTLS,
-			network:  []string{N.NetworkTCP},
-			router:   router,
-			logger:   logger,
-			tag:      tag,
+			protocol:     C.TypeShadowTLS,
+			network:      []string{N.NetworkTCP},
+			router:       router,
+			logger:       logger,
+			tag:          tag,
+			dependencies: withDialerDependency(options.DialerOptions),
 		},
 	}
 	if options.TLS == nil || !options.TLS.Enabled {

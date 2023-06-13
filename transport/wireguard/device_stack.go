@@ -8,13 +8,6 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common/buf"
-	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	wgTun "github.com/sagernet/wireguard-go/tun"
-
 	"github.com/sagernet/gvisor/pkg/buffer"
 	"github.com/sagernet/gvisor/pkg/tcpip"
 	"github.com/sagernet/gvisor/pkg/tcpip/adapters/gonet"
@@ -25,6 +18,12 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
+	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
+	wgTun "github.com/sagernet/wireguard-go/tun"
 )
 
 var _ Device = (*StackDevice)(nil)
