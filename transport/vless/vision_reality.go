@@ -1,3 +1,5 @@
+//go:build with_reality_server
+
 package vless
 
 import (
