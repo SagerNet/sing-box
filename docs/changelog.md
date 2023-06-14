@@ -1,3 +1,7 @@
+#### 1.3-beta14
+
+* Fixes and improvements
+
 #### 1.3-beta13
 
 * Fix resolving fakeip domains  **1**
