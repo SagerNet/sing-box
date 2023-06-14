@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go/build"
 	"os"
 	"os/exec"
 
@@ -10,6 +11,10 @@ import (
 
 func main() {
 	build_shared.FindSDK()
+
+	if os.Getenv("build.Default.GOPATH") == "" {
+		os.Setenv("GOPATH", build.Default.GOPATH)
+	}
 
 	command := exec.Command(os.Args[1], os.Args[2:]...)
 	command.Stdout = os.Stdout
