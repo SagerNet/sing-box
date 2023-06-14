@@ -21,7 +21,6 @@ var _ adapter.Inbound = (*myInboundAdapter)(nil)
 type myInboundAdapter struct {
 	protocol         string
 	network          []string
-	ctx              context.Context
 	router           adapter.Router
 	logger           log.ContextLogger
 	tag              string

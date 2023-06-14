@@ -1,6 +1,7 @@
 package inbound
 
 import (
+	"context"
 	"net"
 	"os"
 	"time"
@@ -15,6 +16,9 @@ import (
 )
 
 func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var lc net.ListenConfig
 	var udpFragment bool
@@ -26,7 +30,7 @@ func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
 	if !udpFragment {
 		lc.Control = control.Append(lc.Control, control.DisableUDPFragment())
 	}
-	udpConn, err := lc.ListenPacket(a.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
+	udpConn, err := lc.ListenPacket(baseCtx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
 	if err != nil {
 		return nil, err
 	}
@@ -37,6 +41,9 @@ func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
 }
 
 func (a *myInboundAdapter) loopUDPIn() {
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer close(a.packetOutboundClosed)
 	_buffer := buf.StackNewPacket()
 	defer common.KeepAlive(_buffer)
@@ -58,7 +65,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
-		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
+		err = a.packetHandler.NewPacket(baseCtx, packetService, buffer, metadata)
 		if err != nil {
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))
 		}
@@ -66,6 +73,9 @@ func (a *myInboundAdapter) loopUDPIn() {
 }
 
 func (a *myInboundAdapter) loopUDPOOBIn() {
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer close(a.packetOutboundClosed)
 	_buffer := buf.StackNewPacket()
 	defer common.KeepAlive(_buffer)
@@ -88,7 +98,7 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
-		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
+		err = a.oobPacketHandler.NewPacket(baseCtx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))
 		}
@@ -96,6 +106,9 @@ func (a *myInboundAdapter) loopUDPOOBIn() {
 }
 
 func (a *myInboundAdapter) loopUDPInThreadSafe() {
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer close(a.packetOutboundClosed)
 	packetService := (*myInboundPacketAdapter)(a)
 	for {
@@ -112,7 +125,7 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
-		err = a.packetHandler.NewPacket(a.ctx, packetService, buffer, metadata)
+		err = a.packetHandler.NewPacket(baseCtx, packetService, buffer, metadata)
 		if err != nil {
 			buffer.Release()
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))
@@ -121,6 +134,9 @@ func (a *myInboundAdapter) loopUDPInThreadSafe() {
 }
 
 func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer close(a.packetOutboundClosed)
 	packetService := (*myInboundPacketAdapter)(a)
 	oob := make([]byte, 1024)
@@ -138,7 +154,7 @@ func (a *myInboundAdapter) loopUDPOOBInThreadSafe() {
 		metadata.InboundOptions = a.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNetIP(addr).Unwrap()
 		metadata.OriginDestination = a.udpAddr
-		err = a.oobPacketHandler.NewPacket(a.ctx, packetService, buffer, oob[:oobN], metadata)
+		err = a.oobPacketHandler.NewPacket(baseCtx, packetService, buffer, oob[:oobN], metadata)
 		if err != nil {
 			buffer.Release()
 			a.newError(E.Cause(err, "process packet from ", metadata.Source))

@@ -24,7 +24,6 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeShadowTLS,
 			network:       []string{N.NetworkTCP},
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,

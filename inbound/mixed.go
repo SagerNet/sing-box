@@ -36,7 +36,6 @@ func NewMixed(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		myInboundAdapter{
 			protocol:       C.TypeMixed,
 			network:        []string{N.NetworkTCP},
-			ctx:            ctx,
 			router:         router,
 			logger:         logger,
 			tag:            tag,

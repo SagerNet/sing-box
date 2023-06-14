@@ -56,7 +56,9 @@ func (a *myInboundAdapter) loopTCPIn() {
 }
 
 func (a *myInboundAdapter) injectTCP(conn net.Conn, metadata adapter.InboundContext) {
-	ctx := log.ContextWithNewID(a.ctx)
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx := log.ContextWithNewID(baseCtx)
 	metadata = a.createMetadata(conn, metadata)
 	a.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	hErr := a.connHandler.NewConnection(ctx, conn, metadata)

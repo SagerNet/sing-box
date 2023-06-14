@@ -30,7 +30,6 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLog
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeDirect,
 			network:       options.Network.Build(),
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,

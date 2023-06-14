@@ -29,7 +29,6 @@ var (
 
 type VLESS struct {
 	myInboundAdapter
-	ctx       context.Context
 	users     []option.VLESSUser
 	service   *vless.Service[int]
 	tlsConfig tls.ServerConfig
@@ -41,13 +40,11 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeVLESS,
 			network:       []string{N.NetworkTCP},
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
-		ctx:   ctx,
 		users: options.Users,
 	}
 	service := vless.NewService[int](logger, adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))

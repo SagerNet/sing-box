@@ -23,7 +23,6 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 		myInboundAdapter{
 			protocol:      C.TypeRedirect,
 			network:       []string{N.NetworkTCP},
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,

@@ -43,7 +43,6 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeNaive,
 			network:       options.Network.Build(),
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,
@@ -70,6 +69,7 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (n *Naive) Start() error {
+
 	var tlsConfig *tls.STDConfig
 	if n.tlsConfig != nil {
 		err := n.tlsConfig.Start()
@@ -91,7 +91,7 @@ func (n *Naive) Start() error {
 			Handler:   n,
 			TLSConfig: tlsConfig,
 			BaseContext: func(listener net.Listener) context.Context {
-				return n.ctx
+				return context.Background()
 			},
 		}
 		go func() {

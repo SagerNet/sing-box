@@ -30,7 +30,6 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeTProxy,
 			network:       options.Network.Build(),
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,

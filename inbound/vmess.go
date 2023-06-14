@@ -28,7 +28,6 @@ var (
 
 type VMess struct {
 	myInboundAdapter
-	ctx       context.Context
 	service   *vmess.Service[int]
 	users     []option.VMessUser
 	tlsConfig tls.ServerConfig
@@ -40,13 +39,11 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeVMess,
 			network:       []string{N.NetworkTCP},
-			ctx:           ctx,
 			router:        router,
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
-		ctx:   ctx,
 		users: options.Users,
 	}
 	var serviceOptions []vmess.ServiceOption
