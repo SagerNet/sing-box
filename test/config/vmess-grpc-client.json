@@ -1,0 +1,51 @@
+{
+  "log": {
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": "1080",
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "ip": "127.0.0.1"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vmess",
+      "settings": {
+        "vnext": [
+          {
+            "address": "127.0.0.1",
+            "port": 1234,
+            "users": [
+              {
+                "id": ""
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "gun",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "example.org",
+          "certificates": [
+            {
+              "certificateFile": "/path/to/certificate.crt",
+              "keyFile": "/path/to/private.key"
+            }
+          ]
+        },
+        "grpcSettings": {
+          "serviceName": "TunService"
+        }
+      }
+    }
+  ]
+}
