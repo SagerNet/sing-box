@@ -26,7 +26,7 @@ type Server struct {
 	handler      adapter.V2RayServerTransportHandler
 	errorHandler E.Handler
 	udpListener  net.PacketConn
-	quicListener quic.Listener
+	quicListener *quic.Listener
 }
 
 func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (adapter.V2RayServerTransport, error) {

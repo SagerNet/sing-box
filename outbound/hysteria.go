@@ -178,7 +178,7 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 		packetConn = hysteria.NewXPlusPacketConn(packetConn, h.xplusKey)
 	}
 	packetConn = &hysteria.PacketConnWrapper{PacketConn: packetConn}
-	quicConn, err := quic.Dial(packetConn, udpConn.RemoteAddr(), h.serverAddr.AddrString(), h.tlsConfig, h.quicConfig)
+	quicConn, err := quic.Dial(h.ctx, packetConn, udpConn.RemoteAddr(), h.tlsConfig, h.quicConfig)
 	if err != nil {
 		packetConn.Close()
 		return nil, err

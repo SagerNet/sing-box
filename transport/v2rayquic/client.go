@@ -75,7 +75,7 @@ func (c *Client) offerNew() (quic.Connection, error) {
 	}
 	var packetConn net.PacketConn
 	packetConn = bufio.NewUnbindPacketConn(udpConn)
-	quicConn, err := quic.Dial(packetConn, udpConn.RemoteAddr(), c.serverAddr.AddrString(), c.tlsConfig, c.quicConfig)
+	quicConn, err := quic.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
 	if err != nil {
 		packetConn.Close()
 		return nil, err
