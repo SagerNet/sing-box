@@ -343,7 +343,7 @@ func WriteUDPMessage(conn quic.Connection, message UDPMessage) error {
 	buffer := common.Dup(_buffer)
 	defer buffer.Release()
 	err := writeUDPMessage(conn, message, buffer)
-	if errSize, ok := err.(quic.ErrMessageToLarge); ok {
+	if errSize, ok := err.(quic.ErrMessageTooLarge); ok {
 		// need to frag
 		message.MsgID = uint16(rand.Intn(0xFFFF)) + 1 // msgID must be > 0 when fragCount > 1
 		fragMsgs := FragUDPMessage(message, int(errSize))

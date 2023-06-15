@@ -35,7 +35,7 @@ type Hysteria struct {
 	xplusKey     []byte
 	sendBPS      uint64
 	recvBPS      uint64
-	listener     quic.Listener
+	listener     *quic.Listener
 	udpAccess    sync.RWMutex
 	udpSessionId uint32
 	udpSessions  map[uint32]chan *hysteria.UDPMessage
