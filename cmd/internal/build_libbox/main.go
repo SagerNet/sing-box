@@ -40,6 +40,7 @@ var (
 	sharedFlags []string
 	debugFlags  []string
 	sharedTags  []string
+	iosTags     []string
 	debugTags   []string
 )
 
@@ -53,7 +54,8 @@ func init() {
 	sharedFlags = append(sharedFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
 	debugFlags = append(debugFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
 
-	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_dhcp", "with_wireguard", "with_utls", "with_clash_api")
+	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
+	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
 	debugTags = append(debugTags, "debug")
 }
 
@@ -114,7 +116,7 @@ func buildiOS() {
 		args = append(args, debugFlags...)
 	}
 
-	tags := append(sharedTags, "with_low_memory", "with_conntrack")
+	tags := append(sharedTags, iosTags...)
 	args = append(args, "-tags")
 	if !debugEnabled {
 		args = append(args, strings.Join(tags, ","))
