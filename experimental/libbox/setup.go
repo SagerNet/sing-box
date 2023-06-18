@@ -35,3 +35,11 @@ func Version() string {
 func FormatBytes(length int64) string {
 	return humanize.IBytes(uint64(length))
 }
+
+type Func interface {
+	Invoke() error
+}
+
+type BoolFunc interface {
+	Invoke() bool
+}
