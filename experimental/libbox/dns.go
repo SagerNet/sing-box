@@ -120,6 +120,10 @@ func (p *platformLocalDNSTransport) Lookup(ctx context.Context, domain string, s
 	})
 }
 
+type Func interface {
+	Invoke() error
+}
+
 type ExchangeContext struct {
 	context   context.Context
 	message   mDNS.Msg
@@ -153,6 +157,6 @@ func (c *ExchangeContext) ErrorCode(code int32) {
 	c.error = dns.RCodeError(code)
 }
 
-func (c *ExchangeContext) Errno(errno int32) {
-	c.error = syscall.Errno(errno)
+func (c *ExchangeContext) ErrnoCode(code int32) {
+	c.error = syscall.Errno(code)
 }
