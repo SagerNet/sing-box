@@ -309,7 +309,7 @@ func ReadPacket(conn net.Conn, buffer *buf.Buffer) (M.Socksaddr, error) {
 	}
 
 	_, err = buffer.ReadFullFrom(conn, int(length))
-	return destination, err
+	return destination.Unwrap(), err
 }
 
 func WritePacket(conn net.Conn, buffer *buf.Buffer, destination M.Socksaddr) error {
