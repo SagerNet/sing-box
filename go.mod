@@ -18,7 +18,7 @@ require (
 	github.com/mholt/acmez v1.1.1
 	github.com/miekg/dns v1.1.54
 	github.com/ooni/go-libtor v1.1.8
-	github.com/oschwald/maxminddb-golang v1.10.0
+	github.com/oschwald/maxminddb-golang v1.11.0
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20230413023804-244d7ff07035
