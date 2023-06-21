@@ -31,7 +31,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.2
 	github.com/sagernet/sing-shadowsocks2 v0.1.1
 	github.com/sagernet/sing-shadowtls v0.1.2
-	github.com/sagernet/sing-tun v0.1.6-0.20230619052205-bb60e4d6d06b
+	github.com/sagernet/sing-tun v0.1.6-0.20230621052454-c416e3dc00b2
 	github.com/sagernet/sing-vmess v0.1.6
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
