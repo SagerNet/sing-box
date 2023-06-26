@@ -1,3 +1,42 @@
+#### 1.3.0
+
+* Fix bugs and update dependencies
+
+Important changes since 1.2:
+
+* Add [FakeIP](/configuration/dns/fakeip) support **1**
+* Improve multiplex **2**
+* Add [DNS reverse mapping](/configuration/dns#reverse_mapping) support
+* Add `rewrite_ttl` DNS rule action
+* Add `store_fakeip` Clash API option
+* Add multi-peer support for [WireGuard](/configuration/outbound/wireguard#peers) outbound
+* Add loopback detect
+* Add Clash.Meta API compatibility for Clash API
+* Download Yacd-meta by default if the specified Clash `external_ui` directory is empty
+* Add path and headers option for HTTP outbound
+* Perform URLTest recheck after network changes
+* Fix `system` tun stack for ios
+* Fix network monitor for android/ios
+* Update VLESS and XUDP protocol
+* Make splice work with traffic statistics systems like Clash API
+* Significantly reduces memory usage of idle connections
+* Improve DNS caching
+* Add `independent_cache` [option](/configuration/dns#independent_cache) for DNS
+* Reimplemented shadowsocks client
+* Add multiplex support for VLESS outbound
+* Automatically add Windows firewall rules in order for the system tun stack to work
+* Fix TLS 1.2 support for shadow-tls client
+* Add `cache_id` [option](/configuration/experimental#cache_id) for Clash cache file
+* Fix `local` DNS transport for Android
+
+*1*:
+
+See [FAQ](/faq/fakeip) for more information.
+
+*2*:
+
+Added new `h2mux` multiplex protocol and `padding` multiplex option, see [Multiplex](/configuration/shared/multiplex).
+
 #### 1.3-rc2
 
 * Fix `local` DNS transport for Android
