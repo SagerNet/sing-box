@@ -19,6 +19,9 @@ func (s *Box) startOutbounds() error {
 		} else {
 			outboundTag = outboundToStart.Tag()
 		}
+		if _, exists := outbounds[outboundTag]; exists {
+			return E.New("outbound tag ", outboundTag, " duplicated")
+		}
 		outboundTags[outboundToStart] = outboundTag
 		outbounds[outboundTag] = outboundToStart
 	}
