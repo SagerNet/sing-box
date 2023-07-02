@@ -26,9 +26,7 @@ func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.
 	if length == 0 {
 		return nil, os.ErrInvalid
 	}
-	_buffer := buf.StackNewSize(int(length))
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(int(length))
 	defer buffer.Release()
 
 	readCtx, cancel := context.WithTimeout(readCtx, time.Millisecond*100)
