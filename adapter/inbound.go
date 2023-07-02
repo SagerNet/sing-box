@@ -32,6 +32,7 @@ type InboundContext struct {
 	Source      M.Socksaddr
 	Destination M.Socksaddr
 	Domain      string
+	IPs         []netip.Addr
 	Protocol    string
 	User        string
 	Outbound    string

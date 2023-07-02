@@ -81,6 +81,7 @@ type Router struct {
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
 	platformInterface                  platform.Interface
+	ipOnDemand                         bool
 }
 
 func NewRouter(
@@ -110,6 +111,7 @@ func NewRouter(
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
 		platformInterface:     platformInterface,
+		ipOnDemand:            options.IPOnDemand,
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
@@ -681,6 +683,16 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
+
+	if metadata.Destination.IsFqdn() && r.ipOnDemand {
+		addresses, err := r.LookupDefault(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn)
+		if err != nil {
+			return err
+		}
+		metadata.IPs = addresses
+		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.IPs), " "), "]")
+	}
+
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
 	if err != nil {
 		return err
@@ -789,6 +801,16 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
+
+	if metadata.Destination.IsFqdn() && r.ipOnDemand {
+		addresses, err := r.LookupDefault(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn)
+		if err != nil {
+			return err
+		}
+		metadata.IPs = addresses
+		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.IPs), " "), "]")
+	}
+
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
 	if err != nil {
 		return err

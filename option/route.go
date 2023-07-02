@@ -10,6 +10,7 @@ type RouteOptions struct {
 	OverrideAndroidVPN  bool            `json:"override_android_vpn,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
 	DefaultMark         int             `json:"default_mark,omitempty"`
+	IPOnDemand          bool            `json:"ip_on_demand,omitempty"`
 }
 
 type GeoIPOptions struct {
