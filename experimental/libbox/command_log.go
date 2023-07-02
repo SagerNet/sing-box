@@ -11,7 +11,7 @@ func (s *CommandServer) WriteMessage(message string) {
 	s.subscriber.Emit(message)
 	s.access.Lock()
 	s.savedLines.PushBack(message)
-	if s.savedLines.Len() > 100 {
+	if s.savedLines.Len() > s.maxLines {
 		s.savedLines.Remove(s.savedLines.Front())
 	}
 	s.access.Unlock()

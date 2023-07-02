@@ -24,8 +24,9 @@ func NewFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer)
 	return &simpleFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
-			BaseTime:      formatter.BaseTime,
-			DisableColors: C.IsDarwin || C.IsIos,
+			BaseTime:         formatter.BaseTime,
+			DisableColors:    C.IsDarwin || C.IsIos,
+			DisableLineBreak: true,
 		},
 		writer:         writer,
 		platformWriter: platformWriter,

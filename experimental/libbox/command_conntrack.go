@@ -9,8 +9,8 @@ import (
 	"github.com/sagernet/sing-box/common/dialer/conntrack"
 )
 
-func ClientCloseConnections(sharedDirectory string) error {
-	conn, err := clientConnect(sharedDirectory)
+func (c *CommandClient) CloseConnections() error {
+	conn, err := c.directConnect()
 	if err != nil {
 		return err
 	}

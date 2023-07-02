@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
@@ -16,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 )
 
@@ -32,6 +34,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = filemanager.WithDefault(ctx, sBasePath, sTempPath, sUserID, sGroupID)
+	ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
