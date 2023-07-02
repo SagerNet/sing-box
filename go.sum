@@ -104,8 +104,8 @@ github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0 h1:KyhtFFt
 github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0/go.mod h1:D4SFEOkJK+4W1v86ZhX0jPM0rAL498fyQAChqMtes/I=
 github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 h1:5+m7c6AkmAylhauulqN/c5dnh8/KssrE9c93TQrXldA=
 github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61/go.mod h1:QUQ4RRHD6hGGHdFMEtR8T2P6GS6R3D/CXKdaYHKKXms=
-github.com/sagernet/gomobile v0.0.0-20230413023804-244d7ff07035 h1:KttYh6bBhIw8Y6/Ljn7CGwC3CKZn788rzMJmeAKjY+8=
-github.com/sagernet/gomobile v0.0.0-20230413023804-244d7ff07035/go.mod h1:5YE39YkJkCcMsfq1jMKkjsrM2GfBoF9JVWnvU89hmvU=
+github.com/sagernet/gomobile v0.0.0-20230701084532-493ee2e45182 h1:sD5g92IO15RAX2DvA4Cq3Uc7tcgqNWVi8K3VTCI6sEo=
+github.com/sagernet/gomobile v0.0.0-20230701084532-493ee2e45182/go.mod h1:5YE39YkJkCcMsfq1jMKkjsrM2GfBoF9JVWnvU89hmvU=
 github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2 h1:dnkKrzapqtAwjTSWt6hdPrARORfoYvuUczynvRLrueo=
 github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2/go.mod h1:1JUiV7nGuf++YFm9eWZ8q2lrwHmhcUGzptMl/vL1+LA=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6EslacyapiRz7LLSJyr4RajF/BhMVyE=
@@ -149,6 +149,7 @@ github.com/spf13/cobra v1.7.0/go.mod h1:uLxZILRyS/50WlhOIKD7W6V5bgeIt+4sICxh6uRM
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=

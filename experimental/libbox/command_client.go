@@ -26,6 +26,13 @@ type CommandClientHandler interface {
 	Disconnected(message string)
 	WriteLog(message string)
 	WriteStatus(message *StatusMessage)
+	WriteGroups(message OutboundGroupIterator)
+}
+
+func NewStandaloneCommandClient(sharedDirectory string) *CommandClient {
+	return &CommandClient{
+		sharedDirectory: sharedDirectory,
+	}
 }
 
 func NewCommandClient(sharedDirectory string, handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
@@ -36,16 +43,16 @@ func NewCommandClient(sharedDirectory string, handler CommandClientHandler, opti
 	}
 }
 
-func clientConnect(sharedDirectory string) (net.Conn, error) {
+func (c *CommandClient) directConnect() (net.Conn, error) {
 	return net.DialUnix("unix", nil, &net.UnixAddr{
-		Name: filepath.Join(sharedDirectory, "command.sock"),
+		Name: filepath.Join(c.sharedDirectory, "command.sock"),
 		Net:  "unix",
 	})
 }
 
 func (c *CommandClient) Connect() error {
 	common.Close(c.conn)
-	conn, err := clientConnect(c.sharedDirectory)
+	conn, err := c.directConnect()
 	if err != nil {
 		return err
 	}
@@ -65,6 +72,13 @@ func (c *CommandClient) Connect() error {
 		}
 		c.handler.Connected()
 		go c.handleStatusConn(conn)
+	case CommandGroup:
+		err = binary.Write(conn, binary.BigEndian, c.options.StatusInterval)
+		if err != nil {
+			return E.Cause(err, "write interval")
+		}
+		c.handler.Connected()
+		go c.handleGroupConn(conn)
 	}
 	return nil
 }

@@ -89,8 +89,8 @@ lib:
 
 lib_install:
 	go get -v -d
-	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.0.0-20230413023804-244d7ff07035
-	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.0.0-20230413023804-244d7ff07035
+	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.0.0-20230701084532-493ee2e45182
+	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.0.0-20230701084532-493ee2e45182
 
 clean:
 	rm -rf bin dist sing-box
