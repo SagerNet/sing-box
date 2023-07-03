@@ -65,9 +65,7 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 	if queryLength == 0 {
 		return dns.RCodeFormatError
 	}
-	_buffer := buf.StackNewSize(int(queryLength))
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(int(queryLength))
 	defer buffer.Release()
 	_, err = buffer.ReadFullFrom(conn, int(queryLength))
 	if err != nil {
@@ -84,9 +82,7 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 		if err != nil {
 			return err
 		}
-		_responseBuffer := buf.StackNewPacket()
-		defer common.KeepAlive(_responseBuffer)
-		responseBuffer := common.Dup(_responseBuffer)
+		responseBuffer := buf.NewPacket()
 		defer responseBuffer.Release()
 		responseBuffer.Resize(2, 0)
 		n, err := response.PackBuffer(responseBuffer.FreeBytes())

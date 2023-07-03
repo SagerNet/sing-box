@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -112,8 +111,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 		}
 	}
 	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](serverConn); isEarlyConn && earlyConn.NeedHandshake() {
-		_payload := buf.StackNew()
-		payload := common.Dup(_payload)
+		payload := buf.NewPacket()
 		err := conn.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
 		if err != os.ErrInvalid {
 			if err != nil {
@@ -133,7 +131,6 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 		if err != nil {
 			return N.HandshakeFailure(conn, err)
 		}
-		runtime.KeepAlive(_payload)
 		payload.Release()
 	}
 	return bufio.CopyConn(ctx, conn, serverConn)
