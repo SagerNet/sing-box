@@ -139,9 +139,7 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 		requestLen += vmess.AddressSerializer.AddrPortLen(request.Destination)
 	}
 	requestLen += len(payload)
-	_buffer := buf.StackNewSize(requestLen)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(requestLen)
 	defer buffer.Release()
 	common.Must(
 		buffer.WriteByte(Version),
@@ -239,9 +237,7 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 		requestLen += 2
 		requestLen += len(payload)
 	}
-	_buffer := buf.StackNewSize(requestLen)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(requestLen)
 	defer buffer.Release()
 	common.Must(
 		buffer.WriteByte(Version),

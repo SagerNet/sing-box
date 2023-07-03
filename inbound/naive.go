@@ -270,9 +270,7 @@ func (c *naiveH1Conn) read(p []byte) (n int, err error) {
 		if len(p) >= 3 {
 			paddingHdr = p[:3]
 		} else {
-			_paddingHdr := make([]byte, 3)
-			defer common.KeepAlive(_paddingHdr)
-			paddingHdr = common.Dup(_paddingHdr)
+			paddingHdr = make([]byte, 3)
 		}
 		_, err = io.ReadFull(c.Conn, paddingHdr)
 		if err != nil {
@@ -320,9 +318,7 @@ func (c *naiveH1Conn) write(p []byte) (n int, err error) {
 	if c.writePadding < kFirstPaddings {
 		paddingSize := rand.Intn(256)
 
-		_buffer := buf.StackNewSize(3 + len(p) + paddingSize)
-		defer common.KeepAlive(_buffer)
-		buffer := common.Dup(_buffer)
+		buffer := buf.NewSize(3 + len(p) + paddingSize)
 		defer buffer.Release()
 		header := buffer.Extend(3)
 		binary.BigEndian.PutUint16(header, uint16(len(p)))
@@ -449,9 +445,7 @@ func (c *naiveH2Conn) read(p []byte) (n int, err error) {
 		if len(p) >= 3 {
 			paddingHdr = p[:3]
 		} else {
-			_paddingHdr := make([]byte, 3)
-			defer common.KeepAlive(_paddingHdr)
-			paddingHdr = common.Dup(_paddingHdr)
+			paddingHdr = make([]byte, 3)
 		}
 		_, err = io.ReadFull(c.reader, paddingHdr)
 		if err != nil {
@@ -502,9 +496,7 @@ func (c *naiveH2Conn) write(p []byte) (n int, err error) {
 	if c.writePadding < kFirstPaddings {
 		paddingSize := rand.Intn(256)
 
-		_buffer := buf.StackNewSize(3 + len(p) + paddingSize)
-		defer common.KeepAlive(_buffer)
-		buffer := common.Dup(_buffer)
+		buffer := buf.NewSize(3 + len(p) + paddingSize)
 		defer buffer.Release()
 		header := buffer.Extend(3)
 		binary.BigEndian.PutUint16(header, uint16(len(p)))

@@ -15,7 +15,6 @@ import (
 	"unicode"
 	"unsafe"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -82,9 +81,7 @@ func resolveSocketByNetlink(network string, source netip.AddrPort, destination n
 		return 0, 0, E.Cause(err, "write netlink request")
 	}
 
-	_buffer := buf.StackNew()
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.New()
 	defer buffer.Release()
 
 	n, err := syscall.Read(socket, buffer.FreeBytes())

@@ -199,9 +199,7 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) err
 }
 
 func (t *Transport) fetchServersResponse(iface *net.Interface, packetConn net.PacketConn, transactionID dhcpv4.TransactionID) error {
-	_buffer := buf.StackNewSize(dhcpv4.MaxMessageSize)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(dhcpv4.MaxMessageSize)
 	defer buffer.Release()
 
 	for {

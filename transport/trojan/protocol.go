@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"io"
 	"net"
 	"os"
 
@@ -70,17 +69,6 @@ func (c *ClientConn) WriteBuffer(buffer *buf.Buffer) error {
 	}
 	c.headerWritten = true
 	return nil
-}
-
-func (c *ClientConn) ReadFrom(r io.Reader) (n int64, err error) {
-	if !c.headerWritten {
-		return bufio.ReadFrom0(c, r)
-	}
-	return bufio.Copy(c.ExtendedConn, r)
-}
-
-func (c *ClientConn) WriteTo(w io.Writer) (n int64, err error) {
-	return bufio.Copy(w, c.ExtendedConn)
 }
 
 func (c *ClientConn) FrontHeadroom() int {
@@ -203,38 +191,17 @@ func ClientHandshakeRaw(conn net.Conn, key [KeyLength]byte, command byte, destin
 
 func ClientHandshake(conn net.Conn, key [KeyLength]byte, destination M.Socksaddr, payload []byte) error {
 	headerLen := KeyLength + M.SocksaddrSerializer.AddrPortLen(destination) + 5
-	var header *buf.Buffer
+	header := buf.NewSize(headerLen + len(payload))
 	defer header.Release()
-	var writeHeader bool
-	if len(payload) > 0 && headerLen+len(payload) < 65535 {
-		buffer := buf.StackNewSize(headerLen + len(payload))
-		defer common.KeepAlive(buffer)
-		header = common.Dup(buffer)
-	} else {
-		buffer := buf.StackNewSize(headerLen)
-		defer common.KeepAlive(buffer)
-		header = common.Dup(buffer)
-		writeHeader = true
-	}
 	common.Must1(header.Write(key[:]))
 	common.Must1(header.Write(CRLF))
 	common.Must(header.WriteByte(CommandTCP))
 	common.Must(M.SocksaddrSerializer.WriteAddrPort(header, destination))
 	common.Must1(header.Write(CRLF))
-	if !writeHeader {
-		common.Must1(header.Write(payload))
-	}
-
+	common.Must1(header.Write(payload))
 	_, err := conn.Write(header.Bytes())
 	if err != nil {
 		return E.Cause(err, "write request")
-	}
-
-	if writeHeader {
-		_, err = conn.Write(payload)
-		if err != nil {
-			return E.Cause(err, "write payload")
-		}
 	}
 	return nil
 }
@@ -258,14 +225,12 @@ func ClientHandshakePacket(conn net.Conn, key [KeyLength]byte, destination M.Soc
 	headerLen := KeyLength + 2*M.SocksaddrSerializer.AddrPortLen(destination) + 9
 	payloadLen := payload.Len()
 	var header *buf.Buffer
-	defer header.Release()
 	var writeHeader bool
 	if payload.Start() >= headerLen {
 		header = buf.With(payload.ExtendHeader(headerLen))
 	} else {
-		buffer := buf.StackNewSize(headerLen)
-		defer common.KeepAlive(buffer)
-		header = common.Dup(buffer)
+		header = buf.NewSize(headerLen)
+		defer header.Release()
 		writeHeader = true
 	}
 	common.Must1(header.Write(key[:]))
