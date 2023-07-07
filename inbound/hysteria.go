@@ -332,7 +332,7 @@ func (h *Hysteria) Close() error {
 	h.udpAccess.Unlock()
 	return common.Close(
 		&h.myInboundAdapter,
-		h.listener,
+		common.PtrOrNil(h.listener),
 		h.tlsConfig,
 	)
 }
