@@ -94,5 +94,5 @@ func (s *Server) streamAcceptLoop(conn quic.Connection) error {
 }
 
 func (s *Server) Close() error {
-	return common.Close(s.udpListener, s.quicListener)
+	return common.Close(s.udpListener, common.PtrOrNil(s.quicListener))
 }
