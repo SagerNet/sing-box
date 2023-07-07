@@ -6,12 +6,14 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 )
 
 var _ adapter.FakeIPStore = (*Store)(nil)
 
 type Store struct {
 	router       adapter.Router
+	logger       logger.Logger
 	inet4Range   netip.Prefix
 	inet6Range   netip.Prefix
 	storage      adapter.FakeIPStorage
@@ -19,9 +21,10 @@ type Store struct {
 	inet6Current netip.Addr
 }
 
-func NewStore(router adapter.Router, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
+func NewStore(router adapter.Router, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
 	return &Store{
 		router:     router,
+		logger:     logger,
 		inet4Range: inet4Range,
 		inet6Range: inet6Range,
 	}
@@ -92,10 +95,12 @@ func (s *Store) Create(domain string, strategy dns.DomainStrategy) (netip.Addr, 
 		s.inet6Current = nextAddress
 		address = nextAddress
 	}
-	err := s.storage.FakeIPStore(address, domain)
-	if err != nil {
-		return netip.Addr{}, err
-	}
+	go func() {
+		err := s.storage.FakeIPStore(address, domain)
+		if err != nil {
+			s.logger.Warn("save FakeIP address pair: ", err)
+		}
+	}()
 	return address, nil
 }
 
