@@ -1,7 +1,9 @@
 package cachefile
 
 import (
+	"net/netip"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,8 +16,10 @@ var bucketSelected = []byte("selected")
 var _ adapter.ClashCacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	DB      *bbolt.DB
-	cacheID []byte
+	DB         *bbolt.DB
+	cacheID    []byte
+	saveAccess sync.RWMutex
+	saveCache  map[netip.Addr]string
 }
 
 func Open(path string, cacheID string) (*CacheFile, error) {
@@ -36,7 +40,11 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	if cacheID != "" {
 		cacheIDBytes = append([]byte{0}, []byte(cacheID)...)
 	}
-	return &CacheFile{db, cacheIDBytes}, nil
+	return &CacheFile{
+		DB:        db,
+		cacheID:   cacheIDBytes,
+		saveCache: make(map[netip.Addr]string),
+	}, nil
 }
 
 func (c *CacheFile) bucket(t *bbolt.Tx, key []byte) *bbolt.Bucket {
