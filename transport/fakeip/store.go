@@ -95,12 +95,7 @@ func (s *Store) Create(domain string, strategy dns.DomainStrategy) (netip.Addr, 
 		s.inet6Current = nextAddress
 		address = nextAddress
 	}
-	go func() {
-		err := s.storage.FakeIPStore(address, domain)
-		if err != nil {
-			s.logger.Warn("save FakeIP address pair: ", err)
-		}
-	}()
+	s.storage.FakeIPStoreAsync(address, domain, s.logger)
 	return address, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/logger"
 
 	"go.etcd.io/bbolt"
 )
@@ -57,7 +58,28 @@ func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
 	})
 }
 
+func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
+	c.saveAccess.Lock()
+	c.saveCache[address] = domain
+	c.saveAccess.Unlock()
+	go func() {
+		err := c.FakeIPStore(address, domain)
+		if err != nil {
+			logger.Warn("save FakeIP address pair: ", err)
+		}
+		c.saveAccess.Lock()
+		delete(c.saveCache, address)
+		c.saveAccess.Unlock()
+	}()
+}
+
 func (c *CacheFile) FakeIPLoad(address netip.Addr) (string, bool) {
+	c.saveAccess.RLock()
+	cachedDomain, cached := c.saveCache[address]
+	c.saveAccess.RUnlock()
+	if cached {
+		return cachedDomain, true
+	}
 	var domain string
 	_ = c.DB.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(bucketFakeIP)

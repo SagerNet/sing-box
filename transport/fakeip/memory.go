@@ -5,6 +5,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common/cache"
+	"github.com/sagernet/sing/common/logger"
 )
 
 var _ adapter.FakeIPStorage = (*MemoryStorage)(nil)
@@ -32,6 +33,10 @@ func (s *MemoryStorage) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) err
 func (s *MemoryStorage) FakeIPStore(address netip.Addr, domain string) error {
 	s.domainCache.Store(address, domain)
 	return nil
+}
+
+func (s *MemoryStorage) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
+	s.domainCache.Store(address, domain)
 }
 
 func (s *MemoryStorage) FakeIPLoad(address netip.Addr) (string, bool) {
