@@ -29,7 +29,7 @@ go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@lat
 | `with_embedded_tor` (CGO required) | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor).                                                                                                                                                                                                                                          |
 | `with_lwip` (CGO required)         | Build with LWIP Tun stack support, see [Tun inbound](/configuration/inbound/tun#stack).                                                                                                                                                                                                                                    |
 
-The binary is built under $GOPATH/bin
+The binary is built under `$GOBIN` (or `$GOPATH/bin` if not set):
 
 ```bash
 sing-box version
@@ -37,3 +37,5 @@ sing-box version
 
 It is also recommended to use systemd to manage sing-box service,
 see [Linux server installation example](/examples/linux-server-installation).
+
+Also, there is an unofficial community-maintained build with all tags enabled, which builds the latest (stable, or unstable) tag on schedule that is available here: <https://github.com/z4x7k/sing-box-all>.
