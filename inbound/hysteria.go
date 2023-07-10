@@ -4,6 +4,7 @@ package inbound
 
 import (
 	"context"
+	"github.com/sagernet/sing/common/auth"
 	"sync"
 
 	"github.com/sagernet/quic-go"
@@ -15,7 +16,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -198,9 +198,10 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 		user := h.authUser[userIndex]
 		if user == "" {
 			user = F.ToString(userIndex)
-		} else {
-			ctx = auth.ContextWithUser(ctx, user)
 		}
+
+		ctx = auth.ContextWithUser(ctx, userIndex)
+
 		h.logger.InfoContext(ctx, "[", user, "] inbound connection from ", conn.RemoteAddr())
 	} else {
 		h.logger.InfoContext(ctx, "inbound connection from ", conn.RemoteAddr())
@@ -283,6 +284,10 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port).Unwrap()
+
+	if userIndex, loaded := auth.UserFromContext[int](ctx); loaded {
+		metadata.User = h.authUser[userIndex]
+	}
 
 	if !request.UDP {
 		err = hysteria.WriteServerResponse(stream, hysteria.ServerResponse{
