@@ -143,8 +143,10 @@ func TestShadowTLSFallback(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  3,
-					Password: "hello",
+					Version: 3,
+					Users: []option.ShadowTLSUser{
+						{Password: "hello"},
+					},
 				},
 			},
 		},
@@ -199,8 +201,10 @@ func TestShadowTLSInbound(t *testing.T) {
 							ServerPort: 443,
 						},
 					},
-					Version:  3,
-					Password: password,
+					Version: 3,
+					Users: []option.ShadowTLSUser{
+						{Password: password},
+					},
 				},
 			},
 			{
