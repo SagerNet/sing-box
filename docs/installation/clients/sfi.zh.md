@@ -9,7 +9,7 @@
 
 #### 下载
 
-* [TestFlight](https://testflight.apple.com/join/c6ylui2j)
+* [TestFlight](https://testflight.apple.com/join/AcqO44FH)
 
 #### 注意事项
 

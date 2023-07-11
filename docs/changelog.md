@@ -1,3 +1,12 @@
+#### 1.3.1-beta.3
+
+* Introducing our [new iOS](/installation/clients/sfi) and [macOS](/installation/clients/sfm) client applications **1**
+* Fixes and improvements
+
+**1**:
+
+The old testflight link and app are no longer valid.
+
 #### 1.3.1-beta.2
 
 * Fix bugs and update dependencies
