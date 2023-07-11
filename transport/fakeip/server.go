@@ -69,14 +69,14 @@ func (s *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 func (s *Transport) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	var addresses []netip.Addr
 	if strategy != dns.DomainStrategyUseIPv6 {
-		inet4Address, err := s.store.Create(domain, dns.DomainStrategyUseIPv4)
+		inet4Address, err := s.store.Create(domain, false)
 		if err != nil {
 			return nil, err
 		}
 		addresses = append(addresses, inet4Address)
 	}
 	if strategy != dns.DomainStrategyUseIPv4 {
-		inet6Address, err := s.store.Create(domain, dns.DomainStrategyUseIPv6)
+		inet6Address, err := s.store.Create(domain, true)
 		if err != nil {
 			return nil, err
 		}
