@@ -94,51 +94,64 @@ type EarlyWebsocketConn struct {
 	ctx    context.Context
 	conn   *WebsocketConn
 	create chan struct{}
+	err    error
 }
 
 func (c *EarlyWebsocketConn) Read(b []byte) (n int, err error) {
 	if c.conn == nil {
 		<-c.create
+		if c.err != nil {
+			return 0, c.err
+		}
 	}
 	return c.conn.Read(b)
+}
+
+func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
+	var (
+		earlyData []byte
+		lateData  []byte
+		conn      *websocket.Conn
+		response  *http.Response
+		err       error
+	)
+	if len(content) > int(c.maxEarlyData) {
+		earlyData = content[:c.maxEarlyData]
+		lateData = content[c.maxEarlyData:]
+	} else {
+		earlyData = content
+	}
+	if len(earlyData) > 0 {
+		earlyDataString := base64.RawURLEncoding.EncodeToString(earlyData)
+		if c.earlyDataHeaderName == "" {
+			requestURL := c.requestURL
+			requestURL.Path += earlyDataString
+			conn, response, err = c.dialer.DialContext(c.ctx, requestURL.String(), c.headers)
+		} else {
+			headers := c.headers.Clone()
+			headers.Set(c.earlyDataHeaderName, earlyDataString)
+			conn, response, err = c.dialer.DialContext(c.ctx, c.requestURLString, headers)
+		}
+	} else {
+		conn, response, err = c.dialer.DialContext(c.ctx, c.requestURLString, c.headers)
+	}
+	if err != nil {
+		return wrapDialError(response, err)
+	}
+	c.conn = &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}
+	if len(lateData) > 0 {
+		_, err = c.conn.Write(lateData)
+	}
+	return err
 }
 
 func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if c.conn != nil {
 		return c.conn.Write(b)
 	}
-	var (
-		earlyData []byte
-		lateData  []byte
-		conn      *websocket.Conn
-		response  *http.Response
-	)
-	if len(b) > int(c.maxEarlyData) {
-		earlyData = b[:c.maxEarlyData]
-		lateData = b[c.maxEarlyData:]
-	} else {
-		earlyData = b
-	}
-	if len(earlyData) > 0 {
-		earlyDataString := base64.RawURLEncoding.EncodeToString(earlyData)
-		if c.earlyDataHeaderName == "" {
-			conn, response, err = c.dialer.DialContext(c.ctx, c.uri+earlyDataString, c.headers)
-		} else {
-			headers := c.headers.Clone()
-			headers.Set(c.earlyDataHeaderName, earlyDataString)
-			conn, response, err = c.dialer.DialContext(c.ctx, c.uri, headers)
-		}
-	} else {
-		conn, response, err = c.dialer.DialContext(c.ctx, c.uri, c.headers)
-	}
-	if err != nil {
-		return 0, wrapDialError(response, err)
-	}
-	c.conn = &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}
+	err = c.writeRequest(b)
+	c.err = err
 	close(c.create)
-	if len(lateData) > 0 {
-		_, err = c.conn.Write(lateData)
-	}
 	if err != nil {
 		return
 	}
@@ -149,39 +162,9 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	if c.conn != nil {
 		return c.conn.WriteBuffer(buffer)
 	}
-	var (
-		earlyData []byte
-		lateData  []byte
-		conn      *websocket.Conn
-		response  *http.Response
-		err       error
-	)
-	if buffer.Len() > int(c.maxEarlyData) {
-		earlyData = buffer.Bytes()[:c.maxEarlyData]
-		lateData = buffer.Bytes()[c.maxEarlyData:]
-	} else {
-		earlyData = buffer.Bytes()
-	}
-	if len(earlyData) > 0 {
-		earlyDataString := base64.RawURLEncoding.EncodeToString(earlyData)
-		if c.earlyDataHeaderName == "" {
-			conn, response, err = c.dialer.DialContext(c.ctx, c.uri+earlyDataString, c.headers)
-		} else {
-			headers := c.headers.Clone()
-			headers.Set(c.earlyDataHeaderName, earlyDataString)
-			conn, response, err = c.dialer.DialContext(c.ctx, c.uri, headers)
-		}
-	} else {
-		conn, response, err = c.dialer.DialContext(c.ctx, c.uri, c.headers)
-	}
-	if err != nil {
-		return wrapDialError(response, err)
-	}
-	c.conn = &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}
+	err := c.writeRequest(buffer.Bytes())
+	c.err = err
 	close(c.create)
-	if len(lateData) > 0 {
-		_, err = c.conn.Write(lateData)
-	}
 	return err
 }
 
