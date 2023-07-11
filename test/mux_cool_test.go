@@ -32,6 +32,7 @@ func TestMuxCoolServer(t *testing.T) {
 		Image:      ImageV2RayCore,
 		Ports:      []uint16{serverPort, testPort},
 		EntryPoint: "v2ray",
+		Cmd:        []string{"run"},
 		Stdin:      content,
 	})
 

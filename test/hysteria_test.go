@@ -125,7 +125,7 @@ func TestHysteriaOutbound(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startDockerContainer(t, DockerOptions{
 		Image: ImageHysteria,
-		Ports: []uint16{serverPort, testPort},
+		Ports: []uint16{testPort},
 		Cmd:   []string{"-c", "/etc/hysteria/config.json", "server"},
 		Bind: map[string]string{
 			"hysteria-server.json": "/etc/hysteria/config.json",

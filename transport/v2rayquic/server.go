@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
 	"github.com/sagernet/sing/common"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -24,7 +23,6 @@ type Server struct {
 	tlsConfig    *tls.STDConfig
 	quicConfig   *quic.Config
 	handler      adapter.V2RayServerTransportHandler
-	errorHandler E.Handler
 	udpListener  net.PacketConn
 	quicListener *quic.Listener
 }
@@ -77,7 +75,7 @@ func (s *Server) acceptLoop() {
 		go func() {
 			hErr := s.streamAcceptLoop(conn)
 			if hErr != nil {
-				s.errorHandler.NewError(conn.Context(), hErr)
+				s.handler.NewError(conn.Context(), hErr)
 			}
 		}()
 	}

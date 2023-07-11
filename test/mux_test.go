@@ -4,7 +4,6 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/sagernet/sing-box/common/mux"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -12,24 +11,25 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
-var muxProtocols = []mux.Protocol{
-	mux.ProtocolYAMux,
-	mux.ProtocolSMux,
+var muxProtocols = []string{
+	"h2mux",
+	"smux",
+	"yamux",
 }
 
 func TestVMessSMux(t *testing.T) {
 	testVMessMux(t, option.MultiplexOptions{
 		Enabled:  true,
-		Protocol: mux.ProtocolSMux.String(),
+		Protocol: "smux",
 	})
 }
 
 func TestShadowsocksMux(t *testing.T) {
 	for _, protocol := range muxProtocols {
-		t.Run(protocol.String(), func(t *testing.T) {
+		t.Run(protocol, func(t *testing.T) {
 			testShadowsocksMux(t, option.MultiplexOptions{
 				Enabled:  true,
-				Protocol: protocol.String(),
+				Protocol: protocol,
 			})
 		})
 	}
@@ -38,7 +38,7 @@ func TestShadowsocksMux(t *testing.T) {
 func TestShadowsockH2Mux(t *testing.T) {
 	testShadowsocksMux(t, option.MultiplexOptions{
 		Enabled:  true,
-		Protocol: mux.ProtocolH2Mux.String(),
+		Protocol: "h2mux",
 		Padding:  true,
 	})
 }
@@ -46,7 +46,7 @@ func TestShadowsockH2Mux(t *testing.T) {
 func TestShadowsockSMuxPadding(t *testing.T) {
 	testShadowsocksMux(t, option.MultiplexOptions{
 		Enabled:  true,
-		Protocol: mux.ProtocolSMux.String(),
+		Protocol: "smux",
 		Padding:  true,
 	})
 }

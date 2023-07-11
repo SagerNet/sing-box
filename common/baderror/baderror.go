@@ -55,7 +55,7 @@ func WrapQUIC(err error) error {
 	if err == nil {
 		return nil
 	}
-	if Contains(err, "canceled with error code 0") {
+	if Contains(err, "canceled by local with error code 0") {
 		return net.ErrClosed
 	}
 	return err
