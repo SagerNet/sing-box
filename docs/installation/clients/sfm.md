@@ -1,11 +1,10 @@
-# SFI
+# SFM
 
-Experimental iOS client for sing-box.
+Experimental macOS client for sing-box.
 
 #### Requirements
 
-* iOS 15.0+
-* macOS 12.0+ with Apple Silicon
+* macOS 13.0+
 
 #### Download
 
@@ -13,7 +12,7 @@ Experimental iOS client for sing-box.
 
 #### Note
 
-* User Agent in remote profile request is `SFI/$version ($version_code; sing-box $sing_box_version)`
+* User Agent in remote profile request is `SFM/$version ($version_code; sing-box $sing_box_version)`
 * Crash logs is located in `Settings` -> `View Service Log`
 
 #### Privacy policy
