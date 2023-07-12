@@ -133,7 +133,7 @@ func buildiOS() {
 		log.Fatal(err)
 	}
 
-	copyPath := filepath.Join("..", "sing-box-for-ios")
+	copyPath := filepath.Join("..", "sing-box-for-apple")
 	if rw.FileExists(copyPath) {
 		targetDir := filepath.Join(copyPath, "Libbox.xcframework")
 		targetDir, _ = filepath.Abs(targetDir)

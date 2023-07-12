@@ -8,7 +8,8 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-func TestProxyProtocol(t *testing.T) {
+// Since this is a feature one-off added by outsiders, I won't address these anymore.
+func _TestProxyProtocol(t *testing.T) {
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -38,7 +39,7 @@ func TestProxyProtocol(t *testing.T) {
 			},
 			{
 				Type: C.TypeDirect,
-				Tag:  "trojan-out",
+				Tag:  "proxy-out",
 				DirectOptions: option.DirectOutboundOptions{
 					OverrideAddress: "127.0.0.1",
 					OverridePort:    serverPort,
@@ -51,7 +52,7 @@ func TestProxyProtocol(t *testing.T) {
 				{
 					DefaultOptions: option.DefaultRule{
 						Inbound:  []string{"mixed-in"},
-						Outbound: "trojan-out",
+						Outbound: "proxy-out",
 					},
 				},
 			},

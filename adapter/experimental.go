@@ -31,6 +31,7 @@ type Tracker interface {
 }
 
 type OutboundGroup interface {
+	Outbound
 	Now() string
 	All() []string
 }

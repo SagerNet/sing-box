@@ -38,9 +38,7 @@ func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
 
 func (a *myInboundAdapter) loopUDPIn() {
 	defer close(a.packetOutboundClosed)
-	_buffer := buf.StackNewPacket()
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewPacket()
 	defer buffer.Release()
 	buffer.IncRef()
 	defer buffer.DecRef()
@@ -67,9 +65,7 @@ func (a *myInboundAdapter) loopUDPIn() {
 
 func (a *myInboundAdapter) loopUDPOOBIn() {
 	defer close(a.packetOutboundClosed)
-	_buffer := buf.StackNewPacket()
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewPacket()
 	defer buffer.Release()
 	buffer.IncRef()
 	defer buffer.DecRef()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -59,7 +58,7 @@ func (s *Service[K]) UpdateUsers(userList []K, passwordList []string) error {
 
 func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	var key [KeyLength]byte
-	n, err := conn.Read(common.Dup(key[:]))
+	n, err := conn.Read(key[:])
 	if err != nil {
 		return err
 	} else if n != KeyLength {

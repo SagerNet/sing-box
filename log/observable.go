@@ -28,8 +28,9 @@ func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter 
 	factory := &observableFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
-			BaseTime:      formatter.BaseTime,
-			DisableColors: C.IsDarwin || C.IsIos,
+			BaseTime:         formatter.BaseTime,
+			DisableColors:    C.IsDarwin || C.IsIos,
+			DisableLineBreak: true,
 		},
 		writer:         writer,
 		platformWriter: platformWriter,

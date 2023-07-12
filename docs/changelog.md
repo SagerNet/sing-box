@@ -1,3 +1,11 @@
+#### 1.3.1-beta.2
+
+* Fix bugs and update dependencies
+
+#### 1.3.1-beta.1
+
+* Fixes and improvements
+
 #### 1.3.0
 
 * Fix bugs and update dependencies

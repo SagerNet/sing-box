@@ -10,6 +10,7 @@ import (
 
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/x/list"
 )
 
 type History struct {
@@ -20,12 +21,25 @@ type History struct {
 type HistoryStorage struct {
 	access       sync.RWMutex
 	delayHistory map[string]*History
+	callbacks    list.List[func()]
 }
 
 func NewHistoryStorage() *HistoryStorage {
 	return &HistoryStorage{
 		delayHistory: make(map[string]*History),
 	}
+}
+
+func (s *HistoryStorage) AddListener(listener func()) *list.Element[func()] {
+	s.access.Lock()
+	defer s.access.Unlock()
+	return s.callbacks.PushBack(listener)
+}
+
+func (s *HistoryStorage) RemoveListener(element *list.Element[func()]) {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.callbacks.Remove(element)
 }
 
 func (s *HistoryStorage) LoadURLTestHistory(tag string) *History {
@@ -39,14 +53,24 @@ func (s *HistoryStorage) LoadURLTestHistory(tag string) *History {
 
 func (s *HistoryStorage) DeleteURLTestHistory(tag string) {
 	s.access.Lock()
-	defer s.access.Unlock()
 	delete(s.delayHistory, tag)
+	s.access.Unlock()
+	s.notifyUpdated()
 }
 
 func (s *HistoryStorage) StoreURLTestHistory(tag string, history *History) {
 	s.access.Lock()
-	defer s.access.Unlock()
 	s.delayHistory[tag] = history
+	s.access.Unlock()
+	s.notifyUpdated()
+}
+
+func (s *HistoryStorage) notifyUpdated() {
+	s.access.RLock()
+	defer s.access.RUnlock()
+	for element := s.callbacks.Front(); element != nil; element = element.Next() {
+		element.Value()
+	}
 }
 
 func URLTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err error) {

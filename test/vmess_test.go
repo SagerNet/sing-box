@@ -175,6 +175,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authe
 		Image:      ImageV2RayCore,
 		Ports:      []uint16{serverPort, testPort},
 		EntryPoint: "v2ray",
+		Cmd:        []string{"run"},
 		Stdin:      content,
 		Env:        []string{"V2RAY_VMESS_AEAD_FORCED=false"},
 	})
@@ -222,6 +223,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 		Image:      ImageV2RayCore,
 		Ports:      []uint16{serverPort, testPort},
 		EntryPoint: "v2ray",
+		Cmd:        []string{"run"},
 		Stdin:      content,
 		Env:        []string{"V2RAY_VMESS_AEAD_FORCED=false"},
 	})

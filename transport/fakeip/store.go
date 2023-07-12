@@ -4,14 +4,15 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 )
 
 var _ adapter.FakeIPStore = (*Store)(nil)
 
 type Store struct {
 	router       adapter.Router
+	logger       logger.Logger
 	inet4Range   netip.Prefix
 	inet6Range   netip.Prefix
 	storage      adapter.FakeIPStorage
@@ -19,9 +20,10 @@ type Store struct {
 	inet6Current netip.Addr
 }
 
-func NewStore(router adapter.Router, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
+func NewStore(router adapter.Router, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
 	return &Store{
 		router:     router,
+		logger:     logger,
 		inet4Range: inet4Range,
 		inet6Range: inet6Range,
 	}
@@ -69,9 +71,12 @@ func (s *Store) Close() error {
 	})
 }
 
-func (s *Store) Create(domain string, strategy dns.DomainStrategy) (netip.Addr, error) {
+func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
+	if address, loaded := s.storage.FakeIPLoadDomain(domain, isIPv6); loaded {
+		return address, nil
+	}
 	var address netip.Addr
-	if strategy == dns.DomainStrategyUseIPv4 {
+	if !isIPv6 {
 		if !s.inet4Current.IsValid() {
 			return netip.Addr{}, E.New("missing IPv4 fakeip address range")
 		}
@@ -92,10 +97,7 @@ func (s *Store) Create(domain string, strategy dns.DomainStrategy) (netip.Addr, 
 		s.inet6Current = nextAddress
 		address = nextAddress
 	}
-	err := s.storage.FakeIPStore(address, domain)
-	if err != nil {
-		return netip.Addr{}, err
-	}
+	s.storage.FakeIPStoreAsync(address, domain, s.logger)
 	return address, nil
 }
 

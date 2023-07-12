@@ -18,6 +18,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 )
 
 var (
@@ -74,7 +75,11 @@ func (s *URLTest) Start() error {
 		outbounds = append(outbounds, detour)
 	}
 	s.group = NewURLTestGroup(s.ctx, s.router, s.logger, outbounds, s.link, s.interval, s.tolerance)
-	go s.group.CheckOutbounds(false)
+	return nil
+}
+
+func (s *URLTest) PostStart() error {
+	go s.CheckOutbounds()
 	return nil
 }
 
@@ -94,6 +99,10 @@ func (s *URLTest) All() []string {
 
 func (s *URLTest) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
 	return s.group.URLTest(ctx, link)
+}
+
+func (s *URLTest) CheckOutbounds() {
+	s.group.CheckOutbounds(true)
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -157,7 +166,8 @@ func NewURLTestGroup(ctx context.Context, router adapter.Router, logger log.Logg
 		tolerance = 50
 	}
 	var history *urltest.HistoryStorage
-	if clashServer := router.ClashServer(); clashServer != nil {
+	if history = service.PtrFromContext[urltest.HistoryStorage](ctx); history != nil {
+	} else if clashServer := router.ClashServer(); clashServer != nil {
 		history = clashServer.HistoryStorage()
 	} else {
 		history = urltest.NewHistoryStorage()

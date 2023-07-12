@@ -23,6 +23,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/websocket"
 
@@ -68,12 +69,15 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 			Handler: chiRouter,
 		},
 		trafficManager:           trafficManager,
-		urlTestHistory:           urltest.NewHistoryStorage(),
 		mode:                     strings.ToLower(options.DefaultMode),
 		storeSelected:            options.StoreSelected,
 		storeFakeIP:              options.StoreFakeIP,
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
+	}
+	server.urlTestHistory = service.PtrFromContext[urltest.HistoryStorage](ctx)
+	if server.urlTestHistory == nil {
+		server.urlTestHistory = urltest.NewHistoryStorage()
 	}
 	if server.mode == "" {
 		server.mode = "rule"

@@ -8,8 +8,8 @@ import (
 	"github.com/sagernet/sing/common/rw"
 )
 
-func ClientServiceReload(sharedDirectory string) error {
-	conn, err := clientConnect(sharedDirectory)
+func (c *CommandClient) ServiceReload() error {
+	conn, err := c.directConnect()
 	if err != nil {
 		return err
 	}

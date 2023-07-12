@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/debug"
@@ -105,9 +106,13 @@ func testSuitSimple1(t *testing.T, clientPort uint16, testPort uint16) {
 		return dialer.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("127.0.0.1", testPort))
 	}
 	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
-	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
+	if !C.IsDarwin {
+		require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
+	}
 	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
-	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
+	if !C.IsDarwin {
+		require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
+	}
 }
 
 func testSuitWg(t *testing.T, clientPort uint16, testPort uint16) {

@@ -41,9 +41,7 @@ func WriteClientHello(stream io.Writer, hello ClientHello) error {
 	requestLen += 8 // recvBPS
 	requestLen += 2 // auth len
 	requestLen += len(hello.Auth)
-	_request := buf.StackNewSize(requestLen)
-	defer common.KeepAlive(_request)
-	request := common.Dup(_request)
+	request := buf.NewSize(requestLen)
 	defer request.Release()
 	common.Must(
 		request.WriteByte(Version),
@@ -99,9 +97,7 @@ func ReadServerHello(stream io.Reader) (*ServerHello, error) {
 	responseLen += 8 // sendBPS
 	responseLen += 8 // recvBPS
 	responseLen += 2 // message len
-	_response := buf.StackNewSize(responseLen)
-	defer common.KeepAlive(_response)
-	response := common.Dup(_response)
+	response := buf.NewSize(responseLen)
 	defer response.Release()
 	_, err := response.ReadFullFrom(stream, responseLen)
 	if err != nil {
@@ -131,9 +127,7 @@ func WriteServerHello(stream io.Writer, hello ServerHello) error {
 	responseLen += 8 // recvBPS
 	responseLen += 2 // message len
 	responseLen += len(hello.Message)
-	_response := buf.StackNewSize(responseLen)
-	defer common.KeepAlive(_response)
-	response := common.Dup(_response)
+	response := buf.NewSize(responseLen)
 	defer response.Release()
 	if hello.OK {
 		common.Must(response.WriteByte(1))
@@ -185,9 +179,7 @@ func WriteClientRequest(stream io.Writer, request ClientRequest) error {
 	requestLen += 2 // host len
 	requestLen += len(request.Host)
 	requestLen += 2 // port
-	_buffer := buf.StackNewSize(requestLen)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(requestLen)
 	defer buffer.Release()
 	if request.UDP {
 		common.Must(buffer.WriteByte(1))
@@ -213,9 +205,7 @@ func ReadServerResponse(stream io.Reader) (*ServerResponse, error) {
 	responseLen += 1 // ok
 	responseLen += 4 // udp session id
 	responseLen += 2 // message len
-	_response := buf.StackNewSize(responseLen)
-	defer common.KeepAlive(_response)
-	response := common.Dup(_response)
+	response := buf.NewSize(responseLen)
 	defer response.Release()
 	_, err := response.ReadFullFrom(stream, responseLen)
 	if err != nil {
@@ -243,9 +233,7 @@ func WriteServerResponse(stream io.Writer, response ServerResponse) error {
 	responseLen += 4 // udp session id
 	responseLen += 2 // message len
 	responseLen += len(response.Message)
-	_buffer := buf.StackNewSize(responseLen)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(responseLen)
 	defer buffer.Release()
 	if response.OK {
 		common.Must(buffer.WriteByte(1))
@@ -338,9 +326,7 @@ func WriteUDPMessage(conn quic.Connection, message UDPMessage) error {
 	messageLen += 1 // frag count
 	messageLen += 2 // data len
 	messageLen += len(message.Data)
-	_buffer := buf.StackNewSize(messageLen)
-	defer common.KeepAlive(_buffer)
-	buffer := common.Dup(_buffer)
+	buffer := buf.NewSize(messageLen)
 	defer buffer.Release()
 	err := writeUDPMessage(conn, message, buffer)
 	if errSize, ok := err.(quic.ErrMessageTooLarge); ok {

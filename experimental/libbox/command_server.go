@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 )
 
 type CommandServer struct {
@@ -22,24 +24,49 @@ type CommandServer struct {
 
 	access     sync.Mutex
 	savedLines *list.List[string]
+	maxLines   int
 	subscriber *observable.Subscriber[string]
 	observer   *observable.Observer[string]
+	service    *BoxService
+
+	urlTestListener *list.Element[func()]
+	urlTestUpdate   chan struct{}
 }
 
 type CommandServerHandler interface {
-	ServiceStop() error
 	ServiceReload() error
 }
 
-func NewCommandServer(sharedDirectory string, handler CommandServerHandler) *CommandServer {
+func NewCommandServer(sharedDirectory string, handler CommandServerHandler, maxLines int32) *CommandServer {
 	server := &CommandServer{
-		sockPath:   filepath.Join(sharedDirectory, "command.sock"),
-		handler:    handler,
-		savedLines: new(list.List[string]),
-		subscriber: observable.NewSubscriber[string](128),
+		sockPath:      filepath.Join(sharedDirectory, "command.sock"),
+		handler:       handler,
+		savedLines:    new(list.List[string]),
+		maxLines:      int(maxLines),
+		subscriber:    observable.NewSubscriber[string](128),
+		urlTestUpdate: make(chan struct{}, 1),
 	}
 	server.observer = observable.NewObserver[string](server.subscriber, 64)
 	return server
+}
+
+func (s *CommandServer) SetService(newService *BoxService) {
+	if s.service != nil && s.listener != nil {
+		service.PtrFromContext[urltest.HistoryStorage](s.service.ctx).RemoveListener(s.urlTestListener)
+		s.urlTestListener = nil
+	}
+	s.service = newService
+	if newService != nil {
+		s.urlTestListener = service.PtrFromContext[urltest.HistoryStorage](newService.ctx).AddListener(s.notifyURLTestUpdate)
+	}
+	s.notifyURLTestUpdate()
+}
+
+func (s *CommandServer) notifyURLTestUpdate() {
+	select {
+	case s.urlTestUpdate <- struct{}{}:
+	default:
+	}
 }
 
 func (s *CommandServer) Start() error {
@@ -92,12 +119,16 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleLogConn(conn)
 	case CommandStatus:
 		return s.handleStatusConn(conn)
-	case CommandServiceStop:
-		return s.handleServiceStop(conn)
 	case CommandServiceReload:
 		return s.handleServiceReload(conn)
 	case CommandCloseConnections:
 		return s.handleCloseConnections(conn)
+	case CommandGroup:
+		return s.handleGroupConn(conn)
+	case CommandSelectOutbound:
+		return s.handleSelectOutbound(conn)
+	case CommandURLTest:
+		return s.handleURLTest(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}
