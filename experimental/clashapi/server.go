@@ -189,6 +189,10 @@ func (s *Server) HistoryStorage() *urltest.HistoryStorage {
 	return s.urlTestHistory
 }
 
+func (s *Server) TrafficManager() *trafficontrol.Manager {
+	return s.trafficManager
+}
+
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {
 	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, castMetadata(metadata), s.router, matchedRule)
 	return tracker, tracker

@@ -55,6 +55,14 @@ func (m *Manager) Now() (up int64, down int64) {
 	return m.uploadBlip.Load(), m.downloadBlip.Load()
 }
 
+func (m *Manager) Total() (up int64, down int64) {
+	return m.uploadTotal.Load(), m.downloadTotal.Load()
+}
+
+func (m *Manager) Connections() int {
+	return m.connections.Len()
+}
+
 func (m *Manager) Snapshot() *Snapshot {
 	var connections []tracker
 	m.connections.Range(func(_ string, value tracker) bool {
