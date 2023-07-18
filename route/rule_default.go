@@ -184,6 +184,9 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.Limiter) > 0 {
+		rule.limiters = append(rule.limiters, options.Limiter...)
+	}
 	return rule, nil
 }
 
@@ -215,6 +218,9 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
 		r.rules[i] = rule
+	}
+	if len(options.Limiter) > 0 {
+		r.limiters = append(r.limiters, options.Limiter...)
 	}
 	return r, nil
 }

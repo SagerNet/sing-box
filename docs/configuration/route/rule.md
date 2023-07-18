@@ -84,14 +84,22 @@
         ],
         "clash_mode": "direct",
         "invert": false,
-        "outbound": "direct"
+        "outbound": "direct",
+        "limiter": [
+          "limiter-a",
+          "limiter-b"
+        ]
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "invert": false,
-        "outbound": "direct"
+        "outbound": "direct",
+        "limiter": [
+          "limiter-a",
+          "limiter-b"
+        ]
       }
     ]
   }
@@ -237,6 +245,10 @@ Invert match result.
 ==Required==
 
 Tag of the target outbound.
+
+#### limiter
+
+Tags of [Limiter](/configuration/limiter). Take effect for all connections matching this rule.
 
 ### Logical Fields
 

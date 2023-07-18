@@ -82,14 +82,22 @@
         ],
         "clash_mode": "direct",
         "invert": false,
-        "outbound": "direct"
+        "outbound": "direct",
+        "limiter": [
+          "limiter-a",
+          "limiter-b"
+        ]
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "invert": false,
-        "outbound": "direct"
+        "outbound": "direct",
+        "limiter": [
+          "limiter-a",
+          "limiter-b"
+        ]
       }
     ]
   }
@@ -235,6 +243,10 @@
 ==必填==
 
 目标出站的标签。
+
+#### limiter
+
+[限速](/zh/configuration/inbound) 标签。对所有匹配该规则的连接生效。
 
 ### 逻辑字段
 

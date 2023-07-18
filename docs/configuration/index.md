@@ -11,6 +11,7 @@ sing-box uses JSON for configuration files.
   "ntp": {},
   "inbounds": [],
   "outbounds": [],
+  "limiters": [],
   "route": {},
   "experimental": {}
 }
@@ -25,6 +26,7 @@ sing-box uses JSON for configuration files.
 | `ntp`          | [NTP](./ntp)                   |
 | `inbounds`     | [Inbound](./inbound)           |
 | `outbounds`    | [Outbound](./outbound)         |
+| `limiters`     | [Limiter](./limiter)           |
 | `route`        | [Route](./route)               |
 | `experimental` | [Experimental](./experimental) |
 
