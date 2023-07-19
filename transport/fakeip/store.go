@@ -50,6 +50,7 @@ func (s *Store) Start() error {
 		if s.inet6Range.IsValid() {
 			s.inet6Current = s.inet6Range.Addr().Next().Next()
 		}
+		_ = storage.FakeIPReset()
 	}
 	s.storage = storage
 	return nil

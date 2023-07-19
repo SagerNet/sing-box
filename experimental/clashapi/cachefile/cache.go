@@ -3,6 +3,7 @@ package cachefile
 import (
 	"net/netip"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,18 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	if cacheID != "" {
 		cacheIDBytes = append([]byte{0}, []byte(cacheID)...)
 	}
+	err = db.Batch(func(tx *bbolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+			bucketName := string(name)
+			if !(bucketName == string(bucketSelected) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
+				delErr := tx.DeleteBucket(name)
+				if delErr != nil {
+					return delErr
+				}
+			}
+			return nil
+		})
+	})
 	return &CacheFile{
 		DB:        db,
 		cacheID:   cacheIDBytes,
