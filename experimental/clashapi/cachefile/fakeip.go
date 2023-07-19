@@ -11,11 +11,13 @@ import (
 	"go.etcd.io/bbolt"
 )
 
+const fakeipBucketPrefix = "fakeip_"
+
 var (
-	bucketFakeIP        = []byte("fakeip")
-	bucketFakeIPDomain4 = []byte("fakeip_domain4")
-	bucketFakeIPDomain6 = []byte("fakeip_domain6")
-	keyMetadata         = []byte("metadata")
+	bucketFakeIP        = []byte(fakeipBucketPrefix + "address")
+	bucketFakeIPDomain4 = []byte(fakeipBucketPrefix + "domain4")
+	bucketFakeIPDomain6 = []byte(fakeipBucketPrefix + "domain6")
+	keyMetadata         = []byte(fakeipBucketPrefix + "metadata")
 )
 
 func (c *CacheFile) FakeIPMetadata() *adapter.FakeIPMetadata {
