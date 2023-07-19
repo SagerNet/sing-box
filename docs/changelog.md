@@ -1,3 +1,7 @@
+#### 1.3.1-rc.1
+
+* Fix bugs and update dependencies
+
 #### 1.3.1-beta.3
 
 * Introducing our [new iOS](/installation/clients/sfi) and [macOS](/installation/clients/sfm) client applications **1**
