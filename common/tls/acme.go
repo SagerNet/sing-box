@@ -21,6 +21,7 @@ import (
 type acmeWrapper struct {
 	ctx    context.Context
 	cfg    *certmagic.Config
+	cache  *certmagic.Cache
 	domain []string
 }
 
@@ -29,7 +30,7 @@ func (w *acmeWrapper) Start() error {
 }
 
 func (w *acmeWrapper) Close() error {
-	w.cfg.Unmanage(w.domain)
+	w.cache.Stop()
 	return nil
 }
 
@@ -77,10 +78,11 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
 	}
 	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeConfig)}
-	config = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
 			return config, nil
 		},
-	}), *config)
-	return config.TLSConfig(), &acmeWrapper{ctx, config, options.Domain}, nil
+	})
+	config = certmagic.New(cache, *config)
+	return config.TLSConfig(), &acmeWrapper{ctx: ctx, cfg: config, cache: cache, domain: options.Domain}, nil
 }
