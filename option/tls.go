@@ -4,6 +4,7 @@ type InboundTLSOptions struct {
 	Enabled         bool                   `json:"enabled,omitempty"`
 	ServerName      string                 `json:"server_name,omitempty"`
 	Insecure        bool                   `json:"insecure,omitempty"`
+	RejectHandshake bool                   `json:"reject_handshake,omitempty"`
 	ALPN            Listable[string]       `json:"alpn,omitempty"`
 	MinVersion      string                 `json:"min_version,omitempty"`
 	MaxVersion      string                 `json:"max_version,omitempty"`
