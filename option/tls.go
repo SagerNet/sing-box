@@ -1,20 +1,20 @@
 package option
 
 type InboundTLSOptions struct {
-	Enabled         bool                   `json:"enabled,omitempty"`
-	ServerName      string                 `json:"server_name,omitempty"`
-	Insecure        bool                   `json:"insecure,omitempty"`
-	RejectHandshake bool                   `json:"reject_handshake,omitempty"`
-	ALPN            Listable[string]       `json:"alpn,omitempty"`
-	MinVersion      string                 `json:"min_version,omitempty"`
-	MaxVersion      string                 `json:"max_version,omitempty"`
-	CipherSuites    Listable[string]       `json:"cipher_suites,omitempty"`
-	Certificate     string                 `json:"certificate,omitempty"`
-	CertificatePath string                 `json:"certificate_path,omitempty"`
-	Key             string                 `json:"key,omitempty"`
-	KeyPath         string                 `json:"key_path,omitempty"`
-	ACME            *InboundACMEOptions    `json:"acme,omitempty"`
-	Reality         *InboundRealityOptions `json:"reality,omitempty"`
+	Enabled          bool                   `json:"enabled,omitempty"`
+	ServerName       string                 `json:"server_name,omitempty"`
+	Insecure         bool                   `json:"insecure,omitempty"`
+	RejectUnknownSNI bool                   `json:"reject_unknown_sni,omitempty"`
+	ALPN             Listable[string]       `json:"alpn,omitempty"`
+	MinVersion       string                 `json:"min_version,omitempty"`
+	MaxVersion       string                 `json:"max_version,omitempty"`
+	CipherSuites     Listable[string]       `json:"cipher_suites,omitempty"`
+	Certificate      string                 `json:"certificate,omitempty"`
+	CertificatePath  string                 `json:"certificate_path,omitempty"`
+	Key              string                 `json:"key,omitempty"`
+	KeyPath          string                 `json:"key_path,omitempty"`
+	ACME             *InboundACMEOptions    `json:"acme,omitempty"`
+	Reality          *InboundRealityOptions `json:"reality,omitempty"`
 }
 
 type OutboundTLSOptions struct {

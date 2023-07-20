@@ -19,15 +19,15 @@ import (
 var errInsecureUnused = E.New("tls: insecure unused")
 
 type STDServerConfig struct {
-	config          *tls.Config
-	logger          log.Logger
-	acmeService     adapter.Service
-	certificate     []byte
-	key             []byte
-	certificatePath string
-	keyPath         string
-	rejectHandshake bool
-	watcher         *fsnotify.Watcher
+	config           *tls.Config
+	logger           log.Logger
+	acmeService      adapter.Service
+	certificate      []byte
+	key              []byte
+	certificatePath  string
+	keyPath          string
+	rejectUnknownSNI bool
+	watcher          *fsnotify.Watcher
 }
 
 func (c *STDServerConfig) ServerName() string {
@@ -145,7 +145,7 @@ func (c *STDServerConfig) reloadKeyPair() error {
 	}
 	setGetCertificateFunc(c.config, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return &keyPair, nil
-	}, c.rejectHandshake)
+	}, c.rejectUnknownSNI)
 	c.logger.Info("reloaded TLS certificate")
 	return nil
 }
@@ -236,7 +236,7 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 		if certificate == nil && key == nil && options.Insecure {
 			setGetCertificateFunc(tlsConfig, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return GenerateKeyPair(router.TimeFunc(), info.ServerName)
-			}, options.RejectHandshake)
+			}, options.RejectUnknownSNI)
 		} else {
 			if certificate == nil {
 				return nil, E.New("missing certificate")
@@ -250,28 +250,28 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 			}
 			setGetCertificateFunc(tlsConfig, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return &keyPair, nil
-			}, options.RejectHandshake)
+			}, options.RejectUnknownSNI)
 		}
 	}
 	return &STDServerConfig{
-		config:          tlsConfig,
-		logger:          logger,
-		acmeService:     acmeService,
-		certificate:     certificate,
-		key:             key,
-		certificatePath: options.CertificatePath,
-		keyPath:         options.KeyPath,
-		rejectHandshake: options.RejectHandshake,
+		config:           tlsConfig,
+		logger:           logger,
+		acmeService:      acmeService,
+		certificate:      certificate,
+		key:              key,
+		certificatePath:  options.CertificatePath,
+		keyPath:          options.KeyPath,
+		rejectUnknownSNI: options.RejectUnknownSNI,
 	}, nil
 }
 
-func setGetCertificateFunc(tlsConfig *tls.Config, getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error), rejectHandshake bool) {
+func setGetCertificateFunc(tlsConfig *tls.Config, getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error), rejectUnknownSNI bool) {
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		cert, err := getCertificate(info)
 		if err != nil {
 			return nil, err
 		}
-		if rejectHandshake {
+		if rejectUnknownSNI {
 			if info.ServerName != "" && info.ServerName == tlsConfig.ServerName {
 				return cert, nil
 			}
