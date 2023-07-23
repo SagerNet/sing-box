@@ -123,11 +123,11 @@ func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, meta
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
-func (h *VLESS) InterfaceUpdated() error {
+func (h *VLESS) InterfaceUpdated() {
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}
-	return nil
+	return
 }
 
 func (h *VLESS) Close() error {

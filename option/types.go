@@ -98,9 +98,9 @@ func (l *Listable[T]) UnmarshalJSON(content []byte) error {
 		return nil
 	}
 	var singleItem T
-	err = json.Unmarshal(content, &singleItem)
-	if err != nil {
-		return err
+	newError := json.Unmarshal(content, &singleItem)
+	if newError != nil {
+		return E.Errors(err, newError)
 	}
 	*l = []T{singleItem}
 	return nil

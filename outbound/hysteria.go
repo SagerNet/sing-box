@@ -241,9 +241,9 @@ func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
 	}
 }
 
-func (h *Hysteria) InterfaceUpdated() error {
+func (h *Hysteria) InterfaceUpdated() {
 	h.Close()
-	return nil
+	return
 }
 
 func (h *Hysteria) Close() error {

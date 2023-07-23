@@ -98,11 +98,11 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	return outbound, nil
 }
 
-func (h *VMess) InterfaceUpdated() error {
+func (h *VMess) InterfaceUpdated() {
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}
-	return nil
+	return
 }
 
 func (h *VMess) Close() error {

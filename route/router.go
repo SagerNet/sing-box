@@ -262,14 +262,16 @@ func NewRouter(
 
 	if needInterfaceMonitor {
 		if !usePlatformDefaultInterfaceMonitor {
-			networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
+			networkMonitor, err := tun.NewNetworkUpdateMonitor(router.logger)
 			if err != os.ErrInvalid {
 				if err != nil {
 					return nil, err
 				}
 				router.networkMonitor = networkMonitor
-				networkMonitor.RegisterCallback(router.interfaceFinder.update)
-				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
+				networkMonitor.RegisterCallback(func() {
+					_ = router.interfaceFinder.update()
+				})
+				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
 					OverrideAndroidVPN:    options.OverrideAndroidVPN,
 					UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
 				})
@@ -280,7 +282,7 @@ func NewRouter(
 				router.interfaceMonitor = interfaceMonitor
 			}
 		} else {
-			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router)
+			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router.logger)
 			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
 			router.interfaceMonitor = interfaceMonitor
 		}
@@ -970,17 +972,21 @@ func (r *Router) NewError(ctx context.Context, err error) {
 	r.logger.ErrorContext(ctx, err)
 }
 
-func (r *Router) notifyNetworkUpdate(int) error {
-	if C.IsAndroid && r.platformInterface == nil {
-		var vpnStatus string
-		if r.interfaceMonitor.AndroidVPNEnabled() {
-			vpnStatus = "enabled"
-		} else {
-			vpnStatus = "disabled"
-		}
-		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+func (r *Router) notifyNetworkUpdate(event int) {
+	if event == tun.EventNoRoute {
+		r.logger.Info("missing default interface")
 	} else {
-		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+		if C.IsAndroid && r.platformInterface == nil {
+			var vpnStatus string
+			if r.interfaceMonitor.AndroidVPNEnabled() {
+				vpnStatus = "enabled"
+			} else {
+				vpnStatus = "disabled"
+			}
+			r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+		} else {
+			r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+		}
 	}
 
 	conntrack.Close()
@@ -988,13 +994,10 @@ func (r *Router) notifyNetworkUpdate(int) error {
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
-			err := listener.InterfaceUpdated()
-			if err != nil {
-				return err
-			}
+			listener.InterfaceUpdated()
 		}
 	}
-	return nil
+	return
 }
 
 func (r *Router) ResetNetwork() error {
@@ -1003,10 +1006,7 @@ func (r *Router) ResetNetwork() error {
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
-			err := listener.InterfaceUpdated()
-			if err != nil {
-				return err
-			}
+			listener.InterfaceUpdated()
 		}
 	}
 	return nil

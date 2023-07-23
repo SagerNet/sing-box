@@ -10,7 +10,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
-	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 )
 
 type Interface interface {
@@ -19,7 +19,7 @@ type Interface interface {
 	AutoDetectInterfaceControl() control.Func
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
 	UsePlatformDefaultInterfaceMonitor() bool
-	CreateDefaultInterfaceMonitor(errorHandler E.Handler) tun.DefaultInterfaceMonitor
+	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
 	UsePlatformInterfaceGetter() bool
 	Interfaces() ([]NetworkInterface, error)
 	UnderNetworkExtension() bool

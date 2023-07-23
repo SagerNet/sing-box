@@ -1,3 +1,13 @@
+#### 1.4.0-beta.1
+
+* Add TUIC support **1**
+* Pause recurring tasks when no network
+
+*1*:
+
+See [TUIC inbound](/configuration/inbound/tuic)
+and [TUIC outbound](/configuration/outbound/tuic)
+
 #### 1.3.6
 
 * Fixes and improvements
