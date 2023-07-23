@@ -1,0 +1,9 @@
+{
+    "server": "[::]:10000",
+    "users": {
+        "FE35D05B-8803-45C4-BAE6-723AD2CD5D3D": "tuic"
+    },
+    "certificate":  "/etc/tuic/cert.pem",
+    "private_key": "/etc/tuic/key.pem",
+    "log_level": "debug"
+}

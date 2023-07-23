@@ -128,6 +128,7 @@ github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6E
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/quic-go v0.0.0-20230731012313-1327e4015111 h1:BjZBIgwzlIbRSijdGQYZf0CaqHY1ZEIOUqVEKEICU0U=
 github.com/sagernet/quic-go v0.0.0-20230731012313-1327e4015111/go.mod h1:5rilP6WxqIl/4ypZbMjr+MK+STxuCEvO5yVtEyYNZ6g=
+github.com/sagernet/quic-go v0.0.0-20230731154841-cdc97aca6239/go.mod h1:5rilP6WxqIl/4ypZbMjr+MK+STxuCEvO5yVtEyYNZ6g=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522/go.mod h1:QVsS5L/ZA2Q5UhQwLrn0Trw+msNd/NPGEhBKR/ioWiY=
