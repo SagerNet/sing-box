@@ -50,8 +50,8 @@ func (b *BrutalSender) TimeUntilSend(bytesInFlight congestion.ByteCount) time.Ti
 	return b.pacer.TimeUntilSend()
 }
 
-func (b *BrutalSender) HasPacingBudget() bool {
-	return b.pacer.Budget(time.Now()) >= b.maxDatagramSize
+func (b *BrutalSender) HasPacingBudget(now time.Time) bool {
+	return b.pacer.Budget(now) >= b.maxDatagramSize
 }
 
 func (b *BrutalSender) CanSend(bytesInFlight congestion.ByteCount) bool {
