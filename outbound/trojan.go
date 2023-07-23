@@ -104,11 +104,11 @@ func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, met
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
-func (h *Trojan) InterfaceUpdated() error {
+func (h *Trojan) InterfaceUpdated() {
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}
-	return nil
+	return
 }
 
 func (h *Trojan) Close() error {

@@ -20,10 +20,10 @@ type systemProxy struct {
 	isMixed       bool
 }
 
-func (p *systemProxy) update(event int) error {
+func (p *systemProxy) update(event int) {
 	newInterfaceName := p.monitor.DefaultInterfaceName(netip.IPv4Unspecified())
 	if p.interfaceName == newInterfaceName {
-		return nil
+		return
 	}
 	if p.interfaceName != "" {
 		_ = p.unset()
@@ -31,7 +31,7 @@ func (p *systemProxy) update(event int) error {
 	p.interfaceName = newInterfaceName
 	interfaceDisplayName, err := getInterfaceDisplayName(p.interfaceName)
 	if err != nil {
-		return err
+		return
 	}
 	if p.isMixed {
 		err = shell.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
@@ -40,9 +40,9 @@ func (p *systemProxy) update(event int) error {
 		err = shell.Exec("networksetup", "-setwebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
 	if err == nil {
-		err = shell.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
+		_ = shell.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, "127.0.0.1", F.ToString(p.port)).Attach().Run()
 	}
-	return err
+	return
 }
 
 func (p *systemProxy) unset() error {
@@ -88,10 +88,7 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 		port:    port,
 		isMixed: isMixed,
 	}
-	err := proxy.update(tun.EventInterfaceUpdate)
-	if err != nil {
-		return nil, err
-	}
+	proxy.update(tun.EventInterfaceUpdate)
 	proxy.element = interfaceMonitor.RegisterCallback(proxy.update)
 	return func() error {
 		interfaceMonitor.UnregisterCallback(proxy.element)
