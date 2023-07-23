@@ -153,6 +153,17 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	return metadata
 }
 
+func (a *myInboundAdapter) createPacketMetadata(conn N.PacketConn, metadata adapter.InboundContext) adapter.InboundContext {
+	metadata.Inbound = a.tag
+	metadata.InboundType = a.protocol
+	metadata.InboundDetour = a.listenOptions.Detour
+	metadata.InboundOptions = a.listenOptions.InboundOptions
+	if !metadata.Destination.IsValid() {
+		metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
+	}
+	return metadata
+}
+
 func (a *myInboundAdapter) newError(err error) {
 	a.logger.Error(err)
 }
