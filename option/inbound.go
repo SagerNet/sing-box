@@ -23,6 +23,7 @@ type _Inbound struct {
 	HysteriaOptions    HysteriaInboundOptions    `json:"-"`
 	ShadowTLSOptions   ShadowTLSInboundOptions   `json:"-"`
 	VLESSOptions       VLESSInboundOptions       `json:"-"`
+	TUICOptions        TUICInboundOptions        `json:"-"`
 }
 
 type Inbound _Inbound
@@ -58,6 +59,8 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowTLSOptions
 	case C.TypeVLESS:
 		v = h.VLESSOptions
+	case C.TypeTUIC:
+		v = h.TUICOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -99,6 +102,8 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowTLSOptions
 	case C.TypeVLESS:
 		v = &h.VLESSOptions
+	case C.TypeTUIC:
+		v = &h.TUICOptions
 	default:
 		return E.New("unknown inbound type: ", h.Type)
 	}
