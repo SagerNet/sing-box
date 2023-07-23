@@ -162,8 +162,11 @@ func (t *Transport) updateServers() error {
 	}
 }
 
-func (t *Transport) interfaceUpdated(int) error {
-	return t.updateServers()
+func (t *Transport) interfaceUpdated(int) {
+	err := t.updateServers()
+	if err != nil {
+		t.logger.Error("update servers: ", err)
+	}
 }
 
 func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) error {

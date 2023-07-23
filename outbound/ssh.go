@@ -174,9 +174,9 @@ func (s *SSH) connect() (*ssh.Client, error) {
 	return client, nil
 }
 
-func (s *SSH) InterfaceUpdated() error {
+func (s *SSH) InterfaceUpdated() {
 	common.Close(s.clientConn)
-	return nil
+	return
 }
 
 func (s *SSH) Close() error {
