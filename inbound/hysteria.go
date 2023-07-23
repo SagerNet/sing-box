@@ -244,7 +244,7 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 
 func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
 	for {
-		packet, err := conn.ReceiveMessage()
+		packet, err := conn.ReceiveMessage(h.ctx)
 		if err != nil {
 			return
 		}
