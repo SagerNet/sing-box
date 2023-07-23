@@ -186,9 +186,9 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	return outbound, nil
 }
 
-func (w *WireGuard) InterfaceUpdated() error {
+func (w *WireGuard) InterfaceUpdated() {
 	w.bind.Reset()
-	return nil
+	return
 }
 
 func (w *WireGuard) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

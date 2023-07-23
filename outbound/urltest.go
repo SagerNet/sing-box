@@ -138,9 +138,9 @@ func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, me
 	return NewPacketConnection(ctx, s, conn, metadata)
 }
 
-func (s *URLTest) InterfaceUpdated() error {
+func (s *URLTest) InterfaceUpdated() {
 	go s.group.CheckOutbounds(true)
-	return nil
+	return
 }
 
 type URLTestGroup struct {

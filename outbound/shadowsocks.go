@@ -129,11 +129,11 @@ func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
-func (h *Shadowsocks) InterfaceUpdated() error {
+func (h *Shadowsocks) InterfaceUpdated() {
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}
-	return nil
+	return
 }
 
 func (h *Shadowsocks) Close() error {

@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
@@ -158,11 +159,11 @@ func (w *platformInterfaceWrapper) UsePlatformDefaultInterfaceMonitor() bool {
 	return w.iif.UsePlatformDefaultInterfaceMonitor()
 }
 
-func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(errorHandler E.Handler) tun.DefaultInterfaceMonitor {
+func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor {
 	return &platformDefaultInterfaceMonitor{
 		platformInterfaceWrapper: w,
-		errorHandler:             errorHandler,
 		defaultInterfaceIndex:    -1,
+		logger:                   logger,
 	}
 }
 
