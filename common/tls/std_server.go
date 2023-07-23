@@ -143,9 +143,12 @@ func (c *STDServerConfig) reloadKeyPair() error {
 	if err != nil {
 		return E.Cause(err, "reload key pair")
 	}
-	setGetCertificateFunc(c.config, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	c.config.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return &keyPair, nil
-	}, c.rejectUnknownSNI)
+	}
+	if c.rejectUnknownSNI {
+		setRejectUnknownSNI(c.config)
+	}
 	c.logger.Info("reloaded TLS certificate")
 	return nil
 }
@@ -234,9 +237,12 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 			key = content
 		}
 		if certificate == nil && key == nil && options.Insecure {
-			setGetCertificateFunc(tlsConfig, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return GenerateKeyPair(router.TimeFunc(), info.ServerName)
-			}, options.RejectUnknownSNI)
+			}
+			if options.RejectUnknownSNI {
+				return nil, E.New("insecure conflict with reject_unknown_sni")
+			}
 		} else {
 			if certificate == nil {
 				return nil, E.New("missing certificate")
@@ -248,9 +254,12 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 			if err != nil {
 				return nil, E.Cause(err, "parse x509 key pair")
 			}
-			setGetCertificateFunc(tlsConfig, func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return &keyPair, nil
-			}, options.RejectUnknownSNI)
+			}
+			if options.RejectUnknownSNI {
+				setRejectUnknownSNI(tlsConfig)
+			}
 		}
 	}
 	return &STDServerConfig{
@@ -265,25 +274,24 @@ func NewSTDServer(ctx context.Context, router adapter.Router, logger log.Logger,
 	}, nil
 }
 
-func setGetCertificateFunc(tlsConfig *tls.Config, getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error), rejectUnknownSNI bool) {
+func setRejectUnknownSNI(tlsConfig *tls.Config) {
+	getCertificate := tlsConfig.GetCertificate
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		cert, err := getCertificate(info)
 		if err != nil {
 			return nil, err
 		}
-		if rejectUnknownSNI {
-			if info.ServerName != "" && info.ServerName == tlsConfig.ServerName {
-				return cert, nil
+		if info.ServerName != "" && info.ServerName == tlsConfig.ServerName {
+			return cert, nil
+		}
+		if cert.Leaf == nil {
+			cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+			if err != nil {
+				return nil, err
 			}
-			if cert.Leaf == nil {
-				cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-				if err != nil {
-					return nil, err
-				}
-			}
-			if err = cert.Leaf.VerifyHostname(info.ServerName); err != nil {
-				return nil, E.Cause(err, "cert is not valid for SNI")
-			}
+		}
+		if err = cert.Leaf.VerifyHostname(info.ServerName); err != nil {
+			return nil, E.Cause(err, "cert is not valid for SNI")
 		}
 		return cert, nil
 	}
