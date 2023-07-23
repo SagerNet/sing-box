@@ -63,14 +63,14 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 			if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
 				return ctx, transport, domainStrategy
 			} else {
-				return ctx, transport, r.defaultDomainStrategy
+				return ctx, transport, dns.DomainStrategyAsIS
 			}
 		}
 	}
 	if domainStrategy, dsLoaded := r.transportDomainStrategy[r.defaultTransport]; dsLoaded {
 		return ctx, r.defaultTransport, domainStrategy
 	} else {
-		return ctx, r.defaultTransport, r.defaultDomainStrategy
+		return ctx, r.defaultTransport, dns.DomainStrategyAsIS
 	}
 }
 
@@ -127,6 +127,22 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	ctx, transport, transportStrategy := r.matchDNS(ctx)
 	if strategy == dns.DomainStrategyAsIS {
 		strategy = transportStrategy
+	}
+	if strategy == dns.DomainStrategyAsIS {
+		switch r.defaultDomainStrategy {
+		case dns.DomainStrategyUseIPv4, dns.DomainStrategyUseIPv6:
+			strategy = r.defaultDomainStrategy
+		}
+	}
+	if strategy == dns.DomainStrategyAsIS && metadata.FakeIP && r.fakeIPDualStack {
+		if metadata.IPVersion == 4 {
+			strategy = dns.DomainStrategyUseIPv4
+		} else if metadata.IPVersion == 6 {
+			strategy = dns.DomainStrategyPreferIPv6
+		}
+	}
+	if strategy == dns.DomainStrategyAsIS {
+		strategy = r.defaultDomainStrategy
 	}
 	ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 	defer cancel()

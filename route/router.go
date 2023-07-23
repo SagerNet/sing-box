@@ -69,6 +69,7 @@ type Router struct {
 	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
 	dnsReverseMapping                  *DNSReverseMapping
 	fakeIPStore                        adapter.FakeIPStore
+	fakeIPDualStack                    bool
 	interfaceFinder                    myInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
@@ -253,6 +254,7 @@ func NewRouter(
 			inet6Range = fakeIPOptions.Inet6Range.Build()
 		}
 		router.fakeIPStore = fakeip.NewStore(router, router.logger, inet4Range, inet6Range)
+		router.fakeIPDualStack = inet4Range.IsValid() && inet6Range.IsValid()
 	}
 
 	usePlatformDefaultInterfaceMonitor := platformInterface != nil && platformInterface.UsePlatformDefaultInterfaceMonitor()
