@@ -39,6 +39,7 @@ nav:
       - From source: installation/from-source.md
       - Clients:
           - iOS: installation/clients/sfi.md
+          - macOS: installation/clients/sfm.md
           - Android: installation/clients/sfa.md
   - Configuration:
       - configuration/index.md
