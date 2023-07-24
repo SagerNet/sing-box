@@ -44,13 +44,13 @@ func WithDefault(ctx context.Context, logger log.ContextLogger, options []option
 
 func (m *defaultManager) createLimiter(ctx context.Context, option option.Limiter) (err error) {
 	var download, upload uint64
-	if len(option.Download) > 0 {
+	if option.Download != "" {
 		download, err = humanize.ParseBytes(option.Download)
 		if err != nil {
 			return err
 		}
 	}
-	if len(option.Upload) > 0 {
+	if option.Upload != "" {
 		upload, err = humanize.ParseBytes(option.Upload)
 		if err != nil {
 			return err
@@ -59,26 +59,29 @@ func (m *defaultManager) createLimiter(ctx context.Context, option option.Limite
 	if download == 0 && upload == 0 {
 		return E.New("download/upload, at least one must be set")
 	}
-	l := newLimiter(download, upload)
-	valid := false
-	if len(option.Tag) > 0 {
-		valid = true
-		m.mp[limiterKey{prefixTag, option.Tag}] = l
-	}
-	if len(option.AuthUser) > 0 {
-		valid = true
-		for _, user := range option.AuthUser {
-			m.mp[limiterKey{prefixUser, user}] = l
-		}
-	}
-	if len(option.Inbound) > 0 {
-		valid = true
-		for _, inbound := range option.Inbound {
-			m.mp[limiterKey{prefixInbound, inbound}] = l
-		}
-	}
-	if !valid {
+	if option.Tag == "" && len(option.AuthUser) == 0 && len(option.Inbound) == 0 {
 		return E.New("tag/user/inbound, at least one must be set")
+	}
+	var sharedLimiter *limiter
+	if option.Tag != "" || !option.AuthUserIndependent || !option.InboundIndependent {
+		sharedLimiter = newLimiter(download, upload)
+	}
+	if option.Tag != "" {
+		m.mp[limiterKey{prefixTag, option.Tag}] = sharedLimiter
+	}
+	for _, user := range option.AuthUser {
+		if option.AuthUserIndependent {
+			m.mp[limiterKey{prefixUser, user}] = newLimiter(download, upload)
+		} else {
+			m.mp[limiterKey{prefixUser, user}] = sharedLimiter
+		}
+	}
+	for _, inbound := range option.Inbound {
+		if option.InboundIndependent {
+			m.mp[limiterKey{prefixInbound, inbound}] = newLimiter(download, upload)
+		} else {
+			m.mp[limiterKey{prefixInbound, inbound}] = sharedLimiter
+		}
 	}
 	return
 }

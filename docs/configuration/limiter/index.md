@@ -13,10 +13,12 @@
         "user-a",
         "user-b"
       ],
+      "auth_user_independent": false,
       "inbound": [
         "in-a",
         "in-b"
-      ]
+      ],
+      "inbound_independent": false
     }
   ]
 }
@@ -39,12 +41,16 @@ The tag of the limiter, used in route rule.
 
 #### auth_user
 
-Global limiter for a group of usernames, see each inbound for details.
+Apply limiter for a group of usernames, see each inbound for details.
+
+#### auth_user_independent
+
+Make each auth_user's limiter independent. If disabled, the same limiter will be shared.
 
 #### inbound
 
-Global limiter for a group of inbounds.
+Apply limiter for a group of inbounds.
 
-!!! info ""
+#### inbound_independent
 
-    All the auth_users, inbounds and route rule with limiter tag share the same limiter. To take effect independently, configure limiters seperately.
+Make each inbound's limiter independent. If disabled, the same limiter will be shared.

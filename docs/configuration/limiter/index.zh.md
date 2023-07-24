@@ -13,10 +13,12 @@
         "user-a",
         "user-b"
       ],
+      "auth_user_independent": false,
       "inbound": [
         "in-a",
         "in-b"
-      ]
+      ],
+      "inbound_independent": false
     }
   ]
 }
@@ -39,12 +41,16 @@
 
 #### auth_user
 
-用户组全局限速，参阅入站设置。
+用户组限速，参阅入站设置。
+
+#### auth_user_independent
+
+使每个用户有单独的限速。关闭时将共享限速。
 
 #### inbound
 
-入站组全局限速。
+入站组限速。
 
-!!! info ""
+#### inbound_independent
 
-    所有用户、入站和有限速标签的路由规则共享同一个限速。为了独立生效，请分别配置限速器。
+使每个入站有单独的限速。关闭时将共享限速。
