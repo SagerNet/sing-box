@@ -45,11 +45,24 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	}
 	err = db.Batch(func(tx *bbolt.Tx) error {
 		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
-			bucketName := string(name)
-			if !(bucketName == string(bucketSelected) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
-				delErr := tx.DeleteBucket(name)
-				if delErr != nil {
-					return delErr
+			if name[0] == 0 {
+				return b.ForEachBucket(func(k []byte) error {
+					bucketName := string(k)
+					if !(bucketName == string(bucketSelected)) {
+						delErr := b.DeleteBucket(name)
+						if delErr != nil {
+							return delErr
+						}
+					}
+					return nil
+				})
+			} else {
+				bucketName := string(name)
+				if !(bucketName == string(bucketSelected) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
+					delErr := tx.DeleteBucket(name)
+					if delErr != nil {
+						return delErr
+					}
 				}
 			}
 			return nil
