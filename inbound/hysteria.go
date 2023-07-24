@@ -284,6 +284,7 @@ func (h *Hysteria) acceptStream(ctx context.Context, conn quic.Connection, strea
 	metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 	metadata.Destination = M.ParseSocksaddrHostPort(request.Host, request.Port).Unwrap()
+	metadata.User, _ = auth.UserFromContext[string](ctx)
 
 	if userIndex, loaded := auth.UserFromContext[int](ctx); loaded {
 		metadata.User = h.authUser[userIndex]

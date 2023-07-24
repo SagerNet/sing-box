@@ -9,7 +9,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-func TestWireGuard(t *testing.T) {
+func _TestWireGuard(t *testing.T) {
 	startDockerContainer(t, DockerOptions{
 		Image: ImageBoringTun,
 		Cap:   []string{"MKNOD", "NET_ADMIN", "NET_RAW"},

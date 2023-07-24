@@ -4,7 +4,6 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 )
@@ -51,6 +50,7 @@ func (s *Store) Start() error {
 		if s.inet6Range.IsValid() {
 			s.inet6Current = s.inet6Range.Addr().Next().Next()
 		}
+		_ = storage.FakeIPReset()
 	}
 	s.storage = storage
 	return nil
@@ -72,9 +72,12 @@ func (s *Store) Close() error {
 	})
 }
 
-func (s *Store) Create(domain string, strategy dns.DomainStrategy) (netip.Addr, error) {
+func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
+	if address, loaded := s.storage.FakeIPLoadDomain(domain, isIPv6); loaded {
+		return address, nil
+	}
 	var address netip.Addr
-	if strategy == dns.DomainStrategyUseIPv4 {
+	if !isIPv6 {
 		if !s.inet4Current.IsValid() {
 			return netip.Addr{}, E.New("missing IPv4 fakeip address range")
 		}

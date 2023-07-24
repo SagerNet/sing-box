@@ -5,13 +5,13 @@ go 1.18
 require (
 	berty.tech/go-libtor v1.0.385
 	github.com/Dreamacro/clash v1.17.0
-	github.com/caddyserver/certmagic v0.18.2
+	github.com/caddyserver/certmagic v0.19.0
 	github.com/cretz/bine v0.2.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/go-chi/chi/v5 v5.0.8
+	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-chi/cors v1.2.1
-	github.com/go-chi/render v1.0.2
+	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.0.0
 	github.com/insomniacslk/dhcp v0.0.0-20230612134759-b20c9ba983df
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -25,14 +25,14 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2
 	github.com/sagernet/quic-go v0.0.0-20230615020047-10f05c797c02
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.8-0.20230707055657-7c9b4d624da7
-	github.com/sagernet/sing-dns v0.1.7-0.20230703131656-fd65b6178bf9
-	github.com/sagernet/sing-mux v0.1.1-0.20230703132253-2cedde0fbc90
-	github.com/sagernet/sing-shadowsocks v0.2.3-0.20230703131347-b044960bd355
-	github.com/sagernet/sing-shadowsocks2 v0.1.2-0.20230703131506-ca0c6adde968
-	github.com/sagernet/sing-shadowtls v0.1.3-0.20230703132509-93bbad3057e4
-	github.com/sagernet/sing-tun v0.1.9-0.20230703134424-fd850d00e5cd
-	github.com/sagernet/sing-vmess v0.1.7-0.20230703132834-48803e0fd8af
+	github.com/sagernet/sing v0.2.9
+	github.com/sagernet/sing-dns v0.1.8
+	github.com/sagernet/sing-mux v0.1.2
+	github.com/sagernet/sing-shadowsocks v0.2.4
+	github.com/sagernet/sing-shadowsocks2 v0.1.3
+	github.com/sagernet/sing-shadowtls v0.1.4
+	github.com/sagernet/sing-tun v0.1.10-0.20230723061951-767ce42377f1
+	github.com/sagernet/sing-vmess v0.1.7
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
@@ -86,6 +86,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	github.com/zeebo/blake3 v0.2.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.11.0 // indirect

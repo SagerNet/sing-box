@@ -52,13 +52,15 @@ func (r *Router) prepareGeoIPDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	geoPath = filemanager.BasePath(r.ctx, geoPath)
-	if rw.FileExists(geoPath) {
-		geoReader, codes, err := geoip.Open(geoPath)
-		if err == nil {
-			r.logger.Info("loaded geoip database: ", len(codes), " codes")
-			r.geoIPReader = geoReader
-			return nil
+	if !rw.FileExists(geoPath) {
+		geoPath = filemanager.BasePath(r.ctx, geoPath)
+	}
+	if stat, err := os.Stat(geoPath); err == nil {
+		if stat.IsDir() {
+			return E.New("geoip path is a directory: ", geoPath)
+		}
+		if stat.Size() == 0 {
+			os.Remove(geoPath)
 		}
 	}
 	if !rw.FileExists(geoPath) {
@@ -96,7 +98,17 @@ func (r *Router) prepareGeositeDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	geoPath = filemanager.BasePath(r.ctx, geoPath)
+	if !rw.FileExists(geoPath) {
+		geoPath = filemanager.BasePath(r.ctx, geoPath)
+	}
+	if stat, err := os.Stat(geoPath); err == nil {
+		if stat.IsDir() {
+			return E.New("geoip path is a directory: ", geoPath)
+		}
+		if stat.Size() == 0 {
+			os.Remove(geoPath)
+		}
+	}
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geosite database not exists: ", geoPath)
 		var err error
@@ -107,7 +119,6 @@ func (r *Router) prepareGeositeDatabase() error {
 			}
 			r.logger.Error("download geosite database: ", err)
 			os.Remove(geoPath)
-			// time.Sleep(10 * time.Second)
 		}
 		if err != nil {
 			return err

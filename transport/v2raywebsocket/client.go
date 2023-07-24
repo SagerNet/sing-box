@@ -21,7 +21,8 @@ var _ adapter.V2RayClientTransport = (*Client)(nil)
 
 type Client struct {
 	dialer              *websocket.Dialer
-	uri                 string
+	requestURL          url.URL
+	requestURLString    string
 	headers             http.Header
 	maxEarlyData        uint32
 	earlyDataHeaderName string
@@ -57,15 +58,15 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			return &deadConn{conn}, nil
 		}
 	}
-	var uri url.URL
+	var requestURL url.URL
 	if tlsConfig == nil {
-		uri.Scheme = "ws"
+		requestURL.Scheme = "ws"
 	} else {
-		uri.Scheme = "wss"
+		requestURL.Scheme = "wss"
 	}
-	uri.Host = serverAddr.String()
-	uri.Path = options.Path
-	err := sHTTP.URLSetPath(&uri, options.Path)
+	requestURL.Host = serverAddr.String()
+	requestURL.Path = options.Path
+	err := sHTTP.URLSetPath(&requestURL, options.Path)
 	if err != nil {
 		return nil
 	}
@@ -75,7 +76,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}
 	return &Client{
 		wsDialer,
-		uri.String(),
+		requestURL,
+		requestURL.String(),
 		headers,
 		options.MaxEarlyData,
 		options.EarlyDataHeaderName,
@@ -84,7 +86,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if c.maxEarlyData <= 0 {
-		conn, response, err := c.dialer.DialContext(ctx, c.uri, c.headers)
+		conn, response, err := c.dialer.DialContext(ctx, c.requestURLString, c.headers)
 		if err == nil {
 			return &WebsocketConn{Conn: conn, Writer: NewWriter(conn, false)}, nil
 		}

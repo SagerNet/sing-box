@@ -7,22 +7,40 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/dialer/conntrack"
+	"github.com/sagernet/sing-box/experimental/clashapi"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
 type StatusMessage struct {
-	Memory      int64
-	Goroutines  int32
-	Connections int32
+	Memory           int64
+	Goroutines       int32
+	ConnectionsIn    int32
+	ConnectionsOut   int32
+	TrafficAvailable bool
+	Uplink           int64
+	Downlink         int64
+	UplinkTotal      int64
+	DownlinkTotal    int64
 }
 
-func readStatus() StatusMessage {
+func (s *CommandServer) readStatus() StatusMessage {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	var message StatusMessage
 	message.Memory = int64(memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased)
 	message.Goroutines = int32(runtime.NumGoroutine())
-	message.Connections = int32(conntrack.Count())
+	message.ConnectionsOut = int32(conntrack.Count())
+
+	if s.service != nil {
+		if clashServer := s.service.instance.Router().ClashServer(); clashServer != nil {
+			message.TrafficAvailable = true
+			trafficManager := clashServer.(*clashapi.Server).TrafficManager()
+			message.Uplink, message.Downlink = trafficManager.Now()
+			message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
+			message.ConnectionsIn = int32(trafficManager.Connections())
+		}
+	}
+
 	return message
 }
 
@@ -36,7 +54,7 @@ func (s *CommandServer) handleStatusConn(conn net.Conn) error {
 	defer ticker.Stop()
 	ctx := connKeepAlive(conn)
 	for {
-		err = binary.Write(conn, binary.BigEndian, readStatus())
+		err = binary.Write(conn, binary.BigEndian, s.readStatus())
 		if err != nil {
 			return err
 		}

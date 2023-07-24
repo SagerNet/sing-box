@@ -75,6 +75,7 @@ func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
 		Image:      ImageV2RayCore,
 		Ports:      []uint16{serverPort, testPort},
 		EntryPoint: "v2ray",
+		Cmd:        []string{"run"},
 		Stdin:      content,
 		Bind: map[string]string{
 			certPem: "/path/to/certificate.crt",
@@ -114,6 +115,7 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 		Image:      ImageV2RayCore,
 		Ports:      []uint16{serverPort, testPort},
 		EntryPoint: "v2ray",
+		Cmd:        []string{"run"},
 		Stdin:      content,
 		Env:        []string{"V2RAY_VMESS_AEAD_FORCED=false"},
 		Bind: map[string]string{

@@ -7,6 +7,15 @@ type Map[K comparable, V any] struct {
 	m sync.Map
 }
 
+func (m *Map[K, V]) Len() int {
+	var count int
+	m.m.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	return count
+}
+
 func (m *Map[K, V]) Load(key K) (V, bool) {
 	v, ok := m.m.Load(key)
 	if !ok {

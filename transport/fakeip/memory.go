@@ -2,48 +2,78 @@ package fakeip
 
 import (
 	"net/netip"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common/cache"
 	"github.com/sagernet/sing/common/logger"
 )
 
 var _ adapter.FakeIPStorage = (*MemoryStorage)(nil)
 
 type MemoryStorage struct {
-	metadata    *adapter.FakeIPMetadata
-	domainCache *cache.LruCache[netip.Addr, string]
+	addressAccess sync.RWMutex
+	domainAccess  sync.RWMutex
+	addressCache  map[netip.Addr]string
+	domainCache4  map[string]netip.Addr
+	domainCache6  map[string]netip.Addr
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		domainCache: cache.New[netip.Addr, string](),
+		addressCache: make(map[netip.Addr]string),
+		domainCache4: make(map[string]netip.Addr),
+		domainCache6: make(map[string]netip.Addr),
 	}
 }
 
 func (s *MemoryStorage) FakeIPMetadata() *adapter.FakeIPMetadata {
-	return s.metadata
+	return nil
 }
 
 func (s *MemoryStorage) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
-	s.metadata = metadata
 	return nil
 }
 
 func (s *MemoryStorage) FakeIPStore(address netip.Addr, domain string) error {
-	s.domainCache.Store(address, domain)
+	s.addressAccess.Lock()
+	s.domainAccess.Lock()
+	s.addressCache[address] = domain
+	if address.Is4() {
+		s.domainCache4[domain] = address
+	} else {
+		s.domainCache6[domain] = address
+	}
+	s.domainAccess.Unlock()
+	s.addressAccess.Unlock()
 	return nil
 }
 
 func (s *MemoryStorage) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
-	s.domainCache.Store(address, domain)
+	_ = s.FakeIPStore(address, domain)
 }
 
 func (s *MemoryStorage) FakeIPLoad(address netip.Addr) (string, bool) {
-	return s.domainCache.Load(address)
+	s.addressAccess.RLock()
+	defer s.addressAccess.RUnlock()
+	domain, loaded := s.addressCache[address]
+	return domain, loaded
+}
+
+func (s *MemoryStorage) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bool) {
+	s.domainAccess.RLock()
+	defer s.domainAccess.RUnlock()
+	if !isIPv6 {
+		address, loaded := s.domainCache4[domain]
+		return address, loaded
+	} else {
+		address, loaded := s.domainCache6[domain]
+		return address, loaded
+	}
 }
 
 func (s *MemoryStorage) FakeIPReset() error {
-	s.domainCache = cache.New[netip.Addr, string]()
+	s.addressCache = make(map[netip.Addr]string)
+	s.domainCache4 = make(map[string]netip.Addr)
+	s.domainCache6 = make(map[string]netip.Addr)
 	return nil
 }

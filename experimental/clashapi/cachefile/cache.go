@@ -3,6 +3,7 @@ package cachefile
 import (
 	"net/netip"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,10 +17,12 @@ var bucketSelected = []byte("selected")
 var _ adapter.ClashCacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	DB         *bbolt.DB
-	cacheID    []byte
-	saveAccess sync.RWMutex
-	saveCache  map[netip.Addr]string
+	DB           *bbolt.DB
+	cacheID      []byte
+	saveAccess   sync.RWMutex
+	saveDomain   map[netip.Addr]string
+	saveAddress4 map[string]netip.Addr
+	saveAddress6 map[string]netip.Addr
 }
 
 func Open(path string, cacheID string) (*CacheFile, error) {
@@ -40,10 +43,27 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	if cacheID != "" {
 		cacheIDBytes = append([]byte{0}, []byte(cacheID)...)
 	}
+	err = db.Batch(func(tx *bbolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+			bucketName := string(name)
+			if !(bucketName == string(bucketSelected) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
+				delErr := tx.DeleteBucket(name)
+				if delErr != nil {
+					return delErr
+				}
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
 	return &CacheFile{
-		DB:        db,
-		cacheID:   cacheIDBytes,
-		saveCache: make(map[netip.Addr]string),
+		DB:           db,
+		cacheID:      cacheIDBytes,
+		saveDomain:   make(map[netip.Addr]string),
+		saveAddress4: make(map[string]netip.Addr),
+		saveAddress6: make(map[string]netip.Addr),
 	}, nil
 }
 
