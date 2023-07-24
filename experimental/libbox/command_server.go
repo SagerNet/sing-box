@@ -78,6 +78,14 @@ func (s *CommandServer) Start() error {
 	if err != nil {
 		return err
 	}
+	if sUserID > 0 {
+		err = os.Chown(s.sockPath, sUserID, sGroupID)
+		if err != nil {
+			listener.Close()
+			os.Remove(s.sockPath)
+			return err
+		}
+	}
 	s.listener = listener
 	go s.loopConnection(listener)
 	return nil
