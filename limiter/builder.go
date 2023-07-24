@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/sagernet/sing-box/common/humanize"
 	"github.com/sagernet/sing-box/log"
@@ -14,19 +13,24 @@ import (
 )
 
 const (
-	limiterTag     = "tag"
-	limiterUser    = "user"
-	limiterInbound = "inbound"
+	prefixTag     = "tag"
+	prefixUser    = "user"
+	prefixInbound = "inbound"
 )
 
 var _ Manager = (*defaultManager)(nil)
 
+type limiterKey struct {
+	Prefix string
+	Name   string
+}
+
 type defaultManager struct {
-	mp *sync.Map
+	mp map[limiterKey]*limiter
 }
 
 func WithDefault(ctx context.Context, logger log.ContextLogger, options []option.Limiter) context.Context {
-	m := &defaultManager{mp: &sync.Map{}}
+	m := &defaultManager{mp: make(map[limiterKey]*limiter)}
 	for i, option := range options {
 		if err := m.createLimiter(ctx, option); err != nil {
 			logger.ErrorContext(ctx, fmt.Sprintf("id=%d, %s", i, err))
@@ -36,10 +40,6 @@ func WithDefault(ctx context.Context, logger log.ContextLogger, options []option
 		}
 	}
 	return service.ContextWith[Manager](ctx, m)
-}
-
-func buildKey(prefix string, tag string) string {
-	return fmt.Sprintf("%s|%s", prefix, tag)
 }
 
 func (m *defaultManager) createLimiter(ctx context.Context, option option.Limiter) (err error) {
@@ -63,18 +63,18 @@ func (m *defaultManager) createLimiter(ctx context.Context, option option.Limite
 	valid := false
 	if len(option.Tag) > 0 {
 		valid = true
-		m.mp.Store(buildKey(limiterTag, option.Tag), l)
+		m.mp[limiterKey{prefixTag, option.Tag}] = l
 	}
 	if len(option.AuthUser) > 0 {
 		valid = true
 		for _, user := range option.AuthUser {
-			m.mp.Store(buildKey(limiterUser, user), l)
+			m.mp[limiterKey{prefixUser, user}] = l
 		}
 	}
 	if len(option.Inbound) > 0 {
 		valid = true
 		for _, inbound := range option.Inbound {
-			m.mp.Store(buildKey(limiterInbound, inbound), l)
+			m.mp[limiterKey{prefixInbound, inbound}] = l
 		}
 	}
 	if !valid {
@@ -84,16 +84,16 @@ func (m *defaultManager) createLimiter(ctx context.Context, option option.Limite
 }
 
 func (m *defaultManager) LoadLimiters(tags []string, user, inbound string) (limiters []*limiter) {
-	for _, t := range tags {
-		if v, ok := m.mp.Load(buildKey(limiterTag, t)); ok {
-			limiters = append(limiters, v.(*limiter))
+	for _, tag := range tags {
+		if v, ok := m.mp[limiterKey{prefixTag, tag}]; ok {
+			limiters = append(limiters, v)
 		}
 	}
-	if v, ok := m.mp.Load(buildKey(limiterUser, user)); ok {
-		limiters = append(limiters, v.(*limiter))
+	if v, ok := m.mp[limiterKey{prefixUser, user}]; ok {
+		limiters = append(limiters, v)
 	}
-	if v, ok := m.mp.Load(buildKey(limiterInbound, inbound)); ok {
-		limiters = append(limiters, v.(*limiter))
+	if v, ok := m.mp[limiterKey{prefixInbound, inbound}]; ok {
+		limiters = append(limiters, v)
 	}
 	return
 }
