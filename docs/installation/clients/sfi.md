@@ -9,6 +9,7 @@ Experimental iOS client for sing-box.
 
 #### Download
 
+* [AppStore](https://apps.apple.com/us/app/sing-box/id6451272673)
 * [TestFlight](https://testflight.apple.com/join/AcqO44FH)
 
 #### Note

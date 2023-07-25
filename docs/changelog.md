@@ -1,3 +1,9 @@
+#### 1.3.4
+
+* Fixes and improvements
+* We're now on the [App Store](https://apps.apple.com/us/app/sing-box/id6451272673), always free! It should be noted that due to stricter and slower review, the release of Store versions will be delayed.
+* We've made a standalone version of the macOS client (the original Application Extension relies on App Store distribution), which you can download as SFM-version-universal.zip in the release artifacts.
+
 #### 1.3.3
 
 * Fixes and improvements
