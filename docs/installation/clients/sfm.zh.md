@@ -5,11 +5,18 @@
 #### 要求
 
 * macOS 13.0+
+* 一个非中国大陆地区的 Apple 账号 (商店版本)
 
-#### 下载
+#### 下载 (商店版本)
 
 * [AppStore](https://apps.apple.com/us/app/sing-box/id6451272673)
 * [TestFlight](https://testflight.apple.com/join/AcqO44FH)
+
+#### 下载 (独立版本)
+
+* [GitHub Release](https://github.com/SagerNet/sing-box/releases/latest)
+* Homebrew (Cask): `brew install sfm`
+* Homebrew (Tap): `brew tap sagernet/sing-box && brew install sagernet/sing-box/sfm`
 
 #### 注意事项
 

@@ -5,7 +5,7 @@
 #### 要求
 
 * iOS 15.0+
-* macOS 12.0+ with Apple Silicon
+* 一个非中国大陆地区的 Apple 账号
 
 #### 下载
 
