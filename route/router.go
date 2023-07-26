@@ -645,6 +645,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
 			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+				if metadata.InboundOptions.SniffOverrideFallback && metadata.Destination.Addr.IsValid() {
+					metadata.DestinationAddresses = []netip.Addr{metadata.Destination.Addr}
+				}
 				metadata.Destination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
@@ -676,10 +679,14 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
-			return err
+			if len(metadata.DestinationAddresses) == 0 {
+				return err
+			}
+			r.logger.WarnContext(ctx, "using original destination [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		} else {
+			metadata.DestinationAddresses = addresses
+			r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 		}
-		metadata.DestinationAddresses = addresses
-		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
 	if err != nil {
@@ -784,10 +791,14 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
 		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
 		if err != nil {
-			return err
+			if len(metadata.DestinationAddresses) == 0 {
+				return err
+			}
+			r.logger.WarnContext(ctx, "using original destination [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+		} else {
+			metadata.DestinationAddresses = addresses
+			r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 		}
-		metadata.DestinationAddresses = addresses
-		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
 	if err != nil {

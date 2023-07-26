@@ -8,6 +8,7 @@
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
+  "sniff_override_fallback": false,
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
   "udp_timeout": 300,
@@ -58,6 +59,12 @@
 用探测出的域名覆盖连接目标地址。
 
 如果域名无效（如 Tor），将不生效。
+
+#### sniff_override_fallback
+
+当 `sniff_override_destination` 开启且探测出的域名解析失败时，回退使用原连接目标地址。
+
+当使用自定义域名时有帮助。
 
 #### sniff_timeout
 

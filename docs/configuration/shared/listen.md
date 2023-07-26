@@ -8,6 +8,7 @@
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
+  "sniff_override_fallback": false,
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
   "udp_timeout": 300,
@@ -57,6 +58,12 @@ See [Protocol Sniff](/configuration/route/sniff/) for details.
 Override the connection destination address with the sniffed domain.
 
 If the domain name is invalid (like tor), this will not work.
+
+#### sniff_override_fallback
+
+If the sniffed domain fails to be resolved when `sniff_override_destination` is enabled, use the original destination address as fallback.
+
+Helpful when using customized domain.
 
 #### sniff_timeout
 

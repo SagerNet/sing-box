@@ -112,6 +112,7 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 type InboundOptions struct {
 	SniffEnabled             bool           `json:"sniff,omitempty"`
 	SniffOverrideDestination bool           `json:"sniff_override_destination,omitempty"`
+	SniffOverrideFallback    bool           `json:"sniff_override_fallback,omitempty"`
 	SniffTimeout             Duration       `json:"sniff_timeout,omitempty"`
 	DomainStrategy           DomainStrategy `json:"domain_strategy,omitempty"`
 }
