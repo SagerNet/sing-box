@@ -45,6 +45,7 @@ nav:
           - Specification: installation/clients/specification.md
           - iOS: installation/clients/sfi.md
           - macOS: installation/clients/sfm.md
+          - Apple tvOS: installation/clients/sft.md
           - Android: installation/clients/sfa.md
   - Configuration:
       - configuration/index.md
