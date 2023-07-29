@@ -11,21 +11,26 @@ import (
 )
 
 var (
-	sBasePath string
-	sTempPath string
-	sUserID   int
-	sGroupID  int
+	sBasePath    string
+	sWorkingPath string
+	sTempPath    string
+	sUserID      int
+	sGroupID     int
+	sTVOS        bool
 )
 
-func Setup(basePath string, tempPath string) {
+func Setup(basePath string, workingPath string, tempPath string, isTVOS bool) {
 	sBasePath = basePath
+	sWorkingPath = workingPath
 	sTempPath = tempPath
 	sUserID = os.Getuid()
 	sGroupID = os.Getgid()
+	sTVOS = isTVOS
 }
 
-func SetupWithUsername(basePath string, tempPath string, username string) error {
+func SetupWithUsername(basePath string, workingPath string, tempPath string, username string) error {
 	sBasePath = basePath
+	sWorkingPath = workingPath
 	sTempPath = tempPath
 	sUser, err := user.Lookup(username)
 	if err != nil {

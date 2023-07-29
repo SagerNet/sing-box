@@ -21,7 +21,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.11.0
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
-	github.com/sagernet/gomobile v0.0.0-20230701084532-493ee2e45182
+	github.com/sagernet/gomobile v0.0.0-20230728014906-3de089147f59
 	github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2
 	github.com/sagernet/quic-go v0.0.0-20230615020047-10f05c797c02
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691

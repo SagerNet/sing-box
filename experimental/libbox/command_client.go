@@ -10,10 +10,9 @@ import (
 )
 
 type CommandClient struct {
-	sharedDirectory string
-	handler         CommandClientHandler
-	conn            net.Conn
-	options         CommandClientOptions
+	handler CommandClientHandler
+	conn    net.Conn
+	options CommandClientOptions
 }
 
 type CommandClientOptions struct {
@@ -29,25 +28,26 @@ type CommandClientHandler interface {
 	WriteGroups(message OutboundGroupIterator)
 }
 
-func NewStandaloneCommandClient(sharedDirectory string) *CommandClient {
-	return &CommandClient{
-		sharedDirectory: sharedDirectory,
-	}
+func NewStandaloneCommandClient() *CommandClient {
+	return new(CommandClient)
 }
 
 func NewCommandClient(sharedDirectory string, handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
 	return &CommandClient{
-		sharedDirectory: sharedDirectory,
-		handler:         handler,
-		options:         common.PtrValueOrDefault(options),
+		handler: handler,
+		options: common.PtrValueOrDefault(options),
 	}
 }
 
 func (c *CommandClient) directConnect() (net.Conn, error) {
-	return net.DialUnix("unix", nil, &net.UnixAddr{
-		Name: filepath.Join(c.sharedDirectory, "command.sock"),
-		Net:  "unix",
-	})
+	if !sTVOS {
+		return net.DialUnix("unix", nil, &net.UnixAddr{
+			Name: filepath.Join(sBasePath, "command.sock"),
+			Net:  "unix",
+		})
+	} else {
+		return net.Dial("tcp", "127.0.0.1:8964")
+	}
 }
 
 func (c *CommandClient) Connect() error {
