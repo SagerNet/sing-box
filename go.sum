@@ -105,8 +105,8 @@ github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0 h1:KyhtFFt
 github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0/go.mod h1:D4SFEOkJK+4W1v86ZhX0jPM0rAL498fyQAChqMtes/I=
 github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 h1:5+m7c6AkmAylhauulqN/c5dnh8/KssrE9c93TQrXldA=
 github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61/go.mod h1:QUQ4RRHD6hGGHdFMEtR8T2P6GS6R3D/CXKdaYHKKXms=
-github.com/sagernet/gomobile v0.0.0-20230701084532-493ee2e45182 h1:sD5g92IO15RAX2DvA4Cq3Uc7tcgqNWVi8K3VTCI6sEo=
-github.com/sagernet/gomobile v0.0.0-20230701084532-493ee2e45182/go.mod h1:5YE39YkJkCcMsfq1jMKkjsrM2GfBoF9JVWnvU89hmvU=
+github.com/sagernet/gomobile v0.0.0-20230728014906-3de089147f59 h1:vN4divY6LYHcYmiTsCHNPmGZtEsEKJzh81LyvgAQfEQ=
+github.com/sagernet/gomobile v0.0.0-20230728014906-3de089147f59/go.mod h1:5YE39YkJkCcMsfq1jMKkjsrM2GfBoF9JVWnvU89hmvU=
 github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2 h1:dnkKrzapqtAwjTSWt6hdPrARORfoYvuUczynvRLrueo=
 github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2/go.mod h1:1JUiV7nGuf++YFm9eWZ8q2lrwHmhcUGzptMl/vL1+LA=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6EslacyapiRz7LLSJyr4RajF/BhMVyE=

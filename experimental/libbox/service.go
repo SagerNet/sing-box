@@ -33,7 +33,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	ctx = filemanager.WithDefault(ctx, sBasePath, sTempPath, sUserID, sGroupID)
+	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
 	instance, err := box.New(box.Options{
 		Context:           ctx,

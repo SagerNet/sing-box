@@ -18,7 +18,6 @@ import (
 )
 
 type CommandServer struct {
-	sockPath string
 	listener net.Listener
 	handler  CommandServerHandler
 
@@ -37,9 +36,8 @@ type CommandServerHandler interface {
 	ServiceReload() error
 }
 
-func NewCommandServer(sharedDirectory string, handler CommandServerHandler, maxLines int32) *CommandServer {
+func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServer {
 	server := &CommandServer{
-		sockPath:      filepath.Join(sharedDirectory, "command.sock"),
 		handler:       handler,
 		savedLines:    new(list.List[string]),
 		maxLines:      int(maxLines),
@@ -70,21 +68,40 @@ func (s *CommandServer) notifyURLTestUpdate() {
 }
 
 func (s *CommandServer) Start() error {
-	os.Remove(s.sockPath)
+	if !sTVOS {
+		return s.listenUNIX()
+	} else {
+		return s.listenTCP()
+	}
+}
+
+func (s *CommandServer) listenUNIX() error {
+	sockPath := filepath.Join(sBasePath, "command.sock")
+	os.Remove(sockPath)
 	listener, err := net.ListenUnix("unix", &net.UnixAddr{
-		Name: s.sockPath,
+		Name: sockPath,
 		Net:  "unix",
 	})
 	if err != nil {
-		return err
+		return E.Cause(err, "listen")
 	}
 	if sUserID > 0 {
-		err = os.Chown(s.sockPath, sUserID, sGroupID)
+		err = os.Chown(sockPath, sUserID, sGroupID)
 		if err != nil {
 			listener.Close()
-			os.Remove(s.sockPath)
-			return err
+			os.Remove(sockPath)
+			return E.Cause(err, "chown")
 		}
+	}
+	s.listener = listener
+	go s.loopConnection(listener)
+	return nil
+}
+
+func (s *CommandServer) listenTCP() error {
+	listener, err := net.Listen("tcp", "127.0.0.1:8964")
+	if err != nil {
+		return E.Cause(err, "listen")
 	}
 	s.listener = listener
 	go s.loopConnection(listener)
