@@ -83,7 +83,7 @@ func (s *CommandServer) listenUNIX() error {
 		Net:  "unix",
 	})
 	if err != nil {
-		return E.Cause(err, "listen")
+		return E.Cause(err, "listen ", sockPath)
 	}
 	if sUserID > 0 {
 		err = os.Chown(sockPath, sUserID, sGroupID)
