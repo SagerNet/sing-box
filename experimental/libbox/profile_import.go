@@ -2,7 +2,9 @@ package libbox
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
+	"io"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
@@ -170,25 +172,43 @@ type ProfileContent struct {
 }
 
 func (c *ProfileContent) Encode() []byte {
-	var buffer bytes.Buffer
+	buffer := new(bytes.Buffer)
 	buffer.WriteByte(MessageTypeProfileContent)
-	rw.WriteVString(&buffer, c.Name)
-	binary.Write(&buffer, binary.BigEndian, c.Type)
-	rw.WriteVString(&buffer, c.Config)
-	rw.WriteVString(&buffer, c.RemotePath)
-	binary.Write(&buffer, binary.BigEndian, c.AutoUpdate)
-	binary.Write(&buffer, binary.BigEndian, c.LastUpdated)
+	buffer.WriteByte(0)
+	writer := gzip.NewWriter(buffer)
+	rw.WriteVString(writer, c.Name)
+	binary.Write(writer, binary.BigEndian, c.Type)
+	rw.WriteVString(writer, c.Config)
+	if c.Type != ProfileTypeLocal {
+		rw.WriteVString(writer, c.RemotePath)
+		binary.Write(writer, binary.BigEndian, c.AutoUpdate)
+		binary.Write(writer, binary.BigEndian, c.LastUpdated)
+	}
+	writer.Flush()
+	writer.Close()
 	return buffer.Bytes()
 }
 
 func DecodeProfileContent(data []byte) (*ProfileContent, error) {
-	reader := bytes.NewReader(data)
+	var reader io.Reader = bytes.NewReader(data)
 	messageType, err := rw.ReadByte(reader)
 	if err != nil {
 		return nil, err
 	}
 	if messageType != MessageTypeProfileContent {
 		return nil, E.New("invalid message")
+	}
+	version, err := rw.ReadByte(reader)
+	if err != nil {
+		return nil, err
+	}
+	if version == 0 {
+		reader, err = gzip.NewReader(reader)
+		if err != nil {
+			return nil, E.Cause(err, "unsupported profile")
+		}
+	} else {
+		return nil, E.Cause(err, "unsupported profile")
 	}
 	var content ProfileContent
 	content.Name, err = rw.ReadVString(reader)
@@ -203,17 +223,19 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 	if err != nil {
 		return nil, err
 	}
-	content.RemotePath, err = rw.ReadVString(reader)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Read(reader, binary.BigEndian, &content.AutoUpdate)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Read(reader, binary.BigEndian, &content.LastUpdated)
-	if err != nil {
-		return nil, err
+	if content.Type != ProfileTypeLocal {
+		content.RemotePath, err = rw.ReadVString(reader)
+		if err != nil {
+			return nil, err
+		}
+		err = binary.Read(reader, binary.BigEndian, &content.AutoUpdate)
+		if err != nil {
+			return nil, err
+		}
+		err = binary.Read(reader, binary.BigEndian, &content.LastUpdated)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &content, nil
 }
