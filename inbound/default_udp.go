@@ -12,21 +12,49 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/sys/unix"
 )
 
 func (a *myInboundAdapter) ListenUDP() (net.PacketConn, error) {
-	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
-	var lc net.ListenConfig
+	var bindAddr M.Socksaddr
 	var udpFragment bool
 	if a.listenOptions.UDPFragment != nil {
 		udpFragment = *a.listenOptions.UDPFragment
 	} else {
 		udpFragment = a.listenOptions.UDPFragmentDefault
 	}
-	if !udpFragment {
-		lc.Control = control.Append(lc.Control, control.DisableUDPFragment())
+	var udpConn net.PacketConn
+	var err error
+	a.initFds()
+	if a.udpFd != 0 {
+		if !udpFragment {
+			if err := unix.SetsockoptInt(a.udpFd, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER, unix.IP_PMTUDISC_DO); err != nil {
+				a.logger.Warn("SETSOCKOPT IP_MTU_DISCOVER IP_PMTUDISC_DO: ", err)
+			}
+			sa, err := unix.Getsockname(a.udpFd)
+			if err == nil {
+				if _, isIpv6 := sa.(*unix.SockaddrInet6); isIpv6 {
+					if err := unix.SetsockoptInt(a.udpFd, unix.IPPROTO_IPV6, unix.IPV6_MTU_DISCOVER, unix.IP_PMTUDISC_DO); err != nil {
+						a.logger.Warn("SETSOCKOPT IPV6_MTU_DISCOVER IP_PMTUDISC_DO", err)
+					}
+				}
+			} else {
+				a.logger.Error("fd:", a.udpFd, " get addr error: ", err)
+			}
+		}
+		f := os.NewFile(uintptr(a.udpFd), "")
+		udpConn, err = net.FilePacketConn(f)
+		f.Close()
+		bindAddr = M.SocksaddrFromNet(udpConn.LocalAddr())
+	} else {
+		var lc net.ListenConfig
+		bindAddr = M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
+		if !udpFragment {
+			lc.Control = control.Append(lc.Control, control.DisableUDPFragment())
+		}
+		udpConn, err = lc.ListenPacket(a.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
 	}
-	udpConn, err := lc.ListenPacket(a.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
 	if err != nil {
 		return nil, err
 	}

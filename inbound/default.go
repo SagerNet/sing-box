@@ -14,6 +14,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/sys/unix"
 )
 
 var _ adapter.Inbound = (*myInboundAdapter)(nil)
@@ -38,6 +40,8 @@ type myInboundAdapter struct {
 
 	// internal
 
+	tcpFd                int
+	udpFd                int
 	tcpListener          net.Listener
 	udpConn              *net.UDPConn
 	udpAddr              M.Socksaddr
@@ -109,6 +113,24 @@ func (a *myInboundAdapter) Close() error {
 		a.tcpListener,
 		common.PtrOrNil(a.udpConn),
 	))
+}
+
+func (a *myInboundAdapter) initFds() {
+	if len(a.listenOptions.Fds) != 0 && a.tcpFd == 0 && a.udpFd == 0 {
+		for _, fd := range a.listenOptions.Fds {
+			sotype, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_TYPE)
+			if err != nil {
+				a.logger.Error("fd:", fd, " get type error: ", err)
+				continue
+			}
+			switch sotype {
+			case unix.SOCK_STREAM:
+				a.tcpFd = fd
+			case unix.SOCK_DGRAM:
+				a.udpFd = fd
+			}
+		}
+	}
 }
 
 func (a *myInboundAdapter) upstreamHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {

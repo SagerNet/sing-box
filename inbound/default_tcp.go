@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/proxyproto"
@@ -15,12 +16,25 @@ import (
 
 func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 	var err error
-	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var tcpListener net.Listener
-	if !a.listenOptions.TCPFastOpen {
-		tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+	a.initFds()
+	if a.tcpFd != 0 {
+		if a.listenOptions.TCPFastOpen {
+			err = tfo.SetTFOListener(uintptr(a.tcpFd))
+			if err != nil {
+				a.logger.Warn("fd:", a.tcpFd, " set tfo error: ", err)
+			}
+		}
+		f := os.NewFile(uintptr(a.tcpFd), "")
+		tcpListener, err = net.FileListener(f)
+		f.Close()
 	} else {
-		tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+		bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
+		if !a.listenOptions.TCPFastOpen {
+			tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+		} else {
+			tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+		}
 	}
 	if err == nil {
 		a.logger.Info("tcp server started at ", tcpListener.Addr())
