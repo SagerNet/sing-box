@@ -1,3 +1,14 @@
+#### 1.3.5
+
+* Fixes and improvements
+* Introducing our [Apple tvOS](/installation/clients/sft) client applications **1**
+* Add per app proxy and app installed/updated trigger support for Android client
+* Add profile sharing support for Android/iOS/macOS clients
+
+**1**:
+
+Due to the requirement of tvOS 17, the app cannot be submitted to the App Store for the time being, and can only be downloaded through TestFlight.
+
 #### 1.3.4
 
 * Fixes and improvements
