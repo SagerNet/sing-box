@@ -97,12 +97,6 @@ Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4)
 
 Force enabled on for systems other than Linux and Windows (according to upstream).
 
-#### tls
-
-==Required==
-
-TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
-
 #### network
 
 Enabled network
@@ -110,6 +104,12 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### tls
+
+==Required==
+
+TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 ### Dial Fields
 
