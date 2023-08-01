@@ -97,10 +97,6 @@ base64 编码的认证密码。
 
 强制为 Linux 和 Windows 以外的系统启用（根据上游）。
 
-==必填==
-
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
-
 #### network
 
 启用的网络协议。
@@ -108,6 +104,13 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 `tcp` 或 `udp`。
 
 默认所有。
+
+#### tls
+
+==必填==
+
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
+
 
 ### 拨号字段
 
