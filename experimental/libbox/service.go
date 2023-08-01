@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/common/sleep"
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
@@ -22,9 +23,10 @@ import (
 )
 
 type BoxService struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	instance *box.Box
+	ctx          context.Context
+	cancel       context.CancelFunc
+	instance     *box.Box
+	sleepManager *sleep.Manager
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
@@ -35,6 +37,8 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
+	sleepManager := sleep.NewManager()
+	ctx = service.ContextWithPtr(ctx, sleepManager)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
@@ -45,9 +49,10 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		return nil, E.Cause(err, "create service")
 	}
 	return &BoxService{
-		ctx:      ctx,
-		cancel:   cancel,
-		instance: instance,
+		ctx:          ctx,
+		cancel:       cancel,
+		instance:     instance,
+		sleepManager: sleepManager,
 	}, nil
 }
 
@@ -58,6 +63,15 @@ func (s *BoxService) Start() error {
 func (s *BoxService) Close() error {
 	s.cancel()
 	return s.instance.Close()
+}
+
+func (s *BoxService) Sleep() {
+	s.sleepManager.Sleep()
+	_ = s.instance.Router().ResetNetwork()
+}
+
+func (s *BoxService) Wake() {
+	s.sleepManager.Wake()
 }
 
 var _ platform.Interface = (*platformInterfaceWrapper)(nil)
