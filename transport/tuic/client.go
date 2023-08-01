@@ -80,6 +80,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 		congestionControl: options.CongestionControl,
 		udpStream:         options.UDPStream,
 		zeroRTTHandshake:  options.ZeroRTTHandshake,
+		heartbeat:         options.Heartbeat,
 	}, nil
 }
 
