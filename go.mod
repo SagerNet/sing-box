@@ -27,7 +27,7 @@ require (
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.2.10-0.20230802105922-c6a69b4912ee
 	github.com/sagernet/sing-dns v0.1.9-0.20230731012726-ad50da89b659
-	github.com/sagernet/sing-mux v0.1.2
+	github.com/sagernet/sing-mux v0.1.3-0.20230803070305-ea4a972acd21
 	github.com/sagernet/sing-shadowsocks v0.2.4
 	github.com/sagernet/sing-shadowsocks2 v0.1.3
 	github.com/sagernet/sing-shadowtls v0.1.4
@@ -45,7 +45,7 @@ require (
 	go4.org/netipx v0.0.0-20230728184502-ec4c8b891b28
 	golang.org/x/crypto v0.11.0
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
-	golang.org/x/net v0.12.0
+	golang.org/x/net v0.13.0
 	golang.org/x/sys v0.10.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.57.0

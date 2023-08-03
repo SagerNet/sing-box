@@ -150,6 +150,7 @@ github.com/sagernet/sing-dns v0.1.9-0.20230731012726-ad50da89b659/go.mod h1:W7GH
 github.com/sagernet/sing-mux v0.1.1-0.20230703132253-2cedde0fbc90 h1:aEe2HrRc9OTS7IZ8RHyh224OhltnwRQs4/y89UsHPo8=
 github.com/sagernet/sing-mux v0.1.1-0.20230703132253-2cedde0fbc90/go.mod h1:sm126rB5EUi9HLf4jCSHTqo+XRPbh4BoEVeLbr2WRbE=
 github.com/sagernet/sing-mux v0.1.2/go.mod h1:r2V8AlOzXaRCHXK7fILCUGzuI2iILweTaG8C5xlpHxo=
+github.com/sagernet/sing-mux v0.1.3-0.20230803070305-ea4a972acd21/go.mod h1:TKxqIvfQQgd36jp2tzsPavGjYTVZilV+atip1cssjIY=
 github.com/sagernet/sing-shadowsocks v0.2.3-0.20230703131347-b044960bd355 h1:XOgNZYnkDrx5qtNS4kqIOHMhjZuc7mJ2pY/x3EyZX8Q=
 github.com/sagernet/sing-shadowsocks v0.2.3-0.20230703131347-b044960bd355/go.mod h1:atEATsxqPo8qCPcFt8Rw7TFEJ70egCoMR7PziX4jmjI=
 github.com/sagernet/sing-shadowsocks v0.2.4/go.mod h1:80fNKP0wnqlu85GZXV1H1vDPC/2t+dQbFggOw4XuFUM=
@@ -229,6 +230,7 @@ golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v
 golang.org/x/net v0.0.0-20210525063256-abc453219eb5/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
 golang.org/x/net v0.12.0 h1:cfawfvKITfUsFCeJIHJrbSxpeu/E81khclypR0GVT50=
 golang.org/x/net v0.12.0/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
+golang.org/x/net v0.13.0/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=

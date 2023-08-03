@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
@@ -190,6 +191,7 @@ func (c *Conn) Upstream() any {
 
 type PacketConn struct {
 	net.Conn
+	access         sync.Mutex
 	key            [16]byte
 	destination    M.Socksaddr
 	flow           string
@@ -218,11 +220,17 @@ func (c *PacketConn) Read(b []byte) (n int, err error) {
 
 func (c *PacketConn) Write(b []byte) (n int, err error) {
 	if !c.requestWritten {
-		err = WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination, c.flow}, nil)
-		if err == nil {
-			n = len(b)
+		c.access.Lock()
+		if c.requestWritten {
+			c.access.Unlock()
+		} else {
+			err = WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination, c.flow}, nil)
+			if err == nil {
+				n = len(b)
+			}
+			c.requestWritten = true
+			c.access.Unlock()
 		}
-		c.requestWritten = true
 	}
 	err = binary.Write(c.Conn, binary.BigEndian, uint16(len(b)))
 	if err != nil {
@@ -236,9 +244,15 @@ func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) er
 	dataLen := buffer.Len()
 	binary.BigEndian.PutUint16(buffer.ExtendHeader(2), uint16(dataLen))
 	if !c.requestWritten {
-		err := WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination, c.flow}, buffer.Bytes())
-		c.requestWritten = true
-		return err
+		c.access.Lock()
+		if c.requestWritten {
+			c.access.Unlock()
+		} else {
+			err := WritePacketRequest(c.Conn, Request{c.key, vmess.CommandUDP, c.destination, c.flow}, buffer.Bytes())
+			c.requestWritten = true
+			c.access.Unlock()
+			return err
+		}
 	}
 	return common.Error(c.Conn.Write(buffer.Bytes()))
 }
