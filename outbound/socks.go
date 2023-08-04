@@ -39,7 +39,7 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 	}
 	outbound := &Socks{
 		myOutboundAdapter: myOutboundAdapter{
-			protocol:     C.TypeSocks,
+			protocol:     C.TypeSOCKS,
 			network:      options.Network.Build(),
 			router:       router,
 			logger:       logger,

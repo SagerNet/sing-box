@@ -48,3 +48,7 @@ func Version() string {
 func FormatBytes(length int64) string {
 	return humanize.IBytes(uint64(length))
 }
+
+func ProxyDisplayType(proxyType string) string {
+	return C.ProxyDisplayName(proxyType)
+}

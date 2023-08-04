@@ -7,7 +7,7 @@ const (
 	TypeDirect       = "direct"
 	TypeBlock        = "block"
 	TypeDNS          = "dns"
-	TypeSocks        = "socks"
+	TypeSOCKS        = "socks"
 	TypeHTTP         = "http"
 	TypeMixed        = "mixed"
 	TypeShadowsocks  = "shadowsocks"
@@ -27,3 +27,46 @@ const (
 	TypeSelector = "selector"
 	TypeURLTest  = "urltest"
 )
+
+func ProxyDisplayName(proxyType string) string {
+	switch proxyType {
+	case TypeDirect:
+		return "Direct"
+	case TypeBlock:
+		return "Block"
+	case TypeDNS:
+		return "DNS"
+	case TypeSOCKS:
+		return "SOCKS"
+	case TypeHTTP:
+		return "HTTP"
+	case TypeShadowsocks:
+		return "Shadowsocks"
+	case TypeVMess:
+		return "VMess"
+	case TypeTrojan:
+		return "Trojan"
+	case TypeNaive:
+		return "Naive"
+	case TypeWireGuard:
+		return "WireGuard"
+	case TypeHysteria:
+		return "Hysteria"
+	case TypeTor:
+		return "Tor"
+	case TypeSSH:
+		return "SSH"
+	case TypeShadowTLS:
+		return "ShadowTLS"
+	case TypeShadowsocksR:
+		return "ShadowsocksR"
+	case TypeVLESS:
+		return "VLESS"
+	case TypeSelector:
+		return "Selector"
+	case TypeURLTest:
+		return "URLTest"
+	default:
+		return "Unknown"
+	}
+}

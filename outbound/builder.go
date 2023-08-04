@@ -27,7 +27,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewBlock(logger, tag), nil
 	case C.TypeDNS:
 		return NewDNS(router, tag), nil
-	case C.TypeSocks:
+	case C.TypeSOCKS:
 		return NewSocks(router, logger, tag, options.SocksOptions)
 	case C.TypeHTTP:
 		return NewHTTP(router, logger, tag, options.HTTPOptions)
