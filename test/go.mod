@@ -76,7 +76,7 @@ require (
 	github.com/sagernet/sing-dns v0.1.9-0.20230731012726-ad50da89b659 // indirect
 	github.com/sagernet/sing-mux v0.1.3-0.20230803070305-ea4a972acd21 // indirect
 	github.com/sagernet/sing-shadowtls v0.1.4 // indirect
-	github.com/sagernet/sing-tun v0.1.12-0.20230807123152-0a68b9f1d873 // indirect
+	github.com/sagernet/sing-tun v0.1.12-0.20230807123232-b4cea12022c0 // indirect
 	github.com/sagernet/sing-vmess v0.1.7 // indirect
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9 // indirect
