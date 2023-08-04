@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -69,6 +70,11 @@ func (s *CommandServer) handleGroupConn(conn net.Conn) error {
 			if err != nil {
 				return err
 			}
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
 		}
 		select {
 		case <-ctx.Done():
