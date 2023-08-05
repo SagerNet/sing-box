@@ -1,3 +1,7 @@
+#### 1.3.6
+
+* Fixes and improvements
+
 #### 1.3.5
 
 * Fixes and improvements
