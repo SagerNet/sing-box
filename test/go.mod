@@ -81,7 +81,7 @@ require (
 	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9 // indirect
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2 // indirect
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e // indirect
-	github.com/sagernet/wireguard-go v0.0.0-20230420044414-a7bac1754e77 // indirect
+	github.com/sagernet/wireguard-go v0.0.0-20230807125731-5d4a7ef2dc5f // indirect
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
