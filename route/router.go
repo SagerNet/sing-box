@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"net/url"
@@ -38,6 +39,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -78,6 +80,7 @@ type Router struct {
 	packageManager                     tun.PackageManager
 	processSearcher                    process.Searcher
 	timeService                        adapter.TimeService
+	pauseManager                       pause.Manager
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
 	platformInterface                  platform.Interface
@@ -109,6 +112,7 @@ func NewRouter(
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
+		pauseManager:          pause.ManagerFromContext(ctx),
 		platformInterface:     platformInterface,
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
@@ -260,32 +264,30 @@ func NewRouter(
 		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
 	})
 
-	if needInterfaceMonitor {
-		if !usePlatformDefaultInterfaceMonitor {
-			networkMonitor, err := tun.NewNetworkUpdateMonitor(router.logger)
-			if err != os.ErrInvalid {
-				if err != nil {
-					return nil, err
-				}
-				router.networkMonitor = networkMonitor
-				networkMonitor.RegisterCallback(func() {
-					_ = router.interfaceFinder.update()
-				})
-				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
-					OverrideAndroidVPN:    options.OverrideAndroidVPN,
-					UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
-				})
-				if err != nil {
-					return nil, E.New("auto_detect_interface unsupported on current platform")
-				}
-				interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
-				router.interfaceMonitor = interfaceMonitor
+	if !usePlatformDefaultInterfaceMonitor {
+		networkMonitor, err := tun.NewNetworkUpdateMonitor(router.logger)
+		if !((err != nil && !needInterfaceMonitor) || errors.Is(err, os.ErrInvalid)) {
+			if err != nil {
+				return nil, err
 			}
-		} else {
-			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router.logger)
+			router.networkMonitor = networkMonitor
+			networkMonitor.RegisterCallback(func() {
+				_ = router.interfaceFinder.update()
+			})
+			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
+				OverrideAndroidVPN:    options.OverrideAndroidVPN,
+				UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
+			})
+			if err != nil {
+				return nil, E.New("auto_detect_interface unsupported on current platform")
+			}
 			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
 			router.interfaceMonitor = interfaceMonitor
 		}
+	} else {
+		interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router.logger)
+		interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
+		router.interfaceMonitor = interfaceMonitor
 	}
 
 	needFindProcess := hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
@@ -974,8 +976,10 @@ func (r *Router) NewError(ctx context.Context, err error) {
 
 func (r *Router) notifyNetworkUpdate(event int) {
 	if event == tun.EventNoRoute {
-		r.logger.Info("missing default interface")
+		r.pauseManager.NetworkPause()
+		r.logger.Error("missing default interface")
 	} else {
+		r.pauseManager.NetworkWake()
 		if C.IsAndroid && r.platformInterface == nil {
 			var vpnStatus string
 			if r.interfaceMonitor.AndroidVPNEnabled() {
