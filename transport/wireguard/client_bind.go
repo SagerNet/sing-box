@@ -5,12 +5,14 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service/pause"
 	"github.com/sagernet/wireguard-go/conn"
 )
 
@@ -27,6 +29,7 @@ type ClientBind struct {
 	isConnect           bool
 	connectAddr         M.Socksaddr
 	reserved            [3]uint8
+	pauseManager        pause.Manager
 }
 
 func NewClientBind(ctx context.Context, errorHandler E.Handler, dialer N.Dialer, isConnect bool, connectAddr M.Socksaddr, reserved [3]uint8) *ClientBind {
@@ -38,6 +41,7 @@ func NewClientBind(ctx context.Context, errorHandler E.Handler, dialer N.Dialer,
 		isConnect:           isConnect,
 		connectAddr:         connectAddr,
 		reserved:            reserved,
+		pauseManager:        pause.ManagerFromContext(ctx),
 	}
 }
 
@@ -111,6 +115,8 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		}
 		c.errorHandler.NewError(context.Background(), E.Cause(err, "connect to server"))
 		err = nil
+		time.Sleep(time.Second)
+		c.pauseManager.WaitActive()
 		return
 	}
 	n, addr, err := udpConn.ReadFrom(packets[0])
