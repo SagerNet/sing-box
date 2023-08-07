@@ -17,12 +17,13 @@ var bucketSelected = []byte("selected")
 var _ adapter.ClashCacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	DB           *bbolt.DB
-	cacheID      []byte
-	saveAccess   sync.RWMutex
-	saveDomain   map[netip.Addr]string
-	saveAddress4 map[string]netip.Addr
-	saveAddress6 map[string]netip.Addr
+	DB                *bbolt.DB
+	cacheID           []byte
+	saveAccess        sync.RWMutex
+	saveDomain        map[netip.Addr]string
+	saveAddress4      map[string]netip.Addr
+	saveAddress6      map[string]netip.Addr
+	saveMetadataTimer *time.Timer
 }
 
 func Open(path string, cacheID string) (*CacheFile, error) {
