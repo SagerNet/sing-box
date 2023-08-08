@@ -36,4 +36,6 @@ type HysteriaOutboundOptions struct {
 	DisableMTUDiscovery bool                `json:"disable_mtu_discovery,omitempty"`
 	Network             NetworkList         `json:"network,omitempty"`
 	TLS                 *OutboundTLSOptions `json:"tls,omitempty"`
+	HopPorts            string              `json:"hop_ports,omitempty"`
+	HopInterval         int                 `json:"hop_interval,omitempty"`
 }
