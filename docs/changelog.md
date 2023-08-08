@@ -1,3 +1,24 @@
+#### 1.4.0-beta.2
+
+* Add MultiPath TCP support **1**
+* Drop QUIC support for Go 1.18 and 1.19 due to upstream changes
+* Fixes and improvements
+
+*1*:
+
+Requires sing-box to be compiled with Go 1.21.
+
+#### 1.4.0-beta.1
+
+* Add TUIC support **1**
+* Pause recurring tasks when no network or device idle
+* Fixes and improvements
+
+*1*:
+
+See [TUIC inbound](/configuration/inbound/tuic)
+and [TUIC outbound](/configuration/outbound/tuic)
+
 #### 1.3.6
 
 * Fixes and improvements
@@ -11,13 +32,16 @@
 
 **1**:
 
-Due to the requirement of tvOS 17, the app cannot be submitted to the App Store for the time being, and can only be downloaded through TestFlight.
+Due to the requirement of tvOS 17, the app cannot be submitted to the App Store for the time being, and can only be
+downloaded through TestFlight.
 
 #### 1.3.4
 
 * Fixes and improvements
-* We're now on the [App Store](https://apps.apple.com/us/app/sing-box/id6451272673), always free! It should be noted that due to stricter and slower review, the release of Store versions will be delayed.
-* We've made a standalone version of the macOS client (the original Application Extension relies on App Store distribution), which you can download as SFM-version-universal.zip in the release artifacts.
+* We're now on the [App Store](https://apps.apple.com/us/app/sing-box/id6451272673), always free! It should be noted
+  that due to stricter and slower review, the release of Store versions will be delayed.
+* We've made a standalone version of the macOS client (the original Application Extension relies on App Store
+  distribution), which you can download as SFM-version-universal.zip in the release artifacts.
 
 #### 1.3.3
 
