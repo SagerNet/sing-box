@@ -491,7 +491,7 @@ func testVLESSXrayInbound(t *testing.T, flow string) {
 				},
 			},
 			{
-				Type: C.TypeSocks,
+				Type: C.TypeSOCKS,
 				Tag:  "vless-out",
 				SocksOptions: option.SocksOutboundOptions{
 					ServerOptions: option.ServerOptions{

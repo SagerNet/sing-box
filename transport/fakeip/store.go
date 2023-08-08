@@ -99,6 +99,12 @@ func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
 		address = nextAddress
 	}
 	s.storage.FakeIPStoreAsync(address, domain, s.logger)
+	s.storage.FakeIPSaveMetadataAsync(&adapter.FakeIPMetadata{
+		Inet4Range:   s.inet4Range,
+		Inet6Range:   s.inet6Range,
+		Inet4Current: s.inet4Current,
+		Inet6Current: s.inet6Current,
+	})
 	return address, nil
 }
 

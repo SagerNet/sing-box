@@ -9,6 +9,7 @@
 #### 下载
 
 * [AppCenter](https://install.appcenter.ms/users/nekohasekai/apps/sfa/distribution_groups/publictest)
+* [Github Releases](https://SagerNet/sing-box/releases)
 
 #### 注意事项
 

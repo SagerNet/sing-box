@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"net/url"
@@ -37,7 +38,10 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	serviceNTP "github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/uot"
+	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -78,6 +82,7 @@ type Router struct {
 	packageManager                     tun.PackageManager
 	processSearcher                    process.Searcher
 	timeService                        adapter.TimeService
+	pauseManager                       pause.Manager
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
 	platformInterface                  platform.Interface
@@ -109,6 +114,7 @@ func NewRouter(
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
+		pauseManager:          pause.ManagerFromContext(ctx),
 		platformInterface:     platformInterface,
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
@@ -260,30 +266,30 @@ func NewRouter(
 		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
 	})
 
-	if needInterfaceMonitor {
-		if !usePlatformDefaultInterfaceMonitor {
-			networkMonitor, err := tun.NewNetworkUpdateMonitor(router)
-			if err != os.ErrInvalid {
-				if err != nil {
-					return nil, err
-				}
-				router.networkMonitor = networkMonitor
-				networkMonitor.RegisterCallback(router.interfaceFinder.update)
-				interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, tun.DefaultInterfaceMonitorOptions{
-					OverrideAndroidVPN:    options.OverrideAndroidVPN,
-					UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
-				})
-				if err != nil {
-					return nil, E.New("auto_detect_interface unsupported on current platform")
-				}
-				interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
-				router.interfaceMonitor = interfaceMonitor
+	if !usePlatformDefaultInterfaceMonitor {
+		networkMonitor, err := tun.NewNetworkUpdateMonitor(router.logger)
+		if !((err != nil && !needInterfaceMonitor) || errors.Is(err, os.ErrInvalid)) {
+			if err != nil {
+				return nil, err
 			}
-		} else {
-			interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router)
+			router.networkMonitor = networkMonitor
+			networkMonitor.RegisterCallback(func() {
+				_ = router.interfaceFinder.update()
+			})
+			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
+				OverrideAndroidVPN:    options.OverrideAndroidVPN,
+				UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
+			})
+			if err != nil {
+				return nil, E.New("auto_detect_interface unsupported on current platform")
+			}
 			interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
 			router.interfaceMonitor = interfaceMonitor
 		}
+	} else {
+		interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router.logger)
+		interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
+		router.interfaceMonitor = interfaceMonitor
 	}
 
 	needFindProcess := hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
@@ -315,7 +321,12 @@ func NewRouter(
 		}
 	}
 	if ntpOptions.Enabled {
-		router.timeService = ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
+		timeService, err := ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
+		if err != nil {
+			return nil, err
+		}
+		service.ContextWith[serviceNTP.TimeService](ctx, timeService)
+		router.timeService = timeService
 	}
 	return router, nil
 }
@@ -970,17 +981,23 @@ func (r *Router) NewError(ctx context.Context, err error) {
 	r.logger.ErrorContext(ctx, err)
 }
 
-func (r *Router) notifyNetworkUpdate(int) error {
-	if C.IsAndroid && r.platformInterface == nil {
-		var vpnStatus string
-		if r.interfaceMonitor.AndroidVPNEnabled() {
-			vpnStatus = "enabled"
-		} else {
-			vpnStatus = "disabled"
-		}
-		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+func (r *Router) notifyNetworkUpdate(event int) {
+	if event == tun.EventNoRoute {
+		r.pauseManager.NetworkPause()
+		r.logger.Error("missing default interface")
 	} else {
-		r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+		r.pauseManager.NetworkWake()
+		if C.IsAndroid && r.platformInterface == nil {
+			var vpnStatus string
+			if r.interfaceMonitor.AndroidVPNEnabled() {
+				vpnStatus = "enabled"
+			} else {
+				vpnStatus = "disabled"
+			}
+			r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()), ", vpn ", vpnStatus)
+		} else {
+			r.logger.Info("updated default interface ", r.interfaceMonitor.DefaultInterfaceName(netip.IPv4Unspecified()), ", index ", r.interfaceMonitor.DefaultInterfaceIndex(netip.IPv4Unspecified()))
+		}
 	}
 
 	conntrack.Close()
@@ -988,13 +1005,10 @@ func (r *Router) notifyNetworkUpdate(int) error {
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
-			err := listener.InterfaceUpdated()
-			if err != nil {
-				return err
-			}
+			listener.InterfaceUpdated()
 		}
 	}
-	return nil
+	return
 }
 
 func (r *Router) ResetNetwork() error {
@@ -1003,10 +1017,7 @@ func (r *Router) ResetNetwork() error {
 	for _, outbound := range r.outbounds {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
-			err := listener.InterfaceUpdated()
-			if err != nil {
-				return err
-			}
+			listener.InterfaceUpdated()
 		}
 	}
 	return nil

@@ -3,6 +3,7 @@ package cachefile
 import (
 	"net/netip"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common/logger"
@@ -54,6 +55,15 @@ func (c *CacheFile) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
 			return err
 		}
 		return bucket.Put(keyMetadata, metadataBinary)
+	})
+}
+
+func (c *CacheFile) FakeIPSaveMetadataAsync(metadata *adapter.FakeIPMetadata) {
+	if timer := c.saveMetadataTimer; timer != nil {
+		timer.Stop()
+	}
+	c.saveMetadataTimer = time.AfterFunc(10*time.Second, func() {
+		_ = c.FakeIPSaveMetadata(metadata)
 	})
 }
 

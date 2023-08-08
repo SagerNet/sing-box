@@ -19,6 +19,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var (
@@ -137,21 +138,22 @@ func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, me
 	return NewPacketConnection(ctx, s, conn, metadata)
 }
 
-func (s *URLTest) InterfaceUpdated() error {
+func (s *URLTest) InterfaceUpdated() {
 	go s.group.CheckOutbounds(true)
-	return nil
+	return
 }
 
 type URLTestGroup struct {
-	ctx       context.Context
-	router    adapter.Router
-	logger    log.Logger
-	outbounds []adapter.Outbound
-	link      string
-	interval  time.Duration
-	tolerance uint16
-	history   *urltest.HistoryStorage
-	checking  atomic.Bool
+	ctx          context.Context
+	router       adapter.Router
+	logger       log.Logger
+	outbounds    []adapter.Outbound
+	link         string
+	interval     time.Duration
+	tolerance    uint16
+	history      *urltest.HistoryStorage
+	checking     atomic.Bool
+	pauseManager pause.Manager
 
 	access sync.Mutex
 	ticker *time.Ticker
@@ -173,15 +175,16 @@ func NewURLTestGroup(ctx context.Context, router adapter.Router, logger log.Logg
 		history = urltest.NewHistoryStorage()
 	}
 	return &URLTestGroup{
-		ctx:       ctx,
-		router:    router,
-		logger:    logger,
-		outbounds: outbounds,
-		link:      link,
-		interval:  interval,
-		tolerance: tolerance,
-		history:   history,
-		close:     make(chan struct{}),
+		ctx:          ctx,
+		router:       router,
+		logger:       logger,
+		outbounds:    outbounds,
+		link:         link,
+		interval:     interval,
+		tolerance:    tolerance,
+		history:      history,
+		close:        make(chan struct{}),
+		pauseManager: pause.ManagerFromContext(ctx),
 	}
 }
 
@@ -263,6 +266,7 @@ func (g *URLTestGroup) Fallback(used adapter.Outbound) []adapter.Outbound {
 func (g *URLTestGroup) loopCheck() {
 	go g.CheckOutbounds(true)
 	for {
+		g.pauseManager.WaitActive()
 		select {
 		case <-g.close:
 			return

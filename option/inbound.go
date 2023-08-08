@@ -23,6 +23,7 @@ type _Inbound struct {
 	HysteriaOptions    HysteriaInboundOptions    `json:"-"`
 	ShadowTLSOptions   ShadowTLSInboundOptions   `json:"-"`
 	VLESSOptions       VLESSInboundOptions       `json:"-"`
+	TUICOptions        TUICInboundOptions        `json:"-"`
 }
 
 type Inbound _Inbound
@@ -38,7 +39,7 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.TProxyOptions
 	case C.TypeDirect:
 		v = h.DirectOptions
-	case C.TypeSocks:
+	case C.TypeSOCKS:
 		v = h.SocksOptions
 	case C.TypeHTTP:
 		v = h.HTTPOptions
@@ -58,6 +59,8 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 		v = h.ShadowTLSOptions
 	case C.TypeVLESS:
 		v = h.VLESSOptions
+	case C.TypeTUIC:
+		v = h.TUICOptions
 	default:
 		return nil, E.New("unknown inbound type: ", h.Type)
 	}
@@ -79,7 +82,7 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.TProxyOptions
 	case C.TypeDirect:
 		v = &h.DirectOptions
-	case C.TypeSocks:
+	case C.TypeSOCKS:
 		v = &h.SocksOptions
 	case C.TypeHTTP:
 		v = &h.HTTPOptions
@@ -99,6 +102,8 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.ShadowTLSOptions
 	case C.TypeVLESS:
 		v = &h.VLESSOptions
+	case C.TypeTUIC:
+		v = &h.TUICOptions
 	default:
 		return E.New("unknown inbound type: ", h.Type)
 	}
@@ -120,6 +125,7 @@ type ListenOptions struct {
 	Listen                      *ListenAddress `json:"listen,omitempty"`
 	ListenPort                  uint16         `json:"listen_port,omitempty"`
 	TCPFastOpen                 bool           `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath                bool           `json:"tcp_multi_path,omitempty"`
 	UDPFragment                 *bool          `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault          bool           `json:"-"`
 	UDPTimeout                  int64          `json:"udp_timeout,omitempty"`

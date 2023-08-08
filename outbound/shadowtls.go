@@ -72,11 +72,15 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 			tlsHandshakeFunc = shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
 		}
 	}
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	client, err := shadowtls.NewClient(shadowtls.ClientConfig{
 		Version:      options.Version,
 		Password:     options.Password,
 		Server:       options.ServerOptions.Build(),
-		Dialer:       dialer.New(router, options.DialerOptions),
+		Dialer:       outboundDialer,
 		TLSHandshake: tlsHandshakeFunc,
 		Logger:       logger,
 	})

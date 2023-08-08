@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -84,6 +85,7 @@ func (c *ClientConn) Upstream() any {
 
 type ClientPacketConn struct {
 	net.Conn
+	access        sync.Mutex
 	key           [KeyLength]byte
 	headerWritten bool
 }
@@ -105,9 +107,15 @@ func (c *ClientPacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
 
 func (c *ClientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	if !c.headerWritten {
-		err := ClientHandshakePacket(c.Conn, c.key, destination, buffer)
-		c.headerWritten = true
-		return err
+		c.access.Lock()
+		if c.headerWritten {
+			c.access.Unlock()
+		} else {
+			err := ClientHandshakePacket(c.Conn, c.key, destination, buffer)
+			c.headerWritten = true
+			c.access.Unlock()
+			return err
+		}
 	}
 	return WritePacket(c.Conn, buffer, destination)
 }

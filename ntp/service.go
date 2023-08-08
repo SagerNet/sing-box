@@ -31,7 +31,7 @@ type Service struct {
 	clockOffset   time.Duration
 }
 
-func NewService(ctx context.Context, router adapter.Router, logger logger.Logger, options option.NTPOptions) *Service {
+func NewService(ctx context.Context, router adapter.Router, logger logger.Logger, options option.NTPOptions) (*Service, error) {
 	ctx, cancel := common.ContextWithCancelCause(ctx)
 	server := options.ServerOptions.Build()
 	if server.Port == 0 {
@@ -43,15 +43,19 @@ func NewService(ctx context.Context, router adapter.Router, logger logger.Logger
 	} else {
 		interval = 30 * time.Minute
 	}
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	return &Service{
 		ctx:           ctx,
 		cancel:        cancel,
 		server:        server,
 		writeToSystem: options.WriteToSystem,
-		dialer:        dialer.New(router, options.DialerOptions),
+		dialer:        outboundDialer,
 		logger:        logger,
 		ticker:        time.NewTicker(interval),
-	}
+	}, nil
 }
 
 func (s *Service) Start() error {

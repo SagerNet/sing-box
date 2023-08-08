@@ -27,7 +27,7 @@ type Socks struct {
 func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SocksInboundOptions) *Socks {
 	inbound := &Socks{
 		myInboundAdapter{
-			protocol:      C.TypeSocks,
+			protocol:      C.TypeSOCKS,
 			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
 			router:        router,

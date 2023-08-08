@@ -117,6 +117,10 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	if down < hysteria.MinSpeedBPS {
 		return nil, E.New("invalid down speed")
 	}
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	return &Hysteria{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeHysteria,
@@ -127,7 +131,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		ctx:        ctx,
-		dialer:     dialer.New(router, options.DialerOptions),
+		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
 		tlsConfig:  tlsConfig,
 		quicConfig: quicConfig,
@@ -214,7 +218,7 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 
 func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
 	for {
-		packet, err := conn.ReceiveMessage()
+		packet, err := conn.ReceiveMessage(h.ctx)
 		if err != nil {
 			return
 		}
@@ -241,9 +245,9 @@ func (h *Hysteria) udpRecvLoop(conn quic.Connection) {
 	}
 }
 
-func (h *Hysteria) InterfaceUpdated() error {
+func (h *Hysteria) InterfaceUpdated() {
 	h.Close()
-	return nil
+	return
 }
 
 func (h *Hysteria) Close() error {
