@@ -5,6 +5,7 @@
   "listen": "::",
   "listen_port": 5353,
   "tcp_fast_open": false,
+  "tcp_multi_path": false,
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
@@ -24,6 +25,7 @@
 | `listen`                          | Needs to listen on TCP or UDP.                                    |
 | `listen_port`                     | Needs to listen on TCP or UDP.                                    |
 | `tcp_fast_open`                   | Needs to listen on TCP.                                           |
+| `tcp_multi_path`                  | Needs to listen on TCP.                                           |
 | `udp_timeout`                     | Needs to assemble UDP connections, currently Tun and Shadowsocks. |
 | `proxy_protocol`                  | Needs to listen on TCP.                                           |
 | `proxy_protocol_accept_no_header` | When `proxy_protocol` enabled                                     |
@@ -41,6 +43,14 @@ Listen port.
 #### tcp_fast_open
 
 Enable TCP Fast Open.
+
+#### tcp_multi_path
+
+!!! warning ""
+
+    Go 1.21 required.
+
+Enable TCP Multi Path.
 
 #### udp_fragment
 

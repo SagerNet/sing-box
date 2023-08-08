@@ -18,7 +18,14 @@ func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var tcpListener net.Listener
 	if !a.listenOptions.TCPFastOpen {
-		tcpListener, err = net.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+		var listenConfig net.ListenConfig
+		if a.listenOptions.TCPMultiPath {
+			if !multipathTCPAvailable {
+				return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
+			}
+			setMultiPathTCP(&listenConfig)
+		}
+		tcpListener, err = listenConfig.Listen(a.ctx, M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.String())
 	} else {
 		tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
 	}

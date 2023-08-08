@@ -35,6 +35,10 @@ type VMess struct {
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessOutboundOptions) (*VMess, error) {
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	outbound := &VMess{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeVMess,
@@ -44,10 +48,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		dialer:     dialer.New(router, options.DialerOptions),
+		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
 	}
-	var err error
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
