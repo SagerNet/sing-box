@@ -38,7 +38,9 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	serviceNTP "github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/uot"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
 )
 
@@ -319,7 +321,12 @@ func NewRouter(
 		}
 	}
 	if ntpOptions.Enabled {
-		router.timeService = ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
+		timeService, err := ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
+		if err != nil {
+			return nil, err
+		}
+		service.ContextWith[serviceNTP.TimeService](ctx, timeService)
+		router.timeService = timeService
 	}
 	return router, nil
 }

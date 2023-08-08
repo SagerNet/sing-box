@@ -66,6 +66,10 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		}
 		startConf.TorrcFile = torrcFile
 	}
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	return &Tor{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeTor,
@@ -76,7 +80,7 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		ctx:       ctx,
-		proxy:     NewProxyListener(ctx, logger, dialer.New(router, options.DialerOptions)),
+		proxy:     NewProxyListener(ctx, logger, outboundDialer),
 		startConf: &startConf,
 		options:   options.Options,
 	}, nil

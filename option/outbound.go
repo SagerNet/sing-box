@@ -134,6 +134,7 @@ type DialerOptions struct {
 	ReuseAddr          bool           `json:"reuse_addr,omitempty"`
 	ConnectTimeout     Duration       `json:"connect_timeout,omitempty"`
 	TCPFastOpen        bool           `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath       bool           `json:"tcp_multi_path,omitempty"`
 	UDPFragment        *bool          `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault bool           `json:"-"`
 	DomainStrategy     DomainStrategy `json:"domain_strategy,omitempty"`
