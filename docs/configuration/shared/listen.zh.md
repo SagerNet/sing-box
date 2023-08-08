@@ -5,6 +5,7 @@
   "listen": "::",
   "listen_port": 5353,
   "tcp_fast_open": false,
+  "tcp_multi_path": false,
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
@@ -23,6 +24,7 @@
 | `listen`                          | 需要监听 TCP 或 UDP。                     |
 | `listen_port`                     | 需要监听 TCP 或 UDP。                     |
 | `tcp_fast_open`                   | 需要监听 TCP。                           |
+| `tcp_multi_path`                  | 需要监听 TCP。                           |
 | `udp_timeout`                     | 需要组装 UDP 连接, 当前为 Tun 和 Shadowsocks。 |
 | `proxy_protocol`                  | 需要监听 TCP。                           |
 | `proxy_protocol_accept_no_header` | `proxy_protocol` 启用时                |
@@ -42,6 +44,14 @@
 #### tcp_fast_open
 
 启用 TCP Fast Open。
+
+#### tcp_multi_path
+
+!!! warning ""
+
+    需要 Go 1.21。
+
+启用 TCP Multi Path。
 
 #### udp_fragment
 

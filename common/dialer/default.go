@@ -26,7 +26,7 @@ type DefaultDialer struct {
 	udpAddr6    string
 }
 
-func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDialer {
+func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDialer, error) {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
@@ -93,6 +93,12 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
 		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()
 	}
+	if options.TCPMultiPath {
+		if !multipathTCPAvailable {
+			return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
+		}
+		setMultiPathTCP(&dialer4)
+	}
 	return &DefaultDialer{
 		tfo.Dialer{Dialer: dialer4, DisableTFO: !options.TCPFastOpen},
 		tfo.Dialer{Dialer: dialer6, DisableTFO: !options.TCPFastOpen},
@@ -101,7 +107,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) *DefaultDia
 		listener,
 		udpAddr4,
 		udpAddr6,
-	}
+	}, nil
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {

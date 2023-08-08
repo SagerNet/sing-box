@@ -10,6 +10,7 @@
   "reuse_addr": false,
   "connect_timeout": "5s",
   "tcp_fast_open": false,
+  "tcp_multi_path": false,
   "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "fallback_delay": "300ms"
@@ -18,9 +19,9 @@
 
 ### 字段
 
-| 字段                                                                                                                   | 可用上下文        |
-|----------------------------------------------------------------------------------------------------------------------|--------------|
-| `bind_interface` /`*bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open`/ `udp_fragment` /`connect_timeout` | `detour` 未设置 |
+| 字段                                                                                                                                       | 可用上下文        |
+|------------------------------------------------------------------------------------------------------------------------------------------|--------------|
+| `bind_interface` /`*bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open` / `tcp_mutli_path` / `udp_fragment` /`connect_timeout` | `detour` 未设置 |
 
 
 #### detour
@@ -56,6 +57,14 @@
 #### tcp_fast_open
 
 启用 TCP Fast Open。
+
+#### tcp_multi_path
+
+!!! warning ""
+
+    需要 Go 1.21。
+
+启用 TCP Multi Path。
 
 #### udp_fragment
 
