@@ -40,11 +40,19 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 	if options.Version > 1 {
 		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
 		for serverName, serverOptions := range options.HandshakeForServerName {
+			handshakeDialer, err := dialer.New(router, serverOptions.DialerOptions)
+			if err != nil {
+				return nil, err
+			}
 			handshakeForServerName[serverName] = shadowtls.HandshakeConfig{
 				Server: serverOptions.ServerOptions.Build(),
-				Dialer: dialer.New(router, serverOptions.DialerOptions),
+				Dialer: handshakeDialer,
 			}
 		}
+	}
+	handshakeDialer, err := dialer.New(router, options.Handshake.DialerOptions)
+	if err != nil {
+		return nil, err
 	}
 	service, err := shadowtls.NewService(shadowtls.ServiceConfig{
 		Version:  options.Version,
@@ -54,7 +62,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		}),
 		Handshake: shadowtls.HandshakeConfig{
 			Server: options.Handshake.ServerOptions.Build(),
-			Dialer: dialer.New(router, options.Handshake.DialerOptions),
+			Dialer: handshakeDialer,
 		},
 		HandshakeForServerName: handshakeForServerName,
 		StrictMode:             options.StrictMode,

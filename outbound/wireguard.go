@@ -65,7 +65,11 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 			connectAddr = options.ServerOptions.Build()
 		}
 	}
-	outbound.bind = wireguard.NewClientBind(ctx, outbound, dialer.New(router, options.DialerOptions), isConnect, connectAddr, reserved)
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
+	outbound.bind = wireguard.NewClientBind(ctx, outbound, outboundDialer, isConnect, connectAddr, reserved)
 	localPrefixes := common.Map(options.LocalAddress, option.ListenPrefix.Build)
 	if len(localPrefixes) == 0 {
 		return nil, E.New("missing local address")
@@ -157,7 +161,6 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		mtu = 1408
 	}
 	var wireTunDevice wireguard.Device
-	var err error
 	if !options.SystemInterface && tun.WithGVisor {
 		wireTunDevice, err = wireguard.NewStackDevice(localPrefixes, mtu)
 	} else {

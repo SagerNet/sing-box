@@ -44,6 +44,10 @@ type SSH struct {
 }
 
 func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SSHOutboundOptions) (*SSH, error) {
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	outbound := &SSH{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeSSH,
@@ -54,7 +58,7 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		ctx:               ctx,
-		dialer:            dialer.New(router, options.DialerOptions),
+		dialer:            outboundDialer,
 		serverAddr:        options.ServerOptions.Build(),
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,

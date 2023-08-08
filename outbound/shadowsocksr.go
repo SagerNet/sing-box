@@ -37,6 +37,10 @@ type ShadowsocksR struct {
 }
 
 func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksROutboundOptions) (*ShadowsocksR, error) {
+	outboundDialer, err := dialer.New(router, options.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	outbound := &ShadowsocksR{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeShadowsocksR,
@@ -46,11 +50,10 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		dialer:     dialer.New(router, options.DialerOptions),
+		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
 	}
 	var cipher string
-	var err error
 	switch options.Method {
 	case "none":
 		cipher = "dummy"
