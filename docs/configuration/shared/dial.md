@@ -10,6 +10,7 @@
   "reuse_addr": false,
   "connect_timeout": "5s",
   "tcp_fast_open": false,
+  "tcp_multi_path": false,
   "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "fallback_delay": "300ms"
@@ -18,9 +19,9 @@
 
 ### Fields
 
-| Field                                                                                                                | Available Context |
-|----------------------------------------------------------------------------------------------------------------------|-------------------|
-| `bind_interface` /`*bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open`/ `udp_fragment` /`connect_timeout` | `detour` not set  |
+| Field                                                                                                                                    | Available Context |
+|------------------------------------------------------------------------------------------------------------------------------------------|-------------------|
+| `bind_interface` /`*bind_address` /`routing_mark` /`reuse_addr` / `tcp_fast_open` / `tcp_multi_path` / `udp_fragment` /`connect_timeout` | `detour` not set  |
 
 #### detour
 
@@ -53,6 +54,14 @@ Reuse listener address.
 #### tcp_fast_open
 
 Enable TCP Fast Open.
+
+#### tcp_multi_path
+
+!!! warning ""
+
+    Go 1.21 required.
+
+Enable TCP Multi Path.
 
 #### udp_fragment
 

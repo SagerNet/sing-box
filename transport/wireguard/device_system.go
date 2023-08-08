@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	wgTun "github.com/sagernet/wireguard-go/tun"
@@ -58,9 +59,9 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 		inet6Address = inet6Addresses[0].Addr()
 	}
 	return &SystemDevice{
-		dialer: dialer.NewDefault(router, option.DialerOptions{
+		dialer: common.Must1(dialer.NewDefault(router, option.DialerOptions{
 			BindInterface: interfaceName,
-		}),
+		})),
 		device: tunInterface,
 		name:   interfaceName,
 		mtu:    int(mtu),
