@@ -248,10 +248,10 @@ func (t *Transport) recreateServers(iface *net.Interface, serverAddrs []netip.Ad
 		}), ","), "]")
 	}
 
-	serverDialer := dialer.NewDefault(t.router, option.DialerOptions{
+	serverDialer := common.Must1(dialer.NewDefault(t.router, option.DialerOptions{
 		BindInterface:      iface.Name,
 		UDPFragmentDefault: true,
-	})
+	}))
 	var transports []dns.Transport
 	for _, serverAddr := range serverAddrs {
 		serverTransport, err := dns.NewUDPTransport(t.name, t.ctx, serverDialer, M.Socksaddr{Addr: serverAddr, Port: 53})

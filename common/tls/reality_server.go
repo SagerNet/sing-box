@@ -101,7 +101,10 @@ func NewRealityServer(ctx context.Context, router adapter.Router, logger log.Log
 		tlsConfig.ShortIds[shortID] = true
 	}
 
-	handshakeDialer := dialer.New(router, options.Reality.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(router, options.Reality.Handshake.DialerOptions)
+	if err != nil {
+		return nil, err
+	}
 	tlsConfig.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return handshakeDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 	}
