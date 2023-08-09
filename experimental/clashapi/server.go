@@ -52,6 +52,7 @@ type Server struct {
 	cacheID        string
 	cacheFile      adapter.ClashCacheFile
 
+	externalController       bool
 	externalUI               string
 	externalUIDownloadURL    string
 	externalUIDownloadDetour string
@@ -71,6 +72,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		trafficManager:           trafficManager,
 		mode:                     strings.ToLower(options.DefaultMode),
 		storeSelected:            options.StoreSelected,
+		externalController:       options.ExternalController != "",
 		storeFakeIP:              options.StoreFakeIP,
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
@@ -146,18 +148,20 @@ func (s *Server) PreStart() error {
 }
 
 func (s *Server) Start() error {
-	s.checkAndDownloadExternalUI()
-	listener, err := net.Listen("tcp", s.httpServer.Addr)
-	if err != nil {
-		return E.Cause(err, "external controller listen error")
-	}
-	s.logger.Info("restful api listening at ", listener.Addr())
-	go func() {
-		err = s.httpServer.Serve(listener)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Error("external controller serve error: ", err)
+	if s.externalController {
+		s.checkAndDownloadExternalUI()
+		listener, err := net.Listen("tcp", s.httpServer.Addr)
+		if err != nil {
+			return E.Cause(err, "external controller listen error")
 		}
-	}()
+		s.logger.Info("restful api listening at ", listener.Addr())
+		go func() {
+			err = s.httpServer.Serve(listener)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				s.logger.Error("external controller serve error: ", err)
+			}
+		}()
+	}
 	return nil
 }
 
