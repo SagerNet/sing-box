@@ -51,7 +51,7 @@ func New(options Options) (*Box, error) {
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
 	var needClashAPI bool
 	var needV2RayAPI bool
-	if experimentalOptions.ClashAPI != nil && experimentalOptions.ClashAPI.ExternalController != "" {
+	if experimentalOptions.ClashAPI != nil || options.PlatformInterface != nil {
 		needClashAPI = true
 	}
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
@@ -143,7 +143,7 @@ func New(options Options) (*Box, error) {
 	preServices := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needClashAPI {
-		clashServer, err := experimental.NewClashServer(ctx, router, logFactory.(log.ObservableFactory), common.PtrValueOrDefault(options.Experimental.ClashAPI))
+		clashServer, err := experimental.NewClashServer(ctx, router, logFactory.(log.ObservableFactory), common.PtrValueOrDefault(experimentalOptions.ClashAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}
@@ -151,7 +151,7 @@ func New(options Options) (*Box, error) {
 		preServices["clash api"] = clashServer
 	}
 	if needV2RayAPI {
-		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(options.Experimental.V2RayAPI))
+		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(experimentalOptions.V2RayAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create v2ray api server")
 		}
