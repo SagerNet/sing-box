@@ -54,7 +54,6 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 		serverAddr: options.ServerOptions.Build(),
 	}
 	var cipher string
-	var err error
 	switch options.Method {
 	case "none":
 		cipher = "dummy"
