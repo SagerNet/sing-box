@@ -62,7 +62,27 @@ jobs:
             ~/go/pkg/mod
           key: go118-${{ hashFiles('**/go.sum') }}
       - name: Run Test
-        run: make
+        run: make ci_build_go118
+  build_go120:
+    name: Debug build (Go 1.20)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.7
+      - name: Cache go module
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+          key: go118-${{ hashFiles('**/go.sum') }}
+      - name: Run Test
+        run: make ci_build
   cross:
     strategy:
       matrix:
