@@ -1,20 +1,30 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_reality_server,with_clash_api
+TAGS_GO118 = with_gvisor,with_dhcp,with_wireguard,with_utls,with_reality_server,with_clash_api
+TAGS_GO120 ?= with_quic
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server,with_shadowsocksr
 
 GOHOSTOS = $(shell go env GOHOSTOS)
 GOHOSTARCH = $(shell go env GOHOSTARCH)
 VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run ./cmd/internal/read_tag)
 
-PARAMS = -v -trimpath -tags "$(TAGS)" -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
+PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
+MAIN_PARAMS = $(PARAMS) -tags "$(TAGS_GO118),$(TAGS_GO120)"
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
 
 .PHONY: test release
 
 build:
+	go build $(MAIN_PARAMS) $(MAIN)
+
+ci_build_go118:
 	go build $(PARAMS) $(MAIN)
+	go build $(PARAMS) -tags "$(TAGS_GO118)" $(MAIN)
+
+ci_build:
+	go build $(PARAMS) $(MAIN)
+	go build $(MAIN_PARAMS) $(MAIN)
 
 install:
 	go build -o $(PREFIX)/bin/$(NAME) $(PARAMS) $(MAIN)

@@ -5,8 +5,10 @@ package badtls
 import (
 	"crypto/tls"
 	"os"
+
+	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-func Create(conn *tls.Conn) (TLSConn, error) {
+func Create(conn *tls.Conn) (aTLS.Conn, error) {
 	return nil, os.ErrInvalid
 }
