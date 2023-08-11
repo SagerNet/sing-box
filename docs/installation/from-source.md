@@ -1,6 +1,17 @@
 # Install from source
 
-sing-box requires Golang **1.18.5** or a higher version.
+## Requirements
+
+Before sing-box 1.4.0:
+
+* Go 1.18.5 - 1.20.x
+
+Since sing-box 1.4.0:
+
+* Go 1.18.5 - ~
+* Go 1.20.0 - ~ if `with_quic` tag enabled
+
+## Installation
 
 ```bash
 go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
@@ -9,7 +20,7 @@ go install -v github.com/sagernet/sing-box/cmd/sing-box@latest
 Install with options:
 
 ```bash
-go install -v -tags with_clash_api github.com/sagernet/sing-box/cmd/sing-box@latest
+go install -v -tags with_quic,with_wireguard github.com/sagernet/sing-box/cmd/sing-box@latest
 ```
 
 | Build Tag                          | Description                                                                                                                                                                                                                                                                                                                |
