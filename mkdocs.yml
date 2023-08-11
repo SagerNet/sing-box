@@ -86,6 +86,7 @@ nav:
           - Hysteria: configuration/inbound/hysteria.md
           - ShadowTLS: configuration/inbound/shadowtls.md
           - VLESS: configuration/inbound/vless.md
+          - TUIC: configuration/inbound/tuic.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -103,6 +104,7 @@ nav:
           - ShadowTLS: configuration/outbound/shadowtls.md
           - ShadowsocksR: configuration/outbound/shadowsocksr.md
           - VLESS: configuration/outbound/vless.md
+          - TUIC: configuration/outbound/tuic.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
@@ -120,7 +122,6 @@ nav:
       - Shadowsocks: examples/shadowsocks.md
       - ShadowTLS: examples/shadowtls.md
       - Clash API: examples/clash-api.md
-      - WireGuard Direct: examples/wireguard-direct.md
       - FakeIP: examples/fakeip.md
   - Contributing:
       - contributing/index.md

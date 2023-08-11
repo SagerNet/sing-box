@@ -9,7 +9,7 @@ Experimental Android client for sing-box.
 #### Download
 
 * [AppCenter](https://install.appcenter.ms/users/nekohasekai/apps/sfa/distribution_groups/publictest)
-* [Github Releases](https://SagerNet/sing-box/releases)
+* [Github Releases](https://github.com/SagerNet/sing-box/releases)
 
 #### Note
 

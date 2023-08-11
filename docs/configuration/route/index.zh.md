@@ -24,7 +24,6 @@
 |------------|-------------------------|
 | `geoip`    | [GeoIP](./geoip)        |
 | `geosite`  | [GeoSite](./geosite)    |
-| `ip_rules` | 一组 [IP 路由规则](./ip-rule) |
 | `rules`    | 一组 [路由规则](./rule)       |
 
 #### final
