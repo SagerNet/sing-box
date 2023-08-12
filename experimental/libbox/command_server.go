@@ -154,6 +154,8 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleSelectOutbound(conn)
 	case CommandURLTest:
 		return s.handleURLTest(conn)
+	case CommandGroupExpand:
+		return s.handleSetGroupExpand(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}

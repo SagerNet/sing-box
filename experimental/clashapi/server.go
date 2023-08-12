@@ -84,7 +84,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 	if server.mode == "" {
 		server.mode = "rule"
 	}
-	if options.StoreSelected || options.StoreFakeIP {
+	if options.StoreSelected || options.StoreFakeIP || options.ExternalController == "" {
 		cachePath := os.ExpandEnv(options.CacheFile)
 		if cachePath == "" {
 			cachePath = "cache.db"
