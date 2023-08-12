@@ -8,4 +8,5 @@ const (
 	CommandGroup
 	CommandSelectOutbound
 	CommandURLTest
+	CommandGroupExpand
 )
