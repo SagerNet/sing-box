@@ -23,6 +23,8 @@ type ClashServer interface {
 type ClashCacheFile interface {
 	LoadSelected(group string) string
 	StoreSelected(group string, selected string) error
+	LoadGroupExpand(group string) (isExpand bool, loaded bool)
+	StoreGroupExpand(group string, expand bool) error
 	FakeIPStorage
 }
 
