@@ -1,0 +1,77 @@
+name: 错误反馈
+description: "提交 sing-box 漏洞"
+body:
+  - type: dropdown
+    attributes:
+      label: 操作系统
+      description: 请提供操作系统类型
+      options:
+        - iOS
+        - macOS
+        - Apple tvOS
+        - Android
+        - Windows
+        - Linux
+        - 其他
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 系统版本
+      description: 请提供操作系统版本
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: 安装类型
+      description: 请提供该 sing-box 安装类型
+      options:
+        - sing-box 原始命令行程序
+        - sing-box for iOS 图形客户端程序
+        - sing-box for macOS 图形客户端程序
+        - sing-box for Apple tvOS 图形客户端程序
+        - sing-box for Android 图形客户端程序
+        - 宣传使用 sing-box 的第三方图形客户端程序 (Windows)
+        - 宣传使用 sing-box 的第三方图形客户端程序 (Android)
+        - 其他
+    validations:
+      required: true
+  - type: input
+    attributes:
+      description: 图形客户端版本
+      label: 如果您使用图形客户端程序，请提供该程序版本。
+  - type: textarea
+    attributes:
+      label: 版本
+      description: 如果您使用原始命令行程序，请提供 `sing-box version` 命令的输出。
+      value: |-
+        <details>
+        ```console
+        # 使用输出内容覆盖此行
+        ```
+        </details>
+  - type: textarea
+    attributes:
+      label: 描述
+      description: 请提供错误的详细描述。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 重现方式
+      description: 请提供重现错误的步骤，必须包括可以在本地（不依赖与远程服务器）使用 sing-box 原始命令行程序重现错误的配置文件与流程。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 日志
+      description: |-
+        如果您遭遇图形界面应用程序崩溃，请提供崩溃日志。
+        对于 Apple 平台图形客户端程序，请检查 `Settings - View Service Log` 以导出崩溃日志。
+        对于 Android 图形客户端程序，请检查 `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` 文件以导出崩溃日志。
+      value: |-
+        <details>
+        ```console
+        # 使用日志内容覆盖此行
+        ```
+        </details>
