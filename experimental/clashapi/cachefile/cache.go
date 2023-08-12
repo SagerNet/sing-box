@@ -12,7 +12,10 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-var bucketSelected = []byte("selected")
+var (
+	bucketSelected = []byte("selected")
+	bucketExpand   = []byte("group_expand")
+)
 
 var _ adapter.ClashCacheFile = (*CacheFile)(nil)
 
@@ -49,21 +52,15 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 			if name[0] == 0 {
 				return b.ForEachBucket(func(k []byte) error {
 					bucketName := string(k)
-					if !(bucketName == string(bucketSelected)) {
-						delErr := b.DeleteBucket(name)
-						if delErr != nil {
-							return delErr
-						}
+					if !(bucketName == string(bucketSelected) || bucketName == string(bucketExpand)) {
+						_ = b.DeleteBucket(name)
 					}
 					return nil
 				})
 			} else {
 				bucketName := string(name)
-				if !(bucketName == string(bucketSelected) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
-					delErr := tx.DeleteBucket(name)
-					if delErr != nil {
-						return delErr
-					}
+				if !(bucketName == string(bucketSelected) || bucketName == string(bucketExpand) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
+					_ = tx.DeleteBucket(name)
 				}
 			}
 			return nil
@@ -126,6 +123,36 @@ func (c *CacheFile) StoreSelected(group, selected string) error {
 			return err
 		}
 		return bucket.Put([]byte(group), []byte(selected))
+	})
+}
+
+func (c *CacheFile) LoadGroupExpand(group string) (isExpand bool, loaded bool) {
+	c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketExpand)
+		if bucket == nil {
+			return nil
+		}
+		expandBytes := bucket.Get([]byte(group))
+		if len(expandBytes) == 1 {
+			isExpand = expandBytes[0] == 1
+			loaded = true
+		}
+		return nil
+	})
+	return
+}
+
+func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketExpand)
+		if err != nil {
+			return err
+		}
+		if isExpand {
+			return bucket.Put([]byte(group), []byte{1})
+		} else {
+			return bucket.Put([]byte(group), []byte{0})
+		}
 	})
 }
 

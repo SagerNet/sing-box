@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/outbound"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/service"
 )
@@ -18,11 +19,25 @@ type OutboundGroup struct {
 	Type       string
 	Selectable bool
 	Selected   string
+	isExpand   int8
 	items      []*OutboundGroupItem
 }
 
 func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
 	return newIterator(g.items)
+}
+
+func (g *OutboundGroup) IsExpand() bool {
+	switch g.isExpand {
+	case -1:
+		return g.Selectable
+	case 0:
+		return false
+	case 1:
+		return true
+	default:
+		panic("unexpected expand value")
+	}
 }
 
 type OutboundGroupIterator interface {
@@ -114,6 +129,11 @@ func readGroups(reader io.Reader) (OutboundGroupIterator, error) {
 			return nil, err
 		}
 
+		err = binary.Read(reader, binary.BigEndian, &group.isExpand)
+		if err != nil {
+			return nil, err
+		}
+
 		var itemLength uint16
 		err = binary.Read(reader, binary.BigEndian, &itemLength)
 		if err != nil {
@@ -152,6 +172,10 @@ func readGroups(reader io.Reader) (OutboundGroupIterator, error) {
 
 func writeGroups(writer io.Writer, boxService *BoxService) error {
 	historyStorage := service.PtrFromContext[urltest.HistoryStorage](boxService.ctx)
+	var cacheFile adapter.ClashCacheFile
+	if clashServer := boxService.instance.Router().ClashServer(); clashServer != nil {
+		cacheFile = clashServer.CacheFile()
+	}
 
 	outbounds := boxService.instance.Router().Outbounds()
 	var iGroups []adapter.OutboundGroup
@@ -167,6 +191,15 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		group.Type = iGroup.Type()
 		_, group.Selectable = iGroup.(*outbound.Selector)
 		group.Selected = iGroup.Now()
+		if cacheFile != nil {
+			if isExpand, loaded := cacheFile.LoadGroupExpand(group.Tag); !loaded {
+				group.isExpand = -1
+			} else if isExpand {
+				group.isExpand = 1
+			} else {
+				group.isExpand = 0
+			}
+		}
 
 		for _, itemTag := range iGroup.All() {
 			itemOutbound, isLoaded := boxService.instance.Router().Outbound(itemTag)
@@ -207,6 +240,10 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		if err != nil {
 			return err
 		}
+		err = binary.Write(writer, binary.BigEndian, group.isExpand)
+		if err != nil {
+			return err
+		}
 		err = binary.Write(writer, binary.BigEndian, uint16(len(group.items)))
 		if err != nil {
 			return err
@@ -231,4 +268,51 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		}
 	}
 	return nil
+}
+
+func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
+	conn, err := c.directConnect()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	err = binary.Write(conn, binary.BigEndian, uint8(CommandGroupExpand))
+	if err != nil {
+		return err
+	}
+	err = rw.WriteVString(conn, groupTag)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(conn, binary.BigEndian, isExpand)
+	if err != nil {
+		return err
+	}
+	return readError(conn)
+}
+
+func (s *CommandServer) handleSetGroupExpand(conn net.Conn) error {
+	defer conn.Close()
+	groupTag, err := rw.ReadVString(conn)
+	if err != nil {
+		return err
+	}
+	var isExpand bool
+	err = binary.Read(conn, binary.BigEndian, &isExpand)
+	if err != nil {
+		return err
+	}
+	service := s.service
+	if service == nil {
+		return writeError(conn, E.New("service not ready"))
+	}
+	if clashServer := service.instance.Router().ClashServer(); clashServer != nil {
+		if cacheFile := clashServer.CacheFile(); cacheFile != nil {
+			err = cacheFile.StoreGroupExpand(groupTag, isExpand)
+			if err != nil {
+				return writeError(conn, err)
+			}
+		}
+	}
+	return writeError(conn, nil)
 }
