@@ -3,6 +3,7 @@ package libbox
 import (
 	"context"
 	"net/netip"
+	runtimeDebug "runtime/debug"
 	"syscall"
 
 	"github.com/sagernet/sing-box"
@@ -35,6 +36,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	if err != nil {
 		return nil, err
 	}
+	runtimeDebug.FreeOSMemory()
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
@@ -49,6 +51,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		cancel()
 		return nil, E.Cause(err, "create service")
 	}
+	runtimeDebug.FreeOSMemory()
 	return &BoxService{
 		ctx:          ctx,
 		cancel:       cancel,
