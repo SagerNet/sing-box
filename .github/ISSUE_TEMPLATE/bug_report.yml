@@ -1,70 +1,77 @@
-name: Bug Report
-description: "Create a report to help us improve."
+name: Bug report
+description: "Report sing-box bug"
 body:
-  - type: checkboxes
-    id: terms
+  - type: dropdown
     attributes:
-      label: Welcome
+      label: Operating system
+      description: Operating system type
       options:
-        - label: Yes, I'm using the latest major release. Only such installations are supported.
-          required: true
-        - label: Yes, I'm using the latest Golang release. Only such installations are supported.
-          required: true
-        - label: Yes, I've searched similar issues on GitHub and didn't find any.
-          required: true
-        - label: Yes, I've included all information below (version, **FULL** config, **FULL** log, etc).
-          required: true
-
-  - type: textarea
-    id: problem
-    attributes:
-      label: Description of the problem
-      placeholder: Your problem description
+        - iOS
+        - macOS
+        - Apple tvOS
+        - Android
+        - Windows
+        - Linux
+        - Others
     validations:
       required: true
-
-  - type: textarea
-    id: version
+  - type: input
     attributes:
-      label: Version of sing-box
+      label: System version
+      description: Please provide the operating system version
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Installation type
+      description: Please provide the sing-box installation type
+      options:
+        - Original sing-box Command Line
+        - sing-box for iOS Graphical Client
+        - sing-box for macOS Graphical Client
+        - sing-box for Apple tvOS Graphical Client
+        - sing-box for Android Graphical Client
+        - Third-party graphical clients that advertise themselves as using sing-box (Windows)
+        - Third-party graphical clients that advertise themselves as using sing-box (Android)
+        - Others
+    validations:
+      required: true
+  - type: input
+    attributes:
+      description: Graphical client version
+      label: If you are using a graphical client, please provide the version of the client.
+  - type: textarea
+    attributes:
+      label: Version
+      description: If you are using the original command line program, please provide the output of the `sing-box version` command.
       value: |-
         <details>
-
         ```console
-        $ sing-box version
-        # Paste output here
+        # Replace this line with the output
         ```
-
         </details>
+  - type: textarea
+    attributes:
+      label: Description
+      description: Please provide a detailed description of the error.
     validations:
       required: true
-
   - type: textarea
-    id: config
     attributes:
-      label: Server and client configuration file
+      label: Reproduction
+      description: Please provide the steps to reproduce the error, including the configuration files and procedures that can locally (not dependent on the remote server) reproduce the error using the original command line program of sing-box.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Logs
+      description: |-
+        If you encounter a crash with the graphical client, please provide crash logs.
+        For Apple platform clients, please check `Settings - View Service Log` for crash logs.
+        For the Android client, please check the `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` file for crash logs.
       value: |-
         <details>
-
         ```console
-        # paste json here
+        # Replace this line with logs
         ```
-
         </details>
-    validations:
-      required: true
-
-  - type: textarea
-    id: log
-    attributes:
-      label: Server and client log file
-      value: |-
-        <details>
-
-        ```console
-        # paste log here
-        ```
-
-        </details>
-    validations:
-      required: true
