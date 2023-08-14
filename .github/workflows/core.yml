@@ -1,0 +1,57 @@
+name: Build Core
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAGS: with_quic,with_wireguard,with_gvisor,with_utls,with_ech,with_clash_api,with_provider
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest go version
+        id: go_version
+        run: |
+          echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27
+          add-to-path: false
+          local-cache: false
+
+      - name: Build core
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          CC=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang
+          # VERSION=$(CGO_ENABLED=0 go run ./cmd/internal/read_tag)
+          # CGO_ENABLED=1 CC=${CC} GOARCH=arm64 GOOS=android go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' -s -w -buildid=" -tags ${TAGS} ./cmd/sing-box
+          # CGO_ENABLED=0 GOARCH=amd64 GOOS=windows GOAMD64=v3 go build -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' -H windowsgui -s -w -buildid=" -tags ${TAGS} ./cmd/sing-box
+          CGO_ENABLED=0 GOARCH=amd64 GOOS=windows GOAMD64=v3 make build
+          CGO_ENABLED=1 CC=${CC} GOARCH=arm64 GOOS=android make build
+
+      - name: Upload Windows
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: sing-box_windows
+          path: sing-box*.exe
+
+      - name: Upload Android
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: sing-box_android
+          path: sing-box
