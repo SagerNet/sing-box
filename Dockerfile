@@ -13,7 +13,7 @@ RUN set -ex \
         -o /go/bin/sing-box \
         -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=$VERSION\" -s -w -buildid=" \
         ./cmd/sing-box
-FROM alpine AS dist
+FROM alpine:3.18.3 AS dist
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 RUN set -ex \
     && apk upgrade \
