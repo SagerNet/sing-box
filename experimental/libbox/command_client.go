@@ -32,7 +32,7 @@ func NewStandaloneCommandClient() *CommandClient {
 	return new(CommandClient)
 }
 
-func NewCommandClient(sharedDirectory string, handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
+func NewCommandClient(handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
 	return &CommandClient{
 		handler: handler,
 		options: common.PtrValueOrDefault(options),
