@@ -4,7 +4,7 @@ package inbound
 
 import "net"
 
-const multipathTCPAvailable = false
+const go121Available = false
 
 func setMultiPathTCP(listenConfig *net.ListenConfig) {
 }

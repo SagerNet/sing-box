@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-const multipathTCPAvailable = false
+const go121Available = false
 
 func setMultiPathTCP(dialer *net.Dialer) {
 }

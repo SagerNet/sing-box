@@ -131,8 +131,8 @@ github.com/sagernet/sing-vmess v0.1.7 h1:TM8FFLsXmlXH9XT8/oDgc6PC5BOzrg6OzyEe01i
 github.com/sagernet/sing-vmess v0.1.7/go.mod h1:1qkC1L1T2sxnS/NuO6HU72S8TkltV+EXoKGR29m/Yss=
 github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37 h1:HuE6xSwco/Xed8ajZ+coeYLmioq0Qp1/Z2zczFaV8as=
 github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37/go.mod h1:3skNSftZDJWTGVtVaM2jfbce8qHnmH/AGDRe62iNOg0=
-github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9 h1:2ItpW1nMNkPzmBTxV0/eClCklHrFSQMnUGcpUmJxVeE=
-github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9/go.mod h1:FUyTEc5ye5NjKnDTDMuiLF2M6T4BE6y6KZuax//UCEg=
+github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6 h1:Px+hN4Vzgx+iCGVnWH5A8eR7JhNnIV3rGQmBxA7cw6Q=
+github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6/go.mod h1:zovq6vTvEM6ECiqE3Eeb9rpIylPpamPcmrJ9tv0Bt0M=
 github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2 h1:kDUqhc9Vsk5HJuhfIATJ8oQwBmpOZJuozQG7Vk88lL4=
 github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2/go.mod h1:JKQMZq/O2qnZjdrt+B57olmfgEmLtY9iiSIEYtWvoSM=
 github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e h1:7uw2njHFGE+VpWamge6o56j2RWk4omF6uLKKxMmcWvs=

@@ -1,6 +1,6 @@
 module github.com/sagernet/sing-box
 
-go 1.18
+go 1.20
 
 require (
 	berty.tech/go-libtor v1.0.385
@@ -34,7 +34,7 @@ require (
 	github.com/sagernet/sing-tun v0.1.12-0.20230812113806-10d98f26797a
 	github.com/sagernet/sing-vmess v0.1.7
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
-	github.com/sagernet/tfo-go v0.0.0-20230303015439-ffcfd8c41cf9
+	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
 	github.com/sagernet/websocket v0.0.0-20220913015213-615516348b4e
 	github.com/sagernet/wireguard-go v0.0.0-20230807125731-5d4a7ef2dc5f

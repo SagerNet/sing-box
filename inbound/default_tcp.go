@@ -10,24 +10,26 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/tfo-go"
 )
 
 func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 	var err error
 	bindAddr := M.SocksaddrFrom(a.listenOptions.Listen.Build(), a.listenOptions.ListenPort)
 	var tcpListener net.Listener
-	if !a.listenOptions.TCPFastOpen {
-		var listenConfig net.ListenConfig
-		if a.listenOptions.TCPMultiPath {
-			if !multipathTCPAvailable {
-				return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
-			}
-			setMultiPathTCP(&listenConfig)
+	var listenConfig net.ListenConfig
+	if a.listenOptions.TCPMultiPath {
+		if !go121Available {
+			return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
 		}
-		tcpListener, err = listenConfig.Listen(a.ctx, M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.String())
+		setMultiPathTCP(&listenConfig)
+	}
+	if a.listenOptions.TCPFastOpen {
+		if !go120Available {
+			return nil, E.New("TCP Fast Open requires go1.20, please recompile your binary.")
+		}
+		tcpListener, err = listenTFO(listenConfig, a.ctx, M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.String())
 	} else {
-		tcpListener, err = tfo.ListenTCP(M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.TCPAddr())
+		tcpListener, err = listenConfig.Listen(a.ctx, M.NetworkFromNetAddr(N.NetworkTCP, bindAddr.Addr), bindAddr.String())
 	}
 	if err == nil {
 		a.logger.Info("tcp server started at ", tcpListener.Addr())

@@ -1,3 +1,5 @@
+//go:build go1.20
+
 package dialer
 
 import (
@@ -25,7 +27,7 @@ type slowOpenConn struct {
 	err         error
 }
 
-func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func DialSlowContext(dialer *tcpDialer, ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if dialer.DisableTFO || N.NetworkName(network) != N.NetworkTCP {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP, N.NetworkUDP:
@@ -61,6 +63,7 @@ func (c *slowOpenConn) Write(b []byte) (n int, err error) {
 	if c.conn == nil {
 		c.conn, err = c.dialer.DialContext(c.ctx, c.network, c.destination.String(), b)
 		if err != nil {
+			c.conn = nil
 			c.err = E.Cause(err, "dial tcp fast open")
 		}
 		close(c.create)
