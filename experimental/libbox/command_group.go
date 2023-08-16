@@ -19,25 +19,12 @@ type OutboundGroup struct {
 	Type       string
 	Selectable bool
 	Selected   string
-	isExpand   int8
+	IsExpand   bool
 	items      []*OutboundGroupItem
 }
 
 func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
 	return newIterator(g.items)
-}
-
-func (g *OutboundGroup) IsExpand() bool {
-	switch g.isExpand {
-	case -1:
-		return g.Selectable
-	case 0:
-		return false
-	case 1:
-		return true
-	default:
-		panic("unexpected expand value")
-	}
 }
 
 type OutboundGroupIterator interface {
@@ -129,7 +116,7 @@ func readGroups(reader io.Reader) (OutboundGroupIterator, error) {
 			return nil, err
 		}
 
-		err = binary.Read(reader, binary.BigEndian, &group.isExpand)
+		err = binary.Read(reader, binary.BigEndian, &group.IsExpand)
 		if err != nil {
 			return nil, err
 		}
@@ -192,12 +179,8 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		_, group.Selectable = iGroup.(*outbound.Selector)
 		group.Selected = iGroup.Now()
 		if cacheFile != nil {
-			if isExpand, loaded := cacheFile.LoadGroupExpand(group.Tag); !loaded {
-				group.isExpand = -1
-			} else if isExpand {
-				group.isExpand = 1
-			} else {
-				group.isExpand = 0
+			if isExpand, loaded := cacheFile.LoadGroupExpand(group.Tag); loaded {
+				group.IsExpand = isExpand
 			}
 		}
 
@@ -240,7 +223,7 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		if err != nil {
 			return err
 		}
-		err = binary.Write(writer, binary.BigEndian, group.isExpand)
+		err = binary.Write(writer, binary.BigEndian, group.IsExpand)
 		if err != nil {
 			return err
 		}
