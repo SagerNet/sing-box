@@ -11,6 +11,7 @@
   "password": "hello",
   "congestion_control": "cubic",
   "udp_relay_mode": "native",
+  "udp_over_stream": false,
   "zero_rtt_handshake": false,
   "heartbeat": "10s",
   "network": "tcp",
@@ -65,6 +66,15 @@ UDP 包中继模式
 | native | 原生 UDP                       |
 | quic   | 使用 QUIC 流的无损 UDP 中继，引入了额外的开销 |
 
+与 `udp_over_stream` 冲突。
+
+#### udp_over_stream
+
+这是 TUIC 的 [UDP over TCP 协议](/configuration/shared/udp-over-tcp) 移植， 旨在提供 TUIC 不提供的 基于 QUIC 流的 UDP 中继模式。 由于它是一个附加协议，因此您需要使用 sing-box 或其他兼容的程序作为服务器。
+
+此模式在正确的 UDP 代理场景中没有任何积极作用，仅适用于中继流式 UDP 流量（基本上是 QUIC 流）。
+
+与 `udp_relay_mode` 冲突。
 
 #### zero_rtt_handshake
 
