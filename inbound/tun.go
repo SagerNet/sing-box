@@ -77,6 +77,8 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			Inet6Address:       common.Map(options.Inet6Address, option.ListenPrefix.Build),
 			AutoRoute:          options.AutoRoute,
 			StrictRoute:        options.StrictRoute,
+			IncludeInterface:   options.IncludeInterface,
+			ExcludeInterface:   options.ExcludeInterface,
 			Inet4RouteAddress:  common.Map(options.Inet4RouteAddress, option.ListenPrefix.Build),
 			Inet6RouteAddress:  common.Map(options.Inet6RouteAddress, option.ListenPrefix.Build),
 			IncludeUID:         includeUID,
