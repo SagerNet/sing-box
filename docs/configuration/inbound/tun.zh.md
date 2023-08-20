@@ -24,6 +24,12 @@
   ],
   "endpoint_independent_nat": false,
   "stack": "system",
+  "include_interface": [
+    "lan0"
+  ],
+  "exclude_interface": [
+    "lan1"
+  ],
   "include_uid": [
     0
   ],
@@ -148,6 +154,22 @@ TCP/IP 栈。
 !!! warning ""
 
     默认安装不包含 gVisor 和 LWIP 栈，请参阅 [安装](/zh/#_2)。
+
+#### include_interface
+
+!!! error ""
+
+    接口规则仅在 Linux 下被支持，并且需要 `auto_route`。
+
+限制被路由的接口。默认不限制。
+
+与 `exclude_interface` 冲突。
+
+#### exclude_interface
+
+排除路由的接口。
+
+与 `include_interface` 冲突。
 
 #### include_uid
 

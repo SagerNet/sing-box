@@ -24,6 +24,12 @@
   ],
   "endpoint_independent_nat": false,
   "stack": "system",
+  "include_interface": [
+    "lan0"
+  ],
+  "exclude_interface": [
+    "lan1"
+  ],
   "include_uid": [
     0
   ],
@@ -152,6 +158,22 @@ TCP/IP stack.
 !!! warning ""
 
     gVisor and LWIP stacks is not included by default, see [Installation](/#installation).
+
+#### include_interface
+
+!!! error ""
+
+    Interface rules are only supported on Linux and require auto_route.
+
+Limit interfaces in route. Not limited by default.
+
+Conflict with `exclude_interface`.
+
+#### exclude_interface
+
+Exclude interfaces in route.
+
+Conflict with `include_interface`.
 
 #### include_uid
 

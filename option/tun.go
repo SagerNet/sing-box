@@ -9,6 +9,8 @@ type TunInboundOptions struct {
 	StrictRoute            bool                   `json:"strict_route,omitempty"`
 	Inet4RouteAddress      Listable[ListenPrefix] `json:"inet4_route_address,omitempty"`
 	Inet6RouteAddress      Listable[ListenPrefix] `json:"inet6_route_address,omitempty"`
+	IncludeInterface       Listable[string]       `json:"include_interface,omitempty"`
+	ExcludeInterface       Listable[string]       `json:"exclude_interface,omitempty"`
 	IncludeUID             Listable[uint32]       `json:"include_uid,omitempty"`
 	IncludeUIDRange        Listable[string]       `json:"include_uid_range,omitempty"`
 	ExcludeUID             Listable[uint32]       `json:"exclude_uid,omitempty"`
