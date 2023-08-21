@@ -1,3 +1,7 @@
+#### 1.4.0-rc.1
+
+* Fix TUIC UDP
+
 #### 1.4.0-beta.6
 
 * Add `udp_over_stream` option for TUIC client **1**
