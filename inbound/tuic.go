@@ -99,6 +99,12 @@ func (h *TUIC) newPacketConnection(ctx context.Context, conn N.PacketConn, metad
 }
 
 func (h *TUIC) Start() error {
+	if h.tlsConfig != nil {
+		err := h.tlsConfig.Start()
+		if err != nil {
+			return err
+		}
+	}
 	packetConn, err := h.myInboundAdapter.ListenUDP()
 	if err != nil {
 		return err

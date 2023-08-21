@@ -74,6 +74,21 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 	// require.NoError(t, testPacketConnTimeout(t, dialUDP))
 }
 
+func testSuitLargeUDP(t *testing.T, clientPort uint16, testPort uint16) {
+	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
+	dialTCP := func() (net.Conn, error) {
+		return dialer.DialContext(context.Background(), "tcp", M.ParseSocksaddrHostPort("127.0.0.1", testPort))
+	}
+	dialUDP := func() (net.PacketConn, error) {
+		return dialer.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("127.0.0.1", testPort))
+	}
+	require.NoError(t, testPingPongWithConn(t, testPort, dialTCP))
+	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
+	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
+	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
+	require.NoError(t, testLargeDataWithPacketConnSize(t, testPort, 1250, dialUDP))
+}
+
 func testTCP(t *testing.T, clientPort uint16, testPort uint16) {
 	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
 	dialTCP := func() (net.Conn, error) {

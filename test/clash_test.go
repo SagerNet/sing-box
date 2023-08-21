@@ -38,8 +38,8 @@ const (
 	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
 	ImageXRayCore              = "teddysun/xray:latest"
 	ImageShadowsocksLegacy     = "mritd/shadowsocks:latest"
-	ImageTUICServer            = ""
-	ImageTUICClient            = ""
+	ImageTUICServer            = "kilvn/tuic-server:latest"
+	ImageTUICClient            = "kilvn/tuic-client:latest"
 )
 
 var allImages = []string{
@@ -55,8 +55,8 @@ var allImages = []string{
 	ImageShadowsocksR,
 	ImageXRayCore,
 	ImageShadowsocksLegacy,
-	// ImageTUICServer,
-	// ImageTUICClient,
+	ImageTUICServer,
+	ImageTUICClient,
 }
 
 var localIP = netip.MustParseAddr("127.0.0.1")
@@ -364,6 +364,10 @@ func testLargeDataWithConn(t *testing.T, port uint16, cc func() (net.Conn, error
 }
 
 func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.PacketConn, error)) error {
+	return testLargeDataWithPacketConnSize(t, port, 1024, pcc)
+}
+
+func testLargeDataWithPacketConnSize(t *testing.T, port uint16, chunkSize int, pcc func() (net.PacketConn, error)) error {
 	l, err := listenPacket("udp", ":"+F.ToString(port))
 	if err != nil {
 		return err
@@ -373,7 +377,6 @@ func testLargeDataWithPacketConn(t *testing.T, port uint16, pcc func() (net.Pack
 	rAddr := &net.UDPAddr{IP: localIP.AsSlice(), Port: int(port)}
 
 	times := 50
-	chunkSize := int64(1024)
 
 	pingCh, pongCh, test := newLargeDataPair()
 	writeRandData := func(pc net.PacketConn, addr net.Addr) (map[int][]byte, error) {
