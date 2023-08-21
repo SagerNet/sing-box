@@ -23,15 +23,15 @@ require (
 	github.com/sagernet/cloudflare-tls v0.0.0-20221031050923-d70792f4c3a0
 	github.com/sagernet/gomobile v0.0.0-20230728014906-3de089147f59
 	github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2
-	github.com/sagernet/quic-go v0.0.0-20230811130919-d6f54a117913
+	github.com/sagernet/quic-go v0.0.0-20230821100820-d38697ecdbb0
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.10-0.20230820051732-fabfb87d9f29
+	github.com/sagernet/sing v0.2.10-0.20230821073500-620f3a3b882d
 	github.com/sagernet/sing-dns v0.1.9-0.20230731012726-ad50da89b659
 	github.com/sagernet/sing-mux v0.1.3-0.20230811111955-dc1639b5204c
 	github.com/sagernet/sing-shadowsocks v0.2.4
 	github.com/sagernet/sing-shadowsocks2 v0.1.3
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.12-0.20230820091922-db70908d6125
+	github.com/sagernet/sing-tun v0.1.12-0.20230821065522-7545dc2d5641
 	github.com/sagernet/sing-vmess v0.1.7
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
