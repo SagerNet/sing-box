@@ -9,6 +9,7 @@
   "udp_fragment": false,
   "sniff": false,
   "sniff_override_destination": false,
+  "sniff_override_rules": [],
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
   "udp_timeout": 300,
@@ -68,6 +69,12 @@
 用探测出的域名覆盖连接目标地址。
 
 如果域名无效（如 Tor），将不生效。
+
+#### sniff_override_rules
+
+根据规则选择处需要用探测出的域名覆盖目标地址的连接。
+
+参阅 [Sniff Override Rule](/zh/configuration/shared/sniff_override_rules/)
 
 #### sniff_timeout
 
