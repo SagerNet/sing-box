@@ -86,7 +86,7 @@ func testSuitLargeUDP(t *testing.T, clientPort uint16, testPort uint16) {
 	require.NoError(t, testPingPongWithPacketConn(t, testPort, dialUDP))
 	require.NoError(t, testLargeDataWithConn(t, testPort, dialTCP))
 	require.NoError(t, testLargeDataWithPacketConn(t, testPort, dialUDP))
-	require.NoError(t, testLargeDataWithPacketConnSize(t, testPort, 1250, dialUDP))
+	require.NoError(t, testLargeDataWithPacketConnSize(t, testPort, 5000, dialUDP))
 }
 
 func testTCP(t *testing.T, clientPort uint16, testPort uint16) {
