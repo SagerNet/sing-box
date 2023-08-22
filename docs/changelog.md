@@ -1,3 +1,7 @@
+#### 1.4.0-rc.2
+
+* Fixes and improvements
+
 #### 1.4.0-rc.1
 
 * Fix TUIC UDP
