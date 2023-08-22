@@ -5,5 +5,6 @@
     },
     "certificate":  "/etc/tuic/cert.pem",
     "private_key": "/etc/tuic/key.pem",
+    "max_external_packet_size": 65535,
     "log_level": "debug"
 }
