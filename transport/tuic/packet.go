@@ -259,7 +259,7 @@ func (c *udpPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 		destination:   M.SocksaddrFromNet(addr),
 		data:          buf.As(p),
 	}
-	if c.udpMTU > 0 && len(p) > c.udpMTU {
+	if !c.udpStream && c.needFragment() && len(p) > c.udpMTU {
 		err = c.writePackets(fragUDPMessage(message, c.udpMTU))
 		if err == nil {
 			return len(p), nil
