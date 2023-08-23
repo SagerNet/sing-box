@@ -82,7 +82,7 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 			return nil, err
 		}
 		return func() error {
-			return err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
+			return runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
 		}, nil
 	}
 	return nil, E.New("unsupported desktop environment")
