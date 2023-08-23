@@ -16,10 +16,12 @@ import (
 
 var (
 	hasGSettings bool
+	isKDE bool
 	sudoUser     string
 )
 
 func init() {
+	isKDE = common.Error(exec.LookPath("kwriteconfig5")) == nil
 	hasGSettings = common.Error(exec.LookPath("gsettings")) == nil
 	if os.Getuid() == 0 {
 		sudoUser = os.Getenv("SUDO_USER")
@@ -37,32 +39,53 @@ func runAsUser(name string, args ...string) error {
 }
 
 func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {
-	if !hasGSettings {
-		return nil, E.New("unsupported desktop environment")
+	if hasGSettings {
+		err := runAsUser("gsettings", "set", "org.gnome.system.proxy.http", "enabled", "true")
+		if err != nil {
+			return nil, err
+		}
+		if isMixed {
+			err = setGnomeProxy(port, "ftp", "http", "https", "socks")
+		} else {
+			err = setGnomeProxy(port, "http", "https")
+		}
+		if err != nil {
+			return nil, err
+		}
+		err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "use-same-proxy", F.ToString(isMixed))
+		if err != nil {
+			return nil, err
+		}
+		err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "manual")
+		if err != nil {
+			return nil, err
+		}
+		return func() error {
+			return runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "none")
+		}, nil
 	}
-	err := runAsUser("gsettings", "set", "org.gnome.system.proxy.http", "enabled", "true")
-	if err != nil {
-		return nil, err
+	if isKDE {
+		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "1")
+		if err != nil {
+			return nil, err
+		}
+		if isMixed {
+			err = setKDEProxy(port, "ftp", "http", "https", "socks")
+		} else {
+			err = setKDEProxy(port, "http", "https")
+		}
+		if err != nil {
+			return nil, err
+		}
+		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
+		if err != nil {
+			return nil, err
+		}
+		return func() error {
+			return err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
+		}, nil
 	}
-	if isMixed {
-		err = setGnomeProxy(port, "ftp", "http", "https", "socks")
-	} else {
-		err = setGnomeProxy(port, "http", "https")
-	}
-	if err != nil {
-		return nil, err
-	}
-	err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "use-same-proxy", F.ToString(isMixed))
-	if err != nil {
-		return nil, err
-	}
-	err = runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "manual")
-	if err != nil {
-		return nil, err
-	}
-	return func() error {
-		return runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "none")
-	}, nil
+	return nil, E.New("unsupported desktop environment")
 }
 
 func setGnomeProxy(port uint16, proxyTypes ...string) error {
@@ -72,6 +95,16 @@ func setGnomeProxy(port uint16, proxyTypes ...string) error {
 			return err
 		}
 		err = runAsUser("gsettings", "set", "org.gnome.system.proxy."+proxyType, "port", F.ToString(port))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setKDEProxy(port uint16, proxyTypes ...string) error {
+	for _, proxyType := range proxyTypes {
+		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", proxyType+"Proxy", proxyType+"://127.0.0.1:"+F.ToString(port))
 		if err != nil {
 			return err
 		}
