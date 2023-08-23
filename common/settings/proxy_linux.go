@@ -77,7 +77,7 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 		if err != nil {
 			return nil, err
 		}
-		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
+		err = runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
 		if err != nil {
 			return nil, err
 		}
