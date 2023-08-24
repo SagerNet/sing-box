@@ -16,12 +16,12 @@ import (
 
 var (
 	hasGSettings bool
-	isKDE bool
+	isKDE5        bool
 	sudoUser     string
 )
 
 func init() {
-	isKDE = common.Error(exec.LookPath("kwriteconfig5")) == nil
+	isKDE5 = common.Error(exec.LookPath("kwriteconfig5")) == nil
 	hasGSettings = common.Error(exec.LookPath("gsettings")) == nil
 	if os.Getuid() == 0 {
 		sudoUser = os.Getenv("SUDO_USER")
@@ -64,8 +64,8 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 			return runAsUser("gsettings", "set", "org.gnome.system.proxy", "mode", "none")
 		}, nil
 	}
-	if isKDE {
-		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "1")
+	if isKDE5 {
+		err := runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "1")
 		if err != nil {
 			return nil, err
 		}
@@ -77,12 +77,20 @@ func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() er
 		if err != nil {
 			return nil, err
 		}
-		err = runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
+		err = runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
+		if err != nil {
+			return nil, err
+		}
+		err = runAsUser("dbus-send", "--type=signal", "/KIO/Scheduler", "org.kde.KIO.Scheduler.reparseSlaveConfiguration", "string:''")
 		if err != nil {
 			return nil, err
 		}
 		return func() error {
-			return runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
+			err = runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
+			if err != nil {
+				return err
+			}
+			return runAsUser("dbus-send", "--type=signal", "/KIO/Scheduler", "org.kde.KIO.Scheduler.reparseSlaveConfiguration", "string:''")
 		}, nil
 	}
 	return nil, E.New("unsupported desktop environment")
@@ -104,7 +112,21 @@ func setGnomeProxy(port uint16, proxyTypes ...string) error {
 
 func setKDEProxy(port uint16, proxyTypes ...string) error {
 	for _, proxyType := range proxyTypes {
-		err := runAsUser("kwriteconfig5", "--file","kioslaverc", "--group", "'Proxy Settings'", "--key", proxyType+"Proxy", proxyType+"://127.0.0.1:"+F.ToString(port))
+		var proxy_url string
+		if proxyType == "socks" {
+			proxy_url = "socks://127.0.0.1:" + F.ToString(port)
+		} else {
+			proxy_url = "http://127.0.0.1:" + F.ToString(port)
+		}
+		err := runAsUser(
+			"kwriteconfig5",
+			"--file",
+			"kioslaverc",
+			"--group",
+			"'Proxy Settings'",
+			"--key", proxyType+"Proxy",
+			proxy_url,
+		)
 		if err != nil {
 			return err
 		}
