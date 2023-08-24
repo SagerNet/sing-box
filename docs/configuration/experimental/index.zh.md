@@ -42,10 +42,6 @@
 
 ### Clash API 字段
 
-!!! error ""
-
-    默认安装不包含 Clash API，参阅 [安装](/zh/#_2)。
-
 #### external_controller
 
 RESTful web API 监听地址。如果为空，则禁用 Clash API。
