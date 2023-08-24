@@ -145,7 +145,9 @@ func New(options Options) (*Box, error) {
 	preServices := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needClashAPI {
-		clashServer, err := experimental.NewClashServer(ctx, router, logFactory.(log.ObservableFactory), common.PtrValueOrDefault(experimentalOptions.ClashAPI))
+		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
+		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
+		clashServer, err := experimental.NewClashServer(ctx, router, logFactory.(log.ObservableFactory), clashAPIOptions)
 		if err != nil {
 			return nil, E.Cause(err, "create clash api server")
 		}

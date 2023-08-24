@@ -54,6 +54,9 @@ func (s *Transport) Start() error {
 	return nil
 }
 
+func (s *Transport) Reset() {
+}
+
 func (s *Transport) Close() error {
 	return nil
 }

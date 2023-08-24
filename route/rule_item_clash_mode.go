@@ -16,7 +16,7 @@ type ClashModeItem struct {
 func NewClashModeItem(router adapter.Router, mode string) *ClashModeItem {
 	return &ClashModeItem{
 		router: router,
-		mode:   strings.ToLower(mode),
+		mode:   mode,
 	}
 }
 
@@ -25,7 +25,7 @@ func (r *ClashModeItem) Match(metadata *adapter.InboundContext) bool {
 	if clashServer == nil {
 		return false
 	}
-	return clashServer.Mode() == r.mode
+	return strings.EqualFold(clashServer.Mode(), r.mode)
 }
 
 func (r *ClashModeItem) String() string {

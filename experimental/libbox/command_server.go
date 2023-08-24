@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/common/urltest"
+	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
@@ -28,8 +29,8 @@ type CommandServer struct {
 	observer   *observable.Observer[string]
 	service    *BoxService
 
-	urlTestListener *list.Element[func()]
-	urlTestUpdate   chan struct{}
+	urlTestUpdate chan struct{}
+	modeUpdate    chan struct{}
 }
 
 type CommandServerHandler interface {
@@ -43,20 +44,18 @@ func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServ
 		maxLines:      int(maxLines),
 		subscriber:    observable.NewSubscriber[string](128),
 		urlTestUpdate: make(chan struct{}, 1),
+		modeUpdate:    make(chan struct{}, 1),
 	}
 	server.observer = observable.NewObserver[string](server.subscriber, 64)
 	return server
 }
 
 func (s *CommandServer) SetService(newService *BoxService) {
-	if s.service != nil && s.listener != nil {
-		service.PtrFromContext[urltest.HistoryStorage](s.service.ctx).RemoveListener(s.urlTestListener)
-		s.urlTestListener = nil
+	if newService != nil {
+		service.PtrFromContext[urltest.HistoryStorage](newService.ctx).SetHook(s.urlTestUpdate)
+		newService.instance.Router().ClashServer().(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
 	}
 	s.service = newService
-	if newService != nil {
-		s.urlTestListener = service.PtrFromContext[urltest.HistoryStorage](newService.ctx).AddListener(s.notifyURLTestUpdate)
-	}
 	s.notifyURLTestUpdate()
 }
 
@@ -156,6 +155,10 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleURLTest(conn)
 	case CommandGroupExpand:
 		return s.handleSetGroupExpand(conn)
+	case CommandClashMode:
+		return s.handleModeConn(conn)
+	case CommandSetClashMode:
+		return s.handleSetClashMode(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}

@@ -46,6 +46,9 @@ type Server struct {
 	trafficManager *trafficontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
 	mode           string
+	modeList       []string
+	modeUpdateHook chan<- struct{}
+	storeMode      bool
 	storeSelected  bool
 	storeFakeIP    bool
 	cacheFilePath  string
@@ -70,9 +73,10 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 			Handler: chiRouter,
 		},
 		trafficManager:           trafficManager,
-		mode:                     strings.ToLower(options.DefaultMode),
-		storeSelected:            options.StoreSelected,
+		modeList:                 options.ModeList,
 		externalController:       options.ExternalController != "",
+		storeMode:                options.StoreMode,
+		storeSelected:            options.StoreSelected,
 		storeFakeIP:              options.StoreFakeIP,
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
@@ -81,10 +85,15 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 	if server.urlTestHistory == nil {
 		server.urlTestHistory = urltest.NewHistoryStorage()
 	}
-	if server.mode == "" {
-		server.mode = "rule"
+	defaultMode := "Rule"
+	if options.DefaultMode != "" {
+		defaultMode = options.DefaultMode
 	}
-	if options.StoreSelected || options.StoreFakeIP || options.ExternalController == "" {
+	if !common.Contains(server.modeList, defaultMode) {
+		server.modeList = append(server.modeList, defaultMode)
+	}
+	server.mode = defaultMode
+	if options.StoreMode || options.StoreSelected || options.StoreFakeIP || options.ExternalController == "" {
 		cachePath := os.ExpandEnv(options.CacheFile)
 		if cachePath == "" {
 			cachePath = "cache.db"
@@ -110,7 +119,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		r.Get("/logs", getLogs(logFactory))
 		r.Get("/traffic", traffic(trafficManager))
 		r.Get("/version", version)
-		r.Mount("/configs", configRouter(server, logFactory, server.logger))
+		r.Mount("/configs", configRouter(server, logFactory))
 		r.Mount("/proxies", proxyRouter(server, router))
 		r.Mount("/rules", ruleRouter(router))
 		r.Mount("/connections", connectionRouter(router, trafficManager))
@@ -143,6 +152,14 @@ func (s *Server) PreStart() error {
 			return E.Cause(err, "open cache file")
 		}
 		s.cacheFile = cacheFile
+		if s.storeMode {
+			mode := s.cacheFile.LoadMode()
+			if common.Any(s.modeList, func(it string) bool {
+				return strings.EqualFold(it, mode)
+			}) {
+				s.mode = mode
+			}
+		}
 	}
 	return nil
 }
@@ -170,11 +187,49 @@ func (s *Server) Close() error {
 		common.PtrOrNil(s.httpServer),
 		s.trafficManager,
 		s.cacheFile,
+		s.urlTestHistory,
 	)
 }
 
 func (s *Server) Mode() string {
 	return s.mode
+}
+
+func (s *Server) ModeList() []string {
+	return s.modeList
+}
+
+func (s *Server) SetModeUpdateHook(hook chan<- struct{}) {
+	s.modeUpdateHook = hook
+}
+
+func (s *Server) SetMode(newMode string) {
+	if !common.Contains(s.modeList, newMode) {
+		newMode = common.Find(s.modeList, func(it string) bool {
+			return strings.EqualFold(it, newMode)
+		})
+	}
+	if !common.Contains(s.modeList, newMode) {
+		return
+	}
+	if newMode == s.mode {
+		return
+	}
+	s.mode = newMode
+	if s.modeUpdateHook != nil {
+		select {
+		case s.modeUpdateHook <- struct{}{}:
+		default:
+		}
+	}
+	s.router.ClearDNSCache()
+	if s.storeMode {
+		err := s.cacheFile.StoreMode(newMode)
+		if err != nil {
+			s.logger.Error(E.Cause(err, "save mode"))
+		}
+	}
+	s.logger.Info("updated mode: ", newMode)
 }
 
 func (s *Server) StoreSelected() bool {

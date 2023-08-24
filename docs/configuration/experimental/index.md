@@ -12,7 +12,9 @@
       "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "",
+      "store_mode": false,
       "store_selected": false,
+      "store_fakeip": false,
       "cache_file": "",
       "cache_id": ""
     },
@@ -80,6 +82,10 @@ Default mode in clash, `rule` will be used if empty.
 
 This setting has no direct effect, but can be used in routing and DNS rules via the `clash_mode` rule item.
 
+#### store_mode
+
+Store Clash mode in cache file.
+
 #### store_selected
 
 !!! note ""
@@ -87,6 +93,10 @@ This setting has no direct effect, but can be used in routing and DNS rules via 
     The tag must be set for target outbounds.
 
 Store selected outbound for the `Selector` outbound in cache file.
+
+#### store_fakeip
+
+Store fakeip in cache file.
 
 #### cache_file
 

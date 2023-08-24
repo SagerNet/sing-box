@@ -1005,14 +1005,7 @@ func (r *Router) notifyNetworkUpdate(event int) {
 		}
 	}
 
-	conntrack.Close()
-
-	for _, outbound := range r.outbounds {
-		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
-		if isListener {
-			listener.InterfaceUpdated()
-		}
-	}
+	r.ResetNetwork()
 	return
 }
 
@@ -1024,6 +1017,10 @@ func (r *Router) ResetNetwork() error {
 		if isListener {
 			listener.InterfaceUpdated()
 		}
+	}
+
+	for _, transport := range r.transports {
+		transport.Reset()
 	}
 	return nil
 }

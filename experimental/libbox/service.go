@@ -25,10 +25,11 @@ import (
 )
 
 type BoxService struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	instance     *box.Box
-	pauseManager pause.Manager
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	instance              *box.Box
+	pauseManager          pause.Manager
+	urlTestHistoryStorage *urltest.HistoryStorage
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
@@ -39,9 +40,10 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	runtimeDebug.FreeOSMemory()
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
-	ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
-	sleepManager := pause.NewDefaultManager(ctx)
-	ctx = pause.ContextWithManager(ctx, sleepManager)
+	urlTestHistoryStorage := urltest.NewHistoryStorage()
+	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
+	pauseManager := pause.NewDefaultManager(ctx)
+	ctx = pause.ContextWithManager(ctx, pauseManager)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
@@ -53,10 +55,11 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	}
 	runtimeDebug.FreeOSMemory()
 	return &BoxService{
-		ctx:          ctx,
-		cancel:       cancel,
-		instance:     instance,
-		pauseManager: sleepManager,
+		ctx:                   ctx,
+		cancel:                cancel,
+		instance:              instance,
+		urlTestHistoryStorage: urlTestHistoryStorage,
+		pauseManager:          pauseManager,
 	}, nil
 }
 
@@ -66,6 +69,7 @@ func (s *BoxService) Start() error {
 
 func (s *BoxService) Close() error {
 	s.cancel()
+	s.urlTestHistoryStorage.Close()
 	return s.instance.Close()
 }
 
@@ -193,4 +197,8 @@ func (w *platformInterfaceWrapper) Interfaces() ([]platform.NetworkInterface, er
 
 func (w *platformInterfaceWrapper) UnderNetworkExtension() bool {
 	return w.iif.UnderNetworkExtension()
+}
+
+func (w *platformInterfaceWrapper) ClearDNSCache() {
+	w.iif.ClearDNSCache()
 }

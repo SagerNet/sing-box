@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common"
 
 	"go.etcd.io/bbolt"
 )
@@ -15,6 +16,15 @@ import (
 var (
 	bucketSelected = []byte("selected")
 	bucketExpand   = []byte("group_expand")
+	bucketMode     = []byte("clash_mode")
+
+	bucketNameList = []string{
+		string(bucketSelected),
+		string(bucketExpand),
+		string(bucketMode),
+	}
+
+	cacheIDDefault = []byte("default")
 )
 
 var _ adapter.ClashCacheFile = (*CacheFile)(nil)
@@ -52,14 +62,14 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 			if name[0] == 0 {
 				return b.ForEachBucket(func(k []byte) error {
 					bucketName := string(k)
-					if !(bucketName == string(bucketSelected) || bucketName == string(bucketExpand)) {
+					if !(common.Contains(bucketNameList, bucketName)) {
 						_ = b.DeleteBucket(name)
 					}
 					return nil
 				})
 			} else {
 				bucketName := string(name)
-				if !(bucketName == string(bucketSelected) || bucketName == string(bucketExpand) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
+				if !(common.Contains(bucketNameList, bucketName) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
 					_ = tx.DeleteBucket(name)
 				}
 			}
@@ -76,6 +86,39 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 		saveAddress4: make(map[string]netip.Addr),
 		saveAddress6: make(map[string]netip.Addr),
 	}, nil
+}
+
+func (c *CacheFile) LoadMode() string {
+	var mode string
+	c.DB.View(func(t *bbolt.Tx) error {
+		bucket := t.Bucket(bucketMode)
+		if bucket == nil {
+			return nil
+		}
+		var modeBytes []byte
+		if len(c.cacheID) > 0 {
+			modeBytes = bucket.Get(c.cacheID)
+		} else {
+			modeBytes = bucket.Get(cacheIDDefault)
+		}
+		mode = string(modeBytes)
+		return nil
+	})
+	return mode
+}
+
+func (c *CacheFile) StoreMode(mode string) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := t.CreateBucketIfNotExists(bucketMode)
+		if err != nil {
+			return err
+		}
+		if len(c.cacheID) > 0 {
+			return bucket.Put(c.cacheID, []byte(mode))
+		} else {
+			return bucket.Put(cacheIDDefault, []byte(mode))
+		}
+	})
 }
 
 func (c *CacheFile) bucket(t *bbolt.Tx, key []byte) *bbolt.Bucket {

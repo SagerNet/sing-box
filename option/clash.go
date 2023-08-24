@@ -7,10 +7,13 @@ type ClashAPIOptions struct {
 	ExternalUIDownloadDetour string `json:"external_ui_download_detour,omitempty"`
 	Secret                   string `json:"secret,omitempty"`
 	DefaultMode              string `json:"default_mode,omitempty"`
+	StoreMode                bool   `json:"store_mode,omitempty"`
 	StoreSelected            bool   `json:"store_selected,omitempty"`
 	StoreFakeIP              bool   `json:"store_fakeip,omitempty"`
 	CacheFile                string `json:"cache_file,omitempty"`
 	CacheID                  string `json:"cache_id,omitempty"`
+
+	ModeList []string `json:"-"`
 }
 
 type SelectorOutboundOptions struct {
