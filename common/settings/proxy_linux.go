@@ -16,7 +16,7 @@ import (
 
 var (
 	hasGSettings bool
-	isKDE5        bool
+	isKDE5       bool
 	sudoUser     string
 )
 
@@ -112,11 +112,11 @@ func setGnomeProxy(port uint16, proxyTypes ...string) error {
 
 func setKDEProxy(port uint16, proxyTypes ...string) error {
 	for _, proxyType := range proxyTypes {
-		var proxy_url string
+		var proxyUrl string
 		if proxyType == "socks" {
-			proxy_url = "socks://127.0.0.1:" + F.ToString(port)
+			proxyUrl = "socks://127.0.0.1:" + F.ToString(port)
 		} else {
-			proxy_url = "http://127.0.0.1:" + F.ToString(port)
+			proxyUrl = "http://127.0.0.1:" + F.ToString(port)
 		}
 		err := runAsUser(
 			"kwriteconfig5",
@@ -125,7 +125,7 @@ func setKDEProxy(port uint16, proxyTypes ...string) error {
 			"--group",
 			"'Proxy Settings'",
 			"--key", proxyType+"Proxy",
-			proxy_url,
+			proxyUrl,
 		)
 		if err != nil {
 			return err
