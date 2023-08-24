@@ -12,7 +12,9 @@
       "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "",
+      "store_mode": false,
       "store_selected": false,
+      "store_fakeip": false,
       "cache_file": "",
       "cache_id": ""
     },
@@ -78,6 +80,10 @@ Clash 中的默认模式，默认使用 `rule`。
 
 此设置没有直接影响，但可以通过 `clash_mode` 规则项在路由和 DNS 规则中使用。
 
+#### store_mode
+
+将 Clash 模式存储在缓存文件中。
+
 #### store_selected
 
 !!! note ""
@@ -85,6 +91,10 @@ Clash 中的默认模式，默认使用 `rule`。
     必须为目标出站设置标签。
 
 将 `Selector` 中出站的选定的目标出站存储在缓存文件中。
+
+#### store_fakeip
+
+将 fakeip 存储在缓存文件中。
 
 #### cache_file
 

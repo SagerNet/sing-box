@@ -3,6 +3,7 @@ package libbox
 import (
 	"encoding/binary"
 	"net"
+	"os"
 	"path/filepath"
 
 	"github.com/sagernet/sing/common"
@@ -26,6 +27,8 @@ type CommandClientHandler interface {
 	WriteLog(message string)
 	WriteStatus(message *StatusMessage)
 	WriteGroups(message OutboundGroupIterator)
+	InitializeClashMode(modeList StringIterator, currentMode string)
+	UpdateClashMode(newMode string)
 }
 
 func NewStandaloneCommandClient() *CommandClient {
@@ -79,6 +82,23 @@ func (c *CommandClient) Connect() error {
 		}
 		c.handler.Connected()
 		go c.handleGroupConn(conn)
+	case CommandClashMode:
+		var (
+			modeList    []string
+			currentMode string
+		)
+		modeList, currentMode, err = readClashModeList(conn)
+		if err != nil {
+			return err
+		}
+		c.handler.Connected()
+		c.handler.InitializeClashMode(newIterator(modeList), currentMode)
+		if len(modeList) == 0 {
+			conn.Close()
+			c.handler.Disconnected(os.ErrInvalid.Error())
+			return nil
+		}
+		go c.handleModeConn(conn)
 	}
 	return nil
 }

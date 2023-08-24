@@ -146,6 +146,13 @@ func (r *Router) LookupDefault(ctx context.Context, domain string) ([]netip.Addr
 	return r.Lookup(ctx, domain, dns.DomainStrategyAsIS)
 }
 
+func (r *Router) ClearDNSCache() {
+	r.dnsClient.ClearCache()
+	if r.platformInterface != nil {
+		r.platformInterface.ClearDNSCache()
+	}
+}
+
 func LogDNSAnswers(logger log.ContextLogger, ctx context.Context, domain string, answers []mDNS.RR) {
 	for _, answer := range answers {
 		logger.InfoContext(ctx, "exchanged ", domain, " ", mDNS.Type(answer.Header().Rrtype).String(), " ", formatQuestion(answer.String()))

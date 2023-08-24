@@ -2,7 +2,6 @@ package clashapi
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/sagernet/sing-box/log"
 
@@ -10,11 +9,11 @@ import (
 	"github.com/go-chi/render"
 )
 
-func configRouter(server *Server, logFactory log.Factory, logger log.Logger) http.Handler {
+func configRouter(server *Server, logFactory log.Factory) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConfigs(server, logFactory))
 	r.Put("/", updateConfigs)
-	r.Patch("/", patchConfigs(server, logger))
+	r.Patch("/", patchConfigs(server))
 	return r
 }
 
@@ -48,7 +47,7 @@ func getConfigs(server *Server, logFactory log.Factory) func(w http.ResponseWrit
 	}
 }
 
-func patchConfigs(server *Server, logger log.Logger) func(w http.ResponseWriter, r *http.Request) {
+func patchConfigs(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var newConfig configSchema
 		err := render.DecodeJSON(r.Body, &newConfig)
@@ -58,11 +57,7 @@ func patchConfigs(server *Server, logger log.Logger) func(w http.ResponseWriter,
 			return
 		}
 		if newConfig.Mode != "" {
-			mode := strings.ToLower(newConfig.Mode)
-			if server.mode != mode {
-				server.mode = mode
-				logger.Info("updated mode: ", mode)
-			}
+			server.SetMode(newConfig.Mode)
 		}
 		render.NoContent(w, r)
 	}

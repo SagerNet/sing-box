@@ -199,6 +199,9 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 			}
 			group.items = append(group.items, &item)
 		}
+		if len(group.items) < 2 {
+			continue
+		}
 		groups = append(groups, group)
 	}
 

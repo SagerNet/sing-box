@@ -32,6 +32,7 @@ type Router interface {
 	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
 	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
 	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
+	ClearDNSCache()
 
 	InterfaceFinder() control.InterfaceFinder
 	UpdateInterfaces() error

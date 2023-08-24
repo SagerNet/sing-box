@@ -12,6 +12,7 @@ type ClashServer interface {
 	Service
 	PreStarter
 	Mode() string
+	ModeList() []string
 	StoreSelected() bool
 	StoreFakeIP() bool
 	CacheFile() ClashCacheFile
@@ -21,6 +22,8 @@ type ClashServer interface {
 }
 
 type ClashCacheFile interface {
+	LoadMode() string
+	StoreMode(mode string) error
 	LoadSelected(group string) string
 	StoreSelected(group string, selected string) error
 	LoadGroupExpand(group string) (isExpand bool, loaded bool)

@@ -85,6 +85,9 @@ func (t *Transport) Start() error {
 	return nil
 }
 
+func (t *Transport) Reset() {
+}
+
 func (t *Transport) Close() error {
 	if t.interfaceCallback != nil {
 		t.router.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)

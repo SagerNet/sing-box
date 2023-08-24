@@ -23,6 +23,7 @@ type Interface interface {
 	UsePlatformInterfaceGetter() bool
 	Interfaces() ([]NetworkInterface, error)
 	UnderNetworkExtension() bool
+	ClearDNSCache()
 	process.Searcher
 	io.Writer
 }

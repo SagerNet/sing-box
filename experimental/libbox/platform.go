@@ -19,6 +19,7 @@ type PlatformInterface interface {
 	UsePlatformInterfaceGetter() bool
 	GetInterfaces() (NetworkInterfaceIterator, error)
 	UnderNetworkExtension() bool
+	ClearDNSCache()
 }
 
 type TunInterface interface {
