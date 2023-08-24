@@ -197,10 +197,6 @@ If you don't know how to fill in the other configuration, just set `enabled`.
 
 ==Client only==
 
-!!! warning ""
-
-    uTLS is not included by default, see [Installation](/#installation).
-
 !!! note ""
 
     uTLS is poorly maintained and the effect may be unproven, use at your own risk.
@@ -296,14 +292,6 @@ The key identifier.
 The MAC key.
 
 ### Reality Fields
-
-!!! warning ""
-
-    reality server is not included by default, see [Installation](/#installation).
-
-!!! warning ""
-
-    uTLS, which is required by reality client is not included by default, see [Installation](/#installation).
 
 #### handshake
 
