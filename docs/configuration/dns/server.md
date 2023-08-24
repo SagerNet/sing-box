@@ -49,15 +49,11 @@ The address of the dns server.
 
 !!! warning ""
 
-    QUIC and HTTP3 transport is not included by default, see [Installation](/#installation).
+    HTTP3 transport is not included by default, see [Installation](/#installation).
 
 !!! info ""
 
     the RCode transport is often used to block queries. Use with rules and the `disable_cache` rule option.
-
-!!! warning ""
-
-    DHCP transport is not included by default, see [Installation](/#installation).
 
 | RCode             | Description           | 
 |-------------------|-----------------------|
