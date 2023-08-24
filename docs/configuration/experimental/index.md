@@ -42,10 +42,6 @@
 
 ### Clash API Fields
 
-!!! error ""
-
-    Clash API is not included by default, see [Installation](/#installation).
-
 #### external_controller
 
 RESTful web API listening address. Clash API will be disabled if empty.
