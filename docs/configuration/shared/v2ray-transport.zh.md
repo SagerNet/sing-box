@@ -127,9 +127,6 @@ HTTP 请求的额外标头。
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含 QUIC, 参阅 [安装](/zh/#_2)。
 
 !!! warning "与 v2ray-core 的区别"
 
