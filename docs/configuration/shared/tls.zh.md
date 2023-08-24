@@ -197,10 +197,6 @@ ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 
 
 ==仅客户端==
 
-!!! warning ""
-
-    默认安装不包含 uTLS, 参阅 [安装](/zh/#_2)。
-
 !!! note ""
 
     uTLS 维护不善且其效果可能未经证实，使用风险自负。
@@ -292,14 +288,6 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 MAC 密钥。
 
 ### Reality 字段
-
-!!! warning ""
-
-    默认安装不包含 reality 服务器，参阅 [安装](/zh/#_2)。
-
-!!! warning ""
-
-    默认安装不包含被 reality 客户端需要的 uTLS, 参阅 [安装](/zh/#_2)。
 
 #### handshake
 
