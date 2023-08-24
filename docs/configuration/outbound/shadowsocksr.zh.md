@@ -25,7 +25,7 @@
 
 !!! warning ""
 
-    默认安装不包含被 ShadowsocksR，参阅 [安装](/zh/#_2)。
+    默认安装不包含 ShadowsocksR，参阅 [安装](/zh/#_2)。
 
 ### 字段
 
