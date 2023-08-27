@@ -259,6 +259,10 @@ type clientConn struct {
 	requestWritten bool
 }
 
+func (c *clientConn) NeedHandshake() bool {
+	return !c.requestWritten
+}
+
 func (c *clientConn) Read(b []byte) (n int, err error) {
 	n, err = c.stream.Read(b)
 	return n, baderror.WrapQUIC(err)
