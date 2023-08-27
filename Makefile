@@ -58,23 +58,87 @@ proto_install:
 	go install -v google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
-snapshot:
-	go run ./cmd/internal/build goreleaser release --clean --snapshot || exit 1
-	mkdir dist/release
-	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
-	ghr --delete --draft --prerelease -p 1 nightly dist/release
-	rm -r dist
-
 release:
 	go run ./cmd/internal/build goreleaser release --clean --skip-publish || exit 1
 	mkdir dist/release
 	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
-	ghr --delete --draft --prerelease -p 3 $(shell git describe --tags) dist/release
+	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release
 	rm -r dist
 
 release_install:
 	go install -v github.com/goreleaser/goreleaser@latest
 	go install -v github.com/tcnksm/ghr@latest
+
+upload_android:
+	go run ./cmd/internal/update_android_version
+	cd ../sing-box-for-android && ./gradlew :app:assembleRelease
+	mkdir dist/release_android
+	cp ../sing-box-for-android/app/build/outputs/apk/release/*.apk dist/release_android
+	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release_android
+
+publish_android:
+	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease
+
+build_ios:
+	cd ../sing-box-for-apple && \
+	rm -rf build/SFI.xcarchive && \
+	xcodebuild archive -scheme SFI -configuration Release -archivePath build/SFI.xcarchive
+
+upload_ios_app_store:
+	cd ../sing-box-for-apple && \
+	xcodebuild -exportArchive -archivePath build/SFI.xcarchive -exportOptionsPlist SFI/Upload.plist
+
+release_ios: build_ios upload_ios_app_store
+
+build_macos:
+	cd ../sing-box-for-apple && \
+	rm -rf build/SFM.xcarchive && \
+	xcodebuild archive -scheme SFM -configuration Release -archivePath build/SFM.xcarchive
+
+upload_macos_app_store:
+	cd ../sing-box-for-apple && \
+	xcodebuild -exportArchive -archivePath build/SFM.xcarchive -exportOptionsPlist SFI/Upload.plist
+
+release_macos: build_macos upload_macos_app_store
+
+build_macos_independent:
+	cd ../sing-box-for-apple && \
+	rm -rf build/SFT.System.xcarchive && \
+	xcodebuild archive -scheme SFM.System -configuration Release -archivePath build/SFM.System.xcarchive
+
+notarize_macos_independent:
+	cd ../sing-box-for-apple && \
+	xcodebuild -exportArchive -archivePath "build/SFM.System.xcarchive" -exportOptionsPlist SFM.System/Upload.plist
+
+export_macos_independent:
+	rm -rf dist/SFM
+	cd ../sing-box-for-apple && \
+	xcodebuild -exportNotarizedApp -archivePath build/SFM.System.xcarchive -exportPath "../sing-box/dist/SFM"
+
+upload_macos_independent:
+	cd dist/SFM && \
+	rm -f *.zip && \
+	zip -ry "SFM-${VERSION}-universal.zip" SFM.app && \
+	ghr --replace --draft --prerelease "v${VERSION}" *.zip
+
+release_macos_independent: build_macos_independent notarize_macos_independent export_macos_independent upload_macos_independent
+
+build_tvos:
+	cd ../sing-box-for-apple && \
+	rm -rf build/SFT.xcarchive && \
+	export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer && \
+	xcodebuild archive -scheme SFT -configuration Release -archivePath build/SFT.xcarchive
+
+upload_tvos_app_store:
+	cd ../sing-box-for-apple && \
+	xcodebuild -exportArchive -archivePath "build/SFT.xcarchive" -exportOptionsPlist SFI/Upload.plist
+
+release_tvos: build_tvos upload_tvos_app_store
+
+update_apple_version:
+	go run ./cmd/internal/update_apple_version
+
+release_apple: update_apple_version release_ios release_macos release_macos_independent release_tvos
 
 test:
 	@go test -v ./... && \
@@ -88,10 +152,10 @@ test_stdio:
 	go mod tidy && \
 	go test -v -tags "$(TAGS_TEST),force_stdio" .
 
-android:
+lib_android:
 	go run ./cmd/internal/build_libbox -target android
 
-ios:
+lib_ios:
 	go run ./cmd/internal/build_libbox -target ios
 
 lib:

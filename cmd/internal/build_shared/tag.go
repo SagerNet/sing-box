@@ -21,3 +21,12 @@ func ReadTag() (string, error) {
 	}
 	return version.String() + "-" + shortCommit, nil
 }
+
+func ReadTagVersion() (string, error) {
+	currentTagRev, err := shell.Exec("git", "describe", "--tags", "--abbrev=0").ReadOutput()
+	if err != nil {
+		return "", err
+	}
+	version := badversion.Parse(currentTagRev[1:])
+	return version.VersionString(), nil
+}

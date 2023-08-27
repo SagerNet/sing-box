@@ -57,6 +57,10 @@ func (v Version) After(anotherVersion Version) bool {
 	return false
 }
 
+func (v Version) VersionString() string {
+	return F.ToString(v.Major, ".", v.Minor, ".", v.Patch)
+}
+
 func (v Version) String() string {
 	version := F.ToString(v.Major, ".", v.Minor, ".", v.Patch)
 	if v.PreReleaseIdentifier != "" {
