@@ -1,0 +1,77 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/sagernet/sing-box/cmd/internal/build_shared"
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common"
+
+	"howett.net/plist"
+)
+
+func main() {
+	newVersion := common.Must1(build_shared.ReadTagVersion())
+	newTag := common.Must1(build_shared.ReadTag())
+	applePath, err := filepath.Abs("../sing-box-for-apple")
+	if err != nil {
+		log.Fatal(err)
+	}
+	common.Must(os.Chdir(applePath))
+	projectFile := common.Must1(os.Open("sing-box.xcodeproj/project.pbxproj"))
+	var project map[string]any
+	decoder := plist.NewDecoder(projectFile)
+	common.Must(decoder.Decode(&project))
+	objectsMap := project["objects"].(map[string]any)
+	projectContent := string(common.Must1(os.ReadFile("sing-box.xcodeproj/project.pbxproj")))
+	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfa"}, newVersion)
+	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newTag)
+	if updated0 || updated1 {
+		log.Info("updated version to ", newTag)
+		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj.bak", []byte(projectContent), 0o644))
+		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj", []byte(newContent), 0o644))
+	} else {
+		log.Info("version not changed")
+	}
+}
+
+func findAndReplace(objectsMap map[string]any, projectContent string, bundleIDList []string, newVersion string) (string, bool) {
+	objectKeyList := findObjectKey(objectsMap, bundleIDList)
+	var updated bool
+	for _, objectKey := range objectKeyList {
+		matchRegexp := common.Must1(regexp.Compile(objectKey + ".*= \\{"))
+		indexes := matchRegexp.FindStringIndex(projectContent)
+		indexStart := indexes[1]
+		indexEnd := indexStart + strings.Index(projectContent[indexStart:], "}")
+		versionStart := indexStart + strings.Index(projectContent[indexStart:indexEnd], "MARKETING_VERSION = ") + 20
+		versionEnd := versionStart + strings.Index(projectContent[versionStart:indexEnd], ";")
+		version := projectContent[versionStart:versionEnd]
+		if version == newVersion {
+			continue
+		}
+		updated = true
+		projectContent = projectContent[indexStart:versionStart] + newVersion + projectContent[versionEnd:indexEnd]
+	}
+	return projectContent, updated
+}
+
+func findObjectKey(objectsMap map[string]any, bundleIDList []string) []string {
+	var objectKeyList []string
+	for objectKey, object := range objectsMap {
+		buildSettings := object.(map[string]any)["buildSettings"]
+		if buildSettings == nil {
+			continue
+		}
+		bundleIDObject := buildSettings.(map[string]any)["PRODUCT_BUNDLE_IDENTIFIER"]
+		if bundleIDObject == nil {
+			continue
+		}
+		if common.Contains(bundleIDList, bundleIDObject.(string)) {
+			objectKeyList = append(objectKeyList, objectKey)
+		}
+	}
+	return objectKeyList
+}
