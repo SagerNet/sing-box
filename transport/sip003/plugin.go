@@ -10,7 +10,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-type PluginConstructor func(pluginArgs Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error)
+type PluginConstructor func(ctx context.Context, pluginArgs Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error)
 
 type Plugin interface {
 	DialContext(ctx context.Context) (net.Conn, error)
@@ -25,7 +25,7 @@ func RegisterPlugin(name string, constructor PluginConstructor) {
 	plugins[name] = constructor
 }
 
-func CreatePlugin(name string, pluginArgs string, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
+func CreatePlugin(ctx context.Context, name string, pluginArgs string, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
 	pluginOptions, err := ParsePluginOptions(pluginArgs)
 	if err != nil {
 		return nil, E.Cause(err, "parse plugin_opts")
@@ -34,5 +34,5 @@ func CreatePlugin(name string, pluginArgs string, router adapter.Router, dialer 
 	if !loaded {
 		return nil, E.New("plugin not found: ", name)
 	}
-	return constructor(pluginOptions, router, dialer, serverAddr)
+	return constructor(ctx, pluginOptions, router, dialer, serverAddr)
 }

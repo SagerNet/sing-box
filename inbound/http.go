@@ -44,7 +44,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS != nil {
-		tlsConfig, err := tls.NewServer(ctx, router, logger, common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}

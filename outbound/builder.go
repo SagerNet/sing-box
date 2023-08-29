@@ -30,7 +30,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	case C.TypeSOCKS:
 		return NewSocks(router, logger, tag, options.SocksOptions)
 	case C.TypeHTTP:
-		return NewHTTP(router, logger, tag, options.HTTPOptions)
+		return NewHTTP(ctx, router, logger, tag, options.HTTPOptions)
 	case C.TypeShadowsocks:
 		return NewShadowsocks(ctx, router, logger, tag, options.ShadowsocksOptions)
 	case C.TypeVMess:

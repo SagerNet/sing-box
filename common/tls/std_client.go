@@ -1,15 +1,16 @@
 package tls
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
 	"net/netip"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/ntp"
 )
 
 type STDClientConfig struct {
@@ -44,7 +45,7 @@ func (s *STDClientConfig) Clone() Config {
 	return &STDClientConfig{s.config.Clone()}
 }
 
-func NewSTDClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewSTDClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -58,7 +59,7 @@ func NewSTDClient(router adapter.Router, serverAddress string, options option.Ou
 	}
 
 	var tlsConfig tls.Config
-	tlsConfig.Time = router.TimeFunc()
+	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {
