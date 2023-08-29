@@ -20,7 +20,7 @@ func init() {
 	RegisterPlugin("v2ray-plugin", newV2RayPlugin)
 }
 
-func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
+func newV2RayPlugin(ctx context.Context, pluginOpts Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
 	var tlsOptions option.OutboundTLSOptions
 	if _, loaded := pluginOpts.Get("tls"); loaded {
 		tlsOptions.Enabled = true
@@ -54,7 +54,7 @@ func newV2RayPlugin(pluginOpts Args, router adapter.Router, dialer N.Dialer, ser
 	var tlsClient tls.Config
 	var err error
 	if tlsOptions.Enabled {
-		tlsClient, err = tls.NewClient(router, serverAddr.AddrString(), tlsOptions)
+		tlsClient, err = tls.NewClient(ctx, serverAddr.AddrString(), tlsOptions)
 		if err != nil {
 			return nil, err
 		}
