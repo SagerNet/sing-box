@@ -47,7 +47,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		options.TLS.MinVersion = "1.2"
 		options.TLS.MaxVersion = "1.2"
 	}
-	tlsConfig, err := tls.NewClient(router, options.Server, common.PtrValueOrDefault(options.TLS))
+	tlsConfig, err := tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
