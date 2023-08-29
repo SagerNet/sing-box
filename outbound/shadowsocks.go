@@ -57,7 +57,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		serverAddr: options.ServerOptions.Build(),
 	}
 	if options.Plugin != "" {
-		outbound.plugin, err = sip003.CreatePlugin(options.Plugin, options.PluginOptions, router, outbound.dialer, outbound.serverAddr)
+		outbound.plugin, err = sip003.CreatePlugin(ctx, options.Plugin, options.PluginOptions, router, outbound.dialer, outbound.serverAddr)
 		if err != nil {
 			return nil, err
 		}
