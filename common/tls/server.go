@@ -4,21 +4,22 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-func NewServer(ctx context.Context, router adapter.Router, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
-	if options.Reality != nil && options.Reality.Enabled {
-		return NewRealityServer(ctx, router, logger, options)
+	if options.ECH != nil && options.ECH.Enabled {
+		return NewECHServer(ctx, logger, options)
+	} else if options.Reality != nil && options.Reality.Enabled {
+		return NewRealityServer(ctx, logger, options)
 	} else {
-		return NewSTDServer(ctx, router, logger, options)
+		return NewSTDServer(ctx, logger, options)
 	}
 }
 
