@@ -18,7 +18,7 @@ func init() {
 	RegisterPlugin("obfs-local", newObfsLocal)
 }
 
-func newObfsLocal(pluginOpts Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
+func newObfsLocal(ctx context.Context, pluginOpts Args, router adapter.Router, dialer N.Dialer, serverAddr M.Socksaddr) (Plugin, error) {
 	plugin := &ObfsLocal{
 		dialer:     dialer,
 		serverAddr: serverAddr,
