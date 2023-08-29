@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
@@ -212,8 +213,8 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 	var certificate []byte
 	var key []byte
 	if acmeService == nil {
-		if options.Certificate != "" {
-			certificate = []byte(options.Certificate)
+		if len(options.Certificate) > 0 {
+			certificate = []byte(strings.Join(options.Certificate, "\n"))
 		} else if options.CertificatePath != "" {
 			content, err := os.ReadFile(options.CertificatePath)
 			if err != nil {
@@ -221,8 +222,8 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			}
 			certificate = content
 		}
-		if options.Key != "" {
-			key = []byte(options.Key)
+		if len(options.Key) > 0 {
+			key = []byte(strings.Join(options.Key, "\n"))
 		} else if options.KeyPath != "" {
 			content, err := os.ReadFile(options.KeyPath)
 			if err != nil {
