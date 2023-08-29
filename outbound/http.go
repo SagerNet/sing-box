@@ -25,12 +25,12 @@ type HTTP struct {
 	client *sHTTP.Client
 }
 
-func NewHTTP(router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) (*HTTP, error) {
+func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) (*HTTP, error) {
 	outboundDialer, err := dialer.New(router, options.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
-	detour, err := tls.NewDialerFromOptions(router, outboundDialer, options.Server, common.PtrValueOrDefault(options.TLS))
+	detour, err := tls.NewDialerFromOptions(ctx, router, outboundDialer, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}

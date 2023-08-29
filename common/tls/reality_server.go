@@ -19,6 +19,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 )
 
 var _ ServerConfigCompat = (*RealityServerConfig)(nil)
@@ -27,13 +28,13 @@ type RealityServerConfig struct {
 	config *reality.Config
 }
 
-func NewRealityServer(ctx context.Context, router adapter.Router, logger log.Logger, options option.InboundTLSOptions) (*RealityServerConfig, error) {
+func NewRealityServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (*RealityServerConfig, error) {
 	var tlsConfig reality.Config
 
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
 		return nil, E.New("acme is unavailable in reality")
 	}
-	tlsConfig.Time = router.TimeFunc()
+	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	if options.ServerName != "" {
 		tlsConfig.ServerName = options.ServerName
 	}
@@ -101,7 +102,7 @@ func NewRealityServer(ctx context.Context, router adapter.Router, logger log.Log
 		tlsConfig.ShortIds[shortID] = true
 	}
 
-	handshakeDialer, err := dialer.New(router, options.Reality.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(adapter.RouterFromContext(ctx), options.Reality.Handshake.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
