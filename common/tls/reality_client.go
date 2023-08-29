@@ -26,7 +26,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -45,12 +44,12 @@ type RealityClientConfig struct {
 	shortID   [8]byte
 }
 
-func NewRealityClient(router adapter.Router, serverAddress string, options option.OutboundTLSOptions) (*RealityClientConfig, error) {
+func NewRealityClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (*RealityClientConfig, error) {
 	if options.UTLS == nil || !options.UTLS.Enabled {
 		return nil, E.New("uTLS is required by reality client")
 	}
 
-	uClient, err := NewUTLSClient(router, serverAddress, options)
+	uClient, err := NewUTLSClient(ctx, serverAddress, options)
 	if err != nil {
 		return nil, err
 	}
