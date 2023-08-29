@@ -67,10 +67,10 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
 	}
-	if options.Certificate != "" || options.CertificatePath != "" {
+	if len(options.Certificate) > 0 || options.CertificatePath != "" {
 		return nil, E.New("certificate is unavailable in reality")
 	}
-	if options.Key != "" || options.KeyPath != "" {
+	if len(options.Key) > 0 || options.KeyPath != "" {
 		return nil, E.New("key is unavailable in reality")
 	}
 
