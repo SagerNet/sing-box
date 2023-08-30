@@ -526,11 +526,12 @@ func (c *PacketConn) NeedAdditionalReadDeadline() bool {
 }
 
 func (c *PacketConn) Read(b []byte) (n int, err error) {
-	return 0, os.ErrInvalid
+	n, _, err = c.ReadFrom(b)
+	return
 }
 
 func (c *PacketConn) Write(b []byte) (n int, err error) {
-	return 0, os.ErrInvalid
+	return c.WriteTo(b, c.destination)
 }
 
 func (c *PacketConn) Close() error {
