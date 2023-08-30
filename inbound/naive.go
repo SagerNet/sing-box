@@ -582,7 +582,7 @@ func (c *naiveH2Conn) Close() error {
 }
 
 func (c *naiveH2Conn) LocalAddr() net.Addr {
-	return nil
+	return M.Socksaddr{}
 }
 
 func (c *naiveH2Conn) RemoteAddr() net.Addr {

@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -174,11 +175,11 @@ func (c *HTTP2Conn) Close() error {
 }
 
 func (c *HTTP2Conn) LocalAddr() net.Addr {
-	return nil
+	return M.Socksaddr{}
 }
 
 func (c *HTTP2Conn) RemoteAddr() net.Addr {
-	return nil
+	return M.Socksaddr{}
 }
 
 func (c *HTTP2Conn) SetDeadline(t time.Time) error {
