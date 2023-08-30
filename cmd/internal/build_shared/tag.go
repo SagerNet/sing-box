@@ -2,6 +2,7 @@ package build_shared
 
 import (
 	"github.com/sagernet/sing-box/common/badversion"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/shell"
 )
 
@@ -22,11 +23,14 @@ func ReadTag() (string, error) {
 	return version.String() + "-" + shortCommit, nil
 }
 
-func ReadTagVersion() (string, error) {
-	currentTagRev, err := shell.Exec("git", "describe", "--tags", "--abbrev=0").ReadOutput()
-	if err != nil {
-		return "", err
-	}
+func ReadTagVersion() (badversion.Version, error) {
+	currentTag := common.Must1(shell.Exec("git", "describe", "--tags").ReadOutput())
+	currentTagRev := common.Must1(shell.Exec("git", "describe", "--tags", "--abbrev=0").ReadOutput())
 	version := badversion.Parse(currentTagRev[1:])
-	return version.VersionString(), nil
+	if currentTagRev != currentTag {
+		if version.PreReleaseIdentifier == "" {
+			version.Patch++
+		}
+	}
+	return version, nil
 }

@@ -15,7 +15,6 @@ import (
 
 func main() {
 	newVersion := common.Must1(build_shared.ReadTagVersion())
-	newTag := common.Must1(build_shared.ReadTag())
 	applePath, err := filepath.Abs("../sing-box-for-apple")
 	if err != nil {
 		log.Fatal(err)
@@ -27,10 +26,10 @@ func main() {
 	common.Must(decoder.Decode(&project))
 	objectsMap := project["objects"].(map[string]any)
 	projectContent := string(common.Must1(os.ReadFile("sing-box.xcodeproj/project.pbxproj")))
-	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfa"}, newVersion)
-	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newTag)
+	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfa"}, newVersion.VersionString())
+	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newVersion.String())
 	if updated0 || updated1 {
-		log.Info("updated version to ", newTag)
+		log.Info("updated version to ", newVersion.VersionString())
 		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj.bak", []byte(projectContent), 0o644))
 		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj", []byte(newContent), 0o644))
 	} else {
@@ -44,6 +43,10 @@ func findAndReplace(objectsMap map[string]any, projectContent string, bundleIDLi
 	for _, objectKey := range objectKeyList {
 		matchRegexp := common.Must1(regexp.Compile(objectKey + ".*= \\{"))
 		indexes := matchRegexp.FindStringIndex(projectContent)
+		if len(indexes) < 2 {
+			println(projectContent)
+			log.Fatal("failed to find object key ", objectKey, ": ", strings.Index(projectContent, objectKey))
+		}
 		indexStart := indexes[1]
 		indexEnd := indexStart + strings.Index(projectContent[indexStart:], "}")
 		versionStart := indexStart + strings.Index(projectContent[indexStart:indexEnd], "MARKETING_VERSION = ") + 20
@@ -53,7 +56,7 @@ func findAndReplace(objectsMap map[string]any, projectContent string, bundleIDLi
 			continue
 		}
 		updated = true
-		projectContent = projectContent[indexStart:versionStart] + newVersion + projectContent[versionEnd:indexEnd]
+		projectContent = projectContent[:versionStart] + newVersion + projectContent[versionEnd:]
 	}
 	return projectContent, updated
 }

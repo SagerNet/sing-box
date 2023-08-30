@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	newTag := common.Must1(build_shared.ReadTag())
+	newVersion := common.Must1(build_shared.ReadTagVersion())
 	androidPath, err := filepath.Abs("../sing-box-for-android")
 	if err != nil {
 		log.Fatal(err)
@@ -25,12 +25,12 @@ func main() {
 	}
 	for _, propPair := range propsList {
 		if propPair[0] == "VERSION_NAME" {
-			if propPair[1] == newTag {
+			if propPair[1] == newVersion.String() {
 				log.Info("version not changed")
 				return
 			}
-			propPair[1] = newTag
-			log.Info("updated version to ", newTag)
+			propPair[1] = newVersion.String()
+			log.Info("updated version to ", newVersion.String())
 		}
 	}
 	for _, propPair := range propsList {
@@ -40,7 +40,7 @@ func main() {
 			propPair[1] = strconv.Itoa(int(versionCode + 1))
 			log.Info("updated version code to ", propPair[1])
 		case "RELEASE_NOTES":
-			propPair[1] = "sing-box " + newTag
+			propPair[1] = "sing-box " + newVersion.String()
 		}
 	}
 	var newProps []string
