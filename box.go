@@ -86,6 +86,7 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
 	}
+	ctx = adapter.ContextWithRouter(ctx, router)
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
 	for i, inboundOptions := range options.Inbounds {
