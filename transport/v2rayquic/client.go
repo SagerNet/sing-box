@@ -1,3 +1,5 @@
+//go:build with_quic
+
 package v2rayquic
 
 import (
@@ -7,6 +9,7 @@ import (
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/qtls"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -23,7 +26,7 @@ type Client struct {
 	ctx        context.Context
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
-	tlsConfig  *tls.STDConfig
+	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
 	conn       quic.Connection
@@ -34,18 +37,14 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	quicConfig := &quic.Config{
 		DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
 	}
-	stdConfig, err := tlsConfig.Config()
-	if err != nil {
-		return nil, err
-	}
-	if len(stdConfig.NextProtos) == 0 {
-		stdConfig.NextProtos = []string{"h2", "http/1.1"}
+	if len(tlsConfig.NextProtos()) == 0 {
+		tlsConfig.SetNextProtos([]string{"h2", "http/1.1"})
 	}
 	return &Client{
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
-		tlsConfig:  stdConfig,
+		tlsConfig:  tlsConfig,
 		quicConfig: quicConfig,
 	}, nil
 }
@@ -75,7 +74,7 @@ func (c *Client) offerNew() (quic.Connection, error) {
 	}
 	var packetConn net.PacketConn
 	packetConn = bufio.NewUnbindPacketConn(udpConn)
-	quicConn, err := quic.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
+	quicConn, err := qtls.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
 	if err != nil {
 		packetConn.Close()
 		return nil, err
