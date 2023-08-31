@@ -53,6 +53,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewVLESS(ctx, router, logger, tag, options.VLESSOptions)
 	case C.TypeTUIC:
 		return NewTUIC(ctx, router, logger, tag, options.TUICOptions)
+	case C.TypeHysteria2:
+		return NewHysteria2(ctx, router, logger, tag, options.Hysteria2Options)
 	case C.TypeSelector:
 		return NewSelector(router, logger, tag, options.SelectorOptions)
 	case C.TypeURLTest:

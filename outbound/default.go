@@ -65,7 +65,11 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
 	if err != nil {
-		return N.HandshakeFailure(conn, err)
+		return N.ReportHandshakeFailure(conn, err)
+	}
+	err = N.ReportHandshakeSuccess(conn)
+	if err != nil {
+		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
 }
@@ -80,14 +84,18 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 		var destinationAddresses []netip.Addr
 		destinationAddresses, err = router.LookupDefault(ctx, metadata.Destination.Fqdn)
 		if err != nil {
-			return N.HandshakeFailure(conn, err)
+			return N.ReportHandshakeFailure(conn, err)
 		}
 		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, destinationAddresses)
 	} else {
 		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
 	if err != nil {
-		return N.HandshakeFailure(conn, err)
+		return N.ReportHandshakeFailure(conn, err)
+	}
+	err = N.ReportHandshakeSuccess(conn)
+	if err != nil {
+		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
 }
@@ -103,7 +111,11 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}
 	if err != nil {
-		return N.HandshakeFailure(conn, err)
+		return N.ReportHandshakeFailure(conn, err)
+	}
+	err = N.ReportHandshakeSuccess(conn)
+	if err != nil {
+		return err
 	}
 	if destinationAddress.IsValid() {
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
@@ -132,14 +144,18 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 		var destinationAddresses []netip.Addr
 		destinationAddresses, err = router.LookupDefault(ctx, metadata.Destination.Fqdn)
 		if err != nil {
-			return N.HandshakeFailure(conn, err)
+			return N.ReportHandshakeFailure(conn, err)
 		}
 		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, destinationAddresses)
 	} else {
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}
 	if err != nil {
-		return N.HandshakeFailure(conn, err)
+		return N.ReportHandshakeFailure(conn, err)
+	}
+	err = N.ReportHandshakeSuccess(conn)
+	if err != nil {
+		return err
 	}
 	if destinationAddress.IsValid() {
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
@@ -187,7 +203,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 		}
 		_, err = serverConn.Write(payload.Bytes())
 		if err != nil {
-			return N.HandshakeFailure(conn, err)
+			return N.ReportHandshakeFailure(conn, err)
 		}
 		payload.Release()
 	}

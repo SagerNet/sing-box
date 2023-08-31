@@ -1,0 +1,12 @@
+listen: 127.0.0.1:10000
+auth:
+  type: password
+  password: password
+tls:
+  sni: example.org
+  cert: /etc/hysteria/cert.pem
+  key: /etc/hysteria/key.pem
+obfs:
+  type: salamander
+  salamander:
+    password: cry_me_a_r1ver
