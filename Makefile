@@ -72,13 +72,16 @@ release_install:
 update_android_version:
 	go run ./cmd/internal/update_android_version
 
-upload_android:
+build_android:
 	cd ../sing-box-for-android && ./gradlew :app:assembleRelease
-	mkdir dist/release_android
+
+upload_android:
+	mkdir -p dist/release_android
 	cp ../sing-box-for-android/app/build/outputs/apk/release/*.apk dist/release_android
 	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release_android
+	rm -rf dist/release_android
 
-release_android: lib_android update_android_version upload_android
+release_android: lib_android update_android_version build_android upload_android
 
 publish_android:
 	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease
@@ -114,8 +117,12 @@ notarize_macos_independent:
 	cd ../sing-box-for-apple && \
 	xcodebuild -exportArchive -archivePath "build/SFM.System.xcarchive" -exportOptionsPlist SFM.System/Upload.plist
 
+wait_notarize_macos_independent:
+	sleep 60
+
 export_macos_independent:
 	rm -rf dist/SFM
+	mkdir -p dist/SFM
 	cd ../sing-box-for-apple && \
 	xcodebuild -exportNotarizedApp -archivePath build/SFM.System.xcarchive -exportPath "../sing-box/dist/SFM"
 
@@ -125,7 +132,7 @@ upload_macos_independent:
 	zip -ry "SFM-${VERSION}-universal.zip" SFM.app && \
 	ghr --replace --draft --prerelease "v${VERSION}" *.zip
 
-release_macos_independent: build_macos_independent notarize_macos_independent export_macos_independent upload_macos_independent
+release_macos_independent: build_macos_independent notarize_macos_independent export_macos_independent wait_notarize_macos_independent upload_macos_independent
 
 build_tvos:
 	cd ../sing-box-for-apple && \
@@ -142,11 +149,11 @@ release_tvos: build_tvos upload_tvos_app_store
 update_apple_version:
 	go run ./cmd/internal/update_apple_version
 
-release_apple: update_apple_version release_ios release_macos release_macos_independent release_tvos
+release_apple: update_apple_version release_ios release_macos release_tvos release_macos_independent
+	rm -rf dist
 
-build_apple_beta: update_apple_version build_ios build_macos build_tvos
-
-upload_apple_beta: upload_ios_app_store upload_macos_app_store upload_tvos_app_store
+release_apple_beta: update_apple_version release_ios release_macos release_tvos
+	rm -rf dist
 
 test:
 	@go test -v ./... && \
