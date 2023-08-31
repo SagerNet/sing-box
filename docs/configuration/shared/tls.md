@@ -188,6 +188,12 @@ The server private key line array, in PEM format.
 
 The path to the server private key, in PEM format.
 
+## Custom TLS support
+
+!!! info "QUIC support"
+
+    Only ECH is supported in QUIC.
+
 #### utls
 
 ==Client only==
@@ -217,7 +223,7 @@ Available fingerprint values:
 
 Chrome fingerprint will be used if empty.
 
-## ECH Fields
+### ECH Fields
 
 !!! warning ""
 
