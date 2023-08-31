@@ -1,3 +1,7 @@
+#### 1.4.1
+
+* Fixes and improvements
+
 #### 1.4.0
 
 * Fix bugs and update dependencies
