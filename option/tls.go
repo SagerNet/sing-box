@@ -50,8 +50,8 @@ type InboundECHOptions struct {
 	Enabled                     bool             `json:"enabled,omitempty"`
 	PQSignatureSchemesEnabled   bool             `json:"pq_signature_schemes_enabled,omitempty"`
 	DynamicRecordSizingDisabled bool             `json:"dynamic_record_sizing_disabled,omitempty"`
-	Key                         Listable[string] `json:"ech_keys,omitempty"`
-	KeyPath                     string           `json:"ech_keys_path,omitempty"`
+	Key                         Listable[string] `json:"key,omitempty"`
+	KeyPath                     string           `json:"key_path,omitempty"`
 }
 
 type OutboundECHOptions struct {
