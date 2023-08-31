@@ -18,6 +18,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 )
 
 var _ adapter.Outbound = (*VMess)(nil)
@@ -77,7 +78,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		return nil, E.New("unknown packet encoding: ", options.PacketEncoding)
 	}
 	var clientOptions []vmess.ClientOption
-	if timeFunc := router.TimeFunc(); timeFunc != nil {
+	if timeFunc := ntp.TimeFuncFromContext(ctx); timeFunc != nil {
 		clientOptions = append(clientOptions, vmess.ClientWithTimeFunc(timeFunc))
 	}
 	if options.GlobalPadding {

@@ -18,7 +18,7 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 )
 
-var _ adapter.TimeService = (*Service)(nil)
+var _ ntp.TimeService = (*Service)(nil)
 
 type Service struct {
 	ctx           context.Context

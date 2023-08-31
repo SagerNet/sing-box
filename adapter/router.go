@@ -46,8 +46,6 @@ type Router interface {
 	PackageManager() tun.PackageManager
 	Rules() []Rule
 
-	TimeService
-
 	ClashServer() ClashServer
 	SetClashServer(server ClashServer)
 
