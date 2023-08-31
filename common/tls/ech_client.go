@@ -23,37 +23,37 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-type ECHClientConfig struct {
+type echClientConfig struct {
 	config *cftls.Config
 }
 
-func (e *ECHClientConfig) ServerName() string {
-	return e.config.ServerName
+func (c *echClientConfig) ServerName() string {
+	return c.config.ServerName
 }
 
-func (e *ECHClientConfig) SetServerName(serverName string) {
-	e.config.ServerName = serverName
+func (c *echClientConfig) SetServerName(serverName string) {
+	c.config.ServerName = serverName
 }
 
-func (e *ECHClientConfig) NextProtos() []string {
-	return e.config.NextProtos
+func (c *echClientConfig) NextProtos() []string {
+	return c.config.NextProtos
 }
 
-func (e *ECHClientConfig) SetNextProtos(nextProto []string) {
-	e.config.NextProtos = nextProto
+func (c *echClientConfig) SetNextProtos(nextProto []string) {
+	c.config.NextProtos = nextProto
 }
 
-func (e *ECHClientConfig) Config() (*STDConfig, error) {
+func (c *echClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for ECH")
 }
 
-func (e *ECHClientConfig) Client(conn net.Conn) (Conn, error) {
-	return &echConnWrapper{cftls.Client(conn, e.config)}, nil
+func (c *echClientConfig) Client(conn net.Conn) (Conn, error) {
+	return &echConnWrapper{cftls.Client(conn, c.config)}, nil
 }
 
-func (e *ECHClientConfig) Clone() Config {
-	return &ECHClientConfig{
-		config: e.config.Clone(),
+func (c *echClientConfig) Clone() Config {
+	return &echClientConfig{
+		config: c.config.Clone(),
 	}
 }
 
@@ -171,8 +171,20 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 	tlsConfig.ECHEnabled = true
 	tlsConfig.PQSignatureSchemesEnabled = options.ECH.PQSignatureSchemesEnabled
 	tlsConfig.DynamicRecordSizingDisabled = options.ECH.DynamicRecordSizingDisabled
+
+	var echConfig []byte
 	if len(options.ECH.Config) > 0 {
-		block, rest := pem.Decode([]byte(strings.Join(options.ECH.Config, "\n")))
+		echConfig = []byte(strings.Join(options.ECH.Config, "\n"))
+	} else if options.ECH.ConfigPath != "" {
+		content, err := os.ReadFile(options.ECH.ConfigPath)
+		if err != nil {
+			return nil, E.Cause(err, "read ECH config")
+		}
+		echConfig = content
+	}
+
+	if len(echConfig) > 0 {
+		block, rest := pem.Decode(echConfig)
 		if block == nil || block.Type != "ECH CONFIGS" || len(rest) > 0 {
 			return nil, E.New("invalid ECH configs pem")
 		}
@@ -184,7 +196,7 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 	} else {
 		tlsConfig.GetClientECHConfigs = fetchECHClientConfig(ctx)
 	}
-	return &ECHClientConfig{&tlsConfig}, nil
+	return &echClientConfig{&tlsConfig}, nil
 }
 
 func fetchECHClientConfig(ctx context.Context) func(_ context.Context, serverName string) ([]cftls.ECHConfig, error) {
