@@ -81,7 +81,7 @@ type Router struct {
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
 	processSearcher                    process.Searcher
-	timeService                        adapter.TimeService
+	timeService                        *ntp.Service
 	pauseManager                       pause.Manager
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
@@ -948,13 +948,6 @@ func (r *Router) InterfaceMonitor() tun.DefaultInterfaceMonitor {
 
 func (r *Router) PackageManager() tun.PackageManager {
 	return r.packageManager
-}
-
-func (r *Router) TimeFunc() func() time.Time {
-	if r.timeService == nil {
-		return nil
-	}
-	return r.timeService.TimeFunc()
 }
 
 func (r *Router) ClashServer() adapter.ClashServer {
