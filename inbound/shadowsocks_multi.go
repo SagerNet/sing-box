@@ -18,6 +18,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 )
 
 var (
@@ -61,7 +62,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 			options.Password,
 			udpTimeout,
 			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
-			router.TimeFunc(),
+			ntp.TimeFuncFromContext(ctx),
 		)
 	} else if common.Contains(shadowaead.List, options.Method) {
 		service, err = shadowaead.NewMultiService[int](
