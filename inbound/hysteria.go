@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/qtls"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -35,7 +36,7 @@ type Hysteria struct {
 	xplusKey     []byte
 	sendBPS      uint64
 	recvBPS      uint64
-	listener     *quic.Listener
+	listener     qtls.QUICListener
 	udpAccess    sync.RWMutex
 	udpSessionId uint32
 	udpSessions  map[uint32]chan *hysteria.UDPMessage
@@ -147,11 +148,7 @@ func (h *Hysteria) Start() error {
 	if err != nil {
 		return err
 	}
-	rawConfig, err := h.tlsConfig.Config()
-	if err != nil {
-		return err
-	}
-	listener, err := quic.Listen(packetConn, rawConfig, h.quicConfig)
+	listener, err := qtls.Listen(packetConn, h.tlsConfig, h.quicConfig)
 	if err != nil {
 		return err
 	}
@@ -333,7 +330,7 @@ func (h *Hysteria) Close() error {
 	h.udpAccess.Unlock()
 	return common.Close(
 		&h.myInboundAdapter,
-		common.PtrOrNil(h.listener),
+		h.listener,
 		h.tlsConfig,
 	)
 }
