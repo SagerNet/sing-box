@@ -41,11 +41,7 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
-	abstractTLSConfig, err := tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
-	if err != nil {
-		return nil, err
-	}
-	tlsConfig, err := abstractTLSConfig.Config()
+	tlsConfig, err := tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
