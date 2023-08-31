@@ -19,6 +19,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 )
 
 var (
@@ -50,7 +51,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		users: options.Users,
 	}
 	var serviceOptions []vmess.ServiceOption
-	if timeFunc := router.TimeFunc(); timeFunc != nil {
+	if timeFunc := ntp.TimeFuncFromContext(ctx); timeFunc != nil {
 		serviceOptions = append(serviceOptions, vmess.ServiceWithTimeFunc(timeFunc))
 	}
 	if options.Transport != nil && options.Transport.Type != "" {
