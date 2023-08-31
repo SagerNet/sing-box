@@ -32,7 +32,8 @@ const (
 	ImageTrojan                = "trojangfw/trojan:latest"
 	ImageNaive                 = "pocat/naiveproxy:client"
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
-	ImageHysteria              = "tobyxdd/hysteria:latest"
+	ImageHysteria              = "tobyxdd/hysteria:v1.3.5"
+	ImageHysteria2             = "tobyxdd/hysteria:v2"
 	ImageNginx                 = "nginx:stable"
 	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
 	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
@@ -50,6 +51,7 @@ var allImages = []string{
 	ImageNaive,
 	ImageBoringTun,
 	ImageHysteria,
+	ImageHysteria2,
 	ImageNginx,
 	ImageShadowTLS,
 	ImageShadowsocksR,
