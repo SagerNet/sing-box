@@ -1,3 +1,14 @@
+#### 1.5.0-beta.2
+
+* Add hysteria2 protocol support **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2 inbound](/configuration/inbound/hysteria2) and [Hysteria2 outbound](/configuration/outbound/hysteria2)
+
+For protocol description, please refer to [https://v2.hysteria.network](https://v2.hysteria.network)
+
 #### 1.5.0-beta.1
 
 * Add TLS [ECH server](/configuration/shared/tls) support

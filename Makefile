@@ -132,7 +132,7 @@ upload_macos_independent:
 	zip -ry "SFM-${VERSION}-universal.zip" SFM.app && \
 	ghr --replace --draft --prerelease "v${VERSION}" *.zip
 
-release_macos_independent: build_macos_independent notarize_macos_independent export_macos_independent wait_notarize_macos_independent upload_macos_independent
+release_macos_independent: build_macos_independent notarize_macos_independent wait_notarize_macos_independent export_macos_independent upload_macos_independent
 
 build_tvos:
 	cd ../sing-box-for-apple && \
@@ -149,7 +149,7 @@ release_tvos: build_tvos upload_tvos_app_store
 update_apple_version:
 	go run ./cmd/internal/update_apple_version
 
-release_apple: update_apple_version release_ios release_macos release_tvos release_macos_independent
+release_apple: lib_ios update_apple_version release_ios release_macos release_tvos release_macos_independent
 	rm -rf dist
 
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
