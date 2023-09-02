@@ -29,8 +29,7 @@ func main() {
 	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfa"}, newVersion.VersionString())
 	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newVersion.String())
 	if updated0 || updated1 {
-		log.Info("updated version to ", newVersion.VersionString())
-		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj.bak", []byte(projectContent), 0o644))
+		log.Info("updated version to ", newVersion.VersionString(), " (", newVersion.String(), ")")
 		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj", []byte(newContent), 0o644))
 	} else {
 		log.Info("version not changed")

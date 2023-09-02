@@ -159,7 +159,7 @@ func (c *echServerConfig) startECHWatcher() error {
 	if err != nil {
 		return err
 	}
-	c.watcher = watcher
+	c.echWatcher = watcher
 	go c.loopECHUpdate()
 	return nil
 }
@@ -178,7 +178,7 @@ func (c *echServerConfig) loopECHUpdate() {
 			if err != nil {
 				c.logger.Error(E.Cause(err, "reload ECH key"))
 			}
-		case err, ok := <-c.watcher.Errors:
+		case err, ok := <-c.echWatcher.Errors:
 			if !ok {
 				return
 			}
@@ -304,7 +304,7 @@ func NewECHServer(ctx context.Context, logger log.Logger, options option.Inbound
 	} else if options.KeyPath != "" {
 		content, err := os.ReadFile(options.ECH.KeyPath)
 		if err != nil {
-			return nil, E.Cause(err, "read key")
+			return nil, E.Cause(err, "read ECH key")
 		}
 		echKey = content
 	} else {

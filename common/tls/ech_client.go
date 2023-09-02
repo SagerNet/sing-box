@@ -178,7 +178,7 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 	} else if options.ECH.ConfigPath != "" {
 		content, err := os.ReadFile(options.ECH.ConfigPath)
 		if err != nil {
-			return nil, E.Cause(err, "read key")
+			return nil, E.Cause(err, "read ECH config")
 		}
 		echConfig = content
 	}
