@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -19,7 +20,36 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/service/filemanager"
+
+	"github.com/fsnotify/fsnotify"
 )
+
+func (r *Router) TryUpdateGeoDatabase() {
+	if r.needGeoIPDatabase {
+		go func() {
+			geoPath := r.loadGeoIPPath()
+			tempGeoPath := geoPath + ".tmp"
+			err := r.tryDownloadGeoIPDatabase(tempGeoPath)
+			if err != nil {
+				r.logger.Error(E.Cause(err, "download geoip database"))
+				return
+			}
+			os.Rename(tempGeoPath, geoPath)
+		}()
+	}
+	if r.needGeositeDatabase {
+		go func() {
+			geoPath := r.loadGeositePath()
+			tempGeoPath := geoPath + ".tmp"
+			err := r.tryDownloadGeositeDatabase(tempGeoPath)
+			if err != nil {
+				r.logger.Error(E.Cause(err, "download geosite database"))
+				return
+			}
+			os.Rename(tempGeoPath, geoPath)
+		}()
+	}
+}
 
 func (r *Router) GeoIPReader() *geoip.Reader {
 	return r.geoIPReader
@@ -42,7 +72,7 @@ func (r *Router) LoadGeosite(code string) (adapter.Rule, error) {
 	return rule, nil
 }
 
-func (r *Router) prepareGeoIPDatabase() error {
+func (r *Router) loadGeoIPPath() string {
 	var geoPath string
 	if r.geoIPOptions.Path != "" {
 		geoPath = r.geoIPOptions.Path
@@ -55,6 +85,11 @@ func (r *Router) prepareGeoIPDatabase() error {
 	if !rw.FileExists(geoPath) {
 		geoPath = filemanager.BasePath(r.ctx, geoPath)
 	}
+	return geoPath
+}
+
+func (r *Router) prepareGeoIPDatabase() error {
+	geoPath := r.loadGeoIPPath()
 	if stat, err := os.Stat(geoPath); err == nil {
 		if stat.IsDir() {
 			return E.New("geoip path is a directory: ", geoPath)
@@ -65,30 +100,42 @@ func (r *Router) prepareGeoIPDatabase() error {
 	}
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geoip database not exists: ", geoPath)
-		var err error
-		for attempts := 0; attempts < 3; attempts++ {
-			err = r.downloadGeoIPDatabase(geoPath)
-			if err == nil {
-				break
-			}
-			r.logger.Error("download geoip database: ", err)
-			os.Remove(geoPath)
-			// time.Sleep(10 * time.Second)
-		}
+		err := r.tryDownloadGeoIPDatabase(geoPath)
 		if err != nil {
 			return err
 		}
 	}
+	return r.loadGeoIPDatabase(geoPath)
+}
+
+func (r *Router) tryDownloadGeoIPDatabase(geoPath string) error {
+	os.Remove(geoPath)
+	var err error
+	for attempts := 0; attempts < 3; attempts++ {
+		err = r.downloadGeoIPDatabase(geoPath)
+		if err == nil {
+			r.logger.Info("download geoip database success")
+			break
+		}
+		r.logger.Error("download geoip database: ", err)
+		os.Remove(geoPath)
+		// time.Sleep(10 * time.Second)
+	}
+	return err
+}
+
+func (r *Router) loadGeoIPDatabase(geoPath string) error {
 	geoReader, codes, err := geoip.Open(geoPath)
 	if err != nil {
-		return E.Cause(err, "open geoip database")
+		err = E.Cause(err, "open geoip database")
+		return err
 	}
 	r.logger.Info("loaded geoip database: ", len(codes), " codes")
 	r.geoIPReader = geoReader
 	return nil
 }
 
-func (r *Router) prepareGeositeDatabase() error {
+func (r *Router) loadGeositePath() string {
 	var geoPath string
 	if r.geositeOptions.Path != "" {
 		geoPath = r.geositeOptions.Path
@@ -101,6 +148,11 @@ func (r *Router) prepareGeositeDatabase() error {
 	if !rw.FileExists(geoPath) {
 		geoPath = filemanager.BasePath(r.ctx, geoPath)
 	}
+	return geoPath
+}
+
+func (r *Router) prepareGeositeDatabase() error {
+	geoPath := r.loadGeositePath()
 	if stat, err := os.Stat(geoPath); err == nil {
 		if stat.IsDir() {
 			return E.New("geoip path is a directory: ", geoPath)
@@ -111,27 +163,141 @@ func (r *Router) prepareGeositeDatabase() error {
 	}
 	if !rw.FileExists(geoPath) {
 		r.logger.Warn("geosite database not exists: ", geoPath)
-		var err error
-		for attempts := 0; attempts < 3; attempts++ {
-			err = r.downloadGeositeDatabase(geoPath)
-			if err == nil {
-				break
-			}
-			r.logger.Error("download geosite database: ", err)
-			os.Remove(geoPath)
-		}
+		err := r.tryDownloadGeositeDatabase(geoPath)
 		if err != nil {
 			return err
 		}
 	}
+	return r.loadGeositeDatabase(geoPath)
+}
+
+func (r *Router) tryDownloadGeositeDatabase(geoPath string) error {
+	os.Remove(geoPath)
+	var err error
+	for attempts := 0; attempts < 3; attempts++ {
+		err = r.downloadGeositeDatabase(geoPath)
+		if err == nil {
+			r.logger.Info("download geosite database success")
+			break
+		}
+		r.logger.Error("download geosite database: ", err)
+		os.Remove(geoPath)
+	}
+	return err
+}
+
+func (r *Router) loadGeositeDatabase(geoPath string) error {
 	geoReader, codes, err := geosite.Open(geoPath)
-	if err == nil {
-		r.logger.Info("loaded geosite database: ", len(codes), " codes")
-		r.geositeReader = geoReader
-	} else {
+	if err != nil {
 		return E.Cause(err, "open geosite database")
 	}
+	r.logger.Info("loaded geosite database: ", len(codes), " codes")
+	r.geositeReader = geoReader
 	return nil
+}
+
+func (r *Router) loadGeositeRule() {
+	r.geositeCache = make(map[string]adapter.Rule)
+	for _, rule := range r.rules {
+		err := rule.UpdateGeosite()
+		if err != nil {
+			r.logger.Error("failed to initialize geosite: ", err)
+		}
+	}
+	for _, rule := range r.dnsRules {
+		err := rule.UpdateGeosite()
+		if err != nil {
+			r.logger.Error("failed to initialize geosite: ", err)
+		}
+	}
+	err := common.Close(r.geositeReader)
+	if err != nil {
+		r.logger.Error("close geosite reader: ", err)
+	}
+	r.geositeCache = nil
+	r.geositeReader = nil
+}
+
+func (r *Router) startGeoWatcher() error {
+	geoWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	r.geoWatcher = geoWatcher
+	var geoIPPath string
+	if r.needGeoIPDatabase {
+		geoIPPath = r.loadGeoIPPath()
+		err = geoWatcher.Add(filepath.Dir(geoIPPath))
+		if err != nil {
+			return err
+		}
+		r.logger.Debug("geo resource watcher: watching ", geoIPPath)
+	}
+	var geositePath string
+	if r.needGeositeDatabase {
+		geositePath = r.loadGeositePath()
+		err = geoWatcher.Add(filepath.Dir(geositePath))
+		if err != nil {
+			return err
+		}
+		r.logger.Debug("geo resource watcher: watching ", geositePath)
+	}
+	go r.loopGeoUpdate(geoIPPath, geositePath)
+	r.logger.Debug("geo resource watcher started")
+	return nil
+}
+
+func (r *Router) loopGeoUpdate(geoIPPath, geositePath string) {
+	var geoIPUpdateLock sync.Mutex
+	var geositeUpdateLock sync.Mutex
+	for {
+		select {
+		case event, ok := <-r.geoWatcher.Events:
+			if !ok {
+				return
+			}
+			if !(r.needGeoIPDatabase && event.Name == geoIPPath) && !(r.needGeositeDatabase && event.Name == geositePath) {
+				continue
+			}
+			if event.Op.Has(fsnotify.Remove | fsnotify.Chmod) {
+				continue
+			}
+			if r.needGeoIPDatabase && event.Name == geoIPPath {
+				if geoIPUpdateLock.TryLock() {
+					go func() {
+						defer geoIPUpdateLock.Unlock()
+						r.logger.Info("geoip file changed, try to reload...")
+						err := r.loadGeoIPDatabase(geoIPPath)
+						if err != nil {
+							r.logger.Error(E.Cause(err, "reload geoip database"))
+							return
+						}
+						r.logger.Info("geoip database reloaded")
+					}()
+				}
+			}
+			if r.needGeositeDatabase && event.Name == geositePath {
+				if geositeUpdateLock.TryLock() {
+					go func() {
+						defer geositeUpdateLock.Unlock()
+						r.logger.Info("geosite file changed, try to reload...")
+						err := r.loadGeositeDatabase(geositePath)
+						if err != nil {
+							r.logger.Error(E.Cause(err, "reload geosite database"))
+							return
+						}
+						r.loadGeositeRule()
+						r.logger.Info("geosite database reloaded")
+					}()
+				}
+			}
+		case err, ok := <-r.geoWatcher.Errors:
+			if !ok {
+				return
+			}
+			r.logger.Error(E.Cause(err, "geo resource watcher: fsnotify error"))
+		}
+	}
 }
 
 func (r *Router) downloadGeoIPDatabase(savePath string) error {

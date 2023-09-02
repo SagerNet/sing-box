@@ -42,6 +42,8 @@ import (
 	"github.com/sagernet/sing/common/uot"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 var _ adapter.Router = (*Router)(nil)
@@ -64,6 +66,7 @@ type Router struct {
 	geoIPReader                        *geoip.Reader
 	geositeReader                      *geosite.Reader
 	geositeCache                       map[string]adapter.Rule
+	geoWatcher                         *fsnotify.Watcher
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
@@ -430,6 +433,12 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
+	if r.needGeoIPDatabase || r.needGeositeDatabase {
+		err := r.startGeoWatcher()
+		if err != nil {
+			return err
+		}
+	}
 	if r.interfaceMonitor != nil {
 		err := r.interfaceMonitor.Start()
 		if err != nil {
@@ -555,6 +564,12 @@ func (r *Router) Close() error {
 		r.logger.Trace("closing fakeip store")
 		err = E.Append(err, r.fakeIPStore.Close(), func(err error) error {
 			return E.Cause(err, "close fakeip store")
+		})
+	}
+	if r.geoWatcher != nil {
+		r.logger.Trace("closing geo resource watcher")
+		err = E.Append(err, r.geoWatcher.Close(), func(err error) error {
+			return E.Cause(err, "close geo resource watcher")
 		})
 	}
 	return err

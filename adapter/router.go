@@ -6,8 +6,8 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/geoip"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -29,6 +29,8 @@ type Router interface {
 
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
+
+	TryUpdateGeoDatabase()
 
 	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
 	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)

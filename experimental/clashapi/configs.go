@@ -14,6 +14,7 @@ func configRouter(server *Server, logFactory log.Factory) http.Handler {
 	r.Get("/", getConfigs(server, logFactory))
 	r.Put("/", updateConfigs)
 	r.Patch("/", patchConfigs(server))
+	r.Post("/geo", updateGeo(server))
 	return r
 }
 
@@ -65,4 +66,11 @@ func patchConfigs(server *Server) func(w http.ResponseWriter, r *http.Request) {
 
 func updateConfigs(w http.ResponseWriter, r *http.Request) {
 	render.NoContent(w, r)
+}
+
+func updateGeo(server *Server) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		go server.router.TryUpdateGeoDatabase()
+		render.NoContent(w, r)
+	}
 }
