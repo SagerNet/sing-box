@@ -33,8 +33,8 @@ type myInboundAdapter struct {
 
 	// http mixed
 
-	setSystemProxy   bool
-	clearSystemProxy func() error
+	setSystemProxy bool
+	systemProxy    settings.SystemProxy
 
 	// internal
 
@@ -91,7 +91,19 @@ func (a *myInboundAdapter) Start() error {
 		}
 	}
 	if a.setSystemProxy {
-		a.clearSystemProxy, err = settings.SetSystemProxy(a.router, M.SocksaddrFromNet(a.tcpListener.Addr()).Port, a.protocol == C.TypeMixed)
+		listenPort := M.SocksaddrFromNet(a.tcpListener.Addr()).Port
+		var listenAddrString string
+		listenAddr := a.listenOptions.Listen.Build()
+		if listenAddr.IsUnspecified() {
+			listenAddrString = "127.0.0.1"
+		} else {
+			listenAddrString = listenAddr.String()
+		}
+		a.systemProxy, err = settings.NewSystemProxy(a.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), a.protocol == C.TypeMixed)
+		if err != nil {
+			return E.Cause(err, "initialize system proxy")
+		}
+		err = a.systemProxy.Enable()
 		if err != nil {
 			return E.Cause(err, "set system proxy")
 		}
@@ -102,8 +114,8 @@ func (a *myInboundAdapter) Start() error {
 func (a *myInboundAdapter) Close() error {
 	a.inShutdown.Store(true)
 	var err error
-	if a.clearSystemProxy != nil {
-		err = a.clearSystemProxy()
+	if a.systemProxy != nil && a.systemProxy.IsEnabled() {
+		err = a.systemProxy.Disable()
 	}
 	return E.Errors(err, common.Close(
 		a.tcpListener,
