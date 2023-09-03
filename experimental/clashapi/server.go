@@ -90,7 +90,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		defaultMode = options.DefaultMode
 	}
 	if !common.Contains(server.modeList, defaultMode) {
-		server.modeList = append(server.modeList, defaultMode)
+		server.modeList = append([]string{defaultMode}, server.modeList...)
 	}
 	server.mode = defaultMode
 	if options.StoreMode || options.StoreSelected || options.StoreFakeIP || options.ExternalController == "" {
