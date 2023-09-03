@@ -3,11 +3,12 @@
 package settings
 
 import (
+	"context"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
-func SetSystemProxy(router adapter.Router, port uint16, isMixed bool) (func() error, error) {
+func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (SystemProxy, error) {
 	return nil, os.ErrInvalid
 }
