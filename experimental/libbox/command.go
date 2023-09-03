@@ -11,4 +11,6 @@ const (
 	CommandGroupExpand
 	CommandClashMode
 	CommandSetClashMode
+	CommandGetSystemProxyStatus
+	CommandSetSystemProxyEnabled
 )

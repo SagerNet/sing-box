@@ -35,6 +35,8 @@ type CommandServer struct {
 
 type CommandServerHandler interface {
 	ServiceReload() error
+	GetSystemProxyStatus() *SystemProxyStatus
+	SetSystemProxyEnabled(isEnabled bool) error
 }
 
 func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServer {
@@ -159,6 +161,10 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleModeConn(conn)
 	case CommandSetClashMode:
 		return s.handleSetClashMode(conn)
+	case CommandGetSystemProxyStatus:
+		return s.handleGetSystemProxyStatus(conn)
+	case CommandSetSystemProxyEnabled:
+		return s.handleSetSystemProxyEnabled(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}

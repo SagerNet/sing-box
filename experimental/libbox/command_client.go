@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -53,9 +54,24 @@ func (c *CommandClient) directConnect() (net.Conn, error) {
 	}
 }
 
+func (c *CommandClient) directConnectWithRetry() (net.Conn, error) {
+	var (
+		conn net.Conn
+		err  error
+	)
+	for i := 0; i < 10; i++ {
+		conn, err = c.directConnect()
+		if err == nil {
+			return conn, nil
+		}
+		time.Sleep(time.Duration(100+i*50) * time.Millisecond)
+	}
+	return nil, err
+}
+
 func (c *CommandClient) Connect() error {
 	common.Close(c.conn)
-	conn, err := c.directConnect()
+	conn, err := c.directConnectWithRetry()
 	if err != nil {
 		return err
 	}
