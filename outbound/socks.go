@@ -80,11 +80,11 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 	if h.resolve && destination.IsFqdn() {
-		addrs, err := h.router.LookupDefault(ctx, destination.Fqdn)
+		destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
 		if err != nil {
 			return nil, err
 		}
-		return N.DialSerial(ctx, h.client, network, destination, addrs)
+		return N.DialSerial(ctx, h.client, network, destination, destinationAddresses)
 	}
 	return h.client.DialContext(ctx, network, destination)
 }
@@ -97,14 +97,25 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 		return h.uotClient.ListenPacket(ctx, destination)
 	}
+	if h.resolve && destination.IsFqdn() {
+		destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
+		if err != nil {
+			return nil, err
+		}
+		packetConn, _, err := N.ListenSerial(ctx, h.client, destination, destinationAddresses)
+		if err != nil {
+			return nil, err
+		}
+		return packetConn, nil
+	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
 }
 
 func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
+	return NewDirectConnection(ctx, h.router, h, conn, metadata)
 }
 
 func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	return NewDirectPacketConnection(ctx, h.router, h, conn, metadata)
 }
