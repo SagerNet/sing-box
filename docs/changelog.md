@@ -1,3 +1,13 @@
+#### 1.5.0-beta.3
+
+* Fixes and improvements
+* Updated Hysteria2 documentation **1**
+
+**1**:
+
+Added notes indicating compatibility issues with origin Hysteria2
+servers and clients when using `fastOpen=false` or UDP MTU >= 1200.
+
 #### 1.5.0-beta.2
 
 * Add hysteria2 protocol support **1**
