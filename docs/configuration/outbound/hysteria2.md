@@ -21,6 +21,10 @@
 }
 ```
 
+!!! warning "Compatibility issues with original server"
+
+    When using the original server, the use case with `fastOpen=false` or UDP MTU >= 1200 is not supported.
+
 !!! warning ""
 
     QUIC, which is required by Hysteria2 is not included by default, see [Installation](/#installation).

@@ -25,6 +25,10 @@
 }
 ```
 
+!!! warning "与原始客户端的兼容性问题"
+
+    当使用原始客户端时，不支持 `fastOpen=false` 或者 UDP MTU >= 1200 的用例。
+
 !!! warning ""
 
     默认安装不包含被 Hysteria2 依赖的 QUIC，参阅 [安装](/zh/#_2)。
