@@ -227,13 +227,13 @@ ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 
 信息。
 
 
-ECH 配置和密钥可以通过 `sing-box generated ech-keypair [-pq-signature-schemes-enabled]` 生成。
+ECH 配置和密钥可以通过 `sing-box generate ech-keypair [-pq-signature-schemes-enabled]` 生成。
 
 #### pq_signature_schemes_enabled
 
 启用对后量子对等证书签名方案的支持。
 
-建议匹配 `sing-box generated ech-keypair` 的参数。
+建议匹配 `sing-box generate ech-keypair` 的参数。
 
 #### dynamic_record_sizing_disabled
 
