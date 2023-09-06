@@ -70,6 +70,28 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	return CopyEarlyConn(ctx, conn, outConn)
 }
 
+func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dialer, conn net.Conn, metadata adapter.InboundContext) error {
+	ctx = adapter.WithContext(ctx, &metadata)
+	var outConn net.Conn
+	var err error
+	if len(metadata.DestinationAddresses) > 0 {
+		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
+	} else if metadata.Destination.IsFqdn() {
+		var destinationAddresses []netip.Addr
+		destinationAddresses, err = router.LookupDefault(ctx, metadata.Destination.Fqdn)
+		if err != nil {
+			return N.HandshakeFailure(conn, err)
+		}
+		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, destinationAddresses)
+	} else {
+		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
+	}
+	if err != nil {
+		return N.HandshakeFailure(conn, err)
+	}
+	return CopyEarlyConn(ctx, conn, outConn)
+}
+
 func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.PacketConn
@@ -77,6 +99,42 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
 		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+	} else {
+		outConn, err = this.ListenPacket(ctx, metadata.Destination)
+	}
+	if err != nil {
+		return N.HandshakeFailure(conn, err)
+	}
+	if destinationAddress.IsValid() {
+		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
+			natConn.UpdateDestination(destinationAddress)
+		}
+	}
+	switch metadata.Protocol {
+	case C.ProtocolSTUN:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
+	case C.ProtocolQUIC:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
+	case C.ProtocolDNS:
+		ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
+	}
+	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outConn))
+}
+
+func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = adapter.WithContext(ctx, &metadata)
+	var outConn net.PacketConn
+	var destinationAddress netip.Addr
+	var err error
+	if len(metadata.DestinationAddresses) > 0 {
+		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+	} else if metadata.Destination.IsFqdn() {
+		var destinationAddresses []netip.Addr
+		destinationAddresses, err = router.LookupDefault(ctx, metadata.Destination.Fqdn)
+		if err != nil {
+			return N.HandshakeFailure(conn, err)
+		}
+		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, destinationAddresses)
 	} else {
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}
