@@ -202,26 +202,37 @@ func (w *WireGuard) DialContext(ctx context.Context, network string, destination
 		w.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	if destination.IsFqdn() {
-		addrs, err := w.router.LookupDefault(ctx, destination.Fqdn)
+		destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
 		if err != nil {
 			return nil, err
 		}
-		return N.DialSerial(ctx, w.tunDevice, network, destination, addrs)
+		return N.DialSerial(ctx, w.tunDevice, network, destination, destinationAddresses)
 	}
 	return w.tunDevice.DialContext(ctx, network, destination)
 }
 
 func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	w.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+	if destination.IsFqdn() {
+		destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
+		if err != nil {
+			return nil, err
+		}
+		packetConn, _, err := N.ListenSerial(ctx, w.tunDevice, destination, destinationAddresses)
+		if err != nil {
+			return nil, err
+		}
+		return packetConn, err
+	}
 	return w.tunDevice.ListenPacket(ctx, destination)
 }
 
 func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, w, conn, metadata)
+	return NewDirectConnection(ctx, w.router, w, conn, metadata)
 }
 
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, w, conn, metadata)
+	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata)
 }
 
 func (w *WireGuard) Start() error {
