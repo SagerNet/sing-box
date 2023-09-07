@@ -34,7 +34,7 @@ func (c *Client) handleMessage(conn *clientQUICConnection, data []byte) error {
 	}
 	switch data[1] {
 	case CommandPacket:
-		message := udpMessagePool.Get().(*udpMessage)
+		message := allocMessage()
 		err := decodeUDPMessage(message, data[2:])
 		if err != nil {
 			message.release()
@@ -82,7 +82,7 @@ func (c *Client) handleUniStream(conn *clientQUICConnection, stream quic.Receive
 		return E.New("unknown command ", command)
 	}
 	reader := io.MultiReader(bufio.NewCachedReader(stream, buffer), stream)
-	message := udpMessagePool.Get().(*udpMessage)
+	message := allocMessage()
 	err = readUDPMessage(message, reader)
 	if err != nil {
 		message.release()

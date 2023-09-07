@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/sagernet/quic-go"
-	"github.com/sagernet/sing-box/common/baderror"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -264,7 +264,7 @@ func (s *serverSession) handleUniStream(stream quic.ReceiveStream) error {
 			return s.connErr
 		case <-s.authDone:
 		}
-		message := udpMessagePool.Get().(*udpMessage)
+		message := allocMessage()
 		err = readUDPMessage(message, io.MultiReader(bytes.NewReader(buffer.From(2)), stream))
 		if err != nil {
 			message.release()
