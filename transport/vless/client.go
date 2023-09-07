@@ -150,7 +150,10 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 
 func (c *Conn) WriteBuffer(buffer *buf.Buffer) error {
 	if !c.requestWritten {
-		EncodeRequest(c.request, buf.With(buffer.ExtendHeader(RequestLen(c.request))))
+		err := EncodeRequest(c.request, buf.With(buffer.ExtendHeader(RequestLen(c.request))))
+		if err != nil {
+			return err
+		}
 		c.requestWritten = true
 	}
 	return c.ExtendedConn.WriteBuffer(buffer)
@@ -159,7 +162,11 @@ func (c *Conn) WriteBuffer(buffer *buf.Buffer) error {
 func (c *Conn) WriteVectorised(buffers []*buf.Buffer) error {
 	if !c.requestWritten {
 		buffer := buf.NewSize(RequestLen(c.request))
-		EncodeRequest(c.request, buffer)
+		err := EncodeRequest(c.request, buffer)
+		if err != nil {
+			buffer.Release()
+			return err
+		}
 		c.requestWritten = true
 		return c.writer.WriteVectorised(append([]*buf.Buffer{buffer}, buffers...))
 	}
