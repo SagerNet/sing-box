@@ -156,14 +156,17 @@ func WriteRequest(writer io.Writer, request Request, payload []byte) error {
 	)
 
 	if request.Command != vmess.CommandMux {
-		common.Must(vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination))
+		err := vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination)
+		if err != nil {
+			return err
+		}
 	}
 
 	common.Must1(buffer.Write(payload))
 	return common.Error(writer.Write(buffer.Bytes()))
 }
 
-func EncodeRequest(request Request, buffer *buf.Buffer) {
+func EncodeRequest(request Request, buffer *buf.Buffer) error {
 	var requestLen int
 	requestLen += 1  // version
 	requestLen += 16 // uuid
@@ -195,8 +198,12 @@ func EncodeRequest(request Request, buffer *buf.Buffer) {
 	)
 
 	if request.Command != vmess.CommandMux {
-		common.Must(vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination))
+		err := vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func RequestLen(request Request) int {
@@ -251,10 +258,12 @@ func WritePacketRequest(writer io.Writer, request Request, payload []byte) error
 		common.Must(common.Error(buffer.WriteString(request.Flow)))
 	}
 
-	common.Must(
-		buffer.WriteByte(vmess.CommandUDP),
-		vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination),
-	)
+	common.Must(buffer.WriteByte(vmess.CommandUDP))
+
+	err := vmess.AddressSerializer.WriteAddrPort(buffer, request.Destination)
+	if err != nil {
+		return err
+	}
 
 	if len(payload) > 0 {
 		common.Must(

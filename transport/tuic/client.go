@@ -271,9 +271,13 @@ func (c *clientConn) Read(b []byte) (n int, err error) {
 func (c *clientConn) Write(b []byte) (n int, err error) {
 	if !c.requestWritten {
 		request := buf.NewSize(2 + addressSerializer.AddrPortLen(c.destination) + len(b))
+		defer request.Release()
 		request.WriteByte(Version)
 		request.WriteByte(CommandConnect)
-		addressSerializer.WriteAddrPort(request, c.destination)
+		err = addressSerializer.WriteAddrPort(request, c.destination)
+		if err != nil {
+			return
+		}
 		request.Write(b)
 		_, err = c.stream.Write(request.Bytes())
 		if err != nil {

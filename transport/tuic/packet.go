@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/cache"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 )
 
@@ -205,6 +206,9 @@ func (c *udpPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr)
 	if buffer.Len() > 0xffff {
 		return quic.ErrMessageTooLarge(0xffff)
 	}
+	if !destination.IsValid() {
+		return E.New("invalid destination address")
+	}
 	packetId := c.packetId.Add(1)
 	if packetId > math.MaxUint16 {
 		c.packetId.Store(0)
@@ -246,6 +250,10 @@ func (c *udpPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 	if len(p) > 0xffff {
 		return 0, quic.ErrMessageTooLarge(0xffff)
 	}
+	destination := M.SocksaddrFromNet(addr)
+	if !destination.IsValid() {
+		return 0, E.New("invalid destination address")
+	}
 	packetId := c.packetId.Add(1)
 	if packetId > math.MaxUint16 {
 		c.packetId.Store(0)
@@ -256,7 +264,7 @@ func (c *udpPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 		sessionID:     c.sessionID,
 		packetID:      uint16(packetId),
 		fragmentTotal: 1,
-		destination:   M.SocksaddrFromNet(addr),
+		destination:   destination,
 		data:          buf.As(p),
 	}
 	if !c.udpStream && c.needFragment() && len(p) > c.udpMTU {
