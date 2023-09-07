@@ -127,7 +127,7 @@ func TestHysteria2Inbound(t *testing.T) {
 	startDockerContainer(t, DockerOptions{
 		Image: ImageHysteria2,
 		Ports: []uint16{serverPort, clientPort},
-		Cmd:   []string{"hysteria", "client", "-c", "/etc/hysteria/config.yml", "--disable-update-check", "--log-level", "debug"},
+		Cmd:   []string{"client", "-c", "/etc/hysteria/config.yml", "--disable-update-check", "--log-level", "debug"},
 		Bind: map[string]string{
 			"hysteria2-client.yml": "/etc/hysteria/config.yml",
 			caPem:                  "/etc/hysteria/ca.pem",
@@ -141,7 +141,7 @@ func TestHysteria2Outbound(t *testing.T) {
 	startDockerContainer(t, DockerOptions{
 		Image: ImageHysteria2,
 		Ports: []uint16{testPort},
-		Cmd:   []string{"hysteria", "server", "-c", "/etc/hysteria/config.yml", "--disable-update-check", "--log-level", "debug"},
+		Cmd:   []string{"server", "-c", "/etc/hysteria/config.yml", "--disable-update-check", "--log-level", "debug"},
 		Bind: map[string]string{
 			"hysteria2-server.yml": "/etc/hysteria/config.yml",
 			certPem:                "/etc/hysteria/cert.pem",

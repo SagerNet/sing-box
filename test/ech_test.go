@@ -244,5 +244,5 @@ func TestECHHysteria2(t *testing.T) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitLargeUDP(t, clientPort, testPort)
 }

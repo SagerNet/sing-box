@@ -32,8 +32,8 @@ const (
 	ImageTrojan                = "trojangfw/trojan:latest"
 	ImageNaive                 = "pocat/naiveproxy:client"
 	ImageBoringTun             = "ghcr.io/ntkme/boringtun:edge"
-	ImageHysteria              = "teddysun/hysteria:1.3.5"
-	ImageHysteria2             = "teddysun/hysteria:latest"
+	ImageHysteria              = "tobyxdd/hysteria:v1.3.5"
+	ImageHysteria2             = "tobyxdd/hysteria:v2"
 	ImageNginx                 = "nginx:stable"
 	ImageShadowTLS             = "ghcr.io/ihciah/shadow-tls:latest"
 	ImageShadowsocksR          = "teddysun/shadowsocks-r:latest"
@@ -378,7 +378,7 @@ func testLargeDataWithPacketConnSize(t *testing.T, port uint16, chunkSize int, p
 
 	rAddr := &net.UDPAddr{IP: localIP.AsSlice(), Port: int(port)}
 
-	times := 2
+	times := 50
 
 	pingCh, pongCh, test := newLargeDataPair()
 	writeRandData := func(pc net.PacketConn, addr net.Addr) (map[int][]byte, error) {
