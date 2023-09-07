@@ -21,9 +21,9 @@
 }
 ```
 
-!!! warning "Compatibility issues with original server"
+!!! warning "Compatibility issues with the official server"
 
-    When using the original server, the use case with `fastOpen=false` or UDP MTU >= 1200 is not supported.
+    The use case of UDP MTU >= 1200 is not supported when using the official server.
 
 !!! warning ""
 
