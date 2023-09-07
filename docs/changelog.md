@@ -1,3 +1,7 @@
+#### 1.5.0-beta.4
+
+* Fixes and improvements
+
 #### 1.5.0-beta.3
 
 * Fixes and improvements
