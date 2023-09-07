@@ -521,7 +521,7 @@ func (r *Router) Close() error {
 			return E.Cause(err, "close dns transport[", i, "]")
 		})
 	}
-	if r.geositeReader != nil {
+	if r.geoIPReader != nil {
 		r.logger.Trace("closing geoip reader")
 		err = E.Append(err, common.Close(r.geoIPReader), func(err error) error {
 			return E.Cause(err, "close geoip reader")
