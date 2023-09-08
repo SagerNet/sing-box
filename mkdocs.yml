@@ -30,9 +30,10 @@ theme:
     - navigation.sections
     - header.autohide
 nav:
-  - Getting Started:
+  - Home:
       - index.md
       - Features: features.md
+      - Deprecated: deprecated.md
       - Support: support.md
       - Change Log: changelog.md
   - Installation:
