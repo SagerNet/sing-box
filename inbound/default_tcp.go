@@ -35,7 +35,7 @@ func (a *myInboundAdapter) ListenTCP() (net.Listener, error) {
 		a.logger.Info("tcp server started at ", tcpListener.Addr())
 	}
 	if a.listenOptions.ProxyProtocol {
-		a.logger.Debug("proxy protocol enabled")
+		a.logger.Warn("Proxy Protocol is deprecated, see https://sing-box.sagernet.org/deprecated")
 		tcpListener = &proxyproto.Listener{Listener: tcpListener, AcceptNoHeader: a.listenOptions.ProxyProtocolAcceptNoHeader}
 	}
 	a.tcpListener = tcpListener

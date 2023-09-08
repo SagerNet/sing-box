@@ -37,6 +37,7 @@ type ShadowsocksR struct {
 }
 
 func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksROutboundOptions) (*ShadowsocksR, error) {
+	logger.Warn("ShadowsocksR is deprecated, see https://sing-box.sagernet.org/deprecated")
 	outboundDialer, err := dialer.New(router, options.DialerOptions)
 	if err != nil {
 		return nil, err
