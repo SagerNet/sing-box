@@ -87,6 +87,7 @@ nav:
           - ShadowTLS: configuration/inbound/shadowtls.md
           - VLESS: configuration/inbound/vless.md
           - TUIC: configuration/inbound/tuic.md
+          - Hysteria2: configuration/inbound/hysteria2.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -105,6 +106,7 @@ nav:
           - ShadowsocksR: configuration/outbound/shadowsocksr.md
           - VLESS: configuration/outbound/vless.md
           - TUIC: configuration/outbound/tuic.md
+          - Hysteria2: configuration/outbound/hysteria2.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
