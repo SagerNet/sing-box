@@ -102,7 +102,7 @@ func (c *Client) offer(ctx context.Context) (*clientQUICConnection, error) {
 }
 
 func (c *Client) offerNew(ctx context.Context) (*clientQUICConnection, error) {
-	udpConn, err := c.dialer.DialContext(ctx, "udp", c.serverAddr)
+	udpConn, err := c.dialer.DialContext(c.ctx, "udp", c.serverAddr)
 	if err != nil {
 		return nil, err
 	}
