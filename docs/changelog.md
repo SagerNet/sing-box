@@ -1,3 +1,54 @@
+#### 1.5.0-beta.8
+
+* Fixes and improvements
+
+#### 1.4.2
+
+* Fixes and improvements
+
+#### 1.5.0-beta.6
+
+* Fix compatibility issues with official Hysteria2 server and client
+* Fixes and improvements
+* Mark [deprecated features](/deprecated)
+
+#### 1.5.0-beta.3
+
+* Fixes and improvements
+* Updated Hysteria2 documentation **1**
+
+**1**:
+
+Added notes indicating compatibility issues with the official
+Hysteria2 server and client when using `fastOpen=false` or UDP MTU >= 1200.
+
+#### 1.5.0-beta.2
+
+* Add hysteria2 protocol support **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2 inbound](/configuration/inbound/hysteria2) and [Hysteria2 outbound](/configuration/outbound/hysteria2)
+
+For protocol description, please refer to [https://v2.hysteria.network](https://v2.hysteria.network)
+
+#### 1.5.0-beta.1
+
+* Add TLS [ECH server](/configuration/shared/tls) support
+* Improve TLS TCH client configuration
+* Add TLS ECH key pair generator **1**
+* Add TLS ECH support for QUIC based protocols **2**
+* Add KDE support for the `set_system_proxy` option in HTTP inbound
+
+**1**:
+
+Command: `sing-box generate ech-keypair <plain_server_name> [-pq-signature-schemes-enabled]`
+
+**2**:
+
+All inbounds and outbounds are supported, including `Naiveproxy`, `Hysteria`, `TUIC` and `V2ray QUIC transport`.
+
 #### 1.4.1
 
 * Fixes and improvements
