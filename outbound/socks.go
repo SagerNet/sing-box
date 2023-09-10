@@ -117,5 +117,5 @@ func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 }
 
 func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	return NewDirectPacketConnection(ctx, h.router, h, conn, metadata)
 }
