@@ -9,12 +9,12 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/qtls"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
+	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -36,7 +36,7 @@ type Hysteria struct {
 	xplusKey     []byte
 	sendBPS      uint64
 	recvBPS      uint64
-	listener     qtls.QUICListener
+	listener     qtls.Listener
 	udpAccess    sync.RWMutex
 	udpSessionId uint32
 	udpSessions  map[uint32]chan *hysteria.UDPMessage
