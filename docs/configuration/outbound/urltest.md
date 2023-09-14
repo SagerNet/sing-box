@@ -12,7 +12,8 @@
   ],
   "url": "https://www.gstatic.com/generate_204",
   "interval": "1m",
-  "tolerance": 50
+  "tolerance": 50,
+  "interrupt_exist_connections": false
 }
 ```
 
@@ -35,3 +36,9 @@ The test interval. `1m` will be used if empty.
 #### tolerance
 
 The test tolerance in milliseconds. `50` will be used if empty.
+
+#### interrupt_exist_connections
+
+Interrupt existing connections when the selected outbound has changed.
+
+Only inbound connections are affected by this setting, internal connections will always be interrupted.
