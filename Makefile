@@ -137,7 +137,6 @@ release_macos_independent: build_macos_independent notarize_macos_independent wa
 build_tvos:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFT.xcarchive && \
-	export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer && \
 	xcodebuild archive -scheme SFT -configuration Release -archivePath build/SFT.xcarchive
 
 upload_tvos_app_store:
