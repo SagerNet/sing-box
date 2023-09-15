@@ -73,7 +73,7 @@ update_android_version:
 	go run ./cmd/internal/update_android_version
 
 build_android:
-	cd ../sing-box-for-android && ./gradlew :app:assembleRelease
+	cd ../sing-box-for-android && ./gradlew :app:assembleRelease && ./gradlew --stop
 
 upload_android:
 	mkdir -p dist/release_android
@@ -84,7 +84,7 @@ upload_android:
 release_android: lib_android update_android_version build_android upload_android
 
 publish_android:
-	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease
+	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease && ./gradlew --stop
 
 build_ios:
 	cd ../sing-box-for-apple && \
@@ -137,7 +137,6 @@ release_macos_independent: build_macos_independent notarize_macos_independent wa
 build_tvos:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFT.xcarchive && \
-	export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer && \
 	xcodebuild archive -scheme SFT -configuration Release -archivePath build/SFT.xcarchive
 
 upload_tvos_app_store:
