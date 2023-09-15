@@ -78,7 +78,7 @@ ALWAYS set a secret if RESTful API is listening on 0.0.0.0
 
 #### default_mode
 
-Default mode in clash, `rule` will be used if empty.
+Default mode in clash, `Rule` will be used if empty.
 
 This setting has no direct effect, but can be used in routing and DNS rules via the `clash_mode` rule item.
 

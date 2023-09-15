@@ -76,7 +76,7 @@ RESTful API 的密钥（可选）
 
 #### default_mode
 
-Clash 中的默认模式，默认使用 `rule`。
+Clash 中的默认模式，默认使用 `Rule`。
 
 此设置没有直接影响，但可以通过 `clash_mode` 规则项在路由和 DNS 规则中使用。
 
