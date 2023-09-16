@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -93,6 +94,7 @@ type EarlyWebsocketConn struct {
 	*Client
 	ctx    context.Context
 	conn   *WebsocketConn
+	access sync.Mutex
 	create chan struct{}
 	err    error
 }
@@ -149,6 +151,11 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if c.conn != nil {
 		return c.conn.Write(b)
 	}
+	c.access.Lock()
+	defer c.access.Unlock()
+	if c.conn != nil {
+		return c.conn.Write(b)
+	}
 	err = c.writeRequest(b)
 	c.err = err
 	close(c.create)
@@ -159,6 +166,11 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 }
 
 func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
+	if c.conn != nil {
+		return c.conn.WriteBuffer(buffer)
+	}
+	c.access.Lock()
+	defer c.access.Unlock()
 	if c.conn != nil {
 		return c.conn.WriteBuffer(buffer)
 	}
