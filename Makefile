@@ -28,7 +28,7 @@ ci_build:
 	go build $(MAIN_PARAMS) $(MAIN)
 
 install:
-	go build -o $(PREFIX)/bin/$(NAME) $(PARAMS) $(MAIN)
+	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
 
 fmt:
 	@gofumpt -l -w .
