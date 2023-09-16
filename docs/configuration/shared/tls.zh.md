@@ -25,7 +25,8 @@
     "external_account": {
       "key_id": "",
       "mac_key": ""
-    }
+    },
+    "dns01_challenge": {}
   },
   "ech": {
     "enabled": false,
@@ -338,6 +339,12 @@ EAB（外部帐户绑定）包含将 ACME 帐户绑定或映射到其他已知�
 #### external_account.mac_key
 
 MAC 密钥。
+
+#### dns01_challenge
+
+ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
+
+参阅 [DNS01 验证字段](/configuration/shared/dns01_challenge)。
 
 ### Reality 字段
 
