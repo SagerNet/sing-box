@@ -71,6 +71,7 @@ nav:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
+          - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md
@@ -193,6 +194,7 @@ plugins:
           Shared: 通用
           Listen Fields: 监听字段
           Dial Fields: 拨号字段
+          DNS01 Challenge Fields: DNS01 验证字段
           Multiplex: 多路复用
           V2Ray Transport: V2Ray 传输层
 

@@ -9,10 +9,13 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/libdns/alidns"
+	"github.com/libdns/cloudflare"
 	"github.com/mholt/acmez/acme"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -73,6 +76,21 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
 		Logger:                  config.Logger,
+	}
+	if dnsOptions := options.DNS01Challenge; dnsOptions != nil && dnsOptions.Provider != "" {
+		var solver certmagic.DNS01Solver
+		switch dnsOptions.Provider {
+		case C.DNSProviderAliDNS:
+			solver.DNSProvider = &alidns.Provider{
+				AccKeyID:     dnsOptions.AliDNSOptions.AccessKeyID,
+				AccKeySecret: dnsOptions.AliDNSOptions.AccessKeySecret,
+				RegionID:     dnsOptions.AliDNSOptions.RegionID,
+			}
+		case C.DNSProviderCloudflare:
+			solver.DNSProvider = &cloudflare.Provider{
+				APIToken: dnsOptions.CloudflareOptions.APIToken,
+			}
+		}
 	}
 	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
 		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)

@@ -25,7 +25,8 @@
     "external_account": {
       "key_id": "",
       "mac_key": ""
-    }
+    },
+    "dns01_challenge": {}
   },
   "ech": {
     "enabled": false,
@@ -347,6 +348,12 @@ The key identifier.
 #### external_account.mac_key
 
 The MAC key.
+
+#### dns01_challenge
+
+ACME DNS01 challenge field. If configured, other challenge methods will be disabled.
+
+See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge) for details.
 
 ### Reality Fields
 
