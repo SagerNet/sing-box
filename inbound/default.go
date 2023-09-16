@@ -99,14 +99,16 @@ func (a *myInboundAdapter) Start() error {
 		} else {
 			listenAddrString = listenAddr.String()
 		}
-		a.systemProxy, err = settings.NewSystemProxy(a.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), a.protocol == C.TypeMixed)
+		var systemProxy settings.SystemProxy
+		systemProxy, err = settings.NewSystemProxy(a.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), a.protocol == C.TypeMixed)
 		if err != nil {
 			return E.Cause(err, "initialize system proxy")
 		}
-		err = a.systemProxy.Enable()
+		err = systemProxy.Enable()
 		if err != nil {
 			return E.Cause(err, "set system proxy")
 		}
+		a.systemProxy = systemProxy
 	}
 	return nil
 }
