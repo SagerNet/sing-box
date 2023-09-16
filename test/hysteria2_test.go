@@ -46,7 +46,9 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
 						ListenPort: serverPort,
 					},
-					Obfs: obfs,
+					UpMbps:   100,
+					DownMbps: 100,
+					Obfs:     obfs,
 					Users: []option.Hysteria2User{{
 						Password: "password",
 					}},
@@ -71,6 +73,8 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
+					UpMbps:   100,
+					DownMbps: 100,
 					Obfs:     obfs,
 					Password: "password",
 					TLS: &option.OutboundTLSOptions{
