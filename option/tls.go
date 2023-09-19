@@ -26,7 +26,7 @@ type OutboundTLSOptions struct {
 	MinVersion      string                  `json:"min_version,omitempty"`
 	MaxVersion      string                  `json:"max_version,omitempty"`
 	CipherSuites    Listable[string]        `json:"cipher_suites,omitempty"`
-	Certificate     string                  `json:"certificate,omitempty"`
+	Certificate     Listable[string]        `json:"certificate,omitempty"`
 	CertificatePath string                  `json:"certificate_path,omitempty"`
 	ECH             *OutboundECHOptions     `json:"ech,omitempty"`
 	UTLS            *OutboundUTLSOptions    `json:"utls,omitempty"`

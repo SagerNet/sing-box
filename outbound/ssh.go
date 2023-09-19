@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -76,10 +77,10 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if options.Password != "" {
 		outbound.authMethod = append(outbound.authMethod, ssh.Password(options.Password))
 	}
-	if options.PrivateKey != "" || options.PrivateKeyPath != "" {
+	if len(options.PrivateKey) > 0 || options.PrivateKeyPath != "" {
 		var privateKey []byte
-		if options.PrivateKey != "" {
-			privateKey = []byte(options.PrivateKey)
+		if len(options.PrivateKey) > 0 {
+			privateKey = []byte(strings.Join(options.PrivateKey, "\n"))
 		} else {
 			var err error
 			privateKey, err = os.ReadFile(os.ExpandEnv(options.PrivateKeyPath))

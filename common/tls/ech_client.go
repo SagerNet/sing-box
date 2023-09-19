@@ -149,8 +149,8 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 		}
 	}
 	var certificate []byte
-	if options.Certificate != "" {
-		certificate = []byte(options.Certificate)
+	if len(options.Certificate) > 0 {
+		certificate = []byte(strings.Join(options.Certificate, "\n"))
 	} else if options.CertificatePath != "" {
 		content, err := os.ReadFile(options.CertificatePath)
 		if err != nil {

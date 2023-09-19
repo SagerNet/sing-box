@@ -29,11 +29,17 @@ sing-box 使用 JSON 作为配置文件格式。
 ### 检查
 
 ```bash
-$ sing-box check
+sing-box check
 ```
 
 ### 格式化
 
 ```bash
-$ sing-box format -w
+sing-box format -w -c config.json -D config_directory
+```
+
+### 合并
+
+```bash
+sing-box merge output.json -c config.json -D config_directory
 ```
