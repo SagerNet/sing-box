@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/sagernet/quic-go"
-	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/tls"
@@ -17,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/hysteria"
 	"github.com/sagernet/sing-quic"
+	hyCC "github.com/sagernet/sing-quic/hysteria2/congestion"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -206,7 +206,7 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 		packetConn.Close()
 		return nil, E.New("remote error: ", serverHello.Message)
 	}
-	quicConn.SetCongestionControl(hysteria.NewBrutalSender(congestion.ByteCount(serverHello.RecvBPS)))
+	quicConn.SetCongestionControl(hyCC.NewBrutalSender(serverHello.RecvBPS))
 	h.conn = quicConn
 	h.rawConn = udpConn
 	return quicConn, nil
