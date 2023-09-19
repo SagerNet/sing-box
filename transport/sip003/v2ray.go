@@ -32,7 +32,7 @@ func newV2RayPlugin(ctx context.Context, pluginOpts Args, router adapter.Router,
 		certHead := "-----BEGIN CERTIFICATE-----"
 		certTail := "-----END CERTIFICATE-----"
 		fixedCert := certHead + "\n" + certRaw + "\n" + certTail
-		tlsOptions.Certificate = fixedCert
+		tlsOptions.Certificate = []string{fixedCert}
 	}
 
 	mode := "websocket"
