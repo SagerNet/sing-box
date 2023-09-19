@@ -118,8 +118,8 @@ github.com/sagernet/sing v0.0.0-20220817130738-ce854cda8522/go.mod h1:QVsS5L/ZA2
 github.com/sagernet/sing v0.1.8/go.mod h1:jt1w2u7lJQFFSGLiRrRIs5YWmx4kAPfWuOejuDW9qMk=
 github.com/sagernet/sing v0.2.10-0.20230912050851-1453c7c8c20d h1:dWUNsHDX8EMeGj1XCnrVtydy5C+5D+Orc5JjZP7myHg=
 github.com/sagernet/sing v0.2.10-0.20230912050851-1453c7c8c20d/go.mod h1:9uOZwWkhT2Z2WldolLxX34s+1svAX4i4vvz5hy8u1MA=
-github.com/sagernet/sing-dns v0.1.9-0.20230911082806-425022bdc92b h1:m/UWg2voyb94YCWAMInMXIQ91qQGZ6utPAwKCYrlciI=
-github.com/sagernet/sing-dns v0.1.9-0.20230911082806-425022bdc92b/go.mod h1:Kg98PBJEg/08jsNFtmZWmPomhskn9Ausn50ecNm4M+8=
+github.com/sagernet/sing-dns v0.1.9-0.20230919110447-d24aeae07601 h1:UJYRkncWVpNdNIXeJV/eBilTc3Rga9G1SDBWjKSxL4w=
+github.com/sagernet/sing-dns v0.1.9-0.20230919110447-d24aeae07601/go.mod h1:Kg98PBJEg/08jsNFtmZWmPomhskn9Ausn50ecNm4M+8=
 github.com/sagernet/sing-mux v0.1.3-0.20230908032617-759a1886a400 h1:LtpYd5c5AJtUSxjyH4KjUS8HT+2XgilyozjbCq/x3EM=
 github.com/sagernet/sing-mux v0.1.3-0.20230908032617-759a1886a400/go.mod h1:TKxqIvfQQgd36jp2tzsPavGjYTVZilV+atip1cssjIY=
 github.com/sagernet/sing-quic v0.0.0-20230919102644-5874c56aae1c h1:yvErV+elwbXU+uyT8BsOci5b86TACtCKIFpCPTaIk7A=
