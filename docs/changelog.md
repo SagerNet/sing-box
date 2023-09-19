@@ -1,3 +1,29 @@
+#### 1.5.0-beta.12
+
+* Add `merge` command **1**
+* Fixes and improvements
+
+**1**:
+
+This command also parses path resources that appear in the configuration file and replaces them with embedded
+configuration, such as TLS certificates or SSH private keys.
+
+```
+Merge configuration
+
+Usage:
+  sing-box merge [output] [flags]
+
+Flags:
+  -h, --help   help for merge
+
+Global Flags:
+  -c, --config stringArray             set configuration file path
+  -C, --config-directory stringArray   set configuration directory path
+  -D, --directory string               set working directory
+      --disable-color                  disable color output
+```
+
 #### 1.5.0-beta.11
 
 * Add DNS01 challenge support for ACME TLS certificate issuer **1**
