@@ -12,7 +12,7 @@ require (
 	github.com/docker/docker v24.0.5+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid/v5 v5.0.0
-	github.com/sagernet/sing v0.2.10-0.20230912050851-1453c7c8c20d
+	github.com/sagernet/sing v0.2.10-0.20230920060554-3c4a2b06a988
 	github.com/sagernet/sing-quic v0.0.0-20230919102644-5874c56aae1c
 	github.com/sagernet/sing-shadowsocks v0.2.5-0.20230907005610-126234728ca0
 	github.com/sagernet/sing-shadowsocks2 v0.1.4-0.20230907005906-5d2917b29248
@@ -79,7 +79,7 @@ require (
 	github.com/sagernet/sing-dns v0.1.9-0.20230919110447-d24aeae07601 // indirect
 	github.com/sagernet/sing-mux v0.1.3-0.20230908032617-759a1886a400 // indirect
 	github.com/sagernet/sing-shadowtls v0.1.4 // indirect
-	github.com/sagernet/sing-tun v0.1.12-0.20230821065522-7545dc2d5641 // indirect
+	github.com/sagernet/sing-tun v0.1.12-0.20230920060816-9c933ea55308 // indirect
 	github.com/sagernet/sing-vmess v0.1.8-0.20230907010359-161fb0ac716b // indirect
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6 // indirect
