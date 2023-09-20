@@ -4,33 +4,32 @@ import (
 	"io"
 	"net"
 
-	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/x/list"
 )
 
-type PacketConn struct {
-	net.PacketConn
+type Conn struct {
+	net.Conn
 	element *list.Element[io.Closer]
 }
 
-func NewPacketConn(conn net.PacketConn) (net.PacketConn, error) {
+func NewConn(conn net.Conn) (net.Conn, error) {
 	connAccess.Lock()
 	element := openConnection.PushBack(conn)
 	connAccess.Unlock()
 	if KillerEnabled {
-		err := killerCheck()
+		err := KillerCheck()
 		if err != nil {
 			conn.Close()
 			return nil, err
 		}
 	}
-	return &PacketConn{
-		PacketConn: conn,
-		element:    element,
+	return &Conn{
+		Conn:    conn,
+		element: element,
 	}, nil
 }
 
-func (c *PacketConn) Close() error {
+func (c *Conn) Close() error {
 	if c.element.Value != nil {
 		connAccess.Lock()
 		if c.element.Value != nil {
@@ -39,17 +38,17 @@ func (c *PacketConn) Close() error {
 		}
 		connAccess.Unlock()
 	}
-	return c.PacketConn.Close()
+	return c.Conn.Close()
 }
 
-func (c *PacketConn) Upstream() any {
-	return bufio.NewPacketConn(c.PacketConn)
+func (c *Conn) Upstream() any {
+	return c.Conn
 }
 
-func (c *PacketConn) ReaderReplaceable() bool {
+func (c *Conn) ReaderReplaceable() bool {
 	return true
 }
 
-func (c *PacketConn) WriterReplaceable() bool {
+func (c *Conn) WriterReplaceable() bool {
 	return true
 }

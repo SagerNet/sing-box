@@ -6,13 +6,15 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sagernet/sing-box/common/dialer/conntrack"
+	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/memory"
 )
 
 type StatusMessage struct {
 	Memory           int64
+	MemoryInuse      int64
 	Goroutines       int32
 	ConnectionsIn    int32
 	ConnectionsOut   int32
@@ -24,10 +26,8 @@ type StatusMessage struct {
 }
 
 func (s *CommandServer) readStatus() StatusMessage {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
 	var message StatusMessage
-	message.Memory = int64(memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased)
+	message.Memory = int64(memory.Inuse())
 	message.Goroutines = int32(runtime.NumGoroutine())
 	message.ConnectionsOut = int32(conntrack.Count())
 
