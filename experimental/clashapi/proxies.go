@@ -110,16 +110,6 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			return allProxies[i] == defaultTag
 		})
 
-		// fix clash dashboard
-		proxyMap.Put("GLOBAL", map[string]any{
-			"type":    "Fallback",
-			"name":    "GLOBAL",
-			"udp":     true,
-			"history": []*urltest.History{},
-			"all":     allProxies,
-			"now":     defaultTag,
-		})
-
 		for i, detour := range outbounds {
 			var tag string
 			if detour.Tag() == "" {
@@ -127,7 +117,16 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			} else {
 				tag = detour.Tag()
 			}
-			proxyMap.Put(tag, proxyInfo(server, detour))
+			p := proxyInfo(server, detour)
+			if tag == defaultTag {
+				p.Put("type", "Fallback")
+				if _, isGroup := detour.(adapter.OutboundGroup); !isGroup {
+					p.Put("all", []string{tag})
+				}
+				proxyMap.Put("GLOBAL", p)
+			} else {
+				proxyMap.Put(tag, p)
+			}
 		}
 		var responseMap badjson.JSONObject
 		responseMap.Put("proxies", &proxyMap)
