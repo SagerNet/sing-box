@@ -7,7 +7,6 @@ require (
 	github.com/Dreamacro/clash v1.17.0
 	github.com/caddyserver/certmagic v0.19.2
 	github.com/cretz/bine v0.2.0
-	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-chi/cors v1.2.1
@@ -25,13 +24,13 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2
 	github.com/sagernet/quic-go v0.0.0-20230911082307-390b7c274032
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.10-0.20230912051334-9163f4486b0d
+	github.com/sagernet/sing v0.2.10-0.20230925102642-b0e07300a98c
 	github.com/sagernet/sing-dns v0.1.9-0.20230911082806-425022bdc92b
 	github.com/sagernet/sing-mux v0.1.3-0.20230907005326-7befbadbf314
 	github.com/sagernet/sing-shadowsocks v0.2.5-0.20230907005610-126234728ca0
 	github.com/sagernet/sing-shadowsocks2 v0.1.4-0.20230907005906-5d2917b29248
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.12-0.20230821065522-7545dc2d5641
+	github.com/sagernet/sing-tun v0.1.12-0.20230925100705-ef831c3485cf
 	github.com/sagernet/sing-vmess v0.1.8-0.20230907010359-161fb0ac716b
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
@@ -46,7 +45,7 @@ require (
 	golang.org/x/crypto v0.12.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/net v0.14.0
-	golang.org/x/sys v0.11.0
+	golang.org/x/sys v0.12.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0

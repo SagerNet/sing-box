@@ -174,9 +174,7 @@ func (t *Transport) interfaceUpdated(int) {
 
 func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) error {
 	var listener net.ListenConfig
-	listener.Control = control.Append(listener.Control, control.BindToInterfaceFunc(t.router.InterfaceFinder(), func(network string, address string) (interfaceName string, interfaceIndex int) {
-		return iface.Name, iface.Index
-	}))
+	listener.Control = control.Append(listener.Control, control.BindToInterface(t.router.InterfaceFinder(), iface.Name, iface.Index))
 	listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	packetConn, err := listener.ListenPacket(t.ctx, "udp4", "0.0.0.0:68")
 	if err != nil {

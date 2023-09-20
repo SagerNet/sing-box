@@ -1,20 +1,20 @@
 package conntrack
 
 import (
-	"runtime"
 	runtimeDebug "runtime/debug"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/memory"
 )
 
 var (
 	KillerEnabled   bool
-	MemoryLimit     int64
+	MemoryLimit     uint64
 	killerLastCheck time.Time
 )
 
-func killerCheck() error {
+func KillerCheck() error {
 	if !KillerEnabled {
 		return nil
 	}
@@ -23,10 +23,7 @@ func killerCheck() error {
 		return nil
 	}
 	killerLastCheck = nowTime
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-	inuseMemory := int64(memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased)
-	if inuseMemory > MemoryLimit {
+	if memory.Total() > MemoryLimit {
 		Close()
 		go func() {
 			time.Sleep(time.Second)

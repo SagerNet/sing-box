@@ -5,7 +5,7 @@ package box
 import (
 	"runtime/debug"
 
-	"github.com/sagernet/sing-box/common/dialer/conntrack"
+	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/option"
 )
 
@@ -28,7 +28,7 @@ func applyDebugOptions(options option.DebugOptions) {
 	}
 	if options.MemoryLimit != 0 {
 		// debug.SetMemoryLimit(int64(options.MemoryLimit))
-		conntrack.MemoryLimit = int64(options.MemoryLimit)
+		conntrack.MemoryLimit = uint64(options.MemoryLimit)
 	}
 	if options.OOMKiller != nil {
 		conntrack.KillerEnabled = *options.OOMKiller
