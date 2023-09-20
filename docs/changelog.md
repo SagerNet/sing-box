@@ -1,3 +1,7 @@
+#### 1.5.0-rc.1
+
+* Fixes and improvements
+
 #### 1.5.0-beta.12
 
 * Add `merge` command **1**
