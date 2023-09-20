@@ -3,9 +3,10 @@ package limiter
 import (
 	"context"
 	"net"
+
+	"github.com/sagernet/sing-box/adapter"
 )
 
 type Manager interface {
-	LoadLimiters(tags []string, user, inbound string) []*limiter
-	NewConnWithLimiters(ctx context.Context, conn net.Conn, limiters []*limiter) net.Conn
+	NewConnWithLimiters(ctx context.Context, conn net.Conn, metadata *adapter.InboundContext, rule adapter.Rule) net.Conn
 }

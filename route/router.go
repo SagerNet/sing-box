@@ -708,14 +708,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 
 	if r.limiterManager != nil {
-		var limiterTags []string
-		if matchedRule != nil {
-			limiterTags = matchedRule.Limiters()
-		}
-		limiters := r.limiterManager.LoadLimiters(limiterTags, metadata.User, metadata.Inbound)
-		if len(limiters) > 0 {
-			conn = r.limiterManager.NewConnWithLimiters(ctx, conn, limiters)
-		}
+		conn = r.limiterManager.NewConnWithLimiters(ctx, conn, &metadata, matchedRule)
 	}
 
 	if r.clashServer != nil {

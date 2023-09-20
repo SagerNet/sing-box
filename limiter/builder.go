@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/humanize"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -86,22 +87,23 @@ func (m *defaultManager) createLimiter(ctx context.Context, option option.Limite
 	return
 }
 
-func (m *defaultManager) LoadLimiters(tags []string, user, inbound string) (limiters []*limiter) {
-	for _, tag := range tags {
-		if v, ok := m.mp[limiterKey{prefixTag, tag}]; ok {
+func (m *defaultManager) NewConnWithLimiters(ctx context.Context, conn net.Conn, metadata *adapter.InboundContext, rule adapter.Rule) net.Conn {
+	var limiters []*limiter
+	if rule != nil {
+		for _, tag := range rule.Limiters() {
+			if v, ok := m.mp[limiterKey{prefixTag, tag}]; ok {
+				limiters = append(limiters, v)
+			}
+		}
+	}
+	if metadata != nil {
+		if v, ok := m.mp[limiterKey{prefixUser, metadata.User}]; ok {
+			limiters = append(limiters, v)
+		}
+		if v, ok := m.mp[limiterKey{prefixInbound, metadata.Inbound}]; ok {
 			limiters = append(limiters, v)
 		}
 	}
-	if v, ok := m.mp[limiterKey{prefixUser, user}]; ok {
-		limiters = append(limiters, v)
-	}
-	if v, ok := m.mp[limiterKey{prefixInbound, inbound}]; ok {
-		limiters = append(limiters, v)
-	}
-	return
-}
-
-func (m *defaultManager) NewConnWithLimiters(ctx context.Context, conn net.Conn, limiters []*limiter) net.Conn {
 	for _, limiter := range limiters {
 		conn = &connWithLimiter{Conn: conn, limiter: limiter, ctx: ctx}
 	}
