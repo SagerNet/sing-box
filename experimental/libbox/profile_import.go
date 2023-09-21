@@ -163,25 +163,29 @@ func DecodeProfileContentRequest(data []byte) (*ProfileContentRequest, error) {
 }
 
 type ProfileContent struct {
-	Name        string
-	Type        int32
-	Config      string
-	RemotePath  string
-	AutoUpdate  bool
-	LastUpdated int64
+	Name               string
+	Type               int32
+	Config             string
+	RemotePath         string
+	AutoUpdate         bool
+	AutoUpdateInterval int32
+	LastUpdated        int64
 }
 
 func (c *ProfileContent) Encode() []byte {
 	buffer := new(bytes.Buffer)
 	buffer.WriteByte(MessageTypeProfileContent)
-	buffer.WriteByte(0)
+	buffer.WriteByte(1)
 	writer := gzip.NewWriter(buffer)
 	rw.WriteVString(writer, c.Name)
 	binary.Write(writer, binary.BigEndian, c.Type)
 	rw.WriteVString(writer, c.Config)
 	if c.Type != ProfileTypeLocal {
 		rw.WriteVString(writer, c.RemotePath)
+	}
+	if c.Type == ProfileTypeRemote {
 		binary.Write(writer, binary.BigEndian, c.AutoUpdate)
+		binary.Write(writer, binary.BigEndian, c.AutoUpdateInterval)
 		binary.Write(writer, binary.BigEndian, c.LastUpdated)
 	}
 	writer.Flush()
@@ -202,12 +206,8 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 	if err != nil {
 		return nil, err
 	}
-	if version == 0 {
-		reader, err = gzip.NewReader(reader)
-		if err != nil {
-			return nil, E.Cause(err, "unsupported profile")
-		}
-	} else {
+	reader, err = gzip.NewReader(reader)
+	if err != nil {
 		return nil, E.Cause(err, "unsupported profile")
 	}
 	var content ProfileContent
@@ -228,9 +228,17 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	if content.Type == ProfileTypeRemote || (version == 0 && content.Type != ProfileTypeLocal) {
 		err = binary.Read(reader, binary.BigEndian, &content.AutoUpdate)
 		if err != nil {
 			return nil, err
+		}
+		if version >= 1 {
+			err = binary.Read(reader, binary.BigEndian, &content.AutoUpdateInterval)
+			if err != nil {
+				return nil, err
+			}
 		}
 		err = binary.Read(reader, binary.BigEndian, &content.LastUpdated)
 		if err != nil {
