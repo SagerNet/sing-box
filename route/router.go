@@ -873,15 +873,33 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 			metadata.ProcessInfo = processInfo
 		}
 	}
+	resolveStatus := -1
+	if metadata.Destination.IsFqdn() && len(metadata.DestinationAddresses) == 0 {
+		resolveStatus = 0
+	}
 	for i, rule := range r.rules {
+		if !rule.SkipResolve() && resolveStatus == 0 && rule.UseIPRule() {
+			addresses, err := r.Lookup(adapter.WithContext(ctx, metadata), metadata.Destination.Fqdn, dns.DomainStrategy(r.defaultDomainStrategy))
+			resolveStatus = 2
+			if err == nil {
+				resolveStatus = 1
+				metadata.DestinationAddresses = addresses
+			}
+		}
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
+				if resolveStatus == 1 && outbound.Type() != C.TypeDirect {
+					metadata.DestinationAddresses = []netip.Addr{}
+				}
 				return rule, outbound
 			}
 			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
+	}
+	if resolveStatus == 1 && defaultOutbound.Type() != C.TypeDirect {
+		metadata.DestinationAddresses = []netip.Addr{}
 	}
 	return nil, defaultOutbound
 }

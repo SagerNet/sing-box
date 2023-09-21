@@ -84,6 +84,7 @@
         ],
         "clash_mode": "direct",
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       },
       {
@@ -91,6 +92,7 @@
         "mode": "and",
         "rules": [],
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       }
     ]
@@ -231,6 +233,10 @@ Match Clash mode.
 #### invert
 
 Invert match result.
+
+#### skip_resolve
+
+Skip resolving domain.
 
 #### outbound
 

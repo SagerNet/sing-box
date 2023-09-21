@@ -45,8 +45,10 @@ type RuleItem interface {
 func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
 	rule := &DefaultRule{
 		abstractDefaultRule{
-			invert:   options.Invert,
-			outbound: options.Outbound,
+			invert:      options.Invert,
+			skipResolve: options.SkipResolve,
+			outbound:    options.Outbound,
+			useIPRule:   false,
 		},
 	}
 	if len(options.Inbound) > 0 {
@@ -111,6 +113,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		item := NewGeoIPItem(router, logger, false, options.GeoIP)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
+		rule.useIPRule = true
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
@@ -127,6 +130,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
+		rule.useIPRule = true
 	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
@@ -196,9 +200,11 @@ type LogicalRule struct {
 func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
 	r := &LogicalRule{
 		abstractLogicalRule{
-			rules:    make([]adapter.Rule, len(options.Rules)),
-			invert:   options.Invert,
-			outbound: options.Outbound,
+			rules:       make([]adapter.Rule, len(options.Rules)),
+			invert:      options.Invert,
+			skipResolve: options.SkipResolve,
+			outbound:    options.Outbound,
+			useIPRule:   false,
 		},
 	}
 	switch options.Mode {
@@ -213,6 +219,9 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule, err := NewDefaultRule(router, logger, subRule)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
+		if rule.useIPRule {
+			r.useIPRule = true
 		}
 		r.rules[i] = rule
 	}

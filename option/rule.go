@@ -79,6 +79,7 @@ type DefaultRule struct {
 	UserID          Listable[int32]  `json:"user_id,omitempty"`
 	ClashMode       string           `json:"clash_mode,omitempty"`
 	Invert          bool             `json:"invert,omitempty"`
+	SkipResolve     bool             `json:"skip_resolve,omitempty"`
 	Outbound        string           `json:"outbound,omitempty"`
 }
 
@@ -90,10 +91,11 @@ func (r DefaultRule) IsValid() bool {
 }
 
 type LogicalRule struct {
-	Mode     string        `json:"mode"`
-	Rules    []DefaultRule `json:"rules,omitempty"`
-	Invert   bool          `json:"invert,omitempty"`
-	Outbound string        `json:"outbound,omitempty"`
+	Mode        string        `json:"mode"`
+	Rules       []DefaultRule `json:"rules,omitempty"`
+	Invert      bool          `json:"invert,omitempty"`
+	SkipResolve bool          `json:"skip_resolve,omitempty"`
+	Outbound    string        `json:"outbound,omitempty"`
 }
 
 func (r LogicalRule) IsValid() bool {

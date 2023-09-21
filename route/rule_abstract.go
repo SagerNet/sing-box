@@ -17,11 +17,21 @@ type abstractDefaultRule struct {
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
 	invert                  bool
+	skipResolve             bool
 	outbound                string
+	useIPRule               bool
 }
 
 func (r *abstractDefaultRule) Type() string {
 	return C.RuleTypeDefault
+}
+
+func (r *abstractDefaultRule) SkipResolve() bool {
+	return r.skipResolve
+}
+
+func (r *abstractDefaultRule) UseIPRule() bool {
+	return r.useIPRule
 }
 
 func (r *abstractDefaultRule) Start() error {
@@ -135,14 +145,24 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
-	rules    []adapter.Rule
-	mode     string
-	invert   bool
-	outbound string
+	rules       []adapter.Rule
+	mode        string
+	invert      bool
+	skipResolve bool
+	outbound    string
+	useIPRule   bool
 }
 
 func (r *abstractLogicalRule) Type() string {
 	return C.RuleTypeLogical
+}
+
+func (r *abstractLogicalRule) SkipResolve() bool {
+	return r.skipResolve
+}
+
+func (r *abstractLogicalRule) UseIPRule() bool {
+	return r.useIPRule
 }
 
 func (r *abstractLogicalRule) UpdateGeosite() error {
