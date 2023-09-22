@@ -1,3 +1,7 @@
+#### 1.5.0-rc.2
+
+* Fixes and improvements
+
 #### 1.5.0-rc.1
 
 * Fixes and improvements
