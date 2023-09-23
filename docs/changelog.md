@@ -1,8 +1,4 @@
-#### 1.5.0-rc.2
-
-* Fixes and improvements
-
-#### 1.5.0-rc.1
+#### 1.5.0-rc.3
 
 * Fixes and improvements
 
@@ -17,7 +13,7 @@ This command also parses path resources that appear in the configuration file an
 configuration, such as TLS certificates or SSH private keys.
 
 ```
-Merge configuration
+Merge configurations
 
 Usage:
   sing-box merge [output] [flags]
