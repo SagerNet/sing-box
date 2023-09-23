@@ -173,7 +173,11 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 		},
 	}
 	defer httpClient.CloseIdleConnections()
-	response, err := httpClient.Get(downloadURL)
+	request, err := http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return err
+	}
+	response, err := httpClient.Do(request.WithContext(r.ctx))
 	if err != nil {
 		return err
 	}
@@ -221,7 +225,11 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 		},
 	}
 	defer httpClient.CloseIdleConnections()
-	response, err := httpClient.Get(downloadURL)
+	request, err := http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return err
+	}
+	response, err := httpClient.Do(request.WithContext(r.ctx))
 	if err != nil {
 		return err
 	}
