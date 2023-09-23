@@ -143,14 +143,16 @@ func create() (*box.Box, context.CancelFunc, error) {
 		signal.Stop(osSignals)
 		close(osSignals)
 	}()
-
+	startCtx, finishStart := context.WithCancel(context.Background())
 	go func() {
 		_, loaded := <-osSignals
 		if loaded {
 			cancel()
+			closeMonitor(startCtx)
 		}
 	}()
 	err = instance.Start()
+	finishStart()
 	if err != nil {
 		cancel()
 		return nil, nil, E.Cause(err, "start service")
