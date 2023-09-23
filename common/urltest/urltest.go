@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -96,33 +97,25 @@ func URLTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err e
 		return
 	}
 	defer instance.Close()
-
+	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](instance); isEarlyConn && earlyConn.NeedHandshake() {
+		start = time.Now()
+	}
 	req, err := http.NewRequest(http.MethodHead, link, nil)
 	if err != nil {
 		return
 	}
-	req = req.WithContext(ctx)
-
-	transport := &http.Transport{
-		Dial: func(string, string) (net.Conn, error) {
-			return instance, nil
-		},
-		// from http.DefaultTransport
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
 	client := http.Client{
-		Transport: transport,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return instance, nil
+			},
+		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 	defer client.CloseIdleConnections()
-
-	resp, err := client.Do(req)
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return
 	}
