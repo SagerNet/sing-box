@@ -90,7 +90,10 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 			solver.DNSProvider = &cloudflare.Provider{
 				APIToken: dnsOptions.CloudflareOptions.APIToken,
 			}
+		default:
+			return nil, nil, E.New("unsupported ACME DNS01 provider type: " + dnsOptions.Provider)
 		}
+		acmeConfig.DNS01Solver = &solver
 	}
 	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
 		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
