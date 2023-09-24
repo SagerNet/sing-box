@@ -133,11 +133,11 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	addrs, err := r.dnsClient.Lookup(ctx, transport, domain, strategy)
 	if len(addrs) > 0 {
 		r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(addrs), " "))
-	} else {
+	} else if err != nil {
 		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
-		if err == nil {
-			err = dns.RCodeNameError
-		}
+	} else {
+		r.dnsLogger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
+		err = dns.RCodeNameError
 	}
 	return addrs, err
 }
