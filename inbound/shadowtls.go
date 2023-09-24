@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowtls"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/auth"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -66,7 +67,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 		},
 		HandshakeForServerName: handshakeForServerName,
 		StrictMode:             options.StrictMode,
-		Handler:                inbound.upstreamContextHandler(),
+		Handler:                adapter.NewUpstreamContextHandler(inbound.newConnection, nil, inbound),
 		Logger:                 logger,
 	})
 	if err != nil {
@@ -79,4 +80,14 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 
 func (h *ShadowTLS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+}
+
+func (h *ShadowTLS) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	if userName, _ := auth.UserFromContext[string](ctx); userName != "" {
+		metadata.User = userName
+		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
+	} else {
+		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	}
+	return h.router.RouteConnection(ctx, conn, metadata)
 }

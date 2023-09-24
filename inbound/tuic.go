@@ -84,7 +84,6 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 
 func (h *TUIC) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = log.ContextWithNewID(ctx)
-	h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata = h.createMetadata(conn, metadata)
 	metadata.User, _ = auth.UserFromContext[string](ctx)
 	return h.router.RouteConnection(ctx, conn, metadata)
