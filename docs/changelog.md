@@ -1,3 +1,31 @@
+#### 1.5.0-rc.5
+
+* Fixed an improper authentication vulnerability in the SOCKS5 inbound
+* Fixes and improvements
+
+**Security Advisory**
+
+This update fixes an improper authentication vulnerability in the sing-box SOCKS inbound. This vulnerability allows an
+attacker to craft special requests to bypass user authentication. All users exposing SOCKS servers with user
+authentication in an insecure environment are advised to update immediately.
+
+此更新修复了 sing-box SOCKS 入站中的一个不正确身份验证漏洞。 该漏洞允许攻击者制作特殊请求来绕过用户身份验证。建议所有将使用用户认证的
+SOCKS 服务器暴露在不安全环境下的用户立更新。
+
+#### 1.4.5
+
+* Fixed an improper authentication vulnerability in the SOCKS5 inbound
+* Fixes and improvements
+
+**Security Advisory**
+
+This update fixes an improper authentication vulnerability in the sing-box SOCKS inbound. This vulnerability allows an
+attacker to craft special requests to bypass user authentication. All users exposing SOCKS servers with user
+authentication in an insecure environment are advised to update immediately.
+
+此更新修复了 sing-box SOCKS 入站中的一个不正确身份验证漏洞。 该漏洞允许攻击者制作特殊请求来绕过用户身份验证。建议所有将使用用户认证的
+SOCKS 服务器暴露在不安全环境下的用户立更新。
+
 #### 1.5.0-rc.3
 
 * Fixes and improvements
