@@ -34,7 +34,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.4
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.13-0.20230925091515-8adce0ea02a9
+	github.com/sagernet/sing-tun v0.1.13-0.20230926093931-2a0a0ab228fc
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
@@ -57,6 +57,7 @@ require (
 )
 
 //replace github.com/sagernet/sing => ../sing
+
 require (
 	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
 	github.com/ajg/form v1.5.1 // indirect
