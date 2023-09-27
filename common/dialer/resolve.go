@@ -16,14 +16,16 @@ import (
 
 type ResolveDialer struct {
 	dialer        N.Dialer
+	parallel      bool
 	router        adapter.Router
 	strategy      dns.DomainStrategy
 	fallbackDelay time.Duration
 }
 
-func NewResolveDialer(router adapter.Router, dialer N.Dialer, strategy dns.DomainStrategy, fallbackDelay time.Duration) *ResolveDialer {
+func NewResolveDialer(router adapter.Router, dialer N.Dialer, parallel bool, strategy dns.DomainStrategy, fallbackDelay time.Duration) *ResolveDialer {
 	return &ResolveDialer{
 		dialer,
+		parallel,
 		router,
 		strategy,
 		fallbackDelay,
@@ -48,7 +50,11 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	if err != nil {
 		return nil, err
 	}
-	return N.DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy == dns.DomainStrategyPreferIPv6, d.fallbackDelay)
+	if d.parallel {
+		return N.DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy == dns.DomainStrategyPreferIPv6, d.fallbackDelay)
+	} else {
+		return N.DialSerial(ctx, d.dialer, network, destination, addresses)
+	}
 }
 
 func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
