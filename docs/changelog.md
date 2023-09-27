@@ -135,7 +135,7 @@ For protocol description, please refer to [https://v2.hysteria.network](https://
 
 **1**:
 
-Command: `sing-box generate ech-keypair <plain_server_name> [-pq-signature-schemes-enabled]`
+Command: `sing-box generate ech-keypair <plain_server_name> [--pq-signature-schemes-enabled]`
 
 **2**:
 
