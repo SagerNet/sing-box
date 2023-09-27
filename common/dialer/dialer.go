@@ -29,7 +29,12 @@ func New(router adapter.Router, options option.DialerOptions) (N.Dialer, error) 
 	}
 	domainStrategy := dns.DomainStrategy(options.DomainStrategy)
 	if domainStrategy != dns.DomainStrategyAsIS || options.Detour == "" {
-		dialer = NewResolveDialer(router, dialer, domainStrategy, time.Duration(options.FallbackDelay))
+		dialer = NewResolveDialer(
+			router,
+			dialer,
+			options.Detour == "" && !options.TCPFastOpen,
+			domainStrategy,
+			time.Duration(options.FallbackDelay))
 	}
 	return dialer, nil
 }
