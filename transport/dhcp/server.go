@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -176,7 +177,11 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) err
 	var listener net.ListenConfig
 	listener.Control = control.Append(listener.Control, control.BindToInterface(t.router.InterfaceFinder(), iface.Name, iface.Index))
 	listener.Control = control.Append(listener.Control, control.ReuseAddr())
-	packetConn, err := listener.ListenPacket(t.ctx, "udp4", "0.0.0.0:68")
+	listenAddr := "0.0.0.0:68"
+	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
+		listenAddr = "255.255.255.255:68"
+	}
+	packetConn, err := listener.ListenPacket(t.ctx, "udp4", listenAddr)
 	if err != nil {
 		return err
 	}
