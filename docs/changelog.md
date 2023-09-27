@@ -1,3 +1,11 @@
+#### 1.5.0-rc.6
+
+* Fixes and improvements
+
+#### 1.4.6
+
+* Fixes and improvements
+
 #### 1.5.0-rc.5
 
 * Fixed an improper authentication vulnerability in the SOCKS5 inbound
