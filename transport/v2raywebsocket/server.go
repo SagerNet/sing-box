@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -69,7 +68,7 @@ var upgrader = websocket.Upgrader{
 func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if s.maxEarlyData == 0 || s.earlyDataHeaderName != "" {
 		if request.URL.Path != s.path {
-			s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
+			s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 			return
 		}
 	}
@@ -83,7 +82,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			earlyDataStr := request.URL.RequestURI()[len(s.path):]
 			earlyData, err = base64.RawURLEncoding.DecodeString(earlyDataStr)
 		} else {
-			s.fallbackRequest(request.Context(), writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
+			s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 			return
 		}
 	} else {
@@ -93,12 +92,12 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 	if err != nil {
-		s.fallbackRequest(request.Context(), writer, request, http.StatusBadRequest, E.Cause(err, "decode early data"))
+		s.invalidRequest(writer, request, http.StatusBadRequest, E.Cause(err, "decode early data"))
 		return
 	}
 	wsConn, err := upgrader.Upgrade(writer, request, nil)
 	if err != nil {
-		s.fallbackRequest(request.Context(), writer, request, 0, E.Cause(err, "upgrade websocket connection"))
+		s.invalidRequest(writer, request, 0, E.Cause(err, "upgrade websocket connection"))
 		return
 	}
 	var metadata M.Metadata
@@ -110,18 +109,11 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.handler.NewConnection(request.Context(), conn, metadata)
 }
 
-func (s *Server) fallbackRequest(ctx context.Context, writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
-	conn := v2rayhttp.NewHTTPConn(request.Body, writer)
-	fErr := s.handler.FallbackConnection(ctx, &conn, M.Metadata{})
-	if fErr == nil {
-		return
-	} else if fErr == os.ErrInvalid {
-		fErr = nil
-	}
+func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
 	if statusCode > 0 {
 		writer.WriteHeader(statusCode)
 	}
-	s.handler.NewError(request.Context(), E.Cause(E.Errors(err, E.Cause(fErr, "fallback connection")), "process connection from ", request.RemoteAddr))
+	s.handler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Network() []string {

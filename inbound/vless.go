@@ -189,7 +189,3 @@ func (t *vlessTransportHandler) NewConnection(ctx context.Context, conn net.Conn
 		Destination: metadata.Destination,
 	})
 }
-
-func (t *vlessTransportHandler) FallbackConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	return os.ErrInvalid
-}
