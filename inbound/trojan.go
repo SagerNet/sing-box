@@ -227,10 +227,3 @@ func (t *trojanTransportHandler) NewConnection(ctx context.Context, conn net.Con
 		Destination: metadata.Destination,
 	})
 }
-
-func (t *trojanTransportHandler) FallbackConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	return (*Trojan)(t).fallbackConnection(ctx, conn, adapter.InboundContext{
-		Source:      metadata.Source,
-		Destination: metadata.Destination,
-	})
-}

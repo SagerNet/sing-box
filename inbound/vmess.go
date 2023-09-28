@@ -198,7 +198,3 @@ func (t *vmessTransportHandler) NewConnection(ctx context.Context, conn net.Conn
 		Destination: metadata.Destination,
 	})
 }
-
-func (t *vmessTransportHandler) FallbackConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	return os.ErrInvalid
-}
