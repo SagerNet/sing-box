@@ -235,11 +235,7 @@ func (w *StackDevice) Close() error {
 		return os.ErrClosed
 	default:
 	}
-	w.stack.Close()
-	for _, endpoint := range w.stack.CleanupEndpoints() {
-		endpoint.Abort()
-	}
-	w.stack.Wait()
+	w.stack.Destroy()
 	close(w.done)
 	return nil
 }
