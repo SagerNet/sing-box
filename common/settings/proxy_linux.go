@@ -71,7 +71,7 @@ func (p *LinuxSystemProxy) Enable() error {
 		}
 	}
 	if p.hasKWriteConfig5 {
-		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "1")
+		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "1")
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (p *LinuxSystemProxy) Enable() error {
 		if err != nil {
 			return err
 		}
-		err = p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "Authmode", "0")
+		err = p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "Authmode", "0")
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (p *LinuxSystemProxy) Disable() error {
 		}
 	}
 	if p.hasKWriteConfig5 {
-		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "'Proxy Settings'", "--key", "ProxyType", "0")
+		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "0")
 		if err != nil {
 			return err
 		}
