@@ -30,9 +30,16 @@ func main() {
 	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newVersion.String())
 	if updated0 || updated1 {
 		log.Info("updated version to ", newVersion.VersionString(), " (", newVersion.String(), ")")
+	}
+	var updated2 bool
+	if macProjectVersion := os.Getenv("MACOS_PROJECT_VERSION"); macProjectVersion != "" {
+		newContent, updated2 = findAndReplaceProjectVersion(objectsMap, newContent, []string{"SFM"}, macProjectVersion)
+		if updated2 {
+			log.Info("updated macos project version to ", macProjectVersion)
+		}
+	}
+	if updated0 || updated1 || updated2 {
 		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj", []byte(newContent), 0o644))
-	} else {
-		log.Info("version not changed")
 	}
 }
 
@@ -60,6 +67,30 @@ func findAndReplace(objectsMap map[string]any, projectContent string, bundleIDLi
 	return projectContent, updated
 }
 
+func findAndReplaceProjectVersion(objectsMap map[string]any, projectContent string, directoryList []string, newVersion string) (string, bool) {
+	objectKeyList := findObjectKeyByDirectory(objectsMap, directoryList)
+	var updated bool
+	for _, objectKey := range objectKeyList {
+		matchRegexp := common.Must1(regexp.Compile(objectKey + ".*= \\{"))
+		indexes := matchRegexp.FindStringIndex(projectContent)
+		if len(indexes) < 2 {
+			println(projectContent)
+			log.Fatal("failed to find object key ", objectKey, ": ", strings.Index(projectContent, objectKey))
+		}
+		indexStart := indexes[1]
+		indexEnd := indexStart + strings.Index(projectContent[indexStart:], "}")
+		versionStart := indexStart + strings.Index(projectContent[indexStart:indexEnd], "CURRENT_PROJECT_VERSION = ") + 26
+		versionEnd := versionStart + strings.Index(projectContent[versionStart:indexEnd], ";")
+		version := projectContent[versionStart:versionEnd]
+		if version == newVersion {
+			continue
+		}
+		updated = true
+		projectContent = projectContent[:versionStart] + newVersion + projectContent[versionEnd:]
+	}
+	return projectContent, updated
+}
+
 func findObjectKey(objectsMap map[string]any, bundleIDList []string) []string {
 	var objectKeyList []string
 	for objectKey, object := range objectsMap {
@@ -74,6 +105,27 @@ func findObjectKey(objectsMap map[string]any, bundleIDList []string) []string {
 		if common.Contains(bundleIDList, bundleIDObject.(string)) {
 			objectKeyList = append(objectKeyList, objectKey)
 		}
+	}
+	return objectKeyList
+}
+
+func findObjectKeyByDirectory(objectsMap map[string]any, directoryList []string) []string {
+	var objectKeyList []string
+	for objectKey, object := range objectsMap {
+		buildSettings := object.(map[string]any)["buildSettings"]
+		if buildSettings == nil {
+			continue
+		}
+		infoPListFile := buildSettings.(map[string]any)["INFOPLIST_FILE"]
+		if infoPListFile == nil {
+			continue
+		}
+		for _, searchDirectory := range directoryList {
+			if strings.HasPrefix(infoPListFile.(string), searchDirectory+"/") {
+				objectKeyList = append(objectKeyList, objectKey)
+			}
+		}
+
 	}
 	return objectKeyList
 }
