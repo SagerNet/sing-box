@@ -12,7 +12,7 @@ require (
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid/v5 v5.0.0
-	github.com/sagernet/sing v0.2.12
+	github.com/sagernet/sing v0.2.13-0.20231001063649-e0ec961fb1ab
 	github.com/sagernet/sing-quic v0.1.1
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.4
@@ -24,8 +24,6 @@ require (
 
 require (
 	berty.tech/go-libtor v1.0.385 // indirect
-	github.com/Dreamacro/clash v1.17.0 // indirect
-	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
@@ -64,7 +62,6 @@ require (
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/oschwald/maxminddb-golang v1.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	github.com/pires/go-proxyproto v0.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
