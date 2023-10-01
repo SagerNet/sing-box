@@ -23,7 +23,7 @@ require (
 	github.com/sagernet/bbolt v0.0.0-20231008142710-b2d6e2f20458
 	github.com/sagernet/cloudflare-tls v0.0.0-20230829051644-4a68352d0c4a
 	github.com/sagernet/gomobile v0.0.0-20230915142329-c6740b6d2950
-	github.com/sagernet/gvisor v0.0.0-20230627031050-1ab0276e0dd2
+	github.com/sagernet/gvisor v0.0.0-20230930141345-5fef6f2e17ab
 	github.com/sagernet/quic-go v0.0.0-20230919101909-0cc6c5dcecee
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.2.14-0.20231011041941-e4d9384bcd84
@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.4
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.15
+	github.com/sagernet/sing-tun v0.1.16-0.20231006112722-19cc8b9e81aa
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
