@@ -920,9 +920,8 @@ func (r *Router) AutoDetectInterfaceFunc() control.Func {
 		return control.BindToInterfaceFunc(r.InterfaceFinder(), func(network string, address string) (interfaceName string, interfaceIndex int, err error) {
 			remoteAddr := M.ParseSocksaddr(address).Addr
 			if C.IsLinux {
-				interfaceName = r.InterfaceMonitor().DefaultInterfaceName(remoteAddr)
-				interfaceIndex = -1
-				if interfaceName == "" {
+				interfaceName, interfaceIndex = r.InterfaceMonitor().DefaultInterface(remoteAddr)
+				if interfaceIndex == -1 {
 					err = tun.ErrNoRoute
 				}
 			} else {
