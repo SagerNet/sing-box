@@ -43,3 +43,14 @@ jobs:
             ${{ steps.tag.outputs.latest }}
             ${{ steps.tag.outputs.versioned }}
           push: true
+      - name: Build with all tags and release Docker images
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/386,linux/amd64,linux/arm64,linux/s390x
+          target: dist
+          tags: |
+            ${{ steps.tag.outputs.latest }}-full
+            ${{ steps.tag.outputs.versioned }}-full
+          build-args: |
+            WITH_ALL_TAGS=1
+          push: true
