@@ -12,5 +12,5 @@ import (
 )
 
 func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksROutboundOptions) (adapter.Outbound, error) {
-	return nil, E.New(`ShadowsocksR is not included in this build, rebuild with -tags with_shadowsocksr`)
+	return nil, E.New("ShadowsocksR is deprecated and removed in sing-box 1.6.0")
 }
