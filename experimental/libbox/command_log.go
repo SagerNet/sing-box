@@ -23,6 +23,9 @@ func readLog(reader io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if messageLength == 0 {
+		return nil, nil
+	}
 	data := make([]byte, messageLength)
 	_, err = io.ReadFull(reader, data)
 	if err != nil {
@@ -32,12 +35,22 @@ func readLog(reader io.Reader) ([]byte, error) {
 }
 
 func writeLog(writer io.Writer, message []byte) error {
-	err := binary.Write(writer, binary.BigEndian, uint16(len(message)))
+	err := binary.Write(writer, binary.BigEndian, uint8(0))
 	if err != nil {
 		return err
 	}
-	_, err = writer.Write(message)
+	err = binary.Write(writer, binary.BigEndian, uint16(len(message)))
+	if err != nil {
+		return err
+	}
+	if len(message) > 0 {
+		_, err = writer.Write(message)
+	}
 	return err
+}
+
+func writeClearLog(writer io.Writer) error {
+	return binary.Write(writer, binary.BigEndian, uint8(1))
 }
 
 func (s *CommandServer) handleLogConn(conn net.Conn) error {
@@ -69,6 +82,11 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 			if err != nil {
 				return err
 			}
+		case <-s.logReset:
+			err = writeClearLog(conn)
+			if err != nil {
+				return err
+			}
 		case <-done:
 			return nil
 		}
@@ -77,12 +95,24 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 
 func (c *CommandClient) handleLogConn(conn net.Conn) {
 	for {
-		message, err := readLog(conn)
+		var messageType uint8
+		err := binary.Read(conn, binary.BigEndian, &messageType)
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
 		}
-		c.handler.WriteLog(string(message))
+		var message []byte
+		switch messageType {
+		case 0:
+			message, err = readLog(conn)
+			if err != nil {
+				c.handler.Disconnected(err.Error())
+				return
+			}
+			c.handler.WriteLog(string(message))
+		case 1:
+			c.handler.ClearLog()
+		}
 	}
 }
 

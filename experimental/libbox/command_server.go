@@ -23,14 +23,16 @@ type CommandServer struct {
 	handler  CommandServerHandler
 
 	access     sync.Mutex
-	savedLines *list.List[string]
+	savedLines list.List[string]
 	maxLines   int
 	subscriber *observable.Subscriber[string]
 	observer   *observable.Observer[string]
 	service    *BoxService
 
+	// These channels only work with a single client. if multi-client support is needed, replace with Subscriber/Observer
 	urlTestUpdate chan struct{}
 	modeUpdate    chan struct{}
+	logReset      chan struct{}
 }
 
 type CommandServerHandler interface {
@@ -42,11 +44,11 @@ type CommandServerHandler interface {
 func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServer {
 	server := &CommandServer{
 		handler:       handler,
-		savedLines:    new(list.List[string]),
 		maxLines:      int(maxLines),
 		subscriber:    observable.NewSubscriber[string](128),
 		urlTestUpdate: make(chan struct{}, 1),
 		modeUpdate:    make(chan struct{}, 1),
+		logReset:      make(chan struct{}, 1),
 	}
 	server.observer = observable.NewObserver[string](server.subscriber, 64)
 	return server
@@ -56,6 +58,11 @@ func (s *CommandServer) SetService(newService *BoxService) {
 	if newService != nil {
 		service.PtrFromContext[urltest.HistoryStorage](newService.ctx).SetHook(s.urlTestUpdate)
 		newService.instance.Router().ClashServer().(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
+		s.savedLines.Init()
+		select {
+		case s.logReset <- struct{}{}:
+		default:
+		}
 	}
 	s.service = newService
 	s.notifyURLTestUpdate()
