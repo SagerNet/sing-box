@@ -694,6 +694,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
 	}
+	if metadata.Destination.IsIPv4() {
+		metadata.IPVersion = 4
+	} else if metadata.Destination.IsIPv6() {
+		metadata.IPVersion = 6
+	}
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
 	if err != nil {
 		return err
@@ -806,6 +811,11 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		metadata.DestinationAddresses = addresses
 		r.dnsLogger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+	}
+	if metadata.Destination.IsIPv4() {
+		metadata.IPVersion = 4
+	} else if metadata.Destination.IsIPv6() {
+		metadata.IPVersion = 6
 	}
 	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
 	if err != nil {
