@@ -3,9 +3,30 @@
 * Our [Apple tvOS client](/installation/clients/sft) is now available in the App Store 🍎
 * Fixes and improvements
 
+#### 1.6.0-alpha.3
+
+* Fixes and improvements
+
+#### 1.6.0-alpha.2
+
+* Fixes and improvements
+
 #### 1.5.1
 
 * Fixes and improvements
+
+#### 1.6.0-alpha.1
+
+* Update BBR congestion control for TUIC and Hysteria2 **1**
+* Update quic-go to v0.39.0
+* Update gVisor to 20230814.0
+* Remove [Deprecated Features](/deprecated) by agreement
+* Fixes and improvements
+
+**1**:
+
+None of the existing Golang BBR congestion control implementations have been reviewed or unit tested.
+This update is intended to address the multi-send defects of the old implementation and may introduce new issues.
 
 #### 1.5.0
 
