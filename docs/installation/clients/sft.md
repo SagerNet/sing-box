@@ -8,6 +8,7 @@ Experimental Apple tvOS client for sing-box.
 
 #### Download
 
+* [AppStore](https://apps.apple.com/us/app/sing-box/id6451272673)
 * [TestFlight](https://testflight.apple.com/join/AcqO44FH)
 
 #### Features
@@ -15,7 +16,7 @@ Experimental Apple tvOS client for sing-box.
 Full functionality, except for:
 
 * Only remote configuration files can be created manually
-* You need to update SFI to the latest beta version to import profiles from iPhone/iPad
+* You need to update SFI to the latest version to import profiles from iPhone/iPad
 * No iCloud profile support
 
 #### Note
