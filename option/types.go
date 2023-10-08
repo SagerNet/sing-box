@@ -2,7 +2,6 @@ package option
 
 import (
 	"net/netip"
-	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/common/json"
@@ -50,60 +49,60 @@ func (a *ListenAddress) Build() netip.Addr {
 	return (netip.Addr)(*a)
 }
 
-type NetworkList string
+type NetworkList []string
 
 func (v *NetworkList) UnmarshalJSON(content []byte) error {
-	var networkList []string
-	err := json.Unmarshal(content, &networkList)
+	var (
+		networkList []string
+		err         error
+	)
+	if len(content) > 0 && content[0] != '[' {
+		networkList = make([]string, 1)
+		err = json.Unmarshal(content, &networkList[0])
+	} else {
+		err = json.Unmarshal(content, &networkList)
+	}
 	if err != nil {
-		var networkItem string
-		err = json.Unmarshal(content, &networkItem)
-		if err != nil {
-			return err
-		}
-		networkList = []string{networkItem}
+		return err
 	}
 	for _, networkName := range networkList {
 		switch networkName {
 		case N.NetworkTCP, N.NetworkUDP:
 			break
 		default:
-			return E.New("unknown network: " + networkName)
+			return E.Extend(N.ErrUnknownNetwork, networkName)
 		}
 	}
-	*v = NetworkList(strings.Join(networkList, "\n"))
+	*v = networkList
 	return nil
 }
 
 func (v NetworkList) Build() []string {
-	if v == "" {
+	if len(v) == 0 {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
-	return strings.Split(string(v), "\n")
+	return v
 }
 
 type Listable[T comparable] []T
 
 func (l Listable[T]) MarshalJSON() ([]byte, error) {
-	arrayList := []T(l)
-	if len(arrayList) == 1 {
-		return json.Marshal(arrayList[0])
+	if len(l) == 1 {
+		return json.Marshal(l[0])
 	}
-	return json.Marshal(arrayList)
+	return json.Marshal([]T(l))
 }
 
 func (l *Listable[T]) UnmarshalJSON(content []byte) error {
-	err := json.Unmarshal(content, (*[]T)(l))
-	if err == nil {
-		return nil
+	if len(content) > 0 && content[0] != '[' {
+		var element T
+		err := json.Unmarshal(content, &element)
+		if err == nil {
+			*l = []T{element}
+			return nil
+		}
 	}
-	var singleItem T
-	newError := json.Unmarshal(content, &singleItem)
-	if newError != nil {
-		return E.Errors(err, newError)
-	}
-	*l = []T{singleItem}
-	return nil
+	return json.Unmarshal(content, (*[]T)(l))
 }
 
 type DomainStrategy dns.DomainStrategy
