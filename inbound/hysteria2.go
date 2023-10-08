@@ -89,6 +89,7 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 	service, err := hysteria2.NewService[int](hysteria2.ServiceOptions{
 		Context:               ctx,
 		Logger:                logger,
+		BrutalDebug:           options.BrutalDebug,
 		SendBPS:               uint64(options.UpMbps * hysteria.MbpsToBps),
 		ReceiveBPS:            uint64(options.DownMbps * hysteria.MbpsToBps),
 		SalamanderPassword:    salamanderPassword,

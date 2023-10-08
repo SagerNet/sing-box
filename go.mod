@@ -28,7 +28,7 @@ require (
 	github.com/sagernet/sing v0.2.14-0.20231008040725-e690cb9a7ad2
 	github.com/sagernet/sing-dns v0.1.10
 	github.com/sagernet/sing-mux v0.1.3
-	github.com/sagernet/sing-quic v0.1.3-0.20231008041725-daf7c394c992
+	github.com/sagernet/sing-quic v0.1.3-0.20231008043106-a107947d1ed5
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.4
 	github.com/sagernet/sing-shadowtls v0.1.4
