@@ -94,8 +94,9 @@ func (l Listable[T]) MarshalJSON() ([]byte, error) {
 func (l *Listable[T]) UnmarshalJSON(content []byte) (err error) {
 	if len(content) > 0 && content[0] != '[' {
 		var element T
-		err = json.Unmarshal(content, &element)
-		*l = []T{element}
+		if err = json.Unmarshal(content, &element); err == nil {
+			*l = []T{element}
+		}
 		return
 	}
 	return json.Unmarshal(content, (*[]T)(l))
