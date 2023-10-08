@@ -221,7 +221,7 @@ func (h *Hysteria) accept(ctx context.Context, conn quic.Connection) error {
 	if err != nil {
 		return err
 	}
-	conn.SetCongestionControl(hyCC.NewBrutalSender(serverSendBPS))
+	conn.SetCongestionControl(hyCC.NewBrutalSender(serverSendBPS, false, nil))
 	go h.udpRecvLoop(conn)
 	for {
 		var stream quic.Stream

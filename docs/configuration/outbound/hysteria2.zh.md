@@ -16,6 +16,7 @@
   "password": "goofy_ahh_password",
   "network": "tcp",
   "tls": {},
+  "brutal_debug": false,
   
   ... // 拨号字段
 }
@@ -73,6 +74,9 @@ QUIC 流量混淆器密码.
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
+#### brutal_debug
+
+启用 Hysteria Brutal CC 的调试信息日志记录。
 
 ### 拨号字段
 
