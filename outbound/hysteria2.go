@@ -61,6 +61,8 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 	client, err := hysteria2.NewClient(hysteria2.ClientOptions{
 		Context:            ctx,
 		Dialer:             outboundDialer,
+		Logger:             logger,
+		BrutalDebug:        options.BrutalDebug,
 		ServerAddress:      options.ServerOptions.Build(),
 		SendBPS:            uint64(options.UpMbps * hysteria.MbpsToBps),
 		ReceiveBPS:         uint64(options.DownMbps * hysteria.MbpsToBps),

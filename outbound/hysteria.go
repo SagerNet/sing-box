@@ -206,7 +206,7 @@ func (h *Hysteria) offerNew(ctx context.Context) (quic.Connection, error) {
 		packetConn.Close()
 		return nil, E.New("remote error: ", serverHello.Message)
 	}
-	quicConn.SetCongestionControl(hyCC.NewBrutalSender(serverHello.RecvBPS))
+	quicConn.SetCongestionControl(hyCC.NewBrutalSender(serverHello.RecvBPS, false, nil))
 	h.conn = quicConn
 	h.rawConn = udpConn
 	return quicConn, nil
