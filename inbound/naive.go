@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	_ "unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -127,6 +128,9 @@ func (n *Naive) Close() error {
 	)
 }
 
+//go:linkname parseBasicAuth http.parseBasicAuth
+func parseBasicAuth(auth string) (username, password string, ok bool)
+
 func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	ctx := log.ContextWithNewID(request.Context())
 	if request.Method != "CONNECT" {
@@ -138,13 +142,11 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		n.badRequest(ctx, request, E.New("missing naive padding"))
 		return
 	}
-	// HACK: reuse go builtin basic auth parsing
-	request.Header.Set("Authorization", request.Header.Get("Proxy-Authorization"))
-	userName, password, ok := request.BasicAuth()
-	if ok {
-		ok = n.authenticator.Verify(userName, password)
+	userName, password, authOk := parseBasicAuth(request.Header.Get("Proxy-Authorization"))
+	if authOk {
+		authOk = n.authenticator.Verify(userName, password)
 	}
-	if !ok {
+	if !authOk {
 		rejectHTTP(writer, http.StatusProxyAuthRequired)
 		n.badRequest(ctx, request, E.New("authorization failed"))
 		return
