@@ -1,3 +1,8 @@
+#### 1.6.0-alpha.4
+
+* Add `brutal_debug` option for Hysteria2
+* Fixes and improvements
+
 #### 1.5.2
 
 * Our [Apple tvOS client](/installation/clients/sft) is now available in the App Store 🍎
