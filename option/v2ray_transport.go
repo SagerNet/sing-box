@@ -61,19 +61,19 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 }
 
 type V2RayHTTPOptions struct {
-	Host        Listable[string]            `json:"host,omitempty"`
-	Path        string                      `json:"path,omitempty"`
-	Method      string                      `json:"method,omitempty"`
-	Headers     map[string]Listable[string] `json:"headers,omitempty"`
-	IdleTimeout Duration                    `json:"idle_timeout,omitempty"`
-	PingTimeout Duration                    `json:"ping_timeout,omitempty"`
+	Host        Listable[string] `json:"host,omitempty"`
+	Path        string           `json:"path,omitempty"`
+	Method      string           `json:"method,omitempty"`
+	Headers     HTTPHeader       `json:"headers,omitempty"`
+	IdleTimeout Duration         `json:"idle_timeout,omitempty"`
+	PingTimeout Duration         `json:"ping_timeout,omitempty"`
 }
 
 type V2RayWebsocketOptions struct {
-	Path                string                      `json:"path,omitempty"`
-	Headers             map[string]Listable[string] `json:"headers,omitempty"`
-	MaxEarlyData        uint32                      `json:"max_early_data,omitempty"`
-	EarlyDataHeaderName string                      `json:"early_data_header_name,omitempty"`
+	Path                string     `json:"path,omitempty"`
+	Headers             HTTPHeader `json:"headers,omitempty"`
+	MaxEarlyData        uint32     `json:"max_early_data,omitempty"`
+	EarlyDataHeaderName string     `json:"early_data_header_name,omitempty"`
 }
 
 type V2RayQUICOptions struct{}
