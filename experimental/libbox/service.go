@@ -80,6 +80,7 @@ func (s *BoxService) Sleep() {
 
 func (s *BoxService) Wake() {
 	s.pauseManager.DeviceWake()
+	_ = s.instance.Router().ResetNetwork()
 }
 
 var _ platform.Interface = (*platformInterfaceWrapper)(nil)
