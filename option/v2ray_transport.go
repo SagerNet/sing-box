@@ -64,16 +64,16 @@ type V2RayHTTPOptions struct {
 	Host        Listable[string] `json:"host,omitempty"`
 	Path        string           `json:"path,omitempty"`
 	Method      string           `json:"method,omitempty"`
-	Headers     OutboundHeader   `json:"headers,omitempty"`
+	Headers     HTTPHeader       `json:"headers,omitempty"`
 	IdleTimeout Duration         `json:"idle_timeout,omitempty"`
 	PingTimeout Duration         `json:"ping_timeout,omitempty"`
 }
 
 type V2RayWebsocketOptions struct {
-	Path                string         `json:"path,omitempty"`
-	Headers             OutboundHeader `json:"headers,omitempty"`
-	MaxEarlyData        uint32         `json:"max_early_data,omitempty"`
-	EarlyDataHeaderName string         `json:"early_data_header_name,omitempty"`
+	Path                string     `json:"path,omitempty"`
+	Headers             HTTPHeader `json:"headers,omitempty"`
+	MaxEarlyData        uint32     `json:"max_early_data,omitempty"`
+	EarlyDataHeaderName string     `json:"early_data_header_name,omitempty"`
 }
 
 type V2RayQUICOptions struct{}

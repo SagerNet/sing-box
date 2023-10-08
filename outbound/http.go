@@ -48,7 +48,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			Username: options.Username,
 			Password: options.Password,
 			Path:     options.Path,
-			Headers:  options.Headers.HTTPHeader(),
+			Headers:  options.Headers.Build(),
 		}),
 	}, nil
 }

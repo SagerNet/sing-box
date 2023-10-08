@@ -64,7 +64,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		serverAddr: serverAddr,
 		host:       options.Host,
 		method:     options.Method,
-		headers:    options.Headers.HTTPHeader(),
+		headers:    options.Headers.Build(),
 		transport:  transport,
 		http2:      tlsConfig != nil,
 	}

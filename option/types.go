@@ -236,12 +236,14 @@ func DNSQueryTypeToString(queryType uint16) string {
 	return F.ToString(queryType)
 }
 
-type OutboundHeader map[string]Listable[string]
+type HTTPHeader map[string]Listable[string]
 
-func (h OutboundHeader) HTTPHeader() http.Header {
+func (h HTTPHeader) Build() http.Header {
 	header := make(http.Header)
 	for name, values := range h {
-		header[http.CanonicalHeaderKey(name)] = values
+		for _, value := range values {
+			header.Add(name, value)
+		}
 	}
 	return header
 }

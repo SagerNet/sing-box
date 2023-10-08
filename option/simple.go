@@ -31,5 +31,5 @@ type HTTPOutboundOptions struct {
 	Password string              `json:"password,omitempty"`
 	TLS      *OutboundTLSOptions `json:"tls,omitempty"`
 	Path     string              `json:"path,omitempty"`
-	Headers  OutboundHeader      `json:"headers,omitempty"`
+	Headers  HTTPHeader          `json:"headers,omitempty"`
 }
