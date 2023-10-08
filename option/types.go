@@ -1,6 +1,7 @@
 package option
 
 import (
+	"net/http"
 	"net/netip"
 	"time"
 
@@ -233,4 +234,14 @@ func DNSQueryTypeToString(queryType uint16) string {
 		return typeName
 	}
 	return F.ToString(queryType)
+}
+
+type OutboundHeader map[string]Listable[string]
+
+func (h OutboundHeader) HTTPHeader() http.Header {
+	header := make(http.Header)
+	for name, values := range h {
+		header[http.CanonicalHeaderKey(name)] = values
+	}
+	return header
 }
