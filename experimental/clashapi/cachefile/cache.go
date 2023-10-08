@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sagernet/bbolt"
+	bboltErrors "github.com/sagernet/bbolt/errors"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
-
-	"go.etcd.io/bbolt"
 )
 
 var (
@@ -44,7 +44,7 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	options := bbolt.Options{Timeout: time.Second}
 	db, err := bbolt.Open(path, fileMode, &options)
 	switch err {
-	case bbolt.ErrInvalid, bbolt.ErrChecksum, bbolt.ErrVersionMismatch:
+	case bboltErrors.ErrInvalid, bboltErrors.ErrChecksum, bboltErrors.ErrVersionMismatch:
 		if err = os.Remove(path); err != nil {
 			break
 		}
