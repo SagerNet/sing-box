@@ -2,7 +2,6 @@ package inbound
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"io"
 	"math/rand"
@@ -139,16 +138,13 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		n.badRequest(ctx, request, E.New("missing naive padding"))
 		return
 	}
-	var authOk bool
-	var userName string
-	authorization := request.Header.Get("Proxy-Authorization")
-	if strings.HasPrefix(authorization, "BASIC ") || strings.HasPrefix(authorization, "Basic ") {
-		userPassword, _ := base64.URLEncoding.DecodeString(authorization[6:])
-		userPswdArr := strings.SplitN(string(userPassword), ":", 2)
-		userName = userPswdArr[0]
-		authOk = n.authenticator.Verify(userPswdArr[0], userPswdArr[1])
+	// HACK: reuse go builtin basic auth parsing
+	request.Header.Set("Authorization", request.Header.Get("Proxy-Authorization"))
+	userName, password, ok := request.BasicAuth()
+	if ok {
+		ok = n.authenticator.Verify(userName, password)
 	}
-	if !authOk {
+	if !ok {
 		rejectHTTP(writer, http.StatusProxyAuthRequired)
 		n.badRequest(ctx, request, E.New("authorization failed"))
 		return
