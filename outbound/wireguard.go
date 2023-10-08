@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
@@ -228,11 +229,11 @@ func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 }
 
 func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewDirectConnection(ctx, w.router, w, conn, metadata)
+	return NewDirectConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
 }
 
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata)
+	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
 }
 
 func (w *WireGuard) Start() error {
