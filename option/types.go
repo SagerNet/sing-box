@@ -52,16 +52,16 @@ func (a *ListenAddress) Build() netip.Addr {
 
 type NetworkList string
 
-func (v *NetworkList) UnmarshalJSON(content []byte) error {
+func (v *NetworkList) UnmarshalJSON(content []byte) (err error) {
 	var networkList []string
-	err := json.Unmarshal(content, &networkList)
+	if len(content) > 0 && content[0] != '[' {
+		networkList = make([]string, 1)
+		err = json.Unmarshal(content, &networkList[0])
+	} else {
+		err = json.Unmarshal(content, &networkList)
+	}
 	if err != nil {
-		var networkItem string
-		err = json.Unmarshal(content, &networkItem)
-		if err != nil {
-			return err
-		}
-		networkList = []string{networkItem}
+		return
 	}
 	for _, networkName := range networkList {
 		switch networkName {
@@ -72,7 +72,7 @@ func (v *NetworkList) UnmarshalJSON(content []byte) error {
 		}
 	}
 	*v = NetworkList(strings.Join(networkList, "\n"))
-	return nil
+	return
 }
 
 func (v NetworkList) Build() []string {
@@ -85,25 +85,20 @@ func (v NetworkList) Build() []string {
 type Listable[T comparable] []T
 
 func (l Listable[T]) MarshalJSON() ([]byte, error) {
-	arrayList := []T(l)
-	if len(arrayList) == 1 {
-		return json.Marshal(arrayList[0])
+	if len(l) == 1 {
+		return json.Marshal(l[0])
 	}
-	return json.Marshal(arrayList)
+	return json.Marshal([]T(l))
 }
 
-func (l *Listable[T]) UnmarshalJSON(content []byte) error {
-	err := json.Unmarshal(content, (*[]T)(l))
-	if err == nil {
-		return nil
+func (l *Listable[T]) UnmarshalJSON(content []byte) (err error) {
+	if len(content) > 0 && content[0] != '[' {
+		var element T
+		err = json.Unmarshal(content, &element)
+		*l = []T{element}
+		return
 	}
-	var singleItem T
-	newError := json.Unmarshal(content, &singleItem)
-	if newError != nil {
-		return E.Errors(err, newError)
-	}
-	*l = []T{singleItem}
-	return nil
+	return json.Unmarshal(content, (*[]T)(l))
 }
 
 type DomainStrategy dns.DomainStrategy
