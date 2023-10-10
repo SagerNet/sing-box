@@ -94,11 +94,12 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Cache-Control", "no-store")
+	header := writer.Header()
+	header.Set("Cache-Control", "no-store")
 
 	for key, values := range s.headers {
 		for _, value := range values {
-			writer.Header().Set(key, value)
+			header.Add(key, value)
 		}
 	}
 
