@@ -11,3 +11,9 @@ choco install sing-box
 ```shell
 winget install sing-box
 ```
+
+## scoop
+
+```shell
+scoop install sing-box
+```
