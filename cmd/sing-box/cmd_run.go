@@ -177,20 +177,31 @@ func run() error {
 		}
 		runtimeDebug.FreeOSMemory()
 		for {
-			osSignal := <-osSignals
-			if osSignal == syscall.SIGHUP {
+			reloadTag := false
+			select {
+			case osSignal := <-osSignals:
+				if osSignal == syscall.SIGHUP {
+					err = check()
+					if err != nil {
+						log.Error(E.Cause(err, "reload service"))
+						continue
+					}
+					reloadTag = true
+				}
+			case <-instance.ReloadChan():
 				err = check()
 				if err != nil {
 					log.Error(E.Cause(err, "reload service"))
 					continue
 				}
+				reloadTag = true
 			}
 			cancel()
 			closeCtx, closed := context.WithCancel(context.Background())
 			go closeMonitor(closeCtx)
 			err = instance.Close()
 			closed()
-			if osSignal != syscall.SIGHUP {
+			if !reloadTag {
 				if err != nil {
 					log.Error(E.Cause(err, "sing-box did not closed properly"))
 				}
