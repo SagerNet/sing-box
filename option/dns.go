@@ -1,5 +1,7 @@
 package option
 
+import "net/netip"
+
 type DNSOptions struct {
 	Servers        []DNSServerOptions `json:"servers,omitempty"`
 	Rules          []DNSRule          `json:"rules,omitempty"`
@@ -28,6 +30,6 @@ type DNSClientOptions struct {
 
 type DNSFakeIPOptions struct {
 	Enabled    bool          `json:"enabled,omitempty"`
-	Inet4Range *ListenPrefix `json:"inet4_range,omitempty"`
-	Inet6Range *ListenPrefix `json:"inet6_range,omitempty"`
+	Inet4Range *netip.Prefix `json:"inet4_range,omitempty"`
+	Inet6Range *netip.Prefix `json:"inet6_range,omitempty"`
 }
