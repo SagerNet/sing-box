@@ -22,6 +22,10 @@
 
 See [Listen Fields](/configuration/shared/listen) for details.
 
+!!! error ""
+
+    The support for UDP follows [RFC 1928](https://datatracker.ietf.org/doc/html/rfc1928), will use random available UDP ports, as opposed to other popular proxy programs which use [fixed UDP port](https://github.com/v2fly/v2fly-github-io/issues/104).
+
 ### Fields
 
 #### users
