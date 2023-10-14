@@ -15,6 +15,10 @@
 }
 ```
 
+!!! error ""
+
+    ShadowTLS should be used with other TCP-based protocols together, see [Examples](/examples/shadowtls/).
+
 ### Fields
 
 #### server

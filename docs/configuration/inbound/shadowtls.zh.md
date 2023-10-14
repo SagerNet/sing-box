@@ -33,6 +33,10 @@
 }
 ```
 
+!!! error ""
+
+    ShadowTLS 需要和其它基于 TCP 的协议配合使用，参阅 [示例](/zh/examples/shadowtls/)。
+
 ### 监听字段
 
 参阅 [监听字段](/zh/configuration/shared/listen/)。

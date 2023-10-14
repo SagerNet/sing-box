@@ -33,6 +33,10 @@
 }
 ```
 
+!!! error ""
+
+    ShadowTLS should be used with other TCP-based protocols together, see [Examples](/examples/shadowtls/).
+
 ### Listen Fields
 
 See [Listen Fields](/configuration/shared/listen) for details.
