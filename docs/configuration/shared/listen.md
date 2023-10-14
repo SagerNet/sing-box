@@ -78,7 +78,7 @@ Timeout for sniffing.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-If set, the requested domain name will be resolved to IP before routing.
+If set, the requested domain name will be resolved to IP before routing, both domain name and IP will be used in route matching.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 

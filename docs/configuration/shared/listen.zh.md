@@ -79,7 +79,7 @@
 
 可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
-如果设置，请求的域名将在路由之前解析为 IP。
+如果设置，请求的域名将在路由之前解析为 IP，路由匹配时会同时匹配域名和 IP。
 
 如果 `sniff_override_destination` 生效，它的值将作为后备。
 

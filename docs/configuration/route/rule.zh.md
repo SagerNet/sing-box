@@ -112,6 +112,10 @@
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
+!!! note ""
+
+    进行规则匹配时不会将域名解析为 IP。如需解析，请参阅 [监听字段](/zh/configuration/shared/listen/#domain_strategy) 中的 `domain_strategy`。
+
 #### inbound
 
 [入站](/zh/configuration/inbound) 标签。

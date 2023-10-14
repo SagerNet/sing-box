@@ -114,6 +114,10 @@
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
+!!! note ""
+    
+    Domain name will not be resolved to IP when doing rule matching. If you need resolution, see `domain_strategy` in [Listen Fields](/configuration/shared/listen/#domain_strategy).
+
 #### inbound
 
 Tags of [Inbound](/configuration/inbound).
