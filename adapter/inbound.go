@@ -47,6 +47,7 @@ type InboundContext struct {
 	GeoIPCode            string
 	ProcessInfo          *process.Info
 	FakeIP               bool
+	IsFromDnsOutbound    bool
 
 	// dns cache
 

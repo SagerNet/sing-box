@@ -50,7 +50,7 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 				r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 				continue
 			}
-			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && metadata.FakeIP {
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && !metadata.IsFromDnsOutbound {
 				continue
 			}
 			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)

@@ -77,6 +77,7 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 		return err
 	}
 	metadataInQuery := metadata
+	metadataInQuery.IsFromDnsOutbound = true
 	go func() error {
 		response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 		if err != nil {
@@ -157,6 +158,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 				timeout.Update()
 			}
 			metadataInQuery := metadata
+			metadataInQuery.IsFromDnsOutbound = true
 			go func() error {
 				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
@@ -235,6 +237,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				timeout.Update()
 			}
 			metadataInQuery := metadata
+			metadataInQuery.IsFromDnsOutbound = true
 			go func() error {
 				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
