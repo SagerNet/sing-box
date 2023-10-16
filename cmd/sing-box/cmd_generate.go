@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/spf13/cobra"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 var commandGenerate = &cobra.Command{
@@ -22,8 +21,7 @@ var commandGenerate = &cobra.Command{
 func init() {
 	commandGenerate.AddCommand(commandGenerateUUID)
 	commandGenerate.AddCommand(commandGenerateRandom)
-	commandGenerate.AddCommand(commandGenerateWireGuardKeyPair)
-	commandGenerate.AddCommand(commandGenerateRealityKeyPair)
+
 	mainCommand.AddCommand(commandGenerate)
 }
 
@@ -91,49 +89,4 @@ func generateUUID() error {
 	}
 	_, err = os.Stdout.WriteString(newUUID.String() + "\n")
 	return err
-}
-
-var commandGenerateWireGuardKeyPair = &cobra.Command{
-	Use:   "wg-keypair",
-	Short: "Generate WireGuard key pair",
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		err := generateWireGuardKey()
-		if err != nil {
-			log.Fatal(err)
-		}
-	},
-}
-
-func generateWireGuardKey() error {
-	privateKey, err := wgtypes.GeneratePrivateKey()
-	if err != nil {
-		return err
-	}
-	os.Stdout.WriteString("PrivateKey: " + privateKey.String() + "\n")
-	os.Stdout.WriteString("PublicKey: " + privateKey.PublicKey().String() + "\n")
-	return nil
-}
-
-var commandGenerateRealityKeyPair = &cobra.Command{
-	Use:   "reality-keypair",
-	Short: "Generate reality key pair",
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		err := generateRealityKey()
-		if err != nil {
-			log.Fatal(err)
-		}
-	},
-}
-
-func generateRealityKey() error {
-	privateKey, err := wgtypes.GeneratePrivateKey()
-	if err != nil {
-		return err
-	}
-	publicKey := privateKey.PublicKey()
-	os.Stdout.WriteString("PrivateKey: " + base64.RawURLEncoding.EncodeToString(privateKey[:]) + "\n")
-	os.Stdout.WriteString("PublicKey: " + base64.RawURLEncoding.EncodeToString(publicKey[:]) + "\n")
-	return nil
 }

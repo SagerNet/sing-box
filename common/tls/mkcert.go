@@ -11,17 +11,29 @@ import (
 	"time"
 )
 
-func GenerateKeyPair(timeFunc func() time.Time, serverName string) (*tls.Certificate, error) {
+func GenerateCertificate(timeFunc func() time.Time, serverName string) (*tls.Certificate, error) {
+	privateKeyPem, publicKeyPem, err := GenerateKeyPair(timeFunc, serverName)
+	if err != nil {
+		return nil, err
+	}
+	certificate, err := tls.X509KeyPair(publicKeyPem, privateKeyPem)
+	if err != nil {
+		return nil, err
+	}
+	return &certificate, err
+}
+
+func GenerateKeyPair(timeFunc func() time.Time, serverName string) (privateKeyPem []byte, publicKeyPem []byte, err error) {
 	if timeFunc == nil {
 		timeFunc = time.Now
 	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, err
+		return
 	}
 	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	if err != nil {
-		return nil, err
+		return
 	}
 	template := &x509.Certificate{
 		SerialNumber:          serialNumber,
@@ -37,17 +49,13 @@ func GenerateKeyPair(timeFunc func() time.Time, serverName string) (*tls.Certifi
 	}
 	publicDer, err := x509.CreateCertificate(rand.Reader, template, template, key.Public(), key)
 	if err != nil {
-		return nil, err
+		return
 	}
 	privateDer, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return nil, err
+		return
 	}
-	publicPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicDer})
-	privPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateDer})
-	keyPair, err := tls.X509KeyPair(publicPem, privPem)
-	if err != nil {
-		return nil, err
-	}
-	return &keyPair, err
+	publicKeyPem = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicDer})
+	privateKeyPem = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateDer})
+	return
 }
