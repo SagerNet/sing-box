@@ -1,6 +1,34 @@
+#### 1.6.0-beta.2
+
+* Add TLS self sign key pair generate command
+* Update brutal congestion control for Hysteria2
+* Fix Clash cache crash on arm32 devices
+* Update golang.org/x/net to v0.17.0
+* Fixes and improvements
+
 #### 1.5.3
 
 * Fix compatibility with Android 14
+* Fixes and improvements
+
+#### 1.6.0-beta.1
+
+* Fixes and improvements
+
+#### 1.6.0-alpha.5
+
+* Fix compatibility with Android 14
+* Update BBR congestion control for TUIC and Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+None of the existing Golang BBR congestion control implementations have been reviewed or unit tested.
+This update is intended to fix a memory leak flaw in the new implementation introduced in 1.6.0-alpha.1 and may introduce new issues.
+
+#### 1.6.0-alpha.4
+
+* Add `brutal_debug` option for Hysteria2
 * Fixes and improvements
 
 #### 1.5.2
@@ -8,9 +36,30 @@
 * Our [Apple tvOS client](/installation/clients/sft) is now available in the App Store 🍎
 * Fixes and improvements
 
+#### 1.6.0-alpha.3
+
+* Fixes and improvements
+
+#### 1.6.0-alpha.2
+
+* Fixes and improvements
+
 #### 1.5.1
 
 * Fixes and improvements
+
+#### 1.6.0-alpha.1
+
+* Update BBR congestion control for TUIC and Hysteria2 **1**
+* Update quic-go to v0.39.0
+* Update gVisor to 20230814.0
+* Remove [Deprecated Features](/deprecated) by agreement
+* Fixes and improvements
+
+**1**:
+
+None of the existing Golang BBR congestion control implementations have been reviewed or unit tested.
+This update is intended to address the multi-send defects of the old implementation and may introduce new issues.
 
 #### 1.5.0
 
