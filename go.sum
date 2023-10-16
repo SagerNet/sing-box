@@ -98,8 +98,8 @@ github.com/quic-go/qpack v0.4.0/go.mod h1:UZVnYIfi5GRk+zI9UMaCPsmZ2xKJP7XBUvVyT1
 github.com/quic-go/qtls-go1-20 v0.3.4 h1:MfFAPULvst4yoMgY9QmtpYmfij/em7O8UUi+bNVm7Cg=
 github.com/quic-go/qtls-go1-20 v0.3.4/go.mod h1:X9Nh97ZL80Z+bX/gUXMbipO6OxdiDi58b/fMC9mAL+k=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/sagernet/bbolt v0.0.0-20231008142710-b2d6e2f20458 h1:7NXD6FUQucBklrw/TLCqeAARyFuoK9fD5iJ+Y/EHHBQ=
-github.com/sagernet/bbolt v0.0.0-20231008142710-b2d6e2f20458/go.mod h1:63s7jpZqcDAIpj8oI/1v4Izok+npJOHACFCU6+huCkM=
+github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a h1:+NkI2670SQpQWvkkD2QgdTuzQG263YZ+2emfpeyGqW0=
+github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a/go.mod h1:63s7jpZqcDAIpj8oI/1v4Izok+npJOHACFCU6+huCkM=
 github.com/sagernet/cloudflare-tls v0.0.0-20230829051644-4a68352d0c4a h1:wZHruBxZCsQLXHAozWpnJBL3wJ/XufDpz0qKtgpSnA4=
 github.com/sagernet/cloudflare-tls v0.0.0-20230829051644-4a68352d0c4a/go.mod h1:dNV1ZP9y3qx5ltULeKaQZTZWTLHflgW5DES+Ses7cMI=
 github.com/sagernet/go-tun2socks v1.16.12-0.20220818015926-16cb67876a61 h1:5+m7c6AkmAylhauulqN/c5dnh8/KssrE9c93TQrXldA=
