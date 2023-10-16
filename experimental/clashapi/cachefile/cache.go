@@ -1,6 +1,7 @@
 package cachefile
 
 import (
+	"errors"
 	"net/netip"
 	"os"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	bboltErrors "github.com/sagernet/bbolt/errors"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var (
@@ -42,13 +44,25 @@ type CacheFile struct {
 func Open(path string, cacheID string) (*CacheFile, error) {
 	const fileMode = 0o666
 	options := bbolt.Options{Timeout: time.Second}
-	db, err := bbolt.Open(path, fileMode, &options)
-	switch err {
-	case bboltErrors.ErrInvalid, bboltErrors.ErrChecksum, bboltErrors.ErrVersionMismatch:
-		if err = os.Remove(path); err != nil {
+	var (
+		db  *bbolt.DB
+		err error
+	)
+	for i := 0; i < 10; i++ {
+		db, err = bbolt.Open(path, fileMode, &options)
+		if err == nil {
 			break
 		}
-		db, err = bbolt.Open(path, 0o666, &options)
+		if errors.Is(err, bboltErrors.ErrTimeout) {
+			continue
+		}
+		if E.IsMulti(err, bboltErrors.ErrInvalid, bboltErrors.ErrChecksum, bboltErrors.ErrVersionMismatch) {
+			rmErr := os.Remove(path)
+			if rmErr != nil {
+				return nil, err
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	if err != nil {
 		return nil, err
