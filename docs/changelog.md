@@ -1,3 +1,8 @@
+#### 1.5.4
+
+* Fix Clash cache crash on arm32 devices
+* Fixes and improvements
+
 #### 1.5.3
 
 * Fix compatibility with Android 14
