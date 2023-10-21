@@ -55,16 +55,13 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		host:    options.Host,
 		path:    options.Path,
 		method:  options.Method,
-		headers: make(http.Header),
+		headers: options.Headers.Build(),
 	}
 	if server.method == "" {
 		server.method = "PUT"
 	}
 	if !strings.HasPrefix(server.path, "/") {
 		server.path = "/" + server.path
-	}
-	for key, value := range options.Headers {
-		server.headers[key] = value
 	}
 	server.httpServer = &http.Server{
 		Handler:           server,
