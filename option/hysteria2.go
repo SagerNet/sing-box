@@ -9,6 +9,7 @@ type Hysteria2InboundOptions struct {
 	IgnoreClientBandwidth bool               `json:"ignore_client_bandwidth,omitempty"`
 	TLS                   *InboundTLSOptions `json:"tls,omitempty"`
 	Masquerade            string             `json:"masquerade,omitempty"`
+	BrutalDebug           bool               `json:"brutal_debug,omitempty"`
 }
 
 type Hysteria2Obfs struct {
@@ -24,10 +25,11 @@ type Hysteria2User struct {
 type Hysteria2OutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	UpMbps   int                 `json:"up_mbps,omitempty"`
-	DownMbps int                 `json:"down_mbps,omitempty"`
-	Obfs     *Hysteria2Obfs      `json:"obfs,omitempty"`
-	Password string              `json:"password,omitempty"`
-	Network  NetworkList         `json:"network,omitempty"`
-	TLS      *OutboundTLSOptions `json:"tls,omitempty"`
+	UpMbps      int                 `json:"up_mbps,omitempty"`
+	DownMbps    int                 `json:"down_mbps,omitempty"`
+	Obfs        *Hysteria2Obfs      `json:"obfs,omitempty"`
+	Password    string              `json:"password,omitempty"`
+	Network     NetworkList         `json:"network,omitempty"`
+	TLS         *OutboundTLSOptions `json:"tls,omitempty"`
+	BrutalDebug bool                `json:"brutal_debug,omitempty"`
 }
