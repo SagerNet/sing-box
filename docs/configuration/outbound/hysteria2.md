@@ -16,6 +16,7 @@
   "password": "goofy_ahh_password",
   "network": "tcp",
   "tls": {},
+  "brutal_debug": false,
   
   ... // Dial Fields
 }
@@ -72,6 +73,10 @@ Both is enabled by default.
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
+
+#### brutal_debug
+
+Enable debug information logging for Hysteria Brutal CC.
 
 ### Dial Fields
 
