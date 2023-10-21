@@ -20,8 +20,9 @@
     }
   ],
   "ignore_client_bandwidth": false,
+  "tls": {},
   "masquerade": "",
-  "tls": {}
+  "brutal_debug": false
 }
 ```
 
@@ -67,6 +68,12 @@ Commands the client to use the BBR flow control algorithm instead of Hysteria CC
 
 Conflict with `up_mbps` and `down_mbps`.
 
+#### tls
+
+==Required==
+
+TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+
 #### masquerade
 
 HTTP3 server behavior when authentication fails.
@@ -78,8 +85,6 @@ HTTP3 server behavior when authentication fails.
 
 A 404 page will be returned if empty.
 
-#### tls
+#### brutal_debug
 
-==Required==
-
-TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+Enable debug information logging for Hysteria Brutal CC.
