@@ -7,7 +7,7 @@ require (
 	github.com/caddyserver/certmagic v0.19.2
 	github.com/cloudflare/circl v1.3.3
 	github.com/cretz/bine v0.2.0
-	github.com/fsnotify/fsnotify v1.6.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.3
@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.4
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.16-0.20231006112722-19cc8b9e81aa
+	github.com/sagernet/sing-tun v0.1.16-0.20231022145846-fe9891a78413
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
