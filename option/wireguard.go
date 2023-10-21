@@ -1,10 +1,12 @@
 package option
 
+import "net/netip"
+
 type WireGuardOutboundOptions struct {
 	DialerOptions
 	SystemInterface bool                   `json:"system_interface,omitempty"`
 	InterfaceName   string                 `json:"interface_name,omitempty"`
-	LocalAddress    Listable[ListenPrefix] `json:"local_address"`
+	LocalAddress    Listable[netip.Prefix] `json:"local_address"`
 	PrivateKey      string                 `json:"private_key"`
 	Peers           []WireGuardPeer        `json:"peers,omitempty"`
 	ServerOptions
