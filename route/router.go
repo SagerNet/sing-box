@@ -253,10 +253,10 @@ func NewRouter(
 		var inet4Range netip.Prefix
 		var inet6Range netip.Prefix
 		if fakeIPOptions.Inet4Range != nil {
-			inet4Range = fakeIPOptions.Inet4Range.Build()
+			inet4Range = *fakeIPOptions.Inet4Range
 		}
 		if fakeIPOptions.Inet6Range != nil {
-			inet6Range = fakeIPOptions.Inet6Range.Build()
+			inet6Range = *fakeIPOptions.Inet6Range
 		}
 		router.fakeIPStore = fakeip.NewStore(router, router.logger, inet4Range, inet6Range)
 	}
