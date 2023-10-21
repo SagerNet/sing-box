@@ -63,7 +63,7 @@ release:
 	mkdir dist/release
 	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
 	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release
-	rm -r dist
+	rm -r dist/release
 
 release_install:
 	go install -v github.com/goreleaser/goreleaser@latest
