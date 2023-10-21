@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/transport/hysteria"
 	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -93,7 +92,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &hysteria.StreamWrapper{Conn: conn, Stream: stream}, nil
+	return &StreamWrapper{Conn: conn, Stream: stream}, nil
 }
 
 func (c *Client) Close() error {
