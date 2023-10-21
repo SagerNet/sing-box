@@ -64,7 +64,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		serverAddr: serverAddr,
 		host:       options.Host,
 		method:     options.Method,
-		headers:    make(http.Header),
+		headers:    options.Headers.Build(),
 		transport:  transport,
 		http2:      tlsConfig != nil,
 	}
@@ -82,9 +82,6 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	err := sHTTP.URLSetPath(&uri, options.Path)
 	if err != nil {
 		return nil, E.New("failed to set path: " + err.Error())
-	}
-	for key, valueList := range options.Headers {
-		client.headers[key] = valueList
 	}
 	client.url = &uri
 	return client, nil
