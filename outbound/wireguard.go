@@ -18,7 +18,6 @@ import (
 	"github.com/sagernet/sing-box/transport/wireguard"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -71,8 +70,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		return nil, err
 	}
 	outbound.bind = wireguard.NewClientBind(ctx, outbound, outboundDialer, isConnect, connectAddr, reserved)
-	localPrefixes := common.Map(options.LocalAddress, option.ListenPrefix.Build)
-	if len(localPrefixes) == 0 {
+	if len(options.LocalAddress) == 0 {
 		return nil, E.New("missing local address")
 	}
 	var privateKey string
@@ -143,7 +141,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 			ipcConf += "\npreshared_key=" + preSharedKey
 		}
 		var has4, has6 bool
-		for _, address := range localPrefixes {
+		for _, address := range options.LocalAddress {
 			if address.Addr().Is4() {
 				has4 = true
 			} else {
@@ -163,9 +161,9 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	}
 	var wireTunDevice wireguard.Device
 	if !options.SystemInterface && tun.WithGVisor {
-		wireTunDevice, err = wireguard.NewStackDevice(localPrefixes, mtu)
+		wireTunDevice, err = wireguard.NewStackDevice(options.LocalAddress, mtu)
 	} else {
-		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, localPrefixes, mtu)
+		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, options.LocalAddress, mtu)
 	}
 	if err != nil {
 		return nil, E.Cause(err, "create WireGuard device")
