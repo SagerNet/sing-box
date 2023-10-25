@@ -1,3 +1,17 @@
+#### 1.5.5
+
+* Fix IPv6 `auto_route` for Linux **1**
+* Add legacy builds for old Windows and macOS systems **2**
+* Fixes and improvements
+
+**1**:
+
+When `auto_route` is enabled and `strict_route` is disabled, the device can now be reached from external IPv6 addresses.
+
+**2**:
+
+Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+
 #### 1.5.4
 
 * Fix Clash cache crash on arm32 devices
