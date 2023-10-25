@@ -69,7 +69,7 @@ func (s *Box) startOutbounds() error {
 			}
 			problemOutbound := outbounds[problemOutboundTag]
 			if problemOutbound == nil {
-				return E.New("dependency[", problemOutbound, "] not found for outbound[", outboundTags[oCurrent], "]")
+				return E.New("dependency[", problemOutboundTag, "] not found for outbound[", outboundTags[oCurrent], "]")
 			}
 			return lintOutbound(append(oTree, problemOutboundTag), problemOutbound)
 		}
