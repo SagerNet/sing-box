@@ -97,7 +97,7 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 			},
 		},
 	})
-	testSuit(t, clientPort, testPort)
+	testSuitLargeUDP(t, clientPort, testPort)
 }
 
 func TestHysteria2Inbound(t *testing.T) {
