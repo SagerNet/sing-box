@@ -36,6 +36,35 @@ builds:
       - darwin_amd64_v3
       - darwin_arm64
     mod_timestamp: '{{ .CommitTimestamp }}'
+  - id: legacy
+    main: ./cmd/sing-box
+    flags:
+      - -v
+      - -trimpath
+    asmflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    gcflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    ldflags:
+      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
+    tags:
+      - with_gvisor
+      - with_quic
+      - with_dhcp
+      - with_wireguard
+      - with_ech
+      - with_utls
+      - with_reality_server
+      - with_clash_api
+    env:
+      - CGO_ENABLED=0
+      - GOROOT=/nix/store/5h8gjl89zx8qxgc572wa3k81zplv8v4z-go-1.20.10/share/go
+    gobinary: /nix/store/5h8gjl89zx8qxgc572wa3k81zplv8v4z-go-1.20.10/bin/go
+    targets:
+      - windows_amd64_v1
+      - windows_386
+      - darwin_amd64_v1
+    mod_timestamp: '{{ .CommitTimestamp }}'
   - id: android
     main: ./cmd/sing-box
     flags:
@@ -90,6 +119,9 @@ snapshot:
   name_template: "{{ .Version }}.{{ .ShortCommit }}"
 archives:
   - id: archive
+    builds:
+      - main
+      - android
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -98,6 +130,17 @@ archives:
     files:
       - LICENSE
     name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+  - id: archive-legacy
+    builds:
+      - legacy
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+    files:
+      - LICENSE
+    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}-legacy'
 nfpms:
   - id: package
     package_name: sing-box
