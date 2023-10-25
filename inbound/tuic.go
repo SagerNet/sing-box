@@ -49,6 +49,7 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
+		tlsConfig: tlsConfig,
 	}
 	service, err := tuic.NewService[int](tuic.ServiceOptions{
 		Context:           ctx,
