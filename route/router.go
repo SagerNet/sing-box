@@ -835,7 +835,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 	}
 	if metadata.FakeIP {
-		conn = fakeip.NewNATPacketConn(conn, metadata.OriginDestination, metadata.Destination)
+		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }

@@ -164,7 +164,7 @@ func (h *Direct) DialParallel(ctx context.Context, network string, destination M
 }
 
 func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	switch h.overrideOption {
