@@ -7,28 +7,26 @@
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
+  "udp_timeout": 300,
+  "detour": "another-in",
   "sniff": false,
   "sniff_override_destination": false,
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
-  "udp_timeout": 300,
-  "proxy_protocol": false,
-  "proxy_protocol_accept_no_header": false,
-  "detour": "another-in"
+  "udp_disable_domain_unmapping": false
 }
 ```
 
 ### Fields
 
-| Field                             | Available Context                                                 |
-|-----------------------------------|-------------------------------------------------------------------|
-| `listen`                          | Needs to listen on TCP or UDP.                                    |
-| `listen_port`                     | Needs to listen on TCP or UDP.                                    |
-| `tcp_fast_open`                   | Needs to listen on TCP.                                           |
-| `tcp_multi_path`                  | Needs to listen on TCP.                                           |
-| `udp_timeout`                     | Needs to assemble UDP connections, currently Tun and Shadowsocks. |
-| `proxy_protocol`                  | Needs to listen on TCP.                                           |
-| `proxy_protocol_accept_no_header` | When `proxy_protocol` enabled                                     |
+| Field                          | Available Context                                                 |
+|--------------------------------|-------------------------------------------------------------------|
+| `listen`                       | Needs to listen on TCP or UDP.                                    |
+| `listen_port`                  | Needs to listen on TCP or UDP.                                    |
+| `tcp_fast_open`                | Needs to listen on TCP.                                           |
+| `tcp_multi_path`               | Needs to listen on TCP.                                           |
+| `udp_timeout`                  | Needs to assemble UDP connections, currently Tun and Shadowsocks. |
+| `udp_disable_domain_unmapping` | Needs to listen on UDP and accept domain UDP addresses.           |
 
 #### listen
 
@@ -56,6 +54,16 @@ Enable TCP Multi Path.
 
 Enable UDP fragmentation.
 
+#### udp_timeout
+
+UDP NAT expiration time in seconds, default is 300 (5 minutes).
+
+#### detour
+
+If set, connections will be forwarded to the specified inbound.
+
+Requires target inbound support, see [Injectable](/configuration/inbound/#fields).
+
 #### sniff
 
 Enable sniffing.
@@ -82,20 +90,10 @@ If set, the requested domain name will be resolved to IP before routing.
 
 If `sniff_override_destination` is in effect, its value will be taken as a fallback.
 
-#### udp_timeout
+#### udp_disable_domain_unmapping
 
-UDP NAT expiration time in seconds, default is 300 (5 minutes).
+If enabled, for UDP proxy requests addressed to a domain, 
+the original packet address will be sent in the response instead of the mapped domain.
 
-#### proxy_protocol
-
-Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.
-
-#### proxy_protocol_accept_no_header
-
-Accept connections without Proxy Protocol header.
-
-#### detour
-
-If set, connections will be forwarded to the specified inbound.
-
-Requires target inbound support, see [Injectable](/configuration/inbound/#fields).
+This option is used for compatibility with clients that 
+do not support receiving UDP packets with domain addresses, such as Surge.
