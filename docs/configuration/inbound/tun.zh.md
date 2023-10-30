@@ -22,6 +22,12 @@
     "::/1",
     "8000::/1"
   ],
+  "inet4_route_exclude_address": [
+    "192.168.0.0/16"
+  ],
+  "inet6_route_exclude_address": [
+    "fc00::/7"
+  ],
   "endpoint_independent_nat": false,
   "stack": "system",
   "include_interface": [
@@ -130,6 +136,14 @@ tun 接口的 IPv6 前缀。
 #### inet6_route_address
 
 启用 `auto_route` 时使用自定义路由而不是默认路由。
+
+#### inet4_route_exclude_address
+
+启用 `auto_route` 时排除自定义路由。
+
+#### inet6_route_exclude_address
+
+启用 `auto_route` 时排除自定义路由。
 
 #### endpoint_independent_nat
 
