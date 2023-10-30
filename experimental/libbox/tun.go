@@ -60,6 +60,7 @@ var _ TunOptions = (*tunOptions)(nil)
 
 type tunOptions struct {
 	*tun.Options
+	routeRanges []netip.Prefix
 	option.TunPlatformOptions
 }
 
@@ -91,11 +92,15 @@ func (o *tunOptions) GetStrictRoute() bool {
 }
 
 func (o *tunOptions) GetInet4RouteAddress() RoutePrefixIterator {
-	return mapRoutePrefix(o.Inet4RouteAddress)
+	return mapRoutePrefix(common.Filter(o.routeRanges, func(it netip.Prefix) bool {
+		return it.Addr().Is4()
+	}))
 }
 
 func (o *tunOptions) GetInet6RouteAddress() RoutePrefixIterator {
-	return mapRoutePrefix(o.Inet6RouteAddress)
+	return mapRoutePrefix(common.Filter(o.routeRanges, func(it netip.Prefix) bool {
+		return it.Addr().Is6()
+	}))
 }
 
 func (o *tunOptions) GetIncludePackage() StringIterator {
