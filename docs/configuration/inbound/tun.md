@@ -22,6 +22,12 @@
     "::/1",
     "8000::/1"
   ],
+  "inet4_route_exclude_address": [
+    "192.168.0.0/16"
+  ],
+  "inet6_route_exclude_address": [
+    "fc00::/7"
+  ],
   "endpoint_independent_nat": false,
   "stack": "system",
   "include_interface": [
@@ -129,6 +135,14 @@ Use custom routes instead of default when `auto_route` is enabled.
 #### inet6_route_address
 
 Use custom routes instead of default when `auto_route` is enabled.
+
+#### inet4_route_exclude_address
+
+Exclude custom routes when `auto_route` is enabled.
+
+#### inet6_route_exclude_address
+
+Exclude custom routes when `auto_route` is enabled.
 
 #### endpoint_independent_nat
 
