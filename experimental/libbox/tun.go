@@ -60,15 +60,20 @@ var _ TunOptions = (*tunOptions)(nil)
 
 type tunOptions struct {
 	*tun.Options
+	routeRanges []netip.Prefix
 	option.TunPlatformOptions
 }
 
 func (o *tunOptions) GetInet4Address() RoutePrefixIterator {
-	return mapRoutePrefix(o.Inet4Address)
+	return mapRoutePrefix(common.Filter(o.Inet4Address, func(it netip.Prefix) bool {
+		return it.Addr().Is4()
+	}))
 }
 
 func (o *tunOptions) GetInet6Address() RoutePrefixIterator {
-	return mapRoutePrefix(o.Inet6Address)
+	return mapRoutePrefix(common.Filter(o.Inet4Address, func(it netip.Prefix) bool {
+		return it.Addr().Is6()
+	}))
 }
 
 func (o *tunOptions) GetDNSServerAddress() (string, error) {
