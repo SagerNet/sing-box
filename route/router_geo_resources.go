@@ -157,12 +157,6 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 		filemanager.MkdirAll(r.ctx, parentDir, 0o755)
 	}
 
-	saveFile, err := filemanager.Create(r.ctx, savePath)
-	if err != nil {
-		return E.Cause(err, "open output file: ", downloadURL)
-	}
-	defer saveFile.Close()
-
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
@@ -182,6 +176,13 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 		return err
 	}
 	defer response.Body.Close()
+
+	saveFile, err := filemanager.Create(r.ctx, savePath)
+	if err != nil {
+		return E.Cause(err, "open output file: ", downloadURL)
+	}
+	defer saveFile.Close()
+	
 	_, err = io.Copy(saveFile, response.Body)
 	return err
 }
@@ -209,12 +210,6 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 		filemanager.MkdirAll(r.ctx, parentDir, 0o755)
 	}
 
-	saveFile, err := filemanager.Create(r.ctx, savePath)
-	if err != nil {
-		return E.Cause(err, "open output file: ", downloadURL)
-	}
-	defer saveFile.Close()
-
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
@@ -234,6 +229,13 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 		return err
 	}
 	defer response.Body.Close()
+
+	saveFile, err := filemanager.Create(r.ctx, savePath)
+	if err != nil {
+		return E.Cause(err, "open output file: ", downloadURL)
+	}
+	defer saveFile.Close()
+	
 	_, err = io.Copy(saveFile, response.Body)
 	return err
 }
