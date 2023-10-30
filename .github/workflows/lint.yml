@@ -3,6 +3,7 @@ name: Lint
 on:
   push:
     branches:
+      - stable-next
       - main-next
       - dev-next
     paths-ignore:
@@ -11,6 +12,7 @@ on:
       - '!.github/workflows/lint.yml'
   pull_request:
     branches:
+      - stable-next
       - main-next
       - dev-next
 
@@ -35,3 +37,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+          args: --timeout=30m
+          install-mode: binary
