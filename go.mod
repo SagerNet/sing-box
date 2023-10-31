@@ -5,7 +5,7 @@ go 1.20
 require (
 	berty.tech/go-libtor v1.0.385
 	github.com/caddyserver/certmagic v0.19.2
-	github.com/cloudflare/circl v1.3.5
+	github.com/cloudflare/circl v1.3.6
 	github.com/cretz/bine v0.2.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-chi/chi/v5 v5.0.10
