@@ -81,7 +81,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	uri.Path = options.Path
 	err := sHTTP.URLSetPath(&uri, options.Path)
 	if err != nil {
-		return nil, E.New("failed to set path: " + err.Error())
+		return nil, E.New("parse path: " + err.Error())
 	}
 	client.url = &uri
 	return client, nil
@@ -143,7 +143,7 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 			conn.Setup(nil, err)
 		} else if response.StatusCode != 200 {
 			response.Body.Close()
-			conn.Setup(nil, E.New("unexpected status: ", response.StatusCode, " ", response.Status))
+			conn.Setup(nil, E.New("unexpected status: ", response.Status))
 		} else {
 			conn.Setup(response.Body, nil)
 		}
