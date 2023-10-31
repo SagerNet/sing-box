@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
+	"github.com/sagernet/sing-box/transport/v2rayhttpupgrade"
 	"github.com/sagernet/sing-box/transport/v2raywebsocket"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -35,6 +36,8 @@ func NewServerTransport(ctx context.Context, options option.V2RayTransportOption
 		return NewQUICServer(ctx, options.QUICOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeGRPC:
 		return NewGRPCServer(ctx, options.GRPCOptions, tlsConfig, handler)
+	case C.V2RayTransportTypeHTTPUpgrade:
+		return v2rayhttpupgrade.NewServer(ctx, options.HTTPUpgradeOptions, tlsConfig, handler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
@@ -50,13 +53,14 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 	case C.V2RayTransportTypeGRPC:
 		return NewGRPCClient(ctx, dialer, serverAddr, options.GRPCOptions, tlsConfig)
 	case C.V2RayTransportTypeWebsocket:
-		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig), nil
+		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig)
 	case C.V2RayTransportTypeQUIC:
 		if tlsConfig == nil {
 			return nil, C.ErrTLSRequired
 		}
 		return NewQUICClient(ctx, dialer, serverAddr, options.QUICOptions, tlsConfig)
-
+	case C.V2RayTransportTypeHTTPUpgrade:
+		return v2rayhttpupgrade.NewClient(ctx, dialer, serverAddr, options.HTTPUpgradeOptions, tlsConfig)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
