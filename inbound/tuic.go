@@ -4,6 +4,7 @@ package inbound
 
 import (
 	"context"
+	"github.com/sagernet/sing-box/common/uot"
 	"net"
 	"time"
 
@@ -44,7 +45,7 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			protocol:      C.TypeTUIC,
 			network:       []string{N.NetworkUDP},
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,

@@ -15,8 +15,8 @@
   "network": "tcp",
   "tls": {},
   "packet_encoding": "",
-  "multiplex": {},
   "transport": {},
+  "multiplex": {},
 
   ... // Dial Fields
 }
@@ -96,7 +96,7 @@ UDP packet encoding.
 
 #### multiplex
 
-Multiplex configuration, see [Multiplex](/configuration/shared/multiplex).
+See [Multiplex](/configuration/shared/multiplex#outbound) for details.
 
 #### transport
 
