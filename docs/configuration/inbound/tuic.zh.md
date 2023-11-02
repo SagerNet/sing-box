@@ -48,7 +48,7 @@ TUIC 用户密码
 
 #### congestion_control
 
-QUIC 流量控制算法
+QUIC 拥塞控制算法
 
 可选值: `cubic`, `new_reno`, `bbr`
 

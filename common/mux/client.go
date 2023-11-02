@@ -6,7 +6,9 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewClientWithOptions(dialer N.Dialer, options option.MultiplexOptions) (*Client, error) {
+type Client = mux.Client
+
+func NewClientWithOptions(dialer N.Dialer, options option.OutboundMultiplexOptions) (*Client, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
