@@ -35,10 +35,6 @@ type Server struct {
 	path         string
 }
 
-func (s *Server) Network() []string {
-	return []string{N.NetworkTCP}
-}
-
 func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
 		tlsConfig: tlsConfig,
@@ -90,6 +86,10 @@ func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Reques
 		writer.WriteHeader(statusCode)
 	}
 	s.handler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+}
+
+func (s *Server) Network() []string {
+	return []string{N.NetworkTCP}
 }
 
 func (s *Server) Serve(listener net.Listener) error {
