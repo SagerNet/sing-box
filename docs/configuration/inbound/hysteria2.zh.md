@@ -62,7 +62,7 @@ Hysteria 用户
 
 #### ignore_client_bandwidth
 
-命令客户端使用 BBR 流量控制算法而不是 Hysteria CC。
+命令客户端使用 BBR 拥塞控制算法而不是 Hysteria CC。
 
 与 `up_mbps` 和 `down_mbps` 冲突。
 
