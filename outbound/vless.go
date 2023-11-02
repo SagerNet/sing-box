@@ -81,7 +81,7 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
-	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vlessDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
+	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vlessDialer)(outbound), logger, common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
