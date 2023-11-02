@@ -15,6 +15,7 @@ Available transports:
 * WebSocket
 * QUIC
 * gRPC
+* HTTPUpgrade
 
 !!! warning "Difference from v2ray-core"
 
@@ -184,3 +185,32 @@ In standard gRPC client:
 If enabled, the client transport sends keepalive pings even with no active connections. If disabled, when there are no active connections, `idle_timeout` and `ping_timeout` will be ignored and no keepalive pings will be sent.
 
 Disabled by default.
+
+### HTTPUpgrade
+
+```json
+{
+  "type": "httpupgrade",
+  "host": "",
+  "path": "",
+  "headers": {}
+}
+```
+
+#### host
+
+Host domain.
+
+The server will verify if not empty.
+
+#### path
+
+Path of HTTP request.
+
+The server will verify if not empty.
+
+#### headers
+
+Extra headers of HTTP request.
+
+The server will write in response if not empty.
