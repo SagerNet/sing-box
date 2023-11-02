@@ -84,6 +84,9 @@ upload_android:
 release_android: lib_android update_android_version build_android upload_android
 
 publish_android:
+	cd ../sing-box-for-android && ./gradlew :app:publishReleaseBundle
+
+publish_android_appcenter:
 	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease
 
 build_ios:
