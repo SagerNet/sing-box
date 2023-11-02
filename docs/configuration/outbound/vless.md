@@ -12,6 +12,7 @@
   "network": "tcp",
   "tls": {},
   "packet_encoding": "",
+  "multiplex": {},
   "transport": {},
 
   ... // Dial Fields
@@ -67,6 +68,10 @@ UDP packet encoding, xudp is used by default.
 | (none)     | Disabled              |
 | packetaddr | Supported by v2ray 5+ |
 | xudp       | Supported by xray     |
+
+#### multiplex
+
+See [Multiplex](/configuration/shared/multiplex#outbound) for details.
 
 #### transport
 

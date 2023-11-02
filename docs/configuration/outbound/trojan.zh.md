@@ -51,7 +51,7 @@ TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
 #### multiplex
 
-多路复用配置, 参阅 [多路复用](/zh/configuration/shared/multiplex)。
+参阅 [多路复用](/zh/configuration/shared/multiplex#outbound)。
 
 #### transport
 

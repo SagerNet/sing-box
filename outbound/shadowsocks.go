@@ -62,9 +62,9 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 			return nil, err
 		}
 	}
-	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
+	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
 	if !uotOptions.Enabled {
-		outbound.multiplexDialer, err = mux.NewClientWithOptions((*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.MultiplexOptions))
+		outbound.multiplexDialer, err = mux.NewClientWithOptions((*shadowsocksDialer)(outbound), common.PtrValueOrDefault(options.Multiplex))
 		if err != nil {
 			return nil, err
 		}

@@ -75,9 +75,9 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20230930141345-5fef6f2e17ab // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 // indirect
-	github.com/sagernet/sing-mux v0.1.3 // indirect
+	github.com/sagernet/sing-mux v0.1.4-0.20231102111023-de63308d0b55 // indirect
 	github.com/sagernet/sing-shadowtls v0.1.4 // indirect
-	github.com/sagernet/sing-tun v0.1.17-0.20231030120513-2e85725657c1 // indirect
+	github.com/sagernet/sing-tun v0.1.17-0.20231102163523-69872aec5230 // indirect
 	github.com/sagernet/sing-vmess v0.1.8 // indirect
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6 // indirect

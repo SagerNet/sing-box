@@ -44,7 +44,7 @@
 
 最大带宽。
 
-如果为空，将使用 BBR 流量控制算法而不是 Hysteria CC。
+如果为空，将使用 BBR 拥塞控制算法而不是 Hysteria CC。
 
 #### obfs.type
 
