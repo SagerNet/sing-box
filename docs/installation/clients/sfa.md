@@ -8,7 +8,7 @@ Experimental Android client for sing-box.
 
 #### Download
 
-* [AppCenter](https://install.appcenter.ms/users/nekohasekai/apps/sfa/distribution_groups/publictest)
+* [Play Store](https://play.google.com/store/apps/details?id=io.nekohasekai.sfa)
 * [Github Releases](https://github.com/SagerNet/sing-box/releases)
 
 #### Note
