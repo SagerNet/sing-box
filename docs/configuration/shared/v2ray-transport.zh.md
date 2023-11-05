@@ -91,12 +91,17 @@ HTTP 请求的额外标头
 ```json
 {
   "type": "ws",
+  "host": "",
   "path": "",
   "headers": {},
   "max_early_data": 0,
   "early_data_header_name": ""
 }
 ```
+
+#### host
+
+主机域名。
 
 #### path
 

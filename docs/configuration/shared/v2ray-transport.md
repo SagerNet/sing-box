@@ -92,12 +92,17 @@ Specifies the timeout duration after sending a PING frame, within which a respon
 ```json
 {
   "type": "ws",
+  "host": "",
   "path": "",
   "headers": {},
   "max_early_data": 0,
   "early_data_header_name": ""
 }
 ```
+
+#### host
+
+Host domain.
 
 #### path
 

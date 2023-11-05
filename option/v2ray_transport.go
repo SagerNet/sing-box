@@ -75,6 +75,7 @@ type V2RayHTTPOptions struct {
 }
 
 type V2RayWebsocketOptions struct {
+	Host                string     `json:"host,omitempty"`
 	Path                string     `json:"path,omitempty"`
 	Headers             HTTPHeader `json:"headers,omitempty"`
 	MaxEarlyData        uint32     `json:"max_early_data,omitempty"`
