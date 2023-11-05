@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"github.com/getsentry/sentry-go"
 	"io"
 	"os"
 	"time"
@@ -11,6 +12,8 @@ import (
 )
 
 var _ Factory = (*simpleFactory)(nil)
+
+var EnableDebug bool
 
 type simpleFactory struct {
 	formatter         Formatter
@@ -63,18 +66,28 @@ type simpleLogger struct {
 
 func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
 	level = OverrideLevelFromContext(level, ctx)
+
 	if level > l.level {
 		return
 	}
+
 	nowTime := time.Now()
 	message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)
+
 	if level == LevelPanic {
 		panic(message)
 	}
+
 	l.writer.Write([]byte(message))
+
+	if EnableDebug {
+		sentry.CaptureException(ctx.Err())
+	}
+
 	if level == LevelFatal {
 		os.Exit(1)
 	}
+
 	if l.platformWriter != nil {
 		l.platformWriter.Write([]byte(l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
 	}
