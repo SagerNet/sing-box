@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/getsentry/sentry-go"
 	"os"
 	"time"
 
@@ -15,6 +16,7 @@ var (
 	configDirectories []string
 	workingDir        string
 	disableColor      bool
+	enableDebug       bool
 )
 
 var mainCommand = &cobra.Command{
@@ -27,11 +29,24 @@ func init() {
 	mainCommand.PersistentFlags().StringArrayVarP(&configDirectories, "config-directory", "C", nil, "set configuration directory path")
 	mainCommand.PersistentFlags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	mainCommand.PersistentFlags().BoolVarP(&disableColor, "disable-color", "", false, "disable color output")
+	mainCommand.PersistentFlags().BoolVarP(&enableDebug, "debug", "", false, "enable sentry debug mode")
 }
 
 func main() {
 	if err := mainCommand.Execute(); err != nil {
 		log.Fatal(err)
+	}
+
+	if enableDebug {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn: "",
+		})
+
+		if err != nil {
+			log.Fatal("sentry.Init: %s", err)
+		}
+
+		defer sentry.Flush(2 * time.Second)
 	}
 }
 
