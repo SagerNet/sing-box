@@ -181,9 +181,11 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	if err != nil {
 		return E.Cause(err, "open output file: ", downloadURL)
 	}
-	defer saveFile.Close()
-	
 	_, err = io.Copy(saveFile, response.Body)
+	saveFile.Close()
+	if err != nil {
+		filemanager.Remove(r.ctx, savePath)
+	}
 	return err
 }
 
@@ -234,9 +236,11 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	if err != nil {
 		return E.Cause(err, "open output file: ", downloadURL)
 	}
-	defer saveFile.Close()
-	
 	_, err = io.Copy(saveFile, response.Body)
+	saveFile.Close()
+	if err != nil {
+		filemanager.Remove(r.ctx, savePath)
+	}
 	return err
 }
 
