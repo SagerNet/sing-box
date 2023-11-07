@@ -151,6 +151,9 @@ type httpRequest struct {
 
 func (r *httpRequest) SetURL(link string) (err error) {
 	r.request.URL, err = url.Parse(link)
+	if err != nil {
+		return
+	}
 	if r.request.URL.User != nil {
 		user := r.request.URL.User.Username()
 		password, _ := r.request.URL.User.Password()
