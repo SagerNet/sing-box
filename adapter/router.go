@@ -2,14 +2,12 @@ package adapter
 
 import (
 	"context"
-	"net"
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 
 	mdns "github.com/miekg/dns"
@@ -24,8 +22,7 @@ type Router interface {
 
 	FakeIPStore() FakeIPStore
 
-	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
-	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
+	ConnectionRouter
 
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)

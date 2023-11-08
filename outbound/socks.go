@@ -54,7 +54,7 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 		client:  socks.NewClient(outboundDialer, options.ServerOptions.Build(), version, options.Username, options.Password),
 		resolve: version == socks.Version4,
 	}
-	uotOptions := common.PtrValueOrDefault(options.UDPOverTCPOptions)
+	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
 	if uotOptions.Enabled {
 		outbound.uotClient = &uot.Client{
 			Dialer:  outbound.client,
