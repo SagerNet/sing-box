@@ -154,12 +154,3 @@ type ServerOptions struct {
 func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
 }
-
-type MultiplexOptions struct {
-	Enabled        bool   `json:"enabled,omitempty"`
-	Protocol       string `json:"protocol,omitempty"`
-	MaxConnections int    `json:"max_connections,omitempty"`
-	MinStreams     int    `json:"min_streams,omitempty"`
-	MaxStreams     int    `json:"max_streams,omitempty"`
-	Padding        bool   `json:"padding,omitempty"`
-}
