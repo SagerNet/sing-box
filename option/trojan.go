@@ -6,6 +6,7 @@ type TrojanInboundOptions struct {
 	TLS             *InboundTLSOptions        `json:"tls,omitempty"`
 	Fallback        *ServerOptions            `json:"fallback,omitempty"`
 	FallbackForALPN map[string]*ServerOptions `json:"fallback_for_alpn,omitempty"`
+	Multiplex       *InboundMultiplexOptions  `json:"multiplex,omitempty"`
 	Transport       *V2RayTransportOptions    `json:"transport,omitempty"`
 }
 
@@ -17,9 +18,9 @@ type TrojanUser struct {
 type TrojanOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Password  string                 `json:"password"`
-	Network   NetworkList            `json:"network,omitempty"`
-	TLS       *OutboundTLSOptions    `json:"tls,omitempty"`
-	Multiplex *MultiplexOptions      `json:"multiplex,omitempty"`
-	Transport *V2RayTransportOptions `json:"transport,omitempty"`
+	Password  string                    `json:"password"`
+	Network   NetworkList               `json:"network,omitempty"`
+	TLS       *OutboundTLSOptions       `json:"tls,omitempty"`
+	Multiplex *OutboundMultiplexOptions `json:"multiplex,omitempty"`
+	Transport *V2RayTransportOptions    `json:"transport,omitempty"`
 }

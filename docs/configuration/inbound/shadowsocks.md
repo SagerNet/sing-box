@@ -8,7 +8,8 @@
   ... // Listen Fields
 
   "method": "2022-blake3-aes-128-gcm",
-  "password": "8JCsPssfgS8tiRwiMlhARg=="
+  "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "multiplex": {}
 }
 ```
 
@@ -23,7 +24,8 @@
       "name": "sekai",
       "password": "PCD2Z4o12bKUoFa3cC97Hw=="
     }
-  ]
+  ],
+  "multiplex": {}
 }
 ```
 
@@ -41,7 +43,8 @@
       "server_port": 8080,
       "password": "PCD2Z4o12bKUoFa3cC97Hw=="
     }
-  ]
+  ],
+  "multiplex": {}
 }
 ```
 
@@ -82,3 +85,7 @@ Both if empty.
 | none          | /                                              |
 | 2022 methods  | `sing-box generate rand --base64 <Key Length>` |
 | other methods | any string                                     |
+
+#### multiplex
+
+See [Multiplex](/configuration/shared/multiplex#inbound) for details.

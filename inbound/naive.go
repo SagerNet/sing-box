@@ -13,6 +13,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
@@ -43,7 +44,7 @@ func NewNaive(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			protocol:      C.TypeNaive,
 			network:       options.Network.Build(),
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,

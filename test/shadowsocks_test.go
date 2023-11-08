@@ -232,7 +232,7 @@ func TestShadowsocksUoT(t *testing.T) {
 					},
 					Method:   method,
 					Password: password,
-					UDPOverTCPOptions: &option.UDPOverTCPOptions{
+					UDPOverTCP: &option.UDPOverTCPOptions{
 						Enabled: true,
 					},
 				},
