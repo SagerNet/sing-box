@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/mux"
+	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -48,21 +50,27 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 			protocol:      C.TypeShadowsocks,
 			network:       options.Network.Build(),
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
 	}
+
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
+	var err error
+	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
+	if err != nil {
+		return nil, err
+	}
+
 	var udpTimeout int64
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
 	} else {
 		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
-	var err error
 	switch {
 	case options.Method == shadowsocks.MethodNone:
 		inbound.service = shadowsocks.NewNoneService(options.UDPTimeout, inbound.upstreamContextHandler())

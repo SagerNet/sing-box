@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -42,13 +44,18 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 			protocol:      C.TypeVMess,
 			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
 		ctx:   ctx,
 		users: options.Users,
+	}
+	var err error
+	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
+	if err != nil {
+		return nil, err
 	}
 	var serviceOptions []vmess.ServiceOption
 	if timeFunc := ntp.TimeFuncFromContext(ctx); timeFunc != nil {
@@ -59,7 +66,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	}
 	service := vmess.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound), serviceOptions...)
 	inbound.service = service
-	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.VMessUser) int {
+	err = service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.VMessUser) int {
 		return index
 	}), common.Map(options.Users, func(it option.VMessUser) string {
 		return it.UUID

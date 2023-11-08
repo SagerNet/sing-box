@@ -12,6 +12,7 @@
   "network": "tcp",
   "tls": {},
   "packet_encoding": "",
+  "multiplex": {},
   "transport": {},
   
   ... // 拨号字段
@@ -67,6 +68,10 @@ UDP 包编码，默认使用 xudp。
 | (空)        | 禁用            |
 | packetaddr | 由 v2ray 5+ 支持 |
 | xudp       | 由 xray 支持     |
+
+#### multiplex
+
+参阅 [多路复用](/zh/configuration/shared/multiplex#outbound)。
 
 #### transport
 

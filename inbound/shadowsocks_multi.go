@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/mux"
+	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -38,7 +40,7 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 			protocol:      C.TypeShadowsocks,
 			network:       options.Network.Build(),
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,
@@ -46,16 +48,18 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	}
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
+	var err error
+	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
+	if err != nil {
+		return nil, err
+	}
 	var udpTimeout int64
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
 	} else {
 		udpTimeout = int64(C.UDPTimeout.Seconds())
 	}
-	var (
-		service shadowsocks.MultiService[int]
-		err     error
-	)
+	var service shadowsocks.MultiService[int]
 	if common.Contains(shadowaead_2022.List, options.Method) {
 		service, err = shadowaead_2022.NewMultiServiceWithPassword[int](
 			options.Method,
