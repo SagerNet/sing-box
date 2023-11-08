@@ -46,6 +46,7 @@ body:
       description: 如果您使用原始命令行程序，请提供 `sing-box version` 命令的输出。
       value: |-
         <details>
+
         ```console
         # 使用输出内容覆盖此行
         ```
@@ -71,6 +72,7 @@ body:
         对于 Android 图形客户端程序，请检查 `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` 文件以导出崩溃日志。
       value: |-
         <details>
+        
         ```console
         # 使用日志内容覆盖此行
         ```
