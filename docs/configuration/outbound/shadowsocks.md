@@ -95,7 +95,7 @@ Conflict with `multiplex`.
 
 #### multiplex
 
-Multiplex configuration, see [Multiplex](/configuration/shared/multiplex).
+See [Multiplex](/configuration/shared/multiplex#outbound) for details.
 
 ### Dial Fields
 

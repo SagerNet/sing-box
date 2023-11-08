@@ -18,7 +18,7 @@ var muxProtocols = []string{
 }
 
 func TestVMessSMux(t *testing.T) {
-	testVMessMux(t, option.MultiplexOptions{
+	testVMessMux(t, option.OutboundMultiplexOptions{
 		Enabled:  true,
 		Protocol: "smux",
 	})
@@ -27,7 +27,7 @@ func TestVMessSMux(t *testing.T) {
 func TestShadowsocksMux(t *testing.T) {
 	for _, protocol := range muxProtocols {
 		t.Run(protocol, func(t *testing.T) {
-			testShadowsocksMux(t, option.MultiplexOptions{
+			testShadowsocksMux(t, option.OutboundMultiplexOptions{
 				Enabled:  true,
 				Protocol: protocol,
 			})
@@ -36,7 +36,7 @@ func TestShadowsocksMux(t *testing.T) {
 }
 
 func TestShadowsockH2Mux(t *testing.T) {
-	testShadowsocksMux(t, option.MultiplexOptions{
+	testShadowsocksMux(t, option.OutboundMultiplexOptions{
 		Enabled:  true,
 		Protocol: "h2mux",
 		Padding:  true,
@@ -44,14 +44,14 @@ func TestShadowsockH2Mux(t *testing.T) {
 }
 
 func TestShadowsockSMuxPadding(t *testing.T) {
-	testShadowsocksMux(t, option.MultiplexOptions{
+	testShadowsocksMux(t, option.OutboundMultiplexOptions{
 		Enabled:  true,
 		Protocol: "smux",
 		Padding:  true,
 	})
 }
 
-func testShadowsocksMux(t *testing.T, options option.MultiplexOptions) {
+func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
@@ -90,9 +90,9 @@ func testShadowsocksMux(t *testing.T, options option.MultiplexOptions) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					Method:           method,
-					Password:         password,
-					MultiplexOptions: &options,
+					Method:    method,
+					Password:  password,
+					Multiplex: &options,
 				},
 			},
 		},
@@ -110,7 +110,7 @@ func testShadowsocksMux(t *testing.T, options option.MultiplexOptions) {
 	testSuit(t, clientPort, testPort)
 }
 
-func testVMessMux(t *testing.T, options option.MultiplexOptions) {
+func testVMessMux(t *testing.T, options option.OutboundMultiplexOptions) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -135,6 +135,9 @@ func testVMessMux(t *testing.T, options option.MultiplexOptions) {
 						{
 							UUID: user.String(),
 						},
+					},
+					Multiplex: &option.InboundMultiplexOptions{
+						Enabled: true,
 					},
 				},
 			},
