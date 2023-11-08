@@ -24,6 +24,7 @@
       "server_port": 8081
     }
   },
+  "multiplex": {},
   "transport": {}
 }
 ```
@@ -57,6 +58,10 @@ Fallback server configuration. Disabled if `fallback` and `fallback_for_alpn` ar
 Fallback server configuration for specified ALPN.
 
 If not empty, TLS fallback requests with ALPN not in this table will be rejected.
+
+#### multiplex
+
+See [Multiplex](/configuration/shared/multiplex#inbound) for details.
 
 #### transport
 

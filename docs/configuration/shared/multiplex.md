@@ -1,8 +1,14 @@
-### Server Requirements
+### Inbound
 
-`sing-box` :)
+```json
+{
+  "enabled": true,
+  "padding": false,
+  "brutal": {}
+}
+```
 
-### Structure
+### Outbound
 
 ```json
 {
@@ -11,11 +17,27 @@
   "max_connections": 4,
   "min_streams": 4,
   "max_streams": 0,
-  "padding": false
+  "padding": false,
+  "brutal": {}
 }
 ```
 
-### Fields
+
+### Inbound Fields
+
+#### enabled
+
+Enable multiplex support.
+
+#### padding
+
+If enabled, non-padded connections will be rejected.
+
+#### brutal
+
+See [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+
+### Outbound Fields
 
 #### enabled
 
@@ -59,3 +81,6 @@ Conflict with `max_connections` and `min_streams`.
 
 Enable padding.
 
+#### brutal
+
+See [TCP Brutal](/configuration/shared/tcp-brutal) for details.

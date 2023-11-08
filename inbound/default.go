@@ -22,7 +22,7 @@ type myInboundAdapter struct {
 	protocol         string
 	network          []string
 	ctx              context.Context
-	router           adapter.Router
+	router           adapter.ConnectionRouter
 	logger           log.ContextLogger
 	tag              string
 	listenOptions    option.ListenOptions
