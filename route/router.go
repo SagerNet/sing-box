@@ -16,7 +16,6 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
-	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
@@ -27,6 +26,7 @@ import (
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
 	"github.com/sagernet/sing-dns"
+	mux "github.com/sagernet/sing-mux"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
@@ -606,30 +606,13 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	metadata.Network = N.NetworkTCP
 	switch metadata.Destination.Fqdn {
 	case mux.Destination.Fqdn:
-		r.logger.InfoContext(ctx, "inbound multiplex connection")
-		handler := adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r)
-		return mux.HandleConnection(ctx, handler, r.logger, conn, adapter.UpstreamMetadata(metadata))
+		return E.New("global multiplex is deprecated since sing-box v1.7.0, enable multiplex in inbound options instead.")
 	case vmess.MuxDestination.Fqdn:
-		r.logger.InfoContext(ctx, "inbound legacy multiplex connection")
-		return vmess.HandleMuxConnection(ctx, conn, adapter.NewUpstreamHandler(metadata, r.RouteConnection, r.RoutePacketConnection, r))
+		return E.New("global multiplex (v2ray legacy) not supported since sing-box v1.7.0.")
 	case uot.MagicAddress:
-		request, err := uot.ReadRequest(conn)
-		if err != nil {
-			return E.Cause(err, "read UoT request")
-		}
-		if request.IsConnect {
-			r.logger.InfoContext(ctx, "inbound UoT connect connection to ", request.Destination)
-		} else {
-			r.logger.InfoContext(ctx, "inbound UoT connection to ", request.Destination)
-		}
-		metadata.Domain = metadata.Destination.Fqdn
-		metadata.Destination = request.Destination
-		return r.RoutePacketConnection(ctx, uot.NewConn(conn, *request), metadata)
+		return E.New("global UoT not supported since sing-box v1.7.0.")
 	case uot.LegacyMagicAddress:
-		r.logger.InfoContext(ctx, "inbound legacy UoT connection")
-		metadata.Domain = metadata.Destination.Fqdn
-		metadata.Destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
-		return r.RoutePacketConnection(ctx, uot.NewConn(conn, uot.Request{}), metadata)
+		return E.New("global UoT (legacy) not supported since sing-box v1.7.0.")
 	}
 
 	if r.fakeIPStore != nil && r.fakeIPStore.Contains(metadata.Destination.Addr) {
