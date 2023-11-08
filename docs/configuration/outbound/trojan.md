@@ -51,7 +51,7 @@ TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 #### multiplex
 
-Multiplex configuration, see [Multiplex](/configuration/shared/multiplex).
+See [Multiplex](/configuration/shared/multiplex#outbound) for details.
 
 #### transport
 

@@ -15,6 +15,7 @@
     }
   ],
   "tls": {},
+  "multiplex": {},
   "transport": {}
 }
 ```
@@ -48,6 +49,10 @@ Available values:
 #### tls
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+
+#### multiplex
+
+See [Multiplex](/configuration/shared/multiplex#inbound) for details.
 
 #### transport
 
