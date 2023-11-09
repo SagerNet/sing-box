@@ -3,13 +3,34 @@
 * Fix crash if TUIC inbound authentication failed
 * Fixes and improvements
 
+#### 1.7.0-beta.2
+
+* Fix crash if TUIC inbound authentication failed
+* Update quic-go to v0.40.0
+* Fixes and improvements
+
 #### 1.6.4
+
+* Fixes and improvements
+
+#### 1.7.0-beta.1
 
 * Fixes and improvements
 
 #### 1.6.3
 
 * iOS/Android: Fix profile auto update
+* Fixes and improvements
+
+#### 1.7.0-alpha.11
+
+* iOS/Android: Fix profile auto update
+* Fixes and improvements
+
+#### 1.7.0-alpha.10
+
+* Fix tcp-brutal not working with TLS
+* Fix Android client not closing in some cases
 * Fixes and improvements
 
 #### 1.6.2
@@ -20,6 +41,34 @@
 
 * Our [Android client](/installation/clients/sfa) is now available in the Google Play Store ▶️
 * Fixes and improvements
+
+#### 1.7.0-alpha.6
+
+* Fixes and improvements
+
+#### 1.7.0-alpha.4
+
+* Migrate multiplex and UoT server to inbound **1**
+* Add TCP Brutal support for multiplex **2**
+
+**1**:
+
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+
+**2**
+
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+
+#### 1.7.0-alpha.3
+
+* Add [HTTPUpgrade V2Ray transport](/configuration/shared/v2ray-transport#HTTPUpgrade) support **1**
+* Fixes and improvements
+
+**1**:
+
+Introduced in V2Ray 5.10.0.
+
+The new HTTPUpgrade transport has better performance than WebSocket and is better suited for CDN abuse.
 
 #### 1.6.0
 
@@ -45,6 +94,23 @@ This update is intended to address the multi-send defects of the old implementat
 Based on discussions with the original author, the brutal CC and QUIC protocol parameters of
 the old protocol (Hysteria 1) have been updated to be consistent with Hysteria 2
 
+#### 1.7.0-alpha.2
+
+* Fix bugs introduced in 1.7.0-alpha.1
+
+#### 1.7.0-alpha.1
+
+* Add [exclude route support](/configuration/inbound/tun) for TUN inbound
+* Add `udp_disable_domain_unmapping` [inbound listen option](/configuration/shared/listen) **1**
+* Fixes and improvements
+
+**1**:
+
+If enabled, for UDP proxy requests addressed to a domain,
+the original packet address will be sent in the response instead of the mapped domain.
+
+This option is used for compatibility with clients that
+do not support receiving UDP packets with domain addresses, such as Surge.
 
 #### 1.5.5
 
@@ -86,6 +152,24 @@ When `auto_route` is enabled and `strict_route` is disabled, the device can now 
 #### 1.5.4
 
 * Fix Clash cache crash on arm32 devices
+* Fixes and improvements
+
+#### 1.6.0-beta.3
+
+* Update the legacy Hysteria protocol **1**
+* Fixes and improvements
+
+**1**
+
+Based on discussions with the original author, the brutal CC and QUIC protocol parameters of
+the old protocol (Hysteria 1) have been updated to be consistent with Hysteria 2
+
+#### 1.6.0-beta.2
+
+* Add TLS self sign key pair generate command
+* Update brutal congestion control for Hysteria2
+* Fix Clash cache crash on arm32 devices
+* Update golang.org/x/net to v0.17.0
 * Fixes and improvements
 
 #### 1.6.0-beta.3
