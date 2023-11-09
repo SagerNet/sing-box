@@ -1,4 +1,4 @@
-!!! error ""
+!!! quote ""
 
     Only supported on Linux.
 

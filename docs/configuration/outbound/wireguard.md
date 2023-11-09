@@ -38,11 +38,11 @@
 
 !!! warning ""
 
-    WireGuard is not included by default, see [Installation](/#installation).
+    WireGuard is not included by default, see [Installation](./#installation).
 
 !!! warning ""
 
-    gVisor, which is required by the unprivileged WireGuard is not included by default, see [Installation](/#installation).
+    gVisor, which is required by the unprivileged WireGuard is not included by default, see [Installation](./#installation).
 
 ### Fields
 
