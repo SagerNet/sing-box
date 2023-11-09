@@ -2,34 +2,25 @@ package v2raywebsocket
 
 import (
 	"encoding/binary"
+	"io"
 	"math/rand"
 
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/websocket"
+	"github.com/sagernet/ws"
 )
 
 type Writer struct {
-	*websocket.Conn
 	writer   N.ExtendedWriter
 	isServer bool
 }
 
-func NewWriter(conn *websocket.Conn, isServer bool) *Writer {
+func NewWriter(writer io.Writer, state ws.State) *Writer {
 	return &Writer{
-		conn,
-		bufio.NewExtendedWriter(conn.NetConn()),
-		isServer,
+		bufio.NewExtendedWriter(writer),
+		state == ws.StateServerSide,
 	}
-}
-
-func (w *Writer) Write(p []byte) (n int, err error) {
-	err = w.Conn.WriteMessage(websocket.BinaryMessage, p)
-	if err != nil {
-		return
-	}
-	return len(p), nil
 }
 
 func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
@@ -52,7 +43,7 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 	}
 
 	header := buffer.ExtendHeader(headerLen)
-	header[0] = websocket.BinaryMessage | 1<<7
+	header[0] = byte(ws.OpBinary) | 0x80
 	if w.isServer {
 		header[1] = 0
 	} else {
@@ -72,14 +63,10 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 	if !w.isServer {
 		maskKey := rand.Uint32()
 		binary.BigEndian.PutUint32(header[1+payloadBitLength:], maskKey)
-		maskBytes(*(*[4]byte)(header[1+payloadBitLength:]), 0, data)
+		ws.Cipher(data, *(*[4]byte)(header[1+payloadBitLength:]), 0)
 	}
 
 	return w.writer.WriteBuffer(buffer)
-}
-
-func (w *Writer) Upstream() any {
-	return w.Conn.NetConn()
 }
 
 func (w *Writer) FrontHeadroom() int {
