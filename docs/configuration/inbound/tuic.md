@@ -24,7 +24,7 @@
 
 !!! warning ""
 
-    QUIC, which is required by TUIC is not included by default, see [Installation](/#installation).
+    QUIC, which is required by TUIC is not included by default, see [Installation](./#installation).
 
 ### Listen Fields
 

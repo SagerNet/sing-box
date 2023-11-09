@@ -1,4 +1,4 @@
-!!! error ""
+!!! quote ""
 
     仅支持 Linux、Windows 和 macOS。
 
@@ -102,7 +102,7 @@ tun 接口的 IPv6 前缀。
 
 设置到 Tun 的默认路由。
 
-!!! error ""
+!!! quote ""
 
     为避免流量环回，请设置 `route.auto_detect_interface` 或 `route.default_interface` 或 `outbound.bind_interface`。
 
@@ -171,7 +171,7 @@ TCP/IP 栈。
 
 #### include_interface
 
-!!! error ""
+!!! quote ""
 
     接口规则仅在 Linux 下被支持，并且需要 `auto_route`。
 
@@ -187,7 +187,7 @@ TCP/IP 栈。
 
 #### include_uid
 
-!!! error ""
+!!! quote ""
 
     UID 规则仅在 Linux 下被支持，并且需要 `auto_route`。
 
@@ -207,7 +207,7 @@ TCP/IP 栈。
 
 #### include_android_user
 
-!!! error ""
+!!! quote ""
 
     Android 用户和应用规则仅在 Android 下被支持，并且需要 `auto_route`。
 
