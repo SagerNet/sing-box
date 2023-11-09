@@ -15,8 +15,8 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 * [Play Store](https://play.google.com/store/apps/details?id=io.nekohasekai.sfa)
 * [Play Store (Beta)](https://play.google.com/apps/testing/io.nekohasekai.sfa)
-* [GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+* [Github Releases](https://github.com/SagerNet/sing-box/releases)
 
 ## :material-source-repository: Source code
 
-* [GitHub](https://github.com/SagerNet/sing-box-for-android)
+* [Github](https://github.com/SagerNet/sing-box-for-android)

@@ -14,7 +14,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 ## :material-download: Download
 
-* [App Store](https://apps.apple.com/us/app/sing-box/id6451272673)
+* [AppStore](https://apps.apple.com/us/app/sing-box/id6451272673)
 * [TestFlight (Beta)](https://testflight.apple.com/join/AcqO44FH)
 
 ## :material-file-download: Download (macOS standalone version)
@@ -25,8 +25,8 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 brew install sfm
 ```
 
-* [GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+* [Github Releases](https://github.com/SagerNet/sing-box/releases)
 
 ## :material-source-repository: Source code
 
-* [GitHub](https://github.com/SagerNet/sing-box-for-apple)
+* [Github](https://github.com/SagerNet/sing-box-for-apple)
