@@ -4,8 +4,8 @@
 {
   "type": "hysteria2",
   "tag": "hy2-in",
-  
-  ... // Listen Fields
+  ...
+  // Listen Fields
 
   "up_mbps": 100,
   "down_mbps": 100,
@@ -28,7 +28,14 @@
 
 !!! warning ""
 
-    QUIC, which is required by Hysteria2 is not included by default, see [Installation](/#installation).
+    QUIC, which is required by Hysteria2 is not included by default, see [Installation](./#installation).
+
+!!! warning "Difference from official Hysteria2"
+
+    The official program supports an authentication method called **userpass**,
+    which essentially uses a combination of `<username>:<password>` as the actual password,
+    while sing-box does not provide this alias.
+    To use sing-box with the official program, you need to fill in that combination as the actual password.
 
 ### Listen Fields
 

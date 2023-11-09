@@ -15,7 +15,7 @@
 }
 ```
 
-!!! error ""
+!!! quote ""
 
     选择器目前只能通过 [Clash API](/zh/configuration/experimental#clash-api) 来控制。
 

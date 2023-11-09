@@ -20,7 +20,7 @@
 
 !!! warning ""
 
-    HTTP3 transport is not included by default, see [Installation](/#installation).
+    HTTP3 transport is not included by default, see [Installation](./#installation).
 
 ### Listen Fields
 
