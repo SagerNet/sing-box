@@ -81,6 +81,12 @@
           1000
         ],
         "clash_mode": "direct",
+        "wifi_ssid": [
+          "My WIFI"
+        ],
+        "wifi_bssid": [
+          "00:00:00:00:00:00"
+        ],
         "invert": false,
         "outbound": "direct"
       },
@@ -188,7 +194,7 @@
 
 #### process_name
 
-!!! error ""
+!!! quote ""
 
     仅支持 Linux、Windows 和 macOS。
 
@@ -196,7 +202,7 @@
 
 #### process_path
 
-!!! error ""
+!!! quote ""
 
     仅支持 Linux、Windows 和 macOS.
 
@@ -208,7 +214,7 @@
 
 #### user
 
-!!! error ""
+!!! quote ""
 
     仅支持 Linux.
 
@@ -216,7 +222,7 @@
 
 #### user_id
 
-!!! error ""
+!!! quote ""
 
     仅支持 Linux.
 
@@ -225,6 +231,22 @@
 #### clash_mode
 
 匹配 Clash 模式。
+
+#### wifi_ssid
+
+!!! quote ""
+
+    仅在 Android 与 iOS 的图形客户端中支持。
+
+匹配 WiFi SSID。
+
+#### wifi_bssid
+
+!!! quote ""
+
+    仅在 Android 与 iOS 的图形客户端中支持。
+
+匹配 WiFi BSSID。
 
 #### invert
 

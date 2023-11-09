@@ -44,7 +44,7 @@
 
 ### Clash API 字段
 
-!!! error ""
+!!! quote ""
 
     默认安装不包含 Clash API，参阅 [安装](/zh/#_2)。
 
@@ -108,7 +108,7 @@ Clash 中的默认模式，默认使用 `Rule`。
 
 ### V2Ray API 字段
 
-!!! error ""
+!!! quote ""
 
     默认安装不包含 V2Ray API，参阅 [安装](/zh/#_2)。
 

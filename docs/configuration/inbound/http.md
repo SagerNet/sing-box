@@ -36,7 +36,7 @@ No authentication required if empty.
 
 #### set_system_proxy
 
-!!! error ""
+!!! quote ""
 
     Only supported on Linux, Android, Windows, and macOS.
 
