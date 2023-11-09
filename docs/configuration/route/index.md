@@ -31,7 +31,7 @@ Default outbound tag. the first outbound will be used if empty.
 
 #### auto_detect_interface
 
-!!! error ""
+!!! quote ""
 
     Only supported on Linux, Windows and macOS.
 
@@ -41,7 +41,7 @@ Takes no effect if `outbound.bind_interface` is set.
 
 #### override_android_vpn
 
-!!! error ""
+!!! quote ""
 
     Only supported on Android.
 
@@ -49,7 +49,7 @@ Accept Android VPN as upstream NIC when `auto_detect_interface` enabled.
 
 #### default_interface
 
-!!! error ""
+!!! quote ""
 
     Only supported on Linux, Windows and macOS.
 
@@ -59,7 +59,7 @@ Takes no effect if `auto_detect_interface` is set.
 
 #### default_mark
 
-!!! error ""
+!!! quote ""
 
     Only supported on Linux.
 

@@ -49,7 +49,7 @@ The address of the dns server.
 
 !!! warning ""
 
-    QUIC and HTTP3 transport is not included by default, see [Installation](/#installation).
+    QUIC and HTTP3 transport is not included by default, see [Installation](./#installation).
 
 !!! info ""
 
@@ -57,7 +57,7 @@ The address of the dns server.
 
 !!! warning ""
 
-    DHCP transport is not included by default, see [Installation](/#installation).
+    DHCP transport is not included by default, see [Installation](./#installation).
 
 | RCode             | Description           | 
 |-------------------|-----------------------|

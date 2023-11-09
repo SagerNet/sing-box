@@ -1,4 +1,10 @@
+---
+icon: material/delete-alert
+---
+
 # Deprecated Feature List
+
+### 1.6.0
 
 The following features will be marked deprecated in 1.5.0 and removed entirely in 1.6.0.
 

@@ -29,25 +29,39 @@ theme:
     - navigation.expand
     - navigation.sections
     - header.autohide
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
 nav:
   - Home:
       - index.md
-      - Features: features.md
       - Deprecated: deprecated.md
       - Support: support.md
       - Change Log: changelog.md
   - Installation:
-      - From source: installation/from-source.md
-      - Package Manager:
-          - macOS: installation/package-manager/macOS.md
-          - Windows: installation/package-manager/windows.md
-          - Android: installation/package-manager/android.md
-      - Clients:
-          - Specification: installation/clients/specification.md
-          - iOS: installation/clients/sfi.md
-          - macOS: installation/clients/sfm.md
-          - Apple tvOS: installation/clients/sft.md
-          - Android: installation/clients/sfa.md
+      - Package Manager: installation/package-manager.md
+      - Docker: installation/docker.md
+      - Build from source: installation/build-from-source.md
+  - Graphical Clients:
+      - clients/index.md
+      - Android:
+          - clients/android/index.md
+          - Features: clients/android/features.md
+      - Apple platforms:
+          - clients/apple/index.md
+          - Features: clients/apple/features.md
+      - General: clients/general.md
+      - Privacy policy: clients/privacy.md
+  - Manual:
+      - Proxy:
+          - Server: manual/proxy/server.md
+          - Client: manual/proxy/client.md
+#          - TUN: manual/proxy/tun.md
+      - Proxy Protocol:
+          - Shadowsocks: manual/proxy-protocol/shadowsocks.md
+          - Trojan: manual/proxy-protocol/trojan.md
+          - TUIC: manual/proxy-protocol/tuic.md
+          - Hysteria 2: manual/proxy-protocol/hysteria2.md
   - Configuration:
       - configuration/index.md
       - Log:
@@ -115,24 +129,6 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
-  - FAQ:
-      - faq/index.md
-      - FakeIP: faq/fakeip.md
-      - Known Issues: faq/known-issues.md
-  - Examples:
-      - examples/index.md
-      - Linux Server Installation: examples/linux-server-installation.md
-      - Tun: examples/tun.md
-      - DNS Hijack: examples/dns-hijack.md
-      - Shadowsocks: examples/shadowsocks.md
-      - ShadowTLS: examples/shadowtls.md
-      - Clash API: examples/clash-api.md
-      - FakeIP: examples/fakeip.md
-  - Contributing:
-      - contributing/index.md
-      - Developing:
-          - Environment: contributing/environment.md
-          - Sub projects: contributing/sub-projects.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -143,6 +139,7 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.mark
   - pymdownx.tilde
+  - pymdownx.magiclink
   - admonition
   - attr_list
   - md_in_html
@@ -154,6 +151,14 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -162,48 +167,58 @@ extra:
 plugins:
   - search
   - i18n:
-      default_language: en
+      docs_structure: suffix
+      fallback_to_default: true
       languages:
-        en:
+        - build: true
+          default: true
+          locale: en
           name: English
-          build: false
-        zh:
+        - build: true
+          default: false
+          locale: zh
           name: 简体中文
-      material_alternate: true
-      nav_translations:
-        zh:
-          Getting Started: 开始
-          Features: 特性
-          Support: 支持
-          Change Log: 更新日志
+          nav_translations:
+            Home: 开始
+            Deprecated: 废弃功能列表
+            Support: 支持
+            Change Log: 更新日志
 
-          Installation: 安装
-          From source: 从源代码
-          Clients: 客户端
+            Installation: 安装
+            Package Manager: 包管理器
+            Build from source: 从源代码构建
 
-          Configuration: 配置
-          Log: 日志
-          DNS Server: DNS 服务器
-          DNS Rule: DNS 规则
+            Graphical Clients: 图形界面客户端
+            Features: 特性
+            Apple platforms: Apple 平台
+            General: 通用
+            Privacy policy: 隐私政策
 
-          Route: 路由
-          Route Rule: 路由规则
-          Protocol Sniff: 协议探测
+            Configuration: 配置
+            Log: 日志
+            DNS Server: DNS 服务器
+            DNS Rule: DNS 规则
 
-          Experimental: 实验性
+            Route: 路由
+            Route Rule: 路由规则
+            Protocol Sniff: 协议探测
 
-          Shared: 通用
-          Listen Fields: 监听字段
-          Dial Fields: 拨号字段
-          DNS01 Challenge Fields: DNS01 验证字段
-          Multiplex: 多路复用
-          V2Ray Transport: V2Ray 传输层
+            Experimental: 实验性
 
-          Inbound: 入站
-          Outbound: 出站
+            Shared: 通用
+            Listen Fields: 监听字段
+            Dial Fields: 拨号字段
+            DNS01 Challenge Fields: DNS01 验证字段
+            Multiplex: 多路复用
+            V2Ray Transport: V2Ray 传输层
 
-          FAQ: 常见问题
-          Known Issues: 已知问题
-          Examples: 示例
-          Linux Server Installation: Linux 服务器安装
-          DNS Hijack: DNS 劫持
+            Inbound: 入站
+            Outbound: 出站
+
+            FAQ: 常见问题
+            Known Issues: 已知问题
+            Examples: 示例
+            Linux Server Installation: Linux 服务器安装
+            DNS Hijack: DNS 劫持
+      reconfigure_material: true
+      reconfigure_search: true
