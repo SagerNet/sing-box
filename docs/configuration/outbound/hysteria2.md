@@ -24,7 +24,15 @@
 
 !!! warning ""
 
-    QUIC, which is required by Hysteria2 is not included by default, see [Installation](/#installation).
+    QUIC, which is required by Hysteria2 is not included by default, see [Installation](./#installation).
+
+!!! warning "Difference from official Hysteria2"
+
+    The official Hysteria2 supports an authentication method called **userpass**,
+    which essentially uses a combination of `<username>:<password>` as the actual password,
+    while sing-box does not provide this alias.
+    If you are planning to use sing-box with the official program,
+    please note that you will need to fill the combination as the password.
 
 ### Fields
 
