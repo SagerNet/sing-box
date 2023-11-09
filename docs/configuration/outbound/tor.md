@@ -18,7 +18,7 @@
 
 !!! info ""
 
-    Embedded tor is not included by default, see [Installation](/#installation).
+    Embedded tor is not included by default, see [Installation](./#installation).
 
 ### Fields
 

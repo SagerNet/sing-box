@@ -25,7 +25,7 @@
 
 !!! warning ""
 
-    ShadowsocksR is not included by default, see [Installation](/#installation).
+    ShadowsocksR is not included by default, see [Installation](./#installation).
 
 ### Fields
 

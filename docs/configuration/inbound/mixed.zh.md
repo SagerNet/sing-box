@@ -33,7 +33,7 @@ SOCKS 和 HTTP 用户
 
 #### set_system_proxy
 
-!!! error ""
+!!! quote ""
 
     仅支持 Linux、Android、Windows 和 macOS。
 

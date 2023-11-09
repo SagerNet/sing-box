@@ -201,7 +201,7 @@ The path to the server private key, in PEM format.
 
 !!! warning ""
 
-    uTLS is not included by default, see [Installation](/#installation).
+    uTLS is not included by default, see [Installation](./#installation).
 
 !!! note ""
 
@@ -228,7 +228,7 @@ Chrome fingerprint will be used if empty.
 
 !!! warning ""
 
-    ECH is not included by default, see [Installation](/#installation).
+    ECH is not included by default, see [Installation](./#installation).
 
 ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello
 message.
@@ -280,7 +280,7 @@ If empty, load from DNS will be attempted.
 
 !!! warning ""
 
-    ACME is not included by default, see [Installation](/#installation).
+    ACME is not included by default, see [Installation](./#installation).
 
 #### domain
 
@@ -359,11 +359,11 @@ See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge) for details.
 
 !!! warning ""
 
-    reality server is not included by default, see [Installation](/#installation).
+    reality server is not included by default, see [Installation](./#installation).
 
 !!! warning ""
 
-    uTLS, which is required by reality client is not included by default, see [Installation](/#installation).
+    uTLS, which is required by reality client is not included by default, see [Installation](./#installation).
 
 #### handshake
 
