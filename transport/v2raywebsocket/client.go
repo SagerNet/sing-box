@@ -28,7 +28,7 @@ type Client struct {
 	earlyDataHeaderName string
 }
 
-func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayWebsocketOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
+func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayWebsocketOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
 	wsDialer := &websocket.Dialer{
 		ReadBufferSize:   4 * 1024,
 		WriteBufferSize:  4 * 1024,
@@ -68,17 +68,11 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	requestURL.Path = options.Path
 	err := sHTTP.URLSetPath(&requestURL, options.Path)
 	if err != nil {
-		return nil, E.Cause(err, "parse path")
+		return nil
 	}
 	headers := make(http.Header)
 	for key, value := range options.Headers {
 		headers[key] = value
-		if key == "Host" {
-			if len(value) > 1 {
-				return nil, E.New("multiple Host headers")
-			}
-			requestURL.Host = value[0]
-		}
 	}
 	return &Client{
 		wsDialer,
@@ -87,7 +81,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		headers,
 		options.MaxEarlyData,
 		options.EarlyDataHeaderName,
-	}, nil
+	}
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
