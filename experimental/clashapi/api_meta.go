@@ -2,12 +2,14 @@ package clashapi
 
 import (
 	"bytes"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
-	"github.com/sagernet/websocket"
+	"github.com/sagernet/ws"
+	"github.com/sagernet/ws/wsutil"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -27,16 +29,16 @@ type Memory struct {
 
 func memory(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var wsConn *websocket.Conn
-		if websocket.IsWebSocketUpgrade(r) {
+		var conn net.Conn
+		if r.Header.Get("Upgrade") == "websocket" {
 			var err error
-			wsConn, err = upgrader.Upgrade(w, r, nil)
+			conn, _, _, err = ws.UpgradeHTTP(r, w)
 			if err != nil {
 				return
 			}
 		}
 
-		if wsConn == nil {
+		if conn == nil {
 			w.Header().Set("Content-Type", "application/json")
 			render.Status(r, http.StatusOK)
 		}
@@ -63,13 +65,12 @@ func memory(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r
 			}); err != nil {
 				break
 			}
-			if wsConn == nil {
+			if conn == nil {
 				_, err = w.Write(buf.Bytes())
 				w.(http.Flusher).Flush()
 			} else {
-				err = wsConn.WriteMessage(websocket.TextMessage, buf.Bytes())
+				err = wsutil.WriteServerText(conn, buf.Bytes())
 			}
-
 			if err != nil {
 				break
 			}
