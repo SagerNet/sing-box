@@ -46,7 +46,7 @@
 
 !!! error ""
 
-    Clash API is not included by default, see [Installation](/#installation).
+    Clash API is not included by default, see [Installation](./#installation).
 
 #### external_controller
 
@@ -112,7 +112,7 @@ If not empty, `store_selected` will use a separate store keyed by it.
 
 !!! error ""
 
-    V2Ray API is not included by default, see [Installation](/#installation).
+    V2Ray API is not included by default, see [Installation](./#installation).
 
 #### listen
 

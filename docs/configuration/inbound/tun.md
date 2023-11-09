@@ -171,7 +171,7 @@ TCP/IP stack.
 
 !!! warning ""
 
-    gVisor and LWIP stacks is not included by default, see [Installation](/#installation).
+    gVisor and LWIP stacks is not included by default, see [Installation](./#installation).
 
 #### include_interface
 
