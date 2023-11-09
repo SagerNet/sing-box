@@ -50,7 +50,7 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 	case C.V2RayTransportTypeGRPC:
 		return NewGRPCClient(ctx, dialer, serverAddr, options.GRPCOptions, tlsConfig)
 	case C.V2RayTransportTypeWebsocket:
-		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig)
+		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig), nil
 	case C.V2RayTransportTypeQUIC:
 		if tlsConfig == nil {
 			return nil, C.ErrTLSRequired

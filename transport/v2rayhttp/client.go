@@ -81,7 +81,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	uri.Path = options.Path
 	err := sHTTP.URLSetPath(&uri, options.Path)
 	if err != nil {
-		return nil, E.Cause(err, "parse path")
+		return nil, E.New("failed to set path: " + err.Error())
 	}
 	client.url = &uri
 	return client, nil
