@@ -13,6 +13,12 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
+const (
+	StatsService_GetStats_FullMethodName    = "/experimental.v2rayapi.StatsService/GetStats"
+	StatsService_QueryStats_FullMethodName  = "/experimental.v2rayapi.StatsService/QueryStats"
+	StatsService_GetSysStats_FullMethodName = "/experimental.v2rayapi.StatsService/GetSysStats"
+)
+
 // StatsServiceClient is the client API for StatsService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
@@ -32,7 +38,7 @@ func NewStatsServiceClient(cc grpc.ClientConnInterface) StatsServiceClient {
 
 func (c *statsServiceClient) GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsResponse, error) {
 	out := new(GetStatsResponse)
-	err := c.cc.Invoke(ctx, "/experimental.v2rayapi.StatsService/GetStats", in, out, opts...)
+	err := c.cc.Invoke(ctx, StatsService_GetStats_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +47,7 @@ func (c *statsServiceClient) GetStats(ctx context.Context, in *GetStatsRequest, 
 
 func (c *statsServiceClient) QueryStats(ctx context.Context, in *QueryStatsRequest, opts ...grpc.CallOption) (*QueryStatsResponse, error) {
 	out := new(QueryStatsResponse)
-	err := c.cc.Invoke(ctx, "/experimental.v2rayapi.StatsService/QueryStats", in, out, opts...)
+	err := c.cc.Invoke(ctx, StatsService_QueryStats_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +56,7 @@ func (c *statsServiceClient) QueryStats(ctx context.Context, in *QueryStatsReque
 
 func (c *statsServiceClient) GetSysStats(ctx context.Context, in *SysStatsRequest, opts ...grpc.CallOption) (*SysStatsResponse, error) {
 	out := new(SysStatsResponse)
-	err := c.cc.Invoke(ctx, "/experimental.v2rayapi.StatsService/GetSysStats", in, out, opts...)
+	err := c.cc.Invoke(ctx, StatsService_GetSysStats_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +110,7 @@ func _StatsService_GetStats_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/experimental.v2rayapi.StatsService/GetStats",
+		FullMethod: StatsService_GetStats_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StatsServiceServer).GetStats(ctx, req.(*GetStatsRequest))
@@ -122,7 +128,7 @@ func _StatsService_QueryStats_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/experimental.v2rayapi.StatsService/QueryStats",
+		FullMethod: StatsService_QueryStats_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StatsServiceServer).QueryStats(ctx, req.(*QueryStatsRequest))
@@ -140,7 +146,7 @@ func _StatsService_GetSysStats_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/experimental.v2rayapi.StatsService/GetSysStats",
+		FullMethod: StatsService_GetSysStats_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StatsServiceServer).GetSysStats(ctx, req.(*SysStatsRequest))
