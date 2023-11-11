@@ -71,6 +71,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
@@ -97,6 +98,7 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
@@ -117,6 +119,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	if destinationAddress.IsValid() {
@@ -164,6 +167,7 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	if destinationAddress.IsValid() {
@@ -186,6 +190,7 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 }
 
 func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) error {
+	defer serverConn.Close()
 	if cachedReader, isCached := conn.(N.CachedReader); isCached {
 		payload := cachedReader.ReadCached()
 		if payload != nil && !payload.IsEmpty() {
