@@ -39,6 +39,8 @@ jobs:
         with:
           platforms: linux/386,linux/amd64,linux/arm64,linux/s390x
           target: dist
+          build-args: |
+            BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
           tags: |
             ${{ steps.tag.outputs.latest }}
             ${{ steps.tag.outputs.versioned }}
