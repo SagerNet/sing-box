@@ -17,7 +17,7 @@ func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata
 		return err
 	}
 	var group task.Group
-	group.Append0(func(ctx context.Context) error {
+	group.Append0(func(_ context.Context) error {
 		var stream net.Conn
 		for {
 			stream, err = session.AcceptStream()
