@@ -13,6 +13,10 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
+const (
+	GunService_Tun_FullMethodName = "/transport.v2raygrpc.GunService/Tun"
+)
+
 // GunServiceClient is the client API for GunService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
@@ -29,7 +33,7 @@ func NewGunServiceClient(cc grpc.ClientConnInterface) GunServiceClient {
 }
 
 func (c *gunServiceClient) Tun(ctx context.Context, opts ...grpc.CallOption) (GunService_TunClient, error) {
-	stream, err := c.cc.NewStream(ctx, &GunService_ServiceDesc.Streams[0], "/transport.v2raygrpc.GunService/Tun", opts...)
+	stream, err := c.cc.NewStream(ctx, &GunService_ServiceDesc.Streams[0], GunService_Tun_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}

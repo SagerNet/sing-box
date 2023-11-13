@@ -17,8 +17,8 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -69,7 +69,7 @@ type httpClient struct {
 
 func NewHTTPClient() HTTPClient {
 	client := new(httpClient)
-	client.client.Timeout = C.TCPTimeout
+	client.client.Timeout = 15 * time.Second
 	client.client.Transport = &client.transport
 	client.transport.TLSClientConfig = &client.tls
 	client.transport.DisableKeepAlives = true
@@ -151,6 +151,9 @@ type httpRequest struct {
 
 func (r *httpRequest) SetURL(link string) (err error) {
 	r.request.URL, err = url.Parse(link)
+	if err != nil {
+		return
+	}
 	if r.request.URL.User != nil {
 		user := r.request.URL.User.Username()
 		password, _ := r.request.URL.User.Password()

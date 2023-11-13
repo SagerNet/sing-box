@@ -71,6 +71,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
@@ -97,6 +98,7 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	return CopyEarlyConn(ctx, conn, outConn)
@@ -117,6 +119,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	if destinationAddress.IsValid() {
@@ -160,6 +163,7 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 	}
 	err = N.ReportHandshakeSuccess(conn)
 	if err != nil {
+		outConn.Close()
 		return err
 	}
 	if destinationAddress.IsValid() {
@@ -188,6 +192,7 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 			_, err := serverConn.Write(payload.Bytes())
 			payload.Release()
 			if err != nil {
+				serverConn.Close()
 				return err
 			}
 			return bufio.CopyConn(ctx, conn, serverConn)
@@ -199,22 +204,26 @@ func CopyEarlyConn(ctx context.Context, conn net.Conn, serverConn net.Conn) erro
 		if err != os.ErrInvalid {
 			if err != nil {
 				payload.Release()
+				serverConn.Close()
 				return err
 			}
 			_, err = payload.ReadOnceFrom(conn)
 			if err != nil && !E.IsTimeout(err) {
 				payload.Release()
+				serverConn.Close()
 				return E.Cause(err, "read payload")
 			}
 			err = conn.SetReadDeadline(time.Time{})
 			if err != nil {
 				payload.Release()
+				serverConn.Close()
 				return err
 			}
 		}
 		_, err = serverConn.Write(payload.Bytes())
 		payload.Release()
 		if err != nil {
+			serverConn.Close()
 			return N.ReportHandshakeFailure(conn, err)
 		}
 	}

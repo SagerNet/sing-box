@@ -3,7 +3,7 @@ COMMIT = $(shell git rev-parse --short HEAD)
 TAGS_GO118 = with_gvisor,with_dhcp,with_wireguard,with_utls,with_reality_server,with_clash_api
 TAGS_GO120 = with_quic,with_ech
 TAGS ?= $(TAGS_GO118),$(TAGS_GO120)
-TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server,with_shadowsocksr
+TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server
 
 GOHOSTOS = $(shell go env GOHOSTOS)
 GOHOSTARCH = $(shell go env GOHOSTARCH)
@@ -61,7 +61,7 @@ proto_install:
 release:
 	go run ./cmd/internal/build goreleaser release --clean --skip-publish || exit 1
 	mkdir dist/release
-	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/release
+	mv dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm dist/*.apk dist/*.pkg.tar.zst dist/release
 	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release
 	rm -r dist/release
 
@@ -73,18 +73,21 @@ update_android_version:
 	go run ./cmd/internal/update_android_version
 
 build_android:
-	cd ../sing-box-for-android && ./gradlew :app:assembleRelease && ./gradlew --stop
+	cd ../sing-box-for-android && ./gradlew :app:assemblePlayRelease && ./gradlew --stop
 
 upload_android:
 	mkdir -p dist/release_android
-	cp ../sing-box-for-android/app/build/outputs/apk/release/*.apk dist/release_android
+	cp ../sing-box-for-android/app/build/outputs/apk/play/release/*.apk dist/release_android
 	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release_android
 	rm -rf dist/release_android
 
 release_android: lib_android update_android_version build_android upload_android
 
 publish_android:
-	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadRelease
+	cd ../sing-box-for-android && ./gradlew :app:publishPlayReleaseBundle
+
+publish_android_appcenter:
+	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadPlayRelease
 
 build_ios:
 	cd ../sing-box-for-apple && \
@@ -149,10 +152,8 @@ update_apple_version:
 	go run ./cmd/internal/update_apple_version
 
 release_apple: lib_ios update_apple_version release_ios release_macos release_tvos release_macos_independent
-	rm -rf dist
 
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
-	rm -rf dist
 
 test:
 	@go test -v ./... && \

@@ -46,6 +46,7 @@ body:
       description: If you are using the original command line program, please provide the output of the `sing-box version` command.
       value: |-
         <details>
+
         ```console
         # Replace this line with the output
         ```
@@ -71,6 +72,7 @@ body:
         For the Android client, please check the `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` file for crash logs.
       value: |-
         <details>
+        
         ```console
         # Replace this line with logs
         ```
