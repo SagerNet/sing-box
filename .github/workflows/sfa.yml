@@ -1,0 +1,67 @@
+name: APK Build
+
+on: workflow_dispatch
+
+env:
+  TAGS: with_gvisor,with_quic,with_wireguard,with_utls,with_reality_server,with_clash_api,with_shadowsocksr,with_grpc,with_ech,with_proxyprovider,with_clash_ui,with_sideload
+
+jobs:
+  build:
+    name: APK Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get latest go version
+        id: version
+        run: |
+          echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ steps.version.outputs.go_version }}
+
+      - name: Setup GoMobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v3
+        with:
+          distribution: oracle
+          java-version: 20
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Git Clone SFA
+        run: |
+          git clone https://github.com/SagerNet/sing-box-for-android
+          mkdir -p sing-box-for-android/app/libs
+
+      - name: Git Clone sing-box
+        run: |
+          git clone https://github.com/qjebbs/sing-box
+          cd sing-box
+          git branch origin/main-next
+          git checkout main-next
+          git submodule init
+          git submodule update
+
+      - name: Build Libbox
+        run: |
+          cd sing-box-pub
+          gomobile bind -v -androidapi 21 -javapkg=io.nekohasekai -libname=box -tags "$TAGS" -ldflags "-X github.com/sagernet/sing-box/constant.Version=v1.3-qjebbs -buildid=" ./experimental/libbox
+          if [ -f "libbox.aar" ]; then mv libbox.aar ../sing-box-for-android/app/libs/; fi
+
+      - name: Build APK
+        run: |
+          cd sing-box-for-android
+          ./gradlew
+
+
+
