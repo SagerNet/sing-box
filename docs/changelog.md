@@ -1,3 +1,7 @@
+#### 1.6.4
+
+* Fixes and improvements
+
 #### 1.6.3
 
 * iOS/Android: Fix profile auto update
