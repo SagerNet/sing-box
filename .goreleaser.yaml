@@ -19,6 +19,7 @@ builds:
       - with_ech
       - with_utls
       - with_reality_server
+      - with_acme
       - with_clash_api
     env:
       - CGO_ENABLED=0
@@ -55,6 +56,7 @@ builds:
       - with_ech
       - with_utls
       - with_reality_server
+      - with_acme
       - with_clash_api
     env:
       - CGO_ENABLED=0
@@ -83,6 +85,8 @@ builds:
       - with_wireguard
       - with_ech
       - with_utls
+      - with_reality_server
+      - with_acme
       - with_clash_api
     env:
       - CGO_ENABLED=1
