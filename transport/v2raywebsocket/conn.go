@@ -153,6 +153,9 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	}
 	c.access.Lock()
 	defer c.access.Unlock()
+	if c.err != nil {
+		return 0, c.err
+	}
 	if c.conn != nil {
 		return c.conn.Write(b)
 	}
@@ -173,6 +176,9 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	defer c.access.Unlock()
 	if c.conn != nil {
 		return c.conn.WriteBuffer(buffer)
+	}
+	if c.err != nil {
+		return c.err
 	}
 	err := c.writeRequest(buffer.Bytes())
 	c.err = err
