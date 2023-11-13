@@ -157,6 +157,8 @@ nfpms:
     formats:
       - deb
       - rpm
+      - apk
+      - archlinux
     priority: extra
     contents:
       - src: release/config/config.json
