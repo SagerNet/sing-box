@@ -1,3 +1,8 @@
+#### 1.6.5
+
+* Fix crash if TUIC inbound authentication failed
+* Fixes and improvements
+
 #### 1.6.4
 
 * Fixes and improvements
