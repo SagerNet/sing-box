@@ -158,7 +158,6 @@ nfpms:
     formats:
       - deb
       - rpm
-      - apk
       - archlinux
     priority: extra
     contents:
