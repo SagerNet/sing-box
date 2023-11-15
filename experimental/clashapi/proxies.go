@@ -2,7 +2,6 @@ package clashapi
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -176,7 +175,7 @@ func updateProxy(w http.ResponseWriter, r *http.Request) {
 
 	if !selector.SelectOutbound(req.Name) {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, newError(fmt.Sprintf("Selector update error: not found")))
+		render.JSON(w, r, newError("Selector update error: not found"))
 		return
 	}
 
