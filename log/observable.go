@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/observable"
@@ -18,24 +17,26 @@ type observableFactory struct {
 	formatter         Formatter
 	platformFormatter Formatter
 	writer            io.Writer
-	platformWriter    io.Writer
+	platformWriter    PlatformWriter
 	level             Level
 	subscriber        *observable.Subscriber[Entry]
 	observer          *observable.Observer[Entry]
 }
 
-func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer) ObservableFactory {
+func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter PlatformWriter) ObservableFactory {
 	factory := &observableFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
 			BaseTime:         formatter.BaseTime,
-			DisableColors:    C.IsDarwin || C.IsIos,
 			DisableLineBreak: true,
 		},
 		writer:         writer,
 		platformWriter: platformWriter,
 		level:          LevelTrace,
 		subscriber:     observable.NewSubscriber[Entry](128),
+	}
+	if platformWriter != nil {
+		factory.platformFormatter.DisableColors = platformWriter.DisableColors()
 	}
 	factory.observer = observable.NewObserver[Entry](factory.subscriber, 64)
 	return factory
@@ -94,7 +95,7 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 	}
 	l.subscriber.Emit(Entry{level, messageSimple})
 	if l.platformWriter != nil {
-		l.platformWriter.Write([]byte(l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
+		l.platformWriter.WriteMessage(level, l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime))
 	}
 }
 

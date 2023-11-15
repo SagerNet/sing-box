@@ -41,6 +41,7 @@ type Options struct {
 	option.Options
 	Context           context.Context
 	PlatformInterface platform.Interface
+	PlatformLogWriter log.PlatformWriter
 }
 
 func New(options Options) (*Box, error) {
@@ -71,7 +72,7 @@ func New(options Options) (*Box, error) {
 		Observable:     needClashAPI,
 		DefaultWriter:  defaultLogWriter,
 		BaseTime:       createdAt,
-		PlatformWriter: options.PlatformInterface,
+		PlatformWriter: options.PlatformLogWriter,
 	})
 	if err != nil {
 		return nil, E.Cause(err, "create log factory")

@@ -16,11 +16,11 @@ type simpleFactory struct {
 	formatter         Formatter
 	platformFormatter Formatter
 	writer            io.Writer
-	platformWriter    io.Writer
+	platformWriter    PlatformWriter
 	level             Level
 }
 
-func NewFactory(formatter Formatter, writer io.Writer, platformWriter io.Writer) Factory {
+func NewFactory(formatter Formatter, writer io.Writer, platformWriter PlatformWriter) Factory {
 	return &simpleFactory{
 		formatter: formatter,
 		platformFormatter: Formatter{
@@ -76,7 +76,7 @@ func (l *simpleLogger) Log(ctx context.Context, level Level, args []any) {
 		os.Exit(1)
 	}
 	if l.platformWriter != nil {
-		l.platformWriter.Write([]byte(l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)))
+		l.platformWriter.WriteMessage(level, l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime))
 	}
 }
 

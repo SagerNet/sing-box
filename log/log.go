@@ -42,7 +42,7 @@ type Options struct {
 	Observable     bool
 	DefaultWriter  io.Writer
 	BaseTime       time.Time
-	PlatformWriter io.Writer
+	PlatformWriter PlatformWriter
 }
 
 func New(options Options) (Factory, error) {
