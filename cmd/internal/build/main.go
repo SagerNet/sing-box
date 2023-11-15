@@ -12,7 +12,7 @@ import (
 func main() {
 	build_shared.FindSDK()
 
-	if os.Getenv("build.Default.GOPATH") == "" {
+	if os.Getenv("GOPATH") == "" {
 		os.Setenv("GOPATH", build.Default.GOPATH)
 	}
 
