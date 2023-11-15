@@ -2,7 +2,6 @@ package platform
 
 import (
 	"context"
-	"io"
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -25,7 +24,6 @@ type Interface interface {
 	UnderNetworkExtension() bool
 	ClearDNSCache()
 	process.Searcher
-	io.Writer
 }
 
 type NetworkInterface struct {
