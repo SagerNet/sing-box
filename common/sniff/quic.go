@@ -182,11 +182,52 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 			break
 		}
 		switch frameType {
-		case 0x0:
+		case 0x00: // PADDING
 			continue
-		case 0x1:
+		case 0x01: // PING
 			continue
-		case 0x6:
+		case 0x02, 0x03: // ACK
+			_, err = qtls.ReadUvarint(decryptedReader) // Largest Acknowledged
+			if err != nil {
+				return nil, err
+			}
+			_, err = qtls.ReadUvarint(decryptedReader) // ACK Delay
+			if err != nil {
+				return nil, err
+			}
+			ackRangeCount, err := qtls.ReadUvarint(decryptedReader) // ACK Range Count
+			if err != nil {
+				return nil, err
+			}
+			_, err = qtls.ReadUvarint(decryptedReader) // First ACK Range
+			if err != nil {
+				return nil, err
+			}
+			for i := 0; i < int(ackRangeCount); i++ {
+				_, err = qtls.ReadUvarint(decryptedReader) // Gap
+				if err != nil {
+					return nil, err
+				}
+				_, err = qtls.ReadUvarint(decryptedReader) // ACK Range Length
+				if err != nil {
+					return nil, err
+				}
+			}
+			if frameType == 0x03 {
+				_, err = qtls.ReadUvarint(decryptedReader) // ECT0 Count
+				if err != nil {
+					return nil, err
+				}
+				_, err = qtls.ReadUvarint(decryptedReader) // ECT1 Count
+				if err != nil {
+					return nil, err
+				}
+				_, err = qtls.ReadUvarint(decryptedReader) // ECN-CE Count
+				if err != nil {
+					return nil, err
+				}
+			}
+		case 0x06: // CRYPTO
 			var offset uint64
 			offset, err = qtls.ReadUvarint(decryptedReader)
 			if err != nil {
@@ -208,8 +249,26 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 			if err != nil {
 				return nil, err
 			}
+		case 0x1c: // CONNECTION_CLOSE
+			_, err = qtls.ReadUvarint(decryptedReader) // Error Code
+			if err != nil {
+				return nil, err
+			}
+			_, err = qtls.ReadUvarint(decryptedReader) // Frame Type
+			if err != nil {
+				return nil, err
+			}
+			var length uint64
+			length, err = qtls.ReadUvarint(decryptedReader) // Reason Phrase Length
+			if err != nil {
+				return nil, err
+			}
+			_, err = decryptedReader.Seek(int64(length), io.SeekCurrent) // Reason Phrase
+			if err != nil {
+				return nil, err
+			}
 		default:
-			// ignore unknown frame type
+			return nil, os.ErrInvalid
 		}
 	}
 	tlsHdr := make([]byte, 5)
