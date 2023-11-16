@@ -7,8 +7,8 @@
   "limiters": [
     {
       "tag": "limiter-a",
-      "download": "1M",
-      "upload": "10M",
+      "download": "10M",
+      "upload": "1M",
       "auth_user": [
         "user-a",
         "user-b"

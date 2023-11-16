@@ -30,10 +30,10 @@ type connWithLimiter struct {
 }
 
 func (conn *connWithLimiter) Read(p []byte) (n int, err error) {
-	if conn.limiter == nil || conn.limiter.downloadLimiter == nil {
+	if conn.limiter == nil || conn.limiter.uploadLimiter == nil {
 		return conn.Conn.Read(p)
 	}
-	b := conn.limiter.downloadLimiter.Burst()
+	b := conn.limiter.uploadLimiter.Burst()
 	if b < len(p) {
 		p = p[:b]
 	}
@@ -41,7 +41,7 @@ func (conn *connWithLimiter) Read(p []byte) (n int, err error) {
 	if err != nil {
 		return
 	}
-	err = conn.limiter.downloadLimiter.WaitN(conn.ctx, n)
+	err = conn.limiter.uploadLimiter.WaitN(conn.ctx, n)
 	if err != nil {
 		return
 	}
@@ -49,11 +49,11 @@ func (conn *connWithLimiter) Read(p []byte) (n int, err error) {
 }
 
 func (conn *connWithLimiter) Write(p []byte) (n int, err error) {
-	if conn.limiter == nil || conn.limiter.uploadLimiter == nil {
+	if conn.limiter == nil || conn.limiter.downloadLimiter == nil {
 		return conn.Conn.Write(p)
 	}
 	var nn int
-	b := conn.limiter.uploadLimiter.Burst()
+	b := conn.limiter.downloadLimiter.Burst()
 	for {
 		end := len(p)
 		if end == 0 {
@@ -62,7 +62,7 @@ func (conn *connWithLimiter) Write(p []byte) (n int, err error) {
 		if b < len(p) {
 			end = b
 		}
-		err = conn.limiter.uploadLimiter.WaitN(conn.ctx, end)
+		err = conn.limiter.downloadLimiter.WaitN(conn.ctx, end)
 		if err != nil {
 			return
 		}
