@@ -18,6 +18,7 @@ type abstractDefaultRule struct {
 	allItems                []RuleItem
 	invert                  bool
 	outbound                string
+	limiters                []string
 }
 
 func (r *abstractDefaultRule) Type() string {
@@ -126,6 +127,10 @@ func (r *abstractDefaultRule) Outbound() string {
 	return r.outbound
 }
 
+func (r *abstractDefaultRule) Limiters() []string {
+	return r.limiters
+}
+
 func (r *abstractDefaultRule) String() string {
 	if !r.invert {
 		return strings.Join(F.MapToString(r.allItems), " ")
@@ -139,6 +144,7 @@ type abstractLogicalRule struct {
 	mode     string
 	invert   bool
 	outbound string
+	limiters []string
 }
 
 func (r *abstractLogicalRule) Type() string {
@@ -189,6 +195,10 @@ func (r *abstractLogicalRule) Match(metadata *adapter.InboundContext) bool {
 
 func (r *abstractLogicalRule) Outbound() string {
 	return r.outbound
+}
+
+func (r *abstractLogicalRule) Limiters() []string {
+	return r.limiters
 }
 
 func (r *abstractLogicalRule) String() string {

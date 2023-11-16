@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/inbound"
+	"github.com/sagernet/sing-box/limiter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
@@ -76,6 +77,9 @@ func New(options Options) (*Box, error) {
 	})
 	if err != nil {
 		return nil, E.Cause(err, "create log factory")
+	}
+	if len(options.Limiters) > 0 {
+		ctx = limiter.WithDefault(ctx, logFactory.NewLogger("limiter"), options.Limiters)
 	}
 	router, err := route.NewRouter(
 		ctx,

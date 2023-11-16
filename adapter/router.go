@@ -67,6 +67,7 @@ type Rule interface {
 	Match(metadata *InboundContext) bool
 	Outbound() string
 	String() string
+	Limiters() []string
 }
 
 type DNSRule interface {

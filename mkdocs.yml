@@ -59,6 +59,8 @@ nav:
           - FakeIP: configuration/dns/fakeip.md
       - NTP:
           - configuration/ntp/index.md
+      - Limiter:
+        - configuration/limiter/index.md
       - Route:
           - configuration/route/index.md
           - GeoIP: configuration/route/geoip.md
@@ -185,6 +187,8 @@ plugins:
           Log: 日志
           DNS Server: DNS 服务器
           DNS Rule: DNS 规则
+
+          Limiter: 限速
 
           Route: 路由
           Route Rule: 路由规则
