@@ -210,6 +210,14 @@ func (w *platformInterfaceWrapper) ClearDNSCache() {
 	w.iif.ClearDNSCache()
 }
 
+func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
+	wifiState := w.iif.ReadWIFIState()
+	if wifiState == nil {
+		return adapter.WIFIState{}
+	}
+	return (adapter.WIFIState)(*wifiState)
+}
+
 func (w *platformInterfaceWrapper) DisableColors() bool {
 	return runtime.GOOS != "android"
 }
