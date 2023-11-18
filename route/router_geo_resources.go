@@ -307,3 +307,11 @@ func isProcessDNSRule(rule option.DefaultDNSRule) bool {
 func notPrivateNode(code string) bool {
 	return code != "private"
 }
+
+func isWIFIRule(rule option.DefaultRule) bool {
+	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+}
+
+func isWIFIDNSRule(rule option.DefaultDNSRule) bool {
+	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+}
