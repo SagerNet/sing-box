@@ -60,11 +60,11 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 	for element := s.savedLines.Front(); element != nil; element = element.Next() {
 		savedLines = append(savedLines, element.Value)
 	}
-	s.access.Unlock()
 	subscription, done, err := s.observer.Subscribe()
 	if err != nil {
 		return err
 	}
+	s.access.Unlock()
 	defer s.observer.UnSubscribe(subscription)
 	for _, line := range savedLines {
 		err = writeLog(conn, []byte(line))
