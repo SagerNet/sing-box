@@ -148,7 +148,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 
 func (s *Server) PreStart() error {
 	if s.cacheFilePath != "" {
-		cacheFile, err := cachefile.Open(s.cacheFilePath, s.cacheID)
+		cacheFile, err := cachefile.Open(s.ctx, s.cacheFilePath, s.cacheID)
 		if err != nil {
 			return E.Cause(err, "open cache file")
 		}
