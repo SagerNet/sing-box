@@ -74,6 +74,23 @@ func TestShadowsocks2022(t *testing.T) {
 	}
 }
 
+func TestShadowsocks2022EIH(t *testing.T) {
+	for _, method16 := range []string{
+		"2022-blake3-aes-128-gcm",
+	} {
+		t.Run(method16, func(t *testing.T) {
+			testShadowsocks2022EIH(t, method16, mkBase64(t, 16))
+		})
+	}
+	for _, method32 := range []string{
+		"2022-blake3-aes-256-gcm",
+	} {
+		t.Run(method32, func(t *testing.T) {
+			testShadowsocks2022EIH(t, method32, mkBase64(t, 32))
+		})
+	}
+}
+
 func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, password string) {
 	startDockerContainer(t, DockerOptions{
 		Image:      ImageShadowsocksRustClient,
@@ -235,6 +252,67 @@ func TestShadowsocksUoT(t *testing.T) {
 					UDPOverTCP: &option.UDPOverTCPOptions{
 						Enabled: true,
 					},
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					DefaultOptions: option.DefaultRule{
+						Inbound:  []string{"mixed-in"},
+						Outbound: "ss-out",
+					},
+				},
+			},
+		},
+	})
+	testSuit(t, clientPort, testPort)
+}
+
+func testShadowsocks2022EIH(t *testing.T, method string, password string) {
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				MixedOptions: option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeShadowsocks,
+				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						ListenPort: serverPort,
+					},
+					Method:   method,
+					Password: password,
+					Users: []option.ShadowsocksUser{
+						{
+							Password: password,
+						},
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeShadowsocks,
+				Tag:  "ss-out",
+				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					Method:   method,
+					Password: password + ":" + password,
 				},
 			},
 		},
