@@ -56,7 +56,7 @@ func New(options Options) (*Box, error) {
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
 	var needClashAPI bool
 	var needV2RayAPI bool
-	if experimentalOptions.ClashAPI != nil || options.PlatformInterface != nil {
+	if experimentalOptions.ClashAPI != nil || options.PlatformLogWriter != nil {
 		needClashAPI = true
 	}
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
