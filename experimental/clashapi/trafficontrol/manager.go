@@ -70,9 +70,6 @@ func (m *Manager) Snapshot() *Snapshot {
 		return true
 	})
 
-	//if memoryInfo, err := m.process.MemoryInfo(); err == nil {
-	//	m.memory = memoryInfo.RSS
-	//} else {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	m.memory = memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased
