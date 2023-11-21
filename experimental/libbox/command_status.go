@@ -14,7 +14,6 @@ import (
 
 type StatusMessage struct {
 	Memory           int64
-	MemoryInuse      int64
 	Goroutines       int32
 	ConnectionsIn    int32
 	ConnectionsOut   int32
