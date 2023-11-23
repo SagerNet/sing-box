@@ -12,7 +12,7 @@ A recently popular Chinese-made simple protocol based on QUIC, the selling point
 
 | Specification                                             | Binary Characteristics | Active Detect Hiddenness |
 |-----------------------------------------------------------|------------------------|--------------------------|
-| [Github](https://github.com/EAimTY/tuic/blob/dev/SPEC.md) | :material-alert:       | :material-check:         | 
+| [GitHub](https://github.com/EAimTY/tuic/blob/dev/SPEC.md) | :material-alert:       | :material-check:         | 
 
 ## Password Generator
 
