@@ -98,11 +98,33 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		}
 		setMultiPathTCP(&dialer4)
 	}
-	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen)
+	if options.TLSFragment.Enabled && options.TCPFastOpen {
+		return nil, E.New("TLS Fragmentation is not compatible with TCP Fast Open, set `tcp_fast_open` to `false` in your outbound if you intend to enable TLS fragmentation.")
+	}
+	var tlsFragment TLSFragment
+	if options.TLSFragment.Enabled {
+		tlsFragment.Enabled = true
+
+		sleep, err := option.ParseIntRange(options.TLSFragment.Sleep)
+		if err != nil {
+			return nil, E.Cause(err, "invalid TLS fragment sleep period supplied")
+		}
+		tlsFragment.SleepMin = sleep[0]
+		tlsFragment.SleepMax = sleep[1]
+
+		size, err := option.ParseIntRange(options.TLSFragment.Size)
+		if err != nil {
+			return nil, E.Cause(err, "invalid TLS fragment size supplied")
+		}
+		tlsFragment.SizeMin = size[0]
+		tlsFragment.SizeMax = size[1]
+
+	}
+	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen, tlsFragment)
 	if err != nil {
 		return nil, err
 	}
-	tcpDialer6, err := newTCPDialer(dialer6, options.TCPFastOpen)
+	tcpDialer6, err := newTCPDialer(dialer6, options.TCPFastOpen, tlsFragment)
 	if err != nil {
 		return nil, err
 	}
@@ -130,9 +152,9 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 		}
 	}
 	if !address.IsIPv6() {
-		return trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
+		return trackConn(d.dialer4.DialContext(ctx, network, address))
 	} else {
-		return trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
+		return trackConn(d.dialer6.DialContext(ctx, network, address))
 	}
 }
 

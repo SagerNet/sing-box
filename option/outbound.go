@@ -130,20 +130,21 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 }
 
 type DialerOptions struct {
-	Detour             string         `json:"detour,omitempty"`
-	BindInterface      string         `json:"bind_interface,omitempty"`
-	Inet4BindAddress   *ListenAddress `json:"inet4_bind_address,omitempty"`
-	Inet6BindAddress   *ListenAddress `json:"inet6_bind_address,omitempty"`
-	ProtectPath        string         `json:"protect_path,omitempty"`
-	RoutingMark        int            `json:"routing_mark,omitempty"`
-	ReuseAddr          bool           `json:"reuse_addr,omitempty"`
-	ConnectTimeout     Duration       `json:"connect_timeout,omitempty"`
-	TCPFastOpen        bool           `json:"tcp_fast_open,omitempty"`
-	TCPMultiPath       bool           `json:"tcp_multi_path,omitempty"`
-	UDPFragment        *bool          `json:"udp_fragment,omitempty"`
-	UDPFragmentDefault bool           `json:"-"`
-	DomainStrategy     DomainStrategy `json:"domain_strategy,omitempty"`
-	FallbackDelay      Duration       `json:"fallback_delay,omitempty"`
+	Detour             string             `json:"detour,omitempty"`
+	BindInterface      string             `json:"bind_interface,omitempty"`
+	Inet4BindAddress   *ListenAddress     `json:"inet4_bind_address,omitempty"`
+	Inet6BindAddress   *ListenAddress     `json:"inet6_bind_address,omitempty"`
+	ProtectPath        string             `json:"protect_path,omitempty"`
+	RoutingMark        int                `json:"routing_mark,omitempty"`
+	ReuseAddr          bool               `json:"reuse_addr,omitempty"`
+	ConnectTimeout     Duration           `json:"connect_timeout,omitempty"`
+	TCPFastOpen        bool               `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath       bool               `json:"tcp_multi_path,omitempty"`
+	TLSFragment        TLSFragmentOptions `json:"tls_fragment,omitempty"`
+	UDPFragment        *bool              `json:"udp_fragment,omitempty"`
+	UDPFragmentDefault bool               `json:"-"`
+	DomainStrategy     DomainStrategy     `json:"domain_strategy,omitempty"`
+	FallbackDelay      Duration           `json:"fallback_delay,omitempty"`
 }
 
 type ServerOptions struct {
