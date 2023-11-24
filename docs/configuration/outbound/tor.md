@@ -44,7 +44,7 @@ Each start will be very slow if not specified.
 
 Map of torrc options.
 
-See [tor(1)](https://linux.die.net/man/1/tor) for details.
+See [tor manual](https://2019.www.torproject.org/docs/tor-manual.html.en) for details.
 
 ### Dial Fields
 

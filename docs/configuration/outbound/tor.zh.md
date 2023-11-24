@@ -44,7 +44,7 @@ Tor 的数据目录。
 
 torrc 参数表。
 
-参阅 [tor(1)](https://linux.die.net/man/1/tor)。
+参阅 [tor 手册](https://2019.www.torproject.org/docs/tor-manual.html.en)。
 
 ### 拨号字段
 
