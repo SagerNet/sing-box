@@ -1,6 +1,7 @@
 package cachefile
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 var (
@@ -41,7 +43,7 @@ type CacheFile struct {
 	saveMetadataTimer *time.Timer
 }
 
-func Open(path string, cacheID string) (*CacheFile, error) {
+func Open(ctx context.Context, path string, cacheID string) (*CacheFile, error) {
 	const fileMode = 0o666
 	options := bbolt.Options{Timeout: time.Second}
 	var (
@@ -66,6 +68,10 @@ func Open(path string, cacheID string) (*CacheFile, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	err = filemanager.Chown(ctx, path)
+	if err != nil {
+		return nil, E.Cause(err, "platform chown")
 	}
 	var cacheIDBytes []byte
 	if cacheID != "" {
