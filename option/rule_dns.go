@@ -78,6 +78,8 @@ type DefaultDNSRule struct {
 	UserID          Listable[int32]        `json:"user_id,omitempty"`
 	Outbound        Listable[string]       `json:"outbound,omitempty"`
 	ClashMode       string                 `json:"clash_mode,omitempty"`
+	WIFISSID        Listable[string]       `json:"wifi_ssid,omitempty"`
+	WIFIBSSID       Listable[string]       `json:"wifi_bssid,omitempty"`
 	Invert          bool                   `json:"invert,omitempty"`
 	Server          string                 `json:"server,omitempty"`
 	DisableCache    bool                   `json:"disable_cache,omitempty"`

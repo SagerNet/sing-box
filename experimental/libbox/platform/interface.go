@@ -23,6 +23,7 @@ type Interface interface {
 	Interfaces() ([]NetworkInterface, error)
 	UnderNetworkExtension() bool
 	ClearDNSCache()
+	ReadWIFIState() adapter.WIFIState
 	process.Searcher
 }
 

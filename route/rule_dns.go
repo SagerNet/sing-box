@@ -180,6 +180,16 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.WIFISSID) > 0 {
+		item := NewWIFISSIDItem(router, options.WIFISSID)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.WIFIBSSID) > 0 {
+		item := NewWIFIBSSIDItem(router, options.WIFIBSSID)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	return rule, nil
 }
 
