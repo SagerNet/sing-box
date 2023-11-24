@@ -11,6 +11,7 @@
   "connect_timeout": "5s",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
+  "tls_fragment": {},
   "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "fallback_delay": "300ms"
@@ -63,6 +64,10 @@ Enable TCP Fast Open.
 
 Enable TCP Multi Path.
 
+#### tls_fragment
+
+Enable TLS fragmentation, see [TLS Fragment](/configuration/shared/tls-fragment) for details.
+
 #### udp_fragment
 
 Enable UDP fragmentation.
@@ -84,7 +89,7 @@ If set, the requested domain name will be resolved to IP before connect.
 
 | Outbound | Effected domains         | Fallback Value                            |
 |----------|--------------------------|-------------------------------------------|
-| `direct` | Domain in request        | Take `inbound.domain_strategy` if not set | 
+| `direct` | Domain in request        | Take `inbound.domain_strategy` if not set |
 | others   | Domain in server address | /                                         |
 
 #### fallback_delay
