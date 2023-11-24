@@ -1,3 +1,9 @@
+#### 1.6.7
+
+* macOS: Add button for uninstall SystemExtension in the standalone graphical client
+* Fix missing UDP user context on TUIC/Hysteria2 inbounds
+* Fixes and improvements
+
 #### 1.6.6
 
 * Fixes and improvements
