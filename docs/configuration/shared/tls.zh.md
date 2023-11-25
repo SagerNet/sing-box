@@ -12,6 +12,9 @@
   "certificate_path": "",
   "key": [],
   "key_path": "",
+  "clientAuth": false,
+  "clientCA": [],
+  "clientCA_path": "",
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -66,9 +69,14 @@
   "cipher_suites": [],
   "certificate": [],
   "certificate_path": "",
+  "clientAuth": false,
+  "client_key": [],
+  "client_key_path": "",
+  "client_certificate": [],
+  "client_certificate_path": "",
   "ech": {
     "enabled": false,
-    "pq_signature_schemes_enabled": false,
+    "pqignature_schemes_enabled": false,
     "dynamic_record_sizing_disabled": false,
     "config": [],
     "config_path": ""
@@ -188,6 +196,46 @@ TLS 版本值：
 ==仅服务器==
 
 服务器 PEM 私钥路径。
+
+#### clientAuth
+
+启用客户端验证
+
+#### clientCA 
+
+==仅服务器==
+
+服务器 PEM 验证客户端 CA 证书行数组
+
+#### clientCA_path
+
+==仅服务器==
+
+服务器 PEM 验证客户端 CA 证书路径
+
+#### client_certificate
+
+==仅客户端==
+
+客户端 PEM 证书行数组。
+
+#### certificate_path
+
+==仅客户端==
+
+客户端 PEM 证书路径。
+
+#### client_key
+
+==仅客户端==
+
+客户端 PEM 私钥行数组。
+
+#### client_key_path
+
+==仅客户端==
+
+客户端 PEM 私钥路径。
 
 #### utls
 
