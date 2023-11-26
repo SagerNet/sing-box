@@ -87,9 +87,15 @@ func (t *Transport) Start() error {
 }
 
 func (t *Transport) Reset() {
+	for _, transport := range t.transports {
+		transport.Reset()
+	}
 }
 
 func (t *Transport) Close() error {
+	for _, transport := range t.transports {
+		transport.Close()
+	}
 	if t.interfaceCallback != nil {
 		t.router.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
@@ -265,6 +271,9 @@ func (t *Transport) recreateServers(iface *net.Interface, serverAddrs []netip.Ad
 			return err
 		}
 		transports = append(transports, serverTransport)
+	}
+	for _, transport := range t.transports {
+		transport.Close()
 	}
 	t.transports = transports
 	return nil
