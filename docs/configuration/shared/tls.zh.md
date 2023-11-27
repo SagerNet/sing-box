@@ -76,7 +76,7 @@
   "client_certificate_path": "",
   "ech": {
     "enabled": false,
-    "pqignature_schemes_enabled": false,
+    "pq_signature_schemes_enabled": false,
     "dynamic_record_sizing_disabled": false,
     "config": [],
     "config_path": ""
