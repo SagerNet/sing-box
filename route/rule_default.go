@@ -8,13 +8,13 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rule) (adapter.Rule, error) {
+func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.DefaultOptions.Outbound == "" {
+		if options.DefaultOptions.Outbound == "" && checkOutbound {
 			return nil, E.New("missing outbound field")
 		}
 		return NewDefaultRule(router, logger, options.DefaultOptions)
@@ -22,7 +22,7 @@ func NewRule(router adapter.Router, logger log.ContextLogger, options option.Rul
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.LogicalOptions.Outbound == "" {
+		if options.LogicalOptions.Outbound == "" && checkOutbound {
 			return nil, E.New("missing outbound field")
 		}
 		return NewLogicalRule(router, logger, options.LogicalOptions)
@@ -220,7 +220,7 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDefaultRule(router, logger, subRule)
+		rule, err := NewRule(router, logger, subRule, false)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
