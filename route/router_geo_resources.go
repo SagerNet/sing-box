@@ -252,10 +252,8 @@ func hasRule(rules []option.Rule, cond func(rule option.DefaultRule) bool) bool 
 				return true
 			}
 		case C.RuleTypeLogical:
-			for _, subRule := range rule.LogicalOptions.Rules {
-				if cond(subRule) {
-					return true
-				}
+			if hasRule(rule.LogicalOptions.Rules, cond) {
+				return true
 			}
 		}
 	}
@@ -270,10 +268,8 @@ func hasDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bo
 				return true
 			}
 		case C.RuleTypeLogical:
-			for _, subRule := range rule.LogicalOptions.Rules {
-				if cond(subRule) {
-					return true
-				}
+			if hasDNSRule(rule.LogicalOptions.Rules, cond) {
+				return true
 			}
 		}
 	}
