@@ -8,13 +8,13 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule) (adapter.DNSRule, error) {
+func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.DefaultOptions.Server == "" {
+		if options.DefaultOptions.Server == "" && checkServer {
 			return nil, E.New("missing server field")
 		}
 		return NewDefaultDNSRule(router, logger, options.DefaultOptions)
@@ -22,7 +22,7 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		if options.LogicalOptions.Server == "" {
+		if options.LogicalOptions.Server == "" && checkServer {
 			return nil, E.New("missing server field")
 		}
 		return NewLogicalDNSRule(router, logger, options.LogicalOptions)
@@ -228,7 +228,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDefaultDNSRule(router, logger, subRule)
+		rule, err := NewDNSRule(router, logger, subRule, false)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
