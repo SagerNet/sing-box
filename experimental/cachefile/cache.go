@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/bbolt"
 	bboltErrors "github.com/sagernet/bbolt/errors"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service/filemanager"
@@ -31,11 +32,15 @@ var (
 	cacheIDDefault = []byte("default")
 )
 
-var _ adapter.ClashCacheFile = (*CacheFile)(nil)
+var _ adapter.CacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
+	ctx         context.Context
+	path        string
+	cacheID     []byte
+	storeFakeIP bool
+
 	DB                *bbolt.DB
-	cacheID           []byte
 	saveAccess        sync.RWMutex
 	saveDomain        map[netip.Addr]string
 	saveAddress4      map[string]netip.Addr
@@ -43,7 +48,29 @@ type CacheFile struct {
 	saveMetadataTimer *time.Timer
 }
 
-func Open(ctx context.Context, path string, cacheID string) (*CacheFile, error) {
+func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
+	var path string
+	if options.Path != "" {
+		path = options.Path
+	} else {
+		path = "cache.db"
+	}
+	var cacheIDBytes []byte
+	if options.CacheID != "" {
+		cacheIDBytes = append([]byte{0}, []byte(options.CacheID)...)
+	}
+	return &CacheFile{
+		ctx:          ctx,
+		path:         filemanager.BasePath(ctx, path),
+		cacheID:      cacheIDBytes,
+		storeFakeIP:  options.StoreFakeIP,
+		saveDomain:   make(map[netip.Addr]string),
+		saveAddress4: make(map[string]netip.Addr),
+		saveAddress6: make(map[string]netip.Addr),
+	}
+}
+
+func (c *CacheFile) start() error {
 	const fileMode = 0o666
 	options := bbolt.Options{Timeout: time.Second}
 	var (
@@ -51,7 +78,7 @@ func Open(ctx context.Context, path string, cacheID string) (*CacheFile, error) 
 		err error
 	)
 	for i := 0; i < 10; i++ {
-		db, err = bbolt.Open(path, fileMode, &options)
+		db, err = bbolt.Open(c.path, fileMode, &options)
 		if err == nil {
 			break
 		}
@@ -59,23 +86,20 @@ func Open(ctx context.Context, path string, cacheID string) (*CacheFile, error) 
 			continue
 		}
 		if E.IsMulti(err, bboltErrors.ErrInvalid, bboltErrors.ErrChecksum, bboltErrors.ErrVersionMismatch) {
-			rmErr := os.Remove(path)
+			rmErr := os.Remove(c.path)
 			if rmErr != nil {
-				return nil, err
+				return err
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = filemanager.Chown(ctx, path)
+	err = filemanager.Chown(c.ctx, c.path)
 	if err != nil {
-		return nil, E.Cause(err, "platform chown")
-	}
-	var cacheIDBytes []byte
-	if cacheID != "" {
-		cacheIDBytes = append([]byte{0}, []byte(cacheID)...)
+		db.Close()
+		return E.Cause(err, "platform chown")
 	}
 	err = db.Batch(func(tx *bbolt.Tx) error {
 		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
@@ -97,15 +121,30 @@ func Open(ctx context.Context, path string, cacheID string) (*CacheFile, error) 
 		})
 	})
 	if err != nil {
-		return nil, err
+		db.Close()
+		return err
 	}
-	return &CacheFile{
-		DB:           db,
-		cacheID:      cacheIDBytes,
-		saveDomain:   make(map[netip.Addr]string),
-		saveAddress4: make(map[string]netip.Addr),
-		saveAddress6: make(map[string]netip.Addr),
-	}, nil
+	c.DB = db
+	return nil
+}
+
+func (c *CacheFile) PreStart() error {
+	return c.start()
+}
+
+func (c *CacheFile) Start() error {
+	return nil
+}
+
+func (c *CacheFile) Close() error {
+	if c.DB == nil {
+		return nil
+	}
+	return c.DB.Close()
+}
+
+func (c *CacheFile) StoreFakeIP() bool {
+	return c.storeFakeIP
 }
 
 func (c *CacheFile) LoadMode() string {
@@ -217,8 +256,4 @@ func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
 			return bucket.Put([]byte(group), []byte{0})
 		}
 	})
-}
-
-func (c *CacheFile) Close() error {
-	return c.DB.Close()
 }
