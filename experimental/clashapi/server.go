@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
-	"github.com/sagernet/sing-box/experimental/clashapi/cachefile"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -49,12 +48,6 @@ type Server struct {
 	mode           string
 	modeList       []string
 	modeUpdateHook chan<- struct{}
-	storeMode      bool
-	storeSelected  bool
-	storeFakeIP    bool
-	cacheFilePath  string
-	cacheID        string
-	cacheFile      adapter.ClashCacheFile
 
 	externalController       bool
 	externalUI               string
@@ -76,9 +69,6 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		trafficManager:           trafficManager,
 		modeList:                 options.ModeList,
 		externalController:       options.ExternalController != "",
-		storeMode:                options.StoreMode,
-		storeSelected:            options.StoreSelected,
-		storeFakeIP:              options.StoreFakeIP,
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
@@ -94,18 +84,10 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		server.modeList = append([]string{defaultMode}, server.modeList...)
 	}
 	server.mode = defaultMode
-	if options.StoreMode || options.StoreSelected || options.StoreFakeIP || options.ExternalController == "" {
-		cachePath := os.ExpandEnv(options.CacheFile)
-		if cachePath == "" {
-			cachePath = "cache.db"
-		}
-		if foundPath, loaded := C.FindPath(cachePath); loaded {
-			cachePath = foundPath
-		} else {
-			cachePath = filemanager.BasePath(ctx, cachePath)
-		}
-		server.cacheFilePath = cachePath
-		server.cacheID = options.CacheID
+	//goland:noinspection GoDeprecation
+	//nolint:staticcheck
+	if options.StoreMode || options.StoreSelected || options.StoreFakeIP || options.CacheFile != "" || options.CacheID != "" {
+		return nil, E.New("cache_file and related fields in Clash API is deprecated in sing-box 1.8.0, use experimental.cache_file instead.")
 	}
 	cors := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -128,7 +110,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		r.Mount("/providers/rules", ruleProviderRouter())
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
-		r.Mount("/cache", cacheRouter(router))
+		r.Mount("/cache", cacheRouter(ctx))
 		r.Mount("/dns", dnsRouter(router))
 
 		server.setupMetaAPI(r)
@@ -147,19 +129,13 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 }
 
 func (s *Server) PreStart() error {
-	if s.cacheFilePath != "" {
-		cacheFile, err := cachefile.Open(s.ctx, s.cacheFilePath, s.cacheID)
-		if err != nil {
-			return E.Cause(err, "open cache file")
-		}
-		s.cacheFile = cacheFile
-		if s.storeMode {
-			mode := s.cacheFile.LoadMode()
-			if common.Any(s.modeList, func(it string) bool {
-				return strings.EqualFold(it, mode)
-			}) {
-				s.mode = mode
-			}
+	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+	if cacheFile != nil {
+		mode := cacheFile.LoadMode()
+		if common.Any(s.modeList, func(it string) bool {
+			return strings.EqualFold(it, mode)
+		}) {
+			s.mode = mode
 		}
 	}
 	return nil
@@ -187,7 +163,6 @@ func (s *Server) Close() error {
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
 		s.trafficManager,
-		s.cacheFile,
 		s.urlTestHistory,
 	)
 }
@@ -224,25 +199,14 @@ func (s *Server) SetMode(newMode string) {
 		}
 	}
 	s.router.ClearDNSCache()
-	if s.storeMode {
-		err := s.cacheFile.StoreMode(newMode)
+	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+	if cacheFile != nil {
+		err := cacheFile.StoreMode(newMode)
 		if err != nil {
 			s.logger.Error(E.Cause(err, "save mode"))
 		}
 	}
 	s.logger.Info("updated mode: ", newMode)
-}
-
-func (s *Server) StoreSelected() bool {
-	return s.storeSelected
-}
-
-func (s *Server) StoreFakeIP() bool {
-	return s.storeFakeIP
-}
-
-func (s *Server) CacheFile() adapter.ClashCacheFile {
-	return s.cacheFile
 }
 
 func (s *Server) HistoryStorage() *urltest.HistoryStorage {
