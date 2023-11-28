@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -27,24 +28,37 @@ func NewClashServer(ctx context.Context, router adapter.Router, logFactory log.O
 
 func CalculateClashModeList(options option.Options) []string {
 	var clashMode []string
-	for _, dnsRule := range common.PtrValueOrDefault(options.DNS).Rules {
-		if dnsRule.DefaultOptions.ClashMode != "" && !common.Contains(clashMode, dnsRule.DefaultOptions.ClashMode) {
-			clashMode = append(clashMode, dnsRule.DefaultOptions.ClashMode)
-		}
-		for _, defaultRule := range dnsRule.LogicalOptions.Rules {
-			if defaultRule.ClashMode != "" && !common.Contains(clashMode, defaultRule.ClashMode) {
-				clashMode = append(clashMode, defaultRule.ClashMode)
+	clashMode = append(clashMode, extraClashModeFromRule(common.PtrValueOrDefault(options.Route).Rules)...)
+	clashMode = append(clashMode, extraClashModeFromDNSRule(common.PtrValueOrDefault(options.DNS).Rules)...)
+	clashMode = common.FilterNotDefault(common.Uniq(clashMode))
+	return clashMode
+}
+
+func extraClashModeFromRule(rules []option.Rule) []string {
+	var clashMode []string
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if rule.DefaultOptions.ClashMode != "" {
+				clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
 			}
+		case C.RuleTypeLogical:
+			clashMode = append(clashMode, extraClashModeFromRule(rule.LogicalOptions.Rules)...)
 		}
 	}
-	for _, rule := range common.PtrValueOrDefault(options.Route).Rules {
-		if rule.DefaultOptions.ClashMode != "" && !common.Contains(clashMode, rule.DefaultOptions.ClashMode) {
-			clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
-		}
-		for _, defaultRule := range rule.LogicalOptions.Rules {
-			if defaultRule.ClashMode != "" && !common.Contains(clashMode, defaultRule.ClashMode) {
-				clashMode = append(clashMode, defaultRule.ClashMode)
+	return clashMode
+}
+
+func extraClashModeFromDNSRule(rules []option.DNSRule) []string {
+	var clashMode []string
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if rule.DefaultOptions.ClashMode != "" {
+				clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
 			}
+		case C.RuleTypeLogical:
+			clashMode = append(clashMode, extraClashModeFromDNSRule(rule.LogicalOptions.Rules)...)
 		}
 	}
 	return clashMode

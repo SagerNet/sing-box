@@ -53,6 +53,17 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (r DNSRule) IsValid() bool {
+	switch r.Type {
+	case C.RuleTypeDefault:
+		return r.DefaultOptions.IsValid()
+	case C.RuleTypeLogical:
+		return r.LogicalOptions.IsValid()
+	default:
+		panic("unknown DNS rule type: " + r.Type)
+	}
+}
+
 type DefaultDNSRule struct {
 	Inbound         Listable[string]       `json:"inbound,omitempty"`
 	IPVersion       int                    `json:"ip_version,omitempty"`
@@ -96,14 +107,14 @@ func (r DefaultDNSRule) IsValid() bool {
 }
 
 type LogicalDNSRule struct {
-	Mode         string           `json:"mode"`
-	Rules        []DefaultDNSRule `json:"rules,omitempty"`
-	Invert       bool             `json:"invert,omitempty"`
-	Server       string           `json:"server,omitempty"`
-	DisableCache bool             `json:"disable_cache,omitempty"`
-	RewriteTTL   *uint32          `json:"rewrite_ttl,omitempty"`
+	Mode         string    `json:"mode"`
+	Rules        []DNSRule `json:"rules,omitempty"`
+	Invert       bool      `json:"invert,omitempty"`
+	Server       string    `json:"server,omitempty"`
+	DisableCache bool      `json:"disable_cache,omitempty"`
+	RewriteTTL   *uint32   `json:"rewrite_ttl,omitempty"`
 }
 
 func (r LogicalDNSRule) IsValid() bool {
-	return len(r.Rules) > 0 && common.All(r.Rules, DefaultDNSRule.IsValid)
+	return len(r.Rules) > 0 && common.All(r.Rules, DNSRule.IsValid)
 }
