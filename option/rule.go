@@ -53,6 +53,17 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (r Rule) IsValid() bool {
+	switch r.Type {
+	case C.RuleTypeDefault:
+		return r.DefaultOptions.IsValid()
+	case C.RuleTypeLogical:
+		return r.LogicalOptions.IsValid()
+	default:
+		panic("unknown rule type: " + r.Type)
+	}
+}
+
 type DefaultRule struct {
 	Inbound         Listable[string] `json:"inbound,omitempty"`
 	IPVersion       int              `json:"ip_version,omitempty"`
@@ -92,12 +103,12 @@ func (r DefaultRule) IsValid() bool {
 }
 
 type LogicalRule struct {
-	Mode     string        `json:"mode"`
-	Rules    []DefaultRule `json:"rules,omitempty"`
-	Invert   bool          `json:"invert,omitempty"`
-	Outbound string        `json:"outbound,omitempty"`
+	Mode     string `json:"mode"`
+	Rules    []Rule `json:"rules,omitempty"`
+	Invert   bool   `json:"invert,omitempty"`
+	Outbound string `json:"outbound,omitempty"`
 }
 
 func (r LogicalRule) IsValid() bool {
-	return len(r.Rules) > 0 && common.All(r.Rules, DefaultRule.IsValid)
+	return len(r.Rules) > 0 && common.All(r.Rules, Rule.IsValid)
 }
