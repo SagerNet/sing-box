@@ -1,17 +1,19 @@
 package fakeip
 
 import (
+	"context"
 	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.FakeIPStore = (*Store)(nil)
 
 type Store struct {
-	router       adapter.Router
+	ctx          context.Context
 	logger       logger.Logger
 	inet4Range   netip.Prefix
 	inet6Range   netip.Prefix
@@ -20,9 +22,9 @@ type Store struct {
 	inet6Current netip.Addr
 }
 
-func NewStore(router adapter.Router, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
+func NewStore(ctx context.Context, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
 	return &Store{
-		router:     router,
+		ctx:        ctx,
 		logger:     logger,
 		inet4Range: inet4Range,
 		inet6Range: inet6Range,
@@ -31,10 +33,9 @@ func NewStore(router adapter.Router, logger logger.Logger, inet4Range netip.Pref
 
 func (s *Store) Start() error {
 	var storage adapter.FakeIPStorage
-	if clashServer := s.router.ClashServer(); clashServer != nil && clashServer.StoreFakeIP() {
-		if cacheFile := clashServer.CacheFile(); cacheFile != nil {
-			storage = cacheFile
-		}
+	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+	if cacheFile != nil && cacheFile.StoreFakeIP() {
+		storage = cacheFile
 	}
 	if storage == nil {
 		storage = NewMemoryStorage()
