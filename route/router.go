@@ -262,7 +262,7 @@ func NewRouter(
 		if fakeIPOptions.Inet6Range != nil {
 			inet6Range = *fakeIPOptions.Inet6Range
 		}
-		router.fakeIPStore = fakeip.NewStore(router, router.logger, inet4Range, inet6Range)
+		router.fakeIPStore = fakeip.NewStore(ctx, router.logger, inet4Range, inet6Range)
 	}
 
 	usePlatformDefaultInterfaceMonitor := platformInterface != nil && platformInterface.UsePlatformDefaultInterfaceMonitor()
