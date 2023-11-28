@@ -228,7 +228,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDefaultDNSRule(router, logger, subRule)
+		rule, err := NewDNSRule(router, logger, subRule)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
