@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/experimental"
+	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
@@ -45,17 +46,21 @@ type Options struct {
 }
 
 func New(options Options) (*Box, error) {
+	createdAt := time.Now()
 	ctx := options.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
 	ctx = pause.ContextWithDefaultManager(ctx)
-	createdAt := time.Now()
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
+	var needCacheFile bool
 	var needClashAPI bool
 	var needV2RayAPI bool
+	if experimentalOptions.CacheFile != nil && experimentalOptions.CacheFile.Enabled || options.PlatformLogWriter != nil {
+		needCacheFile = true
+	}
 	if experimentalOptions.ClashAPI != nil || options.PlatformLogWriter != nil {
 		needClashAPI = true
 	}
@@ -147,6 +152,11 @@ func New(options Options) (*Box, error) {
 	}
 	preServices := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
+	if needCacheFile {
+		cacheFile := cachefile.NewCacheFile(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
+		preServices["cache file"] = cacheFile
+		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
+	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
 		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
