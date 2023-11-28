@@ -1,23 +1,26 @@
 package clashapi
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/service"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
-func cacheRouter(router adapter.Router) http.Handler {
+func cacheRouter(ctx context.Context) http.Handler {
 	r := chi.NewRouter()
-	r.Post("/fakeip/flush", flushFakeip(router))
+	r.Post("/fakeip/flush", flushFakeip(ctx))
 	return r
 }
 
-func flushFakeip(router adapter.Router) func(w http.ResponseWriter, r *http.Request) {
+func flushFakeip(ctx context.Context) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if cacheFile := router.ClashServer().CacheFile(); cacheFile != nil {
+		cacheFile := service.FromContext[adapter.CacheFile](ctx)
+		if cacheFile != nil {
 			err := cacheFile.FakeIPReset()
 			if err != nil {
 				render.Status(r, http.StatusInternalServerError)

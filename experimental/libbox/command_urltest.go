@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/service"
 )
 
 func (c *CommandClient) URLTest(groupTag string) error {
@@ -37,11 +38,11 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	service := s.service
-	if service == nil {
+	serviceNow := s.service
+	if serviceNow == nil {
 		return nil
 	}
-	abstractOutboundGroup, isLoaded := service.instance.Router().Outbound(groupTag)
+	abstractOutboundGroup, isLoaded := serviceNow.instance.Router().Outbound(groupTag)
 	if !isLoaded {
 		return writeError(conn, E.New("outbound group not found: ", groupTag))
 	}
@@ -53,15 +54,9 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	if isURLTest {
 		go urlTest.CheckOutbounds()
 	} else {
-		var historyStorage *urltest.HistoryStorage
-		if clashServer := service.instance.Router().ClashServer(); clashServer != nil {
-			historyStorage = clashServer.HistoryStorage()
-		} else {
-			return writeError(conn, E.New("Clash API is required for URLTest on non-URLTest group"))
-		}
-
+		historyStorage := service.PtrFromContext[urltest.HistoryStorage](serviceNow.ctx)
 		outbounds := common.Filter(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
-			itOutbound, _ := service.instance.Router().Outbound(it)
+			itOutbound, _ := serviceNow.instance.Router().Outbound(it)
 			return itOutbound
 		}), func(it adapter.Outbound) bool {
 			if it == nil {
@@ -73,12 +68,12 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 			}
 			return true
 		})
-		b, _ := batch.New(service.ctx, batch.WithConcurrencyNum[any](10))
+		b, _ := batch.New(serviceNow.ctx, batch.WithConcurrencyNum[any](10))
 		for _, detour := range outbounds {
 			outboundToTest := detour
 			outboundTag := outboundToTest.Tag()
 			b.Go(outboundTag, func() (any, error) {
-				t, err := urltest.URLTest(service.ctx, "", outboundToTest)
+				t, err := urltest.URLTest(serviceNow.ctx, "", outboundToTest)
 				if err != nil {
 					historyStorage.DeleteURLTestHistory(outboundTag)
 				} else {
