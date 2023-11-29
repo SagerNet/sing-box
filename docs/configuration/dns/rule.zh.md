@@ -1,3 +1,13 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "sing-box 1.8.0 中的更改"
+
+    :material-plus: [rule_set](#rule_set)  
+    :material-delete-clock: [geoip](#geoip)  
+    :material-delete-clock: [geosite](#geosite)
+
 ### 结构
 
 ```json
@@ -84,6 +94,10 @@
         "wifi_bssid": [
           "00:00:00:00:00:00"
         ],
+        "rule_set": [
+          "geoip-cn",
+          "geosite-cn"
+        ],
         "invert": false,
         "outbound": [
           "direct"
@@ -163,9 +177,17 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### geosite
 
-匹配 GeoSite。
+!!! failure "已在 sing-box 1.8.0 废弃"
+
+    Geosite 已废弃且可能在不久的将来移除，参阅 [迁移指南](/migration/#migrate-geosite-to-rule-set)。
+
+匹配 Geosite。
 
 #### source_geoip
+
+!!! failure "已在 sing-box 1.8.0 废弃"
+
+    GeoIp 已废弃且可能在不久的将来移除，参阅 [迁移指南](/migration/#migrate-geoip-to-rule-set)。
 
 匹配源 GeoIP。
 
@@ -245,6 +267,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 匹配 WiFi BSSID。
 
+#### rule_set
+
+!!! question "自 sing-box 1.8.0 起"
+
+匹配[规则集](/zh/configuration/route/#rule_set)。
+
 #### invert
 
 反选匹配结果。
@@ -281,4 +309,4 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### rules
 
-包括的默认规则。
+包括的规则。
