@@ -1,3 +1,15 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "Changes in sing-box 1.8.0"
+
+    :material-plus: [rule_set](#rule_set)  
+    :material-plus: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
+    :material-delete-clock: [source_geoip](#source_geoip)  
+    :material-delete-clock: [geoip](#geoip)  
+    :material-delete-clock: [geosite](#geosite)
+
 ### Structure
 
 ```json
@@ -89,6 +101,10 @@
         "wifi_bssid": [
           "00:00:00:00:00:00"
         ],
+        "rule_set": [
+          "geoip-cn",
+          "geosite-cn"
+        ],
         "invert": false,
         "outbound": "direct"
       },
@@ -160,23 +176,35 @@ Match domain using regular expression.
 
 #### geosite
 
+!!! failure "Deprecated in sing-box 1.8.0"
+
+    Geosite is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geosite-to-rule-set).
+
 Match geosite.
 
 #### source_geoip
+
+!!! failure "Deprecated in sing-box 1.8.0"
+
+    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-set).
 
 Match source geoip.
 
 #### geoip
 
+!!! failure "Deprecated in sing-box 1.8.0"
+
+    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-set).
+
 Match geoip.
 
 #### source_ip_cidr
 
-Match source ip cidr.
+Match source IP CIDR.
 
 #### ip_cidr
 
-Match ip cidr.
+Match IP CIDR.
 
 #### source_port
 
@@ -250,6 +278,18 @@ Match WiFi SSID.
 
 Match WiFi BSSID.
 
+#### rule_set
+
+!!! question "Since sing-box 1.8.0"
+
+Match [Rule Set](/configuration/route/#rule_set).
+
+#### rule_set_ipcidr_match_source
+
+!!! question "Since sing-box 1.8.0"
+
+Make `ipcidr` in rule sets match the source IP.
+
 #### invert
 
 Invert match result.
@@ -276,4 +316,4 @@ Tag of the target outbound.
 
 ==Required==
 
-Included default rules.
+Included rules.
