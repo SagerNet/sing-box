@@ -194,9 +194,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 	group.Append0(func(ctx context.Context) error {
 		var buffer *buf.Buffer
 		readWaiter.InitializeReadWaiter(func() *buf.Buffer {
-			buffer = buf.NewSize(dns.FixedPacketSize)
-			buffer.FullReset()
-			return buffer
+			return buf.NewSize(dns.FixedPacketSize)
 		})
 		defer readWaiter.InitializeReadWaiter(nil)
 		for {
