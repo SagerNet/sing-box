@@ -1,6 +1,7 @@
 package route
 
 import (
+	"io"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -135,7 +136,7 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
-	rules    []adapter.Rule
+	rules    []adapter.HeadlessRule
 	mode     string
 	invert   bool
 	outbound string
@@ -146,7 +147,10 @@ func (r *abstractLogicalRule) Type() string {
 }
 
 func (r *abstractLogicalRule) UpdateGeosite() error {
-	for _, rule := range r.rules {
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (adapter.Rule, bool) {
+		rule, loaded := it.(adapter.Rule)
+		return rule, loaded
+	}) {
 		err := rule.UpdateGeosite()
 		if err != nil {
 			return err
@@ -156,7 +160,10 @@ func (r *abstractLogicalRule) UpdateGeosite() error {
 }
 
 func (r *abstractLogicalRule) Start() error {
-	for _, rule := range r.rules {
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (common.Starter, bool) {
+		rule, loaded := it.(common.Starter)
+		return rule, loaded
+	}) {
 		err := rule.Start()
 		if err != nil {
 			return err
@@ -166,7 +173,10 @@ func (r *abstractLogicalRule) Start() error {
 }
 
 func (r *abstractLogicalRule) Close() error {
-	for _, rule := range r.rules {
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (io.Closer, bool) {
+		rule, loaded := it.(io.Closer)
+		return rule, loaded
+	}) {
 		err := rule.Close()
 		if err != nil {
 			return err
@@ -177,11 +187,11 @@ func (r *abstractLogicalRule) Close() error {
 
 func (r *abstractLogicalRule) Match(metadata *adapter.InboundContext) bool {
 	if r.mode == C.LogicalTypeAnd {
-		return common.All(r.rules, func(it adapter.Rule) bool {
+		return common.All(r.rules, func(it adapter.HeadlessRule) bool {
 			return it.Match(metadata)
 		}) != r.invert
 	} else {
-		return common.Any(r.rules, func(it adapter.Rule) bool {
+		return common.Any(r.rules, func(it adapter.HeadlessRule) bool {
 			return it.Match(metadata)
 		}) != r.invert
 	}
