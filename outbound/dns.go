@@ -165,6 +165,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 				}
 				timeout.Update()
 				responseBuffer := buf.NewPacket()
+				responseBuffer.Resize(1024, 0)
 				n, err := response.PackBuffer(responseBuffer.FreeBytes())
 				if err != nil {
 					cancel(err)
@@ -194,9 +195,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 	group.Append0(func(ctx context.Context) error {
 		var buffer *buf.Buffer
 		readWaiter.InitializeReadWaiter(func() *buf.Buffer {
-			buffer = buf.NewSize(dns.FixedPacketSize)
-			buffer.FullReset()
-			return buffer
+			return buf.NewSize(dns.FixedPacketSize)
 		})
 		defer readWaiter.InitializeReadWaiter(nil)
 		for {
@@ -243,6 +242,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				}
 				timeout.Update()
 				responseBuffer := buf.NewPacket()
+				responseBuffer.Resize(1024, 0)
 				n, err := response.PackBuffer(responseBuffer.FreeBytes())
 				if err != nil {
 					cancel(err)
