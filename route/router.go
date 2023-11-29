@@ -67,6 +67,8 @@ type Router struct {
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
+	ruleSets                           []adapter.RuleSet
+	ruleSetMap                         map[string]adapter.RuleSet
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
@@ -106,6 +108,7 @@ func NewRouter(
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
+		ruleSetMap:            make(map[string]adapter.RuleSet),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
@@ -127,18 +130,26 @@ func NewRouter(
 		Logger:           router.dnsLogger,
 	})
 	for i, ruleOptions := range options.Rules {
-		routeRule, err := NewRule(router, router.logger, ruleOptions)
+		routeRule, err := NewRule(router, router.logger, ruleOptions, true)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule[", i, "]")
 		}
 		router.rules = append(router.rules, routeRule)
 	}
 	for i, dnsRuleOptions := range dnsOptions.Rules {
-		dnsRule, err := NewDNSRule(router, router.logger, dnsRuleOptions)
+		dnsRule, err := NewDNSRule(router, router.logger, dnsRuleOptions, true)
 		if err != nil {
 			return nil, E.Cause(err, "parse dns rule[", i, "]")
 		}
 		router.dnsRules = append(router.dnsRules, dnsRule)
+	}
+	for i, ruleSetOptions := range options.RuleSet {
+		ruleSet, err := NewRuleSet(ctx, router, router.logger, ruleSetOptions)
+		if err != nil {
+			return nil, E.Cause(err, "parse rule-set[", i, "]")
+		}
+		router.ruleSets = append(router.ruleSets, ruleSet)
+		router.ruleSetMap[ruleSetOptions.Tag] = ruleSet
 	}
 
 	transports := make([]dns.Transport, len(dnsOptions.Servers))
@@ -479,6 +490,12 @@ func (r *Router) Start() error {
 	if r.needWIFIState {
 		r.updateWIFIState()
 	}
+	for i, ruleSet := range r.ruleSets {
+		err := ruleSet.Start()
+		if err != nil {
+			return E.Cause(err, "initialize rule-set[", i, "]")
+		}
+	}
 	for i, rule := range r.rules {
 		err := rule.Start()
 		if err != nil {
@@ -576,16 +593,27 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	return outbound, loaded
 }
 
-func (r *Router) DefaultOutbound(network string) adapter.Outbound {
+func (r *Router) DefaultOutbound(network string) (adapter.Outbound, error) {
 	if network == N.NetworkTCP {
-		return r.defaultOutboundForConnection
+		if r.defaultOutboundForConnection == nil {
+			return nil, E.New("missing default outbound for TCP connections")
+		}
+		return r.defaultOutboundForConnection, nil
 	} else {
-		return r.defaultOutboundForPacketConnection
+		if r.defaultOutboundForPacketConnection == nil {
+			return nil, E.New("missing default outbound for UDP connections")
+		}
+		return r.defaultOutboundForPacketConnection, nil
 	}
 }
 
 func (r *Router) FakeIPStore() adapter.FakeIPStore {
 	return r.fakeIPStore
+}
+
+func (r *Router) RuleSet(tag string) (adapter.RuleSet, bool) {
+	ruleSet, loaded := r.ruleSetMap[tag]
+	return ruleSet, loaded
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

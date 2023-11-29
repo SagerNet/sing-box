@@ -22,11 +22,13 @@ var (
 	bucketSelected = []byte("selected")
 	bucketExpand   = []byte("group_expand")
 	bucketMode     = []byte("clash_mode")
+	bucketRuleSet  = []byte("rule_set")
 
 	bucketNameList = []string{
 		string(bucketSelected),
 		string(bucketExpand),
 		string(bucketMode),
+		string(bucketRuleSet),
 	}
 
 	cacheIDDefault = []byte("default")
@@ -49,13 +51,19 @@ type CacheFile struct {
 }
 
 func NewCacheFile(ctx context.Context, options option.CacheFileOptions) *CacheFile {
+	var path string
+	if options.Path != "" {
+		path = filemanager.BasePath(ctx, options.Path)
+	} else {
+		path = "cache.db"
+	}
 	var cacheIDBytes []byte
 	if options.CacheID != "" {
 		cacheIDBytes = append([]byte{0}, []byte(options.CacheID)...)
 	}
 	return &CacheFile{
 		ctx:          ctx,
-		path:         options.Path,
+		path:         path,
 		cacheID:      cacheIDBytes,
 		storeFakeIP:  options.StoreFakeIP,
 		saveDomain:   make(map[netip.Addr]string),
@@ -131,6 +139,9 @@ func (c *CacheFile) Start() error {
 }
 
 func (c *CacheFile) Close() error {
+	if c.DB == nil {
+		return nil
+	}
 	return c.DB.Close()
 }
 
@@ -246,5 +257,38 @@ func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
 		} else {
 			return bucket.Put([]byte(group), []byte{0})
 		}
+	})
+}
+
+func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedRuleSet {
+	var savedSet adapter.SavedRuleSet
+	err := c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketRuleSet)
+		if bucket == nil {
+			return os.ErrNotExist
+		}
+		setBinary := bucket.Get([]byte(tag))
+		if len(setBinary) == 0 {
+			return os.ErrInvalid
+		}
+		return savedSet.UnmarshalBinary(setBinary)
+	})
+	if err != nil {
+		return nil
+	}
+	return &savedSet
+}
+
+func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedRuleSet) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketRuleSet)
+		if err != nil {
+			return err
+		}
+		setBinary, err := set.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(tag), setBinary)
 	})
 }

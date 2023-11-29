@@ -7,7 +7,6 @@ import (
 
 	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/spf13/cobra"
@@ -67,43 +66,5 @@ func format() error {
 		}
 		os.Stderr.WriteString(outputPath + "\n")
 	}
-	return nil
-}
-
-func formatOne(configPath string) error {
-	configContent, err := os.ReadFile(configPath)
-	if err != nil {
-		return E.Cause(err, "read config")
-	}
-	var options option.Options
-	err = options.UnmarshalJSON(configContent)
-	if err != nil {
-		return E.Cause(err, "decode config")
-	}
-	buffer := new(bytes.Buffer)
-	encoder := json.NewEncoder(buffer)
-	encoder.SetIndent("", "  ")
-	err = encoder.Encode(options)
-	if err != nil {
-		return E.Cause(err, "encode config")
-	}
-	if !commandFormatFlagWrite {
-		os.Stdout.WriteString(buffer.String() + "\n")
-		return nil
-	}
-	if bytes.Equal(configContent, buffer.Bytes()) {
-		return nil
-	}
-	output, err := os.Create(configPath)
-	if err != nil {
-		return E.Cause(err, "open output")
-	}
-	_, err = output.Write(buffer.Bytes())
-	output.Close()
-	if err != nil {
-		return E.Cause(err, "write output")
-	}
-	outputPath, _ := filepath.Abs(configPath)
-	os.Stderr.WriteString(outputPath + "\n")
 	return nil
 }
