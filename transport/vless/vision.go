@@ -134,7 +134,7 @@ func (c *VisionConn) Read(p []byte) (n int, err error) {
 			buffers = common.Map(buffers, func(it *buf.Buffer) *buf.Buffer {
 				return it.ToOwned()
 			})
-			chunkBuffer.FullReset()
+			chunkBuffer.Reset()
 		}
 		if c.remainingContent == 0 && c.remainingPadding == 0 {
 			if c.currentCommand == commandPaddingEnd {
