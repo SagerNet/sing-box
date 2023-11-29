@@ -4,6 +4,43 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.8.0-alpha.1
+
+* Migrate cache file from Clash API to independent options **1**
+* Introducing [Rule Set](/configuration/rule-set) **2**
+* Add `sing-box geoip`, `sing-box geosite` and `sing-box rule-set` commands **3**
+* Allow nested logical rules **4**
+
+**1**:
+
+See [Cache File](/configuration/experimental/cache-file) and
+[Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-options).
+
+**2**:
+
+Rule set is independent collections of rules that can be compiled into binaries to improve performance.
+Compared to legacy GeoIP and Geosite resources,
+it can include more types of rules, load faster,
+use less memory, and update automatically.
+
+See [Route#rule_set](/configuration/route/#rule_set),
+[Route Rule](/configuration/route/rule),
+[DNS Rule](/configuration/dns/rule),
+[Rule Set](/configuration/rule-set),
+[Source Format](/configuration/rule-set/source-format) and
+[Headless Rule](/configuration/rule-set/headless-rule).
+
+For GEO resources migration, see [Migrate GeoIP to rule sets](/migration/#migrate-geoip-to-rule-sets) and
+[Migrate Geosite to rule sets](/migration/#migrate-geosite-to-rule-sets).
+
+**3**:
+
+New commands manage GeoIP, Geosite and rule set resources, and help you migrate GEO resources to rule sets.
+
+**4**:
+
+Logical rules in route rules, DNS rules, and the new headless rule now allow nesting of logical rules.
+
 #### 1.7.0
 
 * Fixes and improvements
@@ -142,11 +179,13 @@ Only supported in graphical clients on Android and iOS.
 
 **1**:
 
-Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound
+options.
 
 **2**
 
-Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server,
+see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
 
 #### 1.7.0-alpha.3
 
@@ -213,8 +252,8 @@ When `auto_route` is enabled and `strict_route` is disabled, the device can now 
 
 **2**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
-
+Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-rc.4
 
@@ -227,7 +266,8 @@ Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008
 
 **1**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-beta.4
 
