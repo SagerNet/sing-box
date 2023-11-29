@@ -4,6 +4,47 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.7.0
+
+* Fixes and improvements
+
+Important changes since 1.6:
+
+* Add [exclude route support](/configuration/inbound/tun) for TUN inbound
+* Add `udp_disable_domain_unmapping` [inbound listen option](/configuration/shared/listen) **1**
+* Add [HTTPUpgrade V2Ray transport](/configuration/shared/v2ray-transport#HTTPUpgrade) support **2**
+* Migrate multiplex and UoT server to inbound **3**
+* Add TCP Brutal support for multiplex **4**
+* Add `wifi_ssid` and `wifi_bssid` route and DNS rules **5**
+* Update quic-go to v0.40.0
+* Update gVisor to 20231113.0
+
+**1**:
+
+If enabled, for UDP proxy requests addressed to a domain,
+the original packet address will be sent in the response instead of the mapped domain.
+
+This option is used for compatibility with clients that
+do not support receiving UDP packets with domain addresses, such as Surge.
+
+**2**:
+
+Introduced in V2Ray 5.10.0.
+
+The new HTTPUpgrade transport has better performance than WebSocket and is better suited for CDN abuse.
+
+**3**:
+
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+
+**4**
+
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+
+**5**:
+
+Only supported in graphical clients on Android and iOS.
+
 #### 1.7.0-rc.3
 
 * Fixes and improvements
