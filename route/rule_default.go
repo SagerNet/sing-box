@@ -220,7 +220,7 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDefaultRule(router, logger, subRule)
+		rule, err := NewRule(router, logger, subRule)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}

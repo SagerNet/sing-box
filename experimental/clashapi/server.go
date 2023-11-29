@@ -85,6 +85,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 	}
 	server.mode = defaultMode
 	//goland:noinspection GoDeprecation
+	//nolint:staticcheck
 	if options.StoreMode || options.StoreSelected || options.StoreFakeIP || options.CacheFile != "" || options.CacheID != "" {
 		return nil, E.New("cache_file and related fields in Clash API is deprecated in sing-box 1.8.0, use experimental.cache_file instead.")
 	}
