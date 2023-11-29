@@ -18,7 +18,7 @@ type Router interface {
 
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
-	DefaultOutbound(network string) Outbound
+	DefaultOutbound(network string) (Outbound, error)
 
 	FakeIPStore() FakeIPStore
 
@@ -26,6 +26,8 @@ type Router interface {
 
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
+
+	RuleSet(tag string) (RuleSet, bool)
 
 	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
 	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
@@ -61,11 +63,15 @@ func RouterFromContext(ctx context.Context) Router {
 	return service.FromContext[Router](ctx)
 }
 
+type HeadlessRule interface {
+	Match(metadata *InboundContext) bool
+}
+
 type Rule interface {
+	HeadlessRule
 	Service
 	Type() string
 	UpdateGeosite() error
-	Match(metadata *InboundContext) bool
 	Outbound() string
 	String() string
 }
@@ -74,6 +80,11 @@ type DNSRule interface {
 	Rule
 	DisableCache() bool
 	RewriteTTL() *uint32
+}
+
+type RuleSet interface {
+	HeadlessRule
+	Service
 }
 
 type InterfaceUpdateListener interface {
