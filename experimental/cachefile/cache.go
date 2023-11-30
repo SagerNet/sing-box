@@ -53,7 +53,7 @@ type CacheFile struct {
 func NewCacheFile(ctx context.Context, options option.CacheFileOptions) *CacheFile {
 	var path string
 	if options.Path != "" {
-		path = filemanager.BasePath(ctx, options.Path)
+		path = options.Path
 	} else {
 		path = "cache.db"
 	}
@@ -63,7 +63,7 @@ func NewCacheFile(ctx context.Context, options option.CacheFileOptions) *CacheFi
 	}
 	return &CacheFile{
 		ctx:          ctx,
-		path:         path,
+		path:         filemanager.BasePath(ctx, path),
 		cacheID:      cacheIDBytes,
 		storeFakeIP:  options.StoreFakeIP,
 		saveDomain:   make(map[netip.Addr]string),

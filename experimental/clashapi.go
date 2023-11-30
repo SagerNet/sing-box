@@ -30,7 +30,7 @@ func CalculateClashModeList(options option.Options) []string {
 	var clashMode []string
 	clashMode = append(clashMode, extraClashModeFromRule(common.PtrValueOrDefault(options.Route).Rules)...)
 	clashMode = append(clashMode, extraClashModeFromDNSRule(common.PtrValueOrDefault(options.DNS).Rules)...)
-	clashMode = common.Uniq(clashMode)
+	clashMode = common.FilterNotDefault(common.Uniq(clashMode))
 	return clashMode
 }
 
@@ -39,7 +39,9 @@ func extraClashModeFromRule(rules []option.Rule) []string {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
-			clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
+			if rule.DefaultOptions.ClashMode != "" {
+				clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
+			}
 		case C.RuleTypeLogical:
 			clashMode = append(clashMode, extraClashModeFromRule(rule.LogicalOptions.Rules)...)
 		}

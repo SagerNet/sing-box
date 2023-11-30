@@ -33,7 +33,8 @@ type Box struct {
 	outbounds    []adapter.Outbound
 	logFactory   log.Factory
 	logger       log.ContextLogger
-	preServices  map[string]adapter.Service
+	preServices1 map[string]adapter.Service
+	preServices2 map[string]adapter.Service
 	postServices map[string]adapter.Service
 	done         chan struct{}
 }
@@ -150,11 +151,12 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "initialize platform interface")
 		}
 	}
-	preServices := make(map[string]adapter.Service)
+	preServices1 := make(map[string]adapter.Service)
+	preServices2 := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needCacheFile {
 		cacheFile := cachefile.NewCacheFile(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
-		preServices["cache file"] = cacheFile
+		preServices1["cache file"] = cacheFile
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 	}
 	if needClashAPI {
@@ -165,7 +167,7 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "create clash api server")
 		}
 		router.SetClashServer(clashServer)
-		preServices["clash api"] = clashServer
+		preServices2["clash api"] = clashServer
 	}
 	if needV2RayAPI {
 		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(experimentalOptions.V2RayAPI))
@@ -173,7 +175,7 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "create v2ray api server")
 		}
 		router.SetV2RayServer(v2rayServer)
-		preServices["v2ray api"] = v2rayServer
+		preServices2["v2ray api"] = v2rayServer
 	}
 	return &Box{
 		router:       router,
@@ -182,7 +184,8 @@ func New(options Options) (*Box, error) {
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
-		preServices:  preServices,
+		preServices1: preServices1,
+		preServices2: preServices2,
 		postServices: postServices,
 		done:         make(chan struct{}),
 	}, nil
@@ -227,7 +230,16 @@ func (s *Box) Start() error {
 }
 
 func (s *Box) preStart() error {
-	for serviceName, service := range s.preServices {
+	for serviceName, service := range s.preServices1 {
+		if preService, isPreService := service.(adapter.PreStarter); isPreService {
+			s.logger.Trace("pre-start ", serviceName)
+			err := preService.PreStart()
+			if err != nil {
+				return E.Cause(err, "pre-starting ", serviceName)
+			}
+		}
+	}
+	for serviceName, service := range s.preServices2 {
 		if preService, isPreService := service.(adapter.PreStarter); isPreService {
 			s.logger.Trace("pre-start ", serviceName)
 			err := preService.PreStart()
@@ -248,7 +260,14 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	for serviceName, service := range s.preServices {
+	for serviceName, service := range s.preServices1 {
+		s.logger.Trace("starting ", serviceName)
+		err = service.Start()
+		if err != nil {
+			return E.Cause(err, "start ", serviceName)
+		}
+	}
+	for serviceName, service := range s.preServices2 {
 		s.logger.Trace("starting ", serviceName)
 		err = service.Start()
 		if err != nil {
@@ -323,7 +342,13 @@ func (s *Box) Close() error {
 			return E.Cause(err, "close router")
 		})
 	}
-	for serviceName, service := range s.preServices {
+	for serviceName, service := range s.preServices1 {
+		s.logger.Trace("closing ", serviceName)
+		errors = E.Append(errors, service.Close(), func(err error) error {
+			return E.Cause(err, "close ", serviceName)
+		})
+	}
+	for serviceName, service := range s.preServices2 {
 		s.logger.Trace("closing ", serviceName)
 		errors = E.Append(errors, service.Close(), func(err error) error {
 			return E.Cause(err, "close ", serviceName)
