@@ -69,6 +69,10 @@ icon: material/arrange-bring-forward
       "route": {
         "rules": [
           {
+            "geoip": "private",
+            "outbound": "direct"
+          },
+          {
             "geoip": "cn",
             "outbound": "direct"
           },
@@ -90,6 +94,10 @@ icon: material/arrange-bring-forward
     {
       "route": {
         "rules": [
+          {
+            "ip_is_private": true,
+            "outbound": "direct"
+          },
           {
             "rule_set": "geoip-cn",
             "outbound": "direct"

@@ -5,6 +5,7 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-plus: [rule_set](#rule_set)  
+    :material-plus: [source_ip_is_private](#source_ip_is_private)  
     :material-delete-clock: [geoip](#geoip)  
     :material-delete-clock: [geosite](#geosite)
 
@@ -56,6 +57,7 @@ icon: material/alert-decagram
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "source_ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -197,6 +199,12 @@ Match source geoip.
 #### source_ip_cidr
 
 Match source IP CIDR.
+
+#### source_ip_is_private
+
+!!! question "Since sing-box 1.8.0"
+
+Match non-public source IP.
 
 #### source_port
 
