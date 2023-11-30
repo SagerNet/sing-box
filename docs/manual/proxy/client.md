@@ -531,7 +531,7 @@ flowchart TB
             "outbound": "dns"
           },
           {
-            "geoip": "private",
+            "ip_is_private": true,
             "outbound": "direct"
           },
           {

@@ -2,12 +2,14 @@ package adapter
 
 import (
 	"context"
+	"net/http"
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 
 	mdns "github.com/miekg/dns"
@@ -83,8 +85,14 @@ type DNSRule interface {
 }
 
 type RuleSet interface {
+	StartContext(ctx context.Context, startContext RuleSetStartContext) error
+	Close() error
 	HeadlessRule
-	Service
+}
+
+type RuleSetStartContext interface {
+	HTTPClient(detour string, dialer N.Dialer) *http.Client
+	Close()
 }
 
 type InterfaceUpdateListener interface {

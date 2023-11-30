@@ -6,6 +6,8 @@ icon: material/alert-decagram
 
     :material-plus: [rule_set](#rule_set)  
     :material-plus: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
+    :material-plus: [source_ip_is_private](#source_ip_is_private)  
+    :material-plus: [ip_is_private](#ip_is_private)  
     :material-delete-clock: [source_geoip](#source_geoip)  
     :material-delete-clock: [geoip](#geoip)  
     :material-delete-clock: [geosite](#geosite)
@@ -58,10 +60,12 @@ icon: material/alert-decagram
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "source_ip_is_private": false,
         "ip_cidr": [
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -178,7 +182,7 @@ Match domain using regular expression.
 
 !!! failure "Deprecated in sing-box 1.8.0"
 
-    Geosite is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geosite-to-rule-set).
+    Geosite is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geosite-to-rule-sets).
 
 Match geosite.
 
@@ -186,7 +190,7 @@ Match geosite.
 
 !!! failure "Deprecated in sing-box 1.8.0"
 
-    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-set).
+    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 Match source geoip.
 
@@ -194,7 +198,7 @@ Match source geoip.
 
 !!! failure "Deprecated in sing-box 1.8.0"
 
-    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-set).
+    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 Match geoip.
 
@@ -202,9 +206,21 @@ Match geoip.
 
 Match source IP CIDR.
 
+#### ip_is_private
+
+!!! question "Since sing-box 1.8.0"
+
+Match non-public IP.
+
 #### ip_cidr
 
 Match IP CIDR.
+
+#### source_ip_is_private
+
+!!! question "Since sing-box 1.8.0"
+
+Match non-public source IP.
 
 #### source_port
 

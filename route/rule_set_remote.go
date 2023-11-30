@@ -42,7 +42,7 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 	if options.RemoteOptions.UpdateInterval > 0 {
 		updateInterval = time.Duration(options.RemoteOptions.UpdateInterval)
 	} else {
-		updateInterval = 12 * time.Hour
+		updateInterval = 24 * time.Hour
 	}
 	return &RemoteRuleSet{
 		ctx:            ctx,
@@ -63,7 +63,7 @@ func (s *RemoteRuleSet) Match(metadata *adapter.InboundContext) bool {
 	return false
 }
 
-func (s *RemoteRuleSet) Start() error {
+func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.RuleSetStartContext) error {
 	var dialer N.Dialer
 	if s.options.RemoteOptions.DownloadDetour != "" {
 		outbound, loaded := s.router.Outbound(s.options.RemoteOptions.DownloadDetour)
@@ -91,7 +91,7 @@ func (s *RemoteRuleSet) Start() error {
 		}
 	}
 	if s.lastUpdated.IsZero() || time.Since(s.lastUpdated) > s.updateInterval {
-		err := s.fetchOnce()
+		err := s.fetchOnce(ctx, startContext)
 		if err != nil {
 			return E.Cause(err, "fetch rule-set ", s.options.Tag)
 		}
@@ -141,7 +141,7 @@ func (s *RemoteRuleSet) loopUpdate() {
 		case <-s.ctx.Done():
 			return
 		case <-s.updateTicker.C:
-			err := s.fetchOnce()
+			err := s.fetchOnce(s.ctx, nil)
 			if err != nil {
 				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
 			}
@@ -149,18 +149,22 @@ func (s *RemoteRuleSet) loopUpdate() {
 	}
 }
 
-func (s *RemoteRuleSet) fetchOnce() error {
+func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext adapter.RuleSetStartContext) error {
 	s.logger.Debug("updating rule-set ", s.options.Tag, " from URL: ", s.options.RemoteOptions.URL)
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: C.TCPTimeout,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+	var httpClient *http.Client
+	if startContext != nil {
+		httpClient = startContext.HTTPClient(s.options.RemoteOptions.DownloadDetour, s.dialer)
+	} else {
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				ForceAttemptHTTP2:   true,
+				TLSHandshakeTimeout: C.TCPTimeout,
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				},
 			},
-		},
+		}
 	}
-	defer httpClient.CloseIdleConnections()
 	request, err := http.NewRequest("GET", s.options.RemoteOptions.URL, nil)
 	if err != nil {
 		return err
@@ -168,7 +172,7 @@ func (s *RemoteRuleSet) fetchOnce() error {
 	if s.lastEtag != "" {
 		request.Header.Set("If-None-Match", s.lastEtag)
 	}
-	response, err := httpClient.Do(request.WithContext(s.ctx))
+	response, err := httpClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return err
 	}
