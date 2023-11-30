@@ -4,6 +4,84 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.8.0-alpha.1
+
+* Migrate cache file from Clash API to independent options **1**
+* Introducing [Rule Set](/configuration/rule-set) **2**
+* Add `sing-box geoip`, `sing-box geosite` and `sing-box rule-set` commands **3**
+* Allow nested logical rules **4**
+
+**1**:
+
+See [Cache File](/configuration/experimental/cache-file) and
+[Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-options).
+
+**2**:
+
+Rule set is independent collections of rules that can be compiled into binaries to improve performance.
+Compared to legacy GeoIP and Geosite resources,
+it can include more types of rules, load faster,
+use less memory, and update automatically.
+
+See [Route#rule_set](/configuration/route/#rule_set),
+[Route Rule](/configuration/route/rule),
+[DNS Rule](/configuration/dns/rule),
+[Rule Set](/configuration/rule-set),
+[Source Format](/configuration/rule-set/source-format) and
+[Headless Rule](/configuration/rule-set/headless-rule).
+
+For GEO resources migration, see [Migrate GeoIP to rule sets](/migration/#migrate-geoip-to-rule-sets) and
+[Migrate Geosite to rule sets](/migration/#migrate-geosite-to-rule-sets).
+
+**3**:
+
+New commands manage GeoIP, Geosite and rule set resources, and help you migrate GEO resources to rule sets.
+
+**4**:
+
+Logical rules in route rules, DNS rules, and the new headless rule now allow nesting of logical rules.
+
+#### 1.7.0
+
+* Fixes and improvements
+
+Important changes since 1.6:
+
+* Add [exclude route support](/configuration/inbound/tun) for TUN inbound
+* Add `udp_disable_domain_unmapping` [inbound listen option](/configuration/shared/listen) **1**
+* Add [HTTPUpgrade V2Ray transport](/configuration/shared/v2ray-transport#HTTPUpgrade) support **2**
+* Migrate multiplex and UoT server to inbound **3**
+* Add TCP Brutal support for multiplex **4**
+* Add `wifi_ssid` and `wifi_bssid` route and DNS rules **5**
+* Update quic-go to v0.40.0
+* Update gVisor to 20231113.0
+
+**1**:
+
+If enabled, for UDP proxy requests addressed to a domain,
+the original packet address will be sent in the response instead of the mapped domain.
+
+This option is used for compatibility with clients that
+do not support receiving UDP packets with domain addresses, such as Surge.
+
+**2**:
+
+Introduced in V2Ray 5.10.0.
+
+The new HTTPUpgrade transport has better performance than WebSocket and is better suited for CDN abuse.
+
+**3**:
+
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+
+**4**
+
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+
+**5**:
+
+Only supported in graphical clients on Android and iOS.
+
 #### 1.7.0-rc.3
 
 * Fixes and improvements
@@ -101,11 +179,13 @@ Only supported in graphical clients on Android and iOS.
 
 **1**:
 
-Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound
+options.
 
 **2**
 
-Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server,
+see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
 
 #### 1.7.0-alpha.3
 
@@ -172,8 +252,8 @@ When `auto_route` is enabled and `strict_route` is disabled, the device can now 
 
 **2**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
-
+Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-rc.4
 
@@ -186,7 +266,8 @@ Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008
 
 **1**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-beta.4
 
