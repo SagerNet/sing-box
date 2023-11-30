@@ -6,6 +6,8 @@ icon: material/alert-decagram
 
     :material-plus: [rule_set](#rule_set)  
     :material-plus: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
+    :material-plus: [source_ip_is_private](#source_ip_is_private)  
+    :material-plus: [ip_is_private](#ip_is_private)  
     :material-delete-clock: [source_geoip](#source_geoip)  
     :material-delete-clock: [geoip](#geoip)  
     :material-delete-clock: [geosite](#geosite)
@@ -57,9 +59,11 @@ icon: material/alert-decagram
         "source_ip_cidr": [
           "10.0.0.0/24"
         ],
+        "source_ip_is_private": false,
         "ip_cidr": [
           "10.0.0.0/24"
         ],
+        "ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -200,9 +204,21 @@ icon: material/alert-decagram
 
 匹配源 IP CIDR。
 
+#### source_ip_is_private
+
+!!! question "自 sing-box 1.8.0 起"
+
+匹配非公开源 IP。
+
 #### ip_cidr
 
 匹配 IP CIDR。
+
+#### ip_is_private
+
+!!! question "自 sing-box 1.8.0 起"
+
+匹配非公开 IP。
 
 #### source_port
 

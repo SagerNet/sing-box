@@ -5,6 +5,7 @@ icon: material/alert-decagram
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-plus: [rule_set](#rule_set)  
+    :material-plus: [source_ip_is_private](#source_ip_is_private)  
     :material-delete-clock: [geoip](#geoip)  
     :material-delete-clock: [geosite](#geosite)
 
@@ -55,6 +56,7 @@ icon: material/alert-decagram
         "source_ip_cidr": [
           "10.0.0.0/24"
         ],
+        "source_ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -194,6 +196,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### source_ip_cidr
 
 匹配源 IP CIDR。
+
+#### source_ip_is_private
+
+!!! question "自 sing-box 1.8.0 起"
+
+匹配非公开源 IP。
 
 #### source_port
 
