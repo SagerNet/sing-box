@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -60,7 +61,7 @@ func (s *LocalRuleSet) Match(metadata *adapter.InboundContext) bool {
 	return false
 }
 
-func (s *LocalRuleSet) Start() error {
+func (s *LocalRuleSet) StartContext(ctx context.Context, startContext adapter.RuleSetStartContext) error {
 	return nil
 }
 
