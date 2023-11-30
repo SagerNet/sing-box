@@ -38,6 +38,7 @@ type URLTest struct {
 	tolerance                    uint16
 	group                        *URLTestGroup
 	interruptExternalConnections bool
+	started                      bool
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (*URLTest, error) {
@@ -83,6 +84,7 @@ func (s *URLTest) Start() error {
 }
 
 func (s *URLTest) PostStart() error {
+	s.started = true
 	go s.CheckOutbounds()
 	return nil
 }
@@ -110,7 +112,9 @@ func (s *URLTest) CheckOutbounds() {
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	s.group.Start()
+	if s.started {
+		s.group.Start()
+	}
 	outbound := s.group.Select(network)
 	conn, err := outbound.DialContext(ctx, network, destination)
 	if err == nil {
@@ -122,7 +126,9 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 }
 
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	s.group.Start()
+	if s.started {
+		s.group.Start()
+	}
 	outbound := s.group.Select(N.NetworkUDP)
 	conn, err := outbound.ListenPacket(ctx, destination)
 	if err == nil {
