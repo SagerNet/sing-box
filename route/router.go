@@ -39,6 +39,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	serviceNTP "github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/sing/common/uot"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -490,12 +491,24 @@ func (r *Router) Start() error {
 	if r.needWIFIState {
 		r.updateWIFIState()
 	}
+	ruleSetStartContext := NewRuleSetStartContext()
+	var ruleSetStartGroup task.Group
 	for i, ruleSet := range r.ruleSets {
-		err := ruleSet.Start()
-		if err != nil {
-			return E.Cause(err, "initialize rule-set[", i, "]")
-		}
+		ruleSetStartGroup.Append0(func(ctx context.Context) error {
+			err := ruleSet.StartContext(ctx, ruleSetStartContext)
+			if err != nil {
+				return E.Cause(err, "initialize rule-set[", i, "]")
+			}
+			return nil
+		})
 	}
+	ruleSetStartGroup.Concurrency(5)
+	ruleSetStartGroup.FastFail()
+	err := ruleSetStartGroup.Run(r.ctx)
+	if err != nil {
+		return err
+	}
+	ruleSetStartContext.Close()
 	for i, rule := range r.rules {
 		err := rule.Start()
 		if err != nil {
