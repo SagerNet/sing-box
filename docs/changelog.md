@@ -4,6 +4,16 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.8.0-alpha.4
+
+* Parallel rule-set initialization
+* Independent `source_ip_is_private` and `ip_is_private` rules **1**
+
+**1**:
+
+The `private` GeoIP country never existed and was actually implemented inside V2Ray. 
+Since GeoIP was deprecated, we made this rule independent, see [Migration](/migration/#migrate-geoip-to-rule-sets).
+
 #### 1.8.0-alpha.1
 
 * Migrate cache file from Clash API to independent options **1**
