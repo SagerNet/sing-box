@@ -49,6 +49,13 @@ type InboundContext struct {
 	FakeIP               bool
 	IPCIDRMatchSource    bool
 
+	// rule merge
+
+	SourceAddressMatch      bool
+	SourcePortMatch         bool
+	DestinationAddressMatch bool
+	DestinationPortMatch    bool
+
 	// dns cache
 
 	QueryType uint16
