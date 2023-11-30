@@ -491,6 +491,12 @@ func (r *Router) Start() error {
 	if r.needWIFIState {
 		r.updateWIFIState()
 	}
+	if r.fakeIPStore != nil {
+		err := r.fakeIPStore.Start()
+		if err != nil {
+			return err
+		}
+	}
 	if len(r.ruleSets) > 0 {
 		ruleSetStartContext := NewRuleSetStartContext()
 		var ruleSetStartGroup task.Group
@@ -522,12 +528,6 @@ func (r *Router) Start() error {
 		err := rule.Start()
 		if err != nil {
 			return E.Cause(err, "initialize DNS rule[", i, "]")
-		}
-	}
-	if r.fakeIPStore != nil {
-		err := r.fakeIPStore.Start()
-		if err != nil {
-			return err
 		}
 	}
 	for i, transport := range r.transports {
