@@ -3,7 +3,6 @@ package libbox
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/netip"
 	"os"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
 )
