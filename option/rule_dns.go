@@ -91,6 +91,7 @@ type DefaultDNSRule struct {
 	ClashMode       string                 `json:"clash_mode,omitempty"`
 	WIFISSID        Listable[string]       `json:"wifi_ssid,omitempty"`
 	WIFIBSSID       Listable[string]       `json:"wifi_bssid,omitempty"`
+	RuleSet         Listable[string]       `json:"rule_set,omitempty"`
 	Invert          bool                   `json:"invert,omitempty"`
 	Server          string                 `json:"server,omitempty"`
 	DisableCache    bool                   `json:"disable_cache,omitempty"`
