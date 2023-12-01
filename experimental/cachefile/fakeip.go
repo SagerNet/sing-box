@@ -25,7 +25,7 @@ func (c *CacheFile) FakeIPMetadata() *adapter.FakeIPMetadata {
 	err := c.DB.Batch(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(bucketFakeIP)
 		if bucket == nil {
-			return nil
+			return os.ErrNotExist
 		}
 		metadataBinary := bucket.Get(keyMetadata)
 		if len(metadataBinary) == 0 {
