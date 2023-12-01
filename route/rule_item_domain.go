@@ -43,6 +43,13 @@ func NewDomainItem(domains []string, domainSuffixes []string) *DomainItem {
 	}
 }
 
+func NewRawDomainItem(matcher *domain.Matcher) *DomainItem {
+	return &DomainItem{
+		matcher,
+		"domain/domain_suffix=<binary>",
+	}
+}
+
 func (r *DomainItem) Match(metadata *adapter.InboundContext) bool {
 	var domainHost string
 	if metadata.Domain != "" {
