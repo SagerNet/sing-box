@@ -3,6 +3,7 @@ package route
 import (
 	"bytes"
 	"context"
+	"github.com/sagernet/sing/service/pause"
 	"io"
 	"net"
 	"net/http"
@@ -34,6 +35,7 @@ type RemoteRuleSet struct {
 	lastUpdated    time.Time
 	lastEtag       string
 	updateTicker   *time.Ticker
+	pauseManager   pause.Manager
 }
 
 func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -51,6 +53,7 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 		logger:         logger,
 		options:        options,
 		updateInterval: updateInterval,
+		pauseManager:   pause.ManagerFromContext(ctx),
 	}
 }
 
@@ -141,6 +144,7 @@ func (s *RemoteRuleSet) loopUpdate() {
 		case <-s.ctx.Done():
 			return
 		case <-s.updateTicker.C:
+			s.pauseManager.WaitActive()
 			err := s.fetchOnce(s.ctx, nil)
 			if err != nil {
 				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
