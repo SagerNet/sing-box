@@ -1,8 +1,8 @@
-//go:build !go1.21 || without_contextjson
+//go:build go1.21 && !without_contextjson
 
 package json
 
-import "encoding/json"
+import "github.com/sagernet/sing-box/common/contextjson"
 
 var (
 	Marshal    = json.Marshal
