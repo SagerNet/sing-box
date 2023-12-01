@@ -65,34 +65,36 @@ func (r Rule) IsValid() bool {
 }
 
 type DefaultRule struct {
-	Inbound         Listable[string] `json:"inbound,omitempty"`
-	IPVersion       int              `json:"ip_version,omitempty"`
-	Network         Listable[string] `json:"network,omitempty"`
-	AuthUser        Listable[string] `json:"auth_user,omitempty"`
-	Protocol        Listable[string] `json:"protocol,omitempty"`
-	Domain          Listable[string] `json:"domain,omitempty"`
-	DomainSuffix    Listable[string] `json:"domain_suffix,omitempty"`
-	DomainKeyword   Listable[string] `json:"domain_keyword,omitempty"`
-	DomainRegex     Listable[string] `json:"domain_regex,omitempty"`
-	Geosite         Listable[string] `json:"geosite,omitempty"`
-	SourceGeoIP     Listable[string] `json:"source_geoip,omitempty"`
-	GeoIP           Listable[string] `json:"geoip,omitempty"`
-	SourceIPCIDR    Listable[string] `json:"source_ip_cidr,omitempty"`
-	IPCIDR          Listable[string] `json:"ip_cidr,omitempty"`
-	SourcePort      Listable[uint16] `json:"source_port,omitempty"`
-	SourcePortRange Listable[string] `json:"source_port_range,omitempty"`
-	Port            Listable[uint16] `json:"port,omitempty"`
-	PortRange       Listable[string] `json:"port_range,omitempty"`
-	ProcessName     Listable[string] `json:"process_name,omitempty"`
-	ProcessPath     Listable[string] `json:"process_path,omitempty"`
-	PackageName     Listable[string] `json:"package_name,omitempty"`
-	User            Listable[string] `json:"user,omitempty"`
-	UserID          Listable[int32]  `json:"user_id,omitempty"`
-	ClashMode       string           `json:"clash_mode,omitempty"`
-	WIFISSID        Listable[string] `json:"wifi_ssid,omitempty"`
-	WIFIBSSID       Listable[string] `json:"wifi_bssid,omitempty"`
-	Invert          bool             `json:"invert,omitempty"`
-	Outbound        string           `json:"outbound,omitempty"`
+	Inbound                  Listable[string] `json:"inbound,omitempty"`
+	IPVersion                int              `json:"ip_version,omitempty"`
+	Network                  Listable[string] `json:"network,omitempty"`
+	AuthUser                 Listable[string] `json:"auth_user,omitempty"`
+	Protocol                 Listable[string] `json:"protocol,omitempty"`
+	Domain                   Listable[string] `json:"domain,omitempty"`
+	DomainSuffix             Listable[string] `json:"domain_suffix,omitempty"`
+	DomainKeyword            Listable[string] `json:"domain_keyword,omitempty"`
+	DomainRegex              Listable[string] `json:"domain_regex,omitempty"`
+	Geosite                  Listable[string] `json:"geosite,omitempty"`
+	SourceGeoIP              Listable[string] `json:"source_geoip,omitempty"`
+	GeoIP                    Listable[string] `json:"geoip,omitempty"`
+	SourceIPCIDR             Listable[string] `json:"source_ip_cidr,omitempty"`
+	IPCIDR                   Listable[string] `json:"ip_cidr,omitempty"`
+	SourcePort               Listable[uint16] `json:"source_port,omitempty"`
+	SourcePortRange          Listable[string] `json:"source_port_range,omitempty"`
+	Port                     Listable[uint16] `json:"port,omitempty"`
+	PortRange                Listable[string] `json:"port_range,omitempty"`
+	ProcessName              Listable[string] `json:"process_name,omitempty"`
+	ProcessPath              Listable[string] `json:"process_path,omitempty"`
+	PackageName              Listable[string] `json:"package_name,omitempty"`
+	User                     Listable[string] `json:"user,omitempty"`
+	UserID                   Listable[int32]  `json:"user_id,omitempty"`
+	ClashMode                string           `json:"clash_mode,omitempty"`
+	WIFISSID                 Listable[string] `json:"wifi_ssid,omitempty"`
+	WIFIBSSID                Listable[string] `json:"wifi_bssid,omitempty"`
+	RuleSet                  Listable[string] `json:"rule_set,omitempty"`
+	RuleSetIPCIDRMatchSource bool             `json:"rule_set_ipcidr_match_source,omitempty"`
+	Invert                   bool             `json:"invert,omitempty"`
+	Outbound                 string           `json:"outbound,omitempty"`
 }
 
 func (r DefaultRule) IsValid() bool {
