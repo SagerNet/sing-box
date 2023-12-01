@@ -39,6 +39,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	serviceNTP "github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/sing/common/uot"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -64,9 +65,12 @@ type Router struct {
 	geoIPReader                        *geoip.Reader
 	geositeReader                      *geosite.Reader
 	geositeCache                       map[string]adapter.Rule
+	needFindProcess                    bool
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
+	ruleSets                           []adapter.RuleSet
+	ruleSetMap                         map[string]adapter.RuleSet
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
@@ -107,11 +111,13 @@ func NewRouter(
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
+		ruleSetMap:            make(map[string]adapter.RuleSet),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
+		needFindProcess:       hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
 		defaultDetour:         options.Final,
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
 		autoDetectInterface:   options.AutoDetectInterface,
@@ -140,6 +146,17 @@ func NewRouter(
 			return nil, E.Cause(err, "parse dns rule[", i, "]")
 		}
 		router.dnsRules = append(router.dnsRules, dnsRule)
+	}
+	for i, ruleSetOptions := range options.RuleSet {
+		if _, exists := router.ruleSetMap[ruleSetOptions.Tag]; exists {
+			return nil, E.New("duplicate rule-set tag: ", ruleSetOptions.Tag)
+		}
+		ruleSet, err := NewRuleSet(ctx, router, router.logger, ruleSetOptions)
+		if err != nil {
+			return nil, E.Cause(err, "parse rule-set[", i, "]")
+		}
+		router.ruleSets = append(router.ruleSets, ruleSet)
+		router.ruleSetMap[ruleSetOptions.Tag] = ruleSet
 	}
 
 	transports := make([]dns.Transport, len(dnsOptions.Servers))
@@ -296,34 +313,6 @@ func NewRouter(
 		router.interfaceMonitor = interfaceMonitor
 	}
 
-	needFindProcess := hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
-	needPackageManager := C.IsAndroid && platformInterface == nil && (needFindProcess || common.Any(inbounds, func(inbound option.Inbound) bool {
-		return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
-	}))
-	if needPackageManager {
-		packageManager, err := tun.NewPackageManager(router)
-		if err != nil {
-			return nil, E.Cause(err, "create package manager")
-		}
-		router.packageManager = packageManager
-	}
-	if needFindProcess {
-		if platformInterface != nil {
-			router.processSearcher = platformInterface
-		} else {
-			searcher, err := process.NewSearcher(process.Config{
-				Logger:         logFactory.NewLogger("router/process"),
-				PackageManager: router.packageManager,
-			})
-			if err != nil {
-				if err != os.ErrInvalid {
-					router.logger.Warn(E.Cause(err, "create process searcher"))
-				}
-			} else {
-				router.processSearcher = searcher
-			}
-		}
-	}
 	if ntpOptions.Enabled {
 		timeService, err := ntp.NewService(ctx, router, logFactory.NewLogger("ntp"), ntpOptions)
 		if err != nil {
@@ -331,11 +320,6 @@ func NewRouter(
 		}
 		service.ContextWith[serviceNTP.TimeService](ctx, timeService)
 		router.timeService = timeService
-	}
-	if platformInterface != nil && router.interfaceMonitor != nil && router.needWIFIState {
-		router.interfaceMonitor.RegisterCallback(func(_ int) {
-			router.updateWIFIState()
-		})
 	}
 	return router, nil
 }
@@ -451,12 +435,6 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
-	if r.packageManager != nil {
-		err := r.packageManager.Start()
-		if err != nil {
-			return err
-		}
-	}
 	if r.needGeositeDatabase {
 		for _, rule := range r.rules {
 			err := rule.UpdateGeosite()
@@ -477,9 +455,89 @@ func (r *Router) Start() error {
 		r.geositeCache = nil
 		r.geositeReader = nil
 	}
-	if r.needWIFIState {
+	if r.fakeIPStore != nil {
+		err := r.fakeIPStore.Start()
+		if err != nil {
+			return err
+		}
+	}
+	if len(r.ruleSets) > 0 {
+		ruleSetStartContext := NewRuleSetStartContext()
+		var ruleSetStartGroup task.Group
+		for i, ruleSet := range r.ruleSets {
+			ruleSetInPlace := ruleSet
+			ruleSetStartGroup.Append0(func(ctx context.Context) error {
+				err := ruleSetInPlace.StartContext(ctx, ruleSetStartContext)
+				if err != nil {
+					return E.Cause(err, "initialize rule-set[", i, "]")
+				}
+				return nil
+			})
+		}
+		ruleSetStartGroup.Concurrency(5)
+		ruleSetStartGroup.FastFail()
+		err := ruleSetStartGroup.Run(r.ctx)
+		if err != nil {
+			return err
+		}
+		ruleSetStartContext.Close()
+	}
+
+	var (
+		needProcessFromRuleSet   bool
+		needWIFIStateFromRuleSet bool
+	)
+	for _, ruleSet := range r.ruleSets {
+		metadata := ruleSet.Metadata()
+		if metadata.ContainsProcessRule {
+			needProcessFromRuleSet = true
+		}
+		if metadata.ContainsWIFIRule {
+			needWIFIStateFromRuleSet = true
+		}
+	}
+	if needProcessFromRuleSet || r.needFindProcess {
+		needPackageManager := C.IsAndroid && r.platformInterface == nil
+
+		if needPackageManager {
+			packageManager, err := tun.NewPackageManager(r)
+			if err != nil {
+				return E.Cause(err, "create package manager")
+			}
+			if packageManager != nil {
+				err = packageManager.Start()
+				if err != nil {
+					return err
+				}
+			}
+			r.packageManager = packageManager
+		}
+
+		if r.platformInterface != nil {
+			r.processSearcher = r.platformInterface
+		} else {
+			searcher, err := process.NewSearcher(process.Config{
+				Logger:         r.logger,
+				PackageManager: r.packageManager,
+			})
+			if err != nil {
+				if err != os.ErrInvalid {
+					r.logger.Warn(E.Cause(err, "create process searcher"))
+				}
+			} else {
+				r.processSearcher = searcher
+			}
+		}
+	}
+	if needWIFIStateFromRuleSet || r.needWIFIState {
+		if r.platformInterface != nil && r.interfaceMonitor != nil {
+			r.interfaceMonitor.RegisterCallback(func(_ int) {
+				r.updateWIFIState()
+			})
+		}
 		r.updateWIFIState()
 	}
+
 	for i, rule := range r.rules {
 		err := rule.Start()
 		if err != nil {
@@ -490,12 +548,6 @@ func (r *Router) Start() error {
 		err := rule.Start()
 		if err != nil {
 			return E.Cause(err, "initialize DNS rule[", i, "]")
-		}
-	}
-	if r.fakeIPStore != nil {
-		err := r.fakeIPStore.Start()
-		if err != nil {
-			return err
 		}
 	}
 	for i, transport := range r.transports {
@@ -573,6 +625,14 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) PostStart() error {
+	if len(r.ruleSets) > 0 {
+		for i, ruleSet := range r.ruleSets {
+			err := ruleSet.PostStart()
+			if err != nil {
+				return E.Cause(err, "post start rule-set[", i, "]")
+			}
+		}
+	}
 	r.started = true
 	return nil
 }
@@ -582,16 +642,27 @@ func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	return outbound, loaded
 }
 
-func (r *Router) DefaultOutbound(network string) adapter.Outbound {
+func (r *Router) DefaultOutbound(network string) (adapter.Outbound, error) {
 	if network == N.NetworkTCP {
-		return r.defaultOutboundForConnection
+		if r.defaultOutboundForConnection == nil {
+			return nil, E.New("missing default outbound for TCP connections")
+		}
+		return r.defaultOutboundForConnection, nil
 	} else {
-		return r.defaultOutboundForPacketConnection
+		if r.defaultOutboundForPacketConnection == nil {
+			return nil, E.New("missing default outbound for UDP connections")
+		}
+		return r.defaultOutboundForPacketConnection, nil
 	}
 }
 
 func (r *Router) FakeIPStore() adapter.FakeIPStore {
 	return r.fakeIPStore
+}
+
+func (r *Router) RuleSet(tag string) (adapter.RuleSet, bool) {
+	ruleSet, loaded := r.ruleSetMap[tag]
+	return ruleSet, loaded
 }
 
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -882,6 +953,7 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 		}
 	}
 	for i, rule := range r.rules {
+		metadata.ResetRuleCache()
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
