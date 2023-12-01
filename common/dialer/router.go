@@ -18,11 +18,19 @@ func NewRouter(router adapter.Router) N.Dialer {
 }
 
 func (d *RouterDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return d.router.DefaultOutbound(network).DialContext(ctx, network, destination)
+	dialer, err := d.router.DefaultOutbound(network)
+	if err != nil {
+		return nil, err
+	}
+	return dialer.DialContext(ctx, network, destination)
 }
 
 func (d *RouterDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return d.router.DefaultOutbound(N.NetworkUDP).ListenPacket(ctx, destination)
+	dialer, err := d.router.DefaultOutbound(N.NetworkUDP)
+	if err != nil {
+		return nil, err
+	}
+	return dialer.ListenPacket(ctx, destination)
 }
 
 func (d *RouterDialer) Upstream() any {
