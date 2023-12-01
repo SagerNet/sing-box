@@ -4,6 +4,10 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.7.1
+
+* Fixes and improvements
+
 #### 1.7.0
 
 * Fixes and improvements
