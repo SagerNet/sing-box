@@ -1,9 +1,9 @@
 package option
 
 import (
-	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
 )
 
 type _Inbound struct {
@@ -114,7 +114,7 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_Inbound)(h), v)
 	if err != nil {
-		return E.Cause(err, "inbound options")
+		return err
 	}
 	return nil
 }
