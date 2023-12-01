@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/common/badjsonmerge"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json/badjson"
 
 	"github.com/spf13/cobra"
 )
@@ -108,7 +108,7 @@ func readConfigAndMerge() (option.Options, error) {
 	}
 	var mergedOptions option.Options
 	for _, options := range optionsList {
-		mergedOptions, err = badjsonmerge.MergeOptions(options.options, mergedOptions)
+		mergedOptions, err = badjson.Merge(options.options, mergedOptions)
 		if err != nil {
 			return option.Options{}, E.Cause(err, "merge config at ", options.path)
 		}
