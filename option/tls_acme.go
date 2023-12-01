@@ -62,7 +62,7 @@ func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_ACMEDNS01ChallengeOptions)(o), v)
 	if err != nil {
-		return E.Cause(err, "DNS01 challenge options")
+		return err
 	}
 	return nil
 }

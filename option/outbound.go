@@ -124,7 +124,7 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_Outbound)(h), v)
 	if err != nil {
-		return E.Cause(err, "outbound options")
+		return err
 	}
 	return nil
 }

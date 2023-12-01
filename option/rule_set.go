@@ -64,7 +64,7 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
 	if err != nil {
-		return E.Cause(err, "rule set")
+		return err
 	}
 	return nil
 }
@@ -118,7 +118,7 @@ func (r *HeadlessRule) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_HeadlessRule)(r), v)
 	if err != nil {
-		return E.Cause(err, "route rule-set rule")
+		return err
 	}
 	return nil
 }
@@ -209,7 +209,7 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_PlainRuleSetCompat)(r), v)
 	if err != nil {
-		return E.Cause(err, "rule set")
+		return err
 	}
 	return nil
 }
