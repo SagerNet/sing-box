@@ -1,9 +1,8 @@
 package option
 
 import (
-	"encoding/json"
-
 	"github.com/sagernet/sing-box/common/humanize"
+	"github.com/sagernet/sing-box/common/json"
 )
 
 type DebugOptions struct {

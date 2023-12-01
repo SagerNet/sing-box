@@ -48,7 +48,7 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_Rule)(r), v)
 	if err != nil {
-		return E.Cause(err, "route rule")
+		return err
 	}
 	return nil
 }
