@@ -119,6 +119,11 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.SourceIPIsPrivate {
+		item := NewIPIsPrivateItem(true)
+		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
 		rule.sourcePortItems = append(rule.sourcePortItems, item)
