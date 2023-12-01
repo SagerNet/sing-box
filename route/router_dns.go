@@ -43,6 +43,7 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 		panic("no context")
 	}
 	for i, rule := range r.dnsRules {
+		metadata.ResetRuleCache()
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			transport, loaded := r.transportMap[detour]
