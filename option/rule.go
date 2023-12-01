@@ -78,7 +78,9 @@ type DefaultRule struct {
 	SourceGeoIP              Listable[string] `json:"source_geoip,omitempty"`
 	GeoIP                    Listable[string] `json:"geoip,omitempty"`
 	SourceIPCIDR             Listable[string] `json:"source_ip_cidr,omitempty"`
+	SourceIPIsPrivate        bool             `json:"source_ip_is_private,omitempty"`
 	IPCIDR                   Listable[string] `json:"ip_cidr,omitempty"`
+	IPIsPrivate              bool             `json:"ip_is_private,omitempty"`
 	SourcePort               Listable[uint16] `json:"source_port,omitempty"`
 	SourcePortRange          Listable[string] `json:"source_port_range,omitempty"`
 	Port                     Listable[uint16] `json:"port,omitempty"`
