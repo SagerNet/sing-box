@@ -3,10 +3,10 @@ package option
 import (
 	"reflect"
 
-	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
 )
 
 type _Rule struct {
@@ -48,7 +48,7 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_Rule)(r), v)
 	if err != nil {
-		return E.Cause(err, "route rule")
+		return err
 	}
 	return nil
 }

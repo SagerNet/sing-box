@@ -1,9 +1,9 @@
 package option
 
 import (
-	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
 )
 
 type _V2RayTransportOptions struct {
@@ -60,7 +60,7 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_V2RayTransportOptions)(o), v)
 	if err != nil {
-		return E.Cause(err, "vmess transport options")
+		return err
 	}
 	return nil
 }
