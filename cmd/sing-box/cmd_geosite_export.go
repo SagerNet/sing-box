@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 
 	"github.com/sagernet/sing-box/common/geosite"
+	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
