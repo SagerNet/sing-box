@@ -1,4 +1,14 @@
+---
+icon: material/alert-decagram
+---
+
 # 路由
+
+!!! quote "sing-box 1.8.0 中的更改"
+
+    :material-plus: [rule_set](#rule_set)  
+    :material-delete-clock: [geoip](#geoip)  
+    :material-delete-clock: [geosite](#geosite)
 
 ### 结构
 
@@ -7,8 +17,8 @@
   "route": {
     "geoip": {},
     "geosite": {},
-    "ip_rules": [],
     "rules": [],
+    "rule_set": [],
     "final": "",
     "auto_detect_interface": false,
     "override_android_vpn": false,
@@ -20,11 +30,21 @@
 
 ### 字段
 
-| 键          | 格式                      |
-|------------|-------------------------|
-| `geoip`    | [GeoIP](./geoip)        |
-| `geosite`  | [GeoSite](./geosite)    |
-| `rules`    | 一组 [路由规则](./rule)       |
+| 键          | 格式                                |
+|------------|-----------------------------------|
+| `geoip`    | [GeoIP](./geoip)                  |
+| `geosite`  | [Geosite](./geosite)              |
+
+
+#### rule
+
+一组 [路由规则](./rule)。
+
+#### rule_set
+
+!!! question "自 sing-box 1.8.0 起"
+
+一组 [规则集](/configuration/rule-set)。
 
 #### final
 
