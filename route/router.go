@@ -261,6 +261,9 @@ func NewRouter(
 		}
 		defaultTransport = transports[0]
 	}
+	if _, isFakeIP := defaultTransport.(adapter.FakeIPTransport); isFakeIP {
+		return nil, E.New("default DNS server cannot be fakeip")
+	}
 	router.defaultTransport = defaultTransport
 	router.transports = transports
 	router.transportMap = transportMap
