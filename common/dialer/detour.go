@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -45,14 +44,7 @@ func (d *DetourDialer) DialContext(ctx context.Context, network string, destinat
 	if err != nil {
 		return nil, err
 	}
-	conn, err := dialer.DialContext(ctx, network, destination)
-	if err != nil {
-		return nil, err
-	}
-	if deadline.NeedAdditionalReadDeadline(conn) {
-		conn = deadline.NewConn(conn)
-	}
-	return conn, nil
+	return dialer.DialContext(ctx, network, destination)
 }
 
 func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {

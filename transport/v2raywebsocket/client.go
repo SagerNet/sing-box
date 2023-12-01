@@ -12,6 +12,9 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -87,18 +90,35 @@ func (c *Client) dialContext(ctx context.Context, requestURL *url.URL, headers h
 			return nil, err
 		}
 	}
-	conn.SetDeadline(time.Now().Add(C.TCPTimeout))
+	var deadlineConn net.Conn
+	if deadline.NeedAdditionalReadDeadline(conn) {
+		deadlineConn = deadline.NewConn(conn)
+	} else {
+		deadlineConn = conn
+	}
+	err = deadlineConn.SetDeadline(time.Now().Add(C.TCPTimeout))
+	if err != nil {
+		return nil, E.Cause(err, "set read deadline")
+	}
 	var protocols []string
 	if protocolHeader := headers.Get("Sec-WebSocket-Protocol"); protocolHeader != "" {
 		protocols = []string{protocolHeader}
 		headers.Del("Sec-WebSocket-Protocol")
 	}
-	reader, _, err := ws.Dialer{Header: ws.HandshakeHeaderHTTP(headers), Protocols: protocols}.Upgrade(conn, requestURL)
-	conn.SetDeadline(time.Time{})
+	reader, _, err := ws.Dialer{Header: ws.HandshakeHeaderHTTP(headers), Protocols: protocols}.Upgrade(deadlineConn, requestURL)
+	deadlineConn.SetDeadline(time.Time{})
 	if err != nil {
 		return nil, err
 	}
-	return NewConn(conn, reader, nil, ws.StateClientSide), nil
+	if reader != nil {
+		buffer := buf.NewSize(reader.Buffered())
+		_, err = buffer.ReadFullFrom(reader, buffer.Len())
+		if err != nil {
+			return nil, err
+		}
+		conn = bufio.NewCachedConn(conn, buffer)
+	}
+	return NewConn(conn, nil, ws.StateClientSide), nil
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
