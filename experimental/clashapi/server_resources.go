@@ -51,7 +51,11 @@ func (s *Server) downloadExternalUI() error {
 		}
 		detour = outbound
 	} else {
-		detour = s.router.DefaultOutbound(N.NetworkTCP)
+		outbound, err := s.router.DefaultOutbound(N.NetworkTCP)
+		if err != nil {
+			return err
+		}
+		detour = outbound
 	}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
