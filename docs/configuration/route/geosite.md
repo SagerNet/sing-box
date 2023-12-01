@@ -1,3 +1,11 @@
+---
+icon: material/delete-clock
+---
+
+!!! failure "Deprecated in sing-box 1.8.0"
+
+    Geosite is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geosite-to-rule-sets).
+
 ### Structure
 
 ```json
