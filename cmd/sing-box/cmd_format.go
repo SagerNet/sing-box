@@ -5,9 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 
 	"github.com/spf13/cobra"
 )
@@ -37,6 +38,10 @@ func format() error {
 		return err
 	}
 	for _, optionsEntry := range optionsList {
+		optionsEntry.options, err = badjson.Omitempty(optionsEntry.options)
+		if err != nil {
+			return err
+		}
 		buffer := new(bytes.Buffer)
 		encoder := json.NewEncoder(buffer)
 		encoder.SetIndent("", "  ")
