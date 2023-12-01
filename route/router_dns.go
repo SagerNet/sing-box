@@ -37,7 +37,7 @@ func (m *DNSReverseMapping) Query(address netip.Addr) (string, bool) {
 	return domain, loaded
 }
 
-func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, dns.DomainStrategy) {
+func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool) (context.Context, dns.Transport, dns.DomainStrategy) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
@@ -51,7 +51,7 @@ func (r *Router) matchDNS(ctx context.Context) (context.Context, dns.Transport, 
 				r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 				continue
 			}
-			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && metadata.FakeIP {
+			if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && !allowFakeIP {
 				continue
 			}
 			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
@@ -97,7 +97,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 			}
 			metadata.Domain = fqdnToDomain(message.Question[0].Name)
 		}
-		ctx, transport, strategy := r.matchDNS(ctx)
+		ctx, transport, strategy := r.matchDNS(ctx, true)
 		ctx, cancel := context.WithTimeout(ctx, C.DNSTimeout)
 		defer cancel()
 		response, err = r.dnsClient.Exchange(ctx, transport, message, strategy)
@@ -125,7 +125,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, metadata := adapter.AppendContext(ctx)
 	metadata.Domain = domain
-	ctx, transport, transportStrategy := r.matchDNS(ctx)
+	ctx, transport, transportStrategy := r.matchDNS(ctx, false)
 	if strategy == dns.DomainStrategyAsIS {
 		strategy = transportStrategy
 	}
