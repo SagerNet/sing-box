@@ -217,6 +217,7 @@ type decodeState struct {
 	savedError            error
 	useNumber             bool
 	disallowUnknownFields bool
+	context               *decodeContext
 }
 
 // readIndex returns the position of the last byte read.
@@ -245,7 +246,11 @@ func (d *decodeState) init(data []byte) *decodeState {
 // for reporting at the end of the unmarshal.
 func (d *decodeState) saveError(err error) {
 	if d.savedError == nil {
-		d.savedError = d.addErrorContext(err)
+		if d.context != nil {
+			d.savedError = d.addErrorContext(&contextError{err, d.formatContext(), d.context.key == ""})
+		} else {
+			d.savedError = d.addErrorContext(err)
+		}
 	}
 }
 
@@ -504,7 +509,11 @@ func (d *decodeState) array(v reflect.Value) error {
 	if u != nil {
 		start := d.readIndex()
 		d.skip()
-		return u.UnmarshalJSON(d.data[start:d.off])
+		err := u.UnmarshalJSON(d.data[start:d.off])
+		if err != nil {
+			d.saveError(err)
+		}
+		return nil
 	}
 	if ut != nil {
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
@@ -533,6 +542,7 @@ func (d *decodeState) array(v reflect.Value) error {
 	}
 
 	i := 0
+	d.context = &decodeContext{parent: d.context}
 	for {
 		// Look ahead for ] - can only happen on first iteration.
 		d.scanWhile(scanSkipSpace)
@@ -573,7 +583,10 @@ func (d *decodeState) array(v reflect.Value) error {
 		if d.opcode != scanArrayValue {
 			panic(phasePanicMsg)
 		}
+		d.context.index++
 	}
+
+	d.context = d.context.parent
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
@@ -603,7 +616,11 @@ func (d *decodeState) object(v reflect.Value) error {
 	if u != nil {
 		start := d.readIndex()
 		d.skip()
-		return u.UnmarshalJSON(d.data[start:d.off])
+		err := u.UnmarshalJSON(d.data[start:d.off])
+		if err != nil {
+			d.saveError(err)
+		}
+		return nil
 	}
 	if ut != nil {
 		d.saveError(&UnmarshalTypeError{Value: "object", Type: v.Type(), Offset: int64(d.off)})
@@ -659,6 +676,7 @@ func (d *decodeState) object(v reflect.Value) error {
 		origErrorContext = *d.errorContext
 	}
 
+	d.context = &decodeContext{parent: d.context}
 	for {
 		// Read opening " of string key or closing }.
 		d.scanWhile(scanSkipSpace)
@@ -678,6 +696,7 @@ func (d *decodeState) object(v reflect.Value) error {
 		if !ok {
 			panic(phasePanicMsg)
 		}
+		d.context.key = string(key)
 
 		// Figure out field corresponding to key.
 		var subv reflect.Value
@@ -729,6 +748,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			} else if d.disallowUnknownFields {
 				d.saveError(fmt.Errorf("json: unknown field %q", key))
 			}
+			d.context.index++
 		}
 
 		// Read : before value.
@@ -818,6 +838,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			panic(phasePanicMsg)
 		}
 	}
+	d.context = d.context.parent
 	return nil
 }
 
@@ -851,7 +872,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	isNull := item[0] == 'n' // null
 	u, ut, pv := indirect(v, isNull)
 	if u != nil {
-		return u.UnmarshalJSON(item)
+		err := u.UnmarshalJSON(item)
+		if err != nil {
+			d.saveError(err)
+		}
+		return nil
 	}
 	if ut != nil {
 		if item[0] != '"' {
@@ -1039,6 +1064,7 @@ func (d *decodeState) valueInterface() (val any) {
 // arrayInterface is like array but returns []interface{}.
 func (d *decodeState) arrayInterface() []any {
 	v := make([]any, 0)
+	d.context = &decodeContext{parent: d.context}
 	for {
 		// Look ahead for ] - can only happen on first iteration.
 		d.scanWhile(scanSkipSpace)
@@ -1058,13 +1084,16 @@ func (d *decodeState) arrayInterface() []any {
 		if d.opcode != scanArrayValue {
 			panic(phasePanicMsg)
 		}
+		d.context.index++
 	}
+	d.context = d.context.parent
 	return v
 }
 
 // objectInterface is like object but returns map[string]interface{}.
 func (d *decodeState) objectInterface() map[string]any {
 	m := make(map[string]any)
+	d.context = &decodeContext{parent: d.context}
 	for {
 		// Read opening " of string key or closing }.
 		d.scanWhile(scanSkipSpace)
@@ -1084,6 +1113,7 @@ func (d *decodeState) objectInterface() map[string]any {
 		if !ok {
 			panic(phasePanicMsg)
 		}
+		d.context.key = key
 
 		// Read : before value.
 		if d.opcode == scanSkipSpace {
@@ -1107,7 +1137,9 @@ func (d *decodeState) objectInterface() map[string]any {
 		if d.opcode != scanObjectValue {
 			panic(phasePanicMsg)
 		}
+		d.context.index++
 	}
+	d.context = d.context.parent
 	return m
 }
 
