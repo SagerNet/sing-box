@@ -1,4 +1,14 @@
+---
+icon: material/alert-decagram
+---
+
 # Route
+
+!!! quote "Changes in sing-box 1.8.0"
+
+    :material-plus: [rule_set](#rule_set)  
+    :material-delete-clock: [geoip](#geoip)  
+    :material-delete-clock: [geosite](#geosite)
 
 ### Structure
 
@@ -8,6 +18,7 @@
     "geoip": {},
     "geosite": {},
     "rules": [],
+    "rule_set": [],
     "final": "",
     "auto_detect_interface": false,
     "override_android_vpn": false,
@@ -19,11 +30,20 @@
 
 ### Fields
 
-| Key        | Format                             |
-|------------|------------------------------------|
-| `geoip`    | [GeoIP](./geoip)                   |
-| `geosite`  | [Geosite](./geosite)               |
-| `rules`    | List of [Route Rule](./rule)       |
+| Key       | Format               |
+|-----------|----------------------|
+| `geoip`   | [GeoIP](./geoip)     |
+| `geosite` | [Geosite](./geosite) |
+
+#### rules
+
+List of [Route Rule](./rule)
+
+#### rule_set
+
+!!! question "Since sing-box 1.8.0"
+
+List of [Rule Set](/configuration/rule-set)
 
 #### final
 
