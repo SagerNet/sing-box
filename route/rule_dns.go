@@ -190,6 +190,11 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.RuleSet) > 0 {
+		item := NewRuleSetItem(router, options.RuleSet, false)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	return rule, nil
 }
 
@@ -212,7 +217,7 @@ type LogicalDNSRule struct {
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
-			rules:    make([]adapter.Rule, len(options.Rules)),
+			rules:    make([]adapter.HeadlessRule, len(options.Rules)),
 			invert:   options.Invert,
 			outbound: options.Server,
 		},
