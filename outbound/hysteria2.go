@@ -4,6 +4,7 @@ package outbound
 
 import (
 	"context"
+	"github.com/sagernet/sing/common/uot"
 	"net"
 	"os"
 
@@ -29,7 +30,8 @@ var (
 
 type Hysteria2 struct {
 	myOutboundAdapter
-	client *hysteria2.Client
+	client    *hysteria2.Client
+	udpStream bool
 }
 
 func NewHysteria2(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.Hysteria2OutboundOptions) (*Hysteria2, error) {
@@ -83,7 +85,8 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		client: client,
+		client:    client,
+		udpStream: options.UDPOverStream,
 	}, nil
 }
 
@@ -93,19 +96,43 @@ func (h *Hysteria2) DialContext(ctx context.Context, network string, destination
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
 		return h.client.DialConn(ctx, destination)
 	case N.NetworkUDP:
-		conn, err := h.ListenPacket(ctx, destination)
-		if err != nil {
-			return nil, err
+		if h.udpStream {
+			h.logger.InfoContext(ctx, "outbound stream packet connection to ", destination)
+			streamConn, err := h.client.DialConn(ctx, uot.RequestDestination(uot.Version))
+			if err != nil {
+				return nil, err
+			}
+			return uot.NewLazyConn(streamConn, uot.Request{
+				IsConnect:   true,
+				Destination: destination,
+			}), nil
+		} else {
+			conn, err := h.ListenPacket(ctx, destination)
+			if err != nil {
+				return nil, err
+			}
+			return bufio.NewBindPacketConn(conn, destination), nil
 		}
-		return bufio.NewBindPacketConn(conn, destination), nil
 	default:
 		return nil, E.New("unsupported network: ", network)
 	}
 }
 
 func (h *Hysteria2) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-	return h.client.ListenPacket(ctx)
+	if h.udpStream {
+		h.logger.InfoContext(ctx, "outbound stream packet connection to ", destination)
+		streamConn, err := h.client.DialConn(ctx, uot.RequestDestination(uot.Version))
+		if err != nil {
+			return nil, err
+		}
+		return uot.NewLazyConn(streamConn, uot.Request{
+			IsConnect:   false,
+			Destination: destination,
+		}), nil
+	} else {
+		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
+		return h.client.ListenPacket(ctx)
+	}
 }
 
 func (h *Hysteria2) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
