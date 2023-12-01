@@ -100,8 +100,10 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			allProxies = append(allProxies, detour.Tag())
 		}
 
-		defaultTag := router.DefaultOutbound(N.NetworkTCP).Tag()
-		if defaultTag == "" {
+		var defaultTag string
+		if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
+			defaultTag = defaultOutbound.Tag()
+		} else {
 			defaultTag = allProxies[0]
 		}
 

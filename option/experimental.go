@@ -24,15 +24,15 @@ type ClashAPIOptions struct {
 	ModeList                 []string `json:"-"`
 
 	// Deprecated: migrated to global cache file
+	CacheFile string `json:"cache_file,omitempty"`
+	// Deprecated: migrated to global cache file
+	CacheID string `json:"cache_id,omitempty"`
+	// Deprecated: migrated to global cache file
 	StoreMode bool `json:"store_mode,omitempty"`
 	// Deprecated: migrated to global cache file
 	StoreSelected bool `json:"store_selected,omitempty"`
 	// Deprecated: migrated to global cache file
 	StoreFakeIP bool `json:"store_fakeip,omitempty"`
-	// Deprecated: migrated to global cache file
-	CacheFile string `json:"cache_file,omitempty"`
-	// Deprecated: migrated to global cache file
-	CacheID string `json:"cache_id,omitempty"`
 }
 
 type V2RayAPIOptions struct {
