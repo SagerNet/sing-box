@@ -120,11 +120,21 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.SourceIPIsPrivate {
+		item := NewIPIsPrivateItem(true)
+		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.IPCIDR) > 0 {
 		item, err := NewIPCIDRItem(false, options.IPCIDR)
 		if err != nil {
 			return nil, E.Cause(err, "ipcidr")
 		}
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.IPIsPrivate {
+		item := NewIPIsPrivateItem(false)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
