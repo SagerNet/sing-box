@@ -65,6 +65,10 @@ func (s *LocalRuleSet) StartContext(ctx context.Context, startContext adapter.Ru
 	return nil
 }
 
+func (s *LocalRuleSet) PostStart() error {
+	return nil
+}
+
 func (s *LocalRuleSet) Close() error {
 	return nil
 }

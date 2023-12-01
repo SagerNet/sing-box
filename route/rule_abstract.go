@@ -17,6 +17,7 @@ type abstractDefaultRule struct {
 	destinationAddressItems []RuleItem
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
+	ruleSetItem             RuleItem
 	invert                  bool
 	outbound                string
 }
@@ -62,62 +63,62 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 		return true
 	}
 
+	if len(r.sourceAddressItems) > 0 && !metadata.SourceAddressMatch {
+		for _, item := range r.sourceAddressItems {
+			if item.Match(metadata) {
+				metadata.SourceAddressMatch = true
+				break
+			}
+		}
+	}
+
+	if len(r.sourcePortItems) > 0 && !metadata.SourceAddressMatch {
+		for _, item := range r.sourcePortItems {
+			if item.Match(metadata) {
+				metadata.SourcePortMatch = true
+				break
+			}
+		}
+	}
+
+	if len(r.destinationAddressItems) > 0 && !metadata.SourceAddressMatch {
+		for _, item := range r.destinationAddressItems {
+			if item.Match(metadata) {
+				metadata.DestinationAddressMatch = true
+				break
+			}
+		}
+	}
+
+	if len(r.destinationPortItems) > 0 && !metadata.SourceAddressMatch {
+		for _, item := range r.destinationPortItems {
+			if item.Match(metadata) {
+				metadata.DestinationPortMatch = true
+				break
+			}
+		}
+	}
+
 	for _, item := range r.items {
 		if !item.Match(metadata) {
 			return r.invert
 		}
 	}
 
-	if len(r.sourceAddressItems) > 0 {
-		var sourceAddressMatch bool
-		for _, item := range r.sourceAddressItems {
-			if item.Match(metadata) {
-				sourceAddressMatch = true
-				break
-			}
-		}
-		if !sourceAddressMatch {
-			return r.invert
-		}
+	if len(r.sourceAddressItems) > 0 && !metadata.SourceAddressMatch {
+		return r.invert
 	}
 
-	if len(r.sourcePortItems) > 0 {
-		var sourcePortMatch bool
-		for _, item := range r.sourcePortItems {
-			if item.Match(metadata) {
-				sourcePortMatch = true
-				break
-			}
-		}
-		if !sourcePortMatch {
-			return r.invert
-		}
+	if len(r.sourcePortItems) > 0 && !metadata.SourcePortMatch {
+		return r.invert
 	}
 
-	if len(r.destinationAddressItems) > 0 {
-		var destinationAddressMatch bool
-		for _, item := range r.destinationAddressItems {
-			if item.Match(metadata) {
-				destinationAddressMatch = true
-				break
-			}
-		}
-		if !destinationAddressMatch {
-			return r.invert
-		}
+	if len(r.destinationAddressItems) > 0 && !metadata.DestinationAddressMatch {
+		return r.invert
 	}
 
-	if len(r.destinationPortItems) > 0 {
-		var destinationPortMatch bool
-		for _, item := range r.destinationPortItems {
-			if item.Match(metadata) {
-				destinationPortMatch = true
-				break
-			}
-		}
-		if !destinationPortMatch {
-			return r.invert
-		}
+	if len(r.destinationPortItems) > 0 && !metadata.DestinationPortMatch {
+		return r.invert
 	}
 
 	return !r.invert
@@ -188,10 +189,12 @@ func (r *abstractLogicalRule) Close() error {
 func (r *abstractLogicalRule) Match(metadata *adapter.InboundContext) bool {
 	if r.mode == C.LogicalTypeAnd {
 		return common.All(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
 			return it.Match(metadata)
 		}) != r.invert
 	} else {
 		return common.Any(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
 			return it.Match(metadata)
 		}) != r.invert
 	}

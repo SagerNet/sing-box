@@ -18,6 +18,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.RuleSet = (*RemoteRuleSet)(nil)
@@ -34,6 +35,7 @@ type RemoteRuleSet struct {
 	lastUpdated    time.Time
 	lastEtag       string
 	updateTicker   *time.Ticker
+	pauseManager   pause.Manager
 }
 
 func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -51,6 +53,7 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 		logger:         logger,
 		options:        options,
 		updateInterval: updateInterval,
+		pauseManager:   pause.ManagerFromContext(ctx),
 	}
 }
 
@@ -90,14 +93,18 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.R
 			s.lastEtag = savedSet.LastEtag
 		}
 	}
-	if s.lastUpdated.IsZero() || time.Since(s.lastUpdated) > s.updateInterval {
-		err := s.fetchOnce(ctx, startContext)
-		if err != nil {
-			return E.Cause(err, "fetch rule-set ", s.options.Tag)
-		}
-	}
 	s.updateTicker = time.NewTicker(s.updateInterval)
 	go s.loopUpdate()
+	return nil
+}
+
+func (s *RemoteRuleSet) PostStart() error {
+	if s.lastUpdated.IsZero() {
+		err := s.fetchOnce(s.ctx, nil)
+		if err != nil {
+			s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+		}
+	}
 	return nil
 }
 
@@ -136,11 +143,18 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 }
 
 func (s *RemoteRuleSet) loopUpdate() {
+	if time.Since(s.lastUpdated) > s.updateInterval {
+		err := s.fetchOnce(s.ctx, nil)
+		if err != nil {
+			s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+		}
+	}
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-s.updateTicker.C:
+			s.pauseManager.WaitActive()
 			err := s.fetchOnce(s.ctx, nil)
 			if err != nil {
 				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)

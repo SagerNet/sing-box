@@ -307,6 +307,10 @@ func (s *Box) postStart() error {
 			}
 		}
 	}
+	err := s.router.PostStart()
+	if err != nil {
+		return E.Cause(err, "post-start router")
+	}
 	return nil
 }
 

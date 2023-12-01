@@ -17,6 +17,7 @@ import (
 
 type Router interface {
 	Service
+	PostStarter
 
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
@@ -86,6 +87,7 @@ type DNSRule interface {
 
 type RuleSet interface {
 	StartContext(ctx context.Context, startContext RuleSetStartContext) error
+	PostStart() error
 	Close() error
 	HeadlessRule
 }

@@ -3,9 +3,9 @@ package libbox
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )

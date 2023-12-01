@@ -4,6 +4,34 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.8.0-alpha.8
+
+* Add context to JSON decode error message **1**
+* Fixes and improvements
+
+**1**:
+
+JSON parse errors will now include the current key path.
+Only takes effect when compiled with Go 1.21+.
+
+#### 1.8.0-alpha.7
+
+* Fixes and improvements
+
+#### 1.7.1
+
+* Fixes and improvements
+
+#### 1.8.0-alpha.6
+
+* Fix rule-set matching logic **1**
+* Fixes and improvements
+
+**1**:
+
+Now the rules in the `rule_set` rule item can be logically considered to be merged into the rule using rule sets,
+rather than completely following the AND logic.
+
 #### 1.8.0-alpha.5
 
 * Parallel rule-set initialization
@@ -11,7 +39,7 @@ icon: material/alert-decagram
 
 **1**:
 
-The `private` GeoIP country never existed and was actually implemented inside V2Ray. 
+The `private` GeoIP country never existed and was actually implemented inside V2Ray.
 Since GeoIP was deprecated, we made this rule independent, see [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 #### 1.8.0-alpha.1

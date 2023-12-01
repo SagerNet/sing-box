@@ -1,7 +1,6 @@
 package v2raywebsocket
 
 import (
-	"bufio"
 	"context"
 	"encoding/base64"
 	"io"
@@ -28,19 +27,13 @@ type WebsocketConn struct {
 	remoteAddr     net.Addr
 }
 
-func NewConn(conn net.Conn, br *bufio.Reader, remoteAddr net.Addr, state ws.State) *WebsocketConn {
+func NewConn(conn net.Conn, remoteAddr net.Addr, state ws.State) *WebsocketConn {
 	controlHandler := wsutil.ControlFrameHandler(conn, state)
-	var reader io.Reader
-	if br != nil && br.Buffered() > 0 {
-		reader = br
-	} else {
-		reader = conn
-	}
 	return &WebsocketConn{
 		Conn:  conn,
 		state: state,
 		reader: &wsutil.Reader{
-			Source:          reader,
+			Source:          conn,
 			State:           state,
 			SkipHeaderCheck: !debug.Enabled,
 			OnIntermediate:  controlHandler,
