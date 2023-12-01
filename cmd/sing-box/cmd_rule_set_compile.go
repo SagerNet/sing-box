@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sagernet/sing-box/common/json"
 	"github.com/sagernet/sing-box/common/srs"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
 )
