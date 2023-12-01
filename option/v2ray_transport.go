@@ -60,7 +60,7 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	err = UnmarshallExcluded(bytes, (*_V2RayTransportOptions)(o), v)
 	if err != nil {
-		return E.Cause(err, "vmess transport options")
+		return err
 	}
 	return nil
 }
