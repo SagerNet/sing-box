@@ -32,12 +32,16 @@ theme:
     - content.code.copy
     - content.code.select
     - content.code.annotate
+  icon:
+    admonition:
+      question: material/new-box
 nav:
   - Home:
       - index.md
+      - Change Log: changelog.md
+      - Migration: migration.md
       - Deprecated: deprecated.md
       - Support: support.md
-      - Change Log: changelog.md
   - Installation:
       - Package Manager: installation/package-manager.md
       - Docker: installation/docker.md
@@ -56,7 +60,7 @@ nav:
       - Proxy:
           - Server: manual/proxy/server.md
           - Client: manual/proxy/client.md
-#          - TUN: manual/proxy/tun.md
+      #          - TUN: manual/proxy/tun.md
       - Proxy Protocol:
           - Shadowsocks: manual/proxy-protocol/shadowsocks.md
           - Trojan: manual/proxy-protocol/trojan.md
@@ -79,8 +83,15 @@ nav:
           - Geosite: configuration/route/geosite.md
           - Route Rule: configuration/route/rule.md
           - Protocol Sniff: configuration/route/sniff.md
+      - Rule Set:
+          - configuration/rule-set/index.md
+          - Source Format: configuration/rule-set/source-format.md
+          - Headless Rule: configuration/rule-set/headless-rule.md
       - Experimental:
           - configuration/experimental/index.md
+          - Cache File: configuration/experimental/cache-file.md
+          - Clash API: configuration/experimental/clash-api.md
+          - V2Ray API: configuration/experimental/v2ray-api.md
       - Shared:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
@@ -180,9 +191,10 @@ plugins:
           name: 简体中文
           nav_translations:
             Home: 开始
+            Change Log: 更新日志
+            Migration: 迁移指南
             Deprecated: 废弃功能列表
             Support: 支持
-            Change Log: 更新日志
 
             Installation: 安装
             Package Manager: 包管理器
@@ -203,6 +215,10 @@ plugins:
             Route Rule: 路由规则
             Protocol Sniff: 协议探测
 
+            Rule Set: 规则集
+            Source Format: 源文件格式
+            Headless Rule: 无头规则
+
             Experimental: 实验性
 
             Shared: 通用
@@ -215,10 +231,6 @@ plugins:
             Inbound: 入站
             Outbound: 出站
 
-            FAQ: 常见问题
-            Known Issues: 已知问题
-            Examples: 示例
-            Linux Server Installation: Linux 服务器安装
-            DNS Hijack: DNS 劫持
+            Manual: 手册
       reconfigure_material: true
       reconfigure_search: true
