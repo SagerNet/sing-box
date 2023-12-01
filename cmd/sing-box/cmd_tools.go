@@ -38,11 +38,7 @@ func createPreStartedClient() (*box.Box, error) {
 
 func createDialer(instance *box.Box, network string, outboundTag string) (N.Dialer, error) {
 	if outboundTag == "" {
-		outbound := instance.Router().DefaultOutbound(N.NetworkName(network))
-		if outbound == nil {
-			return nil, E.New("missing default outbound")
-		}
-		return outbound, nil
+		return instance.Router().DefaultOutbound(N.NetworkName(network))
 	} else {
 		outbound, loaded := instance.Router().Outbound(outboundTag)
 		if !loaded {
