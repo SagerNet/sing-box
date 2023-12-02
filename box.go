@@ -258,7 +258,7 @@ func (s *Box) start() error {
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
-	return nil
+	return s.postStart()
 }
 
 func (s *Box) postStart() error {
@@ -269,16 +269,17 @@ func (s *Box) postStart() error {
 			return E.Cause(err, "start ", serviceName)
 		}
 	}
-	for serviceName, service := range s.outbounds {
-		if lateService, isLateService := service.(adapter.PostStarter); isLateService {
-			s.logger.Trace("post-starting ", service)
-			err := lateService.PostStart()
+	for _, outbound := range s.outbounds {
+		if lateOutbound, isLateOutbound := outbound.(adapter.PostStarter); isLateOutbound {
+			s.logger.Trace("post-starting outbound/", outbound.Tag())
+			err := lateOutbound.PostStart()
 			if err != nil {
-				return E.Cause(err, "post-start ", serviceName)
+				return E.Cause(err, "post-start outbound/", outbound.Tag())
 			}
 		}
 	}
-	return nil
+	s.logger.Trace("post-starting router")
+	return s.router.PostStart()
 }
 
 func (s *Box) Close() error {

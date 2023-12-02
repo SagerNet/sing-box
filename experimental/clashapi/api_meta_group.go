@@ -83,7 +83,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 
 		var result map[string]uint16
 		if urlTestGroup, isURLTestGroup := group.(adapter.URLTestGroup); isURLTestGroup {
-			result, err = urlTestGroup.URLTest(ctx, url)
+			result, err = urlTestGroup.URLTest(ctx)
 		} else {
 			outbounds := common.FilterNotNil(common.Map(group.All(), func(it string) adapter.Outbound {
 				itOutbound, _ := server.router.Outbound(it)

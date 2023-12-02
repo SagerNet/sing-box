@@ -15,6 +15,7 @@ import (
 
 type Router interface {
 	Service
+	PostStarter
 
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
