@@ -7,12 +7,20 @@ icon: material/alert-decagram
 #### 1.8.0-alpha.8
 
 * Add context to JSON decode error message **1**
+* Reject internal fake-ip queries **2**
 * Fixes and improvements
 
 **1**:
 
 JSON parse errors will now include the current key path.
 Only takes effect when compiled with Go 1.21+.
+
+**2**:
+
+All internal DNS queries now skip DNS rules with `server` type `fakeip`,
+and the default DNS server can no longer be `fakeip`.
+
+This change is intended to break incorrect usage and essentially requires no action.
 
 #### 1.8.0-alpha.7
 
