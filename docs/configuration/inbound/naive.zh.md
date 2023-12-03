@@ -18,10 +18,6 @@
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含 HTTP3 传输层, 参阅 [安装](/zh/#_2)。
-
 ### 监听字段
 
 参阅 [监听字段](/zh/configuration/shared/listen/)。

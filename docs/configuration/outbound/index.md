@@ -26,7 +26,6 @@
 | `trojan`       | [Trojan](./trojan)             |
 | `wireguard`    | [Wireguard](./wireguard)       |
 | `hysteria`     | [Hysteria](./hysteria)         |
-| `shadowsocksr` | [ShadowsocksR](./shadowsocksr) |
 | `vless`        | [VLESS](./vless)               |
 | `shadowtls`    | [ShadowTLS](./shadowtls)       |
 | `tuic`         | [TUIC](./tuic)                 |
