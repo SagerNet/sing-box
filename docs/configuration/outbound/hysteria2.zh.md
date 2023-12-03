@@ -22,10 +22,6 @@
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含被 Hysteria2 依赖的 QUIC，参阅 [安装](/zh/#_2)。
-
 !!! warning "与官方 Hysteria2 的区别"
 
     官方程序支持一种名为 **userpass** 的验证方式，
