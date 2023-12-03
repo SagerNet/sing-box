@@ -220,6 +220,7 @@ plugins:
             Headless Rule: 无头规则
 
             Experimental: 实验性
+            Cache File: 缓存文件
 
             Shared: 通用
             Listen Fields: 监听字段

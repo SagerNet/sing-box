@@ -23,7 +23,7 @@ You can download and install Go from: https://go.dev/doc/install, latest version
 make
 ```
 
-Or build and install binary to `GOBIN`:
+Or build and install binary to `$GOBIN`:
 
 ```bash
 make install
