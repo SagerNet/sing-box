@@ -168,7 +168,7 @@ TCP/IP 栈。
 
 !!! warning ""
 
-    默认安装不包含 gVisor 和 LWIP 栈，请参阅 [安装](/zh/#_2)。
+    默认安装不包含 LWIP 栈，参阅 [安装](/zh/installation/build-from-source/#_5)。
 
 #### include_interface
 
