@@ -2,8 +2,6 @@
 icon: material/alert-decagram
 ---
 
-# ChangeLog
-
 #### 1.8.0-alpha.9
 
 * Add `idle_timeout` for URLTest outbound **1**
