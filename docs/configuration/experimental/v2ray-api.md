@@ -1,8 +1,8 @@
-### Structure
-
 !!! quote ""
 
-    V2Ray API is not included by default, see [Installation](./#installation).
+    V2Ray API is not included by default, see [Installation](/installation/build-from-source/#build-tags).
+
+### Structure
 
 ```json
 {

@@ -182,7 +182,7 @@ icon: material/alert-decagram
 
 !!! failure "已在 sing-box 1.8.0 废弃"
 
-    Geosite 已废弃且可能在不久的将来移除，参阅 [迁移指南](/migration/#migrate-geosite-to-rule-sets)。
+    Geosite 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geosite)。
 
 匹配 Geosite。
 
@@ -190,7 +190,7 @@ icon: material/alert-decagram
 
 !!! failure "已在 sing-box 1.8.0 废弃"
 
-    GeoIp 已废弃且可能在不久的将来移除，参阅 [迁移指南](/migration/#migrate-geoip-to-rule-sets)。
+    GeoIP 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geoip)。
 
 匹配源 GeoIP。
 
@@ -198,7 +198,7 @@ icon: material/alert-decagram
 
 !!! failure "已在 sing-box 1.8.0 废弃"
 
-    GeoIp 已废弃且可能在不久的将来移除，参阅 [迁移指南](/migration/#migrate-geoip-to-rule-sets)。
+    GeoIP 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geoip)。
 
 匹配 GeoIP。
 

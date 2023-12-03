@@ -190,10 +190,6 @@ TLS 版本值：
 
 ==仅客户端==
 
-!!! warning ""
-
-    默认安装不包含 uTLS, 参阅 [安装](/zh/#_2)。
-
 !!! note ""
 
     uTLS 维护不善且其效果可能未经证实，使用风险自负。
@@ -217,13 +213,8 @@ uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻
 
 ## ECH 字段
 
-!!! warning ""
-
-    默认安装不包含 ECH, 参阅 [安装](/zh/#_2)。
-
 ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 ClientHello 的第一部分
 信息。
-
 
 ECH 配置和密钥可以通过 `sing-box generate ech-keypair [--pq-signature-schemes-enabled]` 生成。
 
@@ -269,10 +260,6 @@ ECH PEM 配置路径
 如果为空，将尝试从 DNS 加载。
 
 ### ACME 字段
-
-!!! warning ""
-
-    默认安装不包含 ACME，参阅 [安装](/zh/#_2)。
 
 #### domain
 
@@ -344,14 +331,6 @@ ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 参阅 [DNS01 验证字段](/configuration/shared/dns01_challenge/)。
 
 ### Reality 字段
-
-!!! warning ""
-
-    默认安装不包含 reality 服务器，参阅 [安装](/zh/#_2)。
-
-!!! warning ""
-
-    默认安装不包含被 reality 客户端需要的 uTLS, 参阅 [安装](/zh/#_2)。
 
 #### handshake
 

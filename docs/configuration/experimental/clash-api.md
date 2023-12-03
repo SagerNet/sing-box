@@ -10,11 +10,6 @@ icon: material/alert-decagram
     :material-delete-alert: [cache_file](#cache_file)  
     :material-delete-alert: [cache_id](#cache_id)
 
-
-!!! quote ""
-
-    Clash API is not included by default, see [Installation](./#installation).
-
 ### Structure
 
 ```json
@@ -47,8 +42,6 @@ RESTful web API listening address. Clash API will be disabled if empty.
 A relative path to the configuration directory or an absolute path to a
 directory in which you put some static web resource. sing-box will then
 serve it at `http://{{external-controller}}/ui`.
-
-
 
 #### external_ui_download_url
 
