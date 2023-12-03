@@ -24,14 +24,6 @@
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含 WireGuard, 参阅 [安装](/zh/#_2)。
-
-!!! warning ""
-
-    默认安装不包含被非特权 WireGuard 需要的 gVisor, 参阅 [安装](/zh/#_2)。
-
 ### 字段
 
 #### server
