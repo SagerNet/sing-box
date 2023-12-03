@@ -10,5 +10,5 @@ const (
 	STUNTimeout               = 15 * time.Second
 	UDPTimeout                = 5 * time.Minute
 	DefaultURLTestInterval    = 3 * time.Minute
-	DefaultURLTestIdleTimeout = 30 * time.Second
+	DefaultURLTestIdleTimeout = 30 * time.Minute
 )
