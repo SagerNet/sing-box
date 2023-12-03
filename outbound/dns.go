@@ -165,6 +165,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 				}
 				timeout.Update()
 				responseBuffer := buf.NewPacket()
+				responseBuffer.Resize(1024, 0)
 				n, err := response.PackBuffer(responseBuffer.FreeBytes())
 				if err != nil {
 					cancel(err)
@@ -241,6 +242,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				}
 				timeout.Update()
 				responseBuffer := buf.NewPacket()
+				responseBuffer.Resize(1024, 0)
 				n, err := response.PackBuffer(responseBuffer.FreeBytes())
 				if err != nil {
 					cancel(err)

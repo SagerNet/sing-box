@@ -3,7 +3,6 @@ package outbound
 import (
 	"context"
 	"net"
-	"sort"
 	"sync"
 	"time"
 
@@ -36,9 +35,9 @@ type URLTest struct {
 	link                         string
 	interval                     time.Duration
 	tolerance                    uint16
+	idleTimeout                  time.Duration
 	group                        *URLTestGroup
 	interruptExternalConnections bool
-	started                      bool
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (*URLTest, error) {
@@ -55,6 +54,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		link:                         options.URL,
 		interval:                     time.Duration(options.Interval),
 		tolerance:                    options.Tolerance,
+		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}
 	if len(outbound.tags) == 0 {
@@ -79,13 +79,26 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	s.group = NewURLTestGroup(s.ctx, s.router, s.logger, outbounds, s.link, s.interval, s.tolerance, s.interruptExternalConnections)
+	group, err := NewURLTestGroup(
+		s.ctx,
+		s.router,
+		s.logger,
+		outbounds,
+		s.link,
+		s.interval,
+		s.tolerance,
+		s.idleTimeout,
+		s.interruptExternalConnections,
+	)
+	if err != nil {
+		return err
+	}
+	s.group = group
 	return nil
 }
 
 func (s *URLTest) PostStart() error {
-	s.started = true
-	go s.CheckOutbounds()
+	s.group.PostStart()
 	return nil
 }
 
@@ -103,8 +116,8 @@ func (s *URLTest) All() []string {
 	return s.tags
 }
 
-func (s *URLTest) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
-	return s.group.URLTest(ctx, link)
+func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
+	return s.group.URLTest(ctx)
 }
 
 func (s *URLTest) CheckOutbounds() {
@@ -112,9 +125,7 @@ func (s *URLTest) CheckOutbounds() {
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	if s.started {
-		s.group.Start()
-	}
+	s.group.Touch()
 	outbound := s.group.Select(network)
 	conn, err := outbound.DialContext(ctx, network, destination)
 	if err == nil {
@@ -126,9 +137,7 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 }
 
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	if s.started {
-		s.group.Start()
-	}
+	s.group.Touch()
 	outbound := s.group.Select(N.NetworkUDP)
 	conn, err := outbound.ListenPacket(ctx, destination)
 	if err == nil {
@@ -162,6 +171,7 @@ type URLTestGroup struct {
 	link                         string
 	interval                     time.Duration
 	tolerance                    uint16
+	idleTimeout                  time.Duration
 	history                      *urltest.HistoryStorage
 	checking                     atomic.Bool
 	pauseManager                 pause.Manager
@@ -170,9 +180,11 @@ type URLTestGroup struct {
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 
-	access sync.Mutex
-	ticker *time.Ticker
-	close  chan struct{}
+	access     sync.Mutex
+	ticker     *time.Ticker
+	close      chan struct{}
+	started    bool
+	lastActive atomic.TypedValue[time.Time]
 }
 
 func NewURLTestGroup(
@@ -183,13 +195,20 @@ func NewURLTestGroup(
 	link string,
 	interval time.Duration,
 	tolerance uint16,
+	idleTimeout time.Duration,
 	interruptExternalConnections bool,
-) *URLTestGroup {
+) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
 	if tolerance == 0 {
 		tolerance = 50
+	}
+	if idleTimeout == 0 {
+		idleTimeout = C.DefaultURLTestIdleTimeout
+	}
+	if interval > idleTimeout {
+		return nil, E.New("interval must be less or equal than idle_timeout")
 	}
 	var history *urltest.HistoryStorage
 	if history = service.PtrFromContext[urltest.HistoryStorage](ctx); history != nil {
@@ -206,16 +225,27 @@ func NewURLTestGroup(
 		link:                         link,
 		interval:                     interval,
 		tolerance:                    tolerance,
+		idleTimeout:                  idleTimeout,
 		history:                      history,
 		close:                        make(chan struct{}),
 		pauseManager:                 pause.ManagerFromContext(ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
-	}
+	}, nil
 }
 
-func (g *URLTestGroup) Start() {
+func (g *URLTestGroup) PostStart() {
+	g.started = true
+	g.lastActive.Store(time.Now())
+	go g.CheckOutbounds(false)
+}
+
+func (g *URLTestGroup) Touch() {
+	if !g.started {
+		return
+	}
 	if g.ticker != nil {
+		g.lastActive.Store(time.Now())
 		return
 	}
 	g.access.Lock()
@@ -266,51 +296,38 @@ func (g *URLTestGroup) Select(network string) adapter.Outbound {
 	return minOutbound
 }
 
-func (g *URLTestGroup) Fallback(used adapter.Outbound) []adapter.Outbound {
-	outbounds := make([]adapter.Outbound, 0, len(g.outbounds)-1)
-	for _, detour := range g.outbounds {
-		if detour != used {
-			outbounds = append(outbounds, detour)
-		}
-	}
-	sort.SliceStable(outbounds, func(i, j int) bool {
-		oi := outbounds[i]
-		oj := outbounds[j]
-		hi := g.history.LoadURLTestHistory(RealTag(oi))
-		if hi == nil {
-			return false
-		}
-		hj := g.history.LoadURLTestHistory(RealTag(oj))
-		if hj == nil {
-			return false
-		}
-		return hi.Delay < hj.Delay
-	})
-	return outbounds
-}
-
 func (g *URLTestGroup) loopCheck() {
-	go g.CheckOutbounds(true)
+	if time.Now().Sub(g.lastActive.Load()) > g.interval {
+		g.lastActive.Store(time.Now())
+		g.CheckOutbounds(false)
+	}
 	for {
-		g.pauseManager.WaitActive()
 		select {
 		case <-g.close:
 			return
 		case <-g.ticker.C:
-			g.CheckOutbounds(false)
 		}
+		if time.Now().Sub(g.lastActive.Load()) > g.idleTimeout {
+			g.access.Lock()
+			g.ticker.Stop()
+			g.ticker = nil
+			g.access.Unlock()
+			return
+		}
+		g.pauseManager.WaitActive()
+		g.CheckOutbounds(false)
 	}
 }
 
 func (g *URLTestGroup) CheckOutbounds(force bool) {
-	_, _ = g.urlTest(g.ctx, g.link, force)
+	_, _ = g.urlTest(g.ctx, force)
 }
 
-func (g *URLTestGroup) URLTest(ctx context.Context, link string) (map[string]uint16, error) {
-	return g.urlTest(ctx, link, false)
+func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
+	return g.urlTest(ctx, false)
 }
 
-func (g *URLTestGroup) urlTest(ctx context.Context, link string, force bool) (map[string]uint16, error) {
+func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
 	result := make(map[string]uint16)
 	if g.checking.Swap(true) {
 		return result, nil
@@ -337,7 +354,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, link string, force bool) (ma
 		b.Go(realTag, func() (any, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), C.TCPTimeout)
 			defer cancel()
-			t, err := urltest.URLTest(ctx, link, p)
+			t, err := urltest.URLTest(ctx, g.link, p)
 			if err != nil {
 				g.logger.Debug("outbound ", tag, " unavailable: ", err)
 				g.history.DeleteURLTestHistory(realTag)

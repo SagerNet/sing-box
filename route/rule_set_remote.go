@@ -93,6 +93,12 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.R
 			s.lastEtag = savedSet.LastEtag
 		}
 	}
+	if s.lastUpdated.IsZero() {
+		err := s.fetchOnce(ctx, startContext)
+		if err != nil {
+			return E.Cause(err, "initial rule-set: ", s.options.Tag)
+		}
+	}
 	s.updateTicker = time.NewTicker(s.updateInterval)
 	go s.loopUpdate()
 	return nil

@@ -11,5 +11,6 @@ type URLTestOutboundOptions struct {
 	URL                       string   `json:"url,omitempty"`
 	Interval                  Duration `json:"interval,omitempty"`
 	Tolerance                 uint16   `json:"tolerance,omitempty"`
+	IdleTimeout               Duration `json:"idle_timeout,omitempty"`
 	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
 }

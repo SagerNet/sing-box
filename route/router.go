@@ -91,6 +91,7 @@ type Router struct {
 	platformInterface                  platform.Interface
 	needWIFIState                      bool
 	wifiState                          adapter.WIFIState
+	started                            bool
 }
 
 func NewRouter(
@@ -145,6 +146,9 @@ func NewRouter(
 		router.dnsRules = append(router.dnsRules, dnsRule)
 	}
 	for i, ruleSetOptions := range options.RuleSet {
+		if _, exists := router.ruleSetMap[ruleSetOptions.Tag]; exists {
+			return nil, E.New("duplicate rule-set tag: ", ruleSetOptions.Tag)
+		}
 		ruleSet, err := NewRuleSet(ctx, router, router.logger, ruleSetOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule-set[", i, "]")
@@ -619,6 +623,19 @@ func (r *Router) Close() error {
 	return err
 }
 
+func (r *Router) PostStart() error {
+	if len(r.ruleSets) > 0 {
+		for i, ruleSet := range r.ruleSets {
+			err := ruleSet.PostStart()
+			if err != nil {
+				return E.Cause(err, "post start rule-set[", i, "]")
+			}
+		}
+	}
+	r.started = true
+	return nil
+}
+
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	outbound, loaded := r.outboundByTag[tag]
 	return outbound, loaded
@@ -1073,8 +1090,11 @@ func (r *Router) notifyNetworkUpdate(event int) {
 		}
 	}
 
-	r.ResetNetwork()
-	return
+	if !r.started {
+		return
+	}
+
+	_ = r.ResetNetwork()
 }
 
 func (r *Router) ResetNetwork() error {
