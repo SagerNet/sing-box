@@ -2,7 +2,6 @@
 icon: material/alert-decagram
 ---
 
-# ChangeLog
 
 #### 1.7.8
 
