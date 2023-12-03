@@ -35,6 +35,7 @@ type URLTest struct {
 	link                         string
 	interval                     time.Duration
 	tolerance                    uint16
+	idleTimeout                  time.Duration
 	group                        *URLTestGroup
 	interruptExternalConnections bool
 }
@@ -54,6 +55,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		link:                         options.URL,
 		interval:                     time.Duration(options.Interval),
 		tolerance:                    options.Tolerance,
+		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}
 	if len(outbound.tags) == 0 {
@@ -71,7 +73,21 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	s.group = NewURLTestGroup(s.ctx, s.router, s.logger, outbounds, s.link, s.interval, s.tolerance, s.interruptExternalConnections)
+	group, err := NewURLTestGroup(
+		s.ctx,
+		s.router,
+		s.logger,
+		outbounds,
+		s.link,
+		s.interval,
+		s.tolerance,
+		s.idleTimeout,
+		s.interruptExternalConnections,
+	)
+	if err != nil {
+		return err
+	}
+	s.group = group
 	return nil
 }
 
@@ -160,6 +176,7 @@ type URLTestGroup struct {
 	link                         string
 	interval                     time.Duration
 	tolerance                    uint16
+	idleTimeout                  time.Duration
 	history                      *urltest.HistoryStorage
 	checking                     atomic.Bool
 	pauseManager                 pause.Manager
@@ -183,13 +200,20 @@ func NewURLTestGroup(
 	link string,
 	interval time.Duration,
 	tolerance uint16,
+	idleTimeout time.Duration,
 	interruptExternalConnections bool,
-) *URLTestGroup {
+) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
 	if tolerance == 0 {
 		tolerance = 50
+	}
+	if idleTimeout == 0 {
+		idleTimeout = C.DefaultURLTestIdleTimeout
+	}
+	if interval > idleTimeout {
+		return nil, E.New("interval must be less or equal than idle_timeout")
 	}
 	var history *urltest.HistoryStorage
 	if history = service.PtrFromContext[urltest.HistoryStorage](ctx); history != nil {
@@ -206,12 +230,13 @@ func NewURLTestGroup(
 		link:                         link,
 		interval:                     interval,
 		tolerance:                    tolerance,
+		idleTimeout:                  idleTimeout,
 		history:                      history,
 		close:                        make(chan struct{}),
 		pauseManager:                 pause.ManagerFromContext(ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
-	}
+	}, nil
 }
 
 func (g *URLTestGroup) PostStart() {
@@ -278,6 +303,7 @@ func (g *URLTestGroup) Select(network string) adapter.Outbound {
 
 func (g *URLTestGroup) loopCheck() {
 	if time.Now().Sub(g.lastActive.Load()) > g.interval {
+		g.lastActive.Store(time.Now())
 		g.CheckOutbounds(false)
 	}
 	for {
@@ -285,6 +311,13 @@ func (g *URLTestGroup) loopCheck() {
 		case <-g.close:
 			return
 		case <-g.ticker.C:
+		}
+		if time.Now().Sub(g.lastActive.Load()) > g.idleTimeout {
+			g.access.Lock()
+			g.ticker.Stop()
+			g.ticker = nil
+			g.access.Unlock()
+			return
 		}
 		g.pauseManager.WaitActive()
 		g.CheckOutbounds(false)
