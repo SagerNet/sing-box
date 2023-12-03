@@ -4,24 +4,24 @@ icon: material/arrange-bring-forward
 
 ## 1.8.0
 
-!!! warning "Unstable"
+!!! warning "不稳定的"
 
-    This version is still under development, and the following migration guide may be changed in the future.
+    该版本仍在开发中，迁移指南可能将在未来更改。
 
-### :material-close-box: Migrate cache file from Clash API to independent options
+### :material-close-box: 将缓存文件从 Clash API 迁移到独立选项
 
-!!! info "References"
+!!! info "参考"
 
-    [Clash API](/configuration/experimental/clash-api/) / 
-    [Cache File](/configuration/experimental/cache-file/)
+    [Clash API](/zh/configuration/experimental/clash-api/) / 
+    [Cache File](/zh/configuration/experimental/cache-file/)
 
-=== ":material-card-remove: Deprecated"
+=== ":material-card-remove: 弃用的"
 
     ```json
     {
       "experimental": {
         "clash_api": {
-          "cache_file": "cache.db", // default value
+          "cache_file": "cache.db", // 默认值
           "cahce_id": "my_profile2",
           "store_mode": true,
           "store_selected": true,
@@ -31,14 +31,14 @@ icon: material/arrange-bring-forward
     }
     ```
 
-=== ":material-card-multiple: New"
+=== ":material-card-multiple: 新的"
 
     ```json
     {
       "experimental"  : {
         "cache_file": {
           "enabled": true,
-          "path": "cache.db", // default value
+          "path": "cache.db", // 默认值
           "cache_id": "my_profile2",
           "store_fakeip": true
         }
@@ -46,21 +46,21 @@ icon: material/arrange-bring-forward
     }
     ```
 
-### :material-checkbox-intermediate: Migrate GeoIP to rule sets
+### :material-checkbox-intermediate: 迁移 GeoIP 到规则集
 
-!!! info "References"
+!!! info "参考"
 
-    [GeoIP](/configuration/route/geoip/) / 
-    [Route](/configuration/route/) / 
-    [Route Rule](/configuration/route/rule/) / 
-    [DNS Rule](/configuration/dns/rule/) / 
-    [Rule Set](/configuration/rule-set/)
+    [GeoIP](/zh/configuration/route/geoip/) / 
+    [路由](/zh/configuration/route/) / 
+    [路由规则](/zh/configuration/route/rule/) / 
+    [DNS 规则](/zh/configuration/dns/rule/) / 
+    [规则集](/zh/configuration/rule-set/)
 
 !!! tip
 
-    `sing-box geoip` commands can help you convert custom GeoIP into rule sets.
+    `sing-box geoip` 命令可以帮助您将自定义 GeoIP 转换为规则集。
 
-=== ":material-card-remove: Deprecated"
+=== ":material-card-remove: 弃用的"
 
     ```json
     {
@@ -86,7 +86,7 @@ icon: material/arrange-bring-forward
     }
     ```
 
-=== ":material-card-multiple: New"
+=== ":material-card-multiple: 新的"
 
     ```json
     {
@@ -131,21 +131,21 @@ icon: material/arrange-bring-forward
     }
     ```
 
-### :material-checkbox-intermediate: Migrate Geosite to rule sets
+### :material-checkbox-intermediate: 迁移 Geosite 到规则集
 
-!!! info "References"
+!!! info "参考"
 
-    [Geosite](/configuration/route/geosite/) / 
-    [Route](/configuration/route/) / 
-    [Route Rule](/configuration/route/rule/) / 
-    [DNS Rule](/configuration/dns/rule/) / 
-    [Rule Set](/configuration/rule-set/)
+    [Geosite](/zh/configuration/route/geosite/) / 
+    [路由](/zh/configuration/route/) / 
+    [路由规则](/zh/configuration/route/rule/) / 
+    [DNS 规则](/zh/configuration/dns/rule/) / 
+    [规则集](/zh/configuration/rule-set/)
 
 !!! tip
 
-    `sing-box geosite` commands can help you convert custom Geosite into rule sets.
+    `sing-box geosite` 命令可以帮助您将自定义 Geosite 转换为规则集。
 
-=== ":material-card-remove: Deprecated"
+=== ":material-card-remove: 弃用的"
 
     ```json
     {
@@ -163,7 +163,7 @@ icon: material/arrange-bring-forward
     }
     ```
 
-=== ":material-card-multiple: New"
+=== ":material-card-multiple: 新的"
 
     ```json
     {
