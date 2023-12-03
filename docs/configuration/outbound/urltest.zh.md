@@ -10,9 +10,10 @@
     "proxy-b",
     "proxy-c"
   ],
-  "url": "https://www.gstatic.com/generate_204",
-  "interval": "1m",
+  "url": "",
+  "interval": "",
   "tolerance": 50,
+  "idle_timeout": "",
   "interrupt_exist_connections": false
 }
 ```
@@ -31,11 +32,15 @@
 
 #### interval
 
-测试间隔。 默认使用 `1m`。
+测试间隔。 默认使用 `3m`。
 
 #### tolerance
 
 以毫秒为单位的测试容差。 默认使用 `50`。
+
+#### idle_timeout
+
+空闲超时。默认使用 `30m`。
 
 #### interrupt_exist_connections
 
