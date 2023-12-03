@@ -29,10 +29,6 @@
 }
 ```
 
-!!! warning ""
-
-    默认安装不包含被 Hysteria 依赖的 QUIC，参阅 [安装](/zh/#_2)。
-
 ### 监听字段
 
 参阅 [监听字段](/zh/configuration/shared/listen/)。
