@@ -15,8 +15,8 @@
 
 ### 字段
 
-| 类型             | 格式                              |
-|----------------|---------------------------------|
+| 类型             | 格式                             |
+|----------------|--------------------------------|
 | `direct`       | [Direct](./direct/)             |
 | `block`        | [Block](./block/)               |
 | `socks`        | [SOCKS](./socks/)               |
@@ -26,7 +26,6 @@
 | `trojan`       | [Trojan](./trojan/)             |
 | `wireguard`    | [Wireguard](./wireguard/)       |
 | `hysteria`     | [Hysteria](./hysteria/)         |
-| `shadowsocksr` | [ShadowsocksR](./shadowsocksr/) |
 | `vless`        | [VLESS](./vless/)               |
 | `shadowtls`    | [ShadowTLS](./shadowtls/)       |
 | `tuic`         | [TUIC](./tuic/)                 |
