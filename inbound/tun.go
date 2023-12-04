@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -142,7 +143,6 @@ func (t *Tun) Tag() string {
 
 func (t *Tun) Start() error {
 	if C.IsAndroid && t.platformInterface == nil {
-		t.logger.Trace("building android rules")
 		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
 	}
 	if t.tunOptions.Name == "" {
@@ -152,12 +152,14 @@ func (t *Tun) Start() error {
 		tunInterface tun.Tun
 		err          error
 	)
-	t.logger.Trace("opening interface")
+	monitor := taskmonitor.New(t.logger, C.DefaultStartTimeout)
+	monitor.Start("open tun interface")
 	if t.platformInterface != nil {
 		tunInterface, err = t.platformInterface.OpenTun(&t.tunOptions, t.platformOptions)
 	} else {
 		tunInterface, err = tun.New(t.tunOptions)
 	}
+	monitor.Finish()
 	if err != nil {
 		return E.Cause(err, "configure tun interface")
 	}
@@ -180,8 +182,9 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
-	t.logger.Trace("starting stack")
+	monitor.Start("initiating tun stack")
 	err = t.tunStack.Start()
+	monitor.Finish()
 	if err != nil {
 		return err
 	}
