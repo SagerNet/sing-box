@@ -14,6 +14,7 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/common/badjsonmerge"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -193,7 +194,7 @@ func run() error {
 }
 
 func closeMonitor(ctx context.Context) {
-	time.Sleep(3 * time.Second)
+	time.Sleep(C.DefaultStopFatalTimeout)
 	select {
 	case <-ctx.Done():
 		return

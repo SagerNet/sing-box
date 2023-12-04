@@ -15,7 +15,8 @@ import (
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
 
 type LocalRuleSet struct {
-	rules []adapter.HeadlessRule
+	rules    []adapter.HeadlessRule
+	metadata adapter.RuleSetMetadata
 }
 
 func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleSet, error) {
@@ -49,7 +50,10 @@ func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleS
 			return nil, E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
 	}
-	return &LocalRuleSet{rules}, nil
+	var metadata adapter.RuleSetMetadata
+	metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
+	metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
+	return &LocalRuleSet{rules, metadata}, nil
 }
 
 func (s *LocalRuleSet) Match(metadata *adapter.InboundContext) bool {
@@ -67,6 +71,10 @@ func (s *LocalRuleSet) StartContext(ctx context.Context, startContext adapter.Ru
 
 func (s *LocalRuleSet) PostStart() error {
 	return nil
+}
+
+func (s *LocalRuleSet) Metadata() adapter.RuleSetMetadata {
+	return s.metadata
 }
 
 func (s *LocalRuleSet) Close() error {

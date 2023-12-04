@@ -88,8 +88,14 @@ type DNSRule interface {
 type RuleSet interface {
 	StartContext(ctx context.Context, startContext RuleSetStartContext) error
 	PostStart() error
+	Metadata() RuleSetMetadata
 	Close() error
 	HeadlessRule
+}
+
+type RuleSetMetadata struct {
+	ContainsProcessRule bool
+	ContainsWIFIRule    bool
 }
 
 type RuleSetStartContext interface {
