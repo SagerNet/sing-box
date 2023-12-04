@@ -50,7 +50,7 @@ type CacheFile struct {
 	saveMetadataTimer *time.Timer
 }
 
-func NewCacheFile(ctx context.Context, options option.CacheFileOptions) *CacheFile {
+func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
 	var path string
 	if options.Path != "" {
 		path = options.Path

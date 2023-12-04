@@ -157,7 +157,7 @@ func New(options Options) (*Box, error) {
 	preServices2 := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needCacheFile {
-		cacheFile := cachefile.NewCacheFile(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
+		cacheFile := cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		preServices1["cache file"] = cacheFile
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 	}
