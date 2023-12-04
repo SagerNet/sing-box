@@ -9,29 +9,44 @@ import (
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/observable"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
-var _ Factory = (*observableFactory)(nil)
+var _ Factory = (*defaultFactory)(nil)
 
-type observableFactory struct {
+type defaultFactory struct {
+	ctx               context.Context
 	formatter         Formatter
 	platformFormatter Formatter
 	writer            io.Writer
+	file              *os.File
+	filePath          string
 	platformWriter    PlatformWriter
+	needObservable    bool
 	level             Level
 	subscriber        *observable.Subscriber[Entry]
 	observer          *observable.Observer[Entry]
 }
 
-func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter PlatformWriter) ObservableFactory {
-	factory := &observableFactory{
+func NewDefaultFactory(
+	ctx context.Context,
+	formatter Formatter,
+	writer io.Writer,
+	filePath string,
+	platformWriter PlatformWriter,
+	needObservable bool,
+) ObservableFactory {
+	factory := &defaultFactory{
+		ctx:       ctx,
 		formatter: formatter,
 		platformFormatter: Formatter{
 			BaseTime:         formatter.BaseTime,
 			DisableLineBreak: true,
 		},
 		writer:         writer,
+		filePath:       filePath,
 		platformWriter: platformWriter,
+		needObservable: needObservable,
 		level:          LevelTrace,
 		subscriber:     observable.NewSubscriber[Entry](128),
 	}
@@ -42,40 +57,53 @@ func NewObservableFactory(formatter Formatter, writer io.Writer, platformWriter 
 	return factory
 }
 
-func (f *observableFactory) Level() Level {
+func (f *defaultFactory) Start() error {
+	if f.filePath != "" {
+		logFile, err := filemanager.OpenFile(f.ctx, f.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		f.writer = logFile
+		f.file = logFile
+	}
+	return nil
+}
+
+func (f *defaultFactory) Close() error {
+	return common.Close(
+		common.PtrOrNil(f.file),
+		f.observer,
+	)
+}
+
+func (f *defaultFactory) Level() Level {
 	return f.level
 }
 
-func (f *observableFactory) SetLevel(level Level) {
+func (f *defaultFactory) SetLevel(level Level) {
 	f.level = level
 }
 
-func (f *observableFactory) Logger() ContextLogger {
+func (f *defaultFactory) Logger() ContextLogger {
 	return f.NewLogger("")
 }
 
-func (f *observableFactory) NewLogger(tag string) ContextLogger {
+func (f *defaultFactory) NewLogger(tag string) ContextLogger {
 	return &observableLogger{f, tag}
 }
 
-func (f *observableFactory) Subscribe() (subscription observable.Subscription[Entry], done <-chan struct{}, err error) {
+func (f *defaultFactory) Subscribe() (subscription observable.Subscription[Entry], done <-chan struct{}, err error) {
 	return f.observer.Subscribe()
 }
 
-func (f *observableFactory) UnSubscribe(sub observable.Subscription[Entry]) {
+func (f *defaultFactory) UnSubscribe(sub observable.Subscription[Entry]) {
 	f.observer.UnSubscribe(sub)
-}
-
-func (f *observableFactory) Close() error {
-	return common.Close(
-		f.observer,
-	)
 }
 
 var _ ContextLogger = (*observableLogger)(nil)
 
 type observableLogger struct {
-	*observableFactory
+	*defaultFactory
 	tag string
 }
 
@@ -85,15 +113,26 @@ func (l *observableLogger) Log(ctx context.Context, level Level, args []any) {
 		return
 	}
 	nowTime := time.Now()
-	message, messageSimple := l.formatter.FormatWithSimple(ctx, level, l.tag, F.ToString(args...), nowTime)
-	if level == LevelPanic {
-		panic(message)
+	if l.needObservable {
+		message, messageSimple := l.formatter.FormatWithSimple(ctx, level, l.tag, F.ToString(args...), nowTime)
+		if level == LevelPanic {
+			panic(message)
+		}
+		l.writer.Write([]byte(message))
+		if level == LevelFatal {
+			os.Exit(1)
+		}
+		l.subscriber.Emit(Entry{level, messageSimple})
+	} else {
+		message := l.formatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime)
+		if level == LevelPanic {
+			panic(message)
+		}
+		l.writer.Write([]byte(message))
+		if level == LevelFatal {
+			os.Exit(1)
+		}
 	}
-	l.writer.Write([]byte(message))
-	if level == LevelFatal {
-		os.Exit(1)
-	}
-	l.subscriber.Emit(Entry{level, messageSimple})
 	if l.platformWriter != nil {
 		l.platformWriter.WriteMessage(level, l.platformFormatter.Format(ctx, level, l.tag, F.ToString(args...), nowTime))
 	}
