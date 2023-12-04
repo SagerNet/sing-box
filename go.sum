@@ -136,8 +136,8 @@ github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2 h1:kDUqhc9Vsk5HJuhfI
 github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2/go.mod h1:JKQMZq/O2qnZjdrt+B57olmfgEmLtY9iiSIEYtWvoSM=
 github.com/sagernet/wireguard-go v0.0.0-20230807125731-5d4a7ef2dc5f h1:Kvo8w8Y9lzFGB/7z09MJ3TR99TFtfI/IuY87Ygcycho=
 github.com/sagernet/wireguard-go v0.0.0-20230807125731-5d4a7ef2dc5f/go.mod h1:mySs0abhpc/gLlvhoq7HP1RzOaRmIXVeZGCh++zoApk=
-github.com/sagernet/ws v0.0.0-20231030053741-7d481eb31bed h1:90a510OeE9siSJoYsI8nSjPmA+u5ROMDts/ZkdNsuXY=
-github.com/sagernet/ws v0.0.0-20231030053741-7d481eb31bed/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
+github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
+github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9 h1:rc/CcqLH3lh8n+csdOuDfP+NuykE0U6AeYSJJHKDgSg=
 github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9/go.mod h1:a/83NAfUXvEuLpmxDssAXxgUgrEy12MId3Wd7OTs76s=
 github.com/spf13/cobra v1.8.0 h1:7aJaZx1B85qltLMc546zn58BxxfZdR/W22ej9CFoEf0=
