@@ -39,7 +39,7 @@ require (
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
 	github.com/sagernet/utls v0.0.0-20230309024959-6732c2ab36f2
 	github.com/sagernet/wireguard-go v0.0.0-20230807125731-5d4a7ef2dc5f
-	github.com/sagernet/ws v0.0.0-20231030053741-7d481eb31bed
+	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
