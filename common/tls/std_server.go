@@ -3,6 +3,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"os"
 	"strings"
@@ -212,6 +213,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 	}
 	var certificate []byte
 	var key []byte
+	var clientca []byte
 	if acmeService == nil {
 		if len(options.Certificate) > 0 {
 			certificate = []byte(strings.Join(options.Certificate, "\n"))
@@ -249,6 +251,29 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
 	}
+	if options.ClientAuth {
+		// require client authentication
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		if len(options.ClientCA) > 0 {
+			clientca = []byte(strings.Join(options.ClientCA, "\n"))
+		} else if options.ClientCAPath != "" {
+			content, err := os.ReadFile(options.ClientCAPath)
+			if err != nil {
+				return nil, E.Cause(err, "read client CA")
+			}
+			clientca = content
+		}
+		// add client ca certpool
+		if len(clientca) > 0 {
+			certPool := x509.NewCertPool()
+			if !certPool.AppendCertsFromPEM(clientca) {
+				return nil, E.New("failed to parse client CA:\n\n", clientca)
+			}
+			tlsConfig.ClientCAs = certPool
+		}
+	} else {
+		tlsConfig.ClientAuth = tls.NoClientCert
+	}
 	return &STDServerConfig{
 		config:          tlsConfig,
 		logger:          logger,
@@ -257,5 +282,6 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		key:             key,
 		certificatePath: options.CertificatePath,
 		keyPath:         options.KeyPath,
+		watcher:         &fsnotify.Watcher{},
 	}, nil
 }

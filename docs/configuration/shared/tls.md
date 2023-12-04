@@ -12,6 +12,9 @@
   "certificate_path": "",
   "key": [],
   "key_path": "",
+  "clientAuth": false,
+  "clientCA": [],
+  "clientCA_path": "",
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -64,8 +67,13 @@
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
-  "certificate": "",
+  "certificate": [],
   "certificate_path": "",
+  "clientAuth": false,
+  "client_key": [],
+  "client_key_path": "",
+  "client_certificate": [],
+  "client_certificate_path": "",
   "ech": {
     "enabled": false,
     "pq_signature_schemes_enabled": false,
@@ -189,6 +197,46 @@ The server private key line array, in PEM format.
 
 The path to the server private key, in PEM format.
 
+#### clientAuth
+
+Enable TLS Client Authentication
+
+#### clientCA
+
+==Server only==
+
+The server's client CA Certificate line array, in PEM format.
+
+#### clientCA_path
+
+==Server only==
+
+The path to the server's client CA certificate, in PEM format.
+
+#### client_certificate
+
+==Client only==
+
+The client certificate line array, in PEM format.
+
+#### certificate_path
+
+==Client only==
+
+The path to the client certificate, in PEM format.
+
+#### client_key
+
+==Client only==
+
+The client private key line array, in PEM format.
+
+#### client_key_path
+
+==Client only==
+
+The path to the client private, in PEM format.
+
 ## Custom TLS support
 
 !!! info "QUIC support"
@@ -237,7 +285,7 @@ It is recommended to match the parameters of `sing-box generate ech-keypair`.
 
 Disables adaptive sizing of TLS records.
 
-When true, the largest possible TLS record size is always used.  
+When true, the largest possible TLS record size is always used.
 When false, the size of TLS records may be adjusted in an attempt to improve latency.
 
 #### key

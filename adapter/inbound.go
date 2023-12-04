@@ -48,6 +48,7 @@ type InboundContext struct {
 	ProcessInfo          *process.Info
 	QueryType            uint16
 	FakeIP               bool
+	IPCIDRMatchSource    bool
 
 	// rule cache
 

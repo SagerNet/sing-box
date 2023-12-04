@@ -128,5 +128,40 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 		}
 		tlsConfig.RootCAs = certPool
 	}
+	if options.ClientAuth {
+		// explicitly call mutual verification
+		var cert []byte
+		var key []byte
+
+		if len(options.ClientCertificate) > 0 {
+			cert = []byte(strings.Join(options.ClientCertificate, "\n"))
+		} else if options.ClientCertificatePath != "" {
+			content, err := os.ReadFile(options.ClientCertificatePath)
+			if err != nil {
+				return nil, E.Cause(err, "read client certificate")
+			}
+			cert = content
+		}
+		if len(options.ClientKey) > 0 {
+			key = []byte(strings.Join(options.ClientKey, "\n"))
+		} else if options.ClientKeyPath != "" {
+			content, err := os.ReadFile(options.ClientKeyPath)
+			if err != nil {
+				return nil, E.Cause(err, "read client key")
+			}
+			key = content
+		}
+		if cert == nil {
+			return nil, E.New("missing client certificate")
+		} else if key == nil {
+			return nil, E.New("missing client key")
+		}
+
+		keyPair, err := tls.X509KeyPair(cert, key)
+		if err != nil {
+			return nil, E.New(err, "parse x509 key pair")
+		}
+		tlsConfig.Certificates = []tls.Certificate{keyPair}
+	}
 	return &STDClientConfig{&tlsConfig}, nil
 }

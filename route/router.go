@@ -597,6 +597,18 @@ func (r *Router) Start() error {
 	return nil
 }
 
+func (r *Router) PostStart() error {
+	if len(r.ruleSets) > 0 {
+		for i, ruleSet := range r.ruleSets {
+			err := ruleSet.PostStart()
+			if err != nil {
+				return E.Cause(err, "post start rule-set[", i, "]")
+			}
+		}
+	}
+	return nil
+}
+
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.DefaultStopTimeout)
 	var err error
