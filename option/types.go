@@ -83,7 +83,7 @@ func (v NetworkList) Build() []string {
 	return strings.Split(string(v), "\n")
 }
 
-type Listable[T comparable] []T
+type Listable[T any] []T
 
 func (l Listable[T]) MarshalJSON() ([]byte, error) {
 	arrayList := []T(l)
