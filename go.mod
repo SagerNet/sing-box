@@ -26,14 +26,14 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20231119034329-07cfb6aaf930
 	github.com/sagernet/quic-go v0.40.0
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.2.18-0.20231203085253-0ba5576c7be8
+	github.com/sagernet/sing v0.2.18
 	github.com/sagernet/sing-dns v0.1.11
-	github.com/sagernet/sing-mux v0.1.5-0.20231109075101-6b086ed6bb07
-	github.com/sagernet/sing-quic v0.1.5-0.20231123150216-00957d136203
+	github.com/sagernet/sing-mux v0.1.5
+	github.com/sagernet/sing-quic v0.1.5
 	github.com/sagernet/sing-shadowsocks v0.2.5
 	github.com/sagernet/sing-shadowsocks2 v0.1.5
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.1.21-0.20231119035513-f6ea97c5af71
+	github.com/sagernet/sing-tun v0.1.22
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20230312102458-337ec2a5af37
 	github.com/sagernet/tfo-go v0.0.0-20230816093905-5a5c285d44a6
@@ -43,14 +43,14 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
-	go4.org/netipx v0.0.0-20230824141953-6213f710f925
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.16.0
 	golang.org/x/net v0.19.0
 	golang.org/x/sys v0.15.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
-	howett.net/plist v1.0.0
+	howett.net/plist v1.0.1
 )
 
 //replace github.com/sagernet/sing => ../sing
@@ -86,11 +86,11 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
+	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.4.0 // indirect
-	golang.org/x/tools v0.15.0 // indirect
+	golang.org/x/tools v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
