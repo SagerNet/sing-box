@@ -15,6 +15,14 @@ func NewNOPFactory() ObservableFactory {
 	return (*nopFactory)(nil)
 }
 
+func (f *nopFactory) Start() error {
+	return nil
+}
+
+func (f *nopFactory) Close() error {
+	return nil
+}
+
 func (f *nopFactory) Level() Level {
 	return LevelTrace
 }
@@ -70,10 +78,6 @@ func (f *nopFactory) FatalContext(ctx context.Context, args ...any) {
 }
 
 func (f *nopFactory) PanicContext(ctx context.Context, args ...any) {
-}
-
-func (f *nopFactory) Close() error {
-	return nil
 }
 
 func (f *nopFactory) Subscribe() (subscription observable.Subscription[Entry], done <-chan struct{}, err error) {

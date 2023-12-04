@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
+	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -91,6 +92,7 @@ type Router struct {
 	v2rayServer                        adapter.V2RayServer
 	platformInterface                  platform.Interface
 	needWIFIState                      bool
+	needPackageManager                 bool
 	wifiState                          adapter.WIFIState
 	started                            bool
 }
@@ -126,6 +128,9 @@ func NewRouter(
 		pauseManager:          pause.ManagerFromContext(ctx),
 		platformInterface:     platformInterface,
 		needWIFIState:         hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		needPackageManager: C.IsAndroid && platformInterface == nil && common.Any(inbounds, func(inbound option.Inbound) bool {
+			return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
+		}),
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
@@ -414,26 +419,35 @@ func (r *Router) Outbounds() []adapter.Outbound {
 }
 
 func (r *Router) Start() error {
+	monitor := taskmonitor.New(r.logger, C.DefaultStartTimeout)
 	if r.needGeoIPDatabase {
+		monitor.Start("initialize geoip database")
 		err := r.prepareGeoIPDatabase()
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
 	}
 	if r.needGeositeDatabase {
+		monitor.Start("initialize geosite database")
 		err := r.prepareGeositeDatabase()
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
 	}
 	if r.interfaceMonitor != nil {
+		monitor.Start("initialize interface monitor")
 		err := r.interfaceMonitor.Start()
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
 	}
 	if r.networkMonitor != nil {
+		monitor.Start("initialize network monitor")
 		err := r.networkMonitor.Start()
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
@@ -459,12 +473,15 @@ func (r *Router) Start() error {
 		r.geositeReader = nil
 	}
 	if r.fakeIPStore != nil {
+		monitor.Start("initialize fakeip store")
 		err := r.fakeIPStore.Start()
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
 	}
 	if len(r.ruleSets) > 0 {
+		monitor.Start("initialize rule-set")
 		ruleSetStartContext := NewRuleSetStartContext()
 		var ruleSetStartGroup task.Group
 		for i, ruleSet := range r.ruleSets {
@@ -480,12 +497,12 @@ func (r *Router) Start() error {
 		ruleSetStartGroup.Concurrency(5)
 		ruleSetStartGroup.FastFail()
 		err := ruleSetStartGroup.Run(r.ctx)
+		monitor.Finish()
 		if err != nil {
 			return err
 		}
 		ruleSetStartContext.Close()
 	}
-
 	var (
 		needProcessFromRuleSet   bool
 		needWIFIStateFromRuleSet bool
@@ -499,19 +516,19 @@ func (r *Router) Start() error {
 			needWIFIStateFromRuleSet = true
 		}
 	}
-	if needProcessFromRuleSet || r.needFindProcess {
-		needPackageManager := C.IsAndroid && r.platformInterface == nil
-
-		if needPackageManager {
+	if needProcessFromRuleSet || r.needFindProcess || r.needPackageManager {
+		if C.IsAndroid && r.platformInterface == nil {
+			monitor.Start("initialize package manager")
 			packageManager, err := tun.NewPackageManager(r)
+			monitor.Finish()
 			if err != nil {
 				return E.Cause(err, "create package manager")
 			}
-			if packageManager != nil {
-				err = packageManager.Start()
-				if err != nil {
-					return err
-				}
+			monitor.Start("start package manager")
+			err = packageManager.Start()
+			monitor.Finish()
+			if err != nil {
+				return E.Cause(err, "start package manager")
 			}
 			r.packageManager = packageManager
 		}
@@ -519,10 +536,12 @@ func (r *Router) Start() error {
 		if r.platformInterface != nil {
 			r.processSearcher = r.platformInterface
 		} else {
+			monitor.Start("initialize process searcher")
 			searcher, err := process.NewSearcher(process.Config{
 				Logger:         r.logger,
 				PackageManager: r.packageManager,
 			})
+			monitor.Finish()
 			if err != nil {
 				if err != os.ErrInvalid {
 					r.logger.Warn(E.Cause(err, "create process searcher"))
@@ -533,34 +552,44 @@ func (r *Router) Start() error {
 		}
 	}
 	if needWIFIStateFromRuleSet || r.needWIFIState {
+		monitor.Start("initialize WIFI state")
 		if r.platformInterface != nil && r.interfaceMonitor != nil {
 			r.interfaceMonitor.RegisterCallback(func(_ int) {
 				r.updateWIFIState()
 			})
 		}
 		r.updateWIFIState()
+		monitor.Finish()
 	}
 
 	for i, rule := range r.rules {
+		monitor.Start("initialize rule[", i, "]")
 		err := rule.Start()
+		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "initialize rule[", i, "]")
 		}
 	}
 	for i, rule := range r.dnsRules {
+		monitor.Start("initialize DNS rule[", i, "]")
 		err := rule.Start()
+		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "initialize DNS rule[", i, "]")
 		}
 	}
 	for i, transport := range r.transports {
+		monitor.Start("initialize DNS transport[", i, "]")
 		err := transport.Start()
+		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "initialize DNS server[", i, "]")
 		}
 	}
 	if r.timeService != nil {
+		monitor.Start("initialize time service")
 		err := r.timeService.Start()
+		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "initialize time service")
 		}
@@ -569,60 +598,70 @@ func (r *Router) Start() error {
 }
 
 func (r *Router) Close() error {
+	monitor := taskmonitor.New(r.logger, C.DefaultStopTimeout)
 	var err error
 	for i, rule := range r.rules {
-		r.logger.Trace("closing rule[", i, "]")
+		monitor.Start("close rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
 			return E.Cause(err, "close rule[", i, "]")
 		})
+		monitor.Finish()
 	}
 	for i, rule := range r.dnsRules {
-		r.logger.Trace("closing dns rule[", i, "]")
+		monitor.Start("close dns rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
 			return E.Cause(err, "close dns rule[", i, "]")
 		})
+		monitor.Finish()
 	}
 	for i, transport := range r.transports {
-		r.logger.Trace("closing transport[", i, "] ")
+		monitor.Start("close dns transport[", i, "]")
 		err = E.Append(err, transport.Close(), func(err error) error {
 			return E.Cause(err, "close dns transport[", i, "]")
 		})
+		monitor.Finish()
 	}
 	if r.geoIPReader != nil {
-		r.logger.Trace("closing geoip reader")
+		monitor.Start("close geoip reader")
 		err = E.Append(err, r.geoIPReader.Close(), func(err error) error {
 			return E.Cause(err, "close geoip reader")
 		})
+		monitor.Finish()
 	}
 	if r.interfaceMonitor != nil {
-		r.logger.Trace("closing interface monitor")
+		monitor.Start("close interface monitor")
 		err = E.Append(err, r.interfaceMonitor.Close(), func(err error) error {
 			return E.Cause(err, "close interface monitor")
 		})
+		monitor.Finish()
 	}
 	if r.networkMonitor != nil {
-		r.logger.Trace("closing network monitor")
+		monitor.Start("close network monitor")
 		err = E.Append(err, r.networkMonitor.Close(), func(err error) error {
 			return E.Cause(err, "close network monitor")
 		})
+		monitor.Finish()
 	}
 	if r.packageManager != nil {
-		r.logger.Trace("closing package manager")
+		monitor.Start("close package manager")
 		err = E.Append(err, r.packageManager.Close(), func(err error) error {
 			return E.Cause(err, "close package manager")
 		})
+		monitor.Finish()
 	}
 	if r.timeService != nil {
-		r.logger.Trace("closing time service")
+		monitor.Start("close time service")
 		err = E.Append(err, r.timeService.Close(), func(err error) error {
 			return E.Cause(err, "close time service")
 		})
+		monitor.Finish()
 	}
 	if r.fakeIPStore != nil {
-		r.logger.Trace("closing fakeip store")
+		monitor.Start("close fakeip store")
 		err = E.Append(err, r.fakeIPStore.Close(), func(err error) error {
 			return E.Cause(err, "close fakeip store")
 		})
+		monitor.Finish()
 	}
 	return err
 }

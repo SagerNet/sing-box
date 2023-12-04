@@ -11,4 +11,7 @@ const (
 	UDPTimeout                = 5 * time.Minute
 	DefaultURLTestInterval    = 3 * time.Minute
 	DefaultURLTestIdleTimeout = 30 * time.Minute
+	DefaultStartTimeout       = 10 * time.Second
+	DefaultStopTimeout        = 5 * time.Second
+	DefaultStopFatalTimeout   = 10 * time.Second
 )
