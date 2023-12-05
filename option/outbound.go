@@ -119,6 +119,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.SelectorOptions
 	case C.TypeURLTest:
 		v = &h.URLTestOptions
+	case "":
+		return E.New("missing outbound type")
 	default:
 		return E.New("unknown outbound type: ", h.Type)
 	}

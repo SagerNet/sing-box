@@ -40,6 +40,8 @@ func (o ACMEDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 		v = o.AliDNSOptions
 	case C.DNSProviderCloudflare:
 		v = o.CloudflareOptions
+	case "":
+		return nil, E.New("missing provider type")
 	default:
 		return nil, E.New("unknown provider type: " + o.Provider)
 	}

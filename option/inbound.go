@@ -111,6 +111,8 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.TUICOptions
 	case C.TypeHysteria2:
 		v = &h.Hysteria2Options
+	case "":
+		return E.New("missing inbound type")
 	default:
 		return E.New("unknown inbound type: ", h.Type)
 	}
