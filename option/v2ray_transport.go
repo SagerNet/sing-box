@@ -7,7 +7,7 @@ import (
 )
 
 type _V2RayTransportOptions struct {
-	Type               string                  `json:"type,omitempty"`
+	Type               string                  `json:"type"`
 	HTTPOptions        V2RayHTTPOptions        `json:"-"`
 	WebsocketOptions   V2RayWebsocketOptions   `json:"-"`
 	QUICOptions        V2RayQUICOptions        `json:"-"`
@@ -20,8 +20,6 @@ type V2RayTransportOptions _V2RayTransportOptions
 func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.Type {
-	case "":
-		return nil, nil
 	case C.V2RayTransportTypeHTTP:
 		v = o.HTTPOptions
 	case C.V2RayTransportTypeWebsocket:
@@ -32,6 +30,8 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 		v = o.GRPCOptions
 	case C.V2RayTransportTypeHTTPUpgrade:
 		v = o.HTTPUpgradeOptions
+	case "":
+		return nil, E.New("missing transport type")
 	default:
 		return nil, E.New("unknown transport type: " + o.Type)
 	}
