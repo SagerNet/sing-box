@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
 )
@@ -232,14 +233,14 @@ func (c *EarlyWebsocketConn) Close() error {
 
 func (c *EarlyWebsocketConn) LocalAddr() net.Addr {
 	if c.conn == nil {
-		return nil
+		return M.Socksaddr{}
 	}
 	return c.conn.LocalAddr()
 }
 
 func (c *EarlyWebsocketConn) RemoteAddr() net.Addr {
 	if c.conn == nil {
-		return nil
+		return M.Socksaddr{}
 	}
 	return c.conn.RemoteAddr()
 }
