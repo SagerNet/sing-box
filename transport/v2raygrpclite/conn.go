@@ -143,7 +143,7 @@ func (c *GunConn) LocalAddr() net.Addr {
 }
 
 func (c *GunConn) RemoteAddr() net.Addr {
-	return nil
+	return M.Socksaddr{}
 }
 
 func (c *GunConn) SetDeadline(t time.Time) error {
