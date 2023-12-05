@@ -33,7 +33,7 @@ type Service struct {
 
 func NewService(ctx context.Context, router adapter.Router, logger logger.Logger, options option.NTPOptions) (*Service, error) {
 	ctx, cancel := common.ContextWithCancelCause(ctx)
-	server := options.ServerOptions.Build()
+	server := M.ParseSocksaddrHostPort(options.Server, options.ServerPort)
 	if server.Port == 0 {
 		server.Port = 123
 	}
