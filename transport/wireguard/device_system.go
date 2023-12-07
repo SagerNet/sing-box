@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -19,16 +20,17 @@ import (
 var _ Device = (*SystemDevice)(nil)
 
 type SystemDevice struct {
-	dialer N.Dialer
-	device tun.Tun
-	name   string
-	mtu    int
-	events chan wgTun.Event
-	addr4  netip.Addr
-	addr6  netip.Addr
+	dialer        N.Dialer
+	device        tun.Tun
+	frontHeadroom int
+	name          string
+	mtu           int
+	events        chan wgTun.Event
+	addr4         netip.Addr
+	addr6         netip.Addr
 }
 
-func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32) (*SystemDevice, error) {
+func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32, gso bool, gsoMaxsize uint32) (*SystemDevice, error) {
 	var inet4Addresses []netip.Prefix
 	var inet6Addresses []netip.Prefix
 	for _, prefixes := range localPrefixes {
@@ -41,11 +43,16 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 	if interfaceName == "" {
 		interfaceName = tun.CalculateInterfaceName("wg")
 	}
+	if gsoMaxsize == 0 {
+		gsoMaxsize = 65536
+	}
 	tunInterface, err := tun.New(tun.Options{
 		Name:         interfaceName,
 		Inet4Address: inet4Addresses,
 		Inet6Address: inet6Addresses,
 		MTU:          mtu,
+		GSO:          gso,
+		GSOMaxSize:   gsoMaxsize,
 	})
 	if err != nil {
 		return nil, err
@@ -62,12 +69,13 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 		dialer: common.Must1(dialer.NewDefault(router, option.DialerOptions{
 			BindInterface: interfaceName,
 		})),
-		device: tunInterface,
-		name:   interfaceName,
-		mtu:    int(mtu),
-		events: make(chan wgTun.Event),
-		addr4:  inet4Address,
-		addr6:  inet6Address,
+		device:        tunInterface,
+		frontHeadroom: tunInterface.FrontHeadroom(),
+		name:          interfaceName,
+		mtu:           int(mtu),
+		events:        make(chan wgTun.Event),
+		addr4:         inet4Address,
+		addr6:         inet6Address,
 	}, nil
 }
 
@@ -97,16 +105,18 @@ func (w *SystemDevice) File() *os.File {
 }
 
 func (w *SystemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
-	sizes[0], err = w.device.Read(bufs[0][offset-tun.PacketOffset:])
+	sizes[0], err = w.device.Read(bufs[0][offset-w.frontHeadroom:])
 	if err == nil {
 		count = 1
+	} else if errors.Is(err, tun.ErrTooManySegments) {
+		err = wgTun.ErrTooManySegments
 	}
 	return
 }
 
 func (w *SystemDevice) Write(bufs [][]byte, offset int) (count int, err error) {
 	for _, b := range bufs {
-		_, err = w.device.Write(b[offset:])
+		_, err = w.device.Write(b[offset-w.frontHeadroom:])
 		if err != nil {
 			return
 		}
