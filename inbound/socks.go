@@ -22,7 +22,7 @@ var (
 
 type Socks struct {
 	myInboundAdapter
-	authenticator auth.Authenticator
+	authenticator *auth.Authenticator
 }
 
 func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SocksInboundOptions) *Socks {

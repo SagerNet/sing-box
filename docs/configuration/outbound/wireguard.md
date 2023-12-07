@@ -1,3 +1,12 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.8.0"
+    
+    :material-plus: [gso](#gso)  
+    :material-plus: [gso_max_size](#gso_max_size)
+
 ### Structure
 
 ```json
@@ -8,6 +17,8 @@
   "server": "127.0.0.1",
   "server_port": 1080,
   "system_interface": false,
+  "gso": false,
+  "gso_max_size": 65536,
   "interface_name": "wg0",
   "local_address": [
     "10.0.0.2/32"
@@ -52,15 +63,37 @@ The server port.
 
 #### system_interface
 
-Use system tun support.
+Use system interface.
 
-Requires privilege and cannot conflict with system interfaces.
+Requires privilege and cannot conflict with exists system interfaces.
 
 Forced if gVisor not included in the build.
 
 #### interface_name
 
-Custom device name when `system_interface` enabled.
+Custom interface name for system interface.
+
+#### gso
+
+!!! question "Since sing-box 1.8.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Enable generic segmentation offload for system interface.
+
+#### gso_max_size
+
+!!! question "Since sing-box 1.8.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Maximum GSO packet size.
+
+`65536` is used by default.
 
 #### local_address
 

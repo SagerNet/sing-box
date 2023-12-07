@@ -111,6 +111,9 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			}
 		}
 		if readWaiter, created := bufio.CreatePacketReadWaiter(reader); created {
+			readWaiter.InitializeReadWaiter(N.ReadWaitOptions{
+				MTU: dns.FixedPacketSize,
+			})
 			return d.newPacketConnection(ctx, conn, readWaiter, counters, cachedPackets, metadata)
 		}
 		break
@@ -193,15 +196,13 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
 	group.Append0(func(ctx context.Context) error {
-		var buffer *buf.Buffer
-		readWaiter.InitializeReadWaiter(func() *buf.Buffer {
-			return buf.NewSize(dns.FixedPacketSize)
-		})
-		defer readWaiter.InitializeReadWaiter(nil)
 		for {
-			var message mDNS.Msg
-			var destination M.Socksaddr
-			var err error
+			var (
+				message     mDNS.Msg
+				destination M.Socksaddr
+				err         error
+				buffer      *buf.Buffer
+			)
 			if len(cached) > 0 {
 				packet := cached[0]
 				cached = cached[1:]
@@ -216,9 +217,8 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				}
 				destination = packet.Destination
 			} else {
-				destination, err = readWaiter.WaitReadPacket()
+				buffer, destination, err = readWaiter.WaitReadPacket()
 				if err != nil {
-					buffer.Release()
 					cancel(err)
 					return err
 				}
