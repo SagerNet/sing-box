@@ -4,6 +4,13 @@ icon: material/alert-decagram
 
 # ChangeLog
 
+#### 1.7.3
+
+* Fixes and improvements
+
+_Due to the long waiting time, this version is no longer waiting for approval 
+by the Apple App Store, so updates to Apple Platforms will be delayed._
+
 #### 1.7.2
 
 * Fixes and improvements
@@ -43,11 +50,13 @@ The new HTTPUpgrade transport has better performance than WebSocket and is bette
 
 **3**:
 
-Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+Starting in 1.7.0, multiplexing support is no longer enabled by default
+and needs to be turned on explicitly in inbound options.
 
 **4**
 
-Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server,
+see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
 
 **5**:
 
@@ -150,11 +159,13 @@ Only supported in graphical clients on Android and iOS.
 
 **1**:
 
-Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound options.
+Starting in 1.7.0, multiplexing support is no longer enabled by default and needs to be turned on explicitly in inbound
+options.
 
 **2**
 
-Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server, see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+Hysteria Brutal Congestion Control Algorithm in TCP. A kernel module needs to be installed on the Linux server,
+see [TCP Brutal](/configuration/shared/tcp-brutal) for details.
 
 #### 1.7.0-alpha.3
 
@@ -221,8 +232,8 @@ When `auto_route` is enabled and `strict_route` is disabled, the device can now 
 
 **2**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
-
+Built using Go 1.20, the last version that will run on
+Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
 
 #### 1.6.0-rc.4
 
@@ -235,7 +246,8 @@ Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008
 
 **1**:
 
-Built using Go 1.20, the last version that will run on Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+Built using Go 1.20, the last version that will run on
+Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
 
 #### 1.6.0-beta.4
 
