@@ -9,7 +9,7 @@
   "extra_args": [],
   "data_directory": "$HOME/.cache/tor",
   "torrc": {
-    "ClientOnly": 1
+    "ClientOnly": "1"
   },
 
   ... // Dial Fields
