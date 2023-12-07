@@ -2,25 +2,173 @@
 icon: material/alert-decagram
 ---
 
+#### 1.8.0-beta.3
+
+* Fixes and improvements
+
+#### 1.8.0-beta.2
+
+* Fix GSO support
+* Fixes and improvements
 
 #### 1.7.5
 
 * Fixes and improvements
 
+#### 1.8.0-alpha.17
+
+* Add GSO support for TUN and WireGuard system interface **1**
+* Update uTLS to 1.5.4 **2**
+* Update dependencies **3**
+* Fixes and improvements
+
+**1**:
+
+See [TUN](/configuration/inbound/tun) inbound and [WireGuard](/configuration/outbound/wireguard) outbound.
+
+**2**:
+
+Added some new [fingerprints](/configuration/shared/tls#utls).
+Also, starting with this release, uTLS requires at least Go 1.20.
+
+**3**:
+
+Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, and `gvisor` to `20231204.0`
+
+This may break something, good luck!
+
 #### 1.7.4
 
 * Fixes and improvements
 
-_Due to the long waiting time, this version is no longer waiting for approval 
+_Due to the long waiting time, this version is no longer waiting for approval
 by the Apple App Store, so updates to Apple Platforms will be delayed._
 
+#### 1.8.0-alpha.16
+
+* Fixes and improvements
+
+#### 1.8.0-alpha.15
+
+* Some chaotic changes **1**
+* Fixes and improvements
+
+**1**:
+
+Designed to optimize memory usage of idle connections, may take effect on the following protocols:
+
+| Protocol                                             | TCP              | UDP              |
+|------------------------------------------------------|------------------|------------------|
+| HTTP proxy server                                    | :material-check: | /                |
+| SOCKS5                                               | :material-close: | :material-check: |
+| Shadowsocks none/AEAD/AEAD2022                       | :material-check: | :material-check: |
+| Trojan                                               | /                | :material-check: |
+| TUIC/Hysteria/Hysteria2                              | :material-close: | :material-check: |
+| Multiplex                                            | :material-close: | :material-check: |
+| Plain TLS (Trojan/VLESS without extra sub-protocols) | :material-check: | /                |
+| Other protocols                                      | :material-close: | :material-close: |
+
+At the same time, everything existing may be broken, please actively report problems with this version.
+
+#### 1.8.0-alpha.13
+
+* Fixes and improvements
+
+#### 1.8.0-alpha.10
+
+* Add `idle_timeout` for URLTest outbound **1**
+* Fixes and improvements
+
+**1**:
+
+When URLTest is idle for a certain period of time, the scheduled delay test will be paused.
+
 #### 1.7.2
+
+* Fixes and improvements
+
+#### 1.8.0-alpha.8
+
+* Add context to JSON decode error message **1**
+* Reject internal fake-ip queries **2**
+* Fixes and improvements
+
+**1**:
+
+JSON parse errors will now include the current key path.
+Only takes effect when compiled with Go 1.21+.
+
+**2**:
+
+All internal DNS queries now skip DNS rules with `server` type `fakeip`,
+and the default DNS server can no longer be `fakeip`.
+
+This change is intended to break incorrect usage and essentially requires no action.
+
+#### 1.8.0-alpha.7
 
 * Fixes and improvements
 
 #### 1.7.1
 
 * Fixes and improvements
+
+#### 1.8.0-alpha.6
+
+* Fix rule-set matching logic **1**
+* Fixes and improvements
+
+**1**:
+
+Now the rules in the `rule_set` rule item can be logically considered to be merged into the rule using rule sets,
+rather than completely following the AND logic.
+
+#### 1.8.0-alpha.5
+
+* Parallel rule-set initialization
+* Independent `source_ip_is_private` and `ip_is_private` rules **1**
+
+**1**:
+
+The `private` GeoIP country never existed and was actually implemented inside V2Ray.
+Since GeoIP was deprecated, we made this rule independent, see [Migration](/migration/#migrate-geoip-to-rule-sets).
+
+#### 1.8.0-alpha.1
+
+* Migrate cache file from Clash API to independent options **1**
+* Introducing [Rule Set](/configuration/rule-set) **2**
+* Add `sing-box geoip`, `sing-box geosite` and `sing-box rule-set` commands **3**
+* Allow nested logical rules **4**
+
+**1**:
+
+See [Cache File](/configuration/experimental/cache-file) and
+[Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-options).
+
+**2**:
+
+Rule set is independent collections of rules that can be compiled into binaries to improve performance.
+Compared to legacy GeoIP and Geosite resources,
+it can include more types of rules, load faster,
+use less memory, and update automatically.
+
+See [Route#rule_set](/configuration/route/#rule_set),
+[Route Rule](/configuration/route/rule),
+[DNS Rule](/configuration/dns/rule),
+[Rule Set](/configuration/rule-set),
+[Source Format](/configuration/rule-set/source-format) and
+[Headless Rule](/configuration/rule-set/headless-rule).
+
+For GEO resources migration, see [Migrate GeoIP to rule sets](/migration/#migrate-geoip-to-rule-sets) and
+[Migrate Geosite to rule sets](/migration/#migrate-geosite-to-rule-sets).
+
+**3**:
+
+New commands manage GeoIP, Geosite and rule set resources, and help you migrate GEO resources to rule sets.
+
+**4**:
+
+Logical rules in route rules, DNS rules, and the new headless rule now allow nesting of logical rules.
 
 #### 1.7.0
 
@@ -54,7 +202,8 @@ The new HTTPUpgrade transport has better performance than WebSocket and is bette
 **3**:
 
 Starting in 1.7.0, multiplexing support is no longer enabled by default
-and needs to be turned on explicitly in inbound options.
+and needs to be turned on explicitly in inbound
+options.
 
 **4**
 
@@ -236,7 +385,8 @@ When `auto_route` is enabled and `strict_route` is disabled, the device can now 
 **2**:
 
 Built using Go 1.20, the last version that will run on
-Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-rc.4
 
@@ -250,7 +400,8 @@ Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave
 **1**:
 
 Built using Go 1.20, the last version that will run on
-Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High Sierra, 10.14 Mojave.
+Windows 7, 8, Server 2008, Server 2012 and macOS 10.13 High
+Sierra, 10.14 Mojave.
 
 #### 1.6.0-beta.4
 
