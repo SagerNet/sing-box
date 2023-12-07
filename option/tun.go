@@ -5,6 +5,8 @@ import "net/netip"
 type TunInboundOptions struct {
 	InterfaceName            string                 `json:"interface_name,omitempty"`
 	MTU                      uint32                 `json:"mtu,omitempty"`
+	GSO                      bool                   `json:"gso,omitempty"`
+	GSOMaxSize               uint32                 `json:"gso_max_size,omitempty"`
 	Inet4Address             Listable[netip.Prefix] `json:"inet4_address,omitempty"`
 	Inet6Address             Listable[netip.Prefix] `json:"inet6_address,omitempty"`
 	AutoRoute                bool                   `json:"auto_route,omitempty"`

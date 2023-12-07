@@ -17,16 +17,16 @@ func (c *NATPacketConn) CreatePacketReadWaiter() (N.PacketReadWaiter, bool) {
 
 type waitNATPacketConn struct {
 	*NATPacketConn
-	waiter N.PacketReadWaiter
+	readWaiter N.PacketReadWaiter
 }
 
-func (c *waitNATPacketConn) InitializeReadWaiter(newBuffer func() *buf.Buffer) {
-	c.waiter.InitializeReadWaiter(newBuffer)
+func (c *waitNATPacketConn) InitializeReadWaiter(options N.ReadWaitOptions) (needCopy bool) {
+	return c.readWaiter.InitializeReadWaiter(options)
 }
 
-func (c *waitNATPacketConn) WaitReadPacket() (destination M.Socksaddr, err error) {
-	destination, err = c.waiter.WaitReadPacket()
-	if socksaddrWithoutPort(destination) == c.origin {
+func (c *waitNATPacketConn) WaitReadPacket() (buffer *buf.Buffer, destination M.Socksaddr, err error) {
+	buffer, destination, err = c.readWaiter.WaitReadPacket()
+	if err == nil && socksaddrWithoutPort(destination) == c.origin {
 		destination = M.Socksaddr{
 			Addr: c.destination.Addr,
 			Fqdn: c.destination.Fqdn,
