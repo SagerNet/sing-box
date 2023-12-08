@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	berty.tech/go-libtor v1.0.385
-	github.com/caddyserver/certmagic v0.19.2
+	github.com/caddyserver/certmagic v0.20.0
 	github.com/cloudflare/circl v1.3.6
 	github.com/cretz/bine v0.2.0
 	github.com/fsnotify/fsnotify v1.7.0
@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.0.0
-	github.com/insomniacslk/dhcp v0.0.0-20231126010706-b0416c0f187a
+	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
 	github.com/libdns/alidns v1.0.3
 	github.com/libdns/cloudflare v0.1.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
