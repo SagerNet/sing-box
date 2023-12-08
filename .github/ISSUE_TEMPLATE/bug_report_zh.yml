@@ -44,13 +44,7 @@ body:
     attributes:
       label: 版本
       description: 如果您使用原始命令行程序，请提供 `sing-box version` 命令的输出。
-      value: |-
-        <details>
-
-        ```console
-        # 使用输出内容覆盖此行
-        ```
-        </details>
+      render: shell
   - type: textarea
     attributes:
       label: 描述
@@ -70,10 +64,18 @@ body:
         如果您遭遇图形界面应用程序崩溃，请提供崩溃日志。
         对于 Apple 平台图形客户端程序，请检查 `Settings - View Service Log` 以导出崩溃日志。
         对于 Android 图形客户端程序，请检查 `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` 文件以导出崩溃日志。
-      value: |-
-        <details>
-        
-        ```console
-        # 使用日志内容覆盖此行
-        ```
-        </details>
+      render: shell
+  - type: checkboxes
+    attributes:
+      label: 完整性要求
+      description: 我保证我提供了完整的可以在本地重现该问题的服务器、客户端配置文件与流程，而不是一个脱敏的复杂客户端配置文件，否则该 issue 将被关闭。
+      options:
+        - label: 我保证
+          required: true
+  - type: checkboxes
+    attributes:
+      label: 负责性要求
+      description: 我保证我阅读了文档，了解所有我编写的配置文件项的含义，而不是大量堆砌看似有用的选项或默认值，否则该 issue 将被关闭。
+      options:
+        - label: 我保证
+          required: true
