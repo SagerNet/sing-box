@@ -53,9 +53,6 @@ func NewServer(ctx context.Context, options option.V2RayHTTPOptions, tlsConfig t
 		method:  options.Method,
 		headers: options.Headers.Build(),
 	}
-	if server.method == "" {
-		server.method = "PUT"
-	}
 	if !strings.HasPrefix(server.path, "/") {
 		server.path = "/" + server.path
 	}
@@ -85,7 +82,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 		return
 	}
-	if request.Method != s.method {
+	if s.method != "" && request.Method != s.method {
 		s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad method: ", request.Method))
 		return
 	}
