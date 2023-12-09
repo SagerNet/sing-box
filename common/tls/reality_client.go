@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -137,12 +138,21 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	hello.SessionId[2] = 1
 	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(time.Now().Unix()))
 	copy(hello.SessionId[8:], e.shortID[:])
-
 	if debug.Enabled {
 		fmt.Printf("REALITY hello.sessionId[:16]: %v\n", hello.SessionId[:16])
 	}
-
-	authKey := uConn.HandshakeState.State13.EcdheParams.SharedKey(e.publicKey)
+	publicKey, err := ecdh.X25519().NewPublicKey(e.publicKey)
+	if err != nil {
+		return nil, err
+	}
+	ecdheKey := uConn.HandshakeState.State13.EcdheKey
+	if ecdheKey == nil {
+		return nil, E.New("nil ecdhe_key")
+	}
+	authKey, err := ecdheKey.ECDH(publicKey)
+	if err != nil {
+		return nil, err
+	}
 	if authKey == nil {
 		return nil, E.New("nil auth_key")
 	}

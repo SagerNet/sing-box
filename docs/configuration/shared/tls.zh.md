@@ -1,3 +1,11 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "sing-box 1.8.0 中的更改"
+
+    :material-alert-decagram: [utls](#utls)  
+
 ### 入站
 
 ```json
@@ -201,7 +209,20 @@ uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻
 
 可用的指纹值：
 
+!!! question "自 sing-box 1.8.0 起"
+
+    :material-plus: chrome_psk  
+    :material-plus: chrome_psk_shuffle  
+    :material-plus: chrome_padding_psk_shuffle  
+    :material-plus: chrome_pq  
+    :material-plus: chrome_pq_psk
+
 * chrome
+* chrome_psk
+* chrome_psk_shuffle
+* chrome_padding_psk_shuffle
+* chrome_pq
+* chrome_pq_psk
 * firefox
 * edge
 * safari
