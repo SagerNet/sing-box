@@ -13,7 +13,17 @@ Before sing-box 1.4.0:
 Since sing-box 1.4.0:
 
 * Go 1.18.5 - ~
-* Go 1.20.0 - ~ if `with_quic` tag enabled
+* Go 1.20.0 - ~ with tag `with_quic` enabled
+
+Since sing-box 1.5.0:
+
+* Go 1.18.5 - ~
+* Go 1.20.0 - ~ with tag `with_quic` or `with_ech` enabled
+
+Since sing-box 1.8.0:
+
+* Go 1.18.5 - ~
+* Go 1.20.0 - ~ with tag `with_quic`, `with_ech`, or `with_utls` enabled
 
 You can download and install Go from: https://go.dev/doc/install, latest version is recommended.
 
@@ -57,6 +67,5 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_v2ray_api`                   | :material-close:️  | Build with V2Ray API support, see [Experimental](/configuration/experimental#v2ray-api-fields).                                                                                                                                                                                                                            |
 | `with_gvisor`                      | :material-check:   | Build with gVisor support, see [Tun inbound](/configuration/inbound/tun#stack) and [WireGuard outbound](/configuration/outbound/wireguard#system_interface).                                                                                                                                                               |
 | `with_embedded_tor` (CGO required) | :material-close:️  | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor).                                                                                                                                                                                                                                          |
-
 
 It is not recommended to change the default build tag list unless you really know what you are adding.
