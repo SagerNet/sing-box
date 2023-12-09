@@ -1,3 +1,12 @@
+---
+icon: material/alert-decagram
+---
+
+
+!!! quote "Changes in sing-box 1.8.0"
+
+    :material-alert-decagram: [utls](#utls)  
+
 ### Inbound
 
 ```json
@@ -207,7 +216,20 @@ uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resist
 
 Available fingerprint values:
 
+!!! question "Since sing-box 1.8.0"
+
+    :material-plus: chrome_psk  
+    :material-plus: chrome_psk_shuffle  
+    :material-plus: chrome_padding_psk_shuffle  
+    :material-plus: chrome_pq  
+    :material-plus: chrome_pq_psk
+
 * chrome
+* chrome_psk
+* chrome_psk_shuffle
+* chrome_padding_psk_shuffle
+* chrome_pq
+* chrome_pq_psk
 * firefox
 * edge
 * safari
