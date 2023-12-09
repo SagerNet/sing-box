@@ -8,7 +8,6 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 )
 
 type TunOptions interface {
@@ -20,6 +19,10 @@ type TunOptions interface {
 	GetStrictRoute() bool
 	GetInet4RouteAddress() RoutePrefixIterator
 	GetInet6RouteAddress() RoutePrefixIterator
+	GetInet4RouteExcludeAddress() RoutePrefixIterator
+	GetInet6RouteExcludeAddress() RoutePrefixIterator
+	GetInet4RouteRange() RoutePrefixIterator
+	GetInet6RouteRange() RoutePrefixIterator
 	GetIncludePackage() StringIterator
 	GetExcludePackage() StringIterator
 	IsHTTPProxyEnabled() bool
@@ -28,18 +31,30 @@ type TunOptions interface {
 }
 
 type RoutePrefix struct {
-	Address string
-	Prefix  int32
+	address netip.Addr
+	prefix  int
+}
+
+func (p *RoutePrefix) Address() string {
+	return p.address.String()
+}
+
+func (p *RoutePrefix) Prefix() int32 {
+	return int32(p.prefix)
 }
 
 func (p *RoutePrefix) Mask() string {
 	var bits int
-	if M.ParseSocksaddr(p.Address).Addr.Is6() {
+	if p.address.Is6() {
 		bits = 128
 	} else {
 		bits = 32
 	}
-	return net.IP(net.CIDRMask(int(p.Prefix), bits)).String()
+	return net.IP(net.CIDRMask(p.prefix, bits)).String()
+}
+
+func (p *RoutePrefix) String() string {
+	return netip.PrefixFrom(p.address, p.prefix).String()
 }
 
 type RoutePrefixIterator interface {
@@ -50,8 +65,8 @@ type RoutePrefixIterator interface {
 func mapRoutePrefix(prefixes []netip.Prefix) RoutePrefixIterator {
 	return newIterator(common.Map(prefixes, func(prefix netip.Prefix) *RoutePrefix {
 		return &RoutePrefix{
-			Address: prefix.Addr().String(),
-			Prefix:  int32(prefix.Bits()),
+			address: prefix.Addr(),
+			prefix:  prefix.Bits(),
 		}
 	}))
 }
@@ -92,12 +107,28 @@ func (o *tunOptions) GetStrictRoute() bool {
 }
 
 func (o *tunOptions) GetInet4RouteAddress() RoutePrefixIterator {
+	return mapRoutePrefix(o.Inet4RouteAddress)
+}
+
+func (o *tunOptions) GetInet6RouteAddress() RoutePrefixIterator {
+	return mapRoutePrefix(o.Inet6RouteAddress)
+}
+
+func (o *tunOptions) GetInet4RouteExcludeAddress() RoutePrefixIterator {
+	return mapRoutePrefix(o.Inet4RouteExcludeAddress)
+}
+
+func (o *tunOptions) GetInet6RouteExcludeAddress() RoutePrefixIterator {
+	return mapRoutePrefix(o.Inet6RouteExcludeAddress)
+}
+
+func (o *tunOptions) GetInet4RouteRange() RoutePrefixIterator {
 	return mapRoutePrefix(common.Filter(o.routeRanges, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
 	}))
 }
 
-func (o *tunOptions) GetInet6RouteAddress() RoutePrefixIterator {
+func (o *tunOptions) GetInet6RouteRange() RoutePrefixIterator {
 	return mapRoutePrefix(common.Filter(o.routeRanges, func(it netip.Prefix) bool {
 		return it.Addr().Is6()
 	}))
