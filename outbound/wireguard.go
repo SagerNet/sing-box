@@ -163,7 +163,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 	if !options.SystemInterface && tun.WithGVisor {
 		wireTunDevice, err = wireguard.NewStackDevice(options.LocalAddress, mtu)
 	} else {
-		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, options.LocalAddress, mtu)
+		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, options.LocalAddress, mtu, options.GSO, options.GSOMaxSize)
 	}
 	if err != nil {
 		return nil, E.Cause(err, "create WireGuard device")
