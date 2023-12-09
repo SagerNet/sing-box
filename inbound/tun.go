@@ -43,6 +43,10 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if tunMTU == 0 {
 		tunMTU = 9000
 	}
+	gsoMaxSize := options.GSOMaxSize
+	if gsoMaxSize == 0 {
+		gsoMaxSize = 65536
+	}
 	var udpTimeout int64
 	if options.UDPTimeout != 0 {
 		udpTimeout = options.UDPTimeout
@@ -74,6 +78,8 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		tunOptions: tun.Options{
 			Name:                     options.InterfaceName,
 			MTU:                      tunMTU,
+			GSO:                      options.GSO,
+			GSOMaxSize:               gsoMaxSize,
 			Inet4Address:             options.Inet4Address,
 			Inet6Address:             options.Inet6Address,
 			AutoRoute:                options.AutoRoute,
@@ -167,10 +173,7 @@ func (t *Tun) Start() error {
 	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
 		Context:                t.ctx,
 		Tun:                    tunInterface,
-		MTU:                    t.tunOptions.MTU,
-		Name:                   t.tunOptions.Name,
-		Inet4Address:           t.tunOptions.Inet4Address,
-		Inet6Address:           t.tunOptions.Inet6Address,
+		TunOptions:             t.tunOptions,
 		EndpointIndependentNat: t.endpointIndependentNat,
 		UDPTimeout:             t.udpTimeout,
 		Handler:                t,
