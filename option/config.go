@@ -9,6 +9,7 @@ import (
 )
 
 type _Options struct {
+	RawMessage   json.RawMessage      `json:"-"`
 	Schema       string               `json:"$schema,omitempty"`
 	Log          *LogOptions          `json:"log,omitempty"`
 	DNS          *DNSOptions          `json:"dns,omitempty"`
@@ -34,6 +35,7 @@ func (o *Options) UnmarshalJSON(content []byte) error {
 		column := len(prefix) - strings.LastIndex(prefix, "\n") - 1
 		return E.Extend(syntaxError, "row ", row, ", column ", column)
 	}
+	o.RawMessage = content
 	return err
 }
 
