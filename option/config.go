@@ -9,6 +9,7 @@ import (
 )
 
 type _Options struct {
+	RawMessage   json.RawMessage      `json:"-"`
 	Schema       string               `json:"$schema,omitempty"`
 	Log          *LogOptions          `json:"log,omitempty"`
 	DNS          *DNSOptions          `json:"dns,omitempty"`
@@ -26,6 +27,7 @@ func (o *Options) UnmarshalJSON(content []byte) error {
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode((*_Options)(o))
 	if err == nil {
+		o.RawMessage = content
 		return nil
 	}
 	if syntaxError, isSyntaxError := err.(*json.SyntaxError); isSyntaxError {
