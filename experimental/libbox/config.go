@@ -20,8 +20,7 @@ import (
 )
 
 func parseConfig(configContent string) (option.Options, error) {
-	var options option.Options
-	err := options.UnmarshalJSON([]byte(configContent))
+	options, err := json.UnmarshalExtended[option.Options]([]byte(configContent))
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
