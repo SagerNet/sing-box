@@ -3,7 +3,6 @@ package libbox
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/netip"
 	"os"
 
@@ -15,13 +14,13 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
 )
 
 func parseConfig(configContent string) (option.Options, error) {
-	var options option.Options
-	err := options.UnmarshalJSON([]byte(configContent))
+	options, err := json.UnmarshalExtended[option.Options]([]byte(configContent))
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
