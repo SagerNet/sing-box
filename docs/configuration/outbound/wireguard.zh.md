@@ -30,6 +30,7 @@ icon: material/new-box
   "workers": 4,
   "mtu": 1408,
   "network": "tcp",
+  "request_strategy": "prefer_ipv4",
 
   ... // 拨号字段
 }
@@ -135,6 +136,12 @@ WireGuard MTU。
 `tcp` 或 `udp`。
 
 默认所有。
+
+#### request_strategy
+
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
+
+解析请求的域名时使用的 DNS 策略。
 
 ### 拨号字段
 

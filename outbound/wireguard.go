@@ -32,9 +32,10 @@ var (
 
 type WireGuard struct {
 	myOutboundAdapter
-	bind      *wireguard.ClientBind
-	device    *device.Device
-	tunDevice wireguard.Device
+	bind            *wireguard.ClientBind
+	device          *device.Device
+	tunDevice       wireguard.Device
+	requestStrategy dns.DomainStrategy
 }
 
 func NewWireGuard(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WireGuardOutboundOptions) (*WireGuard, error) {
@@ -47,6 +48,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
+		requestStrategy: dns.DomainStrategy(options.RequestStrategy),
 	}
 	var reserved [3]uint8
 	if len(options.Reserved) > 0 {
@@ -227,11 +229,11 @@ func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 }
 
 func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewDirectConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
+	return NewDirectConnection(ctx, w.router, w, conn, metadata, w.requestStrategy)
 }
 
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
+	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata, w.requestStrategy)
 }
 
 func (w *WireGuard) Start() error {
