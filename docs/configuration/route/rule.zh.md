@@ -132,11 +132,13 @@ icon: material/alert-decagram
 !!! note ""
 
     默认规则使用以下匹配逻辑:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr` || `ip_is_private`) &&  
     (`port` || `port_range`) &&  
-    (`source_geoip` || `source_ip_cidr`) &&  
+    (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
     `other fields`
+
+    另外，引用的规则集可视为被合并，而不是作为一个单独的规则子项。
 
 #### inbound
 

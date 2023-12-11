@@ -134,11 +134,13 @@ icon: material/alert-decagram
 !!! note ""
 
     The default rule uses the following matching logic:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr` || `ip_is_private`) &&  
     (`port` || `port_range`) &&  
-    (`source_geoip` || `source_ip_cidr`) &&  
+    (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
     `other fields`
+
+    Additionally, included rule sets can be considered merged rather than as a single rule sub-item.
 
 #### inbound
 
