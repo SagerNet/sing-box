@@ -17,6 +17,23 @@ type InboundTLSOptions struct {
 	Reality         *InboundRealityOptions `json:"reality,omitempty"`
 }
 
+type InboundTLSOptionsContainer struct {
+	TLS *InboundTLSOptions `json:"tls,omitempty"`
+}
+
+type InboundTLSOptionsWrapper interface {
+	TakeInboundTLSOptions() *InboundTLSOptions
+	ReplaceInboundTLSOptions(options *InboundTLSOptions)
+}
+
+func (o *InboundTLSOptionsContainer) TakeInboundTLSOptions() *InboundTLSOptions {
+	return o.TLS
+}
+
+func (o *InboundTLSOptionsContainer) ReplaceInboundTLSOptions(options *InboundTLSOptions) {
+	o.TLS = options
+}
+
 type OutboundTLSOptions struct {
 	Enabled         bool                    `json:"enabled,omitempty"`
 	DisableSNI      bool                    `json:"disable_sni,omitempty"`
@@ -31,6 +48,23 @@ type OutboundTLSOptions struct {
 	ECH             *OutboundECHOptions     `json:"ech,omitempty"`
 	UTLS            *OutboundUTLSOptions    `json:"utls,omitempty"`
 	Reality         *OutboundRealityOptions `json:"reality,omitempty"`
+}
+
+type OutboundTLSOptionsContainer struct {
+	TLS *OutboundTLSOptions `json:"tls,omitempty"`
+}
+
+type OutboundTLSOptionsWrapper interface {
+	TakeOutboundTLSOptions() *OutboundTLSOptions
+	ReplaceOutboundTLSOptions(options *OutboundTLSOptions)
+}
+
+func (o *OutboundTLSOptionsContainer) TakeOutboundTLSOptions() *OutboundTLSOptions {
+	return o.TLS
+}
+
+func (o *OutboundTLSOptionsContainer) ReplaceOutboundTLSOptions(options *OutboundTLSOptions) {
+	o.TLS = options
 }
 
 type InboundRealityOptions struct {
