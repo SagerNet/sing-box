@@ -39,19 +39,21 @@ func TestVLESSVisionReality(t *testing.T) {
 							Flow: vless.FlowVision,
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.InboundRealityOptions{
-							Enabled: true,
-							Handshake: option.InboundRealityHandshakeOptions{
-								ServerOptions: option.ServerOptions{
-									Server:     "google.com",
-									ServerPort: 443,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.InboundRealityOptions{
+								Enabled: true,
+								Handshake: option.InboundRealityHandshakeOptions{
+									ServerOptions: option.ServerOptions{
+										Server:     "google.com",
+										ServerPort: 443,
+									},
 								},
+								ShortID:    []string{"0123456789abcdef"},
+								PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 							},
-							ShortID:    []string{"0123456789abcdef"},
-							PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 						},
 					},
 				},
@@ -70,11 +72,13 @@ func TestVLESSVisionReality(t *testing.T) {
 							Password: userUUID.String(),
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 				},
 			},
@@ -92,10 +96,12 @@ func TestVLESSVisionReality(t *testing.T) {
 						ServerPort: otherPort,
 					},
 					Password: userUUID.String(),
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 					DialerOptions: option.DialerOptions{
 						Detour: "vless-out",
@@ -112,16 +118,18 @@ func TestVLESSVisionReality(t *testing.T) {
 					},
 					UUID: userUUID.String(),
 					Flow: vless.FlowVision,
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.OutboundRealityOptions{
-							Enabled:   true,
-							ShortID:   "0123456789abcdef",
-							PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-						},
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled: true,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.OutboundRealityOptions{
+								Enabled:   true,
+								ShortID:   "0123456789abcdef",
+								PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
+							},
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled: true,
+							},
 						},
 					},
 				},
@@ -169,19 +177,21 @@ func TestVLESSVisionRealityPlain(t *testing.T) {
 							Flow: vless.FlowVision,
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.InboundRealityOptions{
-							Enabled: true,
-							Handshake: option.InboundRealityHandshakeOptions{
-								ServerOptions: option.ServerOptions{
-									Server:     "google.com",
-									ServerPort: 443,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.InboundRealityOptions{
+								Enabled: true,
+								Handshake: option.InboundRealityHandshakeOptions{
+									ServerOptions: option.ServerOptions{
+										Server:     "google.com",
+										ServerPort: 443,
+									},
 								},
+								ShortID:    []string{"0123456789abcdef"},
+								PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 							},
-							ShortID:    []string{"0123456789abcdef"},
-							PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 						},
 					},
 				},
@@ -201,16 +211,18 @@ func TestVLESSVisionRealityPlain(t *testing.T) {
 					},
 					UUID: userUUID.String(),
 					Flow: vless.FlowVision,
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.OutboundRealityOptions{
-							Enabled:   true,
-							ShortID:   "0123456789abcdef",
-							PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-						},
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled: true,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.OutboundRealityOptions{
+								Enabled:   true,
+								ShortID:   "0123456789abcdef",
+								PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
+							},
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled: true,
+							},
 						},
 					},
 				},
@@ -275,19 +287,21 @@ func testVLESSRealityTransport(t *testing.T, transport *option.V2RayTransportOpt
 							UUID: userUUID.String(),
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.InboundRealityOptions{
-							Enabled: true,
-							Handshake: option.InboundRealityHandshakeOptions{
-								ServerOptions: option.ServerOptions{
-									Server:     "google.com",
-									ServerPort: 443,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.InboundRealityOptions{
+								Enabled: true,
+								Handshake: option.InboundRealityHandshakeOptions{
+									ServerOptions: option.ServerOptions{
+										Server:     "google.com",
+										ServerPort: 443,
+									},
 								},
+								ShortID:    []string{"0123456789abcdef"},
+								PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 							},
-							ShortID:    []string{"0123456789abcdef"},
-							PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 						},
 					},
 					Transport: transport,
@@ -307,16 +321,18 @@ func testVLESSRealityTransport(t *testing.T, transport *option.V2RayTransportOpt
 						ServerPort: serverPort,
 					},
 					UUID: userUUID.String(),
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.OutboundRealityOptions{
-							Enabled:   true,
-							ShortID:   "0123456789abcdef",
-							PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-						},
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled: true,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.OutboundRealityOptions{
+								Enabled:   true,
+								ShortID:   "0123456789abcdef",
+								PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
+							},
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled: true,
+							},
 						},
 					},
 					Transport: transport,

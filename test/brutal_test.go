@@ -118,11 +118,13 @@ func TestBrutalTrojan(t *testing.T) {
 							DownMbps: 100,
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 				},
 			},
@@ -150,10 +152,12 @@ func TestBrutalTrojan(t *testing.T) {
 							DownMbps: 100,
 						},
 					},
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 				},
 			},
@@ -275,19 +279,21 @@ func TestBrutalVLESS(t *testing.T) {
 							DownMbps: 100,
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.InboundRealityOptions{
-							Enabled: true,
-							Handshake: option.InboundRealityHandshakeOptions{
-								ServerOptions: option.ServerOptions{
-									Server:     "google.com",
-									ServerPort: 443,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.InboundRealityOptions{
+								Enabled: true,
+								Handshake: option.InboundRealityHandshakeOptions{
+									ServerOptions: option.ServerOptions{
+										Server:     "google.com",
+										ServerPort: 443,
+									},
 								},
+								ShortID:    []string{"0123456789abcdef"},
+								PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 							},
-							ShortID:    []string{"0123456789abcdef"},
-							PrivateKey: "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
 						},
 					},
 				},
@@ -306,16 +312,18 @@ func TestBrutalVLESS(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					UUID: user.String(),
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						Reality: &option.OutboundRealityOptions{
-							Enabled:   true,
-							ShortID:   "0123456789abcdef",
-							PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-						},
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled: true,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							Reality: &option.OutboundRealityOptions{
+								Enabled:   true,
+								ShortID:   "0123456789abcdef",
+								PublicKey: "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
+							},
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled: true,
+							},
 						},
 					},
 					Multiplex: &option.OutboundMultiplexOptions{
