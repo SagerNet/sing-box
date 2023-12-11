@@ -41,11 +41,13 @@ func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
 							UUID: userId.String(),
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 					Transport: &option.V2RayTransportOptions{
 						Type: C.V2RayTransportTypeGRPC,
@@ -147,10 +149,12 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 					},
 					UUID:     userId.String(),
 					Security: "zero",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 					Transport: &option.V2RayTransportOptions{
 						Type: C.V2RayTransportTypeGRPC,
