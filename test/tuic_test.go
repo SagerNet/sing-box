@@ -51,11 +51,13 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 						UUID: uuid.Nil.String(),
 					}},
 					ZeroRTTHandshake: zeroRTTHandshake,
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 				},
 			},
@@ -75,10 +77,12 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 					UUID:             uuid.Nil.String(),
 					UDPRelayMode:     udpRelayMode,
 					ZeroRTTHandshake: zeroRTTHandshake,
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 				},
 			},
@@ -112,11 +116,13 @@ func TestTUICInbound(t *testing.T) {
 						UUID:     "FE35D05B-8803-45C4-BAE6-723AD2CD5D3D",
 						Password: "tuic",
 					}},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 				},
 			},
@@ -166,10 +172,12 @@ func TestTUICOutbound(t *testing.T) {
 					},
 					UUID:     "FE35D05B-8803-45C4-BAE6-723AD2CD5D3D",
 					Password: "tuic",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 				},
 			},
