@@ -75,11 +75,13 @@ func testV2RayWebsocketInbound(t *testing.T, maxEarlyData uint32, earlyDataHeade
 							UUID: userId.String(),
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 					Transport: &option.V2RayTransportOptions{
 						Type: C.V2RayTransportTypeWebsocket,
@@ -179,10 +181,12 @@ func testV2RayWebsocketOutbound(t *testing.T, maxEarlyData uint32, earlyDataHead
 					},
 					UUID:     userId.String(),
 					Security: "zero",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+						},
 					},
 					Transport: &option.V2RayTransportOptions{
 						Type: C.V2RayTransportTypeWebsocket,
