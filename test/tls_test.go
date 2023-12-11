@@ -35,11 +35,13 @@ func TestUTLS(t *testing.T) {
 							Password: "password",
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
 					},
 				},
 			},
@@ -57,13 +59,15 @@ func TestUTLS(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					Password: "password",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled:     true,
-							Fingerprint: "chrome",
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled:     true,
+								Fingerprint: "chrome",
+							},
 						},
 					},
 				},

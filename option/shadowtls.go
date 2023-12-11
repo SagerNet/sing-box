@@ -23,7 +23,7 @@ type ShadowTLSHandshakeOptions struct {
 type ShadowTLSOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Version  int                 `json:"version,omitempty"`
-	Password string              `json:"password,omitempty"`
-	TLS      *OutboundTLSOptions `json:"tls,omitempty"`
+	Version  int    `json:"version,omitempty"`
+	Password string `json:"password,omitempty"`
+	OutboundTLSOptionsContainer
 }
