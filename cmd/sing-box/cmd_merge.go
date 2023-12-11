@@ -65,50 +65,26 @@ func merge(outputPath string) error {
 
 func mergePathResources(options *option.Options) error {
 	for index, inbound := range options.Inbounds {
-		switch inbound.Type {
-		case C.TypeHTTP:
-			inbound.HTTPOptions.TLS = mergeTLSInboundOptions(inbound.HTTPOptions.TLS)
-		case C.TypeMixed:
-			inbound.MixedOptions.TLS = mergeTLSInboundOptions(inbound.MixedOptions.TLS)
-		case C.TypeVMess:
-			inbound.VMessOptions.TLS = mergeTLSInboundOptions(inbound.VMessOptions.TLS)
-		case C.TypeTrojan:
-			inbound.TrojanOptions.TLS = mergeTLSInboundOptions(inbound.TrojanOptions.TLS)
-		case C.TypeNaive:
-			inbound.NaiveOptions.TLS = mergeTLSInboundOptions(inbound.NaiveOptions.TLS)
-		case C.TypeHysteria:
-			inbound.HysteriaOptions.TLS = mergeTLSInboundOptions(inbound.HysteriaOptions.TLS)
-		case C.TypeVLESS:
-			inbound.VLESSOptions.TLS = mergeTLSInboundOptions(inbound.VLESSOptions.TLS)
-		case C.TypeTUIC:
-			inbound.TUICOptions.TLS = mergeTLSInboundOptions(inbound.TUICOptions.TLS)
-		case C.TypeHysteria2:
-			inbound.Hysteria2Options.TLS = mergeTLSInboundOptions(inbound.Hysteria2Options.TLS)
-		default:
-			continue
+		rawOptions, err := inbound.RawOptions()
+		if err != nil {
+			return err
+		}
+		if tlsOptions, containsTLSOptions := rawOptions.(option.InboundTLSOptionsWrapper); containsTLSOptions {
+			tlsOptions.ReplaceInboundTLSOptions(mergeTLSInboundOptions(tlsOptions.TakeInboundTLSOptions()))
 		}
 		options.Inbounds[index] = inbound
 	}
 	for index, outbound := range options.Outbounds {
+		rawOptions, err := outbound.RawOptions()
+		if err != nil {
+			return err
+		}
 		switch outbound.Type {
-		case C.TypeHTTP:
-			outbound.HTTPOptions.TLS = mergeTLSOutboundOptions(outbound.HTTPOptions.TLS)
-		case C.TypeVMess:
-			outbound.VMessOptions.TLS = mergeTLSOutboundOptions(outbound.VMessOptions.TLS)
-		case C.TypeTrojan:
-			outbound.TrojanOptions.TLS = mergeTLSOutboundOptions(outbound.TrojanOptions.TLS)
-		case C.TypeHysteria:
-			outbound.HysteriaOptions.TLS = mergeTLSOutboundOptions(outbound.HysteriaOptions.TLS)
 		case C.TypeSSH:
 			outbound.SSHOptions = mergeSSHOutboundOptions(outbound.SSHOptions)
-		case C.TypeVLESS:
-			outbound.VLESSOptions.TLS = mergeTLSOutboundOptions(outbound.VLESSOptions.TLS)
-		case C.TypeTUIC:
-			outbound.TUICOptions.TLS = mergeTLSOutboundOptions(outbound.TUICOptions.TLS)
-		case C.TypeHysteria2:
-			outbound.Hysteria2Options.TLS = mergeTLSOutboundOptions(outbound.Hysteria2Options.TLS)
-		default:
-			continue
+		}
+		if tlsOptions, containsTLSOptions := rawOptions.(option.OutboundTLSOptionsWrapper); containsTLSOptions {
+			tlsOptions.ReplaceOutboundTLSOptions(mergeTLSOutboundOptions(tlsOptions.TakeOutboundTLSOptions()))
 		}
 		options.Outbounds[index] = outbound
 	}

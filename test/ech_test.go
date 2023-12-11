@@ -40,14 +40,16 @@ func TestECH(t *testing.T) {
 							Password: "password",
 						},
 					},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
-						ECH: &option.InboundECHOptions{
-							Enabled: true,
-							Key:     []string{echKey},
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+							ECH: &option.InboundECHOptions{
+								Enabled: true,
+								Key:     []string{echKey},
+							},
 						},
 					},
 				},
@@ -66,13 +68,15 @@ func TestECH(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					Password: "password",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						ECH: &option.OutboundECHOptions{
-							Enabled: true,
-							Config:  []string{echConfig},
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							ECH: &option.OutboundECHOptions{
+								Enabled: true,
+								Config:  []string{echConfig},
+							},
 						},
 					},
 				},
@@ -117,14 +121,16 @@ func TestECHQUIC(t *testing.T) {
 					Users: []option.TUICUser{{
 						UUID: uuid.Nil.String(),
 					}},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
-						ECH: &option.InboundECHOptions{
-							Enabled: true,
-							Key:     []string{echKey},
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+							ECH: &option.InboundECHOptions{
+								Enabled: true,
+								Key:     []string{echKey},
+							},
 						},
 					},
 				},
@@ -143,13 +149,15 @@ func TestECHQUIC(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					UUID: uuid.Nil.String(),
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						ECH: &option.OutboundECHOptions{
-							Enabled: true,
-							Config:  []string{echConfig},
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							ECH: &option.OutboundECHOptions{
+								Enabled: true,
+								Config:  []string{echConfig},
+							},
 						},
 					},
 				},
@@ -194,14 +202,16 @@ func TestECHHysteria2(t *testing.T) {
 					Users: []option.Hysteria2User{{
 						Password: "password",
 					}},
-					TLS: &option.InboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						KeyPath:         keyPem,
-						ECH: &option.InboundECHOptions{
-							Enabled: true,
-							Key:     []string{echKey},
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+							ECH: &option.InboundECHOptions{
+								Enabled: true,
+								Key:     []string{echKey},
+							},
 						},
 					},
 				},
@@ -220,13 +230,15 @@ func TestECHHysteria2(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					Password: "password",
-					TLS: &option.OutboundTLSOptions{
-						Enabled:         true,
-						ServerName:      "example.org",
-						CertificatePath: certPem,
-						ECH: &option.OutboundECHOptions{
-							Enabled: true,
-							Config:  []string{echConfig},
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							ECH: &option.OutboundECHOptions{
+								Enabled: true,
+								Config:  []string{echConfig},
+							},
 						},
 					},
 				},
