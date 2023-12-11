@@ -31,49 +31,59 @@ type _Outbound struct {
 
 type Outbound _Outbound
 
-func (h Outbound) MarshalJSON() ([]byte, error) {
-	var v any
+func (h *Outbound) RawOptions() (any, error) {
+	var rawOptionsPtr any
 	switch h.Type {
 	case C.TypeDirect:
-		v = h.DirectOptions
+		rawOptionsPtr = &h.DirectOptions
 	case C.TypeBlock, C.TypeDNS:
-		v = nil
+		rawOptionsPtr = nil
 	case C.TypeSOCKS:
-		v = h.SocksOptions
+		rawOptionsPtr = &h.SocksOptions
 	case C.TypeHTTP:
-		v = h.HTTPOptions
+		rawOptionsPtr = &h.HTTPOptions
 	case C.TypeShadowsocks:
-		v = h.ShadowsocksOptions
+		rawOptionsPtr = &h.ShadowsocksOptions
 	case C.TypeVMess:
-		v = h.VMessOptions
+		rawOptionsPtr = &h.VMessOptions
 	case C.TypeTrojan:
-		v = h.TrojanOptions
+		rawOptionsPtr = &h.TrojanOptions
 	case C.TypeWireGuard:
-		v = h.WireGuardOptions
+		rawOptionsPtr = &h.WireGuardOptions
 	case C.TypeHysteria:
-		v = h.HysteriaOptions
+		rawOptionsPtr = &h.HysteriaOptions
 	case C.TypeTor:
-		v = h.TorOptions
+		rawOptionsPtr = &h.TorOptions
 	case C.TypeSSH:
-		v = h.SSHOptions
+		rawOptionsPtr = &h.SSHOptions
 	case C.TypeShadowTLS:
-		v = h.ShadowTLSOptions
+		rawOptionsPtr = &h.ShadowTLSOptions
 	case C.TypeShadowsocksR:
-		v = h.ShadowsocksROptions
+		rawOptionsPtr = &h.ShadowsocksROptions
 	case C.TypeVLESS:
-		v = h.VLESSOptions
+		rawOptionsPtr = &h.VLESSOptions
 	case C.TypeTUIC:
-		v = h.TUICOptions
+		rawOptionsPtr = &h.TUICOptions
 	case C.TypeHysteria2:
-		v = h.Hysteria2Options
+		rawOptionsPtr = &h.Hysteria2Options
 	case C.TypeSelector:
-		v = h.SelectorOptions
+		rawOptionsPtr = &h.SelectorOptions
 	case C.TypeURLTest:
-		v = h.URLTestOptions
+		rawOptionsPtr = &h.URLTestOptions
+	case "":
+		return nil, E.New("missing outbound type")
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
-	return MarshallObjects((_Outbound)(h), v)
+	return rawOptionsPtr, nil
+}
+
+func (h *Outbound) MarshalJSON() ([]byte, error) {
+	rawOptions, err := h.RawOptions()
+	if err != nil {
+		return nil, err
+	}
+	return MarshallObjects((*_Outbound)(h), rawOptions)
 }
 
 func (h *Outbound) UnmarshalJSON(bytes []byte) error {
@@ -81,54 +91,20 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	var v any
-	switch h.Type {
-	case C.TypeDirect:
-		v = &h.DirectOptions
-	case C.TypeBlock, C.TypeDNS:
-		v = nil
-	case C.TypeSOCKS:
-		v = &h.SocksOptions
-	case C.TypeHTTP:
-		v = &h.HTTPOptions
-	case C.TypeShadowsocks:
-		v = &h.ShadowsocksOptions
-	case C.TypeVMess:
-		v = &h.VMessOptions
-	case C.TypeTrojan:
-		v = &h.TrojanOptions
-	case C.TypeWireGuard:
-		v = &h.WireGuardOptions
-	case C.TypeHysteria:
-		v = &h.HysteriaOptions
-	case C.TypeTor:
-		v = &h.TorOptions
-	case C.TypeSSH:
-		v = &h.SSHOptions
-	case C.TypeShadowTLS:
-		v = &h.ShadowTLSOptions
-	case C.TypeShadowsocksR:
-		v = &h.ShadowsocksROptions
-	case C.TypeVLESS:
-		v = &h.VLESSOptions
-	case C.TypeTUIC:
-		v = &h.TUICOptions
-	case C.TypeHysteria2:
-		v = &h.Hysteria2Options
-	case C.TypeSelector:
-		v = &h.SelectorOptions
-	case C.TypeURLTest:
-		v = &h.URLTestOptions
-	case "":
-		return E.New("missing outbound type")
-	default:
-		return E.New("unknown outbound type: ", h.Type)
+	rawOptions, err := h.RawOptions()
+	if err != nil {
+		return err
 	}
-	err = UnmarshallExcluded(bytes, (*_Outbound)(h), v)
+	err = UnmarshallExcluded(bytes, (*_Outbound)(h), rawOptions)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+type DialerOptionsWrapper interface {
+	TakeDialerOptions() DialerOptions
+	ReplaceDialerOptions(options DialerOptions)
 }
 
 type DialerOptions struct {
@@ -146,6 +122,14 @@ type DialerOptions struct {
 	UDPFragmentDefault bool           `json:"-"`
 	DomainStrategy     DomainStrategy `json:"domain_strategy,omitempty"`
 	FallbackDelay      Duration       `json:"fallback_delay,omitempty"`
+}
+
+func (o *DialerOptions) TakeDialerOptions() DialerOptions {
+	return *o
+}
+
+func (o *DialerOptions) ReplaceDialerOptions(options DialerOptions) {
+	*o = options
 }
 
 type ServerOptions struct {

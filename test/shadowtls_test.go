@@ -99,11 +99,13 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
-						UTLS: &option.OutboundUTLSOptions{
-							Enabled: utlsEanbled,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+							UTLS: &option.OutboundUTLSOptions{
+								Enabled: utlsEanbled,
+							},
 						},
 					},
 					Version:  version,
@@ -301,9 +303,11 @@ func TestShadowTLSOutbound(t *testing.T) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					TLS: &option.OutboundTLSOptions{
-						Enabled:    true,
-						ServerName: "google.com",
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:    true,
+							ServerName: "google.com",
+						},
 					},
 					Version:  3,
 					Password: "hello",
