@@ -31,6 +31,7 @@
   "workers": 4,
   "mtu": 1408,
   "network": "tcp",
+  "request_strategy": "prefer_ipv4",
 
   ... // Dial Fields
 }
@@ -136,6 +137,12 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### request_strategy
+
+One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+
+The DNS strategy used in resolving requested domains.
 
 ### Dial Fields
 

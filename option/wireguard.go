@@ -10,12 +10,13 @@ type WireGuardOutboundOptions struct {
 	PrivateKey      string                 `json:"private_key"`
 	Peers           []WireGuardPeer        `json:"peers,omitempty"`
 	ServerOptions
-	PeerPublicKey string      `json:"peer_public_key"`
-	PreSharedKey  string      `json:"pre_shared_key,omitempty"`
-	Reserved      []uint8     `json:"reserved,omitempty"`
-	Workers       int         `json:"workers,omitempty"`
-	MTU           uint32      `json:"mtu,omitempty"`
-	Network       NetworkList `json:"network,omitempty"`
+	PeerPublicKey   string         `json:"peer_public_key"`
+	PreSharedKey    string         `json:"pre_shared_key,omitempty"`
+	Reserved        []uint8        `json:"reserved,omitempty"`
+	Workers         int            `json:"workers,omitempty"`
+	MTU             uint32         `json:"mtu,omitempty"`
+	Network         NetworkList    `json:"network,omitempty"`
+	RequestStrategy DomainStrategy `json:"request_strategy,omitempty"`
 }
 
 type WireGuardPeer struct {
