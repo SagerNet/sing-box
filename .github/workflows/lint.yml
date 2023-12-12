@@ -30,7 +30,7 @@ jobs:
         run: |
           echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.version.outputs.go_version }}
       - name: golangci-lint
