@@ -32,18 +32,18 @@ icon: material/alert-decagram
 
 | Key       | Format               |
 |-----------|----------------------|
-| `geoip`   | [GeoIP](./geoip)     |
-| `geosite` | [Geosite](./geosite) |
+| `geoip`   | [GeoIP](./geoip/)     |
+| `geosite` | [Geosite](./geosite/) |
 
 #### rules
 
-List of [Route Rule](./rule)
+List of [Route Rule](./rule/)
 
 #### rule_set
 
 !!! question "Since sing-box 1.8.0"
 
-List of [Rule Set](/configuration/rule-set)
+List of [Rule Set](/configuration/rule-set/)
 
 #### final
 

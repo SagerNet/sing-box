@@ -12,8 +12,8 @@ icon: material/arrange-bring-forward
 
 !!! info "参考"
 
-    [Clash API](/zh/configuration/experimental/clash-api) / 
-    [Cache File](/zh/configuration/experimental/cache-file)
+    [Clash API](/zh/configuration/experimental/clash-api/) / 
+    [Cache File](/zh/configuration/experimental/cache-file/)
 
 === ":material-card-remove: 弃用的"
 
@@ -50,11 +50,11 @@ icon: material/arrange-bring-forward
 
 !!! info "参考"
 
-    [GeoIP](/zh/configuration/route/geoip) / 
-    [路由](/zh/configuration/route) / 
-    [路由规则](/zh/configuration/route/rule) / 
-    [DNS 规则](/zh/configuration/dns/rule) / 
-    [规则集](/zh/configuration/rule-set)
+    [GeoIP](/zh/configuration/route/geoip/) / 
+    [路由](/zh/configuration/route/) / 
+    [路由规则](/zh/configuration/route/rule/) / 
+    [DNS 规则](/zh/configuration/dns/rule/) / 
+    [规则集](/zh/configuration/rule-set/)
 
 !!! tip
 
@@ -135,11 +135,11 @@ icon: material/arrange-bring-forward
 
 !!! info "参考"
 
-    [Geosite](/zh/configuration/route/geosite) / 
-    [路由](/zh/configuration/route) / 
-    [路由规则](/zh/configuration/route/rule) / 
-    [DNS 规则](/zh/configuration/dns/rule) / 
-    [规则集](/zh/configuration/rule-set)
+    [Geosite](/zh/configuration/route/geosite/) / 
+    [路由](/zh/configuration/route/) / 
+    [路由规则](/zh/configuration/route/rule/) / 
+    [DNS 规则](/zh/configuration/dns/rule/) / 
+    [规则集](/zh/configuration/rule-set/)
 
 !!! tip
 

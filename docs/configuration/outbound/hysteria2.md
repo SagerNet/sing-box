@@ -84,4 +84,4 @@ Enable debug information logging for Hysteria Brutal CC.
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.

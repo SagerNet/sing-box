@@ -89,7 +89,7 @@ Both is enabled by default.
 
 UDP over TCP configuration.
 
-See [UDP Over TCP](/configuration/shared/udp-over-tcp) for details.
+See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
 
 Conflict with `multiplex`.
 
@@ -99,4 +99,4 @@ See [Multiplex](/configuration/shared/multiplex#outbound) for details.
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.

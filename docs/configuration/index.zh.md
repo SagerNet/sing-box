@@ -19,12 +19,12 @@ sing-box 使用 JSON 作为配置文件格式。
 
 | Key            | Format                |
 |----------------|-----------------------|
-| `log`          | [日志](./log)           |
-| `dns`          | [DNS](./dns)          |
-| `inbounds`     | [入站](./inbound)       |
-| `outbounds`    | [出站](./outbound)      |
-| `route`        | [路由](./route)         |
-| `experimental` | [实验性](./experimental) |
+| `log`          | [日志](./log/)           |
+| `dns`          | [DNS](./dns/)          |
+| `inbounds`     | [入站](./inbound/)       |
+| `outbounds`    | [出站](./outbound/)      |
+| `route`        | [路由](./route/)         |
+| `experimental` | [实验性](./experimental/) |
 
 ### 检查
 

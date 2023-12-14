@@ -32,19 +32,19 @@ icon: material/alert-decagram
 
 | 键          | 格式                                |
 |------------|-----------------------------------|
-| `geoip`    | [GeoIP](./geoip)                  |
-| `geosite`  | [Geosite](./geosite)              |
+| `geoip`    | [GeoIP](./geoip/)                  |
+| `geosite`  | [Geosite](./geosite/)              |
 
 
 #### rule
 
-一组 [路由规则](./rule)。
+一组 [路由规则](./rule/)。
 
 #### rule_set
 
 !!! question "自 sing-box 1.8.0 起"
 
-一组 [规则集](/configuration/rule-set)。
+一组 [规则集](/configuration/rule-set/)。
 
 #### final
 
