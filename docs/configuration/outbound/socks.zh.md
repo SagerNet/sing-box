@@ -59,7 +59,7 @@ SOCKS5 密码。
 
 UDP over TCP 配置。
 
-参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp)。
+参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp/)。
 
 ### 拨号字段
 

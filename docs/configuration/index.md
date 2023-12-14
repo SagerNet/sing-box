@@ -18,15 +18,15 @@ sing-box uses JSON for configuration files.
 
 ### Fields
 
-| Key            | Format                         |
-|----------------|--------------------------------|
-| `log`          | [Log](./log)                   |
-| `dns`          | [DNS](./dns)                   |
-| `ntp`          | [NTP](./ntp)                   |
-| `inbounds`     | [Inbound](./inbound)           |
-| `outbounds`    | [Outbound](./outbound)         |
-| `route`        | [Route](./route)               |
-| `experimental` | [Experimental](./experimental) |
+| Key            | Format                          |
+|----------------|---------------------------------|
+| `log`          | [Log](./log/)                   |
+| `dns`          | [DNS](./dns/)                   |
+| `ntp`          | [NTP](./ntp/)                   |
+| `inbounds`     | [Inbound](./inbound/)           |
+| `outbounds`    | [Outbound](./outbound/)         |
+| `route`        | [Route](./route/)               |
+| `experimental` | [Experimental](./experimental/) |
 
 ### Check
 

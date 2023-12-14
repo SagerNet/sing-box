@@ -20,11 +20,11 @@
 
 ### 字段
 
-| 键          | 格式                      |
-|------------|-------------------------|
-| `geoip`    | [GeoIP](./geoip)        |
-| `geosite`  | [GeoSite](./geosite)    |
-| `rules`    | 一组 [路由规则](./rule)       |
+| 键         | 格式                    |
+|-----------|-----------------------|
+| `geoip`   | [GeoIP](./geoip/)     |
+| `geosite` | [GeoSite](./geosite/) |
+| `rules`   | 一组 [路由规则](./rule/)    |
 
 #### final
 
