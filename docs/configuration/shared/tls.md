@@ -363,7 +363,7 @@ The MAC key.
 
 ACME DNS01 challenge field. If configured, other challenge methods will be disabled.
 
-See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge) for details.
+See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/) for details.
 
 ### Reality Fields
 
@@ -373,7 +373,7 @@ See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge) for details.
 
 ==Required==
 
-Handshake server address and [Dial options](/configuration/shared/dial).
+Handshake server address and [Dial options](/configuration/shared/dial/).
 
 #### private_key
 

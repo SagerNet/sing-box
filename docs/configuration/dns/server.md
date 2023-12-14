@@ -41,7 +41,7 @@ The address of the dns server.
 | `HTTP3`                             | `h3://8.8.8.8/dns-query`      |
 | `RCode`                             | `rcode://refused`             |
 | `DHCP`                              | `dhcp://auto` or `dhcp://en0` |
-| [FakeIP](/configuration/dns/fakeip) | `fakeip`                      |
+| [FakeIP](/configuration/dns/fakeip/) | `fakeip`                      |
 
 !!! warning ""
 
