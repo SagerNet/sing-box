@@ -35,7 +35,7 @@ If enabled, non-padded connections will be rejected.
 
 #### brutal
 
-See [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+See [TCP Brutal](/configuration/shared/tcp-brutal/) for details.
 
 ### Outbound Fields
 
@@ -83,4 +83,4 @@ Enable padding.
 
 #### brutal
 
-See [TCP Brutal](/configuration/shared/tcp-brutal) for details.
+See [TCP Brutal](/configuration/shared/tcp-brutal/) for details.
