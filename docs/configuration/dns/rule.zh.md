@@ -139,7 +139,7 @@ icon: material/alert-decagram
 
 #### inbound
 
-[入站](/zh/configuration/inbound) 标签.
+[入站](/zh/configuration/inbound/) 标签.
 
 #### ip_version
 

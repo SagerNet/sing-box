@@ -20,13 +20,13 @@ sing-box uses JSON for configuration files.
 
 | Key            | Format                         |
 |----------------|--------------------------------|
-| `log`          | [Log](./log)                   |
-| `dns`          | [DNS](./dns)                   |
-| `ntp`          | [NTP](./ntp)                   |
-| `inbounds`     | [Inbound](./inbound)           |
-| `outbounds`    | [Outbound](./outbound)         |
-| `route`        | [Route](./route)               |
-| `experimental` | [Experimental](./experimental) |
+| `log`          | [Log](./log/)                   |
+| `dns`          | [DNS](./dns/)                   |
+| `ntp`          | [NTP](./ntp/)                   |
+| `inbounds`     | [Inbound](./inbound/)           |
+| `outbounds`    | [Outbound](./outbound/)         |
+| `route`        | [Route](./route/)               |
+| `experimental` | [Experimental](./experimental/) |
 
 ### Check
 

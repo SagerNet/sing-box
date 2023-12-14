@@ -12,8 +12,8 @@ icon: material/arrange-bring-forward
 
 !!! info "References"
 
-    [Clash API](/configuration/experimental/clash-api) / 
-    [Cache File](/configuration/experimental/cache-file)
+    [Clash API](/configuration/experimental/clash-api/) / 
+    [Cache File](/configuration/experimental/cache-file/)
 
 === ":material-card-remove: Deprecated"
 
@@ -50,11 +50,11 @@ icon: material/arrange-bring-forward
 
 !!! info "References"
 
-    [GeoIP](/configuration/route/geoip) / 
-    [Route](/configuration/route) / 
-    [Route Rule](/configuration/route/rule) / 
-    [DNS Rule](/configuration/dns/rule) / 
-    [Rule Set](/configuration/rule-set)
+    [GeoIP](/configuration/route/geoip/) / 
+    [Route](/configuration/route/) / 
+    [Route Rule](/configuration/route/rule/) / 
+    [DNS Rule](/configuration/dns/rule/) / 
+    [Rule Set](/configuration/rule-set/)
 
 !!! tip
 
@@ -135,11 +135,11 @@ icon: material/arrange-bring-forward
 
 !!! info "References"
 
-    [Geosite](/configuration/route/geosite) / 
-    [Route](/configuration/route) / 
-    [Route Rule](/configuration/route/rule) / 
-    [DNS Rule](/configuration/dns/rule) / 
-    [Rule Set](/configuration/rule-set)
+    [Geosite](/configuration/route/geosite/) / 
+    [Route](/configuration/route/) / 
+    [Route Rule](/configuration/route/rule/) / 
+    [DNS Rule](/configuration/dns/rule/) / 
+    [Rule Set](/configuration/rule-set/)
 
 !!! tip
 

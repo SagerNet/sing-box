@@ -23,8 +23,8 @@
 
 | 键        | 格式                     |
 |----------|------------------------|
-| `server` | 一组 [DNS 服务器](./server) |
-| `rules`  | 一组 [DNS 规则](./rule)    |
+| `server` | 一组 [DNS 服务器](./server/) |
+| `rules`  | 一组 [DNS 规则](./rule/)    |
 
 #### final
 
@@ -60,4 +60,4 @@
 
 #### fakeip
 
-[FakeIP](./fakeip) 设置。
+[FakeIP](./fakeip/) 设置。

@@ -35,7 +35,7 @@
 
 ### Listen Fields
 
-See [Listen Fields](/configuration/shared/listen) for details.
+See [Listen Fields](/configuration/shared/listen/) for details.
 
 ### Fields
 
@@ -66,11 +66,11 @@ Only available in the ShadowTLS protocol 3.
 
 ==Required==
 
-Handshake server address and [Dial options](/configuration/shared/dial).
+Handshake server address and [Dial options](/configuration/shared/dial/).
 
 #### handshake_for_server_name
 
-Handshake server address and [Dial options](/configuration/shared/dial) for specific server name.
+Handshake server address and [Dial options](/configuration/shared/dial/) for specific server name.
 
 Only available in the ShadowTLS protocol 2/3.
 

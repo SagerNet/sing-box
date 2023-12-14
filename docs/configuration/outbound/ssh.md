@@ -68,4 +68,4 @@ Client version. Random version will be used if empty.
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.

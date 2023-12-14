@@ -68,7 +68,7 @@ Conflict with `udp_over_stream`.
 
 #### udp_over_stream
 
-This is the TUIC port of the [UDP over TCP protocol](/configuration/shared/udp-over-tcp), designed to provide a QUIC
+This is the TUIC port of the [UDP over TCP protocol](/configuration/shared/udp-over-tcp/), designed to provide a QUIC
 stream based UDP relay mode that TUIC does not provide. Since it is an add-on protocol, you will need to use sing-box or
 another program compatible with the protocol as a server.
 
@@ -93,4 +93,4 @@ TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.
