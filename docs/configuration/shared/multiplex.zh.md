@@ -34,7 +34,7 @@
 
 #### brutal
 
-参阅 [TCP Brutal](/zh/configuration/shared/tcp-brutal)。
+参阅 [TCP Brutal](/zh/configuration/shared/tcp-brutal/)。
 
 ### 出站字段
 
@@ -82,4 +82,4 @@
 
 #### brutal
 
-参阅 [TCP Brutal](/zh/configuration/shared/tcp-brutal)。
+参阅 [TCP Brutal](/zh/configuration/shared/tcp-brutal/)。

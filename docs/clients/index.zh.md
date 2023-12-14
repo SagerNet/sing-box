@@ -4,8 +4,8 @@
 
 | 平台                                    | 客户端                                     |
 |---------------------------------------|-----------------------------------------|
-| :material-android: Android            | [sing-box for Android](./android)       |
-| :material-apple: iOS/macOS/Apple tvOS | [sing-box for Apple platforms](./apple) |
+| :material-android: Android            | [sing-box for Android](./android/)       |
+| :material-apple: iOS/macOS/Apple tvOS | [sing-box for Apple platforms](./apple/) |
 | :material-laptop: Desktop             | 施工中                                     |
 
 此处没有列出一些声称使用或以 sing-box 为卖点的第三方项目。此类项目维护者的动机是获得更多用户，即使它们提供友好的商业

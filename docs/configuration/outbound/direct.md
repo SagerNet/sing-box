@@ -33,4 +33,4 @@ Protocol value can be `1` or `2`.
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.
