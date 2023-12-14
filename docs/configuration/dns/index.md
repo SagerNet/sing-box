@@ -23,9 +23,9 @@
 
 | Key      | Format                         |
 |----------|--------------------------------|
-| `server` | List of [DNS Server](./server) |
-| `rules`  | List of [DNS Rule](./rule)     |
-| `fakeip` | [FakeIP](./fakeip)             |
+| `server` | List of [DNS Server](./server/) |
+| `rules`  | List of [DNS Rule](./rule/)     |
+| `fakeip` | [FakeIP](./fakeip/)             |
 
 #### final
 
@@ -62,4 +62,4 @@ problematic in environments such as macOS, where DNS is proxied and cached by th
 
 #### fakeip
 
-[FakeIP](./fakeip) settings.
+[FakeIP](./fakeip/) settings.

@@ -59,8 +59,8 @@ Both is enabled by default.
 
 UDP over TCP protocol settings.
 
-See [UDP Over TCP](/configuration/shared/udp-over-tcp) for details.
+See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
 
 ### Dial Fields
 
-See [Dial Fields](/configuration/shared/dial) for details.
+See [Dial Fields](/configuration/shared/dial/) for details.

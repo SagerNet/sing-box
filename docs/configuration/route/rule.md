@@ -122,7 +122,7 @@
 
 #### inbound
 
-Tags of [Inbound](/configuration/inbound).
+Tags of [Inbound](/configuration/inbound/).
 
 #### ip_version
 

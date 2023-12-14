@@ -75,7 +75,7 @@ UDP 包编码，默认使用 xudp。
 
 #### transport
 
-V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-transport)。
+V2Ray 传输配置，参阅 [V2Ray 传输层](/zh/configuration/shared/v2ray-transport/)。
 
 ### 拨号字段
 
