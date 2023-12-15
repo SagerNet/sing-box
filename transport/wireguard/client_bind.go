@@ -12,7 +12,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service/pause"
 	"github.com/sagernet/wireguard-go/conn"
 )
 
@@ -22,31 +21,25 @@ type ClientBind struct {
 	ctx                 context.Context
 	errorHandler        E.Handler
 	dialer              N.Dialer
-	reservedForEndpoint map[M.Socksaddr][3]uint8
+	reservedForEndpoint map[netip.AddrPort][3]uint8
 	connAccess          sync.Mutex
 	conn                *wireConn
 	done                chan struct{}
 	isConnect           bool
-	connectAddr         M.Socksaddr
+	connectAddr         netip.AddrPort
 	reserved            [3]uint8
-	pauseManager        pause.Manager
 }
 
-func NewClientBind(ctx context.Context, errorHandler E.Handler, dialer N.Dialer, isConnect bool, connectAddr M.Socksaddr, reserved [3]uint8) *ClientBind {
+func NewClientBind(ctx context.Context, errorHandler E.Handler, dialer N.Dialer, isConnect bool, connectAddr netip.AddrPort, reserved [3]uint8) *ClientBind {
 	return &ClientBind{
 		ctx:                 ctx,
 		errorHandler:        errorHandler,
 		dialer:              dialer,
-		reservedForEndpoint: make(map[M.Socksaddr][3]uint8),
+		reservedForEndpoint: make(map[netip.AddrPort][3]uint8),
 		isConnect:           isConnect,
 		connectAddr:         connectAddr,
 		reserved:            reserved,
-		pauseManager:        pause.ManagerFromContext(ctx),
 	}
-}
-
-func (c *ClientBind) SetReservedForEndpoint(destination M.Socksaddr, reserved [3]byte) {
-	c.reservedForEndpoint[destination] = reserved
 }
 
 func (c *ClientBind) connect() (*wireConn, error) {
@@ -71,16 +64,13 @@ func (c *ClientBind) connect() (*wireConn, error) {
 		}
 	}
 	if c.isConnect {
-		udpConn, err := c.dialer.DialContext(c.ctx, N.NetworkUDP, c.connectAddr)
+		udpConn, err := c.dialer.DialContext(c.ctx, N.NetworkUDP, M.SocksaddrFromNetIP(c.connectAddr))
 		if err != nil {
 			return nil, err
 		}
 		c.conn = &wireConn{
-			PacketConn: &bufio.UnbindPacketConn{
-				ExtendedConn: bufio.NewExtendedConn(udpConn),
-				Addr:         c.connectAddr,
-			},
-			done: make(chan struct{}),
+			PacketConn: bufio.NewUnbindPacketConn(udpConn),
+			done:       make(chan struct{}),
 		}
 	} else {
 		udpConn, err := c.dialer.ListenPacket(c.ctx, M.Socksaddr{Addr: netip.IPv4Unspecified()})
@@ -116,7 +106,6 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		c.errorHandler.NewError(context.Background(), E.Cause(err, "connect to server"))
 		err = nil
 		time.Sleep(time.Second)
-		c.pauseManager.WaitActive()
 		return
 	}
 	n, addr, err := udpConn.ReadFrom(packets[0])
@@ -133,11 +122,9 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 	sizes[0] = n
 	if n > 3 {
 		b := packets[0]
-		b[1] = 0
-		b[2] = 0
-		b[3] = 0
+		common.ClearArray(b[1:4])
 	}
-	eps[0] = Endpoint(M.SocksaddrFromNet(addr))
+	eps[0] = Endpoint(M.AddrPortFromNet(addr))
 	count = 1
 	return
 }
@@ -170,18 +157,16 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint) error {
 	if err != nil {
 		return err
 	}
-	destination := M.Socksaddr(ep.(Endpoint))
+	destination := netip.AddrPort(ep.(Endpoint))
 	for _, b := range bufs {
 		if len(b) > 3 {
 			reserved, loaded := c.reservedForEndpoint[destination]
 			if !loaded {
 				reserved = c.reserved
 			}
-			b[1] = reserved[0]
-			b[2] = reserved[1]
-			b[3] = reserved[2]
+			copy(b[1:4], reserved[:])
 		}
-		_, err = udpConn.WriteTo(b, destination)
+		_, err = udpConn.WriteTo(b, M.SocksaddrFromNetIP(destination))
 		if err != nil {
 			udpConn.Close()
 			return err
@@ -191,11 +176,19 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint) error {
 }
 
 func (c *ClientBind) ParseEndpoint(s string) (conn.Endpoint, error) {
-	return Endpoint(M.ParseSocksaddr(s)), nil
+	ap, err := netip.ParseAddrPort(s)
+	if err != nil {
+		return nil, err
+	}
+	return Endpoint(ap), nil
 }
 
 func (c *ClientBind) BatchSize() int {
 	return 1
+}
+
+func (c *ClientBind) SetReservedForEndpoint(destination netip.AddrPort, reserved [3]byte) {
+	c.reservedForEndpoint[destination] = reserved
 }
 
 type wireConn struct {
