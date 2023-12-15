@@ -30,7 +30,7 @@ type ProxyListener struct {
 	tcpListener   *net.TCPListener
 	username      string
 	password      string
-	authenticator auth.Authenticator
+	authenticator *auth.Authenticator
 }
 
 func NewProxyListener(ctx context.Context, logger log.ContextLogger, dialer N.Dialer) *ProxyListener {

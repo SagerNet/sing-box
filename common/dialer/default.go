@@ -15,14 +15,17 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
+var _ WireGuardListener = (*DefaultDialer)(nil)
+
 type DefaultDialer struct {
-	dialer4     tcpDialer
-	dialer6     tcpDialer
-	udpDialer4  net.Dialer
-	udpDialer6  net.Dialer
-	udpListener net.ListenConfig
-	udpAddr4    string
-	udpAddr6    string
+	dialer4             tcpDialer
+	dialer6             tcpDialer
+	udpDialer4          net.Dialer
+	udpDialer6          net.Dialer
+	udpListener         net.ListenConfig
+	udpAddr4            string
+	udpAddr6            string
+	isWireGuardListener bool
 }
 
 func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDialer, error) {
@@ -98,6 +101,11 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		}
 		setMultiPathTCP(&dialer4)
 	}
+	if options.IsWireGuardListener {
+		for _, controlFn := range wgControlFns {
+			listener.Control = control.Append(listener.Control, controlFn)
+		}
+	}
 	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen)
 	if err != nil {
 		return nil, err
@@ -114,6 +122,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		listener,
 		udpAddr4,
 		udpAddr6,
+		options.IsWireGuardListener,
 	}, nil
 }
 
@@ -144,6 +153,10 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	} else {
 		return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4))
 	}
+}
+
+func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
+	return trackPacketConn(d.udpListener.ListenPacket(context.Background(), network, address))
 }
 
 func trackConn(conn net.Conn, err error) (net.Conn, error) {

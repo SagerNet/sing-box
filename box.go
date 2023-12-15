@@ -259,6 +259,10 @@ func (s *Box) preStart() error {
 			}
 		}
 	}
+	err = s.router.PreStart()
+	if err != nil {
+		return E.Cause(err, "pre-start router")
+	}
 	err = s.startOutbounds()
 	if err != nil {
 		return err
@@ -313,10 +317,7 @@ func (s *Box) postStart() error {
 			}
 		}
 	}
-	err := s.router.PostStart()
-	if err != nil {
-		return E.Cause(err, "post-start router")
-	}
+
 	return s.router.PostStart()
 }
 

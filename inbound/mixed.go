@@ -29,7 +29,7 @@ var (
 
 type Mixed struct {
 	myInboundAdapter
-	authenticator auth.Authenticator
+	authenticator *auth.Authenticator
 }
 
 func NewMixed(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) *Mixed {

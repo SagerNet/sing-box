@@ -17,6 +17,7 @@ import (
 
 type Router interface {
 	Service
+	PreStarter
 	PostStarter
 
 	Outbounds() []Outbound
