@@ -5,6 +5,7 @@ import "net/netip"
 type WireGuardOutboundOptions struct {
 	DialerOptions
 	SystemInterface bool                   `json:"system_interface,omitempty"`
+	GSO             bool                   `json:"gso,omitempty"`
 	InterfaceName   string                 `json:"interface_name,omitempty"`
 	LocalAddress    Listable[netip.Prefix] `json:"local_address"`
 	PrivateKey      string                 `json:"private_key"`

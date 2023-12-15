@@ -1,3 +1,12 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "Changes in sing-box 1.8.0"
+
+    :material-plus: [gso](#gso)  
+    :material-alert-decagram: [stack](#stack)
+
 !!! quote ""
 
     Only supported on Linux, Windows and macOS.
@@ -12,6 +21,7 @@
   "inet4_address": "172.19.0.1/30",
   "inet6_address": "fdfe:dcba:9876::1/126",
   "mtu": 9000,
+  "gso": false,
   "auto_route": true,
   "strict_route": true,
   "inet4_route_address": [
@@ -98,6 +108,16 @@ IPv6 prefix for the tun interface.
 
 The maximum transmission unit.
 
+#### gso
+
+!!! question "Since sing-box 1.8.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Enable generic segmentation offload.
+
 #### auto_route
 
 Set the default route to the Tun.
@@ -160,18 +180,19 @@ UDP NAT expiration time in seconds, default is 300 (5 minutes).
 
 #### stack
 
+!!! quote "Changes in sing-box 1.8.0"
+
+    :material-delete-alert: The legacy LWIP stack has been deprecated and removed.
+
 TCP/IP stack.
 
-| Stack  | Description                                                                      | Status            |
-|--------|----------------------------------------------------------------------------------|-------------------|
-| system | Sometimes better performance                                                     | recommended       |
-| gVisor | Better compatibility, based on [google/gvisor](https://github.com/google/gvisor) | recommended       |
-| mixed  | Mixed `system` TCP stack and `gVisor` UDP stack                                  | recommended       |
-| LWIP   | Based on [eycorsican/go-tun2socks](https://github.com/eycorsican/go-tun2socks)   | upstream archived |
+| Stack    | Description                                                                                           | 
+|----------|-------------------------------------------------------------------------------------------------------|
+| `system` | Perform L3 to L4 translation using the system network stack                                           |
+| `gvisor` | Perform L3 to L4 translation using [gVisor](https://github.com/google/gvisor)'s virtual network stack |
+| `mixed`  | Mixed `system` TCP stack and `gvisor` UDP stack                                                       |
 
-!!! warning ""
-
-    LWIP stacks is not included by default, see [Installation](/installation/build-from-source/#build-tags).
+Defaults to the `mixed` stack if the gVisor build tag is enabled, otherwise defaults to the `system` stack.
 
 #### include_interface
 
@@ -217,10 +238,10 @@ Exclude users in route, but in range.
 
 Limit android users in route.
 
-| Common user  | ID  |
-|--------------|-----|
-| Main         | 0   |
-| Work Profile | 10  |
+| Common user  | ID |
+|--------------|----|
+| Main         | 0  |
+| Work Profile | 10 |
 
 #### include_package
 
