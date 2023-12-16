@@ -222,7 +222,7 @@ func NewURLTestGroup(
 		idleTimeout:                  idleTimeout,
 		history:                      history,
 		close:                        make(chan struct{}),
-		pauseManager:                 pause.ManagerFromContext(ctx),
+		pauseManager:                 service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
 	}, nil
