@@ -55,7 +55,7 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 		logger:         logger,
 		options:        options,
 		updateInterval: updateInterval,
-		pauseManager:   pause.ManagerFromContext(ctx),
+		pauseManager:   service.FromContext[pause.Manager](ctx),
 	}
 }
 
