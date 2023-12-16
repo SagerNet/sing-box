@@ -44,8 +44,6 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
-	pauseManager := pause.NewDefaultManager(ctx)
-	ctx = pause.ContextWithManager(ctx, pauseManager)
 	platformWrapper := &platformInterfaceWrapper{iif: platformInterface, useProcFS: platformInterface.UseProcFS()}
 	instance, err := box.New(box.Options{
 		Context:           ctx,
@@ -63,7 +61,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		cancel:                cancel,
 		instance:              instance,
 		urlTestHistoryStorage: urlTestHistoryStorage,
-		pauseManager:          pauseManager,
+		pauseManager:          service.FromContext[pause.Manager](ctx),
 	}, nil
 }
 
