@@ -23,6 +23,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
 	"github.com/sagernet/wireguard-go/conn"
 	"github.com/sagernet/wireguard-go/device"
@@ -61,7 +62,7 @@ func NewWireGuard(ctx context.Context, router adapter.Router, logger log.Context
 		},
 		ctx:          ctx,
 		workers:      options.Workers,
-		pauseManager: pause.ManagerFromContext(ctx),
+		pauseManager: service.FromContext[pause.Manager](ctx),
 	}
 	peers, err := wireguard.ParsePeers(options)
 	if err != nil {
