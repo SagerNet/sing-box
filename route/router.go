@@ -125,7 +125,7 @@ func NewRouter(
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
-		pauseManager:          pause.ManagerFromContext(ctx),
+		pauseManager:          service.FromContext[pause.Manager](ctx),
 		platformInterface:     platformInterface,
 		needWIFIState:         hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 		needPackageManager: C.IsAndroid && platformInterface == nil && common.Any(inbounds, func(inbound option.Inbound) bool {

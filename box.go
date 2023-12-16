@@ -55,7 +55,7 @@ func New(options Options) (*Box, error) {
 		ctx = context.Background()
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
-	ctx = pause.ContextWithDefaultManager(ctx)
+	ctx = pause.WithDefaultManager(ctx)
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
 	var needCacheFile bool
@@ -157,9 +157,12 @@ func New(options Options) (*Box, error) {
 	preServices2 := make(map[string]adapter.Service)
 	postServices := make(map[string]adapter.Service)
 	if needCacheFile {
-		cacheFile := cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
+		cacheFile := service.FromContext[adapter.CacheFile](ctx)
+		if cacheFile == nil {
+			cacheFile = cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
+			service.MustRegister[adapter.CacheFile](ctx, cacheFile)
+		}
 		preServices1["cache file"] = cacheFile
-		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
