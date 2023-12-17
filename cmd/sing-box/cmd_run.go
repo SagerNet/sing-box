@@ -133,7 +133,7 @@ func create() (*box.Box, context.CancelFunc, error) {
 		}
 		options.Log.DisableColor = true
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(globalCtx)
 	instance, err := box.New(box.Options{
 		Context: ctx,
 		Options: options,
