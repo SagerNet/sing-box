@@ -28,7 +28,7 @@ require (
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.3.0-beta.6
 	github.com/sagernet/sing-dns v0.1.12-beta.1
-	github.com/sagernet/sing-mux v0.1.6-beta.1
+	github.com/sagernet/sing-mux v0.1.6-beta.3
 	github.com/sagernet/sing-quic v0.1.6-beta.1
 	github.com/sagernet/sing-shadowsocks v0.2.6
 	github.com/sagernet/sing-shadowsocks2 v0.1.6-beta.1
