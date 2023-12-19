@@ -4,10 +4,6 @@ icon: material/arrange-bring-forward
 
 ## 1.8.0
 
-!!! warning "不稳定的"
-
-    该版本仍在开发中，迁移指南可能将在未来更改。
-
 ### :material-close-box: 将缓存文件从 Clash API 迁移到独立选项
 
 !!! info "参考"
