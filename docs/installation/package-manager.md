@@ -28,18 +28,18 @@ icon: material/package
 
 === ":material-linux: Linux"
 
-    | Type     | Platform           | Link                | Command                      | Actively maintained |
-    |----------|--------------------|---------------------|------------------------------|---------------------|
-    | AUR      | (Linux) Arch Linux | [sing-box][aur] ᴬᵁᴿ | `? -S sing-box`              | :material-check:    |
-    | nixpkgs  | (Linux) NixOS      | [sing-box][nixpkgs] | `nix-env -iA nixos.sing-box` | :material-check:    |
-    | Homebrew | macOS / Linux      | [sing-box][brew]    | `brew install sing-box`      | :material-check:    |
-    | Alpine   | (Linux) Alpine     | [sing-box][alpine]  | `apk add sing-box`           | :material-alert:    |
+    | Type     | Platform      | Link                    | Command                      | Actively maintained |
+    |----------|---------------|-------------------------|------------------------------|---------------------|
+    | APK      | Alpine        | [sing-box][alpine]      | `apk add sing-box`           | :material-check:    |
+    | AUR      | Arch Linux    | [sing-box][aur] ᴬᵁᴿ     | `? -S sing-box`              | :material-check:    |
+    | nixpkgs  | NixOS         | [sing-box][nixpkgs]     | `nix-env -iA nixos.sing-box` | :material-check:    |
+    | Homebrew | macOS / Linux | [sing-box][brew]        | `brew install sing-box`      | :material-check:    |
 
 === ":material-apple: macOS"
 
-    | Type     | Platform      | Link             | Command                 | Actively maintained |
-    |----------|---------------|------------------|-------------------------|---------------------|
-    | Homebrew | macOS / Linux | [sing-box][brew] | `brew install sing-box` | :material-check:    |
+    | Type     | Platform | Link             | Command                 | Actively maintained |
+    |----------|----------|------------------|-------------------------|---------------------|
+    | Homebrew | macOS    | [sing-box][brew] | `brew install sing-box` | :material-check:    |
 
 === ":material-microsoft-windows: Windows"
 
@@ -54,6 +54,12 @@ icon: material/package
     | Type       | Platform           | Link                | Command                      | Actively maintained |
     |------------|--------------------|---------------------|------------------------------|---------------------|
     | Termux     | Android            | [sing-box][termux]  | `pkg add sing-box`           | :material-check:    |
+
+=== ":material-freebsd: FreeBSD"
+
+    | Type       | Platform | Link              | Command                | Actively maintained |
+    |------------|----------|-------------------|------------------------|---------------------|
+    | FreshPorts | FreeBSD  | [sing-box][ports] | `pkg install sing-box` | :material-alert:    |
 
 ## :material-book-multiple: Service Management
 
@@ -77,14 +83,20 @@ you can manage the service using the following command:
 
 [nixpkgs]: https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/tools/networking/sing-box/default.nix
 
-[termux]: https://github.com/termux/termux-packages/tree/master/packages/sing-box
-
 [brew]: https://formulae.brew.sh/formula/sing-box
+
+[openwrt]: https://github.com/openwrt/packages/tree/master/net/sing-box
+
+[immortalwrt]: https://github.com/immortalwrt/packages/tree/master/net/sing-box
 
 [choco]: https://chocolatey.org/packages/sing-box
 
 [scoop]: https://github.com/ScoopInstaller/Main/blob/master/bucket/sing-box.json
 
 [winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/SagerNet/sing-box
+
+[termux]: https://github.com/termux/termux-packages/tree/master/packages/sing-box
+
+[ports]: https://www.freshports.org/net/sing-box
 
 [systemd]: https://systemd.io/
