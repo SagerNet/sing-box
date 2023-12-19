@@ -28,18 +28,18 @@ icon: material/package
 
 === ":material-linux: Linux"
 
-    | 类型       | 平台                 | 链接                  | 命令                           | 活跃维护             |
-    |----------|--------------------|---------------------|------------------------------|------------------|
-    | AUR      | (Linux) Arch Linux | [sing-box][aur] ᴬᵁᴿ | `? -S sing-box`              | :material-check: |
-    | nixpkgs  | (Linux) NixOS      | [sing-box][nixpkgs] | `nix-env -iA nixos.sing-box` | :material-check: |
-    | Homebrew | macOS / Linux      | [sing-box][brew]    | `brew install sing-box`      | :material-check: |
-    | Alpine   | (Linux) Alpine     | [sing-box][alpine]  | `apk add sing-box`           | :material-alert: |
+    | 类型       | 平台         | 链接                  | 命令                           | 活跃维护             |
+    |----------|------------|---------------------|------------------------------|------------------|
+    | Alpine   | Alpine     | [sing-box][alpine]  | `apk add sing-box`           | :material-check: |
+    | AUR      | Arch Linux | [sing-box][aur] ᴬᵁᴿ | `? -S sing-box`              | :material-check: |
+    | nixpkgs  | NixOS      | [sing-box][nixpkgs] | `nix-env -iA nixos.sing-box` | :material-check: |
+    | Homebrew | Linux      | [sing-box][brew]    | `brew install sing-box`      | :material-check: |
 
 === ":material-apple: macOS"
 
-    | 类型       | 平台            | 链接               | 命令                      | 活跃维护             |
-    |----------|---------------|------------------|-------------------------|------------------|
-    | Homebrew | macOS / Linux | [sing-box][brew] | `brew install sing-box` | :material-check: |
+    | 类型       | 平台    | 链接               | 命令                      | 活跃维护             |
+    |----------|-------|------------------|-------------------------|------------------|
+    | Homebrew | macOS | [sing-box][brew] | `brew install sing-box` | :material-check: |
 
 === ":material-microsoft-windows: Windows"
 
@@ -54,6 +54,12 @@ icon: material/package
     | 类型     | 平台      | 链接                 | 命令                 | 活跃维护             |
     |--------|---------|--------------------|--------------------|------------------|
     | Termux | Android | [sing-box][termux] | `pkg add sing-box` | :material-check: |
+
+=== ":material-freebsd: FreeBSD"
+
+    | 类型         | 平台      | 链接                | 命令                     | 活跃维护             |
+    |------------|---------|-------------------|------------------------|------------------|
+    | FreshPorts | FreeBSD | [sing-box][ports] | `pkg install sing-box` | :material-alert: |
 
 ## :material-book-multiple: 服务管理
 
@@ -77,8 +83,6 @@ icon: material/package
 
 [nixpkgs]: https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/tools/networking/sing-box/default.nix
 
-[termux]: https://github.com/termux/termux-packages/tree/master/packages/sing-box
-
 [brew]: https://formulae.brew.sh/formula/sing-box
 
 [choco]: https://chocolatey.org/packages/sing-box
@@ -86,5 +90,9 @@ icon: material/package
 [scoop]: https://github.com/ScoopInstaller/Main/blob/master/bucket/sing-box.json
 
 [winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/SagerNet/sing-box
+
+[termux]: https://github.com/termux/termux-packages/tree/master/packages/sing-box
+
+[ports]: https://www.freshports.org/net/sing-box
 
 [systemd]: https://systemd.io/
