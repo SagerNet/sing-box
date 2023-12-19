@@ -4,10 +4,6 @@ icon: material/arrange-bring-forward
 
 ## 1.8.0
 
-!!! warning "Unstable"
-
-    This version is still under development, and the following migration guide may be changed in the future.
-
 ### :material-close-box: Migrate cache file from Clash API to independent options
 
 !!! info "References"
