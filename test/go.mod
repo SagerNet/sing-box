@@ -11,11 +11,11 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/gofrs/uuid/v5 v5.0.0
 	github.com/sagernet/quic-go v0.40.0
-	github.com/sagernet/sing v0.2.20-0.20231212123824-8836b6754226
+	github.com/sagernet/sing v0.3.0-beta.6
 	github.com/sagernet/sing-dns v0.1.11
-	github.com/sagernet/sing-quic v0.1.6-0.20231207143711-eb3cbf9ed054
+	github.com/sagernet/sing-quic v0.1.6-beta.1
 	github.com/sagernet/sing-shadowsocks v0.2.6
-	github.com/sagernet/sing-shadowsocks2 v0.1.6-0.20231207143709-50439739601a
+	github.com/sagernet/sing-shadowsocks2 v0.1.6-beta.1
 	github.com/spyzhov/ajson v0.9.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/goleak v1.3.0
@@ -75,14 +75,14 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e // indirect
 	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 // indirect
-	github.com/sagernet/sing-mux v0.1.6-0.20231208180947-9053c29513a2 // indirect
+	github.com/sagernet/sing-mux v0.1.6-beta.1 // indirect
 	github.com/sagernet/sing-shadowtls v0.1.4 // indirect
-	github.com/sagernet/sing-tun v0.1.24-0.20231212060935-6a1419aeae11 // indirect
+	github.com/sagernet/sing-tun v0.2.0-beta.4 // indirect
 	github.com/sagernet/sing-vmess v0.1.8 // indirect
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7 // indirect
 	github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6 // indirect
 	github.com/sagernet/utls v1.5.4 // indirect
-	github.com/sagernet/wireguard-go v0.0.0-20231209092712-9a439356a62e // indirect
+	github.com/sagernet/wireguard-go v0.0.0-20231215174105-89dec3b2f3e8 // indirect
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 // indirect
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
@@ -91,8 +91,8 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/crypto v0.16.0 // indirect
-	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
+	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
