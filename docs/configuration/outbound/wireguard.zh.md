@@ -1,3 +1,11 @@
+---
+icon: material/new-box
+---
+
+!!! quote "sing-box 1.8.0 中的更改"
+
+    :material-plus: [gso](#gso)  
+
 ### 结构
 
 ```json
@@ -8,6 +16,7 @@
   "server": "127.0.0.1",
   "server_port": 1080,
   "system_interface": false,
+  "gso": false,
   "interface_name": "wg0",
   "local_address": [
     "10.0.0.2/32"
@@ -40,15 +49,25 @@
 
 #### system_interface
 
-使用系统 tun 支持。
+使用系统设备。
 
-需要特权且不能与系统接口冲突。
+需要特权且不能与已有系统接口冲突。
 
 如果 gVisor 未包含在构建中，则强制执行。
 
 #### interface_name
 
-启用 `system_interface` 时的自定义设备名称。
+为系统接口自定义设备名称。
+
+#### gso
+
+!!! question "自 sing-box 1.8.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试启用通用分段卸载。
 
 #### local_address
 

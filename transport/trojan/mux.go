@@ -53,7 +53,7 @@ func newMuxConnection0(ctx context.Context, stream net.Conn, metadata M.Metadata
 	case CommandTCP:
 		return handler.NewConnection(ctx, stream, metadata)
 	case CommandUDP:
-		return handler.NewPacketConnection(ctx, &PacketConn{stream}, metadata)
+		return handler.NewPacketConnection(ctx, &PacketConn{Conn: stream}, metadata)
 	default:
 		return E.New("unknown command ", command)
 	}

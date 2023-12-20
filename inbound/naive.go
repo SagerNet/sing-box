@@ -32,7 +32,7 @@ var _ adapter.Inbound = (*Naive)(nil)
 
 type Naive struct {
 	myInboundAdapter
-	authenticator auth.Authenticator
+	authenticator *auth.Authenticator
 	tlsConfig     tls.ServerConfig
 	httpServer    *http.Server
 	h3Server      any
