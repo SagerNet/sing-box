@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/mux"
@@ -53,25 +54,25 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	if err != nil {
 		return nil, err
 	}
-	var udpTimeout int64
+	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
-		udpTimeout = options.UDPTimeout
+		udpTimeout = time.Duration(options.UDPTimeout)
 	} else {
-		udpTimeout = int64(C.UDPTimeout.Seconds())
+		udpTimeout = C.UDPTimeout
 	}
 	var service shadowsocks.MultiService[int]
 	if common.Contains(shadowaead_2022.List, options.Method) {
 		service, err = shadowaead_2022.NewMultiServiceWithPassword[int](
 			options.Method,
 			options.Password,
-			udpTimeout,
+			int64(udpTimeout.Seconds()),
 			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
 			ntp.TimeFuncFromContext(ctx),
 		)
 	} else if common.Contains(shadowaead.List, options.Method) {
 		service, err = shadowaead.NewMultiService[int](
 			options.Method,
-			udpTimeout,
+			int64(udpTimeout.Seconds()),
 			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
 	} else {
 		return nil, E.New("unsupported method: " + options.Method)
