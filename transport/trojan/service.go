@@ -105,7 +105,7 @@ func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 	case CommandTCP:
 		return s.handler.NewConnection(ctx, conn, metadata)
 	case CommandUDP:
-		return s.handler.NewPacketConnection(ctx, &PacketConn{conn}, metadata)
+		return s.handler.NewPacketConnection(ctx, &PacketConn{Conn: conn}, metadata)
 	// case CommandMux:
 	default:
 		return HandleMuxConnection(ctx, conn, metadata, s.handler)
@@ -122,6 +122,7 @@ func (s *Service[K]) fallback(ctx context.Context, conn net.Conn, metadata M.Met
 
 type PacketConn struct {
 	net.Conn
+	readWaitOptions N.ReadWaitOptions
 }
 
 func (c *PacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
