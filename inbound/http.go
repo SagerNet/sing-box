@@ -26,7 +26,7 @@ var (
 
 type HTTP struct {
 	myInboundAdapter
-	authenticator auth.Authenticator
+	authenticator *auth.Authenticator
 	tlsConfig     tls.ServerConfig
 }
 
