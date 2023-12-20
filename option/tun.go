@@ -24,7 +24,7 @@ type TunInboundOptions struct {
 	IncludePackage           Listable[string]       `json:"include_package,omitempty"`
 	ExcludePackage           Listable[string]       `json:"exclude_package,omitempty"`
 	EndpointIndependentNat   bool                   `json:"endpoint_independent_nat,omitempty"`
-	UDPTimeout               int64                  `json:"udp_timeout,omitempty"`
+	UDPTimeout               UDPTimeoutCompat       `json:"udp_timeout,omitempty"`
 	Stack                    string                 `json:"stack,omitempty"`
 	Platform                 *TunPlatformOptions    `json:"platform,omitempty"`
 	InboundOptions

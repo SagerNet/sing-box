@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/mux"
@@ -65,19 +66,19 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		return nil, err
 	}
 
-	var udpTimeout int64
+	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
-		udpTimeout = options.UDPTimeout
+		udpTimeout = time.Duration(options.UDPTimeout)
 	} else {
-		udpTimeout = int64(C.UDPTimeout.Seconds())
+		udpTimeout = C.UDPTimeout
 	}
 	switch {
 	case options.Method == shadowsocks.MethodNone:
-		inbound.service = shadowsocks.NewNoneService(options.UDPTimeout, inbound.upstreamContextHandler())
+		inbound.service = shadowsocks.NewNoneService(int64(udpTimeout.Seconds()), inbound.upstreamContextHandler())
 	case common.Contains(shadowaead.List, options.Method):
-		inbound.service, err = shadowaead.NewService(options.Method, nil, options.Password, udpTimeout, inbound.upstreamContextHandler())
+		inbound.service, err = shadowaead.NewService(options.Method, nil, options.Password, int64(udpTimeout.Seconds()), inbound.upstreamContextHandler())
 	case common.Contains(shadowaead_2022.List, options.Method):
-		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, udpTimeout, inbound.upstreamContextHandler(), ntp.TimeFuncFromContext(ctx))
+		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, int64(udpTimeout.Seconds()), inbound.upstreamContextHandler(), ntp.TimeFuncFromContext(ctx))
 	default:
 		err = E.New("unsupported method: ", options.Method)
 	}

@@ -39,6 +39,7 @@ icon: material/alert-decagram
     "fc00::/7"
   ],
   "endpoint_independent_nat": false,
+  "udp_timeout": "5m",
   "stack": "system",
   "include_interface": [
     "lan0"
