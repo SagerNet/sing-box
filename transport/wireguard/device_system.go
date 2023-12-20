@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	wgTun "github.com/sagernet/wireguard-go/tun"
@@ -19,16 +21,17 @@ import (
 var _ Device = (*SystemDevice)(nil)
 
 type SystemDevice struct {
-	dialer N.Dialer
-	device tun.Tun
-	name   string
-	mtu    int
-	events chan wgTun.Event
-	addr4  netip.Addr
-	addr6  netip.Addr
+	dialer      N.Dialer
+	device      tun.Tun
+	batchDevice tun.LinuxTUN
+	name        string
+	mtu         int
+	events      chan wgTun.Event
+	addr4       netip.Addr
+	addr6       netip.Addr
 }
 
-func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32) (*SystemDevice, error) {
+func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32, gso bool) (*SystemDevice, error) {
 	var inet4Addresses []netip.Prefix
 	var inet6Addresses []netip.Prefix
 	for _, prefixes := range localPrefixes {
@@ -46,6 +49,7 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 		Inet4Address: inet4Addresses,
 		Inet6Address: inet6Addresses,
 		MTU:          mtu,
+		GSO:          gso,
 	})
 	if err != nil {
 		return nil, err
@@ -58,16 +62,25 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 	if len(inet6Addresses) > 0 {
 		inet6Address = inet6Addresses[0].Addr()
 	}
+	var batchDevice tun.LinuxTUN
+	if gso {
+		batchTUN, isBatchTUN := tunInterface.(tun.LinuxTUN)
+		if !isBatchTUN {
+			return nil, E.New("GSO is not supported on current platform")
+		}
+		batchDevice = batchTUN
+	}
 	return &SystemDevice{
 		dialer: common.Must1(dialer.NewDefault(router, option.DialerOptions{
 			BindInterface: interfaceName,
 		})),
-		device: tunInterface,
-		name:   interfaceName,
-		mtu:    int(mtu),
-		events: make(chan wgTun.Event),
-		addr4:  inet4Address,
-		addr6:  inet6Address,
+		device:      tunInterface,
+		batchDevice: batchDevice,
+		name:        interfaceName,
+		mtu:         int(mtu),
+		events:      make(chan wgTun.Event),
+		addr4:       inet4Address,
+		addr6:       inet6Address,
 	}, nil
 }
 
@@ -97,21 +110,31 @@ func (w *SystemDevice) File() *os.File {
 }
 
 func (w *SystemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
-	sizes[0], err = w.device.Read(bufs[0][offset-tun.PacketOffset:])
-	if err == nil {
-		count = 1
+	if w.batchDevice != nil {
+		count, err = w.batchDevice.BatchRead(bufs, offset, sizes)
+	} else {
+		sizes[0], err = w.device.Read(bufs[0][offset:])
+		if err == nil {
+			count = 1
+		} else if errors.Is(err, tun.ErrTooManySegments) {
+			err = wgTun.ErrTooManySegments
+		}
 	}
 	return
 }
 
 func (w *SystemDevice) Write(bufs [][]byte, offset int) (count int, err error) {
-	for _, b := range bufs {
-		_, err = w.device.Write(b[offset:])
-		if err != nil {
-			return
+	if w.batchDevice != nil {
+		return 0, w.batchDevice.BatchWrite(bufs, offset)
+	} else {
+		for _, b := range bufs {
+			_, err = w.device.Write(b[offset:])
+			if err != nil {
+				return
+			}
 		}
-		count++
 	}
+	// WireGuard will not read count
 	return
 }
 
@@ -136,5 +159,8 @@ func (w *SystemDevice) Close() error {
 }
 
 func (w *SystemDevice) BatchSize() int {
+	if w.batchDevice != nil {
+		return w.batchDevice.BatchSize()
+	}
 	return 1
 }
