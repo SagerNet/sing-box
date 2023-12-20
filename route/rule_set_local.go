@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/srs"
@@ -15,6 +16,7 @@ import (
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
 
 type LocalRuleSet struct {
+	tag      string
 	rules    []adapter.HeadlessRule
 	metadata adapter.RuleSetMetadata
 }
@@ -53,7 +55,18 @@ func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleS
 	var metadata adapter.RuleSetMetadata
 	metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
 	metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
-	return &LocalRuleSet{rules, metadata}, nil
+	metadata.RuleNum = len(rules)
+	metadata.LastUpdated = time.Now()
+	metadata.Format = options.Format
+	return &LocalRuleSet{options.Tag, rules, metadata}, nil
+}
+
+func (s *LocalRuleSet) Tag() string {
+	return s.tag
+}
+
+func (s *LocalRuleSet) Type() string {
+	return "local"
 }
 
 func (s *LocalRuleSet) Match(metadata *adapter.InboundContext) bool {
