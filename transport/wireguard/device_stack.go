@@ -265,7 +265,7 @@ func (ep *wireEndpoint) LinkAddress() tcpip.LinkAddress {
 }
 
 func (ep *wireEndpoint) Capabilities() stack.LinkEndpointCapabilities {
-	return stack.CapabilityNone
+	return stack.CapabilityRXChecksumOffload
 }
 
 func (ep *wireEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
