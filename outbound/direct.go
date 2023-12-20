@@ -35,6 +35,9 @@ type Direct struct {
 
 func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (*Direct, error) {
 	options.UDPFragmentDefault = true
+	if options.Detour != "" {
+		return nil, E.New("detour option for direct outbound is illegal")
+	}
 	outboundDialer, err := dialer.New(router, options.DialerOptions)
 	if err != nil {
 		return nil, err

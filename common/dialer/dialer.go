@@ -23,7 +23,7 @@ func New(router adapter.Router, options option.DialerOptions) (N.Dialer, error) 
 			return nil, err
 		}
 	} else {
-		dialer = NewDetour(router, options.Detour)
+		dialer = NewDetour(router, options.Detour, false)
 	}
 	domainStrategy := dns.DomainStrategy(options.DomainStrategy)
 	if domainStrategy != dns.DomainStrategyAsIS || options.Detour == "" {
