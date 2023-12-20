@@ -5,6 +5,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/humanize"
@@ -66,6 +67,12 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		receiveBps = uint64(options.DownMbps) * hysteria.MbpsToBps
 	}
+	var udpTimeout time.Duration
+	if options.UDPTimeout != 0 {
+		udpTimeout = time.Duration(options.UDPTimeout)
+	} else {
+		udpTimeout = C.UDPTimeout
+	}
 	service, err := hysteria.NewService[int](hysteria.ServiceOptions{
 		Context:       ctx,
 		Logger:        logger,
@@ -73,6 +80,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		ReceiveBPS:    receiveBps,
 		XPlusPassword: options.Obfs,
 		TLSConfig:     tlsConfig,
+		UDPTimeout:    udpTimeout,
 		Handler:       adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, nil),
 
 		// Legacy options
