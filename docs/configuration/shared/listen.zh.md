@@ -7,7 +7,7 @@
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "udp_timeout": 300,
+  "udp_timeout": "5m",
   "detour": "another-in",
   "sniff": false,
   "sniff_override_destination": false,
@@ -18,13 +18,13 @@
 ```
 
 
-| 字段                                | 可用上下文                               |
-|-----------------------------------|-------------------------------------|
-| `listen`                          | 需要监听 TCP 或 UDP。                     |
-| `listen_port`                     | 需要监听 TCP 或 UDP。                     |
-| `tcp_fast_open`                   | 需要监听 TCP。                           |
-| `tcp_multi_path`                  | 需要监听 TCP。                           |
-| `udp_timeout`                     | 需要组装 UDP 连接, 当前为 Tun 和 Shadowsocks。 |
+| 字段               | 可用上下文           |
+|------------------|-----------------|
+| `listen`         | 需要监听 TCP 或 UDP。 |
+| `listen_port`    | 需要监听 TCP 或 UDP。 |
+| `tcp_fast_open`  | 需要监听 TCP。       |
+| `tcp_multi_path` | 需要监听 TCP。       |
+| `udp_timeout`    | 需要组装 UDP 连接。    |
 | 
 
 ### 字段
@@ -57,7 +57,9 @@
 
 #### udp_timeout
 
-UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
+UDP NAT 过期时间，以秒为单位。
+
+默认使用 `5m`。
 
 #### detour
 

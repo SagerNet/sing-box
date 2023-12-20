@@ -1,6 +1,8 @@
 package option
 
 import (
+	"time"
+
 	"github.com/sagernet/sing-box/common/json"
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -128,15 +130,27 @@ type InboundOptions struct {
 }
 
 type ListenOptions struct {
-	Listen                      *ListenAddress `json:"listen,omitempty"`
-	ListenPort                  uint16         `json:"listen_port,omitempty"`
-	TCPFastOpen                 bool           `json:"tcp_fast_open,omitempty"`
-	TCPMultiPath                bool           `json:"tcp_multi_path,omitempty"`
-	UDPFragment                 *bool          `json:"udp_fragment,omitempty"`
-	UDPFragmentDefault          bool           `json:"-"`
-	UDPTimeout                  int64          `json:"udp_timeout,omitempty"`
-	ProxyProtocol               bool           `json:"proxy_protocol,omitempty"`
-	ProxyProtocolAcceptNoHeader bool           `json:"proxy_protocol_accept_no_header,omitempty"`
-	Detour                      string         `json:"detour,omitempty"`
+	Listen                      *ListenAddress   `json:"listen,omitempty"`
+	ListenPort                  uint16           `json:"listen_port,omitempty"`
+	TCPFastOpen                 bool             `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath                bool             `json:"tcp_multi_path,omitempty"`
+	UDPFragment                 *bool            `json:"udp_fragment,omitempty"`
+	UDPFragmentDefault          bool             `json:"-"`
+	UDPTimeout                  UDPTimeoutCompat `json:"udp_timeout,omitempty"`
+	ProxyProtocol               bool             `json:"proxy_protocol,omitempty"`
+	ProxyProtocolAcceptNoHeader bool             `json:"proxy_protocol_accept_no_header,omitempty"`
+	Detour                      string           `json:"detour,omitempty"`
 	InboundOptions
+}
+
+type UDPTimeoutCompat Duration
+
+func (u *UDPTimeoutCompat) UnmarshalJSON(data []byte) error {
+	var valueNumber int64
+	err := json.Unmarshal(data, &valueNumber)
+	if err == nil {
+		*u = UDPTimeoutCompat(time.Second * time.Duration(valueNumber))
+		return nil
+	}
+	return json.Unmarshal(data, (*Duration)(u))
 }

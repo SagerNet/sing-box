@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -42,11 +43,11 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if tunMTU == 0 {
 		tunMTU = 9000
 	}
-	var udpTimeout int64
+	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
-		udpTimeout = options.UDPTimeout
+		udpTimeout = time.Duration(options.UDPTimeout)
 	} else {
-		udpTimeout = int64(C.UDPTimeout.Seconds())
+		udpTimeout = C.UDPTimeout
 	}
 	includeUID := uidToRange(options.IncludeUID)
 	if len(options.IncludeUIDRange) > 0 {
@@ -92,7 +93,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			TableIndex:               2022,
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
-		udpTimeout:             udpTimeout,
+		udpTimeout:             int64(udpTimeout.Seconds()),
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),

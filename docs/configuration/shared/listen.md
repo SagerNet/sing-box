@@ -7,7 +7,7 @@
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "udp_timeout": 300,
+  "udp_timeout": "5m",
   "detour": "another-in",
   "sniff": false,
   "sniff_override_destination": false,
@@ -19,14 +19,14 @@
 
 ### Fields
 
-| Field                          | Available Context                                                 |
-|--------------------------------|-------------------------------------------------------------------|
-| `listen`                       | Needs to listen on TCP or UDP.                                    |
-| `listen_port`                  | Needs to listen on TCP or UDP.                                    |
-| `tcp_fast_open`                | Needs to listen on TCP.                                           |
-| `tcp_multi_path`               | Needs to listen on TCP.                                           |
-| `udp_timeout`                  | Needs to assemble UDP connections, currently Tun and Shadowsocks. |
-| `udp_disable_domain_unmapping` | Needs to listen on UDP and accept domain UDP addresses.           |
+| Field                          | Available Context                                       |
+|--------------------------------|---------------------------------------------------------|
+| `listen`                       | Needs to listen on TCP or UDP.                          |
+| `listen_port`                  | Needs to listen on TCP or UDP.                          |
+| `tcp_fast_open`                | Needs to listen on TCP.                                 |
+| `tcp_multi_path`               | Needs to listen on TCP.                                 |
+| `udp_timeout`                  | Needs to assemble UDP connections.                      |
+| `udp_disable_domain_unmapping` | Needs to listen on UDP and accept domain UDP addresses. |
 
 #### listen
 
@@ -56,7 +56,9 @@ Enable UDP fragmentation.
 
 #### udp_timeout
 
-UDP NAT expiration time in seconds, default is 300 (5 minutes).
+UDP NAT expiration time in seconds.
+
+`5m` is used by default.
 
 #### detour
 

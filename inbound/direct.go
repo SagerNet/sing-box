@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -47,13 +48,13 @@ func NewDirect(ctx context.Context, router adapter.Router, logger log.ContextLog
 		inbound.overrideOption = 3
 		inbound.overrideDestination = M.Socksaddr{Port: options.OverridePort}
 	}
-	var udpTimeout int64
+	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
-		udpTimeout = options.UDPTimeout
+		udpTimeout = time.Duration(options.UDPTimeout)
 	} else {
-		udpTimeout = int64(C.UDPTimeout.Seconds())
+		udpTimeout = C.UDPTimeout
 	}
-	inbound.udpNat = udpnat.New[netip.AddrPort](udpTimeout, adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+	inbound.udpNat = udpnat.New[netip.AddrPort](int64(udpTimeout.Seconds()), adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
 	inbound.connHandler = inbound
 	inbound.packetHandler = inbound
 	inbound.packetUpstream = inbound.udpNat
