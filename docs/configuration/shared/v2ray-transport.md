@@ -55,7 +55,7 @@ The client will choose randomly and the server will verify if not empty.
 
 Path of HTTP request.
 
-The server will verify if not empty.
+`/` will be used if empty.
 
 #### method
 
@@ -103,7 +103,7 @@ Specifies the timeout duration after sending a PING frame, within which a respon
 
 Path of HTTP request.
 
-The server will verify if not empty.
+`/` will be used if empty.
 
 #### headers
 
@@ -203,7 +203,7 @@ The server will verify if not empty.
 
 Path of HTTP request.
 
-The server will verify if not empty.
+`/` will be used if empty.
 
 #### headers
 

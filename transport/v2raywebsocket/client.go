@@ -46,6 +46,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	} else {
 		requestURL.Scheme = "wss"
 	}
+	if !strings.Contains(options.Path, "/") {
+		options.Path = "/" + options.Path
+	}
 	requestURL.Host = serverAddr.String()
 	requestURL.Path = options.Path
 	err := sHTTP.URLSetPath(&requestURL, options.Path)

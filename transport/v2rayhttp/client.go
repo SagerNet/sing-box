@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -76,6 +77,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		uri.Scheme = "http"
 	} else {
 		uri.Scheme = "https"
+	}
+	if !strings.Contains(options.Path, "/") {
+		options.Path = "/" + options.Path
 	}
 	uri.Host = serverAddr.String()
 	uri.Path = options.Path
