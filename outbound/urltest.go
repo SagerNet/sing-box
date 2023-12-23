@@ -43,6 +43,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 	outbound := &URLTest{
 		myOutboundAdapter: myOutboundAdapter{
 			protocol:     C.TypeURLTest,
+			network:      []string{N.NetworkTCP, N.NetworkUDP},
 			router:       router,
 			logger:       logger,
 			tag:          tag,
@@ -59,13 +60,6 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, E.New("missing tags")
 	}
 	return outbound, nil
-}
-
-func (s *URLTest) Network() []string {
-	if s.group == nil {
-		return []string{N.NetworkTCP, N.NetworkUDP}
-	}
-	return s.group.Select(N.NetworkTCP).Network()
 }
 
 func (s *URLTest) Start() error {
