@@ -33,6 +33,7 @@ type Server struct {
 	path                string
 	maxEarlyData        uint32
 	earlyDataHeaderName string
+	upgrader            ws.HTTPUpgrader
 }
 
 func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
@@ -43,6 +44,10 @@ func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsCon
 		path:                options.Path,
 		maxEarlyData:        options.MaxEarlyData,
 		earlyDataHeaderName: options.EarlyDataHeaderName,
+		upgrader: ws.HTTPUpgrader{
+			Timeout: C.TCPTimeout,
+			Header:  options.Headers.Build(),
+		},
 	}
 	if !strings.HasPrefix(server.path, "/") {
 		server.path = "/" + server.path
@@ -79,6 +84,10 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			return
 		}
 	} else {
+		if request.URL.Path != s.path {
+			s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
+			return
+		}
 		earlyDataStr := request.Header.Get(s.earlyDataHeaderName)
 		if earlyDataStr != "" {
 			earlyData, err = base64.RawURLEncoding.DecodeString(earlyDataStr)

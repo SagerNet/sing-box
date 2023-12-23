@@ -65,7 +65,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, http.StatusBadRequest, E.New("bad host: ", host))
 		return
 	}
-	if !strings.HasPrefix(request.URL.Path, s.path) {
+	if request.URL.Path != s.path {
 		s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))
 		return
 	}
