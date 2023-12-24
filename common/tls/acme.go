@@ -105,5 +105,16 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		},
 	})
 	config = certmagic.New(cache, *config)
-	return config.TLSConfig(), &acmeWrapper{ctx: ctx, cfg: config, cache: cache, domain: options.Domain}, nil
+	var tlsConfig *tls.Config
+	if acmeConfig.DisableTLSALPNChallenge || acmeConfig.DNS01Solver != nil {
+		tlsConfig = &tls.Config{
+			GetCertificate: config.GetCertificate,
+		}
+	} else {
+		tlsConfig = &tls.Config{
+			GetCertificate: config.GetCertificate,
+			NextProtos:     []string{ACMETLS1Protocol},
+		}
+	}
+	return tlsConfig, &acmeWrapper{ctx: ctx, cfg: config, cache: cache, domain: options.Domain}, nil
 }
