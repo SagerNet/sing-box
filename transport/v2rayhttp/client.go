@@ -81,6 +81,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
+		url:        &requestURL,
 		host:       options.Host,
 		method:     options.Method,
 		headers:    options.Headers.Build(),
