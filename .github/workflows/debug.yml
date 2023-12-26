@@ -216,7 +216,7 @@ jobs:
         id: build
         run: make
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sing-box-${{ matrix.name }}
           path: sing-box*
