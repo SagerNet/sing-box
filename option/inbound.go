@@ -145,12 +145,16 @@ type ListenOptions struct {
 
 type UDPTimeoutCompat Duration
 
-func (u *UDPTimeoutCompat) UnmarshalJSON(data []byte) error {
+func (c UDPTimeoutCompat) MarshalJSON() ([]byte, error) {
+	return json.Marshal((time.Duration)(c).String())
+}
+
+func (c *UDPTimeoutCompat) UnmarshalJSON(data []byte) error {
 	var valueNumber int64
 	err := json.Unmarshal(data, &valueNumber)
 	if err == nil {
-		*u = UDPTimeoutCompat(time.Second * time.Duration(valueNumber))
+		*c = UDPTimeoutCompat(time.Second * time.Duration(valueNumber))
 		return nil
 	}
-	return json.Unmarshal(data, (*Duration)(u))
+	return json.Unmarshal(data, (*Duration)(c))
 }
