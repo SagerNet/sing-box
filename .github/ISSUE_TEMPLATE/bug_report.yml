@@ -61,7 +61,22 @@ body:
     attributes:
       label: Logs
       description: |-
-        If you encounter a crash with the graphical client, please provide crash logs.
+        In addition, if you encounter a crash with the graphical client, please also provide crash logs.
         For Apple platform clients, please check `Settings - View Service Log` for crash logs.
         For the Android client, please check the `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` file for crash logs.
       render: shell
+  - type: checkboxes
+    attributes:
+      label: Integrity requirements
+      description: |-
+        Please check all of the following options to prove that you have read and understood the requirements, otherwise this issue will be closed.
+        Sing-box is not a project aimed to please users who can't make any meaningful contributions and gain unethical influence. If you deceive here to deliberately waste the time of the developers, you will be permanently blocked.
+      options:
+        - label: I confirm that I have read the documentation, understand the meaning of all the configuration items I wrote, and did not pile up seemingly useful options or default values.
+          required: true
+        - label: I confirm that I have provided the server and client configuration files and process that can be reproduced locally, instead of a complicated client configuration file that has been stripped of sensitive data.
+          required: true
+        - label: I confirm that I have provided the simplest configuration that can be used to reproduce the error I reported, instead of depending on remote servers, TUN, graphical interface clients, or other closed-source software.
+          required: true
+        - label: I confirm that I have provided the complete configuration files and logs, rather than just providing parts I think are useful out of confidence in my own intelligence.
+          required: true
