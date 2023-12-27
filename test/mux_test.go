@@ -75,6 +75,9 @@ func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 					},
 					Method:   method,
 					Password: password,
+					Multiplex: &option.InboundMultiplexOptions{
+						Enabled: true,
+					},
 				},
 			},
 		},
