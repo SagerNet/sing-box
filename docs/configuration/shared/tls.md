@@ -164,10 +164,9 @@ By default, the maximum version is currently TLS 1.3.
 
 #### cipher_suites
 
-The elliptic curves that will be used in an ECDHE handshake, in preference order.
+A list of enabled TLS 1.0–1.2 cipher suites. The order of the list is ignored. Note that TLS 1.3 cipher suites are not configurable.
 
-If empty, the default will be used. The client will use the first preference as the type for its key share in TLS 1.3.
-This may change in the future.
+If empty, a safe default list is used. The default cipher suites might change over time.
 
 #### certificate
 
