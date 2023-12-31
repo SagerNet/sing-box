@@ -5,6 +5,7 @@ import (
 	"net/http/pprof"
 	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/sagernet/sing-box/common/humanize"
 	"github.com/sagernet/sing-box/log"
@@ -47,12 +48,20 @@ func applyDebugListenOption(options option.DebugOptions) {
 			encoder.SetIndent("", "  ")
 			encoder.Encode(memObject)
 		})
-		r.HandleFunc("/pprof", pprof.Index)
-		r.HandleFunc("/pprof/*", pprof.Index)
-		r.HandleFunc("/pprof/cmdline", pprof.Cmdline)
-		r.HandleFunc("/pprof/profile", pprof.Profile)
-		r.HandleFunc("/pprof/symbol", pprof.Symbol)
-		r.HandleFunc("/pprof/trace", pprof.Trace)
+		r.Route("/pprof", func(r chi.Router) {
+			r.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+				if !strings.HasSuffix(request.URL.Path, "/") {
+					http.Redirect(writer, request, request.URL.Path+"/", http.StatusMovedPermanently)
+				} else {
+					pprof.Index(writer, request)
+				}
+			})
+			r.HandleFunc("/*", pprof.Index)
+			r.HandleFunc("/cmdline", pprof.Cmdline)
+			r.HandleFunc("/profile", pprof.Profile)
+			r.HandleFunc("/symbol", pprof.Symbol)
+			r.HandleFunc("/trace", pprof.Trace)
+		})
 	})
 	debugHTTPServer = &http.Server{
 		Addr:    options.Listen,
