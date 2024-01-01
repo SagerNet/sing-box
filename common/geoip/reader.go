@@ -32,3 +32,7 @@ func (r *Reader) Lookup(addr netip.Addr) string {
 	}
 	return "unknown"
 }
+
+func (r *Reader) Close() error {
+	return r.reader.Close()
+}
