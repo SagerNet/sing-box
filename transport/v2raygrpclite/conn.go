@@ -2,19 +2,16 @@ package v2raygrpclite
 
 import (
 	std_bufio "bufio"
-	"bytes"
 	"encoding/binary"
 	"io"
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/rw"
 )
@@ -30,7 +27,6 @@ type GunConn struct {
 	create        chan struct{}
 	err           error
 	readRemaining int
-	writeAccess   sync.Mutex
 }
 
 func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunConn {
@@ -100,19 +96,22 @@ func (c *GunConn) read(b []byte) (n int, err error) {
 }
 
 func (c *GunConn) Write(b []byte) (n int, err error) {
-	protobufHeader := [1 + binary.MaxVarintLen64]byte{0x0A}
-	varuintLen := binary.PutUvarint(protobufHeader[1:], uint64(len(b)))
-	grpcHeader := buf.Get(5)
-	grpcPayloadLen := uint32(1 + varuintLen + len(b))
-	binary.BigEndian.PutUint32(grpcHeader[1:5], grpcPayloadLen)
-	c.writeAccess.Lock()
-	_, err = bufio.Copy(c.writer, io.MultiReader(bytes.NewReader(grpcHeader), bytes.NewReader(protobufHeader[:varuintLen+1]), bytes.NewReader(b)))
-	c.writeAccess.Unlock()
-	buf.Put(grpcHeader)
-	if err == nil && c.flusher != nil {
+	varLen := rw.UVariantLen(uint64(len(b)))
+	buffer := buf.NewSize(6 + varLen + len(b))
+	header := buffer.Extend(6 + varLen)
+	header[0] = 0x00
+	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+len(b)))
+	header[5] = 0x0A
+	binary.PutUvarint(header[6:], uint64(len(b)))
+	common.Must1(buffer.Write(b))
+	_, err = c.writer.Write(buffer.Bytes())
+	if err != nil {
+		return 0, baderror.WrapH2(err)
+	}
+	if c.flusher != nil {
 		c.flusher.Flush()
 	}
-	return len(b), baderror.WrapH2(err)
+	return len(b), nil
 }
 
 func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
@@ -120,16 +119,18 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	dataLen := buffer.Len()
 	varLen := rw.UVariantLen(uint64(dataLen))
 	header := buffer.ExtendHeader(6 + varLen)
-	_ = header[6]
 	header[0] = 0x00
 	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+dataLen))
 	header[5] = 0x0A
 	binary.PutUvarint(header[6:], uint64(dataLen))
 	err := rw.WriteBytes(c.writer, buffer.Bytes())
-	if err == nil && c.flusher != nil {
+	if err != nil {
+		return baderror.WrapH2(err)
+	}
+	if c.flusher != nil {
 		c.flusher.Flush()
 	}
-	return baderror.WrapH2(err)
+	return nil
 }
 
 func (c *GunConn) FrontHeadroom() int {
