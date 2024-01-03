@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -95,6 +96,18 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 		MaxAge:         300,
 	})
+	domainList := map[string]bool{
+		"clash.razord.top":     true,
+		"yacd.haishan.me":      true,
+		"yacd.metacubex.one":   true,
+		"d.metacubex.one":      true,
+		"metacubex.github.io":  true,
+		"metacubexd.pages.dev": true,
+	}
+	for _, domain := range options.TrustedDomain {
+		domainList[domain] = true
+	}
+	chiRouter.Use(setPrivateNetworkAccess(domainList))
 	chiRouter.Use(cors.Handler)
 	chiRouter.Group(func(r chi.Router) {
 		r.Use(authentication(options.Secret))
@@ -268,6 +281,42 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 		DNSMode:     "normal",
 		ProcessPath: processPath,
 	}
+}
+
+func setPrivateNetworkAccess(domainList map[string]bool) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" && checkDomain(r, domainList) {
+				w.Header().Add("Access-Control-Allow-Private-Network", "true")
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func parseOriginHost(r *http.Request) string {
+	if referer := r.Header.Get("Referer"); referer != "" {
+		URL, err := url.Parse(referer)
+		if err == nil {
+			return URL.Host
+		}
+	}
+	if origin := r.Header.Get("Origin"); origin != "" {
+		URL, err := url.Parse(origin)
+		if err == nil {
+			return URL.Host
+		}
+	}
+	return ""
+}
+
+func checkDomain(r *http.Request, list map[string]bool) bool {
+	host := parseOriginHost(r)
+	if host == "" {
+		return false
+	}
+	_, exists := list[host]
+	return exists
 }
 
 func authentication(serverSecret string) func(next http.Handler) http.Handler {
