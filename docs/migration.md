@@ -2,6 +2,21 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.9.0
+
+!!! warning "Unstable"
+
+    This version is still under development, and the following migration guide may be changed in the future.
+
+### `process_path` format update on Windows
+
+The `process_path` rule of sing-box is inherited from Clash,
+the original code uses the local system's path format (e.g. `\Device\HarddiskVolume1\folder\program.exe`),
+but when the device has multiple disks, the HarddiskVolume serial number is not stable.
+
+sing-box 1.9.0 make QueryFullProcessImageNameW output a Win32 path (such as `C:\folder\program.exe`),
+which will disrupt the existing `process_path` use cases in Windows.
+
 ## 1.8.0
 
 ### :material-close-box: Migrate cache file from Clash API to independent options
