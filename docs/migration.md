@@ -8,6 +8,13 @@ icon: material/arrange-bring-forward
 
     This version is still under development, and the following migration guide may be changed in the future.
 
+### `domain_suffix` behavior update
+
+For historical reasons, sing-box's `domain_suffix` rule matches literal prefixes instead of the same as other projects.
+
+sing-box 1.9.0 modifies the behavior of `domain_suffix`: If the rule value is prefixed with `.`,
+the behavior is unchanged, otherwise it matches `(domain|.+\.domain)` instead.
+
 ### `process_path` format update on Windows
 
 The `process_path` rule of sing-box is inherited from Clash,
