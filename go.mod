@@ -5,7 +5,7 @@ go 1.20
 require (
 	berty.tech/go-libtor v1.0.385
 	github.com/caddyserver/certmagic v0.20.0
-	github.com/cloudflare/circl v1.3.6
+	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-chi/chi/v5 v5.0.11
@@ -26,14 +26,14 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e
 	github.com/sagernet/quic-go v0.40.1-beta.2
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.3.0-rc.7
+	github.com/sagernet/sing v0.3.0
 	github.com/sagernet/sing-dns v0.1.12
-	github.com/sagernet/sing-mux v0.1.8-rc.1
-	github.com/sagernet/sing-quic v0.1.7-rc.2
+	github.com/sagernet/sing-mux v0.2.0
+	github.com/sagernet/sing-quic v0.1.7
 	github.com/sagernet/sing-shadowsocks v0.2.6
-	github.com/sagernet/sing-shadowsocks2 v0.1.6-rc.1
+	github.com/sagernet/sing-shadowsocks2 v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.2.0-rc.1
+	github.com/sagernet/sing-tun v0.2.0
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6
@@ -44,9 +44,9 @@ require (
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.17.0
-	golang.org/x/net v0.19.0
-	golang.org/x/sys v0.15.0
+	golang.org/x/crypto v0.18.0
+	golang.org/x/net v0.20.0
+	golang.org/x/sys v0.16.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.32.0
@@ -86,7 +86,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b // indirect
+	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
