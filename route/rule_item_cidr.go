@@ -35,9 +35,9 @@ func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
 	}
 	var description string
 	if isSource {
-		description = "source_ipcidr="
+		description = "source_ip_cidr="
 	} else {
-		description = "ipcidr="
+		description = "ip_cidr="
 	}
 	if dLen := len(prefixStrings); dLen == 1 {
 		description += prefixStrings[0]
@@ -60,9 +60,9 @@ func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
 func NewRawIPCIDRItem(isSource bool, ipSet *netipx.IPSet) *IPCIDRItem {
 	var description string
 	if isSource {
-		description = "source_ipcidr="
+		description = "source_ip_cidr="
 	} else {
-		description = "ipcidr="
+		description = "ip_cidr="
 	}
 	description += "<binary>"
 	return &IPCIDRItem{

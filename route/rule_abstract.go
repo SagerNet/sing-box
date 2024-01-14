@@ -72,7 +72,7 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 		}
 	}
 
-	if len(r.sourcePortItems) > 0 && !metadata.SourceAddressMatch {
+	if len(r.sourcePortItems) > 0 && !metadata.SourcePortMatch {
 		for _, item := range r.sourcePortItems {
 			if item.Match(metadata) {
 				metadata.SourcePortMatch = true
@@ -81,7 +81,7 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 		}
 	}
 
-	if len(r.destinationAddressItems) > 0 && !metadata.SourceAddressMatch {
+	if len(r.destinationAddressItems) > 0 && !metadata.DestinationAddressMatch {
 		for _, item := range r.destinationAddressItems {
 			if item.Match(metadata) {
 				metadata.DestinationAddressMatch = true
@@ -90,7 +90,7 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 		}
 	}
 
-	if len(r.destinationPortItems) > 0 && !metadata.SourceAddressMatch {
+	if len(r.destinationPortItems) > 0 && !metadata.DestinationPortMatch {
 		for _, item := range r.destinationPortItems {
 			if item.Match(metadata) {
 				metadata.DestinationPortMatch = true
