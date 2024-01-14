@@ -4,6 +4,7 @@ package inbound
 
 import (
 	"context"
+	"github.com/sagernet/sing-box/common/uot"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -81,7 +82,7 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 			protocol:      C.TypeHysteria2,
 			network:       []string{N.NetworkUDP},
 			ctx:           ctx,
-			router:        router,
+			router:        uot.NewRouter(router, logger),
 			logger:        logger,
 			tag:           tag,
 			listenOptions: options.ListenOptions,

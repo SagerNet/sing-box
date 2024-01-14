@@ -15,6 +15,7 @@
   },
   "password": "goofy_ahh_password",
   "network": "tcp",
+  "udp_over_stream": false,
   "tls": {},
   "brutal_debug": false,
   
@@ -71,6 +72,15 @@ Enabled network
 One of `tcp` `udp`.
 
 Both is enabled by default.
+
+#### udp_over_stream
+
+This is the Hysteria2 port of the [UDP over TCP protocol](/configuration/shared/udp-over-tcp), designed to provide a QUIC
+stream based UDP relay mode that Hysteria2 does not provide. Since it is an add-on protocol, you will need to use sing-box or
+another program compatible with the protocol as a server.
+
+This mode can improve reliability in proxying UDP traffic in lossy networks, as it supports retransmitting lost packets using
+QUIC's loss detection mechanisms.
 
 #### tls
 

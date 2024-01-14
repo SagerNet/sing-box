@@ -15,6 +15,7 @@
   },
   "password": "goofy_ahh_password",
   "network": "tcp",
+  "udp_over_stream": false,
   "tls": {},
   "brutal_debug": false,
   
@@ -69,6 +70,15 @@ QUIC 流量混淆器密码.
 `tcp` 或 `udp`。
 
 默认所有。
+
+#### udp_over_stream
+
+这是 Hysteria2 版本的 [UDP over TCP protocol](/configuration/shared/udp-over-tcp), 设计为提供一个Hysteria2没有的，  
+基于QUIC stream的UDP中继模式。由于这是一个附加的协议，你需要使用   
+sing-box 或者与这个协议兼容的其他软件作为服务器。  
+
+这个协议可以增加在恶劣环境代理UDP的可靠性，因为它支持使用  
+QUIC 的丢失检测机制重传丢失的数据包。
 
 #### tls
 
