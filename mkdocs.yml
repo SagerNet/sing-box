@@ -11,12 +11,14 @@ theme:
   logo: assets/icon.svg
   favicon: assets/icon.svg
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       primary: white
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: black
       toggle:
         icon: material/brightness-4
