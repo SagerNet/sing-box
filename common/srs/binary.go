@@ -253,7 +253,7 @@ func writeDefaultRule(writer io.Writer, rule option.DefaultHeadlessRule) error {
 	if len(rule.SourceIPCIDR) > 0 {
 		err = writeRuleItemCIDR(writer, ruleItemSourceIPCIDR, rule.SourceIPCIDR)
 		if err != nil {
-			return E.Cause(err, "source_ipcidr")
+			return E.Cause(err, "source_ip_cidr")
 		}
 	}
 	if len(rule.IPCIDR) > 0 {

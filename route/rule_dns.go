@@ -114,7 +114,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
 		if err != nil {
-			return nil, E.Cause(err, "source_ipcidr")
+			return nil, E.Cause(err, "source_ip_cidr")
 		}
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
