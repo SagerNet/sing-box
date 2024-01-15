@@ -108,6 +108,10 @@ func (c *ReadWaitConn) WaitReadBuffer() (buffer *buf.Buffer, err error) {
 	return
 }
 
+func (c *ReadWaitConn) Upstream() any {
+	return c.STDConn
+}
+
 //go:linkname tlsReadRecord crypto/tls.(*Conn).readRecord
 func tlsReadRecord(c *tls.STDConn) error
 
