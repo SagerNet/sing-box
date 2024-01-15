@@ -11,3 +11,7 @@ import (
 func NewReadWaitConn(conn tls.Conn) (tls.Conn, error) {
 	return nil, os.ErrInvalid
 }
+
+type ReadWaitConn struct {
+	tls.Conn
+}

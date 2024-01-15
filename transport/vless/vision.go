@@ -11,6 +11,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -68,6 +69,9 @@ func NewVisionConn(conn net.Conn, tlsConn net.Conn, userUUID [16]byte, logger lo
 		reflectPointer uintptr
 		netConn        net.Conn
 	)
+	if badtlsConn, ok := common.Cast[*badtls.ReadWaitConn](tlsConn); ok {
+		tlsConn = badtlsConn.Conn
+	}
 	for _, tlsCreator := range tlsRegistry {
 		loaded, netConn, reflectType, reflectPointer = tlsCreator(tlsConn)
 		if loaded {
