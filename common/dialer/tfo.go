@@ -80,6 +80,7 @@ func (c *slowOpenConn) Write(b []byte) (n int, err error) {
 		c.conn = nil
 		c.err = E.Cause(err, "dial tcp fast open")
 	}
+	n = len(b)
 	close(c.create)
 	return
 }
