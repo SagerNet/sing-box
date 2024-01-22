@@ -45,7 +45,7 @@ func New(options Options) (Factory, error) {
 	logFormatter := Formatter{
 		BaseTime:         options.BaseTime,
 		DisableColors:    logOptions.DisableColor || logFilePath != "",
-		DisableTimestamp: !logOptions.Timestamp && logFilePath != "",
+		DisableTimestamp: !logOptions.Timestamp,
 		FullTimestamp:    logOptions.Timestamp,
 		TimestampFormat:  "-0700 2006-01-02 15:04:05",
 	}
