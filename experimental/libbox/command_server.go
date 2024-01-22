@@ -93,13 +93,11 @@ func (s *CommandServer) listenUNIX() error {
 	if err != nil {
 		return E.Cause(err, "listen ", sockPath)
 	}
-	if sUserID > 0 {
-		err = os.Chown(sockPath, sUserID, sGroupID)
-		if err != nil {
-			listener.Close()
-			os.Remove(sockPath)
-			return E.Cause(err, "chown")
-		}
+	err = os.Chown(sockPath, sUserID, sGroupID)
+	if err != nil {
+		listener.Close()
+		os.Remove(sockPath)
+		return E.Cause(err, "chown")
 	}
 	s.listener = listener
 	go s.loopConnection(listener)
