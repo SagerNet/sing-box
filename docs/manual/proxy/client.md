@@ -322,17 +322,7 @@ flowchart TB
             "server": "google"
           },
           {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
-              {
-                "geosite": "geolocation-!cn",
-                "invert": true
-              },
-              {
-                "geosite": "cn",
-              }
-            ],
+            "geosite": "geolocation-cn",
             "server": "local"
           }
         ]
@@ -374,17 +364,7 @@ flowchart TB
             "server": "google"
           },
           {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
-              {
-                "rule_set": "geosite-geolocation-!cn",
-                "invert": true
-              },
-              {
-                "rule_set": "geosite-cn",
-              }
-            ],
+            "rule_set": "geosite-geolocation-cn",
             "server": "local"
           }
         ]
@@ -393,15 +373,9 @@ flowchart TB
         "rule_set": [
           {
             "type": "remote",
-            "tag": "geosite-cn",
+            "tag": "geosite-geolocation-cn",
             "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs"
-          },
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-!cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
           }
         ]
       }
@@ -467,18 +441,7 @@ flowchart TB
             "outbound": "block"
           },
           {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
-              {
-                "geosite": "geolocation-!cn",
-                "invert": true
-              },
-              {
-                "geosite": "cn",
-                "geoip": "cn"
-              }
-            ],
+            "geosite": "geolocation-cn",
             "outbound": "direct"
           }
         ]
@@ -545,19 +508,9 @@ flowchart TB
             "outbound": "block"
           },
           {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
-              {
-                "rule_set": "geosite-geolocation-!cn",
-                "invert": true
-              },
-              {
-                "rule_set": [
-                  "geoip-cn",
-                  "geosite-cn"
-                ]
-              }
+            "rule_set": [
+              "geoip-cn",
+              "geosite-geolocation-cn"
             ],
             "outbound": "direct"
           }
@@ -571,15 +524,9 @@ flowchart TB
           },
           {
             "type": "remote",
-            "tag": "geosite-cn",
+            "tag": "geosite-geolocation-cn",
             "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs"
-          },
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-!cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
           }
         ]
       }
