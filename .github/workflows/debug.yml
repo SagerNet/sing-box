@@ -46,7 +46,7 @@ jobs:
         with:
           go-version: ~1.18
       - name: Cache go module
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
@@ -66,7 +66,7 @@ jobs:
         with:
           go-version: ^1.20
       - name: Cache go module
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
