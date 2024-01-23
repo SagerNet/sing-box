@@ -30,6 +30,7 @@ builds:
       - linux_arm64
       - linux_arm_7
       - linux_s390x
+      - linux_riscv64
       - windows_amd64_v1
       - windows_amd64_v3
       - windows_386
