@@ -25,22 +25,10 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
-      - name: Get latest go version
-        id: version
-        run: |
-          echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.version.outputs.go_version }}
-      - name: Add cache to Go proxy
-        run: |
-          version=`git rev-parse HEAD`
-          mkdir build
-          pushd build
-          go mod init build
-          go get -v github.com/sagernet/sing-box@$version
-          popd
+          go-version: ^1.21
         continue-on-error: true
       - name: Run Test
         run: |
@@ -56,7 +44,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.18.10
+          go-version: ~1.18
       - name: Cache go module
         uses: actions/cache@v3
         with:
@@ -76,13 +64,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.7
+          go-version: ^1.20
       - name: Cache go module
         uses: actions/cache@v3
         with:
           path: |
             ~/go/pkg/mod
-          key: go118-${{ hashFiles('**/go.sum') }}
+          key: go120-${{ hashFiles('**/go.sum') }}
       - name: Run Test
         run: make ci_build
   cross:
@@ -188,8 +176,7 @@ jobs:
           - name: freebsd-arm64
             goos: freebsd
             goarch: arm64
-
-      fail-fast: false
+      fail-fast: true
     runs-on: ubuntu-latest
     env:
       GOOS: ${{ matrix.goos }}
@@ -204,19 +191,10 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
-      - name: Get latest go version
-        id: version
-        run: |
-          echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.version.outputs.go_version }}
+          go-version: ^1.21
       - name: Build
         id: build
         run: make
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box-${{ matrix.name }}
-          path: sing-box*
