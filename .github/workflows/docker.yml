@@ -1,9 +1,10 @@
 name: Build Docker Images
+
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "The tag version you want to build"
+  release:
+    types:
+      - published
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,15 +26,6 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/sagernet/sing-box
-      - name: Get tag to build
-        id: tag
-        run: |
-          echo "latest=ghcr.io/sagernet/sing-box:latest" >> $GITHUB_OUTPUT
-          if [[ -z "${{ github.event.inputs.tag }}" ]]; then
-            echo "versioned=ghcr.io/sagernet/sing-box:${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "versioned=ghcr.io/sagernet/sing-box:${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          fi
       - name: Build and release Docker images
         uses: docker/build-push-action@v5
         with:
@@ -42,6 +34,6 @@ jobs:
           build-args: |
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
           tags: |
-            ${{ steps.tag.outputs.latest }}
-            ${{ steps.tag.outputs.versioned }}
+            ghcr.io/sagernet/sing-box:latest
+            ghcr.io/sagernet/sing-box:${{ github.ref_name }}
           push: true
