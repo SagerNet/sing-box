@@ -148,7 +148,7 @@ func (h *Direct) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 	if err != nil {
 		return nil, err
 	}
-	conn = h.loopBack.NewPacketConn(conn)
+	conn = h.loopBack.NewPacketConn(bufio.NewPacketConn(conn))
 	if originDestination != destination {
 		conn = bufio.NewNATPacketConn(bufio.NewPacketConn(conn), destination, originDestination)
 	}
