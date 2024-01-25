@@ -4,15 +4,16 @@ icon: material/alpha-t-box
 
 # TUIC
 
-A recently popular Chinese-made simple protocol based on QUIC, the selling point is the BBR congestion control algorithm.
+TUIC is a Chinese-made simple protocol based on QUIC that has recently become popular.
+Its selling point is the BBR congestion control algorithm.
 
 !!! warning
 
-    Even though GFW rarely blocks UDP-based proxies, such protocols actually have far more characteristics than TCP based proxies.
+    Even though GFW rarely blocks UDP-based proxies, such protocols actually have far more obvious characteristics than TCP based proxies.
 
-| Specification                                             | Binary Characteristics | Active Detect Hiddenness |
-|-----------------------------------------------------------|------------------------|--------------------------|
-| [GitHub](https://github.com/EAimTY/tuic/blob/dev/SPEC.md) | :material-alert:       | :material-check:         | 
+| Specification                                             | Resists passive detection | Resists active probes |
+|-----------------------------------------------------------|---------------------------|-----------------------|
+| [GitHub](https://github.com/EAimTY/tuic/blob/dev/SPEC.md) | :material-alert:          | :material-check:      |
 
 ## Password Generator
 
@@ -205,4 +206,3 @@ A recently popular Chinese-made simple protocol based on QUIC, the selling point
       ]
     }
     ```
-

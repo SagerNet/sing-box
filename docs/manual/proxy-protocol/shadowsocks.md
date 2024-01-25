@@ -4,15 +4,15 @@ icon: material/send
 
 # Shadowsocks
 
-As the most well-known Chinese-made proxy protocol,
-Shadowsocks exists in multiple versions,
+Shadowsocks is the most well-known Chinese-made proxy protocol.
+It exists in multiple versions,
 but only AEAD 2022 ciphers TCP with multiplexing is recommended.
 
-| Ciphers        | Specification                                              | Cryptographic Security | Binary Characteristics | Active Detect Hiddenness |
-|----------------|------------------------------------------------------------|------------------------|------------------------|--------------------------|
-| Stream Ciphers | [shadowsocks.org](https://shadowsocks.org/doc/stream.html) | :material-alert:       | :material-alert:       | :material-alert:         |
-| AEAD           | [shadowsocks.org](https://shadowsocks.org/doc/aead.html)   | :material-check:       | :material-alert:       | :material-alert:         |
-| AEAD 2022      | [shadowsocks.org](https://shadowsocks.org/doc/sip022.html) | :material-check:       | :material-check:       | :material-help:          |
+| Ciphers        | Specification                                              | Cryptographically sound | Resists passive detection | Resists active probes |
+|----------------|------------------------------------------------------------|-------------------------|---------------------------|-----------------------|
+| Stream Ciphers | [shadowsocks.org](https://shadowsocks.org/doc/stream.html) | :material-alert:        | :material-alert:          | :material-alert:      |
+| AEAD           | [shadowsocks.org](https://shadowsocks.org/doc/aead.html)   | :material-check:        | :material-alert:          | :material-alert:      |
+| AEAD 2022      | [shadowsocks.org](https://shadowsocks.org/doc/sip022.html) | :material-check:        | :material-check:          | :material-help:       |
 
 ## :material-text-box-check: Password Generator
 

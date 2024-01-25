@@ -4,16 +4,17 @@ icon: material/lightning-bolt
 
 # Hysteria 2
 
-The most popular Chinese-made simple protocol based on QUIC, the selling point is Brutal,
-a congestion control algorithm that can resist packet loss by manually specifying the required rate by the user.
+Hysteria 2 is a simple, Chinese-made protocol based on QUIC.
+The selling point is Brutal, a congestion control algorithm that
+tries to achieve a user-defined bandwidth despite packet loss.
 
 !!! warning
 
-    Even though GFW rarely blocks UDP-based proxies, such protocols actually have far more characteristics than TCP based proxies.
+    Even though GFW rarely blocks UDP-based proxies, such protocols actually have far more obvious characteristics than TCP based proxies.
 
-| Specification                                                             | Binary Characteristics | Active Detect Hiddenness |
-|---------------------------------------------------------------------------|------------------------|--------------------------|
-| [hysteria.network](https://v2.hysteria.network/docs/developers/Protocol/) | :material-alert:       | :material-check:         |
+| Specification                                                             | Resists passive detection | Resists active probes |
+|---------------------------------------------------------------------------|---------------------------|-----------------------|
+| [hysteria.network](https://v2.hysteria.network/docs/developers/Protocol/) | :material-alert:          | :material-check:      |
 
 ## :material-text-box-check: Password Generator
 
@@ -44,7 +45,7 @@ To use sing-box with the official program, you need to fill in that combination 
     Replace `up_mbps` and `down_mbps` values with the actual bandwidth of your server.
 
 === ":material-harddisk: With local certificate"
-    
+
     ```json
      {
       "inbounds": [

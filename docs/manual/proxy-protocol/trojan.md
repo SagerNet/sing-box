@@ -4,15 +4,15 @@ icon: material/horse
 
 # Trojan
 
-As the most commonly used TLS proxy made in China, Trojan can be used in various combinations,
+Torjan is the most commonly used TLS proxy made in China. It can be used in various combinations,
 but only the combination of uTLS and multiplexing is recommended.
 
-| Protocol and implementation combination | Specification                                                        | Binary Characteristics | Active Detect Hiddenness |
-|-----------------------------------------|----------------------------------------------------------------------|------------------------|--------------------------|
-| Origin / trojan-gfw                     | [trojan-gfw.github.io](https://trojan-gfw.github.io/trojan/protocol) | :material-check:       | :material-check:         |
-| Basic Go implementation                 | /                                                                    | :material-alert:       | :material-check:         |
-| with privates transport by V2Ray        | No formal definition                                                 | :material-alert:       | :material-alert:         |
-| with uTLS enabled                       | No formal definition                                                 | :material-help:        | :material-check:         |                             
+| Protocol and implementation combination | Specification                                                        | Resists passive detection | Resists active probes |
+|-----------------------------------------|----------------------------------------------------------------------|---------------------------|-----------------------|
+| Origin / trojan-gfw                     | [trojan-gfw.github.io](https://trojan-gfw.github.io/trojan/protocol) | :material-check:          | :material-check:      |
+| Basic Go implementation                 | /                                                                    | :material-alert:          | :material-check:      |
+| with privates transport by V2Ray        | No formal definition                                                 | :material-alert:          | :material-alert:      |
+| with uTLS enabled                       | No formal definition                                                 | :material-help:           | :material-check:      |
 
 ## :material-text-box-check: Password Generator
 
@@ -211,4 +211,3 @@ but only the combination of uTLS and multiplexing is recommended.
       ]
     }
     ```
-
