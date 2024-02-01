@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 )
 
 type loopBackDetector struct {
@@ -40,7 +41,7 @@ func (l *loopBackDetector) NewConn(conn net.Conn) net.Conn {
 	}
 }
 
-func (l *loopBackDetector) NewPacketConn(conn net.PacketConn) net.PacketConn {
+func (l *loopBackDetector) NewPacketConn(conn N.NetPacketConn) N.NetPacketConn {
 	connAddr := M.AddrPortFromNet(conn.LocalAddr())
 	if !connAddr.IsValid() {
 		return conn
@@ -48,7 +49,7 @@ func (l *loopBackDetector) NewPacketConn(conn net.PacketConn) net.PacketConn {
 	l.packetConnAccess.Lock()
 	l.packetConnMap[connAddr] = true
 	l.packetConnAccess.Unlock()
-	return &loopBackDetectPacketWrapper{PacketConn: conn, detector: l, connAddr: connAddr}
+	return &loopBackDetectPacketWrapper{NetPacketConn: conn, detector: l, connAddr: connAddr}
 }
 
 func (l *loopBackDetector) CheckConn(connAddr netip.AddrPort) bool {
@@ -92,7 +93,7 @@ func (w *loopBackDetectWrapper) Upstream() any {
 }
 
 type loopBackDetectPacketWrapper struct {
-	net.PacketConn
+	N.NetPacketConn
 	detector  *loopBackDetector
 	connAddr  netip.AddrPort
 	closeOnce sync.Once
@@ -104,7 +105,7 @@ func (w *loopBackDetectPacketWrapper) Close() error {
 		delete(w.detector.packetConnMap, w.connAddr)
 		w.detector.packetConnAccess.Unlock()
 	})
-	return w.PacketConn.Close()
+	return w.NetPacketConn.Close()
 }
 
 func (w *loopBackDetectPacketWrapper) ReaderReplaceable() bool {
@@ -116,7 +117,7 @@ func (w *loopBackDetectPacketWrapper) WriterReplaceable() bool {
 }
 
 func (w *loopBackDetectPacketWrapper) Upstream() any {
-	return w.PacketConn
+	return w.NetPacketConn
 }
 
 type abstractUDPConn interface {
