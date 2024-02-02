@@ -125,7 +125,18 @@ func (s *URLTest) CheckOutbounds() {
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	s.group.Touch()
-	outbound := s.group.Select(network)
+	var outbound adapter.Outbound
+	switch N.NetworkName(network) {
+	case N.NetworkTCP:
+		outbound = s.group.selectedOutboundTCP
+	case N.NetworkUDP:
+		outbound = s.group.selectedOutboundUDP
+	default:
+		return nil, E.Extend(N.ErrUnknownNetwork, network)
+	}
+	if outbound == nil {
+		outbound, _ = s.group.Select(network)
+	}
 	if outbound == nil {
 		return nil, E.New("missing supported outbound")
 	}
@@ -140,7 +151,10 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	s.group.Touch()
-	outbound := s.group.Select(N.NetworkUDP)
+	outbound := s.group.selectedOutboundUDP
+	if outbound == nil {
+		outbound, _ = s.group.Select(N.NetworkUDP)
+	}
 	if outbound == nil {
 		return nil, E.New("missing supported outbound")
 	}
@@ -271,7 +285,7 @@ func (g *URLTestGroup) Close() error {
 	return nil
 }
 
-func (g *URLTestGroup) Select(network string) adapter.Outbound {
+func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 	var minDelay uint16
 	var minTime time.Time
 	var minOutbound adapter.Outbound
@@ -294,11 +308,11 @@ func (g *URLTestGroup) Select(network string) adapter.Outbound {
 			if !common.Contains(detour.Network(), network) {
 				continue
 			}
-			minOutbound = detour
-			break
+			return detour, false
 		}
+		return nil, false
 	}
-	return minOutbound
+	return minOutbound, true
 }
 
 func (g *URLTestGroup) loopCheck() {
@@ -382,14 +396,12 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 }
 
 func (g *URLTestGroup) performUpdateCheck() {
-	outbound := g.Select(N.NetworkTCP)
 	var updated bool
-	if outbound != nil && outbound != g.selectedOutboundTCP {
+	if outbound, exists := g.Select(N.NetworkTCP); outbound != nil && (g.selectedOutboundTCP == nil || (exists && outbound != g.selectedOutboundTCP)) {
 		g.selectedOutboundTCP = outbound
 		updated = true
 	}
-	outbound = g.Select(N.NetworkUDP)
-	if outbound != nil && outbound != g.selectedOutboundUDP {
+	if outbound, exists := g.Select(N.NetworkUDP); outbound != nil && (g.selectedOutboundUDP == nil || (exists && outbound != g.selectedOutboundUDP)) {
 		g.selectedOutboundUDP = outbound
 		updated = true
 	}
