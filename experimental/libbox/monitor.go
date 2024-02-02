@@ -97,6 +97,17 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 }
 
 func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName string, interfaceIndex32 int32) {
+	if interfaceName == "" || interfaceIndex32 == -1 {
+		m.defaultInterfaceName = ""
+		m.defaultInterfaceIndex = -1
+		m.access.Lock()
+		callbacks := m.callbacks.Array()
+		m.access.Unlock()
+		for _, callback := range callbacks {
+			callback(tun.EventNoRoute)
+		}
+		return
+	}
 	var err error
 	if m.iif.UsePlatformInterfaceGetter() {
 		err = m.updateInterfacesPlatform()
@@ -110,28 +121,6 @@ func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName s
 		m.logger.Error(E.Cause(err, "update interfaces"))
 	}
 	interfaceIndex := int(interfaceIndex32)
-	if interfaceName == "" {
-		for _, netIf := range m.networkAddresses {
-			if netIf.interfaceIndex == interfaceIndex {
-				interfaceName = netIf.interfaceName
-				break
-			}
-		}
-	} else if interfaceIndex == -1 {
-		for _, netIf := range m.networkAddresses {
-			if netIf.interfaceName == interfaceName {
-				interfaceIndex = netIf.interfaceIndex
-				break
-			}
-		}
-	}
-	if interfaceName == "" {
-		m.logger.Error(E.New("invalid interface name for ", interfaceIndex))
-		return
-	} else if interfaceIndex == -1 {
-		m.logger.Error(E.New("invalid interface index for ", interfaceName))
-		return
-	}
 	if m.defaultInterfaceName == interfaceName && m.defaultInterfaceIndex == interfaceIndex {
 		return
 	}
