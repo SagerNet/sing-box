@@ -1,7 +1,3 @@
----
-icon: material/alert-decagram
----
-
 # Route
 
 !!! quote "Changes in sing-box 1.8.0"
