@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! question "自 sing-box 1.8.0 起"
 
 ### 结构
