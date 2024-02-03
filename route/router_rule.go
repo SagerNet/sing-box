@@ -97,3 +97,7 @@ func isWIFIDNSRule(rule option.DefaultDNSRule) bool {
 func isWIFIHeadlessRule(rule option.DefaultHeadlessRule) bool {
 	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
 }
+
+func isIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {
+	return len(rule.IPCIDR) > 0 || rule.IPSet != nil
+}
