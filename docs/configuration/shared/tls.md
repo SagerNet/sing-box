@@ -1,8 +1,3 @@
----
-icon: material/alert-decagram
----
-
-
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-alert-decagram: [utls](#utls)  
