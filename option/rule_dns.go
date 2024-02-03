@@ -77,6 +77,9 @@ type DefaultDNSRule struct {
 	DomainRegex       Listable[string]       `json:"domain_regex,omitempty"`
 	Geosite           Listable[string]       `json:"geosite,omitempty"`
 	SourceGeoIP       Listable[string]       `json:"source_geoip,omitempty"`
+	GeoIP             Listable[string]       `json:"geoip,omitempty"`
+	IPCIDR            Listable[string]       `json:"ip_cidr,omitempty"`
+	IPIsPrivate       bool                   `json:"ip_is_private,omitempty"`
 	SourceIPCIDR      Listable[string]       `json:"source_ip_cidr,omitempty"`
 	SourceIPIsPrivate bool                   `json:"source_ip_is_private,omitempty"`
 	SourcePort        Listable[uint16]       `json:"source_port,omitempty"`
