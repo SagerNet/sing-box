@@ -59,7 +59,7 @@ func isGeoIPRule(rule option.DefaultRule) bool {
 }
 
 func isGeoIPDNSRule(rule option.DefaultDNSRule) bool {
-	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode)
+	return len(rule.SourceGeoIP) > 0 && common.Any(rule.SourceGeoIP, notPrivateNode) || len(rule.GeoIP) > 0 && common.Any(rule.GeoIP, notPrivateNode)
 }
 
 func isGeositeRule(rule option.DefaultRule) bool {
@@ -96,4 +96,8 @@ func isWIFIDNSRule(rule option.DefaultDNSRule) bool {
 
 func isWIFIHeadlessRule(rule option.DefaultHeadlessRule) bool {
 	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+}
+
+func isIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {
+	return len(rule.IPCIDR) > 0 || rule.IPSet != nil
 }
