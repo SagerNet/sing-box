@@ -1,6 +1,12 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "sing-box 1.9.0 中的更改"
+
+    :material-plus: [geoip](#geoip)  
+    :material-plus: [ip_cidr](#ip_cidr)  
+    :material-plus: [ip_is_private](#ip_is_private)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
@@ -53,10 +59,19 @@ icon: material/alert-decagram
         "source_geoip": [
           "private"
         ],
+        "geoip": [
+          "cn"
+        ],
         "source_ip_cidr": [
-          "10.0.0.0/24"
+          "10.0.0.0/24",
+          "192.168.0.1"
         ],
         "source_ip_is_private": false,
+        "ip_cidr": [
+          "10.0.0.0/24",
+          "192.168.0.1"
+        ],
+        "ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -306,6 +321,32 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### rewrite_ttl
 
 重写 DNS 回应中的 TTL。
+
+### 地址筛选字段
+
+仅对IP地址请求生效。 当查询结果与地址筛选规则项不匹配时，将跳过当前规则。
+
+!!! note ""
+
+    引用的规则集中的 `ip_cidr` 项也作为地址筛选字段生效。
+
+#### geoip
+
+!!! question "自 sing-box 1.9.0 起"
+
+与查询响应匹配 GeoIP。
+
+#### ip_cidr
+
+!!! question "自 sing-box 1.9.0 起"
+
+与查询相应匹配 IP CIDR。
+
+#### ip_is_private
+
+!!! question "自 sing-box 1.9.0 起"
+
+与查询响应匹配非公开 IP。
 
 ### 逻辑字段
 
