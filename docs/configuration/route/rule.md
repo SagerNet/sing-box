@@ -1,7 +1,3 @@
----
-icon: material/alert-decagram
----
-
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-plus: [rule_set](#rule_set)  
