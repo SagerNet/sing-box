@@ -1,7 +1,3 @@
----
-icon: material/alert-decagram
----
-
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-plus: [rule_set](#rule_set)  
