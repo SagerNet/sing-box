@@ -290,52 +290,6 @@ flowchart TB
 
 === ":material-dns: DNS rules"
 
-    !!! info
-    
-        DNS rules are optional if FakeIP is used.
-
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "address": "tls://8.8.8.8"
-          },
-          {
-            "tag": "local",
-            "address": "223.5.5.5",
-            "detour": "direct"
-          }
-        ],
-        "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "geosite": "geolocation-cn",
-            "server": "local"
-          }
-        ]
-      }
-    }
-    ```
-
-=== ":material-dns: DNS rules (1.8.0+)"
-
-    !!! info
-    
-        DNS rules are optional if FakeIP is used.
-
     ```json
     {
       "dns": {
@@ -382,74 +336,78 @@ flowchart TB
     }
     ```
 
-=== ":material-router-network: Route rules"
+=== ":material-dns: DNS rules (1.9.0+)"
+
+    !!! warning "DNS leaks"
+
+        The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS if using this method.
 
     ```json
     {
-      "outbounds": [
-        {
-          "type": "direct",
-          "tag": "direct"
-        },
-        {
-          "type": "block",
-          "tag": "block"
-        }
-      ],
-      "route": {
-        "rules": [
+      "dns": {
+        "servers": [
           {
-            "type": "logical",
-            "mode": "or",
-            "rules": [
-              {
-                "protocol": "dns"
-              },
-              {
-                "port": 53
-              }
-            ],
-            "outbound": "dns"
+            "tag": "google",
+            "address": "tls://8.8.8.8"
           },
           {
-            "geoip": "private",
-            "outbound": "direct"
+            "tag": "local",
+            "address": "https://223.5.5.5/dns-query",
+            "detour": "direct"
+          }
+        ],
+        "rules": [
+          {
+            "outbound": "any",
+            "server": "local"
           },
           {
             "clash_mode": "Direct",
-            "outbound": "direct"
+            "server": "local"
           },
           {
             "clash_mode": "Global",
-            "outbound": "default"
+            "server": "google"
           },
           {
-            "type": "logical",
-            "mode": "or",
-            "rules": [
-              {
-                "port": 853
-              },
-              {
-                "network": "udp",
-                "port": 443
-              },
-              {
-                "protocol": "stun"
-              }
-            ],
-            "outbound": "block"
+            "rule_set": "geosite-geolocation-cn",
+            "server": "local"
           },
           {
-            "geosite": "geolocation-cn",
-            "outbound": "direct"
+            "clash_mode": "Default",
+            "server": "google"
+          },
+          {
+            "rule_set": "geoip-cn",
+            "server": "local"
           }
         ]
+      },
+      "route": {
+        "rule_set": [
+          {
+            "type": "remote",
+            "tag": "geosite-geolocation-cn",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+          },
+          {
+            "type": "remote",
+            "tag": "geoip-cn",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+          }
+        ]
+      },
+      "experimental": {
+        "clash_api": {
+          "default_mode": "Leak"
+        }
       }
     }
     ```
 
-=== ":material-router-network: Route rules (1.8.0+)"
+=== ":material-router-network: Route rules"
 
     ```json
     {
