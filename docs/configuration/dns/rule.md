@@ -1,6 +1,12 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.9.0"
+
+    :material-plus: [geoip](#geoip)  
+    :material-plus: [ip_cidr](#ip_cidr)  
+    :material-plus: [ip_is_private](#ip_is_private)
 
 !!! quote "Changes in sing-box 1.8.0"
 
@@ -53,11 +59,19 @@ icon: material/alert-decagram
         "source_geoip": [
           "private"
         ],
+        "geoip": [
+          "cn"
+        ],
         "source_ip_cidr": [
           "10.0.0.0/24",
           "192.168.0.1"
         ],
         "source_ip_is_private": false,
+        "ip_cidr": [
+          "10.0.0.0/24",
+          "192.168.0.1"
+        ],
+        "ip_is_private": false,
         "source_port": [
           12345
         ],
@@ -311,6 +325,32 @@ Disable cache and save cache in this query.
 #### rewrite_ttl
 
 Rewrite TTL in DNS responses.
+
+### Address Filter Fields
+
+Only takes effect for IP address requests. When the query results do not match the address filtering rule items, the current rule will be skipped.
+
+!!! note ""
+
+    `ip_cidr` items in included rule sets also takes effect as an address filtering field.
+
+#### geoip
+
+!!! question "Since sing-box 1.9.0"
+
+Match GeoIP with query response.
+
+#### ip_cidr
+
+!!! question "Since sing-box 1.9.0"
+
+Match IP CIDR with query response.
+
+#### ip_is_private
+
+!!! question "Since sing-box 1.9.0"
+
+Match private IP with query response.
 
 ### Logical Fields
 

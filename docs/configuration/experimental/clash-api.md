@@ -1,7 +1,3 @@
----
-icon: material/alert-decagram
----
-
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-delete-alert: [store_mode](#store_mode)  
