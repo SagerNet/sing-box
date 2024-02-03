@@ -84,6 +84,8 @@ type DNSRule interface {
 	Rule
 	DisableCache() bool
 	RewriteTTL() *uint32
+	WithAddressLimit() bool
+	MatchAddressLimit(metadata *InboundContext) bool
 }
 
 type RuleSet interface {
@@ -97,6 +99,7 @@ type RuleSet interface {
 type RuleSetMetadata struct {
 	ContainsProcessRule bool
 	ContainsWIFIRule    bool
+	ContainsIPCIDRRule  bool
 }
 
 type RuleSetStartContext interface {
