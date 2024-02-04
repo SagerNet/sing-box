@@ -56,7 +56,8 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 					r.dnsLogger.ErrorContext(ctx, "transport not found: ", detour)
 					continue
 				}
-				if _, isFakeIP := transport.(adapter.FakeIPTransport); isFakeIP && !allowFakeIP {
+				_, isFakeIP := transport.(adapter.FakeIPTransport)
+				if isFakeIP && !allowFakeIP {
 					continue
 				}
 				displayRuleIndex := ruleIndex
@@ -64,7 +65,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 					displayRuleIndex += index + 1
 				}
 				r.dnsLogger.DebugContext(ctx, "match[", displayRuleIndex, "] ", rule.String(), " => ", detour)
-				if rule.DisableCache() {
+				if (isFakeIP && !r.dnsIndependentCache) || rule.DisableCache() {
 					ctx = dns.ContextWithDisableCache(ctx, true)
 				}
 				if rewriteTTL := rule.RewriteTTL(); rewriteTTL != nil {
@@ -93,9 +94,10 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 		r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()))
 	}
 	var (
-		response *mDNS.Msg
-		cached   bool
-		err      error
+		response  *mDNS.Msg
+		cached    bool
+		transport dns.Transport
+		err       error
 	)
 	response, cached = r.dnsClient.ExchangeCache(ctx, message)
 	if !cached {
@@ -112,7 +114,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 			metadata.Domain = fqdnToDomain(message.Question[0].Name)
 		}
 		var (
-			transport dns.Transport
 			strategy  dns.DomainStrategy
 			rule      adapter.DNSRule
 			ruleIndex int
@@ -158,17 +159,22 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 			break
 		}
 	}
+	if err != nil {
+		return nil, err
+	}
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
-		for _, answer := range response.Answer {
-			switch record := answer.(type) {
-			case *mDNS.A:
-				r.dnsReverseMapping.Save(M.AddrFromIP(record.A), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
-			case *mDNS.AAAA:
-				r.dnsReverseMapping.Save(M.AddrFromIP(record.AAAA), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
+		if _, isFakeIP := transport.(adapter.FakeIPTransport); !isFakeIP {
+			for _, answer := range response.Answer {
+				switch record := answer.(type) {
+				case *mDNS.A:
+					r.dnsReverseMapping.Save(M.AddrFromIP(record.A), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
+				case *mDNS.AAAA:
+					r.dnsReverseMapping.Save(M.AddrFromIP(record.AAAA), fqdnToDomain(record.Hdr.Name), int(record.Hdr.Ttl))
+				}
 			}
 		}
 	}
-	return response, err
+	return response, nil
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
