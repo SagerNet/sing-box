@@ -69,6 +69,7 @@ type Router struct {
 	geositeCache                       map[string]adapter.Rule
 	needFindProcess                    bool
 	dnsClient                          *dns.Client
+	dnsIndependentCache                bool
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
 	ruleSets                           []adapter.RuleSet
@@ -122,6 +123,7 @@ func NewRouter(
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
 		needFindProcess:       hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
+		dnsIndependentCache:   dnsOptions.IndependentCache,
 		defaultDetour:         options.Final,
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
 		autoDetectInterface:   options.AutoDetectInterface,
