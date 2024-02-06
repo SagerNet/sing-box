@@ -30,7 +30,6 @@ func (c *CommandClient) SetClashMode(newMode string) error {
 }
 
 func (s *CommandServer) handleSetClashMode(conn net.Conn) error {
-	defer conn.Close()
 	newMode, err := rw.ReadVString(conn)
 	if err != nil {
 		return err
@@ -61,7 +60,6 @@ func (c *CommandClient) handleModeConn(conn net.Conn) {
 }
 
 func (s *CommandServer) handleModeConn(conn net.Conn) error {
-	defer conn.Close()
 	ctx := connKeepAlive(conn)
 	for s.service == nil {
 		select {
@@ -73,7 +71,6 @@ func (s *CommandServer) handleModeConn(conn net.Conn) error {
 	}
 	clashServer := s.service.instance.Router().ClashServer()
 	if clashServer == nil {
-		defer conn.Close()
 		return binary.Write(conn, binary.BigEndian, uint16(0))
 	}
 	err := writeClashModeList(conn, clashServer)
