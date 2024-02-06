@@ -58,6 +58,13 @@ func (c *CommandClient) handleGroupConn(conn net.Conn) {
 }
 
 func (s *CommandServer) handleGroupConn(conn net.Conn) error {
+	var interval int64
+	err := binary.Read(conn, binary.BigEndian, &interval)
+	if err != nil {
+		return E.Cause(err, "read interval")
+	}
+	ticker := time.NewTicker(time.Duration(interval))
+	defer ticker.Stop()
 	ctx := connKeepAlive(conn)
 	for {
 		service := s.service
@@ -75,7 +82,7 @@ func (s *CommandServer) handleGroupConn(conn net.Conn) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-ticker.C:
 		}
 		select {
 		case <-ctx.Done():
