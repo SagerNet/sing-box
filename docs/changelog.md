@@ -2,6 +2,28 @@
 icon: material/alert-decagram
 ---
 
+#### 1.9.0-alpha.1
+
+* `domain_suffix` behavior update **1**
+* `process_path` format update on Windows **2**
+* Add address filter DNS rule items **3**
+
+**1**:
+
+See [Migration](/migration/#domain_suffix-behavior-update).
+
+**2**:
+
+See [Migration](/migration/#process_path-format-update-on-windows).
+
+**3**:
+
+The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS if using this method.
+
+See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+
+[Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
+
 #### 1.8.5
 
 * Fixes and improvements
