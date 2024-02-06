@@ -35,7 +35,6 @@ func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
 }
 
 func (s *CommandServer) handleGetSystemProxyStatus(conn net.Conn) error {
-	defer conn.Close()
 	status := s.handler.GetSystemProxyStatus()
 	err := binary.Write(conn, binary.BigEndian, status.Available)
 	if err != nil {
@@ -68,7 +67,6 @@ func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
 }
 
 func (s *CommandServer) handleSetSystemProxyEnabled(conn net.Conn) error {
-	defer conn.Close()
 	var isEnabled bool
 	err := binary.Read(conn, binary.BigEndian, &isEnabled)
 	if err != nil {
