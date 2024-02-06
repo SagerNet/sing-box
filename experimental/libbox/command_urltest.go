@@ -33,7 +33,6 @@ func (c *CommandClient) URLTest(groupTag string) error {
 }
 
 func (s *CommandServer) handleURLTest(conn net.Conn) error {
-	defer conn.Close()
 	groupTag, err := rw.ReadVString(conn)
 	if err != nil {
 		return err
