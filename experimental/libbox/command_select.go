@@ -31,7 +31,6 @@ func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) erro
 }
 
 func (s *CommandServer) handleSelectOutbound(conn net.Conn) error {
-	defer conn.Close()
 	groupTag, err := rw.ReadVString(conn)
 	if err != nil {
 		return err
