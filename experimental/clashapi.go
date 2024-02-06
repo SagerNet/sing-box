@@ -3,6 +3,7 @@ package experimental
 import (
 	"context"
 	"os"
+	"sort"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -27,11 +28,26 @@ func NewClashServer(ctx context.Context, router adapter.Router, logFactory log.O
 }
 
 func CalculateClashModeList(options option.Options) []string {
-	var clashMode []string
-	clashMode = append(clashMode, extraClashModeFromRule(common.PtrValueOrDefault(options.Route).Rules)...)
-	clashMode = append(clashMode, extraClashModeFromDNSRule(common.PtrValueOrDefault(options.DNS).Rules)...)
-	clashMode = common.FilterNotDefault(common.Uniq(clashMode))
-	return clashMode
+	var clashModes []string
+	clashModes = append(clashModes, extraClashModeFromRule(common.PtrValueOrDefault(options.Route).Rules)...)
+	clashModes = append(clashModes, extraClashModeFromDNSRule(common.PtrValueOrDefault(options.DNS).Rules)...)
+	clashModes = common.FilterNotDefault(common.Uniq(clashModes))
+	predefinedOrder := []string{
+		"Rule", "Global", "Direct",
+	}
+	var newClashModes []string
+	for _, mode := range clashModes {
+		if !common.Contains(predefinedOrder, mode) {
+			newClashModes = append(newClashModes, mode)
+		}
+	}
+	sort.Strings(newClashModes)
+	for _, mode := range predefinedOrder {
+		if common.Contains(clashModes, mode) {
+			newClashModes = append(newClashModes, mode)
+		}
+	}
+	return newClashModes
 }
 
 func extraClashModeFromRule(rules []option.Rule) []string {
