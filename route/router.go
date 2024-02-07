@@ -415,6 +415,9 @@ func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outb
 }
 
 func (r *Router) Outbounds() []adapter.Outbound {
+	if !r.started {
+		return nil
+	}
 	return r.outbounds
 }
 
