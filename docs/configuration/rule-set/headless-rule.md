@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 ### Structure
 
 !!! question "Since sing-box 1.8.0"
