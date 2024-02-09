@@ -86,6 +86,7 @@ type DNSRule interface {
 	Rule
 	DisableCache() bool
 	RewriteTTL() *uint32
+	ClientSubnet() *netip.Addr
 	WithAddressLimit() bool
 	MatchAddressLimit(metadata *InboundContext) bool
 }
