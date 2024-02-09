@@ -11,13 +11,12 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
 func init() {
-	dns.RegisterTransport([]string{"quic", "h3"}, func(name string, ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
+	dns.RegisterTransport([]string{"quic", "h3"}, func(options dns.TransportOptions) (dns.Transport, error) {
 		return nil, C.ErrQUICNotIncluded
 	})
 	v2ray.RegisterQUICConstructor(
