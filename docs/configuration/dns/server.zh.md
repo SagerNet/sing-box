@@ -1,3 +1,11 @@
+---
+icon: material/new-box
+---
+
+!!! quote "sing-box 1.9.0 中的更改"
+
+    :material-plus: [client_subnet](#client_subnet)
+
 ### 结构
 
 ```json
@@ -5,17 +13,17 @@
   "dns": {
     "servers": [
       {
-        "tag": "google",
-        "address": "tls://dns.google",
-        "address_resolver": "local",
-        "address_strategy": "prefer_ipv4",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "tag": "",
+        "address": "",
+        "address_resolver": "",
+        "address_strategy": "",
+        "strategy": "",
+        "detour": "",
+        "client_subnet": ""
       }
     ]
   }
 }
-
 ```
 
 ### 字段
@@ -87,3 +95,13 @@ DNS 服务器的地址。
 用于连接到 DNS 服务器的出站的标签。
 
 如果为空，将使用默认出站。
+
+#### client_subnet
+
+!!! question "自 sing-box 1.9.0 起"
+
+默认情况下，将带有指定 IP 地址的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+可以被 `rules.[].client_subnet` 覆盖。
+
+将覆盖 `dns.client_subnet`。
