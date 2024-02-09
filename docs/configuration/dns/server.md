@@ -1,3 +1,11 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.9.0"
+
+    :material-plus: [client_subnet](#client_subnet)
+
 ### Structure
 
 ```json
@@ -5,17 +13,17 @@
   "dns": {
     "servers": [
       {
-        "tag": "google",
-        "address": "tls://dns.google",
-        "address_resolver": "local",
-        "address_strategy": "prefer_ipv4",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "tag": "",
+        "address": "",
+        "address_resolver": "",
+        "address_strategy": "",
+        "strategy": "",
+        "detour": "",
+        "client_subnet": ""
       }
     ]
   }
 }
-
 ```
 
 ### Fields
@@ -80,10 +88,20 @@ Default domain strategy for resolving the domain names.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
-Take no effect if override by other settings.
+Take no effect if overridden by other settings.
 
 #### detour
 
 Tag of an outbound for connecting to the dns server.
 
 Default outbound will be used if empty.
+
+#### client_subnet
+
+!!! question "Since sing-box 1.9.0"
+
+Append a `edns0-subnet` OPT extra record with the specified IP address to every query by default.
+
+Can be overrides by `rules.[].client_subnet`.
+
+Will overrides `dns.client_subnet`.
