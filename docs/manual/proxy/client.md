@@ -338,74 +338,131 @@ flowchart TB
 
 === ":material-dns: DNS rules (1.9.0+)"
 
-    !!! warning "DNS leaks"
-
-        The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS if using this method.
-
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "address": "tls://8.8.8.8"
+    === ":material-shield-off: With DNS Leaks"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "tag": "google",
+                "address": "tls://8.8.8.8"
+              },
+              {
+                "tag": "local",
+                "address": "https://223.5.5.5/dns-query",
+                "detour": "direct"
+              }
+            ],
+            "rules": [
+              {
+                "outbound": "any",
+                "server": "local"
+              },
+              {
+                "clash_mode": "Direct",
+                "server": "local"
+              },
+              {
+                "clash_mode": "Global",
+                "server": "google"
+              },
+              {
+                "rule_set": "geosite-geolocation-cn",
+                "server": "local"
+              },
+              {
+                "clash_mode": "Default",
+                "server": "google"
+              },
+              {
+                "rule_set": "geoip-cn",
+                "server": "local"
+              }
+            ]
           },
-          {
-            "tag": "local",
-            "address": "https://223.5.5.5/dns-query",
-            "detour": "direct"
+          "route": {
+            "rule_set": [
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geoip-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+              }
+            ]
+          },
+          "experimental": {
+            "clash_api": {
+              "default_mode": "Leak"
+            }
           }
-        ],
-        "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "rule_set": "geosite-geolocation-cn",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Default",
-            "server": "google"
-          },
-          {
-            "rule_set": "geoip-cn",
-            "server": "local"
-          }
-        ]
-      },
-      "route": {
-        "rule_set": [
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
-          },
-          {
-            "type": "remote",
-            "tag": "geoip-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
-          }
-        ]
-      },
-      "experimental": {
-        "clash_api": {
-          "default_mode": "Leak"
         }
-      }
-    }
-    ```
+        ```
+
+    === ":material-security: Without DNS Leaks (1.9.0-alpha.2+)"
+
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "tag": "google",
+                "address": "tls://8.8.8.8"
+              },
+              {
+                "tag": "local",
+                "address": "https://223.5.5.5/dns-query",
+                "detour": "direct"
+              }
+            ],
+            "rules": [
+              {
+                "outbound": "any",
+                "server": "local"
+              },
+              {
+                "clash_mode": "Direct",
+                "server": "local"
+              },
+              {
+                "clash_mode": "Global",
+                "server": "google"
+              },
+              {
+                "rule_set": "geosite-geolocation-cn",
+                "server": "local"
+              },
+              {
+                "rule_set": "geoip-cn",
+                "server": "google",
+                "client_subnet": "114.114.114.114" // Any China client IP address
+              }
+            ]
+          },
+          "route": {
+            "rule_set": [
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geoip-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+              }
+            ]
+          }
+        }
+        ```
 
 === ":material-router-network: Route rules"
 
