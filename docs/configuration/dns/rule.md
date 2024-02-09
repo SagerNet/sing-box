@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [geoip](#geoip)  
     :material-plus: [ip_cidr](#ip_cidr)  
-    :material-plus: [ip_is_private](#ip_is_private)
+    :material-plus: [ip_is_private](#ip_is_private)  
+    :material-plus: [client_subnet](#client_subnet)
 
 !!! quote "Changes in sing-box 1.8.0"
 
@@ -121,7 +122,8 @@ icon: material/new-box
         ],
         "server": "local",
         "disable_cache": false,
-        "rewrite_ttl": 100
+        "rewrite_ttl": 100,
+        "client_subnet": "127.0.0.1"
       },
       {
         "type": "logical",
@@ -129,7 +131,8 @@ icon: material/new-box
         "rules": [],
         "server": "local",
         "disable_cache": false,
-        "rewrite_ttl": 100
+        "rewrite_ttl": 100,
+        "client_subnet": "127.0.0.1"
       }
     ]
   }
@@ -280,8 +283,6 @@ Match Clash mode.
 
 #### wifi_ssid
 
-<!-- md:version 1.7.0-beta.4 -->
-
 !!! quote ""
 
     Only supported in graphical clients on Android and iOS.
@@ -325,6 +326,14 @@ Disable cache and save cache in this query.
 #### rewrite_ttl
 
 Rewrite TTL in DNS responses.
+
+#### client_subnet
+
+!!! question "Since sing-box 1.9.0"
+
+Append a `edns0-subnet` OPT extra record with the specified IP address to every query by default.
+
+Will overrides `dns.client_subnet` and `servers.[].client_subnet`.
 
 ### Address Filter Fields
 
