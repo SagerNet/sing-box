@@ -3,6 +3,8 @@ package libbox
 import (
 	"sync"
 	"time"
+
+	"github.com/sagernet/sing-box/log"
 )
 
 type servicePauseFields struct {
@@ -16,6 +18,7 @@ func (s *BoxService) Pause() {
 
 	if s.pauseTimer != nil {
 		s.pauseTimer.Stop()
+		log.Debug("pause() reconfigured")
 	}
 
 	s.pauseTimer = time.AfterFunc(time.Minute, s.pause)
@@ -28,6 +31,8 @@ func (s *BoxService) pause() {
 	s.pauseManager.DevicePause()
 	_ = s.instance.Router().ResetNetwork()
 	s.pauseTimer = nil
+
+	log.Debug("pause()")
 }
 
 func (s *BoxService) Wake() {
@@ -37,9 +42,11 @@ func (s *BoxService) Wake() {
 	if s.pauseTimer != nil {
 		s.pauseTimer.Stop()
 		s.pauseTimer = nil
+		log.Debug("pause() ignored")
 		return
 	}
 
 	s.pauseManager.DeviceWake()
 	_ = s.instance.Router().ResetNetwork()
+	log.Debug("wake()")
 }
