@@ -2,6 +2,50 @@
 icon: material/alert-decagram
 ---
 
+#### 1.9.0-alpha.5
+
+* Fixes and improvements
+
+#### 1.9.0-alpha.3
+
+* Update `quic-go` to v0.41.0
+* Fixes and improvements
+
+#### 1.9.0-alpha.2
+
+* Add support for `client-subnet` DNS options **1**
+* Fixes and improvements
+
+**1**:
+
+See [DNS](/configuration/dns), [DNS Server](/configuration/dns/server) and [DNS Rules](/configuration/dns/rule).
+
+Since this feature makes the scenario mentioned in `alpha.1` no longer leak DNS requests,
+the [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) has been updated.
+
+#### 1.9.0-alpha.1
+
+* `domain_suffix` behavior update **1**
+* `process_path` format update on Windows **2**
+* Add address filter DNS rule items **3**
+
+**1**:
+
+See [Migration](/migration/#domain_suffix-behavior-update).
+
+**2**:
+
+See [Migration](/migration/#process_path-format-update-on-windows).
+
+**3**:
+
+The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
+if using this method.
+
+See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+
+[Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
+
 #### 1.8.5
 
 * Fixes and improvements
@@ -100,8 +144,8 @@ Also, starting with this release, uTLS requires at least Go 1.20.
 
 **11**:
 
-Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor` to `20231204.0`
-
+Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor`
+to `20231204.0`
 
 #### 1.8.0-rc.11
 
