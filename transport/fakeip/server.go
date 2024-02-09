@@ -9,7 +9,6 @@ import (
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
-	N "github.com/sagernet/sing/common/network"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -20,7 +19,9 @@ var (
 )
 
 func init() {
-	dns.RegisterTransport([]string{"fakeip"}, NewTransport)
+	dns.RegisterTransport([]string{"fakeip"}, func(options dns.TransportOptions) (dns.Transport, error) {
+		return NewTransport(options)
+	})
 }
 
 type Transport struct {
@@ -30,15 +31,15 @@ type Transport struct {
 	logger logger.ContextLogger
 }
 
-func NewTransport(name string, ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
-	router := adapter.RouterFromContext(ctx)
+func NewTransport(options dns.TransportOptions) (*Transport, error) {
+	router := adapter.RouterFromContext(options.Context)
 	if router == nil {
 		return nil, E.New("missing router in context")
 	}
 	return &Transport{
-		name:   name,
+		name:   options.Name,
 		router: router,
-		logger: logger,
+		logger: options.Logger,
 	}, nil
 }
 
