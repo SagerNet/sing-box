@@ -70,6 +70,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 				if rewriteTTL := rule.RewriteTTL(); rewriteTTL != nil {
 					ctx = dns.ContextWithRewriteTTL(ctx, *rewriteTTL)
 				}
+				if clientSubnet := rule.ClientSubnet(); clientSubnet != nil {
+					ctx = dns.ContextWithClientSubnet(ctx, *clientSubnet)
+				}
 				if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
 					return ctx, transport, domainStrategy, rule, ruleIndex
 				} else {
