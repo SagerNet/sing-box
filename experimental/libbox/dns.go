@@ -9,9 +9,7 @@ import (
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 
 	mDNS "github.com/miekg/dns"
@@ -25,9 +23,11 @@ type LocalDNSTransport interface {
 
 func RegisterLocalDNSTransport(transport LocalDNSTransport) {
 	if transport == nil {
-		dns.RegisterTransport([]string{"local"}, dns.CreateLocalTransport)
+		dns.RegisterTransport([]string{"local"}, func(options dns.TransportOptions) (dns.Transport, error) {
+			return dns.NewLocalTransport(options), nil
+		})
 	} else {
-		dns.RegisterTransport([]string{"local"}, func(name string, ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, link string) (dns.Transport, error) {
+		dns.RegisterTransport([]string{"local"}, func(options dns.TransportOptions) (dns.Transport, error) {
 			return &platformLocalDNSTransport{
 				iif: transport,
 			}, nil
