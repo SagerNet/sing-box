@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [geoip](#geoip)  
     :material-plus: [ip_cidr](#ip_cidr)  
-    :material-plus: [ip_is_private](#ip_is_private)
+    :material-plus: [ip_is_private](#ip_is_private)  
+    :material-plus: [client_subnet](#client_subnet)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
@@ -120,14 +121,16 @@ icon: material/new-box
           "direct"
         ],
         "server": "local",
-        "disable_cache": false
+        "disable_cache": false,
+        "client_subnet": "127.0.0.1"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
         "server": "local",
-        "disable_cache": false
+        "disable_cache": false,
+        "client_subnet": "127.0.0.1"
       }
     ]
   }
@@ -321,6 +324,14 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### rewrite_ttl
 
 重写 DNS 回应中的 TTL。
+
+#### client_subnet
+
+!!! question "自 sing-box 1.9.0 起"
+
+默认情况下，将带有指定 IP 地址的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
 
 ### 地址筛选字段
 
