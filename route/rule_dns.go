@@ -1,6 +1,8 @@
 package route
 
 import (
+	"net/netip"
+
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -38,6 +40,7 @@ type DefaultDNSRule struct {
 	abstractDefaultRule
 	disableCache bool
 	rewriteTTL   *uint32
+	clientSubnet *netip.Addr
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
@@ -48,6 +51,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		clientSubnet: (*netip.Addr)(options.ClientSubnet),
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -230,6 +234,10 @@ func (r *DefaultDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
+func (r *DefaultDNSRule) ClientSubnet() *netip.Addr {
+	return r.clientSubnet
+}
+
 func (r *DefaultDNSRule) WithAddressLimit() bool {
 	if len(r.destinationIPCIDRItems) > 0 {
 		return true
@@ -264,6 +272,7 @@ type LogicalDNSRule struct {
 	abstractLogicalRule
 	disableCache bool
 	rewriteTTL   *uint32
+	clientSubnet *netip.Addr
 }
 
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
@@ -300,6 +309,10 @@ func (r *LogicalDNSRule) DisableCache() bool {
 
 func (r *LogicalDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
+}
+
+func (r *LogicalDNSRule) ClientSubnet() *netip.Addr {
+	return r.clientSubnet
 }
 
 func (r *LogicalDNSRule) WithAddressLimit() bool {
