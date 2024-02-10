@@ -270,7 +270,8 @@ func truncateDNSMessage(response *mDNS.Msg, maxLen int) *mDNS.Msg {
 	if responseLen <= maxLen {
 		return response
 	}
-	response = response.Copy()
+	newResponse := *response
+	response = &newResponse
 	for len(response.Answer) > 0 && responseLen > maxLen {
 		response.Answer = response.Answer[:len(response.Answer)-1]
 		response.Truncated = true
