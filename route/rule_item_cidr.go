@@ -73,7 +73,7 @@ func NewRawIPCIDRItem(isSource bool, ipSet *netipx.IPSet) *IPCIDRItem {
 }
 
 func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
-	if r.isSource || metadata.QueryType != 0 || metadata.IPCIDRMatchSource {
+	if r.isSource || metadata.IPCIDRMatchSource {
 		return r.ipSet.Contains(metadata.Source.Addr)
 	} else {
 		if metadata.Destination.IsIP() {
