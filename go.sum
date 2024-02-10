@@ -101,8 +101,8 @@ github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e h1:DOkjByVeAR56dks
 github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e/go.mod h1:fLxq/gtp0qzkaEwywlRRiGmjOK5ES/xUzyIKIFP2Asw=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6EslacyapiRz7LLSJyr4RajF/BhMVyE=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
-github.com/sagernet/quic-go v0.40.1 h1:qLeTIJR0d0JWRmDWo346nLsVN6EWihd1kalJYPEd0TM=
-github.com/sagernet/quic-go v0.40.1/go.mod h1:CcKTpzTAISxrM4PA5M20/wYuz9Tj6Tx4DwGbNl9UQrU=
+github.com/sagernet/quic-go v0.42.0-beta.2 h1:E6vTGhveFE9Tnhu5rrt3M5fnENuqBJOv8gPcFPz0cSM=
+github.com/sagernet/quic-go v0.42.0-beta.2/go.mod h1:lf8OYop+fMxIlrfM/ZHpENt/7ZD4JaVNqMhOlq2QMwg=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
@@ -112,8 +112,8 @@ github.com/sagernet/sing-dns v0.2.0-beta.16 h1:bzd4B8eHD7/WO3HrYknvgE8A56/R3n5oX
 github.com/sagernet/sing-dns v0.2.0-beta.16/go.mod h1:XU6Vqr6aHcMz/34Fcv8jmXpRCEuShzW+B7Qg1Xe1nxY=
 github.com/sagernet/sing-mux v0.2.0 h1:4C+vd8HztJCWNYfufvgL49xaOoOHXty2+EAjnzN3IYo=
 github.com/sagernet/sing-mux v0.2.0/go.mod h1:khzr9AOPocLa+g53dBplwNDz4gdsyx/YM3swtAhlkHQ=
-github.com/sagernet/sing-quic v0.1.11 h1:dbR59s46YSzRGQGnVEcDf0HzO/No9mTd1G+r1A+i9ug=
-github.com/sagernet/sing-quic v0.1.11/go.mod h1:h0aGDbZr98RLwqXJ4KAr9YES9MBAYhOZ5H23xSjEVzA=
+github.com/sagernet/sing-quic v0.1.12-beta.1 h1:6vh9AIuJfCYYsUSLZEgoAtb7kD97TQmPYgInA881lF8=
+github.com/sagernet/sing-quic v0.1.12-beta.1/go.mod h1:TTnOMr3o3rI+zNxTo+SGBJwouzjIEC3FchJJY1F1ca4=
 github.com/sagernet/sing-shadowsocks v0.2.6 h1:xr7ylAS/q1cQYS8oxKKajhuQcchd5VJJ4K4UZrrpp0s=
 github.com/sagernet/sing-shadowsocks v0.2.6/go.mod h1:j2YZBIpWIuElPFL/5sJAj470bcn/3QQ5lxZUNKLDNAM=
 github.com/sagernet/sing-shadowsocks2 v0.2.0 h1:wpZNs6wKnR7mh1wV9OHwOyUr21VkS3wKFHi+8XwgADg=
