@@ -23,7 +23,8 @@ Since sing-box 1.5.0:
 Since sing-box 1.8.0:
 
 * Go 1.18.5 - ~
-* Go 1.20.0 - ~ with tag `with_quic`, `with_ech`, or `with_utls` enabled
+* Go 1.20.0 - ~ with tag `with_quic`, or `with_utls` enabled
+* Go 1.21.0 - ~ with tag `with_ech` enabled
 
 You can download and install Go from: https://go.dev/doc/install, latest version is recommended.
 

@@ -72,7 +72,7 @@ jobs:
             ~/go/pkg/mod
           key: go120-${{ hashFiles('**/go.sum') }}
       - name: Run Test
-        run: make ci_build
+        run: make ci_build_go120
   build_go121:
     name: Debug build (Go 1.21)
     runs-on: ubuntu-latest
