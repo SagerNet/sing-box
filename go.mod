@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.0.0
-	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
+	github.com/insomniacslk/dhcp v0.0.0-20240204152450-ca2dc33955c1
 	github.com/libdns/alidns v1.0.3
 	github.com/libdns/cloudflare v0.1.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -44,11 +44,11 @@ require (
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.18.0
-	golang.org/x/net v0.20.0
-	golang.org/x/sys v0.16.0
+	golang.org/x/crypto v0.19.0
+	golang.org/x/net v0.21.0
+	golang.org/x/sys v0.17.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0
 	howett.net/plist v1.0.1
 )
@@ -91,7 +91,7 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
