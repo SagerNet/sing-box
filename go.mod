@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.0.0
-	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
+	github.com/insomniacslk/dhcp v0.0.0-20240204152450-ca2dc33955c1
 	github.com/libdns/alidns v1.0.3
 	github.com/libdns/cloudflare v0.1.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
@@ -26,7 +26,7 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20240214044702-a3d61928a32f
 	github.com/sagernet/quic-go v0.41.0-beta.2
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.3.1-beta.1
+	github.com/sagernet/sing v0.3.1-beta.2
 	github.com/sagernet/sing-dns v0.2.0-beta.4
 	github.com/sagernet/sing-mux v0.2.0
 	github.com/sagernet/sing-quic v0.1.9-beta.1
@@ -48,7 +48,7 @@ require (
 	golang.org/x/net v0.21.0
 	golang.org/x/sys v0.17.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 	howett.net/plist v1.0.1
 )
@@ -91,7 +91,7 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
