@@ -34,7 +34,7 @@ type StackDevice struct {
 	stack          *stack.Stack
 	mtu            uint32
 	events         chan wgTun.Event
-	outbound       chan stack.PacketBufferPtr
+	outbound       chan *stack.PacketBuffer
 	packetOutbound chan *buf.Buffer
 	done           chan struct{}
 	dispatcher     stack.NetworkDispatcher
@@ -52,7 +52,7 @@ func NewStackDevice(localAddresses []netip.Prefix, mtu uint32) (*StackDevice, er
 		stack:          ipStack,
 		mtu:            mtu,
 		events:         make(chan wgTun.Event, 1),
-		outbound:       make(chan stack.PacketBufferPtr, 256),
+		outbound:       make(chan *stack.PacketBuffer, 256),
 		packetOutbound: make(chan *buf.Buffer, 256),
 		done:           make(chan struct{}),
 	}
@@ -283,10 +283,10 @@ func (ep *wireEndpoint) ARPHardwareType() header.ARPHardwareType {
 	return header.ARPHardwareNone
 }
 
-func (ep *wireEndpoint) AddHeader(buffer stack.PacketBufferPtr) {
+func (ep *wireEndpoint) AddHeader(buffer *stack.PacketBuffer) {
 }
 
-func (ep *wireEndpoint) ParseHeader(ptr stack.PacketBufferPtr) bool {
+func (ep *wireEndpoint) ParseHeader(ptr *stack.PacketBuffer) bool {
 	return true
 }
 
