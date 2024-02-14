@@ -2,6 +2,89 @@
 icon: material/alert-decagram
 ---
 
+#### 1.9.0-alpha.12
+
+* Handle Windows power events
+* Always disable cache for fake-ip DNS transport if `dns.independent_cache` disabled
+* Fixes and improvements
+
+#### 1.9.0-alpha.11
+
+* Fix missing `rule_set_ipcidr_match_source` item in DNS rules **1**
+* Fixes and improvements
+
+**1**:
+
+See [DNS Rule](/configuration/dns/rule/).
+
+#### 1.9.0-alpha.10
+
+* Add `bypass_domain` and `search_domain` platform HTTP proxy options **1**
+* Fixes and improvements
+
+**1**:
+
+See [TUN](/configuration/inbound/tun) inbound.
+
+#### 1.9.0-alpha.8
+
+* Add rejected DNS response cache support **1**
+* Fixes and improvements
+
+**1**:
+
+The new feature allows you to cache the check results of
+[Address filter DNS rule items](/configuration/dns/rule/#address-filter-fields) until expiration.
+
+#### 1.9.0-alpha.7
+
+* Update gVisor to 20240206.0
+* Fixes and improvements
+
+#### 1.9.0-alpha.6
+
+* Fixes and improvements
+
+#### 1.9.0-alpha.3
+
+* Update `quic-go` to v0.41.0
+* Fixes and improvements
+
+#### 1.9.0-alpha.2
+
+* Add support for `client-subnet` DNS options **1**
+* Fixes and improvements
+
+**1**:
+
+See [DNS](/configuration/dns), [DNS Server](/configuration/dns/server) and [DNS Rules](/configuration/dns/rule).
+
+Since this feature makes the scenario mentioned in `alpha.1` no longer leak DNS requests,
+the [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) has been updated.
+
+#### 1.9.0-alpha.1
+
+* `domain_suffix` behavior update **1**
+* `process_path` format update on Windows **2**
+* Add address filter DNS rule items **3**
+
+**1**:
+
+See [Migration](/migration/#domain_suffix-behavior-update).
+
+**2**:
+
+See [Migration](/migration/#process_path-format-update-on-windows).
+
+**3**:
+
+The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
+if using this method.
+
+See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+
+[Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
+
 #### 1.8.5
 
 * Fixes and improvements
@@ -100,8 +183,8 @@ Also, starting with this release, uTLS requires at least Go 1.20.
 
 **11**:
 
-Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor` to `20231204.0`
-
+Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor`
+to `20231204.0`
 
 #### 1.8.0-rc.11
 
