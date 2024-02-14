@@ -29,6 +29,7 @@ var (
 		string(bucketExpand),
 		string(bucketMode),
 		string(bucketRuleSet),
+		string(bucketRDRC),
 	}
 
 	cacheIDDefault = []byte("default")
@@ -37,17 +38,25 @@ var (
 var _ adapter.CacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	ctx         context.Context
-	path        string
-	cacheID     []byte
-	storeFakeIP bool
-
+	ctx               context.Context
+	path              string
+	cacheID           []byte
+	storeFakeIP       bool
+	storeRDRC         bool
+	rdrcTimeout       time.Duration
 	DB                *bbolt.DB
-	saveAccess        sync.RWMutex
+	saveMetadataTimer *time.Timer
+	saveFakeIPAccess  sync.RWMutex
 	saveDomain        map[netip.Addr]string
 	saveAddress4      map[string]netip.Addr
 	saveAddress6      map[string]netip.Addr
-	saveMetadataTimer *time.Timer
+	saveRDRCAccess    sync.RWMutex
+	saveRDRC          map[saveRDRCCacheKey]bool
+}
+
+type saveRDRCCacheKey struct {
+	TransportName string
+	QuestionName  string
 }
 
 func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
@@ -61,14 +70,25 @@ func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
 	if options.CacheID != "" {
 		cacheIDBytes = append([]byte{0}, []byte(options.CacheID)...)
 	}
+	var rdrcTimeout time.Duration
+	if options.StoreRDRC {
+		if options.RDRCTimeout > 0 {
+			rdrcTimeout = time.Duration(options.RDRCTimeout)
+		} else {
+			rdrcTimeout = 7 * 24 * time.Hour
+		}
+	}
 	return &CacheFile{
 		ctx:          ctx,
 		path:         filemanager.BasePath(ctx, path),
 		cacheID:      cacheIDBytes,
 		storeFakeIP:  options.StoreFakeIP,
+		storeRDRC:    options.StoreRDRC,
+		rdrcTimeout:  rdrcTimeout,
 		saveDomain:   make(map[netip.Addr]string),
 		saveAddress4: make(map[string]netip.Addr),
 		saveAddress6: make(map[string]netip.Addr),
+		saveRDRC:     make(map[saveRDRCCacheKey]bool),
 	}
 }
 
