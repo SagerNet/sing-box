@@ -339,9 +339,13 @@ Will overrides `dns.client_subnet` and `servers.[].client_subnet`.
 
 Only takes effect for IP address requests. When the query results do not match the address filtering rule items, the current rule will be skipped.
 
-!!! note ""
+!!! info ""
 
     `ip_cidr` items in included rule sets also takes effect as an address filtering field.
+
+!!! note ""
+
+    Enable `experimental.cache_file.store_rdrc` to cache results.
 
 #### geoip
 
