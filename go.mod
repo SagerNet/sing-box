@@ -23,7 +23,7 @@ require (
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1
 	github.com/sagernet/gomobile v0.1.3
-	github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e
+	github.com/sagernet/gvisor v0.0.0-20240428053021-e691de28565f
 	github.com/sagernet/quic-go v0.43.1-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.4.0-beta.20
@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.6
 	github.com/sagernet/sing-shadowsocks2 v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.2.7
+	github.com/sagernet/sing-tun v0.3.0-beta.6
 	github.com/sagernet/sing-vmess v0.1.8
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6
@@ -78,7 +78,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
-	github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 // indirect
+	github.com/sagernet/netlink v0.0.0-20240523065131-45e60152f9ba // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
