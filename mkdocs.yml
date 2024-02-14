@@ -133,7 +133,6 @@ nav:
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
           - ShadowTLS: configuration/outbound/shadowtls.md
-          - ShadowsocksR: configuration/outbound/shadowsocksr.md
           - VLESS: configuration/outbound/vless.md
           - TUIC: configuration/outbound/tuic.md
           - Hysteria2: configuration/outbound/hysteria2.md
