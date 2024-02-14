@@ -355,19 +355,19 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### geoip
 
-!!! question "自 sing-box 1.8.0 起"
+!!! question "自 sing-box 1.9.0 起"
 
 与查询响应匹配 GeoIP。
 
 #### ip_cidr
 
-!!! question "自 sing-box 1.8.0 起"
+!!! question "自 sing-box 1.9.0 起"
 
 与查询相应匹配 IP CIDR。
 
 #### ip_is_private
 
-!!! question "自 sing-box 1.8.0 起"
+!!! question "自 sing-box 1.9.0 起"
 
 与查询响应匹配非公开 IP。
 
