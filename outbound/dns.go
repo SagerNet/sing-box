@@ -111,9 +111,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			}
 		}
 		if readWaiter, created := bufio.CreatePacketReadWaiter(reader); created {
-			readWaiter.InitializeReadWaiter(N.ReadWaitOptions{
-				MTU: dns.FixedPacketSize,
-			})
+			readWaiter.InitializeReadWaiter(N.ReadWaitOptions{})
 			return d.newPacketConnection(ctx, conn, readWaiter, counters, cachedPackets, metadata)
 		}
 		break
@@ -241,16 +239,11 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 					return err
 				}
 				timeout.Update()
-				response = truncateDNSMessage(response, 512) // TODO: add an option to custom UDP buffer size
-				responseBuffer := buf.NewSize(dns.FixedPacketSize)
-				responseBuffer.Resize(1024, 0)
-				n, err := response.PackBuffer(responseBuffer.FreeBytes())
+				responseBuffer, err := dns.TruncateDNSMessage(&message, response, 1024)
 				if err != nil {
 					cancel(err)
-					responseBuffer.Release()
 					return err
 				}
-				responseBuffer.Truncate(len(n))
 				err = conn.WritePacket(responseBuffer, destination)
 				if err != nil {
 					cancel(err)
@@ -263,23 +256,4 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 		conn.Close()
 	})
 	return group.Run(fastClose)
-}
-
-func truncateDNSMessage(response *mDNS.Msg, maxLen int) *mDNS.Msg {
-	responseLen := response.Len()
-	if responseLen <= maxLen {
-		return response
-	}
-	newResponse := *response
-	response = &newResponse
-	for len(response.Answer) > 0 && responseLen > maxLen {
-		response.Answer = response.Answer[:len(response.Answer)-1]
-		response.Truncated = true
-		responseLen = response.Len()
-	}
-	if responseLen > maxLen {
-		response.Ns = nil
-		response.Extra = nil
-	}
-	return response
 }
