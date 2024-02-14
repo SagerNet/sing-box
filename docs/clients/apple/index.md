@@ -15,7 +15,11 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 ## :material-download: Download
 
 * [App Store](https://apps.apple.com/us/app/sing-box/id6451272673)
-* [TestFlight (Beta)](https://testflight.apple.com/join/AcqO44FH)
+* ~~[TestFlight (Beta)](https://testflight.apple.com/join/AcqO44FH)~~
+
+_Our Testflight distribution has been temporarily blocked by Apple (possibly due to too many beta versions)
+and you cannot join the test, install or update the sing-box beta app right now.
+Please wait patiently for processing._
 
 ## :material-file-download: Download (macOS standalone version)
 
