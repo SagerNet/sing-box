@@ -58,6 +58,7 @@ func NewTransport(options dns.TransportOptions) (*Transport, error) {
 		return nil, E.New("missing router in context")
 	}
 	transport := &Transport{
+		options:       options,
 		router:        router,
 		interfaceName: linkURL.Host,
 		autoInterface: linkURL.Host == "auto",
