@@ -139,7 +139,17 @@ func NewRouter(
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
 		DisableExpire:    dnsOptions.DNSClientOptions.DisableExpire,
 		IndependentCache: dnsOptions.DNSClientOptions.IndependentCache,
-		Logger:           router.dnsLogger,
+		RDRC: func() dns.RDRCStore {
+			cacheFile := service.FromContext[adapter.CacheFile](ctx)
+			if cacheFile == nil {
+				return nil
+			}
+			if !cacheFile.StoreRDRC() {
+				return nil
+			}
+			return cacheFile
+		},
+		Logger: router.dnsLogger,
 	})
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, router.logger, ruleOptions, true)
@@ -617,6 +627,11 @@ func (r *Router) Start() error {
 			return E.Cause(err, "initialize rule[", i, "]")
 		}
 	}
+
+	monitor.Start("initialize DNS client")
+	r.dnsClient.Start()
+	monitor.Finish()
+
 	for i, rule := range r.dnsRules {
 		monitor.Start("initialize DNS rule[", i, "]")
 		err := rule.Start()
