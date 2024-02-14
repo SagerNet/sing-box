@@ -100,8 +100,8 @@ github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1 h1:YbmpqPQ
 github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1/go.mod h1:J2yAxTFPDjrDPhuAi9aWFz2L3ox9it4qAluBBbN0H5k=
 github.com/sagernet/gomobile v0.1.3 h1:ohjIb1Ou2+1558PnZour3od69suSuvkdSVOlO1tC4B8=
 github.com/sagernet/gomobile v0.1.3/go.mod h1:Pqq2+ZVvs10U7xK+UwJgwYWUykewi8H6vlslAO73n9E=
-github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e h1:DOkjByVeAR56dkszjnMZke4wr7yM/1xHaJF3G9olkEE=
-github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e/go.mod h1:fLxq/gtp0qzkaEwywlRRiGmjOK5ES/xUzyIKIFP2Asw=
+github.com/sagernet/gvisor v0.0.0-20240315080113-799fb6b6d311 h1:eUQ6kJZXK77xYZeeNrBb/7JMv0S0Wkk7EpmKUb3fsfc=
+github.com/sagernet/gvisor v0.0.0-20240315080113-799fb6b6d311/go.mod h1:mDrXZSv401qiaFiiIUC59Zp4VG5f4nqXFqDmp5o3hYI=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97 h1:iL5gZI3uFp0X6EslacyapiRz7LLSJyr4RajF/BhMVyE=
 github.com/sagernet/netlink v0.0.0-20220905062125-8043b4a9aa97/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/quic-go v0.42.0-beta.2 h1:E6vTGhveFE9Tnhu5rrt3M5fnENuqBJOv8gPcFPz0cSM=
@@ -123,8 +123,8 @@ github.com/sagernet/sing-shadowsocks2 v0.2.0 h1:wpZNs6wKnR7mh1wV9OHwOyUr21VkS3wK
 github.com/sagernet/sing-shadowsocks2 v0.2.0/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.1.4 h1:aTgBSJEgnumzFenPvc+kbD9/W0PywzWevnVpEx6Tw3k=
 github.com/sagernet/sing-shadowtls v0.1.4/go.mod h1:F8NBgsY5YN2beQavdgdm1DPlhaKQlaL6lpDdcBglGK4=
-github.com/sagernet/sing-tun v0.2.4 h1:+ko31GRYoSrucgssbdaTKBBI37s+eeqE2gsV5cGgDgk=
-github.com/sagernet/sing-tun v0.2.4/go.mod h1:GtKY1Sr2CCWLHPjVj9GZpBFZ/KoXOzVBSxXvmCCPxT4=
+github.com/sagernet/sing-tun v0.2.5-beta.2 h1:mOWW80jYEup8LIFG3VuWASWgiRzyusuX5kH+Lbl+V7s=
+github.com/sagernet/sing-tun v0.2.5-beta.2/go.mod h1:E+KwQKzYkdGEhfIxjmoaB1ZkADaxeXUNzx6GRDRKOfE=
 github.com/sagernet/sing-vmess v0.1.8 h1:XVWad1RpTy9b5tPxdm5MCU8cGfrTGdR8qCq6HV2aCNc=
 github.com/sagernet/sing-vmess v0.1.8/go.mod h1:vhx32UNzTDUkNwOyIjcZQohre1CaytquC5mPplId8uA=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7 h1:DImB4lELfQhplLTxeq2z31Fpv8CQqqrUwTbrIRumZqQ=
@@ -137,8 +137,6 @@ github.com/sagernet/wireguard-go v0.0.0-20231215174105-89dec3b2f3e8 h1:R0OMYASco
 github.com/sagernet/wireguard-go v0.0.0-20231215174105-89dec3b2f3e8/go.mod h1:K4J7/npM+VAMUeUmTa2JaA02JmyheP0GpRBOUvn3ecc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
-github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9 h1:rc/CcqLH3lh8n+csdOuDfP+NuykE0U6AeYSJJHKDgSg=
-github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9/go.mod h1:a/83NAfUXvEuLpmxDssAXxgUgrEy12MId3Wd7OTs76s=
 github.com/spf13/cobra v1.8.0 h1:7aJaZx1B85qltLMc546zn58BxxfZdR/W22ej9CFoEf0=
 github.com/spf13/cobra v1.8.0/go.mod h1:WXLWApfZ71AjXPya3WOlMsY9yMs7YeiHhFVlvLyhcho=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
