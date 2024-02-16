@@ -32,8 +32,6 @@ suffers from a number of problems, including lack of maintenance, inaccurate rul
 sing-box 1.8.0 introduces [Rule Set](/configuration/rule-set/), which can completely replace Geosite,
 check [Migration](/migration/#migrate-geosite-to-rule-sets).
 
-Geosite，即由 V2Ray 维护的 domain-list-community 项目，作为早期流量绕过解决方案，存在着大量问题，包括缺少维护、规则不准确、管理困难。
-
 ## 1.6.0
 
 The following features will be marked deprecated in 1.5.0 and removed entirely in 1.6.0.
