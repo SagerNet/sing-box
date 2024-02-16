@@ -77,6 +77,10 @@ func (s *BoxService) Close() error {
 	return s.instance.Close()
 }
 
+func (s *BoxService) NeedWIFIState() bool {
+	return s.instance.Router().NeedWIFIState()
+}
+
 var (
 	_ platform.Interface = (*platformInterfaceWrapper)(nil)
 	_ log.PlatformWriter = (*platformInterfaceWrapper)(nil)
