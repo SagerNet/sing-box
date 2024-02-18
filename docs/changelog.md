@@ -385,7 +385,7 @@ see [TCP Brutal](/configuration/shared/tcp-brutal/) for details.
 
 **5**:
 
-Only supported in graphical clients on Android and iOS.
+Only supported in graphical clients on Android and Apple platforms.
 
 #### 1.7.0-rc.3
 
@@ -422,7 +422,7 @@ Only supported in graphical clients on Android and iOS.
 
 **1**:
 
-Only supported in graphical clients on Android and iOS.
+Only supported in graphical clients on Android and Apple platforms.
 
 #### 1.7.0-beta.3
 
