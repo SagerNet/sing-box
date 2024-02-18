@@ -285,7 +285,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! quote ""
 
-    仅在 Android 与 iOS 的图形客户端中支持。
+    仅在 Android 与 Apple 平台图形客户端中支持。
 
 匹配 WiFi SSID。
 
@@ -293,7 +293,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! quote ""
 
-    仅在 Android 与 iOS 的图形客户端中支持。
+    仅在 Android 与 Apple 平台图形客户端中支持。
 
 匹配 WiFi BSSID。
 
