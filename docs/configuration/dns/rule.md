@@ -287,7 +287,7 @@ Match Clash mode.
 
 !!! quote ""
 
-    Only supported in graphical clients on Android and iOS.
+    Only supported in graphical clients on Android and Apple platforms.
 
 Match WiFi SSID.
 
@@ -295,7 +295,7 @@ Match WiFi SSID.
 
 !!! quote ""
 
-    Only supported in graphical clients on Android and iOS.
+    Only supported in graphical clients on Android and Apple platforms.
 
 Match WiFi BSSID.
 
