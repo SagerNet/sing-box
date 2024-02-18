@@ -7,4 +7,6 @@ type TunPlatformOptions struct {
 type HTTPProxyOptions struct {
 	Enabled bool `json:"enabled,omitempty"`
 	ServerOptions
+	BypassDomain Listable[string] `json:"bypass_domain,omitempty"`
+	MatchDomain  Listable[string] `json:"match_domain,omitempty"`
 }
