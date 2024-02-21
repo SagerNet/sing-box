@@ -219,7 +219,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.RuleSet) > 0 {
-		item := NewRuleSetItem(router, options.RuleSet, false)
+		item := NewRuleSetItem(router, options.RuleSet, options.RuleSetIPCIDRMatchSource)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
