@@ -47,7 +47,10 @@ func (r *RuleSetItem) Match(metadata *adapter.InboundContext) bool {
 	return false
 }
 
-func (r *RuleSetItem) ContainsIPCIDRRule() bool {
+func (r *RuleSetItem) ContainsDestinationIPCIDRRule() bool {
+	if r.ipcidrMatchSource {
+		return false
+	}
 	return common.Any(r.setList, func(ruleSet adapter.RuleSet) bool {
 		return ruleSet.Metadata().ContainsIPCIDRRule
 	})
