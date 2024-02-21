@@ -8,6 +8,7 @@ icon: material/new-box
     :material-plus: [ip_cidr](#ip_cidr)  
     :material-plus: [ip_is_private](#ip_is_private)  
     :material-plus: [client_subnet](#client_subnet)
+    :material-plus: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)
 
 !!! quote "Changes in sing-box 1.8.0"
 
@@ -116,6 +117,7 @@ icon: material/new-box
           "geoip-cn",
           "geosite-cn"
         ],
+        "rule_set_ipcidr_match_source": false,
         "invert": false,
         "outbound": [
           "direct"
@@ -302,6 +304,12 @@ Match WiFi BSSID.
 !!! question "Since sing-box 1.8.0"
 
 Match [Rule Set](/configuration/route/#rule_set).
+
+#### rule_set_ipcidr_match_source
+
+!!! question "Since sing-box 1.9.0"
+
+Make `ipcidr` in rule sets match the source IP.
 
 #### invert
 
