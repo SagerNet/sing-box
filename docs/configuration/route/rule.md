@@ -105,6 +105,7 @@
           "geoip-cn",
           "geosite-cn"
         ],
+        "rule_set_ipcidr_match_source": false,
         "invert": false,
         "outbound": "direct"
       },
