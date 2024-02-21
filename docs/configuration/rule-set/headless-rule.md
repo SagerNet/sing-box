@@ -124,7 +124,7 @@ Match source IP CIDR.
 
 !!! info ""
 
-    `ip_cidr` is an alias for `source_ip_cidr` when the Rule Set is used in DNS rules or `rule_set_ipcidr_match_source` enabled in route rules.
+    `ip_cidr` is an alias for `source_ip_cidr` when `rule_set_ipcidr_match_source` enabled in route/DNS rules.
 
 Match IP CIDR.
 
