@@ -3,7 +3,7 @@ name: Build Docker Images
 on:
   release:
     types:
-      - published
+      - released
 
 jobs:
   build:
