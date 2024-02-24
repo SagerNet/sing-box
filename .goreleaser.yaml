@@ -5,10 +5,6 @@ builds:
     flags:
       - -v
       - -trimpath
-    asmflags:
-      - all=-trimpath={{.Env.GOPATH}}
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
     ldflags:
       - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
     tags:
@@ -44,10 +40,6 @@ builds:
     flags:
       - -v
       - -trimpath
-    asmflags:
-      - all=-trimpath={{.Env.GOPATH}}
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
     ldflags:
       - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
     tags:
@@ -73,10 +65,6 @@ builds:
     flags:
       - -v
       - -trimpath
-    asmflags:
-      - all=-trimpath={{.Env.GOPATH}}
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
     ldflags:
       - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
     tags:

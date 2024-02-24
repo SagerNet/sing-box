@@ -46,13 +46,13 @@ var (
 
 func init() {
 	sharedFlags = append(sharedFlags, "-trimpath")
-	sharedFlags = append(sharedFlags, "-ldflags")
+	sharedFlags = append(sharedFlags, "-buildvcs=false")
 	currentTag, err := build_shared.ReadTag()
 	if err != nil {
 		currentTag = "unknown"
 	}
-	sharedFlags = append(sharedFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
-	debugFlags = append(debugFlags, "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
+	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
+	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
 
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_ech", "with_utls", "with_clash_api")
 	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
