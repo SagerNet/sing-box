@@ -1182,6 +1182,10 @@ func (r *Router) updateWIFIState() {
 	state := r.platformInterface.ReadWIFIState()
 	if state != r.wifiState {
 		r.wifiState = state
-		r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+		if state.SSID == "" && state.BSSID == "" {
+			r.logger.Info("updated WIFI state: disconnected")
+		} else {
+			r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+		}
 	}
 }
