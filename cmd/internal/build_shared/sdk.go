@@ -30,7 +30,7 @@ func FindSDK() {
 	}
 	for _, path := range searchPath {
 		path = os.ExpandEnv(path)
-		if rw.FileExists(path + "/licenses/android-sdk-license") {
+		if rw.FileExists(filepath.Join(path, "licenses", "android-sdk-license")) {
 			androidSDKPath = path
 			break
 		}
@@ -58,11 +58,13 @@ func FindSDK() {
 }
 
 func findNDK() bool {
-	if rw.FileExists(androidSDKPath + "/ndk/25.1.8937393") {
-		androidNDKPath = androidSDKPath + "/ndk/25.1.8937393"
+	const fixedVersion = "26.2.11394342"
+	const versionFile = "source.properties"
+	if fixedPath := filepath.Join(androidSDKPath, "ndk", fixedVersion); rw.FileExists(filepath.Join(fixedPath, versionFile)) {
+		androidNDKPath = fixedPath
 		return true
 	}
-	ndkVersions, err := os.ReadDir(androidSDKPath + "/ndk")
+	ndkVersions, err := os.ReadDir(filepath.Join(androidSDKPath, "ndk"))
 	if err != nil {
 		return false
 	}
@@ -83,8 +85,10 @@ func findNDK() bool {
 		return true
 	})
 	for _, versionName := range versionNames {
-		if rw.FileExists(androidSDKPath + "/ndk/" + versionName) {
-			androidNDKPath = androidSDKPath + "/ndk/" + versionName
+		currentNDKPath := filepath.Join(androidSDKPath, "ndk", versionName)
+		if rw.FileExists(filepath.Join(androidSDKPath, versionFile)) {
+			androidNDKPath = currentNDKPath
+			log.Warn("reproducibility warning: using NDK version " + versionName + " instead of " + fixedVersion)
 			return true
 		}
 	}
@@ -95,13 +99,12 @@ var GoBinPath string
 
 func FindMobile() {
 	goBin := filepath.Join(build.Default.GOPATH, "bin")
-
 	if runtime.GOOS == "windows" {
-		if !rw.FileExists(goBin + "/" + "gobind.exe") {
-			log.Fatal("missing gomobile.exe installation")
+		if !rw.FileExists(filepath.Join(goBin, "gobind.exe")) {
+			log.Fatal("missing gomobile installation")
 		}
 	} else {
-		if !rw.FileExists(goBin + "/" + "gobind") {
+		if !rw.FileExists(filepath.Join(goBin, "gobind")) {
 			log.Fatal("missing gomobile installation")
 		}
 	}
