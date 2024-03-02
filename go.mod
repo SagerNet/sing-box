@@ -26,7 +26,7 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20231209105102-8d27a30e436e
 	github.com/sagernet/quic-go v0.40.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.3.4
+	github.com/sagernet/sing v0.3.5
 	github.com/sagernet/sing-dns v0.1.12
 	github.com/sagernet/sing-mux v0.2.0
 	github.com/sagernet/sing-quic v0.1.8
@@ -46,7 +46,7 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.20.0
 	golang.org/x/net v0.21.0
-	golang.org/x/sys v0.17.0
+	golang.org/x/sys v0.18.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.62.0
 	google.golang.org/protobuf v1.32.0
