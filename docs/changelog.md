@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.8.8
+
+* Fixes and improvements
+
 #### 1.8.7
 
 * Fixes and improvements
@@ -108,8 +112,8 @@ Also, starting with this release, uTLS requires at least Go 1.20.
 
 **11**:
 
-Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor` to `20231204.0`
-
+Updated `cloudflare-tls`, `gomobile`, `smux`, `tfo-go` and `wireguard-go` to latest, `quic-go` to `0.40.1` and  `gvisor`
+to `20231204.0`
 
 #### 1.8.0-rc.11
 
