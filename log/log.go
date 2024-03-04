@@ -47,7 +47,7 @@ func New(options Options) (Factory, error) {
 		DisableColors:    logOptions.DisableColor || logFilePath != "",
 		DisableTimestamp: !logOptions.Timestamp && logFilePath != "",
 		FullTimestamp:    logOptions.Timestamp,
-		TimestampFormat:  "-0700 2006-01-02 15:04:05",
+		TimestampFormat:  "2006-01-02T15:04:05-0700",
 	}
 	factory := NewDefaultFactory(
 		options.Context,
