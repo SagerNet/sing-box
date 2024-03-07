@@ -116,6 +116,7 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 func (h *Hysteria) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = log.ContextWithNewID(ctx)
 	metadata = h.createMetadata(conn, metadata)
+	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
 	if userName := h.userNameList[userID]; userName != "" {
 		metadata.User = userName
@@ -129,6 +130,7 @@ func (h *Hysteria) newConnection(ctx context.Context, conn net.Conn, metadata ad
 func (h *Hysteria) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = log.ContextWithNewID(ctx)
 	metadata = h.createPacketMetadata(conn, metadata)
+	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
 	if userName := h.userNameList[userID]; userName != "" {
 		metadata.User = userName
