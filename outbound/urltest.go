@@ -470,7 +470,8 @@ func (g *URLTestGroup) selectBestLatencyOutbounds() {
             if bestTCPLatency == 0 || history.Delay < bestTCPLatency {
                 bestTCPLatency = history.Delay
             }
-        } else if common.Contains(detour.Network(), N.NetworkUDP) {
+        }
+		if common.Contains(detour.Network(), N.NetworkUDP) {
             if bestUDPLatency == 0 || history.Delay < bestUDPLatency {
                 bestUDPLatency = history.Delay
             }
@@ -485,7 +486,8 @@ func (g *URLTestGroup) selectBestLatencyOutbounds() {
 
         if common.Contains(detour.Network(), N.NetworkTCP) && history.Delay <= bestTCPLatency+g.tolerance {
             bestTCPOutbounds = append(bestTCPOutbounds, detour)
-        } else if common.Contains(detour.Network(), N.NetworkUDP) && history.Delay <= bestUDPLatency+g.tolerance {
+        }
+		if common.Contains(detour.Network(), N.NetworkUDP) && history.Delay <= bestUDPLatency+g.tolerance {
             bestUDPOutbounds = append(bestUDPOutbounds, detour)
         }
     }
