@@ -13,5 +13,5 @@ type URLTestOutboundOptions struct {
 	Tolerance                 uint16   `json:"tolerance,omitempty"`
 	IdleTimeout               Duration `json:"idle_timeout,omitempty"`
 	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
-	Randomized                bool     `json:"randomized,omitempty"`
+	Randomize                 bool     `json:"randomize,omitempty"`
 }

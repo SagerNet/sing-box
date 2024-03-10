@@ -39,7 +39,7 @@ type URLTest struct {
 	idleTimeout                  time.Duration
 	group                        *URLTestGroup
 	interruptExternalConnections bool
-	randomized                   bool
+	randomize                    bool
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (*URLTest, error) {
@@ -59,7 +59,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		tolerance:                    options.Tolerance,
 		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
-		randomized:                   options.Randomized,
+		randomize:                    options.Randomize,
 	}
 	if len(outbound.tags) == 0 {
 		return nil, E.New("missing tags")
@@ -86,7 +86,7 @@ func (s *URLTest) Start() error {
 		s.tolerance,
 		s.idleTimeout,
 		s.interruptExternalConnections,
-		s.randomized,
+		s.randomize,
 	)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (s *URLTest) CheckOutbounds() {
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	s.group.Touch()
 	var outbound adapter.Outbound
-	if s.randomized {
+	if s.randomize {
 		outbound = s.group.selectRandomOutbound(network)
 	} else {
 		switch N.NetworkName(network) {
@@ -160,7 +160,7 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	s.group.Touch()
 	var outbound adapter.Outbound
-	if s.randomized {
+	if s.randomize {
 		outbound = s.group.selectRandomOutbound(N.NetworkUDP) // Since ListenPacket is for UDP, we pass "N.NetworkUDP" as the network type
 	} else {
 		outbound = s.group.selectedOutboundUDP
@@ -209,7 +209,7 @@ type URLTestGroup struct {
 	pauseManager                 pause.Manager
 	selectedOutboundTCP          adapter.Outbound
 	selectedOutboundUDP          adapter.Outbound
-	randomized					 bool
+	randomize					 bool
 	bestTCPLatencyOutbounds      []adapter.Outbound
 	bestUDPLatencyOutbounds      []adapter.Outbound
 	interruptGroup               *interrupt.Group
@@ -232,7 +232,7 @@ func NewURLTestGroup(
 	tolerance uint16,
 	idleTimeout time.Duration,
 	interruptExternalConnections bool,
-	randomized bool,
+	randomize bool,
 ) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
@@ -267,7 +267,7 @@ func NewURLTestGroup(
 		pauseManager:                 service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
-		randomized:					  randomized,
+		randomize:					  randomize,
 	}, nil
 }
 
@@ -367,7 +367,7 @@ func (g *URLTestGroup) loopCheck() {
         }
         g.pauseManager.WaitActive()
         g.CheckOutbounds(false)
-		if g.randomized {
+		if g.randomize {
 			g.selectBestLatencyOutbounds()
 		}
     }
@@ -383,7 +383,7 @@ func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
         return nil, err
     }
 
-	if g.randomized {
+	if g.randomize {
 		g.selectBestLatencyOutbounds()
 	}
     return result, nil
