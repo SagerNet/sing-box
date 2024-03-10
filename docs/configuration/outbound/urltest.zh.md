@@ -14,7 +14,8 @@
   "interval": "",
   "tolerance": 50,
   "idle_timeout": "",
-  "interrupt_exist_connections": false
+  "interrupt_exist_connections": false,
+  "randomize": false
 }
 ```
 
@@ -47,3 +48,10 @@
 当选定的出站发生更改时，中断现有连接。
 
 仅入站连接受此设置影响，内部连接将始终被中断。
+
+
+#### randomize
+
+出站将在容忍范围内的最佳延迟内随机选择。 默认情况下它处于禁用状态。
+
+如果激活了随机化，则interrupt_exist_connections将被忽略。
