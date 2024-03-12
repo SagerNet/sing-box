@@ -1,0 +1,80 @@
+project_name: sing-box
+builds:
+  - id: main
+    main: ./cmd/sing-box
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
+    tags:
+      - with_gvisor
+      - with_quic
+      - with_dhcp
+      - with_wireguard
+      - with_ech
+      - with_utls
+      - with_reality_server
+      - with_acme
+      - with_clash_api
+    env:
+      - CGO_ENABLED=0
+    targets:
+      - linux_386
+      - linux_amd64_v1
+      - linux_arm64
+      - linux_arm_7
+      - linux_s390x
+      - linux_riscv64
+    mod_timestamp: '{{ .CommitTimestamp }}'
+snapshot:
+  name_template: "{{ .Version }}.{{ .ShortCommit }}"
+nfpms:
+  - &template
+    id: package
+    package_name: sing-box
+    file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+    builds:
+      - main
+    vendor: sagernet
+    homepage: https://sing-box.sagernet.org/
+    maintainer: nekohasekai <contact-git@sekai.icu>
+    description: The universal proxy platform.
+    license: GPLv3 or later
+    formats:
+      - deb
+      - rpm
+    priority: extra
+    contents:
+      - src: release/config/config.json
+        dst: /etc/sing-box/config.json
+        type: config
+      - src: release/config/sing-box.service
+        dst: /etc/systemd/system/sing-box.service
+      - src: release/config/sing-box@.service
+        dst: /etc/systemd/system/sing-box@.service
+      - src: LICENSE
+        dst: /usr/share/licenses/sing-box/LICENSE
+    conflicts:
+      - sing-box-beta
+  - id: package_beta
+    <<: *template
+    package_name: sing-box-beta
+    formats:
+      - deb
+      - rpm
+    conflicts:
+      - sing-box
+release:
+  disable: true
+furies:
+  - account: sagernet
+    ids:
+      - package
+    skip: |-
+      {{ eq .Prerelease "" }}
+  - account: sagernet
+    ids:
+      - package_beta
+    skip: |-
+      {{ ne .Prerelease "" }}

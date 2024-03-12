@@ -1,6 +1,7 @@
 project_name: sing-box
 builds:
-  - id: main
+  - &template
+    id: main
     main: ./cmd/sing-box
     flags:
       - -v
@@ -32,16 +33,10 @@ builds:
       - windows_386
       - windows_arm64
       - darwin_amd64_v1
-      - darwin_amd64_v3
       - darwin_arm64
     mod_timestamp: '{{ .CommitTimestamp }}'
   - id: legacy
-    main: ./cmd/sing-box
-    flags:
-      - -v
-      - -trimpath
-    ldflags:
-      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
+    <<: *template
     tags:
       - with_gvisor
       - with_quic
@@ -59,24 +54,8 @@ builds:
       - windows_amd64_v1
       - windows_386
       - darwin_amd64_v1
-    mod_timestamp: '{{ .CommitTimestamp }}'
   - id: android
-    main: ./cmd/sing-box
-    flags:
-      - -v
-      - -trimpath
-    ldflags:
-      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
-    tags:
-      - with_gvisor
-      - with_quic
-      - with_dhcp
-      - with_wireguard
-      - with_ech
-      - with_utls
-      - with_reality_server
-      - with_acme
-      - with_clash_api
+    <<: *template
     env:
       - CGO_ENABLED=1
     overrides:
@@ -107,11 +86,11 @@ builds:
       - android_arm64
       - android_386
       - android_amd64
-    mod_timestamp: '{{ .CommitTimestamp }}'
 snapshot:
   name_template: "{{ .Version }}.{{ .ShortCommit }}"
 archives:
-  - id: archive
+  - &template
+    id: archive
     builds:
       - main
       - android
@@ -124,20 +103,16 @@ archives:
       - LICENSE
     name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
   - id: archive-legacy
+    <<: *template
     builds:
       - legacy
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
-    wrap_in_directory: true
-    files:
-      - LICENSE
     name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}-legacy'
 nfpms:
   - id: package
     package_name: sing-box
     file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+    builds:
+      - main
     vendor: sagernet
     homepage: https://sing-box.sagernet.org/
     maintainer: nekohasekai <contact-git@sekai.icu>
@@ -158,6 +133,20 @@ nfpms:
         dst: /etc/systemd/system/sing-box@.service
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
+    deb:
+      signature:
+        key_file: "{{ .Env.NFPM_KEY_PATH }}"
+    rpm:
+      signature:
+        key_file: "{{ .Env.NFPM_KEY_PATH }}"
+    overrides:
+      deb:
+        conflicts:
+          - sing-box-beta
+      rpm:
+        conflicts:
+          - sing-box-beta
+
 source:
   enabled: false
   name_template: '{{ .ProjectName }}-{{ .Version }}.source'
@@ -171,6 +160,10 @@ release:
   github:
     owner: SagerNet
     name: sing-box
-  name_template: '{{ if .IsSnapshot }}{{ nightly }}{{ else }}{{ .Version }}{{ end }}'
   draft: true
+  prerelease: auto
   mode: replace
+  ids:
+    - archive
+    - package
+  skip_upload: true
