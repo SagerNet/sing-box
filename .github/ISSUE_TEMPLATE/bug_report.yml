@@ -66,6 +66,12 @@ body:
         For the Android client, please check the `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` file for crash logs.
       render: shell
   - type: checkboxes
+    id: supporter
+    attributes:
+      label: Supporter
+      options:
+        - label: I am a [sponsor](https://github.com/sponsors/nekohasekai/)
+  - type: checkboxes
     attributes:
       label: Integrity requirements
       description: |-
