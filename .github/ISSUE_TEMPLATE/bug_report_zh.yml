@@ -66,6 +66,12 @@ body:
         对于 Android 图形客户端程序，请检查 `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` 文件以导出崩溃日志。
       render: shell
   - type: checkboxes
+    id: supporter
+    attributes:
+      label: 支持我们
+      options:
+        - label: 我已经 [赞助](https://github.com/sponsors/nekohasekai/)
+  - type: checkboxes
     attributes:
       label: 完整性要求
       description: |-
