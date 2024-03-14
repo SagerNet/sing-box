@@ -3,14 +3,17 @@ package libbox
 import (
 	"context"
 	"net/netip"
+	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/urltest"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -72,6 +75,16 @@ func (s *BoxService) Start() error {
 }
 
 func (s *BoxService) Close() error {
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+			return
+		case <-time.After(C.DefaultStopFatalTimeout):
+			os.Exit(1)
+		}
+	}()
 	s.cancel()
 	s.urlTestHistoryStorage.Close()
 	return s.instance.Close()

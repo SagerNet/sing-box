@@ -4,6 +4,7 @@ const (
 	CommandLog int32 = iota
 	CommandStatus
 	CommandServiceReload
+	CommandServiceClose
 	CommandCloseConnections
 	CommandGroup
 	CommandSelectOutbound
