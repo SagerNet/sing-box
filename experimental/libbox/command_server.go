@@ -37,6 +37,7 @@ type CommandServer struct {
 
 type CommandServerHandler interface {
 	ServiceReload() error
+	PostServiceClose()
 	GetSystemProxyStatus() *SystemProxyStatus
 	SetSystemProxyEnabled(isEnabled bool) error
 }
@@ -155,6 +156,8 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleStatusConn(conn)
 	case CommandServiceReload:
 		return s.handleServiceReload(conn)
+	case CommandServiceClose:
+		return s.handleServiceClose(conn)
 	case CommandCloseConnections:
 		return s.handleCloseConnections(conn)
 	case CommandGroup:
