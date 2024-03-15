@@ -15,7 +15,7 @@ MAIN_PARAMS = $(PARAMS) -tags $(TAGS)
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
 
-.PHONY: test release docs
+.PHONY: test release docs build
 
 build:
 	go build $(MAIN_PARAMS) $(MAIN)
