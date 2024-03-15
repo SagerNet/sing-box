@@ -336,10 +336,10 @@ flowchart TB
     }
     ```
 
-=== ":material-dns: DNS rules (1.9.0+)"
+=== ":material-dns: DNS rules (Enhanced, but slower) (1.9.0+)"
 
-    === ":material-shield-off: With DNS Leaks"
-    
+    === ":material-shield-off: With DNS leaks"
+
         ```json
         {
           "dns": {
@@ -376,7 +376,16 @@ flowchart TB
                 "server": "google"
               },
               {
-                "rule_set": "geoip-cn",
+                "type": "logical",
+                "mode": "and",
+                "rules": [
+                  {
+                    "rule_set": "geosite-geolocation-!cn"
+                  },
+                  {
+                    "rule_set": "geoip-cn"
+                  }
+                ],
                 "server": "local"
               }
             ]
@@ -391,6 +400,12 @@ flowchart TB
               },
               {
                 "type": "remote",
+                "tag": "geosite-geolocation-!cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+              },
+              {
+                "type": "remote",
                 "tag": "geoip-cn",
                 "format": "binary",
                 "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
@@ -398,14 +413,18 @@ flowchart TB
             ]
           },
           "experimental": {
+            "cache_file": {
+              "enabled": true,
+              "store_rdrc": true
+            },
             "clash_api": {
-              "default_mode": "Leak"
+              "default_mode": "Enhanced"
             }
           }
         }
         ```
 
-    === ":material-security: Without DNS Leaks (1.9.0-alpha.2+)"
+    === ":material-security: Without DNS leaks, but slower (1.9.0-alpha.2+)"
 
         ```json
         {
@@ -439,7 +458,16 @@ flowchart TB
                 "server": "local"
               },
               {
-                "rule_set": "geoip-cn",
+                "type": "logical",
+                "mode": "and",
+                "rules": [
+                  {
+                    "rule_set": "geosite-geolocation-!cn"
+                  },
+                  {
+                    "rule_set": "geoip-cn"
+                  }
+                ],
                 "server": "google",
                 "client_subnet": "114.114.114.114" // Any China client IP address
               }
@@ -455,11 +483,26 @@ flowchart TB
               },
               {
                 "type": "remote",
+                "tag": "geosite-geolocation-!cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+              },
+              {
+                "type": "remote",
                 "tag": "geoip-cn",
                 "format": "binary",
                 "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
               }
             ]
+          },
+          "experimental": {
+            "cache_file": {
+              "enabled": true,
+              "store_rdrc": true
+            },
+            "clash_api": {
+              "default_mode": "Enhanced"
+            }
           }
         }
         ```
