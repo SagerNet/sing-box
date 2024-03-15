@@ -138,10 +138,13 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 				response, err = r.dnsClient.Exchange(dnsCtx, transport, message, strategy)
 			}
 			cancel()
+			var rejected bool
 			if err != nil {
 				if errors.Is(err, dns.ErrResponseRejectedCached) {
+					rejected = true
 					r.dnsLogger.DebugContext(ctx, E.Cause(err, "response rejected for ", formatQuestion(message.Question[0].String())), " (cached)")
 				} else if errors.Is(err, dns.ErrResponseRejected) {
+					rejected = true
 					r.dnsLogger.DebugContext(ctx, E.Cause(err, "response rejected for ", formatQuestion(message.Question[0].String())))
 				} else if len(message.Question) > 0 {
 					r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", formatQuestion(message.Question[0].String())))
@@ -149,9 +152,10 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 					r.dnsLogger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
 				}
 			}
-			if !addressLimit || err == nil {
-				break
+			if addressLimit && rejected {
+				continue
 			}
+			break
 		}
 	}
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
