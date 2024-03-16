@@ -22,7 +22,8 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: latest
-          args: goreleaser release -f .goreleaser.fury.yaml --clean
+          args: release -f .goreleaser.fury.yaml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
