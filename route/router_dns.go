@@ -75,9 +75,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 					ctx = dns.ContextWithClientSubnet(ctx, *clientSubnet)
 				}
 				if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
-					return ctx, transport, domainStrategy, rule, ruleIndex
+					return ctx, transport, domainStrategy, rule, displayRuleIndex
 				} else {
-					return ctx, transport, r.defaultDomainStrategy, rule, ruleIndex
+					return ctx, transport, r.defaultDomainStrategy, rule, displayRuleIndex
 				}
 			}
 		}
