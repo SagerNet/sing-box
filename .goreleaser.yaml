@@ -128,9 +128,9 @@ nfpms:
         dst: /etc/sing-box/config.json
         type: config
       - src: release/config/sing-box.service
-        dst: /etc/systemd/system/sing-box.service
+        dst: /usr/lib/systemd/system/sing-box.service
       - src: release/config/sing-box@.service
-        dst: /etc/systemd/system/sing-box@.service
+        dst: /usr/lib/systemd/system/sing-box@.service
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
     deb:
