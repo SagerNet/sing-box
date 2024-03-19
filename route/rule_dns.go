@@ -247,7 +247,7 @@ func (r *DefaultDNSRule) WithAddressLimit() bool {
 		if !isRuleSet {
 			continue
 		}
-		if ruleSet.ContainsIPCIDRRule() {
+		if ruleSet.ContainsIPCIDRRule() && !ruleSet.ipcidrMatchSource {
 			return true
 		}
 	}
