@@ -24,8 +24,8 @@ func (r *IPIsPrivateItem) Match(metadata *adapter.InboundContext) bool {
 	} else {
 		destination = metadata.Destination.Addr
 	}
-	if destination.IsValid() && !N.IsPublicAddr(destination) {
-		return true
+	if destination.IsValid() {
+		return !N.IsPublicAddr(destination)
 	}
 	for _, destinationAddress := range metadata.DestinationAddresses {
 		if !N.IsPublicAddr(destinationAddress) {
