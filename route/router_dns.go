@@ -47,7 +47,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 		if index != -1 {
 			dnsRules = dnsRules[index+1:]
 		}
-		for ruleIndex, rule := range dnsRules {
+		for currentRuleIndex, rule := range dnsRules {
 			metadata.ResetRuleCache()
 			if rule.Match(metadata) {
 				detour := rule.Outbound()
@@ -60,11 +60,11 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 				if isFakeIP && !allowFakeIP {
 					continue
 				}
-				displayRuleIndex := ruleIndex
+				ruleIndex := currentRuleIndex
 				if index != -1 {
-					displayRuleIndex += index + 1
+					ruleIndex += index + 1
 				}
-				r.dnsLogger.DebugContext(ctx, "match[", displayRuleIndex, "] ", rule.String(), " => ", detour)
+				r.dnsLogger.DebugContext(ctx, "match[", ruleIndex, "] ", rule.String(), " => ", detour)
 				if (isFakeIP && !r.dnsIndependentCache) || rule.DisableCache() {
 					ctx = dns.ContextWithDisableCache(ctx, true)
 				}
