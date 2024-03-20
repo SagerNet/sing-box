@@ -29,6 +29,7 @@ type _ACMEDNS01ChallengeOptions struct {
 	Provider          string                     `json:"provider,omitempty"`
 	AliDNSOptions     ACMEDNS01AliDNSOptions     `json:"-"`
 	CloudflareOptions ACMEDNS01CloudflareOptions `json:"-"`
+	TencentCloudOptions ACMEDNS01TencentCloudOptions `json:"-"`
 }
 
 type ACMEDNS01ChallengeOptions _ACMEDNS01ChallengeOptions
@@ -40,6 +41,8 @@ func (o ACMEDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 		v = o.AliDNSOptions
 	case C.DNSProviderCloudflare:
 		v = o.CloudflareOptions
+	case C.DNSProviderTencentCloud:
+		v = o.TencentCloudOptions
 	case "":
 		return nil, E.New("missing provider type")
 	default:
@@ -59,6 +62,8 @@ func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.AliDNSOptions
 	case C.DNSProviderCloudflare:
 		v = &o.CloudflareOptions
+	case C.DNSProviderTencentCloud:
+		v = &o.TencentCloudOptions
 	default:
 		return E.New("unknown provider type: " + o.Provider)
 	}
@@ -77,4 +82,9 @@ type ACMEDNS01AliDNSOptions struct {
 
 type ACMEDNS01CloudflareOptions struct {
 	APIToken string `json:"api_token,omitempty"`
+}
+
+type ACMEDNS01TencentCloudOptions struct {
+	SecretId string `json:"secert_id,omitempty"`
+	SecretKey string `json:"secert_key,omitempty"`
 }

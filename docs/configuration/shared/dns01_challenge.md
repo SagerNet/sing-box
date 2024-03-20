@@ -29,3 +29,13 @@
   "api_token": ""
 }
 ```
+
+#### Tencent Cloud
+
+```json
+{
+  "provider": "tencentcloud",
+  "secret_id": "",
+  "secert_key": ""
+}
+```
