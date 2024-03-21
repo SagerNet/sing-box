@@ -209,12 +209,12 @@ type URLTestGroup struct {
 	pauseManager                 pause.Manager
 	selectedOutboundTCP          adapter.Outbound
 	selectedOutboundUDP          adapter.Outbound
-	randomize					 bool
+	randomize                    bool
 	bestTCPLatencyOutbounds      []adapter.Outbound
 	bestUDPLatencyOutbounds      []adapter.Outbound
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
-	
+
 	access     sync.Mutex
 	ticker     *time.Ticker
 	close      chan struct{}
@@ -267,7 +267,7 @@ func NewURLTestGroup(
 		pauseManager:                 service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
-		randomize:					  randomize,
+		randomize:                    randomize,
 	}, nil
 }
 
@@ -348,29 +348,29 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 }
 
 func (g *URLTestGroup) loopCheck() {
-    if time.Now().Sub(g.lastActive.Load()) > g.interval {
-        g.lastActive.Store(time.Now())
-        g.CheckOutbounds(false)
-    }
-    for {
-        select {
-        case <-g.close:
-            return
-        case <-g.ticker.C:
-        }
-        if time.Now().Sub(g.lastActive.Load()) > g.idleTimeout {
-            g.access.Lock()
-            g.ticker.Stop()
-            g.ticker = nil
-            g.access.Unlock()
-            return
-        }
-        g.pauseManager.WaitActive()
-        g.CheckOutbounds(false)
+	if time.Now().Sub(g.lastActive.Load()) > g.interval {
+		g.lastActive.Store(time.Now())
+		g.CheckOutbounds(false)
+	}
+	for {
+		select {
+		case <-g.close:
+			return
+		case <-g.ticker.C:
+		}
+		if time.Now().Sub(g.lastActive.Load()) > g.idleTimeout {
+			g.access.Lock()
+			g.ticker.Stop()
+			g.ticker = nil
+			g.access.Unlock()
+			return
+		}
+		g.pauseManager.WaitActive()
+		g.CheckOutbounds(false)
 		if g.randomize {
 			g.selectBestLatencyOutbounds()
 		}
-    }
+	}
 }
 
 func (g *URLTestGroup) CheckOutbounds(force bool) {
@@ -379,14 +379,14 @@ func (g *URLTestGroup) CheckOutbounds(force bool) {
 
 func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
 	result, err := g.urlTest(ctx, false)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	if g.randomize {
 		g.selectBestLatencyOutbounds()
 	}
-    return result, nil
+	return result, nil
 }
 
 func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
@@ -454,69 +454,67 @@ func (g *URLTestGroup) performUpdateCheck() {
 }
 
 func (g *URLTestGroup) selectBestLatencyOutbounds() {
-    var bestTCPLatency uint16
-    var bestUDPLatency uint16
+	var bestTCPLatency uint16
+	var bestUDPLatency uint16
 
-    var bestTCPOutbounds []adapter.Outbound
-    var bestUDPOutbounds []adapter.Outbound
+	var bestTCPOutbounds []adapter.Outbound
+	var bestUDPOutbounds []adapter.Outbound
 
-    for _, detour := range g.outbounds {
-        history := g.history.LoadURLTestHistory(RealTag(detour))
-        if history == nil {
-            continue
-        }
-        
-        if common.Contains(detour.Network(), N.NetworkTCP) {
-            if bestTCPLatency == 0 || history.Delay < bestTCPLatency {
-                bestTCPLatency = history.Delay
-            }
-        }
+	for _, detour := range g.outbounds {
+		history := g.history.LoadURLTestHistory(RealTag(detour))
+		if history == nil {
+			continue
+		}
+
+		if common.Contains(detour.Network(), N.NetworkTCP) {
+			if bestTCPLatency == 0 || history.Delay < bestTCPLatency {
+				bestTCPLatency = history.Delay
+			}
+		}
 		if common.Contains(detour.Network(), N.NetworkUDP) {
-            if bestUDPLatency == 0 || history.Delay < bestUDPLatency {
-                bestUDPLatency = history.Delay
-            }
-        }
-    }
+			if bestUDPLatency == 0 || history.Delay < bestUDPLatency {
+				bestUDPLatency = history.Delay
+			}
+		}
+	}
 
-    for _, detour := range g.outbounds {
-        history := g.history.LoadURLTestHistory(RealTag(detour))
-        if history == nil {
-            continue
-        }
+	for _, detour := range g.outbounds {
+		history := g.history.LoadURLTestHistory(RealTag(detour))
+		if history == nil {
+			continue
+		}
 
-        if common.Contains(detour.Network(), N.NetworkTCP) && history.Delay <= bestTCPLatency+g.tolerance {
-            bestTCPOutbounds = append(bestTCPOutbounds, detour)
-        }
+		if common.Contains(detour.Network(), N.NetworkTCP) && history.Delay <= bestTCPLatency+g.tolerance {
+			bestTCPOutbounds = append(bestTCPOutbounds, detour)
+		}
 		if common.Contains(detour.Network(), N.NetworkUDP) && history.Delay <= bestUDPLatency+g.tolerance {
-            bestUDPOutbounds = append(bestUDPOutbounds, detour)
-        }
-    }
+			bestUDPOutbounds = append(bestUDPOutbounds, detour)
+		}
+	}
 
-    g.bestTCPLatencyOutbounds = bestTCPOutbounds
-    g.bestUDPLatencyOutbounds = bestUDPOutbounds
+	g.bestTCPLatencyOutbounds = bestTCPOutbounds
+	g.bestUDPLatencyOutbounds = bestUDPOutbounds
 }
 
 // selectRandomOutbound selects an outbound randomly among the outbounds with the best latency
 func (g *URLTestGroup) selectRandomOutbound(network string) adapter.Outbound {
-    var bestOutbounds []adapter.Outbound
+	var bestOutbounds []adapter.Outbound
 
-    switch network {
-    case N.NetworkTCP:
-        bestOutbounds = g.bestTCPLatencyOutbounds
-    case N.NetworkUDP:
-        bestOutbounds = g.bestUDPLatencyOutbounds
-    default:
-        return nil
-    }
+	switch network {
+	case N.NetworkTCP:
+		bestOutbounds = g.bestTCPLatencyOutbounds
+	case N.NetworkUDP:
+		bestOutbounds = g.bestUDPLatencyOutbounds
+	default:
+		return nil
+	}
 
-    if len(bestOutbounds) == 0 {
-        return nil
-    }
+	if len(bestOutbounds) == 0 {
+		return nil
+	}
 
-    randIndex := rand.Intn(len(bestOutbounds))
+	randIndex := rand.Intn(len(bestOutbounds))
 	g.logger.Debug("Random outbound selection: ", bestOutbounds[randIndex].Tag())
-	
-    return bestOutbounds[randIndex]
+
+	return bestOutbounds[randIndex]
 }
-
-
