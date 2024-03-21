@@ -64,7 +64,7 @@ proto_install:
 	go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 release:
-	go run ./cmd/internal/build goreleaser release --clean --skip publish --skip fury
+	go run ./cmd/internal/build goreleaser release --clean --skip publish
 	mkdir dist/release
 	mv dist/*.tar.gz \
 		dist/*.zip \
