@@ -81,7 +81,6 @@ release_repo:
 	go run ./cmd/internal/build goreleaser release -f .goreleaser.fury.yaml --clean
 
 release_install:
-	go install -v github.com/goreleaser/goreleaser@latest
 	go install -v github.com/tcnksm/ghr@latest
 
 update_android_version:
