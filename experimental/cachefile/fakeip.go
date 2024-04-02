@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/bbolt"
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -58,12 +59,13 @@ func (c *CacheFile) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
 }
 
 func (c *CacheFile) FakeIPSaveMetadataAsync(metadata *adapter.FakeIPMetadata) {
-	if timer := c.saveMetadataTimer; timer != nil {
-		timer.Stop()
+	if c.saveMetadataTimer == nil {
+		c.saveMetadataTimer = time.AfterFunc(C.FakeIPMetadataSaveInterval, func() {
+			_ = c.FakeIPSaveMetadata(metadata)
+		})
+	} else {
+		c.saveMetadataTimer.Reset(C.FakeIPMetadataSaveInterval)
 	}
-	c.saveMetadataTimer = time.AfterFunc(10*time.Second, func() {
-		_ = c.FakeIPSaveMetadata(metadata)
-	})
 }
 
 func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {

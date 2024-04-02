@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Box) startOutbounds() error {
-	monitor := taskmonitor.New(s.logger, C.DefaultStartTimeout)
+	monitor := taskmonitor.New(s.logger, C.StartTimeout)
 	outboundTags := make(map[adapter.Outbound]string)
 	outbounds := make(map[string]adapter.Outbound)
 	for i, outboundToStart := range s.outbounds {

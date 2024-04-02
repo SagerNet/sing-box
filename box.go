@@ -235,7 +235,7 @@ func (s *Box) Start() error {
 }
 
 func (s *Box) preStart() error {
-	monitor := taskmonitor.New(s.logger, C.DefaultStartTimeout)
+	monitor := taskmonitor.New(s.logger, C.StartTimeout)
 	monitor.Start("start logger")
 	err := s.logFactory.Start()
 	monitor.Finish()
@@ -331,7 +331,7 @@ func (s *Box) Close() error {
 	default:
 		close(s.done)
 	}
-	monitor := taskmonitor.New(s.logger, C.DefaultStopTimeout)
+	monitor := taskmonitor.New(s.logger, C.StopTimeout)
 	var errors error
 	for serviceName, service := range s.postServices {
 		monitor.Start("close ", serviceName)
