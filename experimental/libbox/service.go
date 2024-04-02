@@ -81,7 +81,7 @@ func (s *BoxService) Close() error {
 		select {
 		case <-done:
 			return
-		case <-time.After(C.DefaultStopFatalTimeout):
+		case <-time.After(C.FatalStopTimeout):
 			os.Exit(1)
 		}
 	}()

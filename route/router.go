@@ -422,7 +422,7 @@ func (r *Router) Outbounds() []adapter.Outbound {
 }
 
 func (r *Router) PreStart() error {
-	monitor := taskmonitor.New(r.logger, C.DefaultStartTimeout)
+	monitor := taskmonitor.New(r.logger, C.StartTimeout)
 	if r.interfaceMonitor != nil {
 		monitor.Start("initialize interface monitor")
 		err := r.interfaceMonitor.Start()
@@ -451,7 +451,7 @@ func (r *Router) PreStart() error {
 }
 
 func (r *Router) Start() error {
-	monitor := taskmonitor.New(r.logger, C.DefaultStartTimeout)
+	monitor := taskmonitor.New(r.logger, C.StartTimeout)
 	if r.needGeoIPDatabase {
 		monitor.Start("initialize geoip database")
 		err := r.prepareGeoIPDatabase()
@@ -606,7 +606,7 @@ func (r *Router) Start() error {
 }
 
 func (r *Router) Close() error {
-	monitor := taskmonitor.New(r.logger, C.DefaultStopTimeout)
+	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	var err error
 	for i, rule := range r.rules {
 		monitor.Start("close rule[", i, "]")

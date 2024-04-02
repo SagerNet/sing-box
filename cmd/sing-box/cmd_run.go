@@ -199,7 +199,7 @@ func run() error {
 }
 
 func closeMonitor(ctx context.Context) {
-	time.Sleep(C.DefaultStopFatalTimeout)
+	time.Sleep(C.FatalStopTimeout)
 	select {
 	case <-ctx.Done():
 		return
