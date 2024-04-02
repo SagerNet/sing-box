@@ -83,9 +83,9 @@ type LocalRuleSet struct {
 }
 
 type RemoteRuleSet struct {
-	URL            string   `json:"url"`
-	DownloadDetour string   `json:"download_detour,omitempty"`
-	UpdateInterval Duration `json:"update_interval,omitempty"`
+	URL            Listable[string] `json:"url"`
+	DownloadDetour string           `json:"download_detour,omitempty"`
+	UpdateInterval Duration         `json:"update_interval,omitempty"`
 }
 
 type _HeadlessRule struct {

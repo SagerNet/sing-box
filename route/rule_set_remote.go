@@ -227,7 +227,18 @@ func (s *RemoteRuleSet) loopUpdate() {
 }
 
 func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext adapter.RuleSetStartContext) error {
-	s.logger.Debug("updating rule-set ", s.options.Tag, " from URL: ", s.options.RemoteOptions.URL)
+	var err error
+	for _, url := range s.options.RemoteOptions.URL {
+		err = s.fetchURL(ctx, url, startContext)
+		if err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+func (s *RemoteRuleSet) fetchURL(ctx context.Context, url string, startContext adapter.RuleSetStartContext) error {
+	s.logger.Debug("updating rule-set ", s.options.Tag, " from URL: ", url)
 	var httpClient *http.Client
 	if startContext != nil {
 		httpClient = startContext.HTTPClient(s.options.RemoteOptions.DownloadDetour, s.dialer)
@@ -242,7 +253,7 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext adapter.Rule
 			},
 		}
 	}
-	request, err := http.NewRequest("GET", s.options.RemoteOptions.URL, nil)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}

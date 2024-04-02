@@ -23,6 +23,9 @@ func NewRuleSet(ctx context.Context, router adapter.Router, logger logger.Contex
 	case C.RuleSetTypeInline, C.RuleSetTypeLocal, "":
 		return NewLocalRuleSet(router, logger, options)
 	case C.RuleSetTypeRemote:
+		if len(options.RemoteOptions.URL) == 0 {
+			return nil, E.New("missing urls")
+		}
 		return NewRemoteRuleSet(ctx, router, logger, options), nil
 	default:
 		return nil, E.New("unknown rule-set type: ", options.Type)
