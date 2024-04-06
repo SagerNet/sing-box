@@ -89,6 +89,8 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 	if conn != nil && conn.GetState() != connectivity.Shutdown {
 		return conn, nil
 	}
+	//nolint:staticcheck
+	//goland:noinspection GoDeprecation
 	conn, err := grpc.DialContext(c.ctx, c.serverAddr, c.dialOptions...)
 	if err != nil {
 		return nil, err
