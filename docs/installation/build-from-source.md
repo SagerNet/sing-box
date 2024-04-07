@@ -6,6 +6,11 @@ icon: material/file-code
 
 ## :material-graph: Requirements
 
+!!! note ""
+
+    Certain distros, such as [Fedora](https://fedoraproject.org/wiki/Changes/golang1.13#Detailed_Description), alter their default GOPROXY value which might cause build failure.
+    To work around this, simply set GOPROXY to upstream default, or [proxy.golang.org](https://proxy.golang.org).
+
 Before sing-box 1.4.0:
 
 * Go 1.18.5 - 1.20.x
