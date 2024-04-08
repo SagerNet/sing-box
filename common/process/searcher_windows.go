@@ -133,7 +133,7 @@ func (s *searcher) Search(b []byte, ip netip.Addr, port uint16) (uint32, error) 
 		}
 
 		// according to MSDN, only the lower 16 bits of dwLocalPort are used and the port number is in network endian.
-		// this field can be illustrated as follows depends on different machine endianess:
+		// this field can be illustrated as follows depends on different machine endianness:
 		//     little endian: [ MSB LSB  0   0  ]   interpret as native uint32 is ((LSB<<8)|MSB)
 		//       big  endian: [  0   0  MSB LSB ]   interpret as native uint32 is ((MSB<<8)|LSB)
 		// so we need an syscall.Ntohs on the lower 16 bits after read the port as native uint32
