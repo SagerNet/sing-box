@@ -2,5 +2,6 @@
 name=sing-box
 baseurl=https://rpm.sagernet.org/
 enabled=1
+repo_gpgcheck=1
 gpgcheck=1
 gpgkey=https://deb.sagernet.org/gpg.key
