@@ -9,7 +9,7 @@ icon: material/package
 === ":material-debian: Debian / APT"
 
     ```bash
-    sudo curl -fsSL https://deb.sagernet.org/gpg.key -o /etc/apt/keyrings/sagernet.asc
+    sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc
     sudo chmod a+r /etc/apt/keyrings/sagernet.asc
     echo "deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/sagernet.asc] https://deb.sagernet.org/ * *" | \
       sudo tee /etc/apt/sources.list.d/sagernet.list > /dev/null
@@ -21,7 +21,7 @@ icon: material/package
 
     ```bash
     sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://sing-box.app/rpm.repo
+    sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo
     sudo dnf install sing-box # or sing-box-beta
     ```
 
@@ -29,7 +29,7 @@ icon: material/package
 
     ```bash
     sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://sing-box.app/rpm.repo
+    sudo yum-config-manager --add-repo https://sing-box.app/sing-box.repo
     sudo yum install sing-box # or sing-box-beta
     ```
 

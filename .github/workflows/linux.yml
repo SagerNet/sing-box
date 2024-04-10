@@ -17,6 +17,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.22
+      - name: Extract signing key
+        run: |-
+          mkdir -p $HOME/.gnupg
+          cat > $HOME/.gnupg/sagernet.key <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
       - name: Publish release
         uses: goreleaser/goreleaser-action@v5
         with:
@@ -27,3 +33,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
+          NFPM_KEY_PATH: $HOME/.gnupg/sagernet.key
+          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
