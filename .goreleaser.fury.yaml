@@ -55,6 +55,14 @@ nfpms:
         dst: /usr/lib/systemd/system/sing-box@.service
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
+    deb:
+      signature:
+        key_file: "{{ .Env.NFPM_KEY_PATH }}"
+      fields:
+        Bugs: https://github.com/SagerNet/sing-box/issues
+    rpm:
+      signature:
+        key_file: "{{ .Env.NFPM_KEY_PATH }}"
     conflicts:
       - sing-box-beta
   - id: package_beta
@@ -72,9 +80,8 @@ furies:
   - account: sagernet
     ids:
       - package
-    skip: "{{ .Prerelease }}"
+    skip: "{{ not (not .Prerelease) }}"
   - account: sagernet
     ids:
       - package_beta
     skip: "{{ not .Prerelease }}"
-
