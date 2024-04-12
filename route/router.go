@@ -79,7 +79,7 @@ type Router struct {
 	transportDomainStrategy            map[dns.Transport]dns.DomainStrategy
 	dnsReverseMapping                  *DNSReverseMapping
 	fakeIPStore                        adapter.FakeIPStore
-	interfaceFinder                    myInterfaceFinder
+	interfaceFinder                    *control.DefaultInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
 	defaultMark                        int
@@ -124,6 +124,7 @@ func NewRouter(
 		needFindProcess:       hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
 		defaultDetour:         options.Final,
 		defaultDomainStrategy: dns.DomainStrategy(dnsOptions.Strategy),
+		interfaceFinder:       control.NewDefaultInterfaceFinder(),
 		autoDetectInterface:   options.AutoDetectInterface,
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
@@ -305,7 +306,7 @@ func NewRouter(
 			}
 			router.networkMonitor = networkMonitor
 			networkMonitor.RegisterCallback(func() {
-				_ = router.interfaceFinder.update()
+				_ = router.interfaceFinder.Update()
 			})
 			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
 				OverrideAndroidVPN:    options.OverrideAndroidVPN,
@@ -1063,24 +1064,18 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 }
 
 func (r *Router) InterfaceFinder() control.InterfaceFinder {
-	return &r.interfaceFinder
+	return r.interfaceFinder
 }
 
 func (r *Router) UpdateInterfaces() error {
 	if r.platformInterface == nil || !r.platformInterface.UsePlatformInterfaceGetter() {
-		return r.interfaceFinder.update()
+		return r.interfaceFinder.Update()
 	} else {
 		interfaces, err := r.platformInterface.Interfaces()
 		if err != nil {
 			return err
 		}
-		r.interfaceFinder.updateInterfaces(common.Map(interfaces, func(it platform.NetworkInterface) net.Interface {
-			return net.Interface{
-				Name:  it.Name,
-				Index: it.Index,
-				MTU:   it.MTU,
-			}
-		}))
+		r.interfaceFinder.UpdateInterfaces(interfaces)
 		return nil
 	}
 }
