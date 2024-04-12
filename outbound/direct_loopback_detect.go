@@ -5,21 +5,22 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/sagernet/sing-box/adapter"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
 type loopBackDetector struct {
-	// router           adapter.Router
+	router           adapter.Router
 	connAccess       sync.RWMutex
 	packetConnAccess sync.RWMutex
 	connMap          map[netip.AddrPort]netip.AddrPort
 	packetConnMap    map[uint16]uint16
 }
 
-func newLoopBackDetector( /*router adapter.Router*/ ) *loopBackDetector {
+func newLoopBackDetector(router adapter.Router) *loopBackDetector {
 	return &loopBackDetector{
-		// router:        router,
+		router:        router,
 		connMap:       make(map[netip.AddrPort]netip.AddrPort),
 		packetConnMap: make(map[uint16]uint16),
 	}
@@ -31,12 +32,12 @@ func (l *loopBackDetector) NewConn(conn net.Conn) net.Conn {
 		return conn
 	}
 	if udpConn, isUDPConn := conn.(abstractUDPConn); isUDPConn {
-		/*if !source.Addr().IsLoopback() {
+		if !source.Addr().IsLoopback() {
 			_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
 			if err != nil {
 				return conn
 			}
-		}*/
+		}
 		if !N.IsPublicAddr(source.Addr()) {
 			return conn
 		}
@@ -57,6 +58,12 @@ func (l *loopBackDetector) NewPacketConn(conn N.NetPacketConn, destination M.Soc
 	if !source.IsValid() {
 		return conn
 	}
+	if !source.Addr().IsLoopback() {
+		_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
+		if err != nil {
+			return conn
+		}
+	}
 	l.packetConnAccess.Lock()
 	l.packetConnMap[source.Port()] = destination.AddrPort().Port()
 	l.packetConnAccess.Unlock()
@@ -74,12 +81,12 @@ func (l *loopBackDetector) CheckPacketConn(source netip.AddrPort, local netip.Ad
 	if !source.IsValid() {
 		return false
 	}
-	/*if !source.Addr().IsLoopback() {
+	if !source.Addr().IsLoopback() {
 		_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
 		if err != nil {
 			return false
 		}
-	}*/
+	}
 	if N.IsPublicAddr(source.Addr()) {
 		return false
 	}
