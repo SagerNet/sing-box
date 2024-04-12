@@ -192,14 +192,14 @@ func (w *platformInterfaceWrapper) UsePlatformInterfaceGetter() bool {
 	return w.iif.UsePlatformInterfaceGetter()
 }
 
-func (w *platformInterfaceWrapper) Interfaces() ([]platform.NetworkInterface, error) {
+func (w *platformInterfaceWrapper) Interfaces() ([]control.Interface, error) {
 	interfaceIterator, err := w.iif.GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
-	var interfaces []platform.NetworkInterface
+	var interfaces []control.Interface
 	for _, netInterface := range iteratorToArray[*NetworkInterface](interfaceIterator) {
-		interfaces = append(interfaces, platform.NetworkInterface{
+		interfaces = append(interfaces, control.Interface{
 			Index:     int(netInterface.Index),
 			MTU:       int(netInterface.MTU),
 			Name:      netInterface.Name,
