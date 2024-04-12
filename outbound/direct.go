@@ -51,7 +51,7 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 		domainStrategy: dns.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),
 		dialer:         outboundDialer,
-		loopBack:       newLoopBackDetector(),
+		loopBack:       newLoopBackDetector(router),
 	}
 	if options.ProxyProtocol != 0 {
 		return nil, E.New("Proxy Protocol is deprecated and removed in sing-box 1.6.0")
