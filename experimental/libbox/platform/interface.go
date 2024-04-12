@@ -2,7 +2,6 @@ package platform
 
 import (
 	"context"
-	"net/netip"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
@@ -20,16 +19,9 @@ type Interface interface {
 	UsePlatformDefaultInterfaceMonitor() bool
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
 	UsePlatformInterfaceGetter() bool
-	Interfaces() ([]NetworkInterface, error)
+	Interfaces() ([]control.Interface, error)
 	UnderNetworkExtension() bool
 	ClearDNSCache()
 	ReadWIFIState() adapter.WIFIState
 	process.Searcher
-}
-
-type NetworkInterface struct {
-	Index     int
-	MTU       int
-	Name      string
-	Addresses []netip.Prefix
 }
