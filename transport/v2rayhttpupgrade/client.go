@@ -6,11 +6,15 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -28,6 +32,7 @@ type Client struct {
 	requestURL url.URL
 	headers    http.Header
 	host       string
+	fastOpen   bool
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayHTTPUpgradeOptions, tlsConfig tls.Config) (*Client, error) {
@@ -70,6 +75,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		requestURL: requestURL,
 		headers:    headers,
 		host:       host,
+		fastOpen:   options.FastOpen,
 	}, nil
 }
 
@@ -96,8 +102,17 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.fastOpen {
+		return &EarlyHTTPUpgradeConn{
+			Conn: conn,
+		}, nil
+	}
+	return readResponse(conn)
+}
+
+func readResponse(conn net.Conn) (net.Conn, error) {
 	bufReader := std_bufio.NewReader(conn)
-	response, err := http.ReadResponse(bufReader, request)
+	response, err := http.ReadResponse(bufReader, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -115,4 +130,54 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		conn = bufio.NewCachedConn(conn, buffer)
 	}
 	return conn, nil
+}
+
+type EarlyHTTPUpgradeConn struct {
+	net.Conn
+	once    sync.Once
+	err     error
+	created atomic.Bool
+}
+
+func (c *EarlyHTTPUpgradeConn) Read(b []byte) (int, error) {
+	c.once.Do(func() {
+		var newConn net.Conn
+		newConn, c.err = readResponse(c.Conn)
+		if c.err == nil {
+			c.Conn = newConn
+			c.created.Store(true)
+		}
+	})
+	if c.err != nil {
+		return 0, c.err
+	}
+	return c.Conn.Read(b)
+}
+
+func (c *EarlyHTTPUpgradeConn) Upstream() any {
+	return c.Conn
+}
+
+func (c *EarlyHTTPUpgradeConn) ReaderReplaceable() bool {
+	return c.created.Load()
+}
+
+func (c *EarlyHTTPUpgradeConn) WriterReplaceable() bool {
+	return true
+}
+
+func (c *EarlyHTTPUpgradeConn) SetDeadline(time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *EarlyHTTPUpgradeConn) SetReadDeadline(time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *EarlyHTTPUpgradeConn) SetWriteDeadline(time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *EarlyHTTPUpgradeConn) NeedAdditionalReadDeadline() bool {
+	return true
 }

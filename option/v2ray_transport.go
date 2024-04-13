@@ -92,7 +92,8 @@ type V2RayGRPCOptions struct {
 }
 
 type V2RayHTTPUpgradeOptions struct {
-	Host    string     `json:"host,omitempty"`
-	Path    string     `json:"path,omitempty"`
-	Headers HTTPHeader `json:"headers,omitempty"`
+	Host     string     `json:"host,omitempty"`
+	Path     string     `json:"path,omitempty"`
+	Headers  HTTPHeader `json:"headers,omitempty"`
+	FastOpen bool       `json:"fast_open,omitempty"`
 }
