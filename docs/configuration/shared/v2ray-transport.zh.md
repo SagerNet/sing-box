@@ -195,7 +195,8 @@ gRPC 服务名称。
   "type": "httpupgrade",
   "host": "",
   "path": "",
-  "headers": {}
+  "headers": {},
+  "fast_open": false
 }
 ```
 
@@ -216,3 +217,9 @@ HTTP 请求路径
 HTTP 请求的额外标头。
 
 如果设置，服务器将写入响应。
+
+#### fast_open
+
+==仅客户端==
+
+在接收到 HTTP 服务器响应之前开始发送数据。

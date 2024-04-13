@@ -206,7 +206,8 @@ Disabled by default.
   "type": "httpupgrade",
   "host": "",
   "path": "",
-  "headers": {}
+  "headers": {},
+  "fast_open": false
 }
 ```
 
@@ -227,3 +228,9 @@ The server will verify.
 Extra headers of HTTP request.
 
 The server will write in response if not empty.
+
+#### fast_open
+
+==Client only==
+
+Start sending data before receiving HTTP server response.
