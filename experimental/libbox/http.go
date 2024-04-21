@@ -52,6 +52,7 @@ type HTTPRequest interface {
 type HTTPResponse interface {
 	GetContent() ([]byte, error)
 	GetContentString() (string, error)
+	GetFinalURL() string
 	WriteTo(path string) error
 }
 
@@ -231,6 +232,11 @@ func (h *httpResponse) GetContentString() (string, error) {
 		return "", err
 	}
 	return string(content), nil
+}
+
+func (h *httpResponse) GetFinalURL() string {
+	finalURL := h.Request.URL.String()
+	return finalURL
 }
 
 func (h *httpResponse) WriteTo(path string) error {
