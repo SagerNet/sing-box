@@ -2,6 +2,16 @@
 icon: material/alert-decagram
 ---
 
+#### 1.8.12
+
+* Now we have official APT and DNF repositories **1**
+* Fix packet MTU for QUIC protocols
+* Fixes and improvements
+
+**1**:
+
+Including stable and beta versions, see https://sing-box.sagernet.org/installation/package-manager/
+
 #### 1.8.11
 
 * Fixes and improvements
