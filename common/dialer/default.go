@@ -32,14 +32,20 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
-		bindFunc := control.BindToInterface(router.InterfaceFinder(), options.BindInterface, -1)
+		var interfaceFinder control.InterfaceFinder
+		if router != nil {
+			interfaceFinder = router.InterfaceFinder()
+		} else {
+			interfaceFinder = control.NewDefaultInterfaceFinder()
+		}
+		bindFunc := control.BindToInterface(interfaceFinder, options.BindInterface, -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
-	} else if router.AutoDetectInterface() {
+	} else if router != nil && router.AutoDetectInterface() {
 		bindFunc := router.AutoDetectInterfaceFunc()
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
-	} else if router.DefaultInterface() != "" {
+	} else if router != nil && router.DefaultInterface() != "" {
 		bindFunc := control.BindToInterface(router.InterfaceFinder(), router.DefaultInterface(), -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
@@ -47,7 +53,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 	if options.RoutingMark != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(options.RoutingMark))
-	} else if router.DefaultMark() != 0 {
+	} else if router != nil && router.DefaultMark() != 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(router.DefaultMark()))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(router.DefaultMark()))
 	}
