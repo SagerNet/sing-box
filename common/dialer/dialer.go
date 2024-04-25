@@ -13,6 +13,9 @@ func New(router adapter.Router, options option.DialerOptions) (N.Dialer, error) 
 	if options.IsWireGuardListener {
 		return NewDefault(router, options)
 	}
+	if router == nil {
+		return NewDefault(nil, options)
+	}
 	var (
 		dialer N.Dialer
 		err    error
