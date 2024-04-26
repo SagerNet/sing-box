@@ -15,7 +15,12 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 ## :material-download: Download
 
 * [App Store](https://apps.apple.com/us/app/sing-box/id6451272673)
-* [TestFlight (Beta)](https://testflight.apple.com/join/AcqO44FH)
+* ~~TestFlight (Beta)~~
+
+TestFlight quota is only available to [sponsors](https://github.com/sponsors/nekohasekai)
+(one-time sponsorships are accepted).
+Once you donate, you can get an invitation by sending us your Apple ID [via email](mailto:contact@sagernet.org),
+or join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot).
 
 ## :material-file-download: Download (macOS standalone version)
 
