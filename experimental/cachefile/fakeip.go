@@ -74,6 +74,7 @@ func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
 		if err != nil {
 			return err
 		}
+		oldDomain := bucket.Get(address.AsSlice())
 		err = bucket.Put(address.AsSlice(), []byte(domain))
 		if err != nil {
 			return err
@@ -86,12 +87,24 @@ func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
 		if err != nil {
 			return err
 		}
+		if oldDomain != nil {
+			if err := bucket.Delete(oldDomain); err != nil {
+				return err
+			}
+		}
 		return bucket.Put([]byte(domain), address.AsSlice())
 	})
 }
 
 func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
 	c.saveFakeIPAccess.Lock()
+	if oldDomain, loaded := c.saveDomain[address]; loaded {
+		if address.Is4() {
+			delete(c.saveAddress4, oldDomain)
+		} else {
+			delete(c.saveAddress6, oldDomain)
+		}
+	}
 	c.saveDomain[address] = domain
 	if address.Is4() {
 		c.saveAddress4[domain] = address

@@ -65,7 +65,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 					ruleIndex += index + 1
 				}
 				r.dnsLogger.DebugContext(ctx, "match[", ruleIndex, "] ", rule.String(), " => ", detour)
-				if (isFakeIP && !r.dnsIndependentCache) || rule.DisableCache() {
+				if isFakeIP || rule.DisableCache() {
 					ctx = dns.ContextWithDisableCache(ctx, true)
 				}
 				if rewriteTTL := rule.RewriteTTL(); rewriteTTL != nil {
