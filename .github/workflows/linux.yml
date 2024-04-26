@@ -23,6 +23,7 @@ jobs:
           cat > $HOME/.gnupg/sagernet.key <<EOF
           ${{ secrets.GPG_KEY }}
           EOF
+          echo "HOME=$HOME" >> "$GITHUB_ENV"
       - name: Publish release
         uses: goreleaser/goreleaser-action@v5
         with:
@@ -33,5 +34,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
-          NFPM_KEY_PATH: ${{ env.Home }}/.gnupg/sagernet.key
+          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
           NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
