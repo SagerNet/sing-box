@@ -40,6 +40,13 @@ func (s *MemoryStorage) FakeIPSaveMetadataAsync(metadata *adapter.FakeIPMetadata
 func (s *MemoryStorage) FakeIPStore(address netip.Addr, domain string) error {
 	s.addressAccess.Lock()
 	s.domainAccess.Lock()
+	if oldDomain, loaded := s.addressCache[address]; loaded {
+		if address.Is4() {
+			delete(s.domainCache4, oldDomain)
+		} else {
+			delete(s.domainCache6, oldDomain)
+		}
+	}
 	s.addressCache[address] = domain
 	if address.Is4() {
 		s.domainCache4[domain] = address
