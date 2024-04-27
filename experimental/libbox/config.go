@@ -137,7 +137,6 @@ func FormatConfig(configContent string) (string, error) {
 		return "", err
 	}
 	var buffer bytes.Buffer
-	json.NewEncoder(&buffer)
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(options)
