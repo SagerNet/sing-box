@@ -96,3 +96,12 @@ func ExtendContext(ctx context.Context) (context.Context, *InboundContext) {
 	}
 	return WithContext(ctx, &newMetadata), &newMetadata
 }
+
+func OverrideContext(ctx context.Context) context.Context {
+	if metadata := ContextFrom(ctx); metadata != nil {
+		var newMetadata InboundContext
+		newMetadata = *metadata
+		return WithContext(ctx, &newMetadata)
+	}
+	return ctx
+}
