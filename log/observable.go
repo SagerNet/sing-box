@@ -53,7 +53,9 @@ func NewDefaultFactory(
 	if platformWriter != nil {
 		factory.platformFormatter.DisableColors = platformWriter.DisableColors()
 	}
-	factory.observer = observable.NewObserver[Entry](factory.subscriber, 64)
+	if needObservable {
+		factory.observer = observable.NewObserver[Entry](factory.subscriber, 64)
+	}
 	return factory
 }
 
@@ -72,7 +74,7 @@ func (f *defaultFactory) Start() error {
 func (f *defaultFactory) Close() error {
 	return common.Close(
 		common.PtrOrNil(f.file),
-		f.observer,
+		f.subscriber,
 	)
 }
 
