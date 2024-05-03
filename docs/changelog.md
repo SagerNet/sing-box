@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+#### 1.8.13
+
+* Fix fake-ip mapping
+* Fixes and improvements
+
 #### 1.8.12
 
 * Now we have official APT and DNF repositories **1**
