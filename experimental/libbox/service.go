@@ -213,6 +213,10 @@ func (w *platformInterfaceWrapper) UnderNetworkExtension() bool {
 	return w.iif.UnderNetworkExtension()
 }
 
+func (w *platformInterfaceWrapper) IncludeAllNetworks() bool {
+	return w.iif.IncludeAllNetworks()
+}
+
 func (w *platformInterfaceWrapper) ClearDNSCache() {
 	w.iif.ClearDNSCache()
 }
