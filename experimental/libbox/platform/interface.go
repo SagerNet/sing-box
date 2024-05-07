@@ -21,6 +21,7 @@ type Interface interface {
 	UsePlatformInterfaceGetter() bool
 	Interfaces() ([]control.Interface, error)
 	UnderNetworkExtension() bool
+	IncludeAllNetworks() bool
 	ClearDNSCache()
 	ReadWIFIState() adapter.WIFIState
 	process.Searcher
