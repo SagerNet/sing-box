@@ -82,6 +82,10 @@ func (s *platformInterfaceStub) UnderNetworkExtension() bool {
 	return false
 }
 
+func (s *platformInterfaceStub) IncludeAllNetworks() bool {
+	return false
+}
+
 func (s *platformInterfaceStub) ClearDNSCache() {
 }
 
