@@ -284,6 +284,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		clientSubnet: (*netip.Addr)(options.ClientSubnet),
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
