@@ -57,6 +57,7 @@ type CacheFile struct {
 type saveRDRCCacheKey struct {
 	TransportName string
 	QuestionName  string
+	QType         uint16
 }
 
 func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {

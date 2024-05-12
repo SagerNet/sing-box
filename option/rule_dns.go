@@ -101,7 +101,7 @@ type DefaultDNSRule struct {
 	Server                   string                 `json:"server,omitempty"`
 	DisableCache             bool                   `json:"disable_cache,omitempty"`
 	RewriteTTL               *uint32                `json:"rewrite_ttl,omitempty"`
-	ClientSubnet             *ListenAddress         `json:"client_subnet,omitempty"`
+	ClientSubnet             *AddrPrefix            `json:"client_subnet,omitempty"`
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -115,13 +115,13 @@ func (r DefaultDNSRule) IsValid() bool {
 }
 
 type LogicalDNSRule struct {
-	Mode         string         `json:"mode"`
-	Rules        []DNSRule      `json:"rules,omitempty"`
-	Invert       bool           `json:"invert,omitempty"`
-	Server       string         `json:"server,omitempty"`
-	DisableCache bool           `json:"disable_cache,omitempty"`
-	RewriteTTL   *uint32        `json:"rewrite_ttl,omitempty"`
-	ClientSubnet *ListenAddress `json:"client_subnet,omitempty"`
+	Mode         string      `json:"mode"`
+	Rules        []DNSRule   `json:"rules,omitempty"`
+	Invert       bool        `json:"invert,omitempty"`
+	Server       string      `json:"server,omitempty"`
+	DisableCache bool        `json:"disable_cache,omitempty"`
+	RewriteTTL   *uint32     `json:"rewrite_ttl,omitempty"`
+	ClientSubnet *AddrPrefix `json:"client_subnet,omitempty"`
 }
 
 func (r LogicalDNSRule) IsValid() bool {
