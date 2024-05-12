@@ -27,7 +27,7 @@ import (
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
 	"github.com/sagernet/sing-dns"
-	mux "github.com/sagernet/sing-mux"
+	"github.com/sagernet/sing-mux"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
@@ -235,7 +235,7 @@ func NewRouter(
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
-			var clientSubnet netip.Addr
+			var clientSubnet netip.Prefix
 			if server.ClientSubnet != nil {
 				clientSubnet = server.ClientSubnet.Build()
 			} else if dnsOptions.ClientSubnet != nil {
