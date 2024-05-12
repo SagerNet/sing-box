@@ -125,7 +125,7 @@ icon: material/new-box
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100,
-        "client_subnet": "127.0.0.1"
+        "client_subnet": "127.0.0.1/24"
       },
       {
         "type": "logical",
@@ -134,7 +134,7 @@ icon: material/new-box
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100,
-        "client_subnet": "127.0.0.1"
+        "client_subnet": "127.0.0.1/24"
       }
     ]
   }
@@ -339,7 +339,9 @@ Rewrite TTL in DNS responses.
 
 !!! question "Since sing-box 1.9.0"
 
-Append a `edns0-subnet` OPT extra record with the specified IP address to every query by default.
+Append a `edns0-subnet` OPT extra record with the specified IP prefix to every query by default.
+
+If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
 Will overrides `dns.client_subnet` and `servers.[].client_subnet`.
 
