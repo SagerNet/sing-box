@@ -73,6 +73,8 @@ problematic in environments such as macOS, where DNS is proxied and cached by th
 
 !!! question "Since sing-box 1.9.0"
 
-Append a `edns0-subnet` OPT extra record with the specified IP address to every query by default.
+Append a `edns0-subnet` OPT extra record with the specified IP prefix to every query by default.
+
+If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
 Can be overrides by `servers.[].client_subnet` or `rules.[].client_subnet`.

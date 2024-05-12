@@ -40,7 +40,7 @@ type DefaultDNSRule struct {
 	abstractDefaultRule
 	disableCache bool
 	rewriteTTL   *uint32
-	clientSubnet *netip.Addr
+	clientSubnet *netip.Prefix
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
@@ -51,7 +51,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
-		clientSubnet: (*netip.Addr)(options.ClientSubnet),
+		clientSubnet: (*netip.Prefix)(options.ClientSubnet),
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -234,7 +234,7 @@ func (r *DefaultDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
-func (r *DefaultDNSRule) ClientSubnet() *netip.Addr {
+func (r *DefaultDNSRule) ClientSubnet() *netip.Prefix {
 	return r.clientSubnet
 }
 
@@ -272,7 +272,7 @@ type LogicalDNSRule struct {
 	abstractLogicalRule
 	disableCache bool
 	rewriteTTL   *uint32
-	clientSubnet *netip.Addr
+	clientSubnet *netip.Prefix
 }
 
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
@@ -284,7 +284,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
-		clientSubnet: (*netip.Addr)(options.ClientSubnet),
+		clientSubnet: (*netip.Prefix)(options.ClientSubnet),
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -312,7 +312,7 @@ func (r *LogicalDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
-func (r *LogicalDNSRule) ClientSubnet() *netip.Addr {
+func (r *LogicalDNSRule) ClientSubnet() *netip.Prefix {
 	return r.clientSubnet
 }
 
