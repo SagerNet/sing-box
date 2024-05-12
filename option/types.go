@@ -51,6 +51,40 @@ func (a *ListenAddress) Build() netip.Addr {
 	return (netip.Addr)(*a)
 }
 
+type AddrPrefix netip.Prefix
+
+func (a AddrPrefix) MarshalJSON() ([]byte, error) {
+	prefix := netip.Prefix(a)
+	if prefix.Bits() == prefix.Addr().BitLen() {
+		return json.Marshal(prefix.Addr().String())
+	} else {
+		return json.Marshal(prefix.String())
+	}
+}
+
+func (a *AddrPrefix) UnmarshalJSON(content []byte) error {
+	var value string
+	err := json.Unmarshal(content, &value)
+	if err != nil {
+		return err
+	}
+	prefix, prefixErr := netip.ParsePrefix(value)
+	if prefixErr == nil {
+		*a = AddrPrefix(prefix)
+		return nil
+	}
+	addr, addrErr := netip.ParseAddr(value)
+	if addrErr == nil {
+		*a = AddrPrefix(netip.PrefixFrom(addr, addr.BitLen()))
+		return nil
+	}
+	return prefixErr
+}
+
+func (a AddrPrefix) Build() netip.Prefix {
+	return netip.Prefix(a)
+}
+
 type NetworkList string
 
 func (v *NetworkList) UnmarshalJSON(content []byte) error {

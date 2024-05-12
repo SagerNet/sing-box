@@ -100,7 +100,9 @@ DNS 服务器的地址。
 
 !!! question "自 sing-box 1.9.0 起"
 
-默认情况下，将带有指定 IP 地址的 `edns0-subnet` OPT 附加记录附加到每个查询。
+默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
 可以被 `rules.[].client_subnet` 覆盖。
 
