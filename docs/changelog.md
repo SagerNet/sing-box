@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+#### 1.8.14
+
+* Fix hysteria2 panic
+* Fixes and improvements
+
 #### 1.8.13
 
 * Fix fake-ip mapping
