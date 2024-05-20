@@ -18,7 +18,7 @@ jobs:
           cd tmp
           git remote add upstream https://github.com/SagerNet/sing-box.git
           git fetch --all
-          git reset --hard origin/dev-next
+          git reset --hard upstream/dev-next
           git pull
           git merge upstream/dev-next
           git push origin dev-next
