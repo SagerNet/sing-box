@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: tgymnich/fork-sync@v1.8
         with:
+          token: ${{ secrets.PERSONAL_TOKEN }}
           owner: SagerNet
           base: dev-next
           head: dev-next
