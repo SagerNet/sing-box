@@ -19,6 +19,6 @@ jobs:
           git remote add upstream https://github.com/SagerNet/sing-box.git
           git fetch --all
           git reset --hard upstream/dev-next
-          git pull
+          git pull upstream dev-next
           git merge upstream/dev-next
           git push origin dev-next
