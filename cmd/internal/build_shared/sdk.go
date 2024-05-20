@@ -86,7 +86,7 @@ func findNDK() bool {
 	})
 	for _, versionName := range versionNames {
 		currentNDKPath := filepath.Join(androidSDKPath, "ndk", versionName)
-		if rw.FileExists(filepath.Join(androidSDKPath, versionFile)) {
+		if rw.FileExists(filepath.Join(currentNDKPath, versionFile)) {
 			androidNDKPath = currentNDKPath
 			log.Warn("reproducibility warning: using NDK version " + versionName + " instead of " + fixedVersion)
 			return true
