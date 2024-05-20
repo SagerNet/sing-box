@@ -15,5 +15,5 @@ jobs:
         with:
           token: ${{ secrets.PERSONAL_TOKEN }}
           owner: SagerNet
-          base: master
-          head: master
+          base: dev-next
+          head: dev-next
