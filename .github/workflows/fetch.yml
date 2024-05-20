@@ -17,6 +17,7 @@ jobs:
           git clone https://${{ secrets.PERSONAL_TOKEN }}@github.com/Ryananana/sing-box.git tmp
           cd tmp
           git remote add upstream https://github.com/SagerNet/sing-box.git
+          git reset .
           git fetch upstream
           git merge upstream/dev-next
           git push origin dev-next
