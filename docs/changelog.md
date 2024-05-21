@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.9.0-rc.21
+
+* Fixes and improvements
+
 #### 1.9.0-rc.20
 
 * Prioritize `*_route_address` in linux auto-route
