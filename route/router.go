@@ -781,7 +781,16 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 
 	if metadata.InboundOptions.SniffEnabled {
 		buffer := buf.NewPacket()
-		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, time.Duration(metadata.InboundOptions.SniffTimeout), sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
+		sniffMetadata, err := sniff.PeekStream(
+			ctx,
+			conn,
+			buffer,
+			time.Duration(metadata.InboundOptions.SniffTimeout),
+			sniff.StreamDomainNameQuery,
+			sniff.TLSClientHello,
+			sniff.HTTPHost,
+			sniff.BitTorrent,
+		)
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
@@ -908,7 +917,14 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			metadata.Destination = destination
 		}
 		if metadata.InboundOptions.SniffEnabled {
-			sniffMetadata, _ := sniff.PeekPacket(ctx, buffer.Bytes(), sniff.DomainNameQuery, sniff.QUICClientHello, sniff.STUNMessage)
+			sniffMetadata, _ := sniff.PeekPacket(
+				ctx,
+				buffer.Bytes(),
+				sniff.DomainNameQuery,
+				sniff.QUICClientHello,
+				sniff.STUNMessage,
+				sniff.UTP,
+			)
 			if sniffMetadata != nil {
 				metadata.Protocol = sniffMetadata.Protocol
 				metadata.Domain = sniffMetadata.Domain
