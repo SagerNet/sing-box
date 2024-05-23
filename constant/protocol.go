@@ -8,4 +8,5 @@ const (
 	ProtocolSTUN       = "stun"
 	ProtocolBitTorrent = "bittorrent"
 	ProtocolUTP        = "utp"
+	ProtocolUDPTracker = "udp-tracker"
 )

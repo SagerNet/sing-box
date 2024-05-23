@@ -11,6 +11,18 @@ import (
 	"github.com/sagernet/sing-box/constant"
 )
 
+const (
+	trackerConnectFlag = iota
+	trackerAnnounceFlag
+	trackerScrapeFlag
+
+	trackerProtocolID = 0x41727101980
+
+	trackerConnectMinSize  = 16
+	trackerAnnounceMinSize = 20
+	trackerScrapeMinSize   = 8
+)
+
 // BitTorrent detects if the stream is a BitTorrent connection.
 // For the BitTorrent protocol specification, see https://www.bittorrent.org/beps/bep_0003.html
 func BitTorrent(_ context.Context, reader io.Reader) (*adapter.InboundContext, error) {
@@ -77,4 +89,25 @@ func UTP(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
 	return &adapter.InboundContext{
 		Protocol: constant.ProtocolUTP,
 	}, nil
+}
+
+// UDPTracker detects if the packet is a UDP Tracker Protocol packet.
+// For the UDP Tracker Protocol specification, see https://www.bittorrent.org/beps/bep_0015.html
+func UDPTracker(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
+	switch {
+	case len(packet) >= trackerConnectMinSize &&
+		binary.BigEndian.Uint64(packet[:8]) == trackerProtocolID &&
+		binary.BigEndian.Uint32(packet[8:12]) == trackerConnectFlag:
+		fallthrough
+	case len(packet) >= trackerAnnounceMinSize &&
+		binary.BigEndian.Uint32(packet[8:12]) == trackerAnnounceFlag:
+		fallthrough
+	case len(packet) >= trackerScrapeMinSize &&
+		binary.BigEndian.Uint32(packet[8:12]) == trackerScrapeFlag:
+		return &adapter.InboundContext{
+			Protocol: constant.ProtocolUDPTracker,
+		}, nil
+	default:
+		return nil, os.ErrInvalid
+	}
 }
