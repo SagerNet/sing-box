@@ -18,9 +18,20 @@ func NewSearcher(config Config) (Searcher, error) {
 }
 
 func (s *androidSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
-	_, uid, err := resolveSocketByNetlink(network, source, destination)
+	inode, uid, err := resolveSocketByNetlink(network, source, destination)
 	if err != nil {
 		return nil, err
+	}
+	if processPath, _ := resolveProcessNameByProcSearch(inode, uid); processPath != "" {
+		info := Info{
+			UserId: int32(uid),
+		}
+		if _, loaded := s.packageManager.IDByPackage(processPath); loaded {
+			info.PackageName = processPath
+		} else {
+			info.ProcessPath = processPath
+		}
+		return &info, nil
 	}
 	if sharedPackage, loaded := s.packageManager.SharedPackageByID(uid % 100000); loaded {
 		return &Info{

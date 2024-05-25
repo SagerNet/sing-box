@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"unicode"
@@ -186,13 +188,39 @@ func resolveProcessNameByProcSearch(inode, uid uint32) (string, error) {
 				continue
 			}
 
-			if bytes.Equal(buffer[:n], socket) {
-				return os.Readlink(path.Join(processPath, "exe"))
+			if !bytes.Equal(buffer[:n], socket) {
+				continue
 			}
+
+			exe, err := os.Readlink(path.Join(processPath, "exe"))
+
+			if runtime.GOOS != "android" || !strings.HasPrefix(exe, "/system/bin/app_process") {
+				return exe, err
+			}
+
+			cmdline, err := os.ReadFile(path.Join(processPath, "cmdline"))
+			if err != nil {
+				return "", err
+			}
+
+			return splitCmdline(cmdline), nil
 		}
 	}
 
 	return "", fmt.Errorf("process of uid(%d),inode(%d) not found", uid, inode)
+}
+
+func splitCmdline(cmdline []byte) string {
+	cmdline = bytes.Trim(cmdline, " ")
+
+	idx := bytes.IndexFunc(cmdline, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.IsSpace(r) || r == ':'
+	})
+
+	if idx == -1 {
+		return filepath.Base(string(cmdline))
+	}
+	return filepath.Base(string(cmdline[:idx]))
 }
 
 func isPid(s string) bool {
