@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/constant"
+	C "github.com/sagernet/sing-box/constant"
 )
 
 const (
@@ -46,7 +46,7 @@ func BitTorrent(_ context.Context, reader io.Reader) (*adapter.InboundContext, e
 	}
 
 	return &adapter.InboundContext{
-		Protocol: constant.ProtocolBitTorrent,
+		Protocol: C.ProtocolBitTorrent,
 	}, nil
 }
 
@@ -87,7 +87,7 @@ func UTP(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
 	}
 
 	return &adapter.InboundContext{
-		Protocol: constant.ProtocolUTP,
+		Protocol: C.ProtocolBitTorrent,
 	}, nil
 }
 
@@ -105,7 +105,7 @@ func UDPTracker(_ context.Context, packet []byte) (*adapter.InboundContext, erro
 	case len(packet) >= trackerScrapeMinSize &&
 		binary.BigEndian.Uint32(packet[8:12]) == trackerScrapeFlag:
 		return &adapter.InboundContext{
-			Protocol: constant.ProtocolUDPTracker,
+			Protocol: C.ProtocolBitTorrent,
 		}, nil
 	default:
 		return nil, os.ErrInvalid

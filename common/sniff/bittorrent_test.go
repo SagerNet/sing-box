@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/sagernet/sing-box/common/sniff"
-	"github.com/sagernet/sing-box/constant"
+	C "github.com/sagernet/sing-box/constant"
 
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestSniffBittorrent(t *testing.T) {
 		require.NoError(t, err)
 		metadata, err := sniff.BitTorrent(context.TODO(), bytes.NewReader(pkt))
 		require.NoError(t, err)
-		require.Equal(t, constant.ProtocolBitTorrent, metadata.Protocol)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
 }
 
@@ -46,7 +46,7 @@ func TestSniffUTP(t *testing.T) {
 
 		metadata, err := sniff.UTP(context.TODO(), pkt)
 		require.NoError(t, err)
-		require.Equal(t, constant.ProtocolUTP, metadata.Protocol)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
 }
 
@@ -76,6 +76,6 @@ func TestSniffUDPTracker(t *testing.T) {
 
 		metadata, err := sniff.UDPTracker(context.TODO(), pkt)
 		require.NoError(t, err)
-		require.Equal(t, constant.ProtocolUDPTracker, metadata.Protocol)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
 }
