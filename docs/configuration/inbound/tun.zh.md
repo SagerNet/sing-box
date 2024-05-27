@@ -184,11 +184,10 @@ tun 接口的 IPv6 前缀。
 * 需要 iptables（可选 ip6tables）
 * 需要 `iptables_nat` 模块
 
-对于 OpenWrt 23.05，所需的额外软件包是：
+对于 OpenWrt 23.05，需要以下附加软件包：
 
 ```bash
-opkg update
-opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
+iptables-nft iptables-mod-nat-extra ip6tables-nft
 ```
 
 #### inet4_route_address
