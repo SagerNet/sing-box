@@ -1,10 +1,13 @@
 package route
 
 import (
+	"net/netip"
+
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -37,6 +40,7 @@ type DefaultDNSRule struct {
 	abstractDefaultRule
 	disableCache bool
 	rewriteTTL   *uint32
+	clientSubnet *netip.Prefix
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
@@ -47,6 +51,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		clientSubnet: (*netip.Prefix)(options.ClientSubnet),
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -111,6 +116,11 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.GeoIP) > 0 {
+		item := NewGeoIPItem(router, logger, false, options.GeoIP)
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
 		if err != nil {
@@ -119,9 +129,22 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.IPCIDR) > 0 {
+		item, err := NewIPCIDRItem(false, options.IPCIDR)
+		if err != nil {
+			return nil, E.Cause(err, "ip_cidr")
+		}
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if options.SourceIPIsPrivate {
 		item := NewIPIsPrivateItem(true)
 		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.IPIsPrivate {
+		item := NewIPIsPrivateItem(false)
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePort) > 0 {
@@ -196,7 +219,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.RuleSet) > 0 {
-		item := NewRuleSetItem(router, options.RuleSet, false)
+		item := NewRuleSetItem(router, options.RuleSet, options.RuleSetIPCIDRMatchSource)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -211,12 +234,45 @@ func (r *DefaultDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
+func (r *DefaultDNSRule) ClientSubnet() *netip.Prefix {
+	return r.clientSubnet
+}
+
+func (r *DefaultDNSRule) WithAddressLimit() bool {
+	if len(r.destinationIPCIDRItems) > 0 {
+		return true
+	}
+	for _, rawRule := range r.items {
+		ruleSet, isRuleSet := rawRule.(*RuleSetItem)
+		if !isRuleSet {
+			continue
+		}
+		if ruleSet.ContainsDestinationIPCIDRRule() {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
+	metadata.IgnoreDestinationIPCIDRMatch = true
+	defer func() {
+		metadata.IgnoreDestinationIPCIDRMatch = false
+	}()
+	return r.abstractDefaultRule.Match(metadata)
+}
+
+func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
+	return r.abstractDefaultRule.Match(metadata)
+}
+
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
 	abstractLogicalRule
 	disableCache bool
 	rewriteTTL   *uint32
+	clientSubnet *netip.Prefix
 }
 
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
@@ -228,6 +284,7 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
+		clientSubnet: (*netip.Prefix)(options.ClientSubnet),
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -253,4 +310,52 @@ func (r *LogicalDNSRule) DisableCache() bool {
 
 func (r *LogicalDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
+}
+
+func (r *LogicalDNSRule) ClientSubnet() *netip.Prefix {
+	return r.clientSubnet
+}
+
+func (r *LogicalDNSRule) WithAddressLimit() bool {
+	for _, rawRule := range r.rules {
+		switch rule := rawRule.(type) {
+		case *DefaultDNSRule:
+			if rule.WithAddressLimit() {
+				return true
+			}
+		case *LogicalDNSRule:
+			if rule.WithAddressLimit() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
+	if r.mode == C.LogicalTypeAnd {
+		return common.All(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
+			return it.(adapter.DNSRule).Match(metadata)
+		}) != r.invert
+	} else {
+		return common.Any(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
+			return it.(adapter.DNSRule).Match(metadata)
+		}) != r.invert
+	}
+}
+
+func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
+	if r.mode == C.LogicalTypeAnd {
+		return common.All(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
+			return it.(adapter.DNSRule).MatchAddressLimit(metadata)
+		}) != r.invert
+	} else {
+		return common.Any(r.rules, func(it adapter.HeadlessRule) bool {
+			metadata.ResetRuleCache()
+			return it.(adapter.DNSRule).MatchAddressLimit(metadata)
+		}) != r.invert
+	}
 }

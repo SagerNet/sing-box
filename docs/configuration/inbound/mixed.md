@@ -39,6 +39,6 @@ No authentication required if empty.
 
 !!! warning ""
 
-    To work on Android and iOS without privileges, use tun.platform.http_proxy instead.
+    To work on Android and Apple platforms without privileges, use tun.platform.http_proxy instead.
 
 Automatically set system proxy configuration when start and clean up when stop.

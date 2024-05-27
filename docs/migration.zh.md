@@ -2,6 +2,27 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.9.0
+
+!!! warning "不稳定的"
+
+    该版本仍在开发中，迁移指南可能将在未来更改。
+
+### `domain_suffix` 行为更新
+
+由于历史原因，sing-box 的 `domain_suffix` 规则匹配字面前缀，而不与其他项目相同。
+
+sing-box 1.9.0 修改了 `domain_suffix` 的行为：如果规则值以 `.` 为前缀则行为不变，否则改为匹配 `(domain|.+\.domain)`。
+
+### 对 Windows 上 `process_path` 格式的更新
+
+sing-box 的 `process_path` 规则继承自Clash，
+原始代码使用本地系统的路径格式（例如 `\Device\HarddiskVolume1\folder\program.exe`），
+但是当设备有多个硬盘时，该 HarddiskVolume 系列号并不稳定。
+
+sing-box 1.9.0 使 QueryFullProcessImageNameW 输出 Win32 路径（如 `C:\folder\program.exe`），
+这将会破坏现有的 Windows `process_path` 用例。
+
 ## 1.8.0
 
 ### :material-close-box: 将缓存文件从 Clash API 迁移到独立选项

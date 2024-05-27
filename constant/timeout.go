@@ -3,6 +3,8 @@ package constant
 import "time"
 
 const (
+	TCPKeepAliveInitial        = 10 * time.Minute
+	TCPKeepAliveInterval       = 75 * time.Second
 	TCPTimeout                 = 5 * time.Second
 	ReadPayloadTimeout         = 300 * time.Millisecond
 	DNSTimeout                 = 10 * time.Second
