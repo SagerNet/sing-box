@@ -88,8 +88,8 @@ icon: material/new-box
       "match_domain": []
     }
   },
-  
-  ... // Listen Fields
+  ...
+  // Listen Fields
 }
 ```
 
@@ -150,7 +150,7 @@ Enforce strict routing rules when `auto_route` is enabled:
 *In Linux*:
 
 * Let unsupported network unreachable
-* Route all connections to tun
+* Make ICMP traffic route to tun instead of upstream interfaces
 
 It prevents address leaks and makes DNS hijacking work on Android.
 
@@ -174,7 +174,7 @@ Automatically configure iptables to redirect TCP connections.
 *In Android*：
 
 * Only IPv4 is supported
-* Only local connections is forwarded
+* Only local connections are forwarded
 
 To share your VPN connection over hotspot or repeater, use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
 
@@ -183,11 +183,10 @@ To share your VPN connection over hotspot or repeater, use [VPNHotspot](https://
 * iptables is required (optional ip6tables)
 * `iptables_nat` module is required
 
-For OpenWrt 23.05, required extra packages are:
+For OpenWrt 23.05, the following additional packages are required:
 
 ```bash
-opkg update
-opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
+iptables-nft iptables-mod-nat-extra ip6tables-nft
 ```
 
 #### inet4_route_address
