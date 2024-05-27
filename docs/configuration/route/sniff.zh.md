@@ -2,10 +2,11 @@
 
 #### 支持的协议
 
-|   网络    |  协议  |     域名      |
-|:-------:|:----:|:-----------:|
-|   TCP   | HTTP |    Host     |
-|   TCP   | TLS  | Server Name |
-|   UDP   | QUIC | Server Name |
-|   UDP   | STUN |      /      |
-| TCP/UDP | DNS  |      /      |
+|   网络    |     协议      |     域名      |
+|:-------:|:-----------:|:-----------:|
+|   TCP   |    HTTP     |    Host     |
+|   TCP   |     TLS     | Server Name |
+|   UDP   |    QUIC     | Server Name |
+|   UDP   |    STUN     |      /      |
+| TCP/UDP |     DNS     |      /      |
+| TCP/UDP | BitTorrent  |      /      |
