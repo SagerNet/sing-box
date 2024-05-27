@@ -36,7 +36,6 @@ nfpms:
     file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
     builds:
       - main
-    vendor: sagernet
     homepage: https://sing-box.sagernet.org/
     maintainer: nekohasekai <contact-git@sekai.icu>
     description: The universal proxy platform.
