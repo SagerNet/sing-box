@@ -2,7 +2,7 @@
 icon: material/new-box
 ---
 
-!!! quote "Changes in sing-box 1.9.0"
+!!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [auto_redirect](#auto_redirect)
 
