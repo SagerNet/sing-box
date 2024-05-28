@@ -7,11 +7,13 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/redir"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -24,12 +26,13 @@ import (
 
 type Redirect struct {
 	myInboundAdapter
-	autoRedirect option.AutoRedirectOptions
-	needSu       bool
-	suPath       string
+	platformInterface platform.Interface
+	autoRedirect      option.AutoRedirectOptions
+	needSu            bool
+	suPath            string
 }
 
-func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.RedirectInboundOptions) (*Redirect, error) {
+func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.RedirectInboundOptions, platformInterface platform.Interface) (*Redirect, error) {
 	redirect := &Redirect{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeRedirect,
@@ -40,7 +43,8 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 			tag:           tag,
 			listenOptions: options.ListenOptions,
 		},
-		autoRedirect: common.PtrValueOrDefault(options.AutoRedirect),
+		platformInterface: platformInterface,
+		autoRedirect:      common.PtrValueOrDefault(options.AutoRedirect),
 	}
 	if redirect.autoRedirect.Enabled {
 		if !C.IsAndroid {
@@ -101,21 +105,73 @@ func (r *Redirect) Close() error {
 }
 
 func (r *Redirect) setupRedirect() error {
-	myUid := os.Getuid()
-	tcpPort := M.AddrPortFromNet(r.tcpListener.Addr()).Port()
-	interfaceRules := common.FlatMap(r.router.(adapter.Router).InterfaceFinder().Interfaces(), func(it control.Interface) []string {
-		return common.Map(common.Filter(it.Addresses, func(it netip.Prefix) bool { return it.Addr().Is4() }), func(it netip.Prefix) string {
-			return "iptables -t nat -A sing-box -p tcp -j RETURN -d " + it.String()
-		})
-	})
-	return r.runAndroidShell(`
+	tableName := "sing-box"
+	rules := `
 set -e -o pipefail
 iptables -t nat -N sing-box
-` + strings.Join(interfaceRules, "\n") + `
-iptables -t nat -A sing-box -j RETURN -m owner --uid-owner ` + F.ToString(myUid) + `
-iptables -t nat -A sing-box -p tcp -j REDIRECT --to-ports ` + F.ToString(tcpPort) + `
-iptables -t nat -A OUTPUT -p tcp -j sing-box
-`)
+`
+	rules += strings.Join(common.FlatMap(r.router.(adapter.Router).InterfaceFinder().Interfaces(), func(it control.Interface) []string {
+		return common.Map(common.Filter(it.Addresses, func(it netip.Prefix) bool { return it.Addr().Is4() }), func(it netip.Prefix) string {
+			return "iptables -t nat -A " + tableName + " -p tcp -j RETURN -d " + it.String()
+		})
+	}), "\n")
+	var (
+		myUid           = uint32(os.Getuid())
+		perAppProxyList []uint32
+		perAppProxyMap  = make(map[uint32]bool)
+		perAppProxyMode int32
+		err             error
+	)
+	if r.platformInterface != nil {
+		perAppProxyMode = r.platformInterface.PerAppProxyMode()
+		if perAppProxyMode != platform.PerAppProxyModeDisabled {
+			perAppProxyList, err = r.platformInterface.PerAppProxyList()
+			if err != nil {
+				return E.Cause(err, "read per app proxy configuration")
+			}
+		}
+		for _, proxyUID := range perAppProxyList {
+			perAppProxyMap[proxyUID] = true
+		}
+	}
+	excludeUser := func(userID uint32) {
+		if perAppProxyMode != platform.PerAppProxyModeInclude {
+			perAppProxyMap[userID] = false
+		} else {
+			delete(perAppProxyMap, userID)
+		}
+	}
+	excludeUser(myUid)
+	if myUid != 0 && myUid != 2000 {
+		excludeUser(0)
+	}
+	perAppProxyList = perAppProxyList[:0]
+	for uid := range perAppProxyMap {
+		perAppProxyList = append(perAppProxyList, uid)
+	}
+	sort.SliceStable(perAppProxyList, func(i, j int) bool {
+		return perAppProxyList[i] < perAppProxyList[j]
+	})
+	redirectPortStr := F.ToString(M.AddrPortFromNet(r.tcpListener.Addr()).Port())
+	if perAppProxyMode != platform.PerAppProxyModeInclude {
+		rules += "\n" + strings.Join(common.Map(perAppProxyList, func(it uint32) string {
+			return "iptables -t nat -A " + tableName + " -j RETURN -m owner --uid-owner " + F.ToString(it)
+		}), "\n")
+		rules += "\niptables -t nat -A " + tableName + " -p tcp -j REDIRECT --to-ports " + redirectPortStr
+	} else {
+		rules += "\n" + strings.Join(common.Map(perAppProxyList, func(it uint32) string {
+			return "iptables -t nat -A " + tableName + " -p tcp -j REDIRECT --to-ports " + redirectPortStr + " -m owner --uid-owner " + F.ToString(it)
+		}), "\n")
+	}
+	rules += "\niptables -t nat -A OUTPUT -p tcp -j " + tableName
+	for _, ruleLine := range strings.Split(rules, "\n") {
+		ruleLine = strings.TrimSpace(ruleLine)
+		if ruleLine == "" {
+			continue
+		}
+		r.logger.Debug("# ", ruleLine)
+	}
+	return r.runAndroidShell(rules)
 }
 
 func (r *Redirect) cleanupRedirect() {
