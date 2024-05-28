@@ -22,6 +22,8 @@ type PlatformInterface interface {
 	IncludeAllNetworks() bool
 	ReadWIFIState() *WIFIState
 	ClearDNSCache()
+	PerAppProxyList() (IntegerIterator, error)
+	PerAppProxyMode() int32
 }
 
 type TunInterface interface {
@@ -51,6 +53,11 @@ func NewWIFIState(wifiSSID string, wifiBSSID string) *WIFIState {
 
 type NetworkInterfaceIterator interface {
 	Next() *NetworkInterface
+	HasNext() bool
+}
+
+type IntegerIterator interface {
+	Next() int32
 	HasNext() bool
 }
 
