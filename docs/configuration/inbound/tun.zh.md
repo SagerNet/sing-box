@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.10.0 中的更改"
+
+    :material-plus: [auto_redirect](#auto_redirect)
+
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -29,6 +33,7 @@ icon: material/new-box
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
@@ -156,6 +161,35 @@ tun 接口的 IPv6 前缀。
   造成的 DNS 泄露
 
 它可能会使某些应用程序（如 VirtualBox）在某些情况下无法正常工作。
+
+#### auto_redirect
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+自动配置 iptables 以重定向 TCP 连接。
+
+*在 Android 中*：
+
+* 仅支持 IPv4
+* 仅转发本地连接
+
+要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+
+*在 Linux 中*:
+
+* 需要 iptables（可选 ip6tables）
+* 需要 `iptables_nat` 模块
+
+对于 OpenWrt 23.05，所需的额外软件包是：
+
+```bash
+opkg update
+opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
+```
 
 #### inet4_route_address
 

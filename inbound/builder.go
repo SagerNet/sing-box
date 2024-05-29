@@ -19,7 +19,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, o
 	case C.TypeTun:
 		return NewTun(ctx, router, logger, options.Tag, options.TunOptions, platformInterface)
 	case C.TypeRedirect:
-		return NewRedirect(ctx, router, logger, options.Tag, options.RedirectOptions, platformInterface)
+		return NewRedirect(ctx, router, logger, options.Tag, options.RedirectOptions), nil
 	case C.TypeTProxy:
 		return NewTProxy(ctx, router, logger, options.Tag, options.TProxyOptions), nil
 	case C.TypeDirect:

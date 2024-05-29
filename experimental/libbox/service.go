@@ -229,18 +229,6 @@ func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 	return (adapter.WIFIState)(*wifiState)
 }
 
-func (w *platformInterfaceWrapper) PerAppProxyList() ([]uint32, error) {
-	uidIterator, err := w.iif.PerAppProxyList()
-	if err != nil {
-		return nil, err
-	}
-	return common.Map(iteratorToArray[int32](uidIterator), func(it int32) uint32 { return uint32(it) }), nil
-}
-
-func (w *platformInterfaceWrapper) PerAppProxyMode() int32 {
-	return w.iif.PerAppProxyMode()
-}
-
 func (w *platformInterfaceWrapper) DisableColors() bool {
 	return runtime.GOOS != "android"
 }

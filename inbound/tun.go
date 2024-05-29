@@ -37,6 +37,7 @@ type Tun struct {
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
 	platformOptions        option.TunPlatformOptions
+	autoRedirect           *tunAutoRedirect
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -50,9 +51,9 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	var err error
 	includeUID := uidToRange(options.IncludeUID)
 	if len(options.IncludeUIDRange) > 0 {
-		var err error
 		includeUID, err = parseRange(includeUID, options.IncludeUIDRange)
 		if err != nil {
 			return nil, E.Cause(err, "parse include_uid_range")
@@ -60,13 +61,13 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	}
 	excludeUID := uidToRange(options.ExcludeUID)
 	if len(options.ExcludeUIDRange) > 0 {
-		var err error
 		excludeUID, err = parseRange(excludeUID, options.ExcludeUIDRange)
 		if err != nil {
 			return nil, E.Cause(err, "parse exclude_uid_range")
 		}
 	}
-	return &Tun{
+
+	inbound := &Tun{
 		tag:            tag,
 		ctx:            ctx,
 		router:         router,
@@ -99,7 +100,17 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),
-	}, nil
+	}
+	if options.AutoRedirect {
+		if !options.AutoRoute {
+			return nil, E.New("`auto_route` is required by `auto_redirect`")
+		}
+		inbound.autoRedirect, err = newAutoRedirect(inbound)
+		if err != nil {
+			return nil, E.Cause(err, "initialize auto redirect")
+		}
+	}
+	return inbound, nil
 }
 
 func uidToRange(uidList option.Listable[uint32]) []ranges.Range[uint32] {
@@ -195,6 +206,14 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
+	if t.autoRedirect != nil {
+		monitor.Start("initiating auto redirect")
+		err = t.autoRedirect.Start(t.tunOptions.Name)
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "auto redirect")
+		}
+	}
 	t.logger.Info("started at ", t.tunOptions.Name)
 	return nil
 }
@@ -203,6 +222,7 @@ func (t *Tun) Close() error {
 	return common.Close(
 		t.tunStack,
 		t.tunIf,
+		common.PtrOrNil(t.autoRedirect),
 	)
 }
 
