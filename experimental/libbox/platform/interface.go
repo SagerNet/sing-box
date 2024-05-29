@@ -11,12 +11,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 )
 
-const (
-	PerAppProxyModeDisabled int32 = iota
-	PerAppProxyModeExclude
-	PerAppProxyModeInclude
-)
-
 type Interface interface {
 	Initialize(ctx context.Context, router adapter.Router) error
 	UsePlatformAutoDetectInterfaceControl() bool
@@ -30,7 +24,5 @@ type Interface interface {
 	IncludeAllNetworks() bool
 	ClearDNSCache()
 	ReadWIFIState() adapter.WIFIState
-	PerAppProxyList() ([]uint32, error)
-	PerAppProxyMode() int32
 	process.Searcher
 }
