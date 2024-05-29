@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: [auto_redirect](#auto_redirect)
+
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -29,6 +33,7 @@ icon: material/new-box
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
@@ -155,6 +160,35 @@ It prevents address leaks and makes DNS hijacking work on Android.
   Windows' [ordinary multihomed DNS resolution behavior](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
 
 It may prevent some applications (such as VirtualBox) from working properly in certain situations.
+
+#### auto_redirect
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Automatically configure iptables to redirect TCP connections.
+
+*In Android*：
+
+* Only IPv4 is supported
+* Only local connections is forwarded
+
+To share your VPN connection over hotspot or repeater, use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
+
+*In Linux*:
+
+* iptables is required (optional ip6tables)
+* `iptables_nat` module is required
+
+For OpenWrt 23.05, required extra packages are:
+
+```bash
+opkg update
+opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
+```
 
 #### inet4_route_address
 
