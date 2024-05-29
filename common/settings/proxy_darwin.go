@@ -40,3 +40,94 @@ func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bo
 func (p *DarwinSystemProxy) IsEnabled() bool {
 	return p.isEnabled
 }
+
+func (p *DarwinSystemProxy) Enable() error {
+	return p.update0()
+}
+
+func (p *DarwinSystemProxy) Disable() error {
+	hardwarePorts, err := getMacOSActiveNetworkHardwarePorts()
+	if err != nil {
+		return err
+	}
+	for _, interfaceDisplayName := range hardwarePorts {
+		if p.supportSOCKS {
+			err = shell.Exec("networksetup", "-setsocksfirewallproxystate", interfaceDisplayName, "off").Attach().Run()
+		}
+		if err == nil {
+			err = shell.Exec("networksetup", "-setwebproxystate", interfaceDisplayName, "off").Attach().Run()
+		}
+		if err == nil {
+			err = shell.Exec("networksetup", "-setsecurewebproxystate", interfaceDisplayName, "off").Attach().Run()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	p.isEnabled = false
+	return nil
+}
+
+func (p *DarwinSystemProxy) update(event int) {
+	if event&tun.EventInterfaceUpdate == 0 {
+		return
+	}
+	if !p.isEnabled {
+		return
+	}
+	_ = p.update0()
+}
+
+func (p *DarwinSystemProxy) update0() error {
+	newInterfaceName := p.monitor.DefaultInterfaceName(netip.IPv4Unspecified())
+	if p.interfaceName == newInterfaceName {
+		return nil
+	}
+	if p.interfaceName != "" {
+		_ = p.Disable()
+	}
+	p.interfaceName = newInterfaceName
+	hardwarePorts, err := getMacOSActiveNetworkHardwarePorts()
+	if err != nil {
+		return err
+	}
+	for _, interfaceDisplayName := range hardwarePorts {
+		if p.supportSOCKS {
+			err = shell.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, p.serverAddr.AddrString(), strconv.Itoa(int(p.serverAddr.Port))).Attach().Run()
+		}
+		if err != nil {
+			return err
+		}
+		err = shell.Exec("networksetup", "-setwebproxy", interfaceDisplayName, p.serverAddr.AddrString(), strconv.Itoa(int(p.serverAddr.Port))).Attach().Run()
+		if err != nil {
+			return err
+		}
+		err = shell.Exec("networksetup", "-setsecurewebproxy", interfaceDisplayName, p.serverAddr.AddrString(), strconv.Itoa(int(p.serverAddr.Port))).Attach().Run()
+		if err != nil {
+			return err
+		}
+	}
+	p.isEnabled = true
+	return nil
+}
+
+func getMacOSActiveNetworkHardwarePorts() ([]string, error) {
+	command := `
+	for interface in $(networksetup -listallhardwareports | awk '/Device/ {print $2}'); do
+		if ifconfig $interface | grep -q "inet "; then
+			networksetup -listallhardwareports | awk -v iface=$interface '
+				/Hardware Port/ {port=$3; for(i=4;i<=NF;i++) port=port" "$i}
+				/Device/ {if ($2 == iface) {print port}}'
+		fi
+	done
+	`
+	content, err := shell.Exec("sh", "-c", command).ReadOutput()
+	if err != nil {
+		return nil, err
+	}
+	hardwarePorts := strings.Split(strings.TrimSpace(string(content)), "\n")
+	if len(hardwarePorts) == 0 {
+		return nil, E.New("Active Network Devices not found.")
+	}
+	return hardwarePorts, nil
+}
