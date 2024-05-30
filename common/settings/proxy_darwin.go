@@ -133,7 +133,7 @@ func getMacOSActiveNetworkHardwarePorts() ([]string, error) {
 			return nil, err
 		}
 
-		if strings.Contains(string(serviceContent), "IP address:") {
+		if strings.Contains(string(serviceContent), "IP address:") && !strings.Contains(string(serviceContent), "IP address: none") {
 			hardwarePorts = append(hardwarePorts, line)
 		}
 	}
