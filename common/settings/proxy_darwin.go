@@ -112,20 +112,32 @@ func (p *DarwinSystemProxy) update0() error {
 }
 
 func getMacOSActiveNetworkHardwarePorts() ([]string, error) {
-	command := `
-	for interface in $(networksetup -listallhardwareports | awk '/Device/ {print $2}'); do
-		if ifconfig $interface | grep -q "inet "; then
-			networksetup -listallhardwareports | awk -v iface=$interface '
-				/Hardware Port/ {port=$3; for(i=4;i<=NF;i++) port=port" "$i}
-				/Device/ {if ($2 == iface) {print port}}'
-		fi
-	done
-	`
-	content, err := shell.Exec("sh", "-c", command).ReadOutput()
+	content, err := shell.Exec("networksetup", "-listallnetworkservices").ReadOutput()
 	if err != nil {
 		return nil, err
 	}
-	hardwarePorts := strings.Split(strings.TrimSpace(string(content)), "\n")
+
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	var hardwarePorts []string
+
+	for _, line := range lines {
+		if line == "An asterisk (*) denotes that a network service is disabled." {
+			continue
+		}
+		if line == "" || strings.HasPrefix(line, "*") {
+			continue
+		}
+
+		serviceContent, err := shell.Exec("networksetup", "-getinfo", line).ReadOutput()
+		if err != nil {
+			return nil, err
+		}
+
+		if strings.Contains(string(serviceContent), "IP address:") {
+			hardwarePorts = append(hardwarePorts, line)
+		}
+	}
+
 	if len(hardwarePorts) == 0 {
 		return nil, E.New("Active Network Devices not found.")
 	}
