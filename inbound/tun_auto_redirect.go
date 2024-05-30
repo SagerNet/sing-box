@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -21,6 +20,8 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
+
+	"golang.org/x/exp/slices"
 )
 
 const (
