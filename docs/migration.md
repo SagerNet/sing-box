@@ -4,10 +4,6 @@ icon: material/arrange-bring-forward
 
 ## 1.9.0
 
-!!! warning "Unstable"
-
-    This version is still under development, and the following migration guide may be changed in the future.
-
 ### `domain_suffix` behavior update
 
 For historical reasons, sing-box's `domain_suffix` rule matches literal prefixes instead of the same as other projects.
