@@ -62,7 +62,16 @@ func newAutoRedirect(t *Tun) (*tunAutoRedirect, error) {
 				err    error
 			)
 			if t.platformInterface != nil {
-				suPath, err = exec.LookPath("/bin/su")
+				suPaths := []string{
+					"/bin/su",
+					"/system/bin/su",
+				}
+				for _, path := range suPaths {
+					suPath, err = exec.LookPath(path)
+					if err == nil {
+						break
+					}
+				}
 			} else {
 				suPath, err = exec.LookPath("su")
 			}
