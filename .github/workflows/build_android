@@ -1,0 +1,49 @@
+name: Build GoMobile AAR
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Upload AAR
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'  # Adjust to your Go version
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'adopt'
+        java-version: '11'
+
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 30
+        build-tools: 30.0.3
+
+    - name: Install GoMobile
+      run: |
+        go install golang.org/x/mobile/cmd/gomobile@latest
+        gomobile init
+
+    - name: Build AAR with GoMobile
+      run: gomobile bind -target=android -o mylib.aar ./path/to/mylib
+
+    - name: Upload AAR file
+      uses: actions/upload-artifact@v3
+      with:
+        name: mylib-aar
+        path: mylib.aar
