@@ -150,9 +150,10 @@ tun 接口的 IPv6 前缀。
 *在 Linux 中*:
 
 * 让不支持的网络无法到达
+* 使 ICMP 流量路由到 tun 而不是上游接口
 * 将所有连接路由到 tun
 
-它可以防止地址泄漏，并使 DNS 劫持在 Android 上工作。
+它可以防止 IP 地址泄漏，并使 DNS 劫持在 Android 上工作。
 
 *在 Windows 中*:
 
@@ -174,22 +175,11 @@ tun 接口的 IPv6 前缀。
 
 *在 Android 中*：
 
-* 仅支持 IPv4
-* 仅转发本地连接
-
-要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
 
 *在 Linux 中*:
 
-* 需要 iptables（可选 ip6tables）
-* 需要 `iptables_nat` 模块
-
-对于 OpenWrt 23.05，所需的额外软件包是：
-
-```bash
-opkg update
-opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
-```
+带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
 
 #### inet4_route_address
 
@@ -244,6 +234,10 @@ TCP/IP 栈。
 与 `exclude_interface` 冲突。
 
 #### exclude_interface
+
+!!! warning ""
+
+    当 `strict_route` 启用，到被排除接口的回程流量将不会被自动排除，因此也要添加它们（例：`br-lan` 与 `pppoe-wan`）。
 
 排除路由的接口。
 
