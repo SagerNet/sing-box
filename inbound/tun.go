@@ -208,7 +208,7 @@ func (t *Tun) Start() error {
 	}
 	if t.autoRedirect != nil {
 		monitor.Start("initiating auto redirect")
-		err = t.autoRedirect.Start(t.tunOptions.Name)
+		err = t.autoRedirect.Start()
 		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "auto redirect")
