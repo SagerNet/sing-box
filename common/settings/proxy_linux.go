@@ -16,30 +16,40 @@ import (
 )
 
 type LinuxSystemProxy struct {
-	hasGSettings     bool
-	hasKWriteConfig5 bool
-	sudoUser         string
-	serverAddr       M.Socksaddr
-	supportSOCKS     bool
-	isEnabled        bool
+	hasGSettings    bool
+	kWriteConfigCmd string
+	sudoUser        string
+	serverAddr      M.Socksaddr
+	supportSOCKS    bool
+	isEnabled       bool
 }
 
 func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (*LinuxSystemProxy, error) {
 	hasGSettings := common.Error(exec.LookPath("gsettings")) == nil
-	hasKWriteConfig5 := common.Error(exec.LookPath("kwriteconfig5")) == nil
+	kWriteConfigCmds := []string{
+		"kwriteconfig5",
+		"kwriteconfig6",
+	}
+	var kWriteConfigCmd string
+	for _, cmd := range kWriteConfigCmds {
+		if common.Error(exec.LookPath(cmd)) == nil {
+			kWriteConfigCmd = cmd
+			break
+		}
+	}
 	var sudoUser string
 	if os.Getuid() == 0 {
 		sudoUser = os.Getenv("SUDO_USER")
 	}
-	if !hasGSettings && !hasKWriteConfig5 {
+	if !hasGSettings && kWriteConfigCmd == "" {
 		return nil, E.New("unsupported desktop environment")
 	}
 	return &LinuxSystemProxy{
-		hasGSettings:     hasGSettings,
-		hasKWriteConfig5: hasKWriteConfig5,
-		sudoUser:         sudoUser,
-		serverAddr:       serverAddr,
-		supportSOCKS:     supportSOCKS,
+		hasGSettings:    hasGSettings,
+		kWriteConfigCmd: kWriteConfigCmd,
+		sudoUser:        sudoUser,
+		serverAddr:      serverAddr,
+		supportSOCKS:    supportSOCKS,
 	}, nil
 }
 
@@ -70,8 +80,8 @@ func (p *LinuxSystemProxy) Enable() error {
 			return err
 		}
 	}
-	if p.hasKWriteConfig5 {
-		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "1")
+	if p.kWriteConfigCmd != "" {
+		err := p.runAsUser(p.kWriteConfigCmd, "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "1")
 		if err != nil {
 			return err
 		}
@@ -83,7 +93,7 @@ func (p *LinuxSystemProxy) Enable() error {
 		if err != nil {
 			return err
 		}
-		err = p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "Authmode", "0")
+		err = p.runAsUser(p.kWriteConfigCmd, "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "Authmode", "0")
 		if err != nil {
 			return err
 		}
@@ -103,8 +113,8 @@ func (p *LinuxSystemProxy) Disable() error {
 			return err
 		}
 	}
-	if p.hasKWriteConfig5 {
-		err := p.runAsUser("kwriteconfig5", "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "0")
+	if p.kWriteConfigCmd != "" {
+		err := p.runAsUser(p.kWriteConfigCmd, "--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType", "0")
 		if err != nil {
 			return err
 		}
@@ -150,7 +160,7 @@ func (p *LinuxSystemProxy) setKDEProxy(proxyTypes ...string) error {
 			proxyUrl = "http://" + p.serverAddr.String()
 		}
 		err := p.runAsUser(
-			"kwriteconfig5",
+			p.kWriteConfigCmd,
 			"--file",
 			"kioslaverc",
 			"--group",
