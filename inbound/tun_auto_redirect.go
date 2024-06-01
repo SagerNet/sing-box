@@ -61,17 +61,20 @@ func newAutoRedirect(t *Tun) (*tunAutoRedirect, error) {
 				suPath string
 				err    error
 			)
-			if t.platformInterface != nil {
-				suPath, err = exec.LookPath("/bin/su")
-			} else {
-				suPath, err = exec.LookPath("su")
+			for _, suPath = range []string{
+				"su",
+				"/system/bin/su",
+			} {
+				suPath, err = exec.LookPath(suPath)
+				if err == nil {
+					break
+				}
 			}
-			if err == nil {
-				s.androidSu = true
-				s.suPath = suPath
-			} else {
+			if err != nil {
 				return nil, E.Extend(E.Cause(err, "root permission is required for auto redirect"), os.Getenv("PATH"))
 			}
+			s.androidSu = true
+			s.suPath = suPath
 		}
 	} else {
 		err := s.initializeNfTables()
