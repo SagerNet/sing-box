@@ -150,9 +150,10 @@ Enforce strict routing rules when `auto_route` is enabled:
 *In Linux*:
 
 * Let unsupported network unreachable
+* Make ICMP traffic route to tun instead of upstream interfaces
 * Route all connections to tun
 
-It prevents address leaks and makes DNS hijacking work on Android.
+It prevents IP address leaks and makes DNS hijacking work on Android.
 
 *In Windows*:
 
@@ -169,26 +170,16 @@ It may prevent some applications (such as VirtualBox) from working properly in c
 
     Only supported on Linux.
 
-Automatically configure iptables to redirect TCP connections.
+Automatically configure iptables/nftables to redirect connections.
 
 *In Android*：
 
-* Only IPv4 is supported
-* Only local connections is forwarded
-
-To share your VPN connection over hotspot or repeater, use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
+Only local connections are forwarded. To share your VPN connection over hotspot or repeater,
+use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
 
 *In Linux*:
 
-* iptables is required (optional ip6tables)
-* `iptables_nat` module is required
-
-For OpenWrt 23.05, required extra packages are:
-
-```bash
-opkg update
-opkg install iptables-nft iptables-mod-nat-extra ip6tables-nft
-```
+`auto_route` with `auto_redirect` now works as expected on routers **without intervention**.
 
 #### inet4_route_address
 
@@ -247,6 +238,10 @@ Limit interfaces in route. Not limited by default.
 Conflict with `exclude_interface`.
 
 #### exclude_interface
+
+!!! warning ""
+
+    When `strict_route` enabled, return traffic to excluded interfaces will not be automatically excluded, so add them as well (example: `br-lan` and `pppoe-wan`).
 
 Exclude interfaces in route.
 
