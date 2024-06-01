@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ type Tun struct {
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
 	platformOptions        option.TunPlatformOptions
-	autoRedirect           *tunAutoRedirect
+	autoRedirect           tun.AutoRedirect
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -105,7 +106,15 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		if !options.AutoRoute {
 			return nil, E.New("`auto_route` is required by `auto_redirect`")
 		}
-		inbound.autoRedirect, err = newAutoRedirect(inbound)
+		disableNFTables, dErr := strconv.ParseBool(os.Getenv("DISABLE_NFTABLES"))
+		inbound.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
+			TunOptions:      &inbound.tunOptions,
+			Context:         ctx,
+			Handler:         inbound,
+			Logger:          logger,
+			TableName:       "sing-box",
+			DisableNFTables: dErr == nil && disableNFTables,
+		})
 		if err != nil {
 			return nil, E.Cause(err, "initialize auto redirect")
 		}
@@ -222,7 +231,7 @@ func (t *Tun) Close() error {
 	return common.Close(
 		t.tunStack,
 		t.tunIf,
-		common.PtrOrNil(t.autoRedirect),
+		t.autoRedirect,
 	)
 }
 
@@ -234,7 +243,11 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.InboundOptions = t.inboundOptions
-	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	if upstreamMetadata.Protocol != "" {
+		t.logger.InfoContext(ctx, "inbound ", upstreamMetadata.Protocol, " connection from ", metadata.Source)
+	} else {
+		t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	}
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	err := t.router.RouteConnection(ctx, conn, metadata)
 	if err != nil {

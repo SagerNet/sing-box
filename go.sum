@@ -108,8 +108,8 @@ github.com/sagernet/quic-go v0.43.1-beta.1/go.mod h1:BkrQYeop7Jx3hN3TW8/76CXcdhY
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
-github.com/sagernet/sing v0.5.0-alpha.7 h1:yxjiH0vQAotu87JNJ9B0BGO0OJqsFjug84xcYdwyDm4=
-github.com/sagernet/sing v0.5.0-alpha.7/go.mod h1:Xh4KO9nGdvm4K/LVg9Xn9jSxJdqe9KcXbAzNC1S2qfw=
+github.com/sagernet/sing v0.5.0-alpha.8 h1:2KtzBvKP6hwknsi/G6H4vRgR4it31HQ6quLb0Woze7c=
+github.com/sagernet/sing v0.5.0-alpha.8/go.mod h1:Xh4KO9nGdvm4K/LVg9Xn9jSxJdqe9KcXbAzNC1S2qfw=
 github.com/sagernet/sing-dns v0.2.0-beta.18 h1:6vzXZThRdA7YUzBOpSbUT48XRumtl/KIpIHFSOP0za8=
 github.com/sagernet/sing-dns v0.2.0-beta.18/go.mod h1:k/dmFcQpg6+m08gC1yQBy+13+QkuLqpKr4bIreq4U24=
 github.com/sagernet/sing-mux v0.2.0 h1:4C+vd8HztJCWNYfufvgL49xaOoOHXty2+EAjnzN3IYo=
@@ -122,8 +122,8 @@ github.com/sagernet/sing-shadowsocks2 v0.2.0 h1:wpZNs6wKnR7mh1wV9OHwOyUr21VkS3wK
 github.com/sagernet/sing-shadowsocks2 v0.2.0/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.1.4 h1:aTgBSJEgnumzFenPvc+kbD9/W0PywzWevnVpEx6Tw3k=
 github.com/sagernet/sing-shadowtls v0.1.4/go.mod h1:F8NBgsY5YN2beQavdgdm1DPlhaKQlaL6lpDdcBglGK4=
-github.com/sagernet/sing-tun v0.4.0-beta.4 h1:94OB9fQupn0qBPvlDzKRAq1lSIPHAvVBaw69/jEZfgQ=
-github.com/sagernet/sing-tun v0.4.0-beta.4/go.mod h1:DxLIyhjWU/HwGYoX0vNGg2c5QgTQIakphU1MuERR5tQ=
+github.com/sagernet/sing-tun v0.4.0-beta.6 h1:Ybp1Yr2iNuh9iI/+f8L6R5MkhMJEMNtRHNBdmvVq9P0=
+github.com/sagernet/sing-tun v0.4.0-beta.6/go.mod h1:X9taVYeJXEtK9v6BpS1V/gUXTwY4nQKH4iYDLX1JUXY=
 github.com/sagernet/sing-vmess v0.1.8 h1:XVWad1RpTy9b5tPxdm5MCU8cGfrTGdR8qCq6HV2aCNc=
 github.com/sagernet/sing-vmess v0.1.8/go.mod h1:vhx32UNzTDUkNwOyIjcZQohre1CaytquC5mPplId8uA=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7 h1:DImB4lELfQhplLTxeq2z31Fpv8CQqqrUwTbrIRumZqQ=
