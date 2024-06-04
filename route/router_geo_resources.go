@@ -137,7 +137,7 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	if r.geoIPOptions.DownloadURL != "" {
 		downloadURL = r.geoIPOptions.DownloadURL
 	} else {
-		downloadURL = "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db"
+		downloadURL = "https://mirror.ghproxy.com/https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db"
 	}
 	r.logger.Info("downloading geoip database")
 	var detour adapter.Outbound
@@ -192,7 +192,7 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	if r.geositeOptions.DownloadURL != "" {
 		downloadURL = r.geositeOptions.DownloadURL
 	} else {
-		downloadURL = "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+		downloadURL = "https://mirror.ghproxy.com/https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
 	}
 	r.logger.Info("downloading geosite database")
 	var detour adapter.Outbound
