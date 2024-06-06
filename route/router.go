@@ -352,14 +352,6 @@ func NewRouter(
 		router.interfaceMonitor = interfaceMonitor
 	}
 
-	if runtime.GOOS == "windows" {
-		powerListener, err := winpowrprof.NewEventListener(router.notifyWindowsPowerEvent)
-		if err != nil {
-			return nil, E.Cause(err, "initialize power listener")
-		}
-		router.powerListener = powerListener
-	}
-
 	if ntpOptions.Enabled {
 		ntpDialer, err := dialer.New(router, ntpOptions.DialerOptions)
 		if err != nil {
@@ -586,6 +578,15 @@ func (r *Router) Start() error {
 			} else {
 				r.processSearcher = searcher
 			}
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		powerListener, err := winpowrprof.NewEventListener(r.notifyWindowsPowerEvent)
+		if err == nil {
+			r.powerListener = powerListener
+		} else {
+			r.logger.Warn("initialize power listener: ", err)
 		}
 	}
 
