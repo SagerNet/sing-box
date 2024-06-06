@@ -60,8 +60,13 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		requestURL.Path = "/" + requestURL.Path
 	}
 	headers := make(http.Header)
-	for key, value := range options.Headers {
-		headers[key] = value
+	for key, values := range options.Headers {
+		for _, value := range values {
+			headers.Add(key, value)
+		}
+	}
+	if headersHost := headers.Get("host"); headersHost != "" {
+		host = headersHost
 	}
 	return &Client{
 		dialer:     dialer,
