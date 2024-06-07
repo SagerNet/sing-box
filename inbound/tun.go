@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ type Tun struct {
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
 	platformOptions        option.TunPlatformOptions
+	autoRedirect           tun.AutoRedirect
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -50,9 +52,9 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	var err error
 	includeUID := uidToRange(options.IncludeUID)
 	if len(options.IncludeUIDRange) > 0 {
-		var err error
 		includeUID, err = parseRange(includeUID, options.IncludeUIDRange)
 		if err != nil {
 			return nil, E.Cause(err, "parse include_uid_range")
@@ -60,13 +62,13 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	}
 	excludeUID := uidToRange(options.ExcludeUID)
 	if len(options.ExcludeUIDRange) > 0 {
-		var err error
 		excludeUID, err = parseRange(excludeUID, options.ExcludeUIDRange)
 		if err != nil {
 			return nil, E.Cause(err, "parse exclude_uid_range")
 		}
 	}
-	return &Tun{
+
+	inbound := &Tun{
 		tag:            tag,
 		ctx:            ctx,
 		router:         router,
@@ -99,7 +101,25 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),
-	}, nil
+	}
+	if options.AutoRedirect {
+		if !options.AutoRoute {
+			return nil, E.New("`auto_route` is required by `auto_redirect`")
+		}
+		disableNFTables, dErr := strconv.ParseBool(os.Getenv("DISABLE_NFTABLES"))
+		inbound.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
+			TunOptions:      &inbound.tunOptions,
+			Context:         ctx,
+			Handler:         inbound,
+			Logger:          logger,
+			TableName:       "sing-box",
+			DisableNFTables: dErr == nil && disableNFTables,
+		})
+		if err != nil {
+			return nil, E.Cause(err, "initialize auto redirect")
+		}
+	}
+	return inbound, nil
 }
 
 func uidToRange(uidList option.Listable[uint32]) []ranges.Range[uint32] {
@@ -195,6 +215,14 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
+	if t.autoRedirect != nil {
+		monitor.Start("initiating auto redirect")
+		err = t.autoRedirect.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "auto redirect")
+		}
+	}
 	t.logger.Info("started at ", t.tunOptions.Name)
 	return nil
 }
@@ -203,6 +231,7 @@ func (t *Tun) Close() error {
 	return common.Close(
 		t.tunStack,
 		t.tunIf,
+		t.autoRedirect,
 	)
 }
 
@@ -214,7 +243,11 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.Source = upstreamMetadata.Source
 	metadata.Destination = upstreamMetadata.Destination
 	metadata.InboundOptions = t.inboundOptions
-	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	if upstreamMetadata.Protocol != "" {
+		t.logger.InfoContext(ctx, "inbound ", upstreamMetadata.Protocol, " connection from ", metadata.Source)
+	} else {
+		t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	}
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	err := t.router.RouteConnection(ctx, conn, metadata)
 	if err != nil {
