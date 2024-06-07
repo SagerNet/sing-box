@@ -24,6 +24,10 @@ or sending us your Apple ID [via email](mailto:contact@sagernet.org).
 
 ## :material-file-download: Download (macOS standalone version)
 
+!!! warning ""
+
+    The macOS standalone versions of sing-box (>=1.9.5/<1.10.0-beta.11) now silently fail and require manual granting of the **Full Disk Access** permission to system extension to start, probably due to Apple's changed security policy. We will prompt users about this in feature versions.
+
 * [Homebrew Cask](https://formulae.brew.sh/cask/sfm)
 
 ```bash
