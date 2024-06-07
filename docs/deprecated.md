@@ -4,6 +4,12 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.10.0
+
+#### Drop support for go1.18 and go1.19
+
+Due to maintenance difficulties, sing-box 1.10.0 requires at least Go 1.20 to compile.
+
 ## 1.8.0
 
 #### Cache file and related features in Clash API
