@@ -50,12 +50,26 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
-	if options.RoutingMark != 0 {
+	var autoRedirectOutputMark uint32
+	if router != nil {
+		autoRedirectOutputMark = router.AutoRedirectOutputMark()
+	}
+	if autoRedirectOutputMark > 0 {
+		dialer.Control = control.Append(dialer.Control, control.RoutingMark(autoRedirectOutputMark))
+		listener.Control = control.Append(listener.Control, control.RoutingMark(autoRedirectOutputMark))
+	}
+	if options.RoutingMark > 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(options.RoutingMark))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(options.RoutingMark))
-	} else if router != nil && router.DefaultMark() != 0 {
+		if autoRedirectOutputMark > 0 {
+			return nil, E.New("`auto_redirect` with `route_[_exclude]_address_set is conflict with `routing_mark`")
+		}
+	} else if router != nil && router.DefaultMark() > 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(router.DefaultMark()))
 		listener.Control = control.Append(listener.Control, control.RoutingMark(router.DefaultMark()))
+		if autoRedirectOutputMark > 0 {
+			return nil, E.New("`auto_redirect` with `route_[_exclude]_address_set is conflict with `default_mark`")
+		}
 	}
 	if options.ReuseAddr {
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())

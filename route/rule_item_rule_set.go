@@ -32,6 +32,7 @@ func (r *RuleSetItem) Start() error {
 		if !loaded {
 			return E.New("rule-set not found: ", tag)
 		}
+		ruleSet.IncRef()
 		r.setList = append(r.setList, ruleSet)
 	}
 	return nil

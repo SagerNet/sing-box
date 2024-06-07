@@ -2,6 +2,21 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: [address](#address)  
+    :material-delete-clock: [inet4_address](#inet4_address)  
+    :material-delete-clock: [inet6_address](#inet6_address)  
+    :material-plus: [route_address](#route_address)  
+    :material-delete-clock: [inet4_route_address](#inet4_route_address)  
+    :material-delete-clock: [inet6_route_address](#inet6_route_address)  
+    :material-plus: [route_exclude_address](#route_address)  
+    :material-delete-clock: [inet4_route_exclude_address](#inet4_route_exclude_address)  
+    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)  
+    :material-plus: [auto_redirect](#auto_redirect)  
+    :material-plus: [route_address_set](#route_address_set)  
+    :material-plus: [route_exclude_address_set](#route_address_set)
+
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -23,25 +38,56 @@ icon: material/new-box
   "type": "tun",
   "tag": "tun-in",
   "interface_name": "tun0",
-  "inet4_address": "172.19.0.1/30",
-  "inet6_address": "fdfe:dcba:9876::1/126",
+  "address": [
+    "172.18.0.1/30",
+    "fdfe:dcba:9876::1/126"
+  ],
+  // deprecated
+  "inet4_address": [
+    "172.19.0.1/30"
+  ],
+  // deprecated
+  "inet6_address": [
+    "fdfe:dcba:9876::1/126"
+  ],
   "mtu": 9000,
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
+  "route_address": [
+    "0.0.0.0/1",
+    "128.0.0.0/1",
+    "::/1",
+    "8000::/1"
+  ],
+  // deprecated
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
   ],
+  // deprecated
   "inet6_route_address": [
     "::/1",
     "8000::/1"
   ],
+  "route_exclude_address": [
+    "192.168.0.0/16",
+    "fc00::/7"
+  ],
+  // deprecated
   "inet4_route_exclude_address": [
     "192.168.0.0/16"
   ],
+  // deprecated
   "inet6_route_exclude_address": [
     "fc00::/7"
+  ],
+  "route_address_set": [
+    "geoip-cloudflare"
+  ],
+  "route_exclude_address_set": [
+    "geoip-cn"
   ],
   "endpoint_independent_nat": false,
   "udp_timeout": "5m",
@@ -102,13 +148,25 @@ icon: material/new-box
 
 Virtual device name, automatically selected if empty.
 
+#### address
+
+!!! question "Since sing-box 1.10.0"
+
+IPv4 and IPv6 prefix for the tun interface.
+
 #### inet4_address
 
-==Required==
+!!! failure "Deprecated in sing-box 1.10.0"
+
+    `inet4_address` is merged to `address` and will be removed in sing-box 1.11.0.
 
 IPv4 prefix for the tun interface.
 
 #### inet6_address
+
+!!! failure "Deprecated in sing-box 1.10.0"
+
+    `inet6_address` is merged to `address` and will be removed in sing-box 1.11.0.
 
 IPv6 prefix for the tun interface.
 
@@ -145,9 +203,10 @@ Enforce strict routing rules when `auto_route` is enabled:
 *In Linux*:
 
 * Let unsupported network unreachable
+* Make ICMP traffic route to tun instead of upstream interfaces
 * Route all connections to tun
 
-It prevents address leaks and makes DNS hijacking work on Android.
+It prevents IP address leaks and makes DNS hijacking work on Android.
 
 *In Windows*:
 
@@ -156,21 +215,94 @@ It prevents address leaks and makes DNS hijacking work on Android.
 
 It may prevent some applications (such as VirtualBox) from working properly in certain situations.
 
+#### auto_redirect
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux with `auto_route` enabled.
+
+Automatically configure iptables/nftables to redirect connections.
+
+*In Android*：
+
+Only local connections are forwarded. To share your VPN connection over hotspot or repeater,
+use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
+
+*In Linux*:
+
+`auto_route` with `auto_redirect` now works as expected on routers **without intervention**.
+
+#### route_address
+
+!!! question "Since sing-box 1.10.0"
+
+Use custom routes instead of default when `auto_route` is enabled.
+
 #### inet4_route_address
+
+!!! failure "Deprecated in sing-box 1.10.0"
+
+   `inet4_route_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_address](#route_address) instead.
 
 Use custom routes instead of default when `auto_route` is enabled.
 
 #### inet6_route_address
 
+!!! failure "Deprecated in sing-box 1.10.0"
+
+   `inet6_route_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_address](#route_address) instead.
+
 Use custom routes instead of default when `auto_route` is enabled.
 
+#### route_exclude_address
+
+!!! question "Since sing-box 1.10.0"
+
+Exclude custom routes when `auto_route` is enabled.
+
 #### inet4_route_exclude_address
+
+!!! failure "Deprecated in sing-box 1.10.0"
+
+   `inet4_route_exclude_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_exclude_address](#route_exclude_address) instead.
 
 Exclude custom routes when `auto_route` is enabled.
 
 #### inet6_route_exclude_address
 
+!!! failure "Deprecated in sing-box 1.10.0"
+
+   `inet6_route_exclude_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_exclude_address](#route_exclude_address) instead.
+
 Exclude custom routes when `auto_route` is enabled.
+
+#### route_address_set
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+
+Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+Unmatched traffic will bypass the sing-box routes.
+
+Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
+
+#### route_exclude_address_set
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+
+Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+Matched traffic will bypass the sing-box routes.
+
+Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
 
 #### endpoint_independent_nat
 
@@ -213,6 +345,10 @@ Limit interfaces in route. Not limited by default.
 Conflict with `exclude_interface`.
 
 #### exclude_interface
+
+!!! warning ""
+
+    When `strict_route` enabled, return traffic to excluded interfaces will not be automatically excluded, so add them as well (example: `br-lan` and `pppoe-wan`).
 
 Exclude interfaces in route.
 
