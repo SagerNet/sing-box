@@ -26,7 +26,7 @@ jobs:
           EOF
           echo "HOME=$HOME" >> "$GITHUB_ENV"
       - name: Publish release
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
           version: latest
