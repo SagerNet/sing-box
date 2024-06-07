@@ -4,10 +4,6 @@ icon: material/arrange-bring-forward
 
 ## 1.9.0
 
-!!! warning "不稳定的"
-
-    该版本仍在开发中，迁移指南可能将在未来更改。
-
 ### `domain_suffix` 行为更新
 
 由于历史原因，sing-box 的 `domain_suffix` 规则匹配字面前缀，而不与其他项目相同。
