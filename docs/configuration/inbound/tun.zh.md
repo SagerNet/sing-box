@@ -2,6 +2,21 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: [address](#address)  
+    :material-delete-clock: [inet4_address](#inet4_address)  
+    :material-delete-clock: [inet6_address](#inet6_address)  
+    :material-plus: [route_address](#route_address)  
+    :material-delete-clock: [inet4_route_address](#inet4_route_address)  
+    :material-delete-clock: [inet6_route_address](#inet6_route_address)  
+    :material-plus: [route_exclude_address](#route_address)  
+    :material-delete-clock: [inet4_route_exclude_address](#inet4_route_exclude_address)  
+    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)  
+    :material-plus: [auto_redirect](#auto_redirect)  
+    :material-plus: [route_address_set](#route_address_set)  
+    :material-plus: [route_exclude_address_set](#route_address_set)
+
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -23,25 +38,56 @@ icon: material/new-box
   "type": "tun",
   "tag": "tun-in",
   "interface_name": "tun0",
-  "inet4_address": "172.19.0.1/30",
-  "inet6_address": "fdfe:dcba:9876::1/126",
+  "address": [
+    "172.18.0.1/30",
+    "fdfe:dcba:9876::1/126"
+  ],
+  // 已弃用
+  "inet4_address": [
+    "172.19.0.1/30"
+  ],
+  // 已弃用
+  "inet6_address": [
+    "fdfe:dcba:9876::1/126"
+  ],
   "mtu": 9000,
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
+  "route_address": [
+    "0.0.0.0/1",
+    "128.0.0.0/1",
+    "::/1",
+    "8000::/1"
+  ],
+  // 已弃用
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
   ],
+  // 已弃用
   "inet6_route_address": [
     "::/1",
     "8000::/1"
   ],
+  "route_exclude_address": [
+    "192.168.0.0/16",
+    "fc00::/7"
+  ],
+  // 已弃用
   "inet4_route_exclude_address": [
     "192.168.0.0/16"
   ],
+  // 已弃用
   "inet6_route_exclude_address": [
     "fc00::/7"
+  ],
+  "route_address_set": [
+    "geoip-cloudflare"
+  ],
+  "route_exclude_address_set": [
+    "geoip-cn"
   ],
   "endpoint_independent_nat": false,
   "udp_timeout": "5m",
@@ -102,13 +148,29 @@ icon: material/new-box
 
 虚拟设备名称，默认自动选择。
 
+#### address
+
+!!! question "自 sing-box 1.10.0 起"
+
+==必填==
+
+tun 接口的 IPv4 和 IPv6 前缀。
+
 #### inet4_address
+
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet4_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除.
 
 ==必填==
 
 tun 接口的 IPv4 前缀。
 
 #### inet6_address
+
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet6_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除.
 
 tun 接口的 IPv6 前缀。
 
@@ -145,9 +207,10 @@ tun 接口的 IPv6 前缀。
 *在 Linux 中*:
 
 * 让不支持的网络无法到达
+* 使 ICMP 流量路由到 tun 而不是上游接口
 * 将所有连接路由到 tun
 
-它可以防止地址泄漏，并使 DNS 劫持在 Android 上工作。
+它可以防止 IP 地址泄漏，并使 DNS 劫持在 Android 上工作。
 
 *在 Windows 中*:
 
@@ -157,21 +220,93 @@ tun 接口的 IPv6 前缀。
 
 它可能会使某些应用程序（如 VirtualBox）在某些情况下无法正常工作。
 
+#### auto_redirect
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+自动配置 iptables 以重定向 TCP 连接。
+
+*在 Android 中*：
+
+仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+
+*在 Linux 中*:
+
+带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
+
+#### route_address
+
+!!! question "自 sing-box 1.10.0 起"
+
+设置到 Tun 的自定义路由。
+
 #### inet4_route_address
+
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet4_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除.
 
 启用 `auto_route` 时使用自定义路由而不是默认路由。
 
 #### inet6_route_address
 
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet6_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除.
+
 启用 `auto_route` 时使用自定义路由而不是默认路由。
 
+#### route_exclude_address
+
+!!! question "自 sing-box 1.10.0 起"
+
+设置到 Tun 的排除自定义路由。
+
 #### inet4_route_exclude_address
+
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet4_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除.
 
 启用 `auto_route` 时排除自定义路由。
 
 #### inet6_route_exclude_address
 
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `inet6_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除.
+
 启用 `auto_route` 时排除自定义路由。
+
+#### route_address_set
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。 
+
+将指定规则集中的目标 IP CIDR 规则添加到防火墙。
+不匹配的流量将绕过 sing-box 路由。
+
+与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
+
+#### route_exclude_address_set
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。
+
+将指定规则集中的目标 IP CIDR 规则添加到防火墙。
+匹配的流量将绕过 sing-box 路由。
+
+与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
 #### endpoint_independent_nat
 
@@ -210,6 +345,10 @@ TCP/IP 栈。
 与 `exclude_interface` 冲突。
 
 #### exclude_interface
+
+!!! warning ""
+
+    当 `strict_route` 启用，到被排除接口的回程流量将不会被自动排除，因此也要添加它们（例：`br-lan` 与 `pppoe-wan`）。
 
 排除路由的接口。
 
@@ -284,7 +423,7 @@ TCP/IP 栈。
 
 !!! note ""
 
-  在 Apple 平台，`bypass_domain` 项匹配主机名 **后缀**.
+    在 Apple 平台，`bypass_domain` 项匹配主机名 **后缀**.
 
 绕过代理的主机名列表。
 

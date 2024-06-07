@@ -2,6 +2,74 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.10.0
+
+### TUN address fields are merged
+
+`inet4_address` and `inet6_address` are merged into `address`,
+`inet4_route_address` and `inet6_route_address` are merged into `route_address`,
+`inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
+
+Old fields are deprecated and will be removed in sing-box 1.11.0.
+
+!!! info "References"
+
+    [TUN](/configuration/inbound/tun/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun",
+          "inet4_address": "172.19.0.1/30",
+          "inet6_address": "fdfe:dcba:9876::1/126",
+          "inet4_route_address": [
+            "0.0.0.0/1",
+            "128.0.0.0/1"
+          ],
+          "inet6_route_address": [
+            "::/1",
+            "8000::/1"
+          ],
+          "inet4_route_exclude_address": [
+            "192.168.0.0/16"
+          ],
+          "inet6_route_exclude_address": [
+            "fc00::/7"
+          ]
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun",
+          "address": [
+            "172.19.0.1/30",
+            "fdfe:dcba:9876::1/126"
+          ],
+          "route_address": [
+            "0.0.0.0/1",
+            "128.0.0.0/1",
+            "::/1",
+            "8000::/1"
+          ],
+          "route_exclude_address": [
+            "192.168.0.0/16",
+            "fc00::/7"
+          ]
+        }
+      ]
+    }
+    ```
+
 ## 1.9.0
 
 ### `domain_suffix` behavior update
