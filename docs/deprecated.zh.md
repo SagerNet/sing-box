@@ -4,6 +4,12 @@ icon: material/delete-alert
 
 # 废弃功能列表
 
+## 1.10.0
+
+#### 移除对 go1.18 和 go1.19 的支持
+
+由于维护困难，sing-box 1.10.0 要求至少 Go 1.20 才能编译。
+
 ## 1.8.0
 
 #### Clash API 中的 Cache file 及相关功能
