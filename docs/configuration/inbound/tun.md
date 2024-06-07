@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: [auto_redirect](#auto_redirect)
+
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -29,6 +33,7 @@ icon: material/new-box
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
@@ -145,9 +150,10 @@ Enforce strict routing rules when `auto_route` is enabled:
 *In Linux*:
 
 * Let unsupported network unreachable
+* Make ICMP traffic route to tun instead of upstream interfaces
 * Route all connections to tun
 
-It prevents address leaks and makes DNS hijacking work on Android.
+It prevents IP address leaks and makes DNS hijacking work on Android.
 
 *In Windows*:
 
@@ -155,6 +161,25 @@ It prevents address leaks and makes DNS hijacking work on Android.
   Windows' [ordinary multihomed DNS resolution behavior](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
 
 It may prevent some applications (such as VirtualBox) from working properly in certain situations.
+
+#### auto_redirect
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Automatically configure iptables/nftables to redirect connections.
+
+*In Android*：
+
+Only local connections are forwarded. To share your VPN connection over hotspot or repeater,
+use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
+
+*In Linux*:
+
+`auto_route` with `auto_redirect` now works as expected on routers **without intervention**.
 
 #### inet4_route_address
 
@@ -213,6 +238,10 @@ Limit interfaces in route. Not limited by default.
 Conflict with `exclude_interface`.
 
 #### exclude_interface
+
+!!! warning ""
+
+    When `strict_route` enabled, return traffic to excluded interfaces will not be automatically excluded, so add them as well (example: `br-lan` and `pppoe-wan`).
 
 Exclude interfaces in route.
 

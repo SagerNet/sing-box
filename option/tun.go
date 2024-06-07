@@ -9,6 +9,7 @@ type TunInboundOptions struct {
 	Inet4Address             Listable[netip.Prefix] `json:"inet4_address,omitempty"`
 	Inet6Address             Listable[netip.Prefix] `json:"inet6_address,omitempty"`
 	AutoRoute                bool                   `json:"auto_route,omitempty"`
+	AutoRedirect             bool                   `json:"auto_redirect,omitempty"`
 	StrictRoute              bool                   `json:"strict_route,omitempty"`
 	Inet4RouteAddress        Listable[netip.Prefix] `json:"inet4_route_address,omitempty"`
 	Inet6RouteAddress        Listable[netip.Prefix] `json:"inet6_route_address,omitempty"`
