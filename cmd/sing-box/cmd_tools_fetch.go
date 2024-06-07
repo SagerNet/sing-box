@@ -9,8 +9,10 @@ import (
 	"net/url"
 	"os"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/spf13/cobra"
@@ -32,7 +34,10 @@ func init() {
 	commandTools.AddCommand(commandFetch)
 }
 
-var httpClient *http.Client
+var (
+	httpClient  *http.Client
+	http3Client *http.Client
+)
 
 func fetch(args []string) error {
 	instance, err := createPreStartedClient()
@@ -53,8 +58,16 @@ func fetch(args []string) error {
 		},
 	}
 	defer httpClient.CloseIdleConnections()
+	if C.WithQUIC {
+		err = initializeHTTP3Client(instance)
+		if err != nil {
+			return err
+		}
+		defer http3Client.CloseIdleConnections()
+	}
 	for _, urlString := range args {
-		parsedURL, err := url.Parse(urlString)
+		var parsedURL *url.URL
+		parsedURL, err = url.Parse(urlString)
 		if err != nil {
 			return err
 		}
@@ -63,16 +76,27 @@ func fetch(args []string) error {
 			parsedURL.Scheme = "http"
 			fallthrough
 		case "http", "https":
-			err = fetchHTTP(parsedURL)
+			err = fetchHTTP(httpClient, parsedURL)
 			if err != nil {
 				return err
 			}
+		case "http3":
+			if !C.WithQUIC {
+				return C.ErrQUICNotIncluded
+			}
+			parsedURL.Scheme = "https"
+			err = fetchHTTP(http3Client, parsedURL)
+			if err != nil {
+				return err
+			}
+		default:
+			return E.New("unsupported scheme: ", parsedURL.Scheme)
 		}
 	}
 	return nil
 }
 
-func fetchHTTP(parsedURL *url.URL) error {
+func fetchHTTP(httpClient *http.Client, parsedURL *url.URL) error {
 	request, err := http.NewRequest("GET", parsedURL.String(), nil)
 	if err != nil {
 		return err
