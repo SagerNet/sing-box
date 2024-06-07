@@ -32,26 +32,6 @@ jobs:
       - name: Run Test
         run: |
           go test -v ./...
-  build_go118:
-    name: Debug build (Go 1.18)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
-        with:
-          fetch-depth: 0
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ~1.18
-      - name: Cache go module
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: go118-${{ hashFiles('**/go.sum') }}
-      - name: Run Test
-        run: make ci_build_go118
   build_go120:
     name: Debug build (Go 1.20)
     runs-on: ubuntu-latest
