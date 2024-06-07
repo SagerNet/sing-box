@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/cache"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -125,12 +124,10 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 		for {
 			var (
 				dnsCtx       context.Context
-				cancel       context.CancelFunc
 				addressLimit bool
 			)
 
 			dnsCtx, transport, strategy, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message))
-			dnsCtx, cancel = context.WithTimeout(dnsCtx, C.DNSTimeout)
 			if rule != nil && rule.WithAddressLimit() {
 				addressLimit = true
 				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, strategy, func(response *mDNS.Msg) bool {
@@ -141,7 +138,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 				addressLimit = false
 				response, err = r.dnsClient.Exchange(dnsCtx, transport, message, strategy)
 			}
-			cancel()
 			var rejected bool
 			if err != nil {
 				if errors.Is(err, dns.ErrResponseRejectedCached) {
@@ -206,7 +202,6 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	for {
 		var (
 			dnsCtx       context.Context
-			cancel       context.CancelFunc
 			addressLimit bool
 		)
 		metadata.ResetRuleCache()
@@ -215,7 +210,6 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 		if strategy == dns.DomainStrategyAsIS {
 			strategy = transportStrategy
 		}
-		dnsCtx, cancel = context.WithTimeout(dnsCtx, C.DNSTimeout)
 		if rule != nil && rule.WithAddressLimit() {
 			addressLimit = true
 			responseAddrs, err = r.dnsClient.LookupWithResponseCheck(dnsCtx, transport, domain, strategy, func(responseAddrs []netip.Addr) bool {
@@ -226,7 +220,6 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 			addressLimit = false
 			responseAddrs, err = r.dnsClient.Lookup(dnsCtx, transport, domain, strategy)
 		}
-		cancel()
 		if err != nil {
 			if errors.Is(err, dns.ErrResponseRejectedCached) {
 				r.dnsLogger.DebugContext(ctx, "response rejected for ", domain, " (cached)")
