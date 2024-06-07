@@ -76,8 +76,8 @@ github.com/mdlayher/socket v0.4.1 h1:eM9y2/jlbs1M615oshPQOHZzj6R6wMT7bX5NPiQvn2U
 github.com/mdlayher/socket v0.4.1/go.mod h1:cAqeGjoufqdxWkD7DkpyS+wcefOtmu5OQ8KuoJGIReA=
 github.com/mholt/acmez v1.2.0 h1:1hhLxSgY5FvH5HCnGUuwbKY2VQVo8IU7rxXKSnZ7F30=
 github.com/mholt/acmez v1.2.0/go.mod h1:VT9YwH1xgNX1kmYY89gY8xPJC84BFAisjo8Egigt4kE=
-github.com/miekg/dns v1.1.59 h1:C9EXc/UToRwKLhK5wKU/I4QVsBUc8kE6MkHBkeypWZs=
-github.com/miekg/dns v1.1.59/go.mod h1:nZpewl5p6IvctfgrckopVx2OlSEHPRO/U4SYkRklrEk=
+github.com/miekg/dns v1.1.61 h1:nLxbwF3XxhwVSm8g9Dghm9MHPaUZuqhPiGL+675ZmEs=
+github.com/miekg/dns v1.1.61/go.mod h1:mnAarhS3nWaW+NVP2wTkYVIZyHNJ098SJZUki3eykwQ=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/onsi/ginkgo/v2 v2.9.7 h1:06xGQy5www2oN160RtEZoTvnP2sPhEfePYmCDc2szss=
@@ -115,8 +115,8 @@ github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4Wk
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
 github.com/sagernet/sing v0.5.0-alpha.11.0.20240624115117-0b4c0a1283a3 h1:dmkN0SqTjyV5PfLYBlWsLhEXXYHvrIIr+o0Gz6ChZ78=
 github.com/sagernet/sing v0.5.0-alpha.11.0.20240624115117-0b4c0a1283a3/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
-github.com/sagernet/sing-dns v0.2.1-0.20240624030536-ca4a5f7afb65 h1:lcCe7E1csuyUA3RCvpFcIYOy6FIifDthKaCrUjLG4xA=
-github.com/sagernet/sing-dns v0.2.1-0.20240624030536-ca4a5f7afb65/go.mod h1:dArgyPZmK8+zDBVRMjV3r12zHgnTara0ahrWwSe/eQE=
+github.com/sagernet/sing-dns v0.3.0-beta.10 h1:Js61EjQXVpcu2VDegWEQTH1isCcVwJju8WEHYgG4tQ0=
+github.com/sagernet/sing-dns v0.3.0-beta.10/go.mod h1:nXE6EYMXahB5DV3AcXYbFfuorqF7tbQ86kxweSxRKM4=
 github.com/sagernet/sing-mux v0.2.0 h1:4C+vd8HztJCWNYfufvgL49xaOoOHXty2+EAjnzN3IYo=
 github.com/sagernet/sing-mux v0.2.0/go.mod h1:khzr9AOPocLa+g53dBplwNDz4gdsyx/YM3swtAhlkHQ=
 github.com/sagernet/sing-quic v0.2.0-beta.12 h1:BhvA5mmrDFEyDUQB5eeu+9UhF+ieyuNJ5Rsb0dAG3QY=
