@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.10.0 中的更改"
+
+    :material-plus: [auto_redirect](#auto_redirect)
+
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
@@ -29,6 +33,7 @@ icon: material/new-box
   "gso": false,
   "auto_route": true,
   "strict_route": true,
+  "auto_redirect": false,
   "inet4_route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1"
@@ -145,9 +150,10 @@ tun 接口的 IPv6 前缀。
 *在 Linux 中*:
 
 * 让不支持的网络无法到达
+* 使 ICMP 流量路由到 tun 而不是上游接口
 * 将所有连接路由到 tun
 
-它可以防止地址泄漏，并使 DNS 劫持在 Android 上工作。
+它可以防止 IP 地址泄漏，并使 DNS 劫持在 Android 上工作。
 
 *在 Windows 中*:
 
@@ -156,6 +162,24 @@ tun 接口的 IPv6 前缀。
   造成的 DNS 泄露
 
 它可能会使某些应用程序（如 VirtualBox）在某些情况下无法正常工作。
+
+#### auto_redirect
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+自动配置 iptables 以重定向 TCP 连接。
+
+*在 Android 中*：
+
+仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+
+*在 Linux 中*:
+
+带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
 
 #### inet4_route_address
 
@@ -210,6 +234,10 @@ TCP/IP 栈。
 与 `exclude_interface` 冲突。
 
 #### exclude_interface
+
+!!! warning ""
+
+    当 `strict_route` 启用，到被排除接口的回程流量将不会被自动排除，因此也要添加它们（例：`br-lan` 与 `pppoe-wan`）。
 
 排除路由的接口。
 
