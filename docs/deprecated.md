@@ -6,6 +6,14 @@ icon: material/delete-alert
 
 ## 1.10.0
 
+#### TUN address fields are merged
+
+`inet4_address` and `inet6_address` are merged into `address`,
+`inet4_route_address` and `inet6_route_address` are merged into `route_address`,
+`inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
+
+Old fields are deprecated and will be removed in sing-box 1.11.0.
+
 #### Drop support for go1.18 and go1.19
 
 Due to maintenance difficulties, sing-box 1.10.0 requires at least Go 1.20 to compile.
