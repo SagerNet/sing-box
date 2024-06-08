@@ -121,7 +121,7 @@ func (w *WireGuard) Start() error {
 	return w.start()
 }
 
-func (w *WireGuard) PortStart() error {
+func (w *WireGuard) PostStart() error {
 	if common.All(w.peers, func(peer wireguard.PeerConfig) bool {
 		return peer.Endpoint.IsValid()
 	}) {
