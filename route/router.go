@@ -531,6 +531,22 @@ func (r *Router) Start() error {
 	r.dnsClient.Start()
 	monitor.Finish()
 
+	if C.IsAndroid && r.platformInterface == nil {
+		monitor.Start("initialize package manager")
+		packageManager, err := tun.NewPackageManager(r)
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "create package manager")
+		}
+		monitor.Start("start package manager")
+		err = packageManager.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "start package manager")
+		}
+		r.packageManager = packageManager
+	}
+
 	for i, rule := range r.dnsRules {
 		monitor.Start("initialize DNS rule[", i, "]")
 		err := rule.Start()
@@ -672,23 +688,7 @@ func (r *Router) PostStart() error {
 			needWIFIStateFromRuleSet = true
 		}
 	}
-	if needProcessFromRuleSet || r.needFindProcess || r.needPackageManager {
-		if C.IsAndroid && r.platformInterface == nil {
-			monitor.Start("initialize package manager")
-			packageManager, err := tun.NewPackageManager(r)
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "create package manager")
-			}
-			monitor.Start("start package manager")
-			err = packageManager.Start()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "start package manager")
-			}
-			r.packageManager = packageManager
-		}
-
+	if needProcessFromRuleSet || r.needFindProcess {
 		if r.platformInterface != nil {
 			r.processSearcher = r.platformInterface
 		} else {
