@@ -112,16 +112,6 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.R
 	return nil
 }
 
-func (s *RemoteRuleSet) PostStart() error {
-	if s.lastUpdated.IsZero() {
-		err := s.fetchOnce(s.ctx, nil)
-		if err != nil {
-			s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
-		}
-	}
-	return nil
-}
-
 func (s *RemoteRuleSet) Metadata() adapter.RuleSetMetadata {
 	return s.metadata
 }
