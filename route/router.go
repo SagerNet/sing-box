@@ -221,7 +221,7 @@ func NewRouter(
 				if serverAddress == "" {
 					serverAddress = server.Address
 				}
-				_, notIpAddress := netip.ParseAddr(serverAddress)
+				notIpAddress := !M.ParseSocksaddr(serverAddress).Addr.IsValid()
 				if server.AddressResolver != "" {
 					if !transportTagMap[server.AddressResolver] {
 						return nil, E.New("parse dns server[", tag, "]: address resolver not found: ", server.AddressResolver)
@@ -231,7 +231,7 @@ func NewRouter(
 					} else {
 						continue
 					}
-				} else if notIpAddress != nil && strings.Contains(server.Address, ".") {
+				} else if notIpAddress && strings.Contains(server.Address, ".") {
 					return nil, E.New("parse dns server[", tag, "]: missing address_resolver")
 				}
 			}
