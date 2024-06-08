@@ -16,25 +16,18 @@ func (s *BoxService) Pause() {
 	if s.pauseTimer != nil {
 		s.pauseTimer.Stop()
 	}
-	s.pauseTimer = time.AfterFunc(time.Minute, s.pause)
-}
-
-func (s *BoxService) pause() {
-	s.pauseAccess.Lock()
-	defer s.pauseAccess.Unlock()
-	s.pauseManager.DevicePause()
-	_ = s.instance.Router().ResetNetwork()
-	s.pauseTimer = nil
+	s.pauseTimer = time.AfterFunc(3*time.Second, s.ResetNetwork)
 }
 
 func (s *BoxService) Wake() {
-	_ = s.instance.Router().ResetNetwork()
 	s.pauseAccess.Lock()
 	defer s.pauseAccess.Unlock()
 	if s.pauseTimer != nil {
 		s.pauseTimer.Stop()
-		s.pauseTimer = nil
-		return
 	}
-	s.pauseManager.DeviceWake()
+	s.pauseTimer = time.AfterFunc(3*time.Minute, s.ResetNetwork)
+}
+
+func (s *BoxService) ResetNetwork() {
+	_ = s.instance.Router().ResetNetwork()
 }
