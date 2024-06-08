@@ -509,78 +509,6 @@ func (r *Router) Start() error {
 		r.geositeReader = nil
 	}
 
-	if len(r.ruleSets) > 0 {
-		monitor.Start("initialize rule-set")
-		ruleSetStartContext := NewRuleSetStartContext()
-		var ruleSetStartGroup task.Group
-		for i, ruleSet := range r.ruleSets {
-			ruleSetInPlace := ruleSet
-			ruleSetStartGroup.Append0(func(ctx context.Context) error {
-				err := ruleSetInPlace.StartContext(ctx, ruleSetStartContext)
-				if err != nil {
-					return E.Cause(err, "initialize rule-set[", i, "]")
-				}
-				return nil
-			})
-		}
-		ruleSetStartGroup.Concurrency(5)
-		ruleSetStartGroup.FastFail()
-		err := ruleSetStartGroup.Run(r.ctx)
-		monitor.Finish()
-		if err != nil {
-			return err
-		}
-		ruleSetStartContext.Close()
-	}
-	var (
-		needProcessFromRuleSet   bool
-		needWIFIStateFromRuleSet bool
-	)
-	for _, ruleSet := range r.ruleSets {
-		metadata := ruleSet.Metadata()
-		if metadata.ContainsProcessRule {
-			needProcessFromRuleSet = true
-		}
-		if metadata.ContainsWIFIRule {
-			needWIFIStateFromRuleSet = true
-		}
-	}
-	if needProcessFromRuleSet || r.needFindProcess || r.needPackageManager {
-		if C.IsAndroid && r.platformInterface == nil {
-			monitor.Start("initialize package manager")
-			packageManager, err := tun.NewPackageManager(r)
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "create package manager")
-			}
-			monitor.Start("start package manager")
-			err = packageManager.Start()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "start package manager")
-			}
-			r.packageManager = packageManager
-		}
-
-		if r.platformInterface != nil {
-			r.processSearcher = r.platformInterface
-		} else {
-			monitor.Start("initialize process searcher")
-			searcher, err := process.NewSearcher(process.Config{
-				Logger:         r.logger,
-				PackageManager: r.packageManager,
-			})
-			monitor.Finish()
-			if err != nil {
-				if err != os.ErrInvalid {
-					r.logger.Warn(E.Cause(err, "create process searcher"))
-				}
-			} else {
-				r.processSearcher = searcher
-			}
-		}
-	}
-
 	if runtime.GOOS == "windows" {
 		powerListener, err := winpowrprof.NewEventListener(r.notifyWindowsPowerEvent)
 		if err == nil {
@@ -596,25 +524,6 @@ func (r *Router) Start() error {
 		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "start power listener")
-		}
-	}
-
-	if (needWIFIStateFromRuleSet || r.needWIFIState) && r.platformInterface != nil {
-		monitor.Start("initialize WIFI state")
-		r.needWIFIState = true
-		r.interfaceMonitor.RegisterCallback(func(_ int) {
-			r.updateWIFIState()
-		})
-		r.updateWIFIState()
-		monitor.Finish()
-	}
-
-	for i, rule := range r.rules {
-		monitor.Start("initialize rule[", i, "]")
-		err := rule.Start()
-		monitor.Finish()
-		if err != nil {
-			return E.Cause(err, "initialize rule[", i, "]")
 		}
 	}
 
@@ -726,12 +635,93 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) PostStart() error {
+	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	if len(r.ruleSets) > 0 {
+		monitor.Start("initialize rule-set")
+		ruleSetStartContext := NewRuleSetStartContext()
+		var ruleSetStartGroup task.Group
 		for i, ruleSet := range r.ruleSets {
-			err := ruleSet.PostStart()
+			ruleSetInPlace := ruleSet
+			ruleSetStartGroup.Append0(func(ctx context.Context) error {
+				err := ruleSetInPlace.StartContext(ctx, ruleSetStartContext)
+				if err != nil {
+					return E.Cause(err, "initialize rule-set[", i, "]")
+				}
+				return nil
+			})
+		}
+		ruleSetStartGroup.Concurrency(5)
+		ruleSetStartGroup.FastFail()
+		err := ruleSetStartGroup.Run(r.ctx)
+		monitor.Finish()
+		if err != nil {
+			return err
+		}
+		ruleSetStartContext.Close()
+	}
+	var (
+		needProcessFromRuleSet   bool
+		needWIFIStateFromRuleSet bool
+	)
+	for _, ruleSet := range r.ruleSets {
+		metadata := ruleSet.Metadata()
+		if metadata.ContainsProcessRule {
+			needProcessFromRuleSet = true
+		}
+		if metadata.ContainsWIFIRule {
+			needWIFIStateFromRuleSet = true
+		}
+	}
+	if needProcessFromRuleSet || r.needFindProcess || r.needPackageManager {
+		if C.IsAndroid && r.platformInterface == nil {
+			monitor.Start("initialize package manager")
+			packageManager, err := tun.NewPackageManager(r)
+			monitor.Finish()
 			if err != nil {
-				return E.Cause(err, "post start rule-set[", i, "]")
+				return E.Cause(err, "create package manager")
 			}
+			monitor.Start("start package manager")
+			err = packageManager.Start()
+			monitor.Finish()
+			if err != nil {
+				return E.Cause(err, "start package manager")
+			}
+			r.packageManager = packageManager
+		}
+
+		if r.platformInterface != nil {
+			r.processSearcher = r.platformInterface
+		} else {
+			monitor.Start("initialize process searcher")
+			searcher, err := process.NewSearcher(process.Config{
+				Logger:         r.logger,
+				PackageManager: r.packageManager,
+			})
+			monitor.Finish()
+			if err != nil {
+				if err != os.ErrInvalid {
+					r.logger.Warn(E.Cause(err, "create process searcher"))
+				}
+			} else {
+				r.processSearcher = searcher
+			}
+		}
+	}
+	if (needWIFIStateFromRuleSet || r.needWIFIState) && r.platformInterface != nil {
+		monitor.Start("initialize WIFI state")
+		r.needWIFIState = true
+		r.interfaceMonitor.RegisterCallback(func(_ int) {
+			r.updateWIFIState()
+		})
+		r.updateWIFIState()
+		monitor.Finish()
+	}
+	for i, rule := range r.rules {
+		monitor.Start("initialize rule[", i, "]")
+		err := rule.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "initialize rule[", i, "]")
 		}
 	}
 	r.started = true
