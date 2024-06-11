@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/gofrs/uuid/v5"
 )
 
 func connectionRouter(router adapter.Router, trafficManager *trafficontrol.Manager) http.Handler {
@@ -76,10 +77,10 @@ func getConnections(trafficManager *trafficontrol.Manager) func(w http.ResponseW
 
 func closeConnection(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := chi.URLParam(r, "id")
+		id := uuid.FromStringOrNil(chi.URLParam(r, "id"))
 		snapshot := trafficManager.Snapshot()
 		for _, c := range snapshot.Connections {
-			if id == c.ID() {
+			if id == c.Metadata().ID {
 				c.Close()
 				break
 			}
