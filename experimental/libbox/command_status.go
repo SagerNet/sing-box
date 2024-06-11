@@ -36,7 +36,7 @@ func (s *CommandServer) readStatus() StatusMessage {
 			trafficManager := clashServer.(*clashapi.Server).TrafficManager()
 			message.Uplink, message.Downlink = trafficManager.Now()
 			message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
-			message.ConnectionsIn = int32(trafficManager.Connections())
+			message.ConnectionsIn = int32(trafficManager.ConnectionsLen())
 		}
 	}
 
