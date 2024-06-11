@@ -17,6 +17,10 @@ func newIterator[T any](values []T) *iterator[T] {
 	return &iterator[T]{values}
 }
 
+func newPtrIterator[T any](values []T) *iterator[*T] {
+	return &iterator[*T]{common.Map(values, func(value T) *T { return &value })}
+}
+
 func (i *iterator[T]) Next() T {
 	if len(i.values) == 0 {
 		return common.DefaultValue[T]()
