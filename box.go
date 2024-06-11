@@ -111,6 +111,7 @@ func New(options Options) (*Box, error) {
 			ctx,
 			router,
 			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
+			tag,
 			inboundOptions,
 			options.PlatformInterface,
 		)
