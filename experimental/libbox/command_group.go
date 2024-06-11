@@ -14,36 +14,6 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-type OutboundGroup struct {
-	Tag        string
-	Type       string
-	Selectable bool
-	Selected   string
-	IsExpand   bool
-	items      []*OutboundGroupItem
-}
-
-func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
-	return newIterator(g.items)
-}
-
-type OutboundGroupIterator interface {
-	Next() *OutboundGroup
-	HasNext() bool
-}
-
-type OutboundGroupItem struct {
-	Tag          string
-	Type         string
-	URLTestTime  int64
-	URLTestDelay int32
-}
-
-type OutboundGroupItemIterator interface {
-	Next() *OutboundGroupItem
-	HasNext() bool
-}
-
 func (c *CommandClient) handleGroupConn(conn net.Conn) {
 	defer conn.Close()
 
@@ -90,6 +60,36 @@ func (s *CommandServer) handleGroupConn(conn net.Conn) error {
 		case <-s.urlTestUpdate:
 		}
 	}
+}
+
+type OutboundGroup struct {
+	Tag        string
+	Type       string
+	Selectable bool
+	Selected   string
+	IsExpand   bool
+	items      []*OutboundGroupItem
+}
+
+func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
+	return newIterator(g.items)
+}
+
+type OutboundGroupIterator interface {
+	Next() *OutboundGroup
+	HasNext() bool
+}
+
+type OutboundGroupItem struct {
+	Tag          string
+	Type         string
+	URLTestTime  int64
+	URLTestDelay int32
+}
+
+type OutboundGroupItemIterator interface {
+	Next() *OutboundGroupItem
+	HasNext() bool
 }
 
 func readGroups(reader io.Reader) (OutboundGroupIterator, error) {
