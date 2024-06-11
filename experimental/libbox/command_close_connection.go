@@ -1,0 +1,53 @@
+package libbox
+
+import (
+	"bufio"
+	"net"
+
+	"github.com/sagernet/sing-box/experimental/clashapi"
+	"github.com/sagernet/sing/common/binary"
+	E "github.com/sagernet/sing/common/exceptions"
+
+	"github.com/gofrs/uuid/v5"
+)
+
+func (c *CommandClient) CloseConnection(connId string) error {
+	conn, err := c.directConnect()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	writer := bufio.NewWriter(conn)
+	err = binary.WriteData(writer, binary.BigEndian, connId)
+	if err != nil {
+		return err
+	}
+	err = writer.Flush()
+	if err != nil {
+		return err
+	}
+	return readError(conn)
+}
+
+func (s *CommandServer) handleCloseConnection(conn net.Conn) error {
+	reader := bufio.NewReader(conn)
+	var connId string
+	err := binary.ReadData(reader, binary.BigEndian, &connId)
+	if err != nil {
+		return E.Cause(err, "read connection id")
+	}
+	service := s.service
+	if service == nil {
+		return writeError(conn, E.New("service not ready"))
+	}
+	clashServer := service.instance.Router().ClashServer()
+	if clashServer == nil {
+		return writeError(conn, E.New("Clash API disabled"))
+	}
+	targetConn := clashServer.(*clashapi.Server).TrafficManager().Connection(uuid.FromStringOrNil(connId))
+	if targetConn == nil {
+		return writeError(conn, E.New("connection already closed"))
+	}
+	targetConn.Close()
+	return writeError(conn, nil)
+}
