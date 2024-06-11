@@ -33,6 +33,8 @@ type CommandServer struct {
 	urlTestUpdate chan struct{}
 	modeUpdate    chan struct{}
 	logReset      chan struct{}
+
+	closedConnections []Connection
 }
 
 type CommandServerHandler interface {
@@ -176,6 +178,10 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleGetSystemProxyStatus(conn)
 	case CommandSetSystemProxyEnabled:
 		return s.handleSetSystemProxyEnabled(conn)
+	case CommandConnections:
+		return s.handleConnectionsConn(conn)
+	case CommandCloseConnection:
+		return s.handleCloseConnection(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}
