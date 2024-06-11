@@ -149,33 +149,6 @@ func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions
 	return tun.New(*options)
 }
 
-func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
-	var uid int32
-	if w.useProcFS {
-		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
-		if uid == -1 {
-			return nil, E.New("procfs: not found")
-		}
-	} else {
-		var ipProtocol int32
-		switch N.NetworkName(network) {
-		case N.NetworkTCP:
-			ipProtocol = syscall.IPPROTO_TCP
-		case N.NetworkUDP:
-			ipProtocol = syscall.IPPROTO_UDP
-		default:
-			return nil, E.New("unknown network: ", network)
-		}
-		var err error
-		uid, err = w.iif.FindConnectionOwner(ipProtocol, source.Addr().String(), int32(source.Port()), destination.Addr().String(), int32(destination.Port()))
-		if err != nil {
-			return nil, err
-		}
-	}
-	packageName, _ := w.iif.PackageNameByUid(uid)
-	return &process.Info{UserId: uid, PackageName: packageName}, nil
-}
-
 func (w *platformInterfaceWrapper) UsePlatformDefaultInterfaceMonitor() bool {
 	return w.iif.UsePlatformDefaultInterfaceMonitor()
 }
@@ -227,6 +200,33 @@ func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 		return adapter.WIFIState{}
 	}
 	return (adapter.WIFIState)(*wifiState)
+}
+
+func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
+	var uid int32
+	if w.useProcFS {
+		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
+		if uid == -1 {
+			return nil, E.New("procfs: not found")
+		}
+	} else {
+		var ipProtocol int32
+		switch N.NetworkName(network) {
+		case N.NetworkTCP:
+			ipProtocol = syscall.IPPROTO_TCP
+		case N.NetworkUDP:
+			ipProtocol = syscall.IPPROTO_UDP
+		default:
+			return nil, E.New("unknown network: ", network)
+		}
+		var err error
+		uid, err = w.iif.FindConnectionOwner(ipProtocol, source.Addr().String(), int32(source.Port()), destination.Addr().String(), int32(destination.Port()))
+		if err != nil {
+			return nil, err
+		}
+	}
+	packageName, _ := w.iif.PackageNameByUid(uid)
+	return &process.Info{UserId: uid, PackageName: packageName}, nil
 }
 
 func (w *platformInterfaceWrapper) DisableColors() bool {

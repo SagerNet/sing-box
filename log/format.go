@@ -43,7 +43,7 @@ func (f Formatter) Format(ctx context.Context, level Level, tag string, message 
 		id, hasId = IDFromContext(ctx)
 	}
 	if hasId {
-		activeDuration := formatDuration(time.Since(id.CreatedAt))
+		activeDuration := FormatDuration(time.Since(id.CreatedAt))
 		if !f.DisableColors {
 			var color aurora.Color
 			color = aurora.Color(uint8(id.ID))
@@ -113,7 +113,7 @@ func (f Formatter) FormatWithSimple(ctx context.Context, level Level, tag string
 		id, hasId = IDFromContext(ctx)
 	}
 	if hasId {
-		activeDuration := formatDuration(time.Since(id.CreatedAt))
+		activeDuration := FormatDuration(time.Since(id.CreatedAt))
 		if !f.DisableColors {
 			var color aurora.Color
 			color = aurora.Color(uint8(id.ID))
@@ -163,7 +163,7 @@ func xd(value int, x int) string {
 	return message
 }
 
-func formatDuration(duration time.Duration) string {
+func FormatDuration(duration time.Duration) string {
 	if duration < time.Second {
 		return F.ToString(duration.Milliseconds(), "ms")
 	} else if duration < time.Minute {
