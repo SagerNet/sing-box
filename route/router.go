@@ -82,7 +82,8 @@ type Router struct {
 	interfaceFinder                    *control.DefaultInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
-	defaultMark                        int
+	defaultMark                        uint32
+	autoRedirectOutputMark             uint32
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
@@ -728,6 +729,14 @@ func (r *Router) PostStart() error {
 	return nil
 }
 
+func (r *Router) Cleanup() error {
+	for _, ruleSet := range r.ruleSetMap {
+		ruleSet.Cleanup()
+	}
+	runtime.GC()
+	return nil
+}
+
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	outbound, loaded := r.outboundByTag[tag]
 	return outbound, loaded
@@ -1131,11 +1140,23 @@ func (r *Router) AutoDetectInterfaceFunc() control.Func {
 	}
 }
 
+func (r *Router) RegisterAutoRedirectOutputMark(mark uint32) error {
+	if r.autoRedirectOutputMark > 0 {
+		return E.New("only one auto-redirect can be configured")
+	}
+	r.autoRedirectOutputMark = mark
+	return nil
+}
+
+func (r *Router) AutoRedirectOutputMark() uint32 {
+	return r.autoRedirectOutputMark
+}
+
 func (r *Router) DefaultInterface() string {
 	return r.defaultInterface
 }
 
-func (r *Router) DefaultMark() int {
+func (r *Router) DefaultMark() uint32 {
 	return r.defaultMark
 }
 
