@@ -728,6 +728,14 @@ func (r *Router) PostStart() error {
 	return nil
 }
 
+func (r *Router) Cleanup() error {
+	for _, ruleSet := range r.ruleSetMap {
+		ruleSet.Cleanup()
+	}
+	runtime.GC()
+	return nil
+}
+
 func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
 	outbound, loaded := r.outboundByTag[tag]
 	return outbound, loaded

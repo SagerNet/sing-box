@@ -20,25 +20,34 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ranges"
+	"github.com/sagernet/sing/common/x/list"
+
+	"go4.org/netipx"
 )
 
 var _ adapter.Inbound = (*Tun)(nil)
 
 type Tun struct {
-	tag                    string
-	ctx                    context.Context
-	router                 adapter.Router
-	logger                 log.ContextLogger
-	inboundOptions         option.InboundOptions
-	tunOptions             tun.Options
-	endpointIndependentNat bool
-	udpTimeout             int64
-	stack                  string
-	tunIf                  tun.Tun
-	tunStack               tun.Stack
-	platformInterface      platform.Interface
-	platformOptions        option.TunPlatformOptions
-	autoRedirect           tun.AutoRedirect
+	tag                         string
+	ctx                         context.Context
+	router                      adapter.Router
+	logger                      log.ContextLogger
+	inboundOptions              option.InboundOptions
+	tunOptions                  tun.Options
+	endpointIndependentNat      bool
+	udpTimeout                  int64
+	stack                       string
+	tunIf                       tun.Tun
+	tunStack                    tun.Stack
+	platformInterface           platform.Interface
+	platformOptions             option.TunPlatformOptions
+	autoRedirect                tun.AutoRedirect
+	routeRuleSet                []adapter.RuleSet
+	routeRuleSetCallback        []*list.Element[adapter.RuleSetUpdateCallback]
+	routeExcludeRuleSet         []adapter.RuleSet
+	routeExcludeRuleSetCallback []*list.Element[adapter.RuleSetUpdateCallback]
+	routeAddressSet             []*netipx.IPSet
+	routeExcludeAddressSet      []*netipx.IPSet
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -81,6 +90,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			Inet4Address:             options.Inet4Address,
 			Inet6Address:             options.Inet6Address,
 			AutoRoute:                options.AutoRoute,
+			AutoRedirect:             options.AutoRedirect,
 			StrictRoute:              options.StrictRoute,
 			IncludeInterface:         options.IncludeInterface,
 			ExcludeInterface:         options.ExcludeInterface,
@@ -108,15 +118,33 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		}
 		disableNFTables, dErr := strconv.ParseBool(os.Getenv("DISABLE_NFTABLES"))
 		inbound.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
-			TunOptions:      &inbound.tunOptions,
-			Context:         ctx,
-			Handler:         inbound,
-			Logger:          logger,
-			TableName:       "sing-box",
-			DisableNFTables: dErr == nil && disableNFTables,
+			TunOptions:             &inbound.tunOptions,
+			Context:                ctx,
+			Handler:                inbound,
+			Logger:                 logger,
+			TableName:              "sing-box",
+			DisableNFTables:        dErr == nil && disableNFTables,
+			RouteAddressSet:        &inbound.routeAddressSet,
+			RouteExcludeAddressSet: &inbound.routeExcludeAddressSet,
 		})
 		if err != nil {
-			return nil, E.Cause(err, "initialize auto redirect")
+			return nil, E.Cause(err, "initialize auto-redirect")
+		}
+		for _, routeAddressSet := range options.RouteAddressSet {
+			ruleSet, loaded := router.RuleSet(routeAddressSet)
+			if !loaded {
+				return nil, E.New("parse route_address_set: rule-set not found: ", routeAddressSet)
+			}
+			ruleSet.IncRef()
+			inbound.routeRuleSet = append(inbound.routeRuleSet, ruleSet)
+		}
+		for _, routeExcludeAddressSet := range options.RouteExcludeAddressSet {
+			ruleSet, loaded := router.RuleSet(routeExcludeAddressSet)
+			if !loaded {
+				return nil, E.New("parse route_exclude_address_set: rule-set not found: ", routeExcludeAddressSet)
+			}
+			ruleSet.IncRef()
+			inbound.routeExcludeRuleSet = append(inbound.routeExcludeRuleSet, ruleSet)
 		}
 	}
 	return inbound, nil
@@ -215,16 +243,43 @@ func (t *Tun) Start() error {
 	if err != nil {
 		return err
 	}
-	if t.autoRedirect != nil {
-		monitor.Start("initiating auto redirect")
-		err = t.autoRedirect.Start()
-		monitor.Finish()
-		if err != nil {
-			return E.Cause(err, "auto redirect")
-		}
-	}
 	t.logger.Info("started at ", t.tunOptions.Name)
 	return nil
+}
+
+func (t *Tun) PostStart() error {
+	monitor := taskmonitor.New(t.logger, C.StartTimeout)
+	// TODO: add ref counter to rule-set and release them if not needed
+	for _, ruleSet := range t.routeRuleSet {
+		t.routeAddressSet = append(t.routeAddressSet, ruleSet.ExtractIPSet()...)
+	}
+	for _, ruleSet := range t.routeExcludeRuleSet {
+		t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ruleSet.ExtractIPSet()...)
+	}
+	if t.autoRedirect != nil {
+		monitor.Start("initiating auto-redirect")
+		err := t.autoRedirect.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "auto-redirect")
+		}
+	}
+	for _, routeRuleSet := range t.routeRuleSet {
+		t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+		routeRuleSet.DecRef()
+	}
+	for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
+		t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+		routeExcludeRuleSet.DecRef()
+	}
+	return nil
+}
+
+func (t *Tun) updateRouteAddressSet(it adapter.RuleSet) {
+	err := t.autoRedirect.UpdateRouteAddressSet()
+	if err != nil {
+		t.logger.Error("update route address set ", it.Name(), ": ", err)
+	}
 }
 
 func (t *Tun) Close() error {
