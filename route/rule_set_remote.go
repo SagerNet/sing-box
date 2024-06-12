@@ -8,20 +8,26 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/srs"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/atomic"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
+
+	"go4.org/netipx"
 )
 
 var _ adapter.RuleSet = (*RemoteRuleSet)(nil)
@@ -40,6 +46,9 @@ type RemoteRuleSet struct {
 	lastEtag       string
 	updateTicker   *time.Ticker
 	pauseManager   pause.Manager
+	callbackAccess sync.Mutex
+	callbacks      list.List[adapter.RuleSetUpdateCallback]
+	refs           atomic.Int32
 }
 
 func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -61,13 +70,8 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 	}
 }
 
-func (s *RemoteRuleSet) Match(metadata *adapter.InboundContext) bool {
-	for _, rule := range s.rules {
-		if rule.Match(metadata) {
-			return true
-		}
-	}
-	return false
+func (s *RemoteRuleSet) Name() string {
+	return s.options.Tag
 }
 
 func (s *RemoteRuleSet) String() string {
@@ -108,12 +112,48 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.R
 		}
 	}
 	s.updateTicker = time.NewTicker(s.updateInterval)
+	return nil
+}
+
+func (s *RemoteRuleSet) PostStart() error {
 	go s.loopUpdate()
 	return nil
 }
 
 func (s *RemoteRuleSet) Metadata() adapter.RuleSetMetadata {
 	return s.metadata
+}
+
+func (s *RemoteRuleSet) ExtractIPSet() []*netipx.IPSet {
+	return common.FlatMap(s.rules, extractIPSetFromRule)
+}
+
+func (s *RemoteRuleSet) IncRef() {
+	s.refs.Add(1)
+}
+
+func (s *RemoteRuleSet) DecRef() {
+	if s.refs.Add(-1) < 0 {
+		panic("rule-set: negative refs")
+	}
+}
+
+func (s *RemoteRuleSet) Cleanup() {
+	if s.refs.Load() == 0 {
+		s.rules = nil
+	}
+}
+
+func (s *RemoteRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
+	s.callbackAccess.Lock()
+	defer s.callbackAccess.Unlock()
+	return s.callbacks.PushBack(callback)
+}
+
+func (s *RemoteRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
+	s.callbackAccess.Lock()
+	defer s.callbackAccess.Unlock()
+	s.callbacks.Remove(element)
 }
 
 func (s *RemoteRuleSet) loadBytes(content []byte) error {
@@ -148,6 +188,12 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	s.metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
 	s.metadata.ContainsIPCIDRRule = hasHeadlessRule(plainRuleSet.Rules, isIPCIDRHeadlessRule)
 	s.rules = rules
+	s.callbackAccess.Lock()
+	callbacks := s.callbacks.Array()
+	s.callbackAccess.Unlock()
+	for _, callback := range callbacks {
+		callback(s)
+	}
 	return nil
 }
 
@@ -156,6 +202,8 @@ func (s *RemoteRuleSet) loopUpdate() {
 		err := s.fetchOnce(s.ctx, nil)
 		if err != nil {
 			s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+		} else if s.refs.Load() == 0 {
+			s.rules = nil
 		}
 	}
 	for {
@@ -168,6 +216,8 @@ func (s *RemoteRuleSet) loopUpdate() {
 			err := s.fetchOnce(s.ctx, nil)
 			if err != nil {
 				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+			} else if s.refs.Load() == 0 {
+				s.rules = nil
 			}
 		}
 	}
@@ -253,7 +303,17 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext adapter.Rule
 }
 
 func (s *RemoteRuleSet) Close() error {
+	s.rules = nil
 	s.updateTicker.Stop()
 	s.cancel()
 	return nil
+}
+
+func (s *RemoteRuleSet) Match(metadata *adapter.InboundContext) bool {
+	for _, rule := range s.rules {
+		if rule.Match(metadata) {
+			return true
+		}
+	}
+	return false
 }
