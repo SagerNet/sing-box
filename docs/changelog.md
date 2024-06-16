@@ -2,8 +2,69 @@
 icon: material/alert-decagram
 ---
 
+#### 1.10.0-alpha.17
+
+* Some chaotic changes **1**
+* `rule_set_ipcidr_match_source` rule items are renamed **2**
+* Add `rule_set_ip_cidr_accept_empty` DNS address filter rule item **3**
+* Update quic-go to v0.45.1
+* Fixes and improvements
+
+**1**:
+
+Something may be broken, please actively report problems with this version.
+
+**2**:
+
+`rule_set_ipcidr_match_source` route and DNS rule items are renamed to
+`rule_set_ip_cidr_match_source` and will be remove in sing-box 1.11.0.
+
+**3**:
+
+See [DNS Rule](/configuration/dns/rule/#rule_set_ip_cidr_accept_empty).
+
+#### 1.10.0-alpha.16
+
+* Add custom options for `auto-route` and `auto-redirect` **1**
+* Fixes and improvements
+
+**1**:
+
+See [iproute2_table_index](/configuration/inbound/tun/#iproute2_table_index),
+[iproute2_rule_index](/configuration/inbound/tun/#iproute2_rule_index),
+[auto_redirect_input_mark](/configuration/inbound/tun/#auto_redirect_input_mark) and
+[auto_redirect_output_mark](/configuration/inbound/tun/#auto_redirect_output_mark).
+
+#### 1.10.0-alpha.13
+
+* TUN address fields are merged **1**
+* Add route address set support for auto-redirect **2**
+
+**1**:
+
+See [Migration](/migration/#tun-address-fields-are-merged).
+
+**2**:
+
+The new feature will allow you to configure the destination IP CIDR rules
+in the specified rule-sets to the firewall automatically.
+
+Specified or unspecified destinations will bypass the sing-box routes to get better performance
+(for example, keep hardware offloading of direct traffics on the router).
+
+See [route_address_set](/configuration/inbound/tun/#route_address_set)
+and [route_exclude_address_set](/configuration/inbound/tun/#route_exclude_address_set).
+
+#### 1.10.0-alpha.12
+
+* Fix auto-redirect not configuring nftables forward chain correctly
+* Fixes and improvements
 
 ### 1.9.3
+
+* Fixes and improvements
+
+#### 1.10.0-alpha.10
 
 * Fixes and improvements
 
@@ -11,9 +72,79 @@ icon: material/alert-decagram
 
 * Fixes and improvements
 
+#### 1.10.0-alpha.8
+
+* Drop support for go1.18 and go1.19 **1**
+* Update quic-go to v0.45.0
+* Update Hysteria2 BBR congestion control
+* Fixes and improvements
+
+**1**:
+
+Due to maintenance difficulties, sing-box 1.10.0 requires at least Go 1.20 to compile.
+
 ### 1.9.1
 
 * Fixes and improvements
+
+#### 1.10.0-alpha.7
+
+* Fixes and improvements
+
+#### 1.10.0-alpha.5
+
+* Improve auto-redirect **1**
+
+**1**:
+
+nftables support and DNS hijacking has been added.
+
+Tun inbounds with `auto_route` and `auto_redirect` now works as expected on routers **without intervention**.
+
+#### 1.10.0-alpha.4
+
+* Fix auto-redirect **1**
+* Improve auto-route on linux **2**
+
+**1**:
+
+Tun inbounds with `auto_route` and `auto_redirect` now works as expected on routers.
+
+**2**:
+
+Tun inbounds with `auto_route` and `strict_route` now works as expected on routers and servers,
+but the usages of [exclude_interface](/configuration/inbound/tun/#exclude_interface) need to be updated.
+
+#### 1.10.0-alpha.2
+
+* Move auto-redirect to Tun **1**
+* Fixes and improvements
+
+**1**:
+
+Linux support are added.
+
+See [Tun](/configuration/inbound/tun/#auto_redirect).
+
+#### 1.10.0-alpha.1
+
+* Add tailing comma support in JSON configuration
+* Add simple auto-redirect for Android **1**
+* Add BitTorrent sniffer **2**
+
+**1**:
+
+It allows you to use redirect inbound in the sing-box Android client
+and automatically configures IPv4 TCP redirection via su.
+
+This may alleviate the symptoms of some OCD patients who think that
+redirect can effectively save power compared to the system HTTP Proxy.
+
+See [Redirect](/configuration/inbound/redirect/).
+
+**2**:
+
+See [Protocol Sniff](/configuration/route/sniff/).
 
 ### 1.9.0
 
