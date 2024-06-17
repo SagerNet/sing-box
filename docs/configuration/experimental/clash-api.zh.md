@@ -16,6 +16,7 @@
   "external_ui_download_detour": "",
   "secret": "",
   "default_mode": "",
+  "tls": {},
   
   // Deprecated
   

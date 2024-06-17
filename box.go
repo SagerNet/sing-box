@@ -176,7 +176,7 @@ func New(options Options) (*Box, error) {
 		preServices2["clash api"] = clashServer
 	}
 	if needV2RayAPI {
-		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(experimentalOptions.V2RayAPI))
+		v2rayServer, err := experimental.NewV2RayServer(ctx, logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(experimentalOptions.V2RayAPI))
 		if err != nil {
 			return nil, E.Cause(err, "create v2ray api server")
 		}
