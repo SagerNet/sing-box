@@ -25,8 +25,8 @@ type CommandClientOptions struct {
 type CommandClientHandler interface {
 	Connected()
 	Disconnected(message string)
-	ClearLog()
-	WriteLog(message string)
+	ClearLogs()
+	WriteLogs(messageList StringIterator)
 	WriteStatus(message *StatusMessage)
 	WriteGroups(message OutboundGroupIterator)
 	InitializeClashMode(modeList StringIterator, currentMode string)
@@ -84,6 +84,10 @@ func (c *CommandClient) Connect() error {
 	}
 	switch c.options.Command {
 	case CommandLog:
+		err = binary.Write(conn, binary.BigEndian, c.options.StatusInterval)
+		if err != nil {
+			return E.Cause(err, "write interval")
+		}
 		c.handler.Connected()
 		go c.handleLogConn(conn)
 	case CommandStatus:
