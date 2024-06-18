@@ -1,10 +1,14 @@
 package libbox
 
 import (
+	"bufio"
 	"context"
-	"encoding/binary"
 	"io"
 	"net"
+	"time"
+
+	"github.com/sagernet/sing/common/binary"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func (s *CommandServer) WriteMessage(message string) {
@@ -17,43 +21,39 @@ func (s *CommandServer) WriteMessage(message string) {
 	s.access.Unlock()
 }
 
-func readLog(reader io.Reader) ([]byte, error) {
-	var messageLength uint16
-	err := binary.Read(reader, binary.BigEndian, &messageLength)
-	if err != nil {
-		return nil, err
-	}
-	if messageLength == 0 {
-		return nil, nil
-	}
-	data := make([]byte, messageLength)
-	_, err = io.ReadFull(reader, data)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func writeLog(writer io.Writer, message []byte) error {
+func writeLog(writer *bufio.Writer, messages []string) error {
 	err := binary.Write(writer, binary.BigEndian, uint8(0))
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, uint16(len(message)))
+	err = binary.WriteData(writer, binary.BigEndian, messages)
 	if err != nil {
 		return err
 	}
-	if len(message) > 0 {
-		_, err = writer.Write(message)
-	}
-	return err
+	return writer.Flush()
 }
 
-func writeClearLog(writer io.Writer) error {
-	return binary.Write(writer, binary.BigEndian, uint8(1))
+func writeClearLog(writer *bufio.Writer) error {
+	err := binary.Write(writer, binary.BigEndian, uint8(1))
+	if err != nil {
+		return err
+	}
+	return writer.Flush()
 }
 
 func (s *CommandServer) handleLogConn(conn net.Conn) error {
+	var (
+		interval int64
+		timer    *time.Timer
+	)
+	err := binary.Read(conn, binary.BigEndian, &interval)
+	if err != nil {
+		return E.Cause(err, "read interval")
+	}
+	timer = time.NewTimer(time.Duration(interval))
+	if !timer.Stop() {
+		<-timer.C
+	}
 	var savedLines []string
 	s.access.Lock()
 	savedLines = make([]string, 0, s.savedLines.Len())
@@ -66,52 +66,67 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 		return err
 	}
 	defer s.observer.UnSubscribe(subscription)
-	for _, line := range savedLines {
-		err = writeLog(conn, []byte(line))
+	writer := bufio.NewWriter(conn)
+	if len(savedLines) > 0 {
+		err = writeLog(writer, savedLines)
 		if err != nil {
 			return err
 		}
 	}
 	ctx := connKeepAlive(conn)
+	var logLines []string
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case message := <-subscription:
-			err = writeLog(conn, []byte(message))
-			if err != nil {
-				return err
-			}
 		case <-s.logReset:
-			err = writeClearLog(conn)
+			err = writeClearLog(writer)
 			if err != nil {
 				return err
 			}
 		case <-done:
 			return nil
+		case logLine := <-subscription:
+			logLines = logLines[:0]
+			logLines = append(logLines, logLine)
+			timer.Reset(time.Duration(interval))
+		loopLogs:
+			for {
+				select {
+				case logLine = <-subscription:
+					logLines = append(logLines, logLine)
+				case <-timer.C:
+					break loopLogs
+				}
+			}
+			err = writeLog(writer, logLines)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
 
 func (c *CommandClient) handleLogConn(conn net.Conn) {
+	reader := bufio.NewReader(conn)
 	for {
 		var messageType uint8
-		err := binary.Read(conn, binary.BigEndian, &messageType)
+		err := binary.Read(reader, binary.BigEndian, &messageType)
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
 		}
-		var message []byte
+		var messages []string
 		switch messageType {
 		case 0:
-			message, err = readLog(conn)
+			err = binary.ReadData(reader, binary.BigEndian, &messages)
 			if err != nil {
 				c.handler.Disconnected(err.Error())
 				return
 			}
-			c.handler.WriteLog(string(message))
+			c.handler.WriteLogs(newIterator(messages))
 		case 1:
-			c.handler.ClearLog()
+			c.handler.ClearLogs()
 		}
 	}
 }
@@ -120,7 +135,7 @@ func connKeepAlive(reader io.Reader) context.Context {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	go func() {
 		for {
-			_, err := readLog(reader)
+			_, err := reader.Read(make([]byte, 1))
 			if err != nil {
 				cancel(err)
 				return
