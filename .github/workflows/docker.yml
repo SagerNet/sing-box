@@ -49,7 +49,7 @@ jobs:
         with:
           images: ghcr.io/sagernet/sing-box
       - name: Build and release Docker images
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/386,linux/amd64,linux/arm64,linux/s390x
           context: .
