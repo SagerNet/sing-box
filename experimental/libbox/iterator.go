@@ -3,8 +3,9 @@ package libbox
 import "github.com/sagernet/sing/common"
 
 type StringIterator interface {
-	Next() string
+	Len() int32
 	HasNext() bool
+	Next() string
 }
 
 var _ StringIterator = (*iterator[string])(nil)
@@ -21,6 +22,14 @@ func newPtrIterator[T any](values []T) *iterator[*T] {
 	return &iterator[*T]{common.Map(values, func(value T) *T { return &value })}
 }
 
+func (i *iterator[T]) Len() int32 {
+	return int32(len(i.values))
+}
+
+func (i *iterator[T]) HasNext() bool {
+	return len(i.values) > 0
+}
+
 func (i *iterator[T]) Next() T {
 	if len(i.values) == 0 {
 		return common.DefaultValue[T]()
@@ -28,10 +37,6 @@ func (i *iterator[T]) Next() T {
 	nextValue := i.values[0]
 	i.values = i.values[1:]
 	return nextValue
-}
-
-func (i *iterator[T]) HasNext() bool {
-	return len(i.values) > 0
 }
 
 type abstractIterator[T any] interface {
