@@ -141,11 +141,11 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if ruleIndex == 0 {
 		ruleIndex = tun.DefaultIPRoute2RuleIndex
 	}
-	inputMark := options.AutoRedirectInputMark
+	inputMark := uint32(options.AutoRedirectInputMark)
 	if inputMark == 0 {
 		inputMark = tun.DefaultAutoRedirectInputMark
 	}
-	outputMark := options.AutoRedirectOutputMark
+	outputMark := uint32(options.AutoRedirectOutputMark)
 	if outputMark == 0 {
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
