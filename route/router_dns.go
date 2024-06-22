@@ -37,7 +37,7 @@ func (m *DNSReverseMapping) Query(address netip.Addr) (string, bool) {
 	return domain, loaded
 }
 
-func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (context.Context, dns.Transport, dns.DomainStrategy, adapter.DNSRule, int) {
+func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int, isAddressQuery bool) (context.Context, dns.Transport, dns.DomainStrategy, adapter.DNSRule, int) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
@@ -48,6 +48,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int) (con
 			dnsRules = dnsRules[index+1:]
 		}
 		for currentRuleIndex, rule := range dnsRules {
+			if rule.WithAddressLimit() && !isAddressQuery {
+				continue
+			}
 			metadata.ResetRuleCache()
 			if rule.Match(metadata) {
 				detour := rule.Outbound()
@@ -126,9 +129,9 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 				addressLimit bool
 			)
 
-			dnsCtx, transport, strategy, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex)
+			dnsCtx, transport, strategy, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message))
 			dnsCtx, cancel = context.WithTimeout(dnsCtx, C.DNSTimeout)
-			if rule != nil && rule.WithAddressLimit() && isAddressQuery(message) {
+			if rule != nil && rule.WithAddressLimit() {
 				addressLimit = true
 				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, strategy, func(response *mDNS.Msg) bool {
 					metadata.DestinationAddresses, _ = dns.MessageToAddresses(response)
@@ -205,7 +208,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 		)
 		metadata.ResetRuleCache()
 		metadata.DestinationAddresses = nil
-		dnsCtx, transport, transportStrategy, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex)
+		dnsCtx, transport, transportStrategy, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true)
 		if strategy == dns.DomainStrategyAsIS {
 			strategy = transportStrategy
 		}
@@ -256,7 +259,7 @@ func (r *Router) ClearDNSCache() {
 
 func isAddressQuery(message *mDNS.Msg) bool {
 	for _, question := range message.Question {
-		if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
+		if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA || question.Qtype == mDNS.TypeHTTPS {
 			return true
 		}
 	}
