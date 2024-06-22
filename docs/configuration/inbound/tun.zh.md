@@ -12,8 +12,12 @@ icon: material/new-box
     :material-delete-clock: [inet6_route_address](#inet6_route_address)  
     :material-plus: [route_exclude_address](#route_address)  
     :material-delete-clock: [inet4_route_exclude_address](#inet4_route_exclude_address)  
-    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)  
+    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)   
+    :material-plus: [iproute2_table_index](#iproute2_table_index)  
+    :material-plus: [iproute2_rule_index](#iproute2_table_index)  
     :material-plus: [auto_redirect](#auto_redirect)  
+    :material-plus: [auto_redirect_input_mark](#auto_redirect_input_mark)  
+    :material-plus: [auto_redirect_output_mark](#auto_redirect_output_mark)  
     :material-plus: [route_address_set](#route_address_set)  
     :material-plus: [route_exclude_address_set](#route_address_set)
 
@@ -53,8 +57,12 @@ icon: material/new-box
   "mtu": 9000,
   "gso": false,
   "auto_route": true,
-  "strict_route": true,
+  "iproute2_table_index": 2022,
+  "iproute2_rule_index": 9000,
   "auto_redirect": false,
+  "auto_redirect_input_mark": "0x2023",
+  "auto_redirect_output_mark": "0x2024",
+  "strict_route": true,
   "route_address": [
     "0.0.0.0/1",
     "128.0.0.0/1",
@@ -200,6 +208,56 @@ tun 接口的 IPv6 前缀。
 
     VPN 默认优先于 tun。要使 tun 经过 VPN，启用 `route.override_android_vpn`。
 
+#### iproute2_table_index
+
+!!! question "自 sing-box 1.10.0 起"
+
+`auto_route` 生成的 iproute2 路由表索引。
+
+默认使用 `2022`。
+
+#### iproute2_rule_index
+
+!!! question "自 sing-box 1.10.0 起"
+
+`auto_route` 生成的 iproute2 规则起始索引。
+
+默认使用 `9000`。
+
+#### auto_redirect
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要 `auto_route` 已启用。 
+
+自动配置 iptables 以重定向 TCP 连接。
+
+*在 Android 中*：
+
+仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+
+*在 Linux 中*:
+
+带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
+
+#### auto_redirect_input_mark
+
+!!! question "自 sing-box 1.10.0 起"
+
+`route_address_set` 和 `route_exclude_address_set` 使用的连接输入标记。
+
+默认使用 `0x2023`。
+
+#### auto_redirect_output_mark
+
+!!! question "自 sing-box 1.10.0 起"
+
+`route_address_set` 和 `route_exclude_address_set` 使用的连接输出标记。
+
+默认使用 `0x2024`。
+
 #### strict_route
 
 启用 `auto_route` 时执行严格的路由规则。
@@ -219,24 +277,6 @@ tun 接口的 IPv6 前缀。
   造成的 DNS 泄露
 
 它可能会使某些应用程序（如 VirtualBox）在某些情况下无法正常工作。
-
-#### auto_redirect
-
-!!! question "自 sing-box 1.10.0 起"
-
-!!! quote ""
-
-    仅支持 Linux。
-
-自动配置 iptables 以重定向 TCP 连接。
-
-*在 Android 中*：
-
-仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
-
-*在 Linux 中*:
-
-带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
 
 #### route_address
 
