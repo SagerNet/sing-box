@@ -1,6 +1,13 @@
 package option
 
-import "net/netip"
+import (
+	"net/netip"
+	"strconv"
+
+	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json"
+)
 
 type TunInboundOptions struct {
 	InterfaceName          string                 `json:"interface_name,omitempty"`
@@ -11,8 +18,8 @@ type TunInboundOptions struct {
 	IPRoute2TableIndex     int                    `json:"iproute2_table_index,omitempty"`
 	IPRoute2RuleIndex      int                    `json:"iproute2_rule_index,omitempty"`
 	AutoRedirect           bool                   `json:"auto_redirect,omitempty"`
-	AutoRedirectInputMark  uint32                 `json:"auto_redirect_input_mark,omitempty"`
-	AutoRedirectOutputMark uint32                 `json:"auto_redirect_output_mark,omitempty"`
+	AutoRedirectInputMark  FwMark                 `json:"auto_redirect_input_mark,omitempty"`
+	AutoRedirectOutputMark FwMark                 `json:"auto_redirect_output_mark,omitempty"`
 	StrictRoute            bool                   `json:"strict_route,omitempty"`
 	RouteAddress           Listable[netip.Prefix] `json:"route_address,omitempty"`
 	RouteAddressSet        Listable[string]       `json:"route_address_set,omitempty"`
@@ -45,4 +52,27 @@ type TunInboundOptions struct {
 	Inet4RouteExcludeAddress Listable[netip.Prefix] `json:"inet4_route_exclude_address,omitempty"`
 	// Deprecated: merged to RouteExcludeAddress
 	Inet6RouteExcludeAddress Listable[netip.Prefix] `json:"inet6_route_exclude_address,omitempty"`
+}
+
+type FwMark uint32
+
+func (f FwMark) MarshalJSON() ([]byte, error) {
+	return json.Marshal(F.ToString("0x", strconv.FormatUint(uint64(f), 16)))
+}
+
+func (f *FwMark) UnmarshalJSON(bytes []byte) error {
+	var stringValue string
+	err := json.Unmarshal(bytes, &stringValue)
+	if err != nil {
+		if rawErr := json.Unmarshal(bytes, (*uint32)(f)); rawErr == nil {
+			return nil
+		}
+		return E.Cause(err, "invalid number or string mark")
+	}
+	intValue, err := strconv.ParseUint(stringValue, 0, 32)
+	if err != nil {
+		return err
+	}
+	*f = FwMark(intValue)
+	return nil
 }
