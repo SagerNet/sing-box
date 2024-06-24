@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing/common/binary"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/varbin"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -18,7 +19,7 @@ func (c *CommandClient) CloseConnection(connId string) error {
 	}
 	defer conn.Close()
 	writer := bufio.NewWriter(conn)
-	err = binary.WriteData(writer, binary.BigEndian, connId)
+	err = varbin.Write(writer, binary.BigEndian, connId)
 	if err != nil {
 		return err
 	}
@@ -32,7 +33,7 @@ func (c *CommandClient) CloseConnection(connId string) error {
 func (s *CommandServer) handleCloseConnection(conn net.Conn) error {
 	reader := bufio.NewReader(conn)
 	var connId string
-	err := binary.ReadData(reader, binary.BigEndian, &connId)
+	err := varbin.Read(reader, binary.BigEndian, &connId)
 	if err != nil {
 		return E.Cause(err, "read connection id")
 	}
