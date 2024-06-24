@@ -29,9 +29,13 @@ func (r *abstractDefaultRule) Type() string {
 
 func (r *abstractDefaultRule) Start() error {
 	for _, item := range r.allItems {
-		err := common.Start(item)
-		if err != nil {
-			return err
+		if starter, isStarter := item.(interface {
+			Start() error
+		}); isStarter {
+			err := starter.Start()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -183,8 +187,13 @@ func (r *abstractLogicalRule) UpdateGeosite() error {
 }
 
 func (r *abstractLogicalRule) Start() error {
-	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (common.Starter, bool) {
-		rule, loaded := it.(common.Starter)
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (interface {
+		Start() error
+	}, bool,
+	) {
+		rule, loaded := it.(interface {
+			Start() error
+		})
 		return rule, loaded
 	}) {
 		err := rule.Start()
