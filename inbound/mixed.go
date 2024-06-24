@@ -12,10 +12,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
-	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/protocol/http"
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/protocol/socks/socks4"
@@ -51,16 +48,17 @@ func NewMixed(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *Mixed) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	headerType, err := rw.ReadByte(conn)
+	reader := std_bufio.NewReader(conn)
+	headerBytes, err := reader.Peek(1)
 	if err != nil {
 		return err
 	}
-	switch headerType {
+	switch headerBytes[0] {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnection0(ctx, conn, headerType, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+		return socks.HandleConnection0(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+	default:
+		return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 	}
-	reader := std_bufio.NewReader(bufio.NewCachedReader(conn, buf.As([]byte{headerType})))
-	return http.HandleConnection(ctx, conn, reader, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
 }
 
 func (h *Mixed) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
