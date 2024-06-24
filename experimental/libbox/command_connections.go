@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common/binary"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/varbin"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -19,13 +20,17 @@ import (
 func (c *CommandClient) handleConnectionsConn(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	var connections Connections
+	var (
+		rawConnections []Connection
+		connections    Connections
+	)
 	for {
-		err := binary.ReadData(reader, binary.BigEndian, &connections.connections)
+		err := varbin.Read(reader, binary.BigEndian, &rawConnections)
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
 		}
+		connections.input = rawConnections
 		c.handler.WriteConnections(&connections)
 	}
 }
@@ -69,7 +74,7 @@ func (s *CommandServer) handleConnectionsConn(conn net.Conn) error {
 		for _, connection := range trafficManager.ClosedConnections() {
 			outConnections = append(outConnections, newConnection(connections, connection, true))
 		}
-		err = binary.WriteData(writer, binary.BigEndian, outConnections)
+		err = varbin.Write(writer, binary.BigEndian, outConnections)
 		if err != nil {
 			return err
 		}
@@ -92,33 +97,32 @@ const (
 )
 
 type Connections struct {
-	connections         []Connection
-	filteredConnections []Connection
-	outConnections      *[]Connection
+	input    []Connection
+	filtered []Connection
 }
 
 func (c *Connections) FilterState(state int32) {
-	c.filteredConnections = c.filteredConnections[:0]
+	c.filtered = c.filtered[:0]
 	switch state {
 	case ConnectionStateAll:
-		c.filteredConnections = append(c.filteredConnections, c.connections...)
+		c.filtered = append(c.filtered, c.input...)
 	case ConnectionStateActive:
-		for _, connection := range c.connections {
+		for _, connection := range c.input {
 			if connection.ClosedAt == 0 {
-				c.filteredConnections = append(c.filteredConnections, connection)
+				c.filtered = append(c.filtered, connection)
 			}
 		}
 	case ConnectionStateClosed:
-		for _, connection := range c.connections {
+		for _, connection := range c.input {
 			if connection.ClosedAt != 0 {
-				c.filteredConnections = append(c.filteredConnections, connection)
+				c.filtered = append(c.filtered, connection)
 			}
 		}
 	}
 }
 
 func (c *Connections) SortByDate() {
-	slices.SortStableFunc(c.filteredConnections, func(x, y Connection) int {
+	slices.SortStableFunc(c.filtered, func(x, y Connection) int {
 		if x.CreatedAt < y.CreatedAt {
 			return 1
 		} else if x.CreatedAt > y.CreatedAt {
@@ -130,7 +134,7 @@ func (c *Connections) SortByDate() {
 }
 
 func (c *Connections) SortByTraffic() {
-	slices.SortStableFunc(c.filteredConnections, func(x, y Connection) int {
+	slices.SortStableFunc(c.filtered, func(x, y Connection) int {
 		xTraffic := x.Uplink + x.Downlink
 		yTraffic := y.Uplink + y.Downlink
 		if xTraffic < yTraffic {
@@ -144,7 +148,7 @@ func (c *Connections) SortByTraffic() {
 }
 
 func (c *Connections) SortByTrafficTotal() {
-	slices.SortStableFunc(c.filteredConnections, func(x, y Connection) int {
+	slices.SortStableFunc(c.filtered, func(x, y Connection) int {
 		xTraffic := x.UplinkTotal + x.DownlinkTotal
 		yTraffic := y.UplinkTotal + y.DownlinkTotal
 		if xTraffic < yTraffic {
@@ -158,7 +162,7 @@ func (c *Connections) SortByTrafficTotal() {
 }
 
 func (c *Connections) Iterator() ConnectionIterator {
-	return newPtrIterator(c.filteredConnections)
+	return newPtrIterator(c.filtered)
 }
 
 type Connection struct {

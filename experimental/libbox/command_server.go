@@ -66,14 +66,6 @@ func (s *CommandServer) SetService(newService *BoxService) {
 	s.notifyURLTestUpdate()
 }
 
-func (s *CommandServer) ResetLog() {
-	s.savedLines.Init()
-	select {
-	case s.logReset <- struct{}{}:
-	default:
-	}
-}
-
 func (s *CommandServer) notifyURLTestUpdate() {
 	select {
 	case s.urlTestUpdate <- struct{}{}:
