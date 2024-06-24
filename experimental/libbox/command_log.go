@@ -9,7 +9,18 @@ import (
 
 	"github.com/sagernet/sing/common/binary"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/varbin"
 )
+
+func (s *CommandServer) ResetLog() {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.savedLines.Init()
+	select {
+	case s.logReset <- struct{}{}:
+	default:
+	}
+}
 
 func (s *CommandServer) WriteMessage(message string) {
 	s.subscriber.Emit(message)
@@ -19,26 +30,6 @@ func (s *CommandServer) WriteMessage(message string) {
 		s.savedLines.Remove(s.savedLines.Front())
 	}
 	s.access.Unlock()
-}
-
-func writeLog(writer *bufio.Writer, messages []string) error {
-	err := binary.Write(writer, binary.BigEndian, uint8(0))
-	if err != nil {
-		return err
-	}
-	err = binary.WriteData(writer, binary.BigEndian, messages)
-	if err != nil {
-		return err
-	}
-	return writer.Flush()
-}
-
-func writeClearLog(writer *bufio.Writer) error {
-	err := binary.Write(writer, binary.BigEndian, uint8(1))
-	if err != nil {
-		return err
-	}
-	return writer.Flush()
 }
 
 func (s *CommandServer) handleLogConn(conn net.Conn) error {
@@ -67,8 +58,24 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 	}
 	defer s.observer.UnSubscribe(subscription)
 	writer := bufio.NewWriter(conn)
+	select {
+	case <-s.logReset:
+		err = writer.WriteByte(1)
+		if err != nil {
+			return err
+		}
+		err = writer.Flush()
+		if err != nil {
+			return err
+		}
+	default:
+	}
 	if len(savedLines) > 0 {
-		err = writeLog(writer, savedLines)
+		err = writer.WriteByte(0)
+		if err != nil {
+			return err
+		}
+		err = varbin.Write(writer, binary.BigEndian, savedLines)
 		if err != nil {
 			return err
 		}
@@ -76,11 +83,15 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 	ctx := connKeepAlive(conn)
 	var logLines []string
 	for {
+		err = writer.Flush()
+		if err != nil {
+			return err
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-s.logReset:
-			err = writeClearLog(writer)
+			err = writer.WriteByte(1)
 			if err != nil {
 				return err
 			}
@@ -99,7 +110,11 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 					break loopLogs
 				}
 			}
-			err = writeLog(writer, logLines)
+			err = writer.WriteByte(0)
+			if err != nil {
+				return err
+			}
+			err = varbin.Write(writer, binary.BigEndian, logLines)
 			if err != nil {
 				return err
 			}
@@ -110,8 +125,7 @@ func (s *CommandServer) handleLogConn(conn net.Conn) error {
 func (c *CommandClient) handleLogConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
-		var messageType uint8
-		err := binary.Read(reader, binary.BigEndian, &messageType)
+		messageType, err := reader.ReadByte()
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
@@ -119,7 +133,7 @@ func (c *CommandClient) handleLogConn(conn net.Conn) {
 		var messages []string
 		switch messageType {
 		case 0:
-			err = binary.ReadData(reader, binary.BigEndian, &messages)
+			err = varbin.Read(reader, binary.BigEndian, &messages)
 			if err != nil {
 				c.handler.Disconnected(err.Error())
 				return
