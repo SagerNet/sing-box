@@ -1,11 +1,15 @@
 package geosite
 
 import (
+	"bufio"
+	"encoding/binary"
 	"io"
 	"os"
+	"sync/atomic"
 
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/varbin"
 )
 
 type Reader struct {
@@ -34,45 +38,36 @@ func Open(path string) (*Reader, []string, error) {
 	return reader, codes, nil
 }
 
+type geositeMetadata struct {
+	Code   string
+	Index  uint64
+	Length uint64
+}
+
 func (r *Reader) readMetadata() error {
-	version, err := rw.ReadByte(r.reader)
+	reader := bufio.NewReader(r.reader)
+	version, err := reader.ReadByte()
 	if err != nil {
 		return err
 	}
 	if version != 0 {
 		return E.New("unknown version")
 	}
-	entryLength, err := rw.ReadUVariant(r.reader)
+	metadataEntries, err := varbin.ReadValue[[]geositeMetadata](reader, binary.BigEndian)
 	if err != nil {
 		return err
 	}
-	keys := make([]string, entryLength)
 	domainIndex := make(map[string]int)
 	domainLength := make(map[string]int)
-	for i := 0; i < int(entryLength); i++ {
-		var (
-			code       string
-			codeIndex  uint64
-			codeLength uint64
-		)
-		code, err = rw.ReadVString(r.reader)
-		if err != nil {
-			return err
-		}
-		keys[i] = code
-		codeIndex, err = rw.ReadUVariant(r.reader)
-		if err != nil {
-			return err
-		}
-		codeLength, err = rw.ReadUVariant(r.reader)
-		if err != nil {
-			return err
-		}
-		domainIndex[code] = int(codeIndex)
-		domainLength[code] = int(codeLength)
+	for _, entry := range metadataEntries {
+		domainIndex[entry.Code] = int(entry.Index)
+		domainLength[entry.Code] = int(entry.Length)
 	}
 	r.domainIndex = domainIndex
 	r.domainLength = domainLength
+	if reader.Buffered() > 0 {
+		return common.Error(r.reader.Seek(int64(-reader.Buffered()), io.SeekCurrent))
+	}
 	return nil
 }
 
@@ -85,27 +80,28 @@ func (r *Reader) Read(code string) ([]Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	counter := &rw.ReadCounter{Reader: r.reader}
-	domain := make([]Item, r.domainLength[code])
-	for i := range domain {
-		var (
-			item Item
-			err  error
-		)
-		item.Type, err = rw.ReadByte(counter)
-		if err != nil {
-			return nil, err
-		}
-		item.Value, err = rw.ReadVString(counter)
-		if err != nil {
-			return nil, err
-		}
-		domain[i] = item
+	counter := &readCounter{Reader: r.reader}
+	domain, err := varbin.ReadValue[[]Item](bufio.NewReader(counter), binary.BigEndian)
+	if err != nil {
+		return nil, err
 	}
-	_, err = r.reader.Seek(int64(-index)-counter.Count(), io.SeekCurrent)
+	_, err = r.reader.Seek(int64(-index)-counter.count, io.SeekCurrent)
 	return domain, err
 }
 
 func (r *Reader) Upstream() any {
 	return r.reader
+}
+
+type readCounter struct {
+	io.Reader
+	count int64
+}
+
+func (r *readCounter) Read(p []byte) (n int, err error) {
+	n, err = r.Reader.Read(p)
+	if n > 0 {
+		atomic.AddInt64(&r.count, int64(n))
+	}
+	return
 }

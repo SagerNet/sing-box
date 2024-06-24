@@ -2,13 +2,14 @@ package geosite
 
 import (
 	"bytes"
-	"io"
+	"encoding/binary"
 	"sort"
 
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/varbin"
 )
 
-func Write(writer io.Writer, domains map[string][]Item) error {
+func Write(writer varbin.Writer, domains map[string][]Item) error {
 	keys := make([]string, 0, len(domains))
 	for code := range domains {
 		keys = append(keys, code)
@@ -19,38 +20,26 @@ func Write(writer io.Writer, domains map[string][]Item) error {
 	index := make(map[string]int)
 	for _, code := range keys {
 		index[code] = content.Len()
-		for _, domain := range domains[code] {
-			content.WriteByte(domain.Type)
-			err := rw.WriteVString(content, domain.Value)
-			if err != nil {
-				return err
-			}
+		err := varbin.Write(content, binary.BigEndian, domains[code])
+		if err != nil {
+			return err
 		}
 	}
 
-	err := rw.WriteByte(writer, 0)
+	err := writer.WriteByte(0)
 	if err != nil {
 		return err
 	}
 
-	err = rw.WriteUVariant(writer, uint64(len(keys)))
+	err = varbin.Write(writer, binary.BigEndian, common.Map(keys, func(it string) *geositeMetadata {
+		return &geositeMetadata{
+			Code:   it,
+			Index:  uint64(index[it]),
+			Length: uint64(len(domains[it])),
+		}
+	}))
 	if err != nil {
 		return err
-	}
-
-	for _, code := range keys {
-		err = rw.WriteVString(writer, code)
-		if err != nil {
-			return err
-		}
-		err = rw.WriteUVariant(writer, uint64(index[code]))
-		if err != nil {
-			return err
-		}
-		err = rw.WriteUVariant(writer, uint64(len(domains[code])))
-		if err != nil {
-			return err
-		}
 	}
 
 	_, err = writer.Write(content.Bytes())
