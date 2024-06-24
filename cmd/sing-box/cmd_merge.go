@@ -54,7 +54,11 @@ func merge(outputPath string) error {
 			return nil
 		}
 	}
-	err = rw.WriteFile(outputPath, buffer.Bytes())
+	err = rw.MkdirParent(outputPath)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(outputPath, buffer.Bytes(), 0o644)
 	if err != nil {
 		return err
 	}

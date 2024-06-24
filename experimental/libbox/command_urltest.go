@@ -11,7 +11,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/varbin"
 	"github.com/sagernet/sing/service"
 )
 
@@ -25,7 +25,7 @@ func (c *CommandClient) URLTest(groupTag string) error {
 	if err != nil {
 		return err
 	}
-	err = rw.WriteVString(conn, groupTag)
+	err = varbin.Write(conn, binary.BigEndian, groupTag)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (c *CommandClient) URLTest(groupTag string) error {
 }
 
 func (s *CommandServer) handleURLTest(conn net.Conn) error {
-	groupTag, err := rw.ReadVString(conn)
+	groupTag, err := varbin.ReadValue[string](conn, binary.BigEndian)
 	if err != nil {
 		return err
 	}
