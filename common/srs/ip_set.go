@@ -2,11 +2,13 @@ package srs
 
 import (
 	"encoding/binary"
-	"io"
 	"net/netip"
+	"os"
 	"unsafe"
 
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/varbin"
 
 	"go4.org/netipx"
 )
@@ -20,94 +22,57 @@ type myIPRange struct {
 	to   netip.Addr
 }
 
-func readIPSet(reader io.Reader) (*netipx.IPSet, error) {
-	var version uint8
-	err := binary.Read(reader, binary.BigEndian, &version)
+type myIPRangeData struct {
+	From []byte
+	To   []byte
+}
+
+func readIPSet(reader varbin.Reader) (*netipx.IPSet, error) {
+	version, err := reader.ReadByte()
 	if err != nil {
 		return nil, err
 	}
+	if version != 1 {
+		return nil, os.ErrInvalid
+	}
+	// WTF why using uint64 here
 	var length uint64
 	err = binary.Read(reader, binary.BigEndian, &length)
 	if err != nil {
 		return nil, err
 	}
-	mySet := &myIPSet{
-		rr: make([]myIPRange, length),
+	ranges := make([]myIPRangeData, length)
+	err = varbin.Read(reader, binary.BigEndian, &ranges)
+	if err != nil {
+		return nil, err
 	}
-	for i := uint64(0); i < length; i++ {
-		var (
-			fromLen  uint64
-			toLen    uint64
-			fromAddr netip.Addr
-			toAddr   netip.Addr
-		)
-		fromLen, err = rw.ReadUVariant(reader)
-		if err != nil {
-			return nil, err
-		}
-		fromBytes := make([]byte, fromLen)
-		_, err = io.ReadFull(reader, fromBytes)
-		if err != nil {
-			return nil, err
-		}
-		err = fromAddr.UnmarshalBinary(fromBytes)
-		if err != nil {
-			return nil, err
-		}
-		toLen, err = rw.ReadUVariant(reader)
-		if err != nil {
-			return nil, err
-		}
-		toBytes := make([]byte, toLen)
-		_, err = io.ReadFull(reader, toBytes)
-		if err != nil {
-			return nil, err
-		}
-		err = toAddr.UnmarshalBinary(toBytes)
-		if err != nil {
-			return nil, err
-		}
-		mySet.rr[i] = myIPRange{fromAddr, toAddr}
+	mySet := &myIPSet{
+		rr: make([]myIPRange, len(ranges)),
+	}
+	for i, rangeData := range ranges {
+		mySet.rr[i].from = M.AddrFromIP(rangeData.From)
+		mySet.rr[i].to = M.AddrFromIP(rangeData.To)
 	}
 	return (*netipx.IPSet)(unsafe.Pointer(mySet)), nil
 }
 
-func writeIPSet(writer io.Writer, set *netipx.IPSet) error {
-	err := binary.Write(writer, binary.BigEndian, uint8(1))
+func writeIPSet(writer varbin.Writer, set *netipx.IPSet) error {
+	err := writer.WriteByte(1)
 	if err != nil {
 		return err
 	}
-	mySet := (*myIPSet)(unsafe.Pointer(set))
-	err = binary.Write(writer, binary.BigEndian, uint64(len(mySet.rr)))
+	dataList := common.Map((*myIPSet)(unsafe.Pointer(set)).rr, func(rr myIPRange) myIPRangeData {
+		return myIPRangeData{
+			From: rr.from.AsSlice(),
+			To:   rr.to.AsSlice(),
+		}
+	})
+	err = binary.Write(writer, binary.BigEndian, uint64(len(dataList)))
 	if err != nil {
 		return err
 	}
-	for _, rr := range mySet.rr {
-		var (
-			fromBinary []byte
-			toBinary   []byte
-		)
-		fromBinary, err = rr.from.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		err = rw.WriteUVariant(writer, uint64(len(fromBinary)))
-		if err != nil {
-			return err
-		}
-		_, err = writer.Write(fromBinary)
-		if err != nil {
-			return err
-		}
-		toBinary, err = rr.to.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		err = rw.WriteUVariant(writer, uint64(len(toBinary)))
-		if err != nil {
-			return err
-		}
-		_, err = writer.Write(toBinary)
+	for _, data := range dataList {
+		err = varbin.Write(writer, binary.BigEndian, data)
 		if err != nil {
 			return err
 		}
