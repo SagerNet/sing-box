@@ -93,12 +93,15 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *VMess) Start() error {
-	err := common.Start(
-		h.service,
-		h.tlsConfig,
-	)
+	err := h.service.Start()
 	if err != nil {
 		return err
+	}
+	if h.tlsConfig != nil {
+		err = h.tlsConfig.Start()
+		if err != nil {
+			return err
+		}
 	}
 	if h.transport == nil {
 		return h.myInboundAdapter.Start()
