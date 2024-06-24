@@ -10,7 +10,7 @@ type RouteOptions struct {
 	AutoDetectInterface bool            `json:"auto_detect_interface,omitempty"`
 	OverrideAndroidVPN  bool            `json:"override_android_vpn,omitempty"`
 	DefaultInterface    string          `json:"default_interface,omitempty"`
-	DefaultMark         int             `json:"default_mark,omitempty"`
+	DefaultMark         uint32          `json:"default_mark,omitempty"`
 }
 
 type GeoIPOptions struct {

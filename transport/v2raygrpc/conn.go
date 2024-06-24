@@ -8,7 +8,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/baderror"
 	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/common/rw"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var _ net.Conn = (*GRPCConn)(nil)
@@ -90,7 +90,7 @@ func (c *GRPCConn) Upstream() any {
 	return c.GunService
 }
 
-var _ rw.WriteCloser = (*clientConnWrapper)(nil)
+var _ N.WriteCloser = (*clientConnWrapper)(nil)
 
 type clientConnWrapper struct {
 	GunService_TunClient
