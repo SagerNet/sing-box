@@ -1,7 +1,6 @@
 package outbound
 
 import (
-	std_bufio "bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -11,16 +10,10 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
-	"github.com/sagernet/sing/common/buf"
-	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/rw"
-	"github.com/sagernet/sing/protocol/http"
 	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks4"
-	"github.com/sagernet/sing/protocol/socks/socks5"
 )
 
 type ProxyListener struct {
@@ -102,16 +95,7 @@ func (l *ProxyListener) acceptLoop() {
 }
 
 func (l *ProxyListener) accept(ctx context.Context, conn *net.TCPConn) error {
-	headerType, err := rw.ReadByte(conn)
-	if err != nil {
-		return err
-	}
-	switch headerType {
-	case socks4.Version, socks5.Version:
-		return socks.HandleConnection0(ctx, conn, headerType, l.authenticator, l, M.Metadata{})
-	}
-	reader := std_bufio.NewReader(bufio.NewCachedReader(conn, buf.As([]byte{headerType})))
-	return http.HandleConnection(ctx, conn, reader, l.authenticator, l, M.Metadata{})
+	return socks.HandleConnection(ctx, conn, l.authenticator, l, M.Metadata{})
 }
 
 func (l *ProxyListener) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
