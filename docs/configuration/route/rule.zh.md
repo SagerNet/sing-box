@@ -1,3 +1,12 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "sing-box 1.10.0 中的更改"
+
+    :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
+    :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
+
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-plus: [rule_set](#rule_set)  
@@ -103,7 +112,9 @@
           "geoip-cn",
           "geosite-cn"
         ],
+        // 已弃用
         "rule_set_ipcidr_match_source": false,
+        "rule_set_ip_cidr_match_source": false,
         "invert": false,
         "outbound": "direct"
       },
@@ -301,7 +312,17 @@
 
 !!! question "自 sing-box 1.8.0 起"
 
-使规则集中的 `ipcidr` 规则匹配源 IP。
+!!! failure "已在 sing-box 1.10.0 废弃"
+
+    `rule_set_ipcidr_match_source` 已重命名为 `rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 移除。
+
+使规则集中的 `ip_cidr` 规则匹配源 IP。
+
+#### rule_set_ip_cidr_match_source
+
+!!! question "自 sing-box 1.10.0 起"
+
+使规则集中的 `ip_cidr` 规则匹配源 IP。
 
 #### invert
 
