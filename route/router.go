@@ -82,7 +82,7 @@ type Router struct {
 	interfaceFinder                    *control.DefaultInterfaceFinder
 	autoDetectInterface                bool
 	defaultInterface                   string
-	defaultMark                        int
+	defaultMark                        uint32
 	networkMonitor                     tun.NetworkUpdateMonitor
 	interfaceMonitor                   tun.DefaultInterfaceMonitor
 	packageManager                     tun.PackageManager
@@ -1171,7 +1171,7 @@ func (r *Router) DefaultInterface() string {
 	return r.defaultInterface
 }
 
-func (r *Router) DefaultMark() int {
+func (r *Router) DefaultMark() uint32 {
 	return r.defaultMark
 }
 
