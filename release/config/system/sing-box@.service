@@ -1,0 +1,38 @@
+[Unit]
+Description=sing-box service (%i)
+Documentation=https://sing-box.sagernet.org
+After=network.target nss-lookup.target network-online.target
+
+[Service]
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
+ConfigurationDirectory=sing-box
+DynamicUser=true
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/sing-box -D ${STATE_DIRECTORY} -c ${CONFIGURATION_DIRECTORY}/%i.json run
+LimitNOFILE=infinity
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateTmp=true
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=noaccess
+ProtectSystem=full
+Restart=on-failure
+RestartSec=10s
+RestrictNamespaces=true
+RestrictRealtime=true
+StateDirectory=sing-box-%i
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target
+DefaultInstance=sing-box.service

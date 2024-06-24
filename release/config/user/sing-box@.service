@@ -1,0 +1,29 @@
+[Unit]
+Description=sing-box user service (%i)
+Documentation=https://sing-box.sagernet.org
+After=basic.target
+
+[Service]
+ConfigurationDirectory=sing-box
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/sing-box -D ${STATE_DIRECTORY} -c ${CONFIGURATION_DIRECTORY}/%i.json run
+LimitNOFILE=infinity
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+PrivateUsers=true
+ProcSubset=pid
+ProtectProc=noaccess
+Restart=on-failure
+RestartSec=10s
+RestrictNamespaces=true
+RestrictRealtime=true
+StateDirectory=sing-box-%i
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=default.target
+DefaultInstance=sing-box.service

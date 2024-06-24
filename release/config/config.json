@@ -1,7 +1,4 @@
 {
-  "log": {
-    "level": "info"
-  },
   "dns": {
     "servers": [
       {
@@ -11,29 +8,37 @@
   },
   "inbounds": [
     {
-      "type": "shadowsocks",
       "listen": "::",
       "listen_port": 8080,
-      "sniff": true,
-      "network": "tcp",
       "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
+      "multiplex": {
+        "enabled": true
+      },
+      "network": "tcp",
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
+      "sniff": true,
+      "tcp_fast_open": true,
+      "tcp_multi_path": true,
+      "type": "shadowsocks"
     }
   ],
+  "log": {
+    "level": "info"
+  },
   "outbounds": [
     {
       "type": "direct"
     },
     {
-      "type": "dns",
-      "tag": "dns-out"
+      "tag": "dns-out",
+      "type": "dns"
     }
   ],
   "route": {
     "rules": [
       {
-        "protocol": "dns",
-        "outbound": "dns-out"
+        "outbound": "dns-out",
+        "protocol": "dns"
       }
     ]
   }
