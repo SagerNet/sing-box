@@ -5,7 +5,7 @@ import (
 	"net"
 
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/varbin"
 )
 
 func (c *CommandClient) ServiceReload() error {
@@ -24,7 +24,7 @@ func (c *CommandClient) ServiceReload() error {
 		return err
 	}
 	if hasError {
-		errorMessage, err := rw.ReadVString(conn)
+		errorMessage, err := varbin.ReadValue[string](conn, binary.BigEndian)
 		if err != nil {
 			return err
 		}
@@ -40,7 +40,7 @@ func (s *CommandServer) handleServiceReload(conn net.Conn) error {
 		return err
 	}
 	if rErr != nil {
-		return rw.WriteVString(conn, rErr.Error())
+		return varbin.Write(conn, binary.BigEndian, rErr.Error())
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func (c *CommandClient) ServiceClose() error {
 		return nil
 	}
 	if hasError {
-		errorMessage, err := rw.ReadVString(conn)
+		errorMessage, err := varbin.ReadValue[string](conn, binary.BigEndian)
 		if err != nil {
 			return nil
 		}
@@ -78,7 +78,7 @@ func (s *CommandServer) handleServiceClose(conn net.Conn) error {
 		return err
 	}
 	if rErr != nil {
-		return rw.WriteVString(conn, rErr.Error())
+		return varbin.Write(conn, binary.BigEndian, rErr.Error())
 	}
 	return nil
 }
