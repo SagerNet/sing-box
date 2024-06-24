@@ -104,7 +104,8 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	response, cached = r.dnsClient.ExchangeCache(ctx, message)
 	if !cached {
 		var metadata *adapter.InboundContext
-		ctx, metadata = adapter.AppendContext(ctx)
+		ctx, metadata = adapter.ExtendContext(ctx)
+		metadata.Destination = M.Socksaddr{}
 		if len(message.Question) > 0 {
 			metadata.QueryType = message.Question[0].Qtype
 			switch metadata.QueryType {
@@ -126,12 +127,16 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 				dnsCtx       context.Context
 				addressLimit bool
 			)
-
 			dnsCtx, transport, strategy, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message))
+			dnsCtx = adapter.OverrideContext(dnsCtx)
 			if rule != nil && rule.WithAddressLimit() {
 				addressLimit = true
 				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, strategy, func(response *mDNS.Msg) bool {
-					metadata.DestinationAddresses, _ = dns.MessageToAddresses(response)
+					addresses, addrErr := dns.MessageToAddresses(response)
+					if addrErr != nil {
+						return false
+					}
+					metadata.DestinationAddresses = addresses
 					return rule.MatchAddressLimit(metadata)
 				})
 			} else {
@@ -190,7 +195,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 		return responseAddrs, nil
 	}
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
+	metadata.Destination = M.Socksaddr{}
 	metadata.Domain = domain
 	var (
 		transport         dns.Transport
@@ -204,9 +210,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 			dnsCtx       context.Context
 			addressLimit bool
 		)
-		metadata.ResetRuleCache()
-		metadata.DestinationAddresses = nil
 		dnsCtx, transport, transportStrategy, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true)
+		dnsCtx = adapter.OverrideContext(dnsCtx)
 		if strategy == dns.DomainStrategyAsIS {
 			strategy = transportStrategy
 		}
