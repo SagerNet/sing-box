@@ -3,6 +3,7 @@ package libbox
 import (
 	"os"
 	"os/user"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -20,6 +21,11 @@ var (
 	sGroupID     int
 	sTVOS        bool
 )
+
+func init() {
+	debug.SetPanicOnFault(true)
+	debug.SetTraceback("all")
+}
 
 func Setup(basePath string, workingPath string, tempPath string, isTVOS bool) {
 	sBasePath = basePath
