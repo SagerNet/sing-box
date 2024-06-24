@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common/binary"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/varbin"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -21,7 +22,7 @@ func (c *CommandClient) handleConnectionsConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	var connections Connections
 	for {
-		err := binary.ReadData(reader, binary.BigEndian, &connections.connections)
+		err := varbin.Read(reader, binary.BigEndian, &connections.connections)
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
@@ -69,7 +70,7 @@ func (s *CommandServer) handleConnectionsConn(conn net.Conn) error {
 		for _, connection := range trafficManager.ClosedConnections() {
 			outConnections = append(outConnections, newConnection(connections, connection, true))
 		}
-		err = binary.WriteData(writer, binary.BigEndian, outConnections)
+		err = varbin.Write(writer, binary.BigEndian, outConnections)
 		if err != nil {
 			return err
 		}

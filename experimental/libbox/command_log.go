@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing/common/binary"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/varbin"
 )
 
 func (s *CommandServer) WriteMessage(message string) {
@@ -26,7 +27,7 @@ func writeLog(writer *bufio.Writer, messages []string) error {
 	if err != nil {
 		return err
 	}
-	err = binary.WriteData(writer, binary.BigEndian, messages)
+	err = varbin.Write(writer, binary.BigEndian, messages)
 	if err != nil {
 		return err
 	}
@@ -119,7 +120,7 @@ func (c *CommandClient) handleLogConn(conn net.Conn) {
 		var messages []string
 		switch messageType {
 		case 0:
-			err = binary.ReadData(reader, binary.BigEndian, &messages)
+			err = varbin.Read(reader, binary.BigEndian, &messages)
 			if err != nil {
 				c.handler.Disconnected(err.Error())
 				return
