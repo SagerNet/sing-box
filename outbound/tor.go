@@ -44,10 +44,10 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	startConf.ExtraArgs = options.ExtraArgs
 	if options.DataDirectory != "" {
 		dataDirAbs, _ := filepath.Abs(startConf.DataDir)
-		if geoIPPath := filepath.Join(dataDirAbs, "geoip"); rw.FileExists(geoIPPath) && !common.Contains(options.ExtraArgs, "--GeoIPFile") {
+		if geoIPPath := filepath.Join(dataDirAbs, "geoip"); rw.IsFile(geoIPPath) && !common.Contains(options.ExtraArgs, "--GeoIPFile") {
 			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPFile", geoIPPath)
 		}
-		if geoIP6Path := filepath.Join(dataDirAbs, "geoip6"); rw.FileExists(geoIP6Path) && !common.Contains(options.ExtraArgs, "--GeoIPv6File") {
+		if geoIP6Path := filepath.Join(dataDirAbs, "geoip6"); rw.IsFile(geoIP6Path) && !common.Contains(options.ExtraArgs, "--GeoIPv6File") {
 			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPv6File", geoIP6Path)
 		}
 	}
@@ -58,8 +58,12 @@ func NewTor(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	}
 	if startConf.DataDir != "" {
 		torrcFile := filepath.Join(startConf.DataDir, "torrc")
-		if !rw.FileExists(torrcFile) {
-			err := rw.WriteFile(torrcFile, []byte(""))
+		err := rw.MkdirParent(torrcFile)
+		if err != nil {
+			return nil, err
+		}
+		if !rw.IsFile(torrcFile) {
+			err := os.WriteFile(torrcFile, []byte(""), 0o600)
 			if err != nil {
 				return nil, err
 			}
