@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"io"
 	"net"
 	"time"
 
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-dns"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/varbin"
 )
 
 type ClashServer interface {
@@ -56,16 +55,15 @@ func (s *SavedRuleSet) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = rw.WriteUVariant(&buffer, uint64(len(s.Content)))
+	err = varbin.Write(&buffer, binary.BigEndian, s.Content)
 	if err != nil {
 		return nil, err
 	}
-	buffer.Write(s.Content)
 	err = binary.Write(&buffer, binary.BigEndian, s.LastUpdated.Unix())
 	if err != nil {
 		return nil, err
 	}
-	err = rw.WriteVString(&buffer, s.LastEtag)
+	err = varbin.Write(&buffer, binary.BigEndian, s.LastEtag)
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +77,7 @@ func (s *SavedRuleSet) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	contentLen, err := rw.ReadUVariant(reader)
-	if err != nil {
-		return err
-	}
-	s.Content = make([]byte, contentLen)
-	_, err = io.ReadFull(reader, s.Content)
+	err = varbin.Read(reader, binary.BigEndian, &s.Content)
 	if err != nil {
 		return err
 	}
@@ -94,7 +87,7 @@ func (s *SavedRuleSet) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	s.LastUpdated = time.Unix(lastUpdated, 0)
-	s.LastEtag, err = rw.ReadVString(reader)
+	err = varbin.Read(reader, binary.BigEndian, &s.LastEtag)
 	if err != nil {
 		return err
 	}
