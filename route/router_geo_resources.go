@@ -50,7 +50,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	if !rw.FileExists(geoPath) {
+	if !rw.IsFile(geoPath) {
 		geoPath = filemanager.BasePath(r.ctx, geoPath)
 	}
 	if stat, err := os.Stat(geoPath); err == nil {
@@ -61,7 +61,7 @@ func (r *Router) prepareGeoIPDatabase() error {
 			os.Remove(geoPath)
 		}
 	}
-	if !rw.FileExists(geoPath) {
+	if !rw.IsFile(geoPath) {
 		r.logger.Warn("geoip database not exists: ", geoPath)
 		var err error
 		for attempts := 0; attempts < 3; attempts++ {
@@ -96,7 +96,7 @@ func (r *Router) prepareGeositeDatabase() error {
 			geoPath = foundPath
 		}
 	}
-	if !rw.FileExists(geoPath) {
+	if !rw.IsFile(geoPath) {
 		geoPath = filemanager.BasePath(r.ctx, geoPath)
 	}
 	if stat, err := os.Stat(geoPath); err == nil {
@@ -107,7 +107,7 @@ func (r *Router) prepareGeositeDatabase() error {
 			os.Remove(geoPath)
 		}
 	}
-	if !rw.FileExists(geoPath) {
+	if !rw.IsFile(geoPath) {
 		r.logger.Warn("geosite database not exists: ", geoPath)
 		var err error
 		for attempts := 0; attempts < 3; attempts++ {

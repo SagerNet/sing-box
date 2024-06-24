@@ -83,12 +83,11 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *VLESS) Start() error {
-	err := common.Start(
-		h.service,
-		h.tlsConfig,
-	)
-	if err != nil {
-		return err
+	if h.tlsConfig != nil {
+		err := h.tlsConfig.Start()
+		if err != nil {
+			return err
+		}
 	}
 	if h.transport == nil {
 		return h.myInboundAdapter.Start()
