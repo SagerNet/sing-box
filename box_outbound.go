@@ -45,7 +45,9 @@ func (s *Box) startOutbounds() error {
 			}
 			started[outboundTag] = true
 			canContinue = true
-			if starter, isStarter := outboundToStart.(common.Starter); isStarter {
+			if starter, isStarter := outboundToStart.(interface {
+				Start() error
+			}); isStarter {
 				monitor.Start("initialize outbound/", outboundToStart.Type(), "[", outboundTag, "]")
 				err := starter.Start()
 				monitor.Finish()
