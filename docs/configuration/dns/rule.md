@@ -2,6 +2,12 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
+    :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
+    :material-plus: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)
+
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [geoip](#geoip)  
@@ -117,7 +123,10 @@ icon: material/new-box
           "geoip-cn",
           "geosite-cn"
         ],
+        // deprecated
         "rule_set_ipcidr_match_source": false,
+        "rule_set_ip_cidr_match_source": false,
+        "rule_set_ip_cidr_accept_empty": false,
         "invert": false,
         "outbound": [
           "direct"
@@ -309,7 +318,17 @@ Match [Rule Set](/configuration/route/#rule_set).
 
 !!! question "Since sing-box 1.9.0"
 
-Make `ipcidr` in rule sets match the source IP.
+!!! failure "Deprecated in sing-box 1.10.0"
+    
+    `rule_set_ipcidr_match_source` is renamed to `rule_set_ip_cidr_match_source` and will be remove in sing-box 1.11.0.
+
+Make `ip_cidr` rule items in rule sets match the source IP.
+
+#### rule_set_ip_cidr_match_source
+
+!!! question "Since sing-box 1.10.0"
+
+Make `ip_cidr` rule items in rule sets match the source IP.
 
 #### invert
 
@@ -347,7 +366,7 @@ Will overrides `dns.client_subnet` and `servers.[].client_subnet`.
 
 ### Address Filter Fields
 
-Only takes effect for IP address requests. When the query results do not match the address filtering rule items, the current rule will be skipped.
+Only takes effect for address requests (A/AAAA/HTTPS). When the query results do not match the address filtering rule items, the current rule will be skipped.
 
 !!! info ""
 
@@ -374,6 +393,12 @@ Match IP CIDR with query response.
 !!! question "Since sing-box 1.9.0"
 
 Match private IP with query response.
+
+#### rule_set_ip_cidr_accept_empty
+
+!!! question "Since sing-box 1.10.0"
+
+Make `ip_cidr` rules in rule sets accept empty query response.
 
 ### Logical Fields
 
