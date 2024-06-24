@@ -64,7 +64,7 @@ func (r DNSRule) IsValid() bool {
 	}
 }
 
-type DefaultDNSRule struct {
+type _DefaultDNSRule struct {
 	Inbound                  Listable[string]       `json:"inbound,omitempty"`
 	IPVersion                int                    `json:"ip_version,omitempty"`
 	QueryType                Listable[DNSQueryType] `json:"query_type,omitempty"`
@@ -96,15 +96,35 @@ type DefaultDNSRule struct {
 	WIFISSID                 Listable[string]       `json:"wifi_ssid,omitempty"`
 	WIFIBSSID                Listable[string]       `json:"wifi_bssid,omitempty"`
 	RuleSet                  Listable[string]       `json:"rule_set,omitempty"`
-	RuleSetIPCIDRMatchSource bool                   `json:"rule_set_ipcidr_match_source,omitempty"`
+	RuleSetIPCIDRMatchSource bool                   `json:"rule_set_ip_cidr_match_source,omitempty"`
+	RuleSetIPCIDRAcceptEmpty bool                   `json:"rule_set_ip_cidr_accept_empty,omitempty"`
 	Invert                   bool                   `json:"invert,omitempty"`
 	Server                   string                 `json:"server,omitempty"`
 	DisableCache             bool                   `json:"disable_cache,omitempty"`
 	RewriteTTL               *uint32                `json:"rewrite_ttl,omitempty"`
 	ClientSubnet             *AddrPrefix            `json:"client_subnet,omitempty"`
+
+	// Deprecated: renamed to rule_set_ip_cidr_match_source
+	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty"`
 }
 
-func (r DefaultDNSRule) IsValid() bool {
+type DefaultDNSRule _DefaultDNSRule
+
+func (r *DefaultDNSRule) UnmarshalJSON(bytes []byte) error {
+	err := json.UnmarshalDisallowUnknownFields(bytes, (*_DefaultDNSRule)(r))
+	if err != nil {
+		return err
+	}
+	//nolint:staticcheck
+	//goland:noinspection GoDeprecation
+	if r.Deprecated_RulesetIPCIDRMatchSource {
+		r.Deprecated_RulesetIPCIDRMatchSource = false
+		r.RuleSetIPCIDRMatchSource = true
+	}
+	return nil
+}
+
+func (r *DefaultDNSRule) IsValid() bool {
 	var defaultValue DefaultDNSRule
 	defaultValue.Invert = r.Invert
 	defaultValue.Server = r.Server
