@@ -5,7 +5,7 @@ import (
 	"io"
 
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/sing/common/varbin"
 )
 
 func readError(reader io.Reader) error {
@@ -15,7 +15,7 @@ func readError(reader io.Reader) error {
 		return err
 	}
 	if hasError {
-		errorMessage, err := rw.ReadVString(reader)
+		errorMessage, err := varbin.ReadValue[string](reader, binary.BigEndian)
 		if err != nil {
 			return err
 		}
@@ -30,7 +30,7 @@ func writeError(writer io.Writer, wErr error) error {
 		return err
 	}
 	if wErr != nil {
-		err = rw.WriteVString(writer, wErr.Error())
+		err = varbin.Write(writer, binary.BigEndian, wErr.Error())
 		if err != nil {
 			return err
 		}

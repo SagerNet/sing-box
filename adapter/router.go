@@ -45,7 +45,7 @@ type Router interface {
 	DefaultInterface() string
 	AutoDetectInterface() bool
 	AutoDetectInterfaceFunc() control.Func
-	DefaultMark() int
+	DefaultMark() uint32
 	NetworkMonitor() tun.NetworkUpdateMonitor
 	InterfaceMonitor() tun.DefaultInterfaceMonitor
 	PackageManager() tun.PackageManager

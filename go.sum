@@ -108,8 +108,8 @@ github.com/sagernet/quic-go v0.47.0-beta.2/go.mod h1:bLVKvElSEMNv7pu7SZHscW02TYi
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
-github.com/sagernet/sing v0.4.2 h1:jzGNJdZVRI0xlAfFugsIQUPvyB9SuWvbJK7zQCXc4QM=
-github.com/sagernet/sing v0.4.2/go.mod h1:ieZHA/+Y9YZfXs2I3WtuwgyCZ6GPsIR7HdKb1SdEnls=
+github.com/sagernet/sing v0.5.0-beta.1 h1:THZMZgJcDQxutE++6Ckih1HlvMtXple94RBGa6GSg2I=
+github.com/sagernet/sing v0.5.0-beta.1/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
 github.com/sagernet/sing-dns v0.2.3 h1:YzeBUn2tR38F7HtvGEQ0kLRLmZWMEgi/+7wqa4Twb1k=
 github.com/sagernet/sing-dns v0.2.3/go.mod h1:BJpJv6XLnrUbSyIntOT6DG9FW0f4fETmPAHvNjOprLg=
 github.com/sagernet/sing-mux v0.2.0 h1:4C+vd8HztJCWNYfufvgL49xaOoOHXty2+EAjnzN3IYo=
