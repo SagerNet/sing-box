@@ -93,7 +93,7 @@ func buildAndroid() {
 
 	const name = "libbox.aar"
 	copyPath := filepath.Join("..", "sing-box-for-android", "app", "libs")
-	if rw.FileExists(copyPath) {
+	if rw.IsDir(copyPath) {
 		copyPath, _ = filepath.Abs(copyPath)
 		err = rw.CopyFile(name, filepath.Join(copyPath, name))
 		if err != nil {
@@ -134,7 +134,7 @@ func buildiOS() {
 	}
 
 	copyPath := filepath.Join("..", "sing-box-for-apple")
-	if rw.FileExists(copyPath) {
+	if rw.IsDir(copyPath) {
 		targetDir := filepath.Join(copyPath, "Libbox.xcframework")
 		targetDir, _ = filepath.Abs(targetDir)
 		os.RemoveAll(targetDir)
