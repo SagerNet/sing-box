@@ -168,7 +168,7 @@ tun 接口的 IPv4 和 IPv6 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet4_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除.
+    `inet4_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除。
 
 ==必填==
 
@@ -178,7 +178,7 @@ tun 接口的 IPv4 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet6_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除.
+    `inet6_address` 已合并到 `address` 且将在 sing-box 1.11.0 移除。
 
 tun 接口的 IPv6 前缀。
 
@@ -288,7 +288,7 @@ tun 接口的 IPv6 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet4_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除.
+    `inet4_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除。
 
 启用 `auto_route` 时使用自定义路由而不是默认路由。
 
@@ -296,7 +296,7 @@ tun 接口的 IPv6 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet6_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除.
+    `inet6_route_address` 已合并到 `route_address` 且将在 sing-box 1.11.0 移除。
 
 启用 `auto_route` 时使用自定义路由而不是默认路由。
 
@@ -310,7 +310,7 @@ tun 接口的 IPv6 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet4_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除.
+    `inet4_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除。
 
 启用 `auto_route` 时排除自定义路由。
 
@@ -318,7 +318,7 @@ tun 接口的 IPv6 前缀。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `inet6_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除.
+    `inet6_route_exclude_address` 已合并到 `route_exclude_address` 且将在 sing-box 1.11.0 移除。
 
 启用 `auto_route` 时排除自定义路由。
 
