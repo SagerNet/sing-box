@@ -145,7 +145,7 @@ which will disrupt the existing `process_path` use cases in Windows.
     }
     ```
 
-### :material-checkbox-intermediate: Migrate GeoIP to rule sets
+### :material-checkbox-intermediate: Migrate GeoIP to rule-sets
 
 !!! info "References"
 
@@ -153,11 +153,11 @@ which will disrupt the existing `process_path` use cases in Windows.
     [Route](/configuration/route/) / 
     [Route Rule](/configuration/route/rule/) / 
     [DNS Rule](/configuration/dns/rule/) / 
-    [Rule Set](/configuration/rule-set/)
+    [rule-set](/configuration/rule-set/)
 
 !!! tip
 
-    `sing-box geoip` commands can help you convert custom GeoIP into rule sets.
+    `sing-box geoip` commands can help you convert custom GeoIP into rule-sets.
 
 === ":material-card-remove: Deprecated"
 
@@ -224,13 +224,13 @@ which will disrupt the existing `process_path` use cases in Windows.
       },
       "experimental": {
         "cache_file": {
-          "enabled": true // required to save Rule Set cache
+          "enabled": true // required to save rule-set cache
         }
       }
     }
     ```
 
-### :material-checkbox-intermediate: Migrate Geosite to rule sets
+### :material-checkbox-intermediate: Migrate Geosite to rule-sets
 
 !!! info "References"
 
@@ -238,11 +238,11 @@ which will disrupt the existing `process_path` use cases in Windows.
     [Route](/configuration/route/) / 
     [Route Rule](/configuration/route/rule/) / 
     [DNS Rule](/configuration/dns/rule/) / 
-    [Rule Set](/configuration/rule-set/)
+    [rule-set](/configuration/rule-set/)
 
 !!! tip
 
-    `sing-box geosite` commands can help you convert custom Geosite into rule sets.
+    `sing-box geosite` commands can help you convert custom Geosite into rule-sets.
 
 === ":material-card-remove: Deprecated"
 
@@ -285,7 +285,7 @@ which will disrupt the existing `process_path` use cases in Windows.
       },
       "experimental": {
         "cache_file": {
-          "enabled": true // required to save Rule Set cache
+          "enabled": true // required to save rule-set cache
         }
       }
     }
