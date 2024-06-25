@@ -1,48 +1,56 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: `type: inline`
+
 # rule-set
 
 !!! question "Since sing-box 1.8.0"
 
 ### Structure
 
-```json
-{
-  "type": "",
-  "tag": "",
-  "format": "",
-  
-  ... // Typed Fields
-}
-```
+=== "Inline"
 
-#### Local Structure
+    !!! question "Since sing-box 1.10.0"
 
-```json
-{
-  "type": "local",
-  
-  ...
-  
-  "path": ""
-}
-```
+    ```json
+    {
+      "type": "inline", // optional
+      "tag": "",
+      "rules": []
+    }
+    ```
 
-#### Remote Structure
+=== "Local File"
 
-!!! info ""
+    ```json
+    {
+      "type": "local",
+      "tag": "",
+      "format": "source", // or binary
+      "path": ""
+    }
+    ```
 
-    Remote rule-set will be cached if `experimental.cache_file.enabled`.
+=== "Remote File"
 
-```json
-{
-  "type": "remote",
-  
-  ...,
-  
-  "url": "",
-  "download_detour": "",
-  "update_interval": ""
-}
-```
+    !!! info ""
+    
+        Remote rule-set will be cached if `experimental.cache_file.enabled`.
+
+    ```json
+    {
+      "type": "remote",
+      "tag": "",
+      "format": "source", // or binary
+      "url": "",
+      "download_detour": "", // optional
+      "update_interval": "" // optional
+    }
+    ```
 
 ### Fields
 
@@ -58,17 +66,33 @@ Type of rule-set, `local` or `remote`.
 
 Tag of rule-set.
 
+### Inline Fields
+
+!!! question "Since sing-box 1.10.0"
+
+#### rules
+
+==Required==
+
+List of [Headless Rule](./headless-rule.md/).
+
+### Local or Remote Fields
+
 #### format
 
 ==Required==
 
-Format of rule-set, `source` or `binary`.
+Format of rule-set file, `source` or `binary`.
 
 ### Local Fields
 
 #### path
 
 ==Required==
+
+!!! note ""
+
+    Will be automatically reloaded if file modified since sing-box 1.10.0.
 
 File path of rule-set.
 
