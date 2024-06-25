@@ -3,8 +3,10 @@ package route
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/srs"
 	C "github.com/sagernet/sing-box/constant"
@@ -14,6 +16,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
 
 	"go4.org/netipx"
@@ -22,50 +25,55 @@ import (
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
 
 type LocalRuleSet struct {
-	tag      string
-	rules    []adapter.HeadlessRule
-	metadata adapter.RuleSetMetadata
-	refs     atomic.Int32
+	router     adapter.Router
+	logger     logger.Logger
+	tag        string
+	rules      []adapter.HeadlessRule
+	metadata   adapter.RuleSetMetadata
+	fileFormat string
+	watcher    *fswatch.Watcher
+	refs       atomic.Int32
 }
 
-func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleSet, error) {
-	var plainRuleSet option.PlainRuleSet
-	switch options.Format {
-	case C.RuleSetFormatSource, "":
-		content, err := os.ReadFile(options.LocalOptions.Path)
-		if err != nil {
-			return nil, err
-		}
-		compat, err := json.UnmarshalExtended[option.PlainRuleSetCompat](content)
-		if err != nil {
-			return nil, err
-		}
-		plainRuleSet = compat.Upgrade()
-	case C.RuleSetFormatBinary:
-		setFile, err := os.Open(options.LocalOptions.Path)
-		if err != nil {
-			return nil, err
-		}
-		plainRuleSet, err = srs.Read(setFile, false)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, E.New("unknown rule-set format: ", options.Format)
+func NewLocalRuleSet(router adapter.Router, logger logger.Logger, options option.RuleSet) (*LocalRuleSet, error) {
+	ruleSet := &LocalRuleSet{
+		router:     router,
+		logger:     logger,
+		tag:        options.Tag,
+		fileFormat: options.Format,
 	}
-	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
-	var err error
-	for i, ruleOptions := range plainRuleSet.Rules {
-		rules[i], err = NewHeadlessRule(router, ruleOptions)
+	if options.Type == C.RuleSetTypeInline {
+		if len(options.InlineOptions.Rules) == 0 {
+			return nil, E.New("empty inline rule-set")
+		}
+		err := ruleSet.reloadRules(options.InlineOptions.Rules)
 		if err != nil {
-			return nil, E.Cause(err, "parse rule_set.rules.[", i, "]")
+			return nil, err
+		}
+	} else {
+		err := ruleSet.reloadFile(options.LocalOptions.Path)
+		if err != nil {
+			return nil, err
 		}
 	}
-	var metadata adapter.RuleSetMetadata
-	metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
-	metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
-	metadata.ContainsIPCIDRRule = hasHeadlessRule(plainRuleSet.Rules, isIPCIDRHeadlessRule)
-	return &LocalRuleSet{tag: options.Tag, rules: rules, metadata: metadata}, nil
+	if options.Type == C.RuleSetTypeLocal {
+		var watcher *fswatch.Watcher
+		filePath, _ := filepath.Abs(options.LocalOptions.Path)
+		watcher, err := fswatch.NewWatcher(fswatch.Options{
+			Path: []string{filePath},
+			Callback: func(path string) {
+				uErr := ruleSet.reloadFile(path)
+				if uErr != nil {
+					logger.Error(E.Cause(uErr, "reload rule-set ", options.Tag))
+				}
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		ruleSet.watcher = watcher
+	}
+	return ruleSet, nil
 }
 
 func (s *LocalRuleSet) Name() string {
@@ -77,6 +85,61 @@ func (s *LocalRuleSet) String() string {
 }
 
 func (s *LocalRuleSet) StartContext(ctx context.Context, startContext adapter.RuleSetStartContext) error {
+	if s.watcher != nil {
+		err := s.watcher.Start()
+		if err != nil {
+			s.logger.Error(E.Cause(err, "watch rule-set file"))
+		}
+	}
+	return nil
+}
+
+func (s *LocalRuleSet) reloadFile(path string) error {
+	var plainRuleSet option.PlainRuleSet
+	switch s.fileFormat {
+	case C.RuleSetFormatSource, "":
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		compat, err := json.UnmarshalExtended[option.PlainRuleSetCompat](content)
+		if err != nil {
+			return err
+		}
+		plainRuleSet, err = compat.Upgrade()
+		if err != nil {
+			return err
+		}
+	case C.RuleSetFormatBinary:
+		setFile, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		plainRuleSet, err = srs.Read(setFile, false)
+		if err != nil {
+			return err
+		}
+	default:
+		return E.New("unknown rule-set format: ", s.fileFormat)
+	}
+	return s.reloadRules(plainRuleSet.Rules)
+}
+
+func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
+	rules := make([]adapter.HeadlessRule, len(headlessRules))
+	var err error
+	for i, ruleOptions := range headlessRules {
+		rules[i], err = NewHeadlessRule(s.router, ruleOptions)
+		if err != nil {
+			return E.Cause(err, "parse rule_set.rules.[", i, "]")
+		}
+	}
+	var metadata adapter.RuleSetMetadata
+	metadata.ContainsProcessRule = hasHeadlessRule(headlessRules, isProcessHeadlessRule)
+	metadata.ContainsWIFIRule = hasHeadlessRule(headlessRules, isWIFIHeadlessRule)
+	metadata.ContainsIPCIDRRule = hasHeadlessRule(headlessRules, isIPCIDRHeadlessRule)
+	s.rules = rules
+	s.metadata = metadata
 	return nil
 }
 
@@ -117,7 +180,7 @@ func (s *LocalRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetU
 
 func (s *LocalRuleSet) Close() error {
 	s.rules = nil
-	return nil
+	return common.Close(common.PtrOrNil(s.watcher))
 }
 
 func (s *LocalRuleSet) Match(metadata *adapter.InboundContext) bool {
