@@ -166,7 +166,7 @@ icon: material/new-box
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
-    Additionally, included rule sets can be considered merged rather than as a single rule sub-item.
+    Additionally, included rule-sets can be considered merged rather than as a single rule sub-item.
 
 #### inbound
 
@@ -312,7 +312,7 @@ Match WiFi BSSID.
 
 !!! question "Since sing-box 1.8.0"
 
-Match [Rule Set](/configuration/route/#rule_set).
+Match [rule-set](/configuration/route/#rule_set).
 
 #### rule_set_ipcidr_match_source
 
@@ -322,13 +322,13 @@ Match [Rule Set](/configuration/route/#rule_set).
     
     `rule_set_ipcidr_match_source` is renamed to `rule_set_ip_cidr_match_source` and will be remove in sing-box 1.11.0.
 
-Make `ip_cidr` rule items in rule sets match the source IP.
+Make `ip_cidr` rule items in rule-sets match the source IP.
 
 #### rule_set_ip_cidr_match_source
 
 !!! question "Since sing-box 1.10.0"
 
-Make `ip_cidr` rule items in rule sets match the source IP.
+Make `ip_cidr` rule items in rule-sets match the source IP.
 
 #### invert
 
@@ -370,7 +370,7 @@ Only takes effect for address requests (A/AAAA/HTTPS). When the query results do
 
 !!! info ""
 
-    `ip_cidr` items in included rule sets also takes effect as an address filtering field.
+    `ip_cidr` items in included rule-sets also takes effect as an address filtering field.
 
 !!! note ""
 
@@ -398,7 +398,7 @@ Match private IP with query response.
 
 !!! question "Since sing-box 1.10.0"
 
-Make `ip_cidr` rules in rule sets accept empty query response.
+Make `ip_cidr` rules in rule-sets accept empty query response.
 
 ### Logical Fields
 
