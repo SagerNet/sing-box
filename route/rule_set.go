@@ -25,7 +25,7 @@ func NewRuleSet(ctx context.Context, router adapter.Router, logger logger.Contex
 	case C.RuleSetTypeRemote:
 		return NewRemoteRuleSet(ctx, router, logger, options), nil
 	default:
-		return nil, E.New("unknown rule set type: ", options.Type)
+		return nil, E.New("unknown rule-set type: ", options.Type)
 	}
 }
 
