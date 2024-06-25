@@ -14,9 +14,10 @@ import (
 )
 
 type _RuleSet struct {
-	Type          string        `json:"type"`
+	Type          string        `json:"type,omitempty"`
 	Tag           string        `json:"tag"`
-	Format        string        `json:"format"`
+	Format        string        `json:"format,omitempty"`
+	InlineOptions PlainRuleSet  `json:"-"`
 	LocalOptions  LocalRuleSet  `json:"-"`
 	RemoteOptions RemoteRuleSet `json:"-"`
 }
@@ -26,6 +27,9 @@ type RuleSet _RuleSet
 func (r RuleSet) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Type {
+	case "", C.RuleSetTypeInline:
+		r.Type = ""
+		v = r.InlineOptions
 	case C.RuleSetTypeLocal:
 		v = r.LocalOptions
 	case C.RuleSetTypeRemote:
@@ -44,21 +48,26 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	if r.Tag == "" {
 		return E.New("missing tag")
 	}
-	switch r.Format {
-	case "":
-		return E.New("missing format")
-	case C.RuleSetFormatSource, C.RuleSetFormatBinary:
-	default:
-		return E.New("unknown rule-set format: " + r.Format)
+	if r.Type != C.RuleSetTypeInline {
+		switch r.Format {
+		case "":
+			return E.New("missing format")
+		case C.RuleSetFormatSource, C.RuleSetFormatBinary:
+		default:
+			return E.New("unknown rule-set format: " + r.Format)
+		}
+	} else {
+		r.Format = ""
 	}
 	var v any
 	switch r.Type {
+	case "", C.RuleSetTypeInline:
+		r.Type = C.RuleSetTypeInline
+		v = &r.InlineOptions
 	case C.RuleSetTypeLocal:
 		v = &r.LocalOptions
 	case C.RuleSetTypeRemote:
 		v = &r.RemoteOptions
-	case "":
-		return E.New("missing type")
 	default:
 		return E.New("unknown rule-set type: " + r.Type)
 	}
@@ -214,15 +223,13 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (r PlainRuleSetCompat) Upgrade() PlainRuleSet {
-	var result PlainRuleSet
+func (r PlainRuleSetCompat) Upgrade() (PlainRuleSet, error) {
 	switch r.Version {
 	case C.RuleSetVersion1, C.RuleSetVersion2:
-		result = r.Options
 	default:
-		panic("unknown rule-set version: " + F.ToString(r.Version))
+		return PlainRuleSet{}, E.New("unknown rule-set version: " + F.ToString(r.Version))
 	}
-	return result
+	return r.Options, nil
 }
 
 type PlainRuleSet struct {
