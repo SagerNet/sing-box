@@ -39,7 +39,7 @@ List of [Route Rule](./rule/)
 
 !!! question "Since sing-box 1.8.0"
 
-List of [Rule Set](/configuration/rule-set/)
+List of [rule-set](/configuration/rule-set/)
 
 #### final
 
