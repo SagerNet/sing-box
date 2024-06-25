@@ -11,6 +11,7 @@ const (
 )
 
 const (
+	RuleSetTypeInline   = "inline"
 	RuleSetTypeLocal    = "local"
 	RuleSetTypeRemote   = "remote"
 	RuleSetFormatSource = "source"
