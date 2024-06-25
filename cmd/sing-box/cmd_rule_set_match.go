@@ -23,7 +23,7 @@ var flagRuleSetMatchFormat string
 
 var commandRuleSetMatch = &cobra.Command{
 	Use:   "match <rule-set path> <IP address/domain>",
-	Short: "Check if an IP address or a domain matches the rule set",
+	Short: "Check if an IP address or a domain matches the rule-set",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := ruleSetMatch(args[0], args[1])
@@ -70,7 +70,7 @@ func ruleSetMatch(sourcePath string, domain string) error {
 			return err
 		}
 	default:
-		return E.New("unknown rule set format: ", flagRuleSetMatchFormat)
+		return E.New("unknown rule-set format: ", flagRuleSetMatchFormat)
 	}
 	ipAddress := M.ParseAddr(domain)
 	var metadata adapter.InboundContext
