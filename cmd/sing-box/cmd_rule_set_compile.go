@@ -55,10 +55,10 @@ func compileRuleSet(sourcePath string) error {
 	if err != nil {
 		return err
 	}
+	ruleSet, err := plainRuleSet.Upgrade()
 	if err != nil {
 		return err
 	}
-	ruleSet := plainRuleSet.Upgrade()
 	var outputPath string
 	if flagRuleSetCompileOutput == flagRuleSetCompileDefaultOutput {
 		if strings.HasSuffix(sourcePath, ".json") {
