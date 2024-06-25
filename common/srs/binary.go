@@ -46,7 +46,7 @@ func Read(reader io.Reader, recovery bool) (ruleSet option.PlainRuleSet, err err
 		return
 	}
 	if magicBytes != MagicBytes {
-		err = E.New("invalid sing-box rule set file")
+		err = E.New("invalid sing-box rule-set file")
 		return
 	}
 	var version uint8

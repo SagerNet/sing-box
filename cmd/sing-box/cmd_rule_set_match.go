@@ -22,7 +22,7 @@ var flagRuleSetMatchFormat string
 
 var commandRuleSetMatch = &cobra.Command{
 	Use:   "match <rule-set path> <domain>",
-	Short: "Check if a domain matches the rule set",
+	Short: "Check if a domain matches the rule-set",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := ruleSetMatch(args[0], args[1])
@@ -69,7 +69,7 @@ func ruleSetMatch(sourcePath string, domain string) error {
 			return err
 		}
 	default:
-		return E.New("unknown rule set format: ", flagRuleSetMatchFormat)
+		return E.New("unknown rule-set format: ", flagRuleSetMatchFormat)
 	}
 	for i, ruleOptions := range plainRuleSet.Rules {
 		var currentRule adapter.HeadlessRule
