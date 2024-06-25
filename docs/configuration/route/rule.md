@@ -148,7 +148,7 @@ icon: material/alert-decagram
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
-    Additionally, included rule sets can be considered merged rather than as a single rule sub-item.
+    Additionally, included rule-sets can be considered merged rather than as a single rule sub-item.
 
 #### inbound
 
@@ -308,7 +308,7 @@ Match WiFi BSSID.
 
 !!! question "Since sing-box 1.8.0"
 
-Match [Rule Set](/configuration/route/#rule_set).
+Match [rule-set](/configuration/route/#rule_set).
 
 #### rule_set_ipcidr_match_source
 
@@ -318,13 +318,13 @@ Match [Rule Set](/configuration/route/#rule_set).
 
     `rule_set_ipcidr_match_source` is renamed to `rule_set_ip_cidr_match_source` and will be remove in sing-box 1.11.0.
 
-Make `ip_cidr` in rule sets match the source IP.
+Make `ip_cidr` in rule-sets match the source IP.
 
 #### rule_set_ip_cidr_match_source
 
 !!! question "Since sing-box 1.10.0"
 
-Make `ip_cidr` in rule sets match the source IP.
+Make `ip_cidr` in rule-sets match the source IP.
 
 #### invert
 
