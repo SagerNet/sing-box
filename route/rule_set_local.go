@@ -52,7 +52,7 @@ func NewLocalRuleSet(ctx context.Context, router adapter.Router, options option.
 			return nil, err
 		}
 	default:
-		return nil, E.New("unknown rule set format: ", options.Format)
+		return nil, E.New("unknown rule-set format: ", options.Format)
 	}
 	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
 	var err error

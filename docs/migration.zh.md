@@ -222,7 +222,7 @@ sing-box 1.9.0 使 QueryFullProcessImageNameW 输出 Win32 路径（如 `C:\fold
       },
       "experimental": {
         "cache_file": {
-          "enabled": true // required to save Rule Set cache
+          "enabled": true // required to save rule-set cache
         }
       }
     }
@@ -283,7 +283,7 @@ sing-box 1.9.0 使 QueryFullProcessImageNameW 输出 Win32 路径（如 `C:\fold
       },
       "experimental": {
         "cache_file": {
-          "enabled": true // required to save Rule Set cache
+          "enabled": true // required to save rule-set cache
         }
       }
     }
