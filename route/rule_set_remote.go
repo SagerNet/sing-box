@@ -168,7 +168,10 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 		if err != nil {
 			return err
 		}
-		plainRuleSet = compat.Upgrade()
+		plainRuleSet, err = compat.Upgrade()
+		if err != nil {
+			return err
+		}
 	case C.RuleSetFormatBinary:
 		plainRuleSet, err = srs.Read(bytes.NewReader(content), false)
 		if err != nil {
