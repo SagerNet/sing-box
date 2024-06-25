@@ -20,8 +20,8 @@ import (
 
 func NewRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) (adapter.RuleSet, error) {
 	switch options.Type {
-	case C.RuleSetTypeLocal:
-		return NewLocalRuleSet(router, options)
+	case C.RuleSetTypeInline, C.RuleSetTypeLocal, "":
+		return NewLocalRuleSet(router, logger, options)
 	case C.RuleSetTypeRemote:
 		return NewRemoteRuleSet(ctx, router, logger, options), nil
 	default:

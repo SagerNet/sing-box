@@ -11,12 +11,11 @@ import (
 	"strings"
 
 	cftls "github.com/sagernet/cloudflare-tls"
+	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 type echServerConfig struct {
@@ -26,9 +25,8 @@ type echServerConfig struct {
 	key             []byte
 	certificatePath string
 	keyPath         string
-	watcher         *fsnotify.Watcher
 	echKeyPath      string
-	echWatcher      *fsnotify.Watcher
+	watcher         *fswatch.Watcher
 }
 
 func (c *echServerConfig) ServerName() string {
@@ -66,146 +64,84 @@ func (c *echServerConfig) Clone() Config {
 }
 
 func (c *echServerConfig) Start() error {
-	if c.certificatePath != "" && c.keyPath != "" {
-		err := c.startWatcher()
-		if err != nil {
-			c.logger.Warn("create fsnotify watcher: ", err)
-		}
-	}
-	if c.echKeyPath != "" {
-		err := c.startECHWatcher()
-		if err != nil {
-			c.logger.Warn("create fsnotify watcher: ", err)
-		}
+	err := c.startWatcher()
+	if err != nil {
+		c.logger.Warn("create credentials watcher: ", err)
 	}
 	return nil
 }
 
 func (c *echServerConfig) startWatcher() error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
+	var watchPath []string
 	if c.certificatePath != "" {
-		err = watcher.Add(c.certificatePath)
-		if err != nil {
-			return err
-		}
+		watchPath = append(watchPath, c.certificatePath)
 	}
 	if c.keyPath != "" {
-		err = watcher.Add(c.keyPath)
-		if err != nil {
-			return err
-		}
+		watchPath = append(watchPath, c.keyPath)
+	}
+	if c.echKeyPath != "" {
+		watchPath = append(watchPath, c.echKeyPath)
+	}
+	if len(watchPath) == 0 {
+		return nil
+	}
+	watcher, err := fswatch.NewWatcher(fswatch.Options{
+		Path: watchPath,
+		Callback: func(path string) {
+			err := c.credentialsUpdated(path)
+			if err != nil {
+				c.logger.Error(E.Cause(err, "reload credentials from ", path))
+			}
+		},
+	})
+	if err != nil {
+		return err
 	}
 	c.watcher = watcher
-	go c.loopUpdate()
 	return nil
 }
 
-func (c *echServerConfig) loopUpdate() {
-	for {
-		select {
-		case event, ok := <-c.watcher.Events:
-			if !ok {
-				return
-			}
-			if event.Op&fsnotify.Write != fsnotify.Write {
-				continue
-			}
-			err := c.reloadKeyPair()
+func (c *echServerConfig) credentialsUpdated(path string) error {
+	if path == c.certificatePath || path == c.keyPath {
+		if path == c.certificatePath {
+			certificate, err := os.ReadFile(c.certificatePath)
 			if err != nil {
-				c.logger.Error(E.Cause(err, "reload TLS key pair"))
+				return err
 			}
-		case err, ok := <-c.watcher.Errors:
-			if !ok {
-				return
-			}
-			c.logger.Error(E.Cause(err, "fsnotify error"))
-		}
-	}
-}
-
-func (c *echServerConfig) reloadKeyPair() error {
-	if c.certificatePath != "" {
-		certificate, err := os.ReadFile(c.certificatePath)
-		if err != nil {
-			return E.Cause(err, "reload certificate from ", c.certificatePath)
-		}
-		c.certificate = certificate
-	}
-	if c.keyPath != "" {
-		key, err := os.ReadFile(c.keyPath)
-		if err != nil {
-			return E.Cause(err, "reload key from ", c.keyPath)
-		}
-		c.key = key
-	}
-	keyPair, err := cftls.X509KeyPair(c.certificate, c.key)
-	if err != nil {
-		return E.Cause(err, "reload key pair")
-	}
-	c.config.Certificates = []cftls.Certificate{keyPair}
-	c.logger.Info("reloaded TLS certificate")
-	return nil
-}
-
-func (c *echServerConfig) startECHWatcher() error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	err = watcher.Add(c.echKeyPath)
-	if err != nil {
-		return err
-	}
-	c.echWatcher = watcher
-	go c.loopECHUpdate()
-	return nil
-}
-
-func (c *echServerConfig) loopECHUpdate() {
-	for {
-		select {
-		case event, ok := <-c.echWatcher.Events:
-			if !ok {
-				return
-			}
-			if event.Op&fsnotify.Write != fsnotify.Write {
-				continue
-			}
-			err := c.reloadECHKey()
+			c.certificate = certificate
+		} else {
+			key, err := os.ReadFile(c.keyPath)
 			if err != nil {
-				c.logger.Error(E.Cause(err, "reload ECH key"))
+				return err
 			}
-		case err, ok := <-c.echWatcher.Errors:
-			if !ok {
-				return
-			}
-			c.logger.Error(E.Cause(err, "fsnotify error"))
+			c.key = key
 		}
+		keyPair, err := cftls.X509KeyPair(c.certificate, c.key)
+		if err != nil {
+			return E.Cause(err, "parse key pair")
+		}
+		c.config.Certificates = []cftls.Certificate{keyPair}
+		c.logger.Info("reloaded TLS certificate")
+	} else {
+		echKeyContent, err := os.ReadFile(c.echKeyPath)
+		if err != nil {
+			return err
+		}
+		block, rest := pem.Decode(echKeyContent)
+		if block == nil || block.Type != "ECH KEYS" || len(rest) > 0 {
+			return E.New("invalid ECH keys pem")
+		}
+		echKeys, err := cftls.EXP_UnmarshalECHKeys(block.Bytes)
+		if err != nil {
+			return E.Cause(err, "parse ECH keys")
+		}
+		echKeySet, err := cftls.EXP_NewECHKeySet(echKeys)
+		if err != nil {
+			return E.Cause(err, "create ECH key set")
+		}
+		c.config.ServerECHProvider = echKeySet
+		c.logger.Info("reloaded ECH keys")
 	}
-}
-
-func (c *echServerConfig) reloadECHKey() error {
-	echKeyContent, err := os.ReadFile(c.echKeyPath)
-	if err != nil {
-		return err
-	}
-	block, rest := pem.Decode(echKeyContent)
-	if block == nil || block.Type != "ECH KEYS" || len(rest) > 0 {
-		return E.New("invalid ECH keys pem")
-	}
-	echKeys, err := cftls.EXP_UnmarshalECHKeys(block.Bytes)
-	if err != nil {
-		return E.Cause(err, "parse ECH keys")
-	}
-	echKeySet, err := cftls.EXP_NewECHKeySet(echKeys)
-	if err != nil {
-		return E.Cause(err, "create ECH key set")
-	}
-	c.config.ServerECHProvider = echKeySet
-	c.logger.Info("reloaded ECH keys")
 	return nil
 }
 
@@ -213,12 +149,7 @@ func (c *echServerConfig) Close() error {
 	var err error
 	if c.watcher != nil {
 		err = E.Append(err, c.watcher.Close(), func(err error) error {
-			return E.Cause(err, "close certificate watcher")
-		})
-	}
-	if c.echWatcher != nil {
-		err = E.Append(err, c.echWatcher.Close(), func(err error) error {
-			return E.Cause(err, "close ECH key watcher")
+			return E.Cause(err, "close credentials watcher")
 		})
 	}
 	return err
