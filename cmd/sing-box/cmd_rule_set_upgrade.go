@@ -61,7 +61,10 @@ func upgradeRuleSet(sourcePath string) error {
 		log.Info("already up-to-date")
 		return nil
 	}
-	plainRuleSet := plainRuleSetCompat.Upgrade()
+	plainRuleSet, err := plainRuleSetCompat.Upgrade()
+	if err != nil {
+		return err
+	}
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
 	encoder.SetIndent("", "  ")
