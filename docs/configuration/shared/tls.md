@@ -178,6 +178,10 @@ The server certificate line array, in PEM format.
 
 #### certificate_path
 
+!!! note ""
+
+    Will be automatically reloaded if file modified.
+
 The path to the server certificate, in PEM format.
 
 #### key
@@ -189,6 +193,10 @@ The server private key line array, in PEM format.
 #### key_path
 
 ==Server only==
+
+!!! note ""
+
+    Will be automatically reloaded if file modified.
 
 The path to the server private key, in PEM format.
 
@@ -265,6 +273,10 @@ ECH key line array, in PEM format.
 #### key_path
 
 ==Server only==
+
+!!! note ""
+
+    Will be automatically reloaded if file modified.
 
 The path to ECH key, in PEM format.
 
@@ -398,7 +410,3 @@ A hexadecimal string with zero to eight digits.
 The maximum time difference between the server and the client.
 
 Check disabled if empty.
-
-### Reload
-
-For server configuration, certificate, key and ECH key will be automatically reloaded if modified.
