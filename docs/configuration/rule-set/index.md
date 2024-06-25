@@ -1,4 +1,4 @@
-# Rule Set
+# rule-set
 
 !!! question "Since sing-box 1.8.0"
 
@@ -50,19 +50,19 @@
 
 ==Required==
 
-Type of Rule Set, `local` or `remote`.
+Type of rule-set, `local` or `remote`.
 
 #### tag
 
 ==Required==
 
-Tag of Rule Set.
+Tag of rule-set.
 
 #### format
 
 ==Required==
 
-Format of Rule Set, `source` or `binary`.
+Format of rule-set, `source` or `binary`.
 
 ### Local Fields
 
@@ -70,7 +70,7 @@ Format of Rule Set, `source` or `binary`.
 
 ==Required==
 
-File path of Rule Set.
+File path of rule-set.
 
 ### Remote Fields
 
@@ -78,7 +78,7 @@ File path of Rule Set.
 
 ==Required==
 
-Download URL of Rule Set.
+Download URL of rule-set.
 
 #### download_detour
 
@@ -88,6 +88,6 @@ Default outbound will be used if empty.
 
 #### update_interval
 
-Update interval of Rule Set.
+Update interval of rule-set.
 
 `1d` will be used if empty.
