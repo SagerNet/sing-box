@@ -174,7 +174,7 @@ func (t *Tun) Start() error {
 		forwarderBindInterface = true
 		includeAllNetworks = t.platformInterface.IncludeAllNetworks()
 	}
-	t.tunStack, err = tun.NewStack(t.stack, tun.StackOptions{
+	tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
 		Context:                t.ctx,
 		Tun:                    tunInterface,
 		TunOptions:             t.tunOptions,
@@ -190,8 +190,9 @@ func (t *Tun) Start() error {
 		return err
 	}
 	monitor.Start("initiating tun stack")
-	err = t.tunStack.Start()
+	err = tunStack.Start()
 	monitor.Finish()
+	t.tunStack = tunStack
 	if err != nil {
 		return err
 	}
