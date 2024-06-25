@@ -33,7 +33,7 @@ The maxmind GeoIP National Database, as an IP classification database,
 is not entirely suitable for traffic bypassing,
 and all existing implementations suffer from high memory usage and difficult management.
 
-sing-box 1.8.0 introduces [Rule Set](/configuration/rule-set/), which can completely replace GeoIP,
+sing-box 1.8.0 introduces [rule-set](/configuration/rule-set/), which can completely replace GeoIP,
 check [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 #### Geosite
@@ -43,7 +43,7 @@ Geosite is deprecated and may be removed in the future.
 Geosite, the `domain-list-community` project maintained by V2Ray as an early traffic bypassing solution,
 suffers from a number of problems, including lack of maintenance, inaccurate rules, and difficult management.
 
-sing-box 1.8.0 introduces [Rule Set](/configuration/rule-set/), which can completely replace Geosite,
+sing-box 1.8.0 introduces [rule-set](/configuration/rule-set/), which can completely replace Geosite,
 check [Migration](/migration/#migrate-geosite-to-rule-sets).
 
 ## 1.6.0
