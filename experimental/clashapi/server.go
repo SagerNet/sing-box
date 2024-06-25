@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -143,7 +145,18 @@ func (s *Server) PreStart() error {
 func (s *Server) Start() error {
 	if s.externalController {
 		s.checkAndDownloadExternalUI()
-		listener, err := net.Listen("tcp", s.httpServer.Addr)
+		var (
+			listener net.Listener
+			err      error
+		)
+		for i := 0; i < 3; i++ {
+			listener, err = net.Listen("tcp", s.httpServer.Addr)
+			if runtime.GOOS == "android" && errors.Is(err, syscall.EADDRINUSE) {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			break
+		}
 		if err != nil {
 			return E.Cause(err, "external controller listen error")
 		}
