@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
@@ -79,7 +80,7 @@ func ruleSetMatch(sourcePath string, domain string) error {
 		if currentRule.Match(&adapter.InboundContext{
 			Domain: domain,
 		}) {
-			println("match rules.[", i, "]: "+currentRule.String())
+			println(F.ToString("match rules.[", i, "]: ", currentRule))
 		}
 	}
 	return nil
