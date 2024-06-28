@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
@@ -64,6 +65,12 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 	} else {
 		rule = "final"
 	}
+	var dnsMode string
+	if t.Metadata.DNSMode != "" {
+		dnsMode = t.Metadata.DNSMode
+	} else {
+		dnsMode = C.DNSModeNormal
+	}
 	return json.Marshal(map[string]any{
 		"id": t.ID,
 		"metadata": map[string]any{
@@ -74,7 +81,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 			"sourcePort":      F.ToString(t.Metadata.Source.Port),
 			"destinationPort": F.ToString(t.Metadata.Destination.Port),
 			"host":            domain,
-			"dnsMode":         "normal",
+			"dnsMode":         dnsMode,
 			"processPath":     processPath,
 		},
 		"upload":      t.Upload.Load(),
