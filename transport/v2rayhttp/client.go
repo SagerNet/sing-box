@@ -146,7 +146,7 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 			conn.Setup(nil, err)
 		} else if response.StatusCode != 200 {
 			response.Body.Close()
-			conn.Setup(nil, E.New("unexpected status: ", response.Status))
+			conn.Setup(nil, E.New("v2ray-http: unexpected status: ", response.Status))
 		} else {
 			conn.Setup(response.Body, nil)
 		}
