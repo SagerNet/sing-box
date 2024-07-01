@@ -43,7 +43,7 @@ func (c *HTTPConn) Read(b []byte) (n int, err error) {
 			return 0, E.Cause(err, "read response")
 		}
 		if response.StatusCode != 200 {
-			return 0, E.New("unexpected status: ", response.Status)
+			return 0, E.New("v2ray-http: unexpected status: ", response.Status)
 		}
 		if cacheLen := reader.Buffered(); cacheLen > 0 {
 			c.responseCache = buf.NewSize(cacheLen)

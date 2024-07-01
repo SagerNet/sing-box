@@ -104,7 +104,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if response.StatusCode != 101 ||
 		!strings.EqualFold(response.Header.Get("Connection"), "upgrade") ||
 		!strings.EqualFold(response.Header.Get("Upgrade"), "websocket") {
-		return nil, E.New("unexpected status: ", response.Status)
+		return nil, E.New("v2ray-http-upgrade: unexpected status: ", response.Status)
 	}
 	if bufReader.Buffered() > 0 {
 		buffer := buf.NewSize(bufReader.Buffered())
