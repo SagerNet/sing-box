@@ -55,9 +55,6 @@ func compileRuleSet(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	ruleSet := plainRuleSet.Upgrade()
 	var outputPath string
 	if flagRuleSetCompileOutput == flagRuleSetCompileDefaultOutput {
