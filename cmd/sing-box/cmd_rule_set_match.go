@@ -14,6 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
+	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/spf13/cobra"
 )
@@ -21,8 +22,8 @@ import (
 var flagRuleSetMatchFormat string
 
 var commandRuleSetMatch = &cobra.Command{
-	Use:   "match <rule-set path> <domain>",
-	Short: "Check if a domain matches the rule set",
+	Use:   "match <rule-set path> <IP address/domain>",
+	Short: "Check if an IP address or a domain matches the rule set",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := ruleSetMatch(args[0], args[1])
@@ -71,15 +72,20 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	default:
 		return E.New("unknown rule set format: ", flagRuleSetMatchFormat)
 	}
+	ipAddress := M.ParseAddr(domain)
+	var metadata adapter.InboundContext
+	if ipAddress.IsValid() {
+		metadata.Destination = M.SocksaddrFrom(ipAddress, 0)
+	} else {
+		metadata.Domain = domain
+	}
 	for i, ruleOptions := range plainRuleSet.Rules {
 		var currentRule adapter.HeadlessRule
 		currentRule, err = route.NewHeadlessRule(nil, ruleOptions)
 		if err != nil {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
-		if currentRule.Match(&adapter.InboundContext{
-			Domain: domain,
-		}) {
+		if currentRule.Match(&metadata) {
 			println(F.ToString("match rules.[", i, "]: ", currentRule))
 		}
 	}
