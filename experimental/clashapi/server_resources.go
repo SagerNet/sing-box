@@ -78,8 +78,10 @@ func (s *Server) downloadExternalUI() error {
 	err = s.downloadZIP(filepath.Base(downloadURL), response.Body, s.externalUI)
 	if err != nil {
 		removeAllInDirectory(s.externalUI)
+		return err
 	}
-	return err
+	s.logger.Info("download external ui successfully")
+	return nil
 }
 
 func (s *Server) downloadZIP(name string, body io.Reader, output string) error {

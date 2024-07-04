@@ -88,12 +88,7 @@ func (s *URLTest) Start() error {
 		return err
 	}
 	s.group = group
-	return nil
-}
-
-func (s *URLTest) PostStart() error {
-	s.group.PostStart()
-	return nil
+	return s.group.Start()
 }
 
 func (s *URLTest) Close() error {
@@ -253,10 +248,15 @@ func NewURLTestGroup(
 	}, nil
 }
 
-func (g *URLTestGroup) PostStart() {
+func (g *URLTestGroup) Start() error {
+	_, err := g.urlTest(g.ctx, true)
+	if err != nil {
+		return E.New("failed to start urltest group: ", err)
+	}
 	g.started = true
 	g.lastActive.Store(time.Now())
 	go g.CheckOutbounds(false)
+	return nil
 }
 
 func (g *URLTestGroup) Touch() {
