@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 
@@ -24,7 +25,8 @@ func TestSniffBittorrent(t *testing.T) {
 	for _, pkt := range packets {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
-		metadata, err := sniff.BitTorrent(context.TODO(), bytes.NewReader(pkt))
+		var metadata adapter.InboundContext
+		err = sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(pkt))
 		require.NoError(t, err)
 		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
@@ -43,8 +45,8 @@ func TestSniffUTP(t *testing.T) {
 	for _, pkt := range packets {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
-
-		metadata, err := sniff.UTP(context.TODO(), pkt)
+		var metadata adapter.InboundContext
+		err = sniff.UTP(context.TODO(), &metadata, pkt)
 		require.NoError(t, err)
 		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
@@ -63,7 +65,8 @@ func TestSniffUDPTracker(t *testing.T) {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
 
-		metadata, err := sniff.UDPTracker(context.TODO(), pkt)
+		var metadata adapter.InboundContext
+		err = sniff.UDPTracker(context.TODO(), &metadata, pkt)
 		require.NoError(t, err)
 		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 	}
