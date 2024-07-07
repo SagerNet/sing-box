@@ -79,6 +79,11 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.Client) > 0 {
+		item := NewClientItem(options.Client)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
 		item := NewDomainItem(options.Domain, options.DomainSuffix)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
