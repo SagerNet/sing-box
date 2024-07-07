@@ -11,10 +11,12 @@ import (
 	"github.com/sagernet/sing/protocol/http"
 )
 
-func HTTPHost(ctx context.Context, reader io.Reader) (*adapter.InboundContext, error) {
+func HTTPHost(_ context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
 	request, err := http.ReadRequest(std_bufio.NewReader(reader))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &adapter.InboundContext{Protocol: C.ProtocolHTTP, Domain: M.ParseSocksaddr(request.Host).AddrString()}, nil
+	metadata.Protocol = C.ProtocolHTTP
+	metadata.Domain = M.ParseSocksaddr(request.Host).AddrString()
+	return nil
 }
