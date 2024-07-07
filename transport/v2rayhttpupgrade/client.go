@@ -116,3 +116,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	return conn, nil
 }
+
+func (c *Client) Close() error {
+	return nil
+}

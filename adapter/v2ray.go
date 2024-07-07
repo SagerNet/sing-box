@@ -22,4 +22,5 @@ type V2RayServerTransportHandler interface {
 
 type V2RayClientTransport interface {
 	DialContext(ctx context.Context) (net.Conn, error)
+	Close() error
 }

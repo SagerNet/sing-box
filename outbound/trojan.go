@@ -108,6 +108,9 @@ func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, met
 }
 
 func (h *Trojan) InterfaceUpdated() {
+	if h.transport != nil {
+		h.transport.Close()
+	}
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}

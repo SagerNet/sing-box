@@ -97,5 +97,15 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) Close() error {
-	return common.Close(c.conn, c.rawConn)
+	c.connAccess.Lock()
+	defer c.connAccess.Unlock()
+	if c.conn != nil {
+		c.conn.CloseWithError(0, "")
+	}
+	if c.rawConn != nil {
+		c.rawConn.Close()
+	}
+	c.conn = nil
+	c.rawConn = nil
+	return nil
 }

@@ -103,6 +103,9 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 }
 
 func (h *VMess) InterfaceUpdated() {
+	if h.transport != nil {
+		h.transport.Close()
+	}
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}

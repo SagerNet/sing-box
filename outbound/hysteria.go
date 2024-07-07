@@ -130,8 +130,8 @@ func (h *Hysteria) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 	return NewPacketConnection(ctx, h, conn, metadata)
 }
 
-func (h *Hysteria) InterfaceUpdated() error {
-	return h.client.CloseWithError(E.New("network changed"))
+func (h *Hysteria) InterfaceUpdated() {
+	h.client.CloseWithError(E.New("network changed"))
 }
 
 func (h *Hysteria) Close() error {

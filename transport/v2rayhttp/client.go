@@ -155,6 +155,6 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) Close() error {
-	CloseIdleConnections(c.transport)
+	c.transport = ResetTransport(c.transport)
 	return nil
 }
