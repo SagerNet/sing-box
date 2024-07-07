@@ -19,45 +19,44 @@ const (
 
 // BitTorrent detects if the stream is a BitTorrent connection.
 // For the BitTorrent protocol specification, see https://www.bittorrent.org/beps/bep_0003.html
-func BitTorrent(_ context.Context, reader io.Reader) (*adapter.InboundContext, error) {
+func BitTorrent(_ context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
 	var first byte
 	err := binary.Read(reader, binary.BigEndian, &first)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if first != 19 {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 
 	var protocol [19]byte
 	_, err = reader.Read(protocol[:])
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if string(protocol[:]) != "BitTorrent protocol" {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 
-	return &adapter.InboundContext{
-		Protocol: C.ProtocolBitTorrent,
-	}, nil
+	metadata.Protocol = C.ProtocolBitTorrent
+	return nil
 }
 
 // UTP detects if the packet is a uTP connection packet.
 // For the uTP protocol specification, see
 //  1. https://www.bittorrent.org/beps/bep_0029.html
 //  2. https://github.com/bittorrent/libutp/blob/2b364cbb0650bdab64a5de2abb4518f9f228ec44/utp_internal.cpp#L112
-func UTP(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
+func UTP(_ context.Context, metadata *adapter.InboundContext, packet []byte) error {
 	// A valid uTP packet must be at least 20 bytes long.
 	if len(packet) < 20 {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 
 	version := packet[0] & 0x0F
 	ty := packet[0] >> 4
 	if version != 1 || ty > 4 {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 
 	// Validate the extensions
@@ -66,36 +65,35 @@ func UTP(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
 	for extension != 0 {
 		err := binary.Read(reader, binary.BigEndian, &extension)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		var length byte
 		err = binary.Read(reader, binary.BigEndian, &length)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		_, err = reader.Seek(int64(length), io.SeekCurrent)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-
-	return &adapter.InboundContext{
-		Protocol: C.ProtocolBitTorrent,
-	}, nil
+	metadata.Protocol = C.ProtocolBitTorrent
+	return nil
 }
 
 // UDPTracker detects if the packet is a UDP Tracker Protocol packet.
 // For the UDP Tracker Protocol specification, see https://www.bittorrent.org/beps/bep_0015.html
-func UDPTracker(_ context.Context, packet []byte) (*adapter.InboundContext, error) {
+func UDPTracker(_ context.Context, metadata *adapter.InboundContext, packet []byte) error {
 	if len(packet) < trackerConnectMinSize {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 	if binary.BigEndian.Uint64(packet[:8]) != trackerProtocolID {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
 	if binary.BigEndian.Uint32(packet[8:12]) != trackerConnectFlag {
-		return nil, os.ErrInvalid
+		return os.ErrInvalid
 	}
-	return &adapter.InboundContext{Protocol: C.ProtocolBitTorrent}, nil
+	metadata.Protocol = C.ProtocolBitTorrent
+	return nil
 }
