@@ -9,3 +9,11 @@ const (
 	ProtocolBitTorrent = "bittorrent"
 	ProtocolDTLS       = "dtls"
 )
+
+const (
+	ClientChromium = "chromium"
+	ClientSafari   = "safari"
+	ClientFirefox  = "firefox"
+	ClientQUICGo   = "quic-go"
+	ClientUnknown  = "unknown"
+)

@@ -31,10 +31,15 @@ type InboundContext struct {
 	Network     string
 	Source      M.Socksaddr
 	Destination M.Socksaddr
-	Domain      string
-	Protocol    string
 	User        string
 	Outbound    string
+
+	// sniffer
+
+	Protocol     string
+	Domain       string
+	Client       string
+	SniffContext any
 
 	// cache
 
