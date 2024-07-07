@@ -7,4 +7,5 @@ const (
 	ProtocolDNS        = "dns"
 	ProtocolSTUN       = "stun"
 	ProtocolBitTorrent = "bittorrent"
+	ProtocolDTLS       = "dtls"
 )
