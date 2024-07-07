@@ -1000,6 +1000,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				sniff.STUNMessage,
 				sniff.UTP,
 				sniff.UDPTracker,
+				sniff.DTLSRecord,
 			)
 				if sniffMetadata != nil {
 					metadata.Protocol = sniffMetadata.Protocol
