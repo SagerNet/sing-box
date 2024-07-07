@@ -4,6 +4,7 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.10.0"
 
+    :material-plus: [client](#client)
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
     :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
 
@@ -39,6 +40,12 @@ icon: material/alert-decagram
           "tls",
           "http",
           "quic"
+        ],
+        "client": [
+          "chromium",
+          "safari",
+          "firefox",
+          "quic-go"
         ],
         "domain": [
           "test.com"
@@ -166,7 +173,13 @@ Username, see each inbound for details.
 
 #### protocol
 
-Sniffed protocol, see [Sniff](/configuration/route/sniff/) for details.
+Sniffed protocol, see [Protocol Sniff](/configuration/route/sniff/) for details.
+
+#### client
+
+!!! question "Since sing-box 1.10.0"
+
+Sniffed client type, see [Protocol Sniff](/configuration/route/sniff/) for details.
 
 #### network
 
