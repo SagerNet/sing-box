@@ -72,12 +72,6 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}, nil
 }
 
-func (c *Client) Close() error {
-	return common.Close(
-		common.PtrOrNil(c.conn),
-	)
-}
-
 func (c *Client) connect() (*grpc.ClientConn, error) {
 	conn := c.conn
 	if conn != nil && conn.GetState() != connectivity.Shutdown {
@@ -112,4 +106,14 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	return NewGRPCConn(stream, cancel), nil
+}
+
+func (c *Client) Close() error {
+	c.connAccess.Lock()
+	defer c.connAccess.Unlock()
+	if c.conn != nil {
+		c.conn.Close()
+		c.conn = nil
+	}
+	return nil
 }

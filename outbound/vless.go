@@ -127,6 +127,9 @@ func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, meta
 }
 
 func (h *VLESS) InterfaceUpdated() {
+	if h.transport != nil {
+		h.transport.Close()
+	}
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
 	}
