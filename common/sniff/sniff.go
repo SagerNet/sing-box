@@ -14,11 +14,11 @@ import (
 )
 
 type (
-	StreamSniffer = func(ctx context.Context, reader io.Reader) (*adapter.InboundContext, error)
-	PacketSniffer = func(ctx context.Context, packet []byte) (*adapter.InboundContext, error)
+	StreamSniffer = func(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error
+	PacketSniffer = func(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error
 )
 
-func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout time.Duration, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
+func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.Conn, buffer *buf.Buffer, timeout time.Duration, sniffers ...StreamSniffer) error {
 	if timeout == 0 {
 		timeout = C.ReadPayloadTimeout
 	}
@@ -28,7 +28,7 @@ func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout 
 	for i := 0; i < 3; i++ {
 		err := conn.SetReadDeadline(deadline)
 		if err != nil {
-			return nil, E.Cause(err, "set read deadline")
+			return E.Cause(err, "set read deadline")
 		}
 		_, err = buffer.ReadOnceFrom(conn)
 		err = E.Errors(err, conn.SetReadDeadline(time.Time{}))
@@ -36,27 +36,27 @@ func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout 
 			if i > 0 {
 				break
 			}
-			return nil, E.Cause(err, "read payload")
+			return E.Cause(err, "read payload")
 		}
 		for _, sniffer := range sniffers {
-			metadata, err := sniffer(ctx, bytes.NewReader(buffer.Bytes()))
-			if metadata != nil {
-				return metadata, nil
+			err = sniffer(ctx, metadata, bytes.NewReader(buffer.Bytes()))
+			if err == nil {
+				return nil
 			}
 			errors = append(errors, err)
 		}
 	}
-	return nil, E.Errors(errors...)
+	return E.Errors(errors...)
 }
 
-func PeekPacket(ctx context.Context, packet []byte, sniffers ...PacketSniffer) (*adapter.InboundContext, error) {
+func PeekPacket(ctx context.Context, metadata *adapter.InboundContext, packet []byte, sniffers ...PacketSniffer) error {
 	var errors []error
 	for _, sniffer := range sniffers {
-		metadata, err := sniffer(ctx, packet)
-		if metadata != nil {
-			return metadata, nil
+		err := sniffer(ctx, metadata, packet)
+		if err == nil {
+			return nil
 		}
 		errors = append(errors, err)
 	}
-	return nil, E.Errors(errors...)
+	return E.Errors(errors...)
 }

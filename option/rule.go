@@ -70,6 +70,7 @@ type _DefaultRule struct {
 	Network                  Listable[string] `json:"network,omitempty"`
 	AuthUser                 Listable[string] `json:"auth_user,omitempty"`
 	Protocol                 Listable[string] `json:"protocol,omitempty"`
+	Client                   Listable[string] `json:"client,omitempty"`
 	Domain                   Listable[string] `json:"domain,omitempty"`
 	DomainSuffix             Listable[string] `json:"domain_suffix,omitempty"`
 	DomainKeyword            Listable[string] `json:"domain_keyword,omitempty"`
