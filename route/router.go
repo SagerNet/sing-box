@@ -854,8 +854,9 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 
 	if metadata.InboundOptions.SniffEnabled && !sniff.Skip(metadata) {
 		buffer := buf.NewPacket()
-		sniffMetadata, err := sniff.PeekStream(
+		err := sniff.PeekStream(
 			ctx,
+			&metadata,
 			conn,
 			buffer,
 			time.Duration(metadata.InboundOptions.SniffTimeout),
@@ -864,9 +865,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			sniff.HTTPHost,
 			sniff.BitTorrent,
 		)
-		if sniffMetadata != nil {
-			metadata.Protocol = sniffMetadata.Protocol
-			metadata.Domain = sniffMetadata.Domain
+		if err == nil {
 			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
 				metadata.Destination = M.Socksaddr{
 					Fqdn: metadata.Domain,
@@ -878,8 +877,6 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
 			}
-		} else if err != nil {
-			r.logger.TraceContext(ctx, "sniffed no protocol: ", err)
 		}
 		if !buffer.IsEmpty() {
 			conn = bufio.NewCachedConn(conn, buffer)
@@ -980,65 +977,91 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	}*/
 
 	if metadata.InboundOptions.SniffEnabled || metadata.Destination.Addr.IsUnspecified() {
-		var (
-			buffer      = buf.NewPacket()
-			destination M.Socksaddr
-			done        = make(chan struct{})
-			err         error
-		)
-		go func() {
-			sniffTimeout := C.ReadPayloadTimeout
-			if metadata.InboundOptions.SniffTimeout > 0 {
-				sniffTimeout = time.Duration(metadata.InboundOptions.SniffTimeout)
-			}
-			conn.SetReadDeadline(time.Now().Add(sniffTimeout))
-			destination, err = conn.ReadPacket(buffer)
-			conn.SetReadDeadline(time.Time{})
-			close(done)
-		}()
-		select {
-		case <-done:
-		case <-ctx.Done():
-			conn.Close()
-			return ctx.Err()
-		}
-		if err != nil {
-			buffer.Release()
-			if !errors.Is(err, os.ErrDeadlineExceeded) {
-				return err
-			}
-		} else {
-			if metadata.Destination.Addr.IsUnspecified() {
-				metadata.Destination = destination
-			}
-			if metadata.InboundOptions.SniffEnabled {
-				sniffMetadata, _ := sniff.PeekPacket(
-				ctx,
-				buffer.Bytes(),
-				sniff.DomainNameQuery,
-				sniff.QUICClientHello,
-				sniff.STUNMessage,
-				sniff.UTP,
-				sniff.UDPTracker,
-				sniff.DTLSRecord,
+		var bufferList []*buf.Buffer
+		for {
+			var (
+				buffer      = buf.NewPacket()
+				destination M.Socksaddr
+				done        = make(chan struct{})
+				err         error
 			)
-				if sniffMetadata != nil {
-					metadata.Protocol = sniffMetadata.Protocol
-					metadata.Domain = sniffMetadata.Domain
-					if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
-						metadata.Destination = M.Socksaddr{
-							Fqdn: metadata.Domain,
-							Port: metadata.Destination.Port,
-						}
-					}
-					if metadata.Domain != "" {
-						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			go func() {
+				sniffTimeout := C.ReadPayloadTimeout
+				if metadata.InboundOptions.SniffTimeout > 0 {
+					sniffTimeout = time.Duration(metadata.InboundOptions.SniffTimeout)
+				}
+				conn.SetReadDeadline(time.Now().Add(sniffTimeout))
+				destination, err = conn.ReadPacket(buffer)
+				conn.SetReadDeadline(time.Time{})
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-ctx.Done():
+				conn.Close()
+				return ctx.Err()
+			}
+			if err != nil {
+				buffer.Release()
+				if !errors.Is(err, os.ErrDeadlineExceeded) {
+					return err
+				}
+			} else {
+				if metadata.Destination.Addr.IsUnspecified() {
+					metadata.Destination = destination
+				}
+				if metadata.InboundOptions.SniffEnabled {
+					if len(bufferList) > 0 {
+						err = sniff.PeekPacket(
+							ctx,
+							&metadata,
+							buffer.Bytes(),
+							sniff.QUICClientHello,
+						)
 					} else {
-						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
+						err = sniff.PeekPacket(
+							ctx,
+							&metadata,
+							buffer.Bytes(),
+							sniff.DomainNameQuery,
+							sniff.QUICClientHello,
+							sniff.STUNMessage,
+							sniff.UTP,
+							sniff.UDPTracker,
+							sniff.DTLSRecord,
+						)
+					}
+					if E.IsMulti(err, sniff.ErrClientHelloFragmented) && len(bufferList) == 0 {
+						bufferList = append(bufferList, buffer)
+						r.logger.DebugContext(ctx, "attempt to sniff fragmented QUIC client hello")
+						continue
+					}
+					if metadata.Protocol != "" {
+						if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+							metadata.Destination = M.Socksaddr{
+								Fqdn: metadata.Domain,
+								Port: metadata.Destination.Port,
+							}
+						}
+						if metadata.Domain != "" && metadata.Client != "" {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
+						} else if metadata.Domain != "" {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+						} else if metadata.Client != "" {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", client: ", metadata.Client)
+						} else {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
+						}
 					}
 				}
 			}
-			conn = bufio.NewCachedPacketConn(conn, buffer, destination)
+			if err == nil {
+				conn = bufio.NewCachedPacketConn(conn, buffer, destination)
+			}
+			for _, cachedBuffer := range common.Reverse(bufferList) {
+				conn = bufio.NewCachedPacketConn(conn, cachedBuffer, destination)
+			}
+			break
 		}
 	}
 	if r.dnsReverseMapping != nil && metadata.Domain == "" {

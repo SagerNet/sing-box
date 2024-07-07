@@ -10,7 +10,7 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 )
 
-func TLSClientHello(ctx context.Context, reader io.Reader) (*adapter.InboundContext, error) {
+func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
 	var clientHello *tls.ClientHelloInfo
 	err := tls.Server(bufio.NewReadOnlyConn(reader), &tls.Config{
 		GetConfigForClient: func(argHello *tls.ClientHelloInfo) (*tls.Config, error) {
@@ -19,7 +19,9 @@ func TLSClientHello(ctx context.Context, reader io.Reader) (*adapter.InboundCont
 		},
 	}).HandshakeContext(ctx)
 	if clientHello != nil {
-		return &adapter.InboundContext{Protocol: C.ProtocolTLS, Domain: clientHello.ServerName}, nil
+		metadata.Protocol = C.ProtocolTLS
+		metadata.Domain = clientHello.ServerName
+		return nil
 	}
-	return nil, err
+	return err
 }
