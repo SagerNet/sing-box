@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -34,7 +35,7 @@ func NewServer(ctx context.Context, options option.V2RayQUICOptions, tlsConfig t
 		DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
 	}
 	if len(tlsConfig.NextProtos()) == 0 {
-		tlsConfig.SetNextProtos([]string{"h2", "http/1.1"})
+		tlsConfig.SetNextProtos([]string{http3.NextProtoH3})
 	}
 	server := &Server{
 		ctx:        ctx,
