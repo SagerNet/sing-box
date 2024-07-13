@@ -39,7 +39,7 @@ func NewPortRangeItem(isSource bool, rangeList []string) (*PortRangeItem, error)
 			}
 		}
 		if subIndex == len(portRange)-1 {
-			end = 0xFF
+			end = 0xFFFF
 		} else {
 			end, err = strconv.ParseUint(portRange[subIndex+1:], 10, 16)
 			if err != nil {
