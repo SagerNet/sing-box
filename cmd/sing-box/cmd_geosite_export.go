@@ -70,7 +70,7 @@ func geositeExport(category string) error {
 	headlessRule.DomainKeyword = defaultRule.DomainKeyword
 	headlessRule.DomainRegex = defaultRule.DomainRegex
 	var plainRuleSet option.PlainRuleSetCompat
-	plainRuleSet.Version = C.RuleSetVersion1
+	plainRuleSet.Version = C.RuleSetVersion2
 	plainRuleSet.Options.Rules = []option.HeadlessRule{
 		{
 			Type:           C.RuleTypeDefault,
