@@ -87,7 +87,7 @@ func geoipExport(countryCode string) error {
 		headlessRule.IPCIDR = append(headlessRule.IPCIDR, cidr.String())
 	}
 	var plainRuleSet option.PlainRuleSetCompat
-	plainRuleSet.Version = C.RuleSetVersion1
+	plainRuleSet.Version = C.RuleSetVersion2
 	plainRuleSet.Options.Rules = []option.HeadlessRule{
 		{
 			Type:           C.RuleTypeDefault,
