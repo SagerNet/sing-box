@@ -38,7 +38,7 @@ func NewDomainItem(domains []string, domainSuffixes []string) *DomainItem {
 		}
 	}
 	return &DomainItem{
-		domain.NewMatcher(domains, domainSuffixes),
+		domain.NewMatcher(domains, domainSuffixes, false),
 		description,
 	}
 }
