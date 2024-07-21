@@ -14,10 +14,15 @@
       "type": "shadowsocks",
       "listen": "::",
       "listen_port": 8080,
+      "tcp_fast_open": true,
+      "tcp_multi_path": true,
       "sniff": true,
       "network": "tcp",
       "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
+      "multiplex": {
+        "enabled": true
+      }
     }
   ],
   "outbounds": [
