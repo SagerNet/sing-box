@@ -128,12 +128,12 @@ func (l Listable[T]) MarshalJSON() ([]byte, error) {
 }
 
 func (l *Listable[T]) UnmarshalJSON(content []byte) error {
-	err := json.Unmarshal(content, (*[]T)(l))
+	err := json.UnmarshalDisallowUnknownFields(content, (*[]T)(l))
 	if err == nil {
 		return nil
 	}
 	var singleItem T
-	newError := json.Unmarshal(content, &singleItem)
+	newError := json.UnmarshalDisallowUnknownFields(content, &singleItem)
 	if newError != nil {
 		return E.Errors(err, newError)
 	}
