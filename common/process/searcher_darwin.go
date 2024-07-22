@@ -60,12 +60,12 @@ func findProcessName(network string, ip netip.Addr, port int) (string, error) {
 
 	isIPv4 := ip.Is4()
 
-	value, err := syscall.Sysctl(spath)
+	value, err := unix.SysctlRaw(spath)
 	if err != nil {
 		return "", err
 	}
 
-	buf := []byte(value)
+	buf := value
 
 	// from darwin-xnu/bsd/netinet/in_pcblist.c:get_pcblist_n
 	// size/offset are round up (aligned) to 8 bytes in darwin
