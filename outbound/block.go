@@ -4,10 +4,13 @@ import (
 	"context"
 	"io"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -46,7 +49,24 @@ func (h *Block) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 }
 
 func (h *Block) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	conn.Close()
 	h.logger.InfoContext(ctx, "blocked packet connection to ", metadata.Destination)
+	writer := &discardPacketWriter{
+		timer: time.AfterFunc(C.UDPTimeout, func() {
+			_ = conn.Close()
+		}),
+	}
+	_, _ = bufio.CopyPacket(writer, conn)
+	return nil
+}
+
+type discardPacketWriter struct {
+	timer *time.Timer
+}
+
+func (w *discardPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	if w.timer.Stop() {
+		w.timer.Reset(C.UDPTimeout)
+	}
+	buffer.Release()
 	return nil
 }
