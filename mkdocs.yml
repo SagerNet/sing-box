@@ -90,6 +90,7 @@ nav:
           - configuration/rule-set/index.md
           - Source Format: configuration/rule-set/source-format.md
           - Headless Rule: configuration/rule-set/headless-rule.md
+          - AdGuard DNS Filer: configuration/rule-set/adguard.md
       - Experimental:
           - configuration/experimental/index.md
           - Cache File: configuration/experimental/cache-file.md
