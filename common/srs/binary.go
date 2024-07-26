@@ -36,6 +36,7 @@ const (
 	ruleItemPackageName
 	ruleItemWIFISSID
 	ruleItemWIFIBSSID
+	ruleItemAdGuardDomain
 	ruleItemFinal uint8 = 0xFF
 )
 
@@ -212,6 +213,17 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			rule.WIFISSID, err = readRuleItemString(reader)
 		case ruleItemWIFIBSSID:
 			rule.WIFIBSSID, err = readRuleItemString(reader)
+		case ruleItemAdGuardDomain:
+			if recover {
+				err = E.New("unable to decompile binary AdGuard rules to rule-set")
+				return
+			}
+			var matcher *domain.AdGuardMatcher
+			matcher, err = domain.ReadAdGuardMatcher(reader)
+			if err != nil {
+				return
+			}
+			rule.AdGuardDomainMatcher = matcher
 		case ruleItemFinal:
 			err = binary.Read(reader, binary.BigEndian, &rule.Invert)
 			return
@@ -328,6 +340,16 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 	}
 	if len(rule.WIFIBSSID) > 0 {
 		err = writeRuleItemString(writer, ruleItemWIFIBSSID, rule.WIFIBSSID)
+		if err != nil {
+			return err
+		}
+	}
+	if len(rule.AdGuardDomain) > 0 {
+		err = binary.Write(writer, binary.BigEndian, ruleItemAdGuardDomain)
+		if err != nil {
+			return err
+		}
+		err = domain.NewAdGuardMatcher(rule.AdGuardDomain).Write(writer)
 		if err != nil {
 			return err
 		}
