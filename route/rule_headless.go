@@ -142,6 +142,15 @@ func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadles
 			rule.allItems = append(rule.allItems, item)
 		}
 	}
+	if len(options.AdGuardDomain) > 0 {
+		item := NewAdGuardDomainItem(options.AdGuardDomain)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	} else if options.AdGuardDomainMatcher != nil {
+		item := NewRawAdGuardDomainItem(options.AdGuardDomainMatcher)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	return rule, nil
 }
 
