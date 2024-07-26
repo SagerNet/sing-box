@@ -166,6 +166,9 @@ type DefaultHeadlessRule struct {
 	DomainMatcher *domain.Matcher `json:"-"`
 	SourceIPSet   *netipx.IPSet   `json:"-"`
 	IPSet         *netipx.IPSet   `json:"-"`
+
+	AdGuardDomain        Listable[string]       `json:"-"`
+	AdGuardDomainMatcher *domain.AdGuardMatcher `json:"-"`
 }
 
 func (r DefaultHeadlessRule) IsValid() bool {
