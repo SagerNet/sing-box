@@ -70,17 +70,21 @@ func (c *HTTPConn) Read(b []byte) (n int, err error) {
 
 func (c *HTTPConn) Write(b []byte) (int, error) {
 	if !c.requestWritten {
-		err := c.writeRequest(b)
+		err := c.writeRequest()
 		if err != nil {
 			return 0, E.Cause(err, "write request")
 		}
-		c.requestWritten = true
-		return len(b), nil
+		for !c.requestWritten {
+			if c.requestWritten {
+				break
+			}
+		}
+		return c.Conn.Write(b)
 	}
 	return c.Conn.Write(b)
 }
 
-func (c *HTTPConn) writeRequest(payload []byte) error {
+func (c *HTTPConn) writeRequest() error {
 	writer := bufio.NewBufferedWriter(c.Conn, buf.New())
 	const CRLF = "\r\n"
 	_, err := writer.Write([]byte(F.ToString(c.request.Method, " ", c.request.URL.RequestURI(), " HTTP/1.1", CRLF)))
@@ -100,7 +104,8 @@ func (c *HTTPConn) writeRequest(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = writer.Write(payload)
+	newpayLoad := []byte{}
+	_, err = writer.Write(newpayLoad)
 	if err != nil {
 		return err
 	}
@@ -108,6 +113,7 @@ func (c *HTTPConn) writeRequest(payload []byte) error {
 	if err != nil {
 		return err
 	}
+	c.requestWritten = true
 	return nil
 }
 
