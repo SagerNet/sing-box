@@ -101,8 +101,8 @@ github.com/sagernet/gvisor v0.0.0-20240428053021-e691de28565f h1:NkhuupzH5ch7b/Y
 github.com/sagernet/gvisor v0.0.0-20240428053021-e691de28565f/go.mod h1:KXmw+ouSJNOsuRpg4wgwwCQuunrGz4yoAqQjsLjc6N0=
 github.com/sagernet/netlink v0.0.0-20240523065131-45e60152f9ba h1:EY5AS7CCtfmARNv2zXUOrsEMPFDGYxaw65JzA2p51Vk=
 github.com/sagernet/netlink v0.0.0-20240523065131-45e60152f9ba/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
-github.com/sagernet/quic-go v0.45.1-beta.2 h1:zkEeCbhdFFkrxKcuIRBtXNKci/1t2J/39QSG/sPvlmc=
-github.com/sagernet/quic-go v0.45.1-beta.2/go.mod h1:+N3FqM9DAzOWfe64uxXuBejVJwX7DeW7BslzLO6N/xI=
+github.com/sagernet/quic-go v0.45.2-beta.1 h1:Gu/vYzKZI7EZItGSkCnatod8c32Nq1hzM5jqCYuc3aY=
+github.com/sagernet/quic-go v0.45.2-beta.1/go.mod h1:+N3FqM9DAzOWfe64uxXuBejVJwX7DeW7BslzLO6N/xI=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.2.18/go.mod h1:OL6k2F0vHmEzXz2KW19qQzu172FDgSbUSODylighuVo=
