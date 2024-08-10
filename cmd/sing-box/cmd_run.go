@@ -188,9 +188,12 @@ func run() error {
 			cancel()
 			closeCtx, closed := context.WithCancel(context.Background())
 			go closeMonitor(closeCtx)
-			instance.Close()
+			err = instance.Close()
 			closed()
 			if osSignal != syscall.SIGHUP {
+				if err != nil {
+					log.Error(E.Cause(err, "sing-box did not closed properly"))
+				}
 				return nil
 			}
 			break
