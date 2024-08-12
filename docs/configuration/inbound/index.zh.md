@@ -15,24 +15,24 @@
 
 ### 字段
 
-| 类型            | 格式                           | 注入支持 |
-|---------------|------------------------------|------|
-| `direct`      | [Direct](./direct/)           | X    |
-| `mixed`       | [Mixed](./mixed/)             | TCP  |
-| `socks`       | [SOCKS](./socks/)             | TCP  |
-| `http`        | [HTTP](./http/)               | TCP  |
-| `shadowsocks` | [Shadowsocks](./shadowsocks/) | TCP  |
-| `vmess`       | [VMess](./vmess/)             | TCP  |
-| `trojan`      | [Trojan](./trojan/)           | TCP  |
-| `naive`       | [Naive](./naive/)             | X    |
-| `hysteria`    | [Hysteria](./hysteria/)       | X    |
-| `shadowtls`   | [ShadowTLS](./shadowtls/)     | TCP  |
-| `tuic`        | [TUIC](./tuic/)               | X    |
-| `hysteria2`   | [Hysteria2](./hysteria2/)     | X    |
-| `vless`       | [VLESS](./vless/)             | TCP  |
-| `tun`         | [Tun](./tun/)                 | X    |
-| `redirect`    | [Redirect](./redirect/)       | X    |
-| `tproxy`      | [TProxy](./tproxy/)           | X    |
+| 类型            | 格式                            | 注入支持             |
+|---------------|-------------------------------|------------------|
+| `direct`      | [Direct](./direct/)           | :material-close: |
+| `mixed`       | [Mixed](./mixed/)             | TCP              |
+| `socks`       | [SOCKS](./socks/)             | TCP              |
+| `http`        | [HTTP](./http/)               | TCP              |
+| `shadowsocks` | [Shadowsocks](./shadowsocks/) | TCP              |
+| `vmess`       | [VMess](./vmess/)             | TCP              |
+| `trojan`      | [Trojan](./trojan/)           | TCP              |
+| `naive`       | [Naive](./naive/)             | :material-close: |
+| `hysteria`    | [Hysteria](./hysteria/)       | :material-close: |
+| `shadowtls`   | [ShadowTLS](./shadowtls/)     | TCP              |
+| `tuic`        | [TUIC](./tuic/)               | :material-close: |
+| `hysteria2`   | [Hysteria2](./hysteria2/)     | :material-close: |
+| `vless`       | [VLESS](./vless/)             | TCP              |
+| `tun`         | [Tun](./tun/)                 | :material-close: |
+| `redirect`    | [Redirect](./redirect/)       | :material-close: |
+| `tproxy`      | [TProxy](./tproxy/)           | :material-close: |
 
 #### tag
 
