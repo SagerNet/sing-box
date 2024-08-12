@@ -113,7 +113,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		r.Mount("/rules", ruleRouter(router))
 		r.Mount("/connections", connectionRouter(router, trafficManager))
 		r.Mount("/providers/proxies", proxyProviderRouter())
-		r.Mount("/providers/rules", ruleProviderRouter())
+		r.Mount("/providers/rules", ruleProviderRouter(router))
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
 		r.Mount("/cache", cacheRouter(ctx))

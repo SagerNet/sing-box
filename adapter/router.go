@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-dns"
@@ -34,6 +35,7 @@ type Router interface {
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
 
+	RuleSets() []RuleSet
 	RuleSet(tag string) (RuleSet, bool)
 
 	NeedWIFIState() bool
@@ -76,6 +78,7 @@ func RouterFromContext(ctx context.Context) Router {
 
 type HeadlessRule interface {
 	Match(metadata *InboundContext) bool
+	RuleCount() uint64
 	String() string
 }
 
@@ -98,6 +101,10 @@ type DNSRule interface {
 
 type RuleSet interface {
 	Name() string
+	Type() string
+	Format() string
+	UpdatedTime() time.Time
+	Update(ctx context.Context) error
 	StartContext(ctx context.Context, startContext RuleSetStartContext) error
 	PostStart() error
 	Metadata() RuleSetMetadata
