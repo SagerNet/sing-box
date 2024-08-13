@@ -81,15 +81,40 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 	ctx = adapter.WithContext(ctx, &metadata)
 	var outConn net.Conn
 	var err error
-	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
-	} else if metadata.Destination.IsFqdn() {
-		var destinationAddresses []netip.Addr
-		destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
+	addresses := metadata.DestinationAddresses
+	if len(addresses) == 0 && metadata.Destination.IsFqdn() {
+		addresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
 		if err != nil {
 			return N.ReportHandshakeFailure(conn, err)
 		}
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, destinationAddresses)
+	}
+	if len(addresses) > 0 {
+		addresses4 := common.Filter(addresses, func(address netip.Addr) bool {
+			return address.Is4() || address.Is4In6()
+		})
+		addresses6 := common.Filter(addresses, func(address netip.Addr) bool {
+			return address.Is6() && !address.Is4In6()
+		})
+		connFunc := func(primaries []netip.Addr, fallbacks []netip.Addr) (net.Conn, error) {
+			if len(primaries) > 0 {
+				if conn, err := N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, primaries); err == nil || len(fallbacks) == 0 {
+					return conn, err
+				}
+			}
+			return N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, fallbacks)
+		}
+		switch domainStrategy {
+		case dns.DomainStrategyAsIS:
+			outConn, err = connFunc(addresses, nil)
+		case dns.DomainStrategyUseIPv4:
+			outConn, err = connFunc(addresses4, nil)
+		case dns.DomainStrategyUseIPv6:
+			outConn, err = connFunc(addresses6, nil)
+		case dns.DomainStrategyPreferIPv4:
+			outConn, err = connFunc(addresses4, addresses6)
+		case dns.DomainStrategyPreferIPv6:
+			outConn, err = connFunc(addresses6, addresses4)
+		}
 	} else {
 		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
@@ -150,15 +175,40 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 	var outConn net.PacketConn
 	var destinationAddress netip.Addr
 	var err error
-	if len(metadata.DestinationAddresses) > 0 {
-		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
-	} else if metadata.Destination.IsFqdn() {
-		var destinationAddresses []netip.Addr
-		destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
+	addresses := metadata.DestinationAddresses
+	if len(addresses) == 0 && metadata.Destination.IsFqdn() {
+		addresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
 		if err != nil {
 			return N.ReportHandshakeFailure(conn, err)
 		}
-		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, destinationAddresses)
+	}
+	if len(addresses) > 0 {
+		addresses4 := common.Filter(addresses, func(address netip.Addr) bool {
+			return address.Is4() || address.Is4In6()
+		})
+		addresses6 := common.Filter(addresses, func(address netip.Addr) bool {
+			return address.Is6() && !address.Is4In6()
+		})
+		connFunc := func(primaries []netip.Addr, fallbacks []netip.Addr) (net.PacketConn, netip.Addr, error) {
+			if len(primaries) > 0 {
+				if conn, addr, err := N.ListenSerial(ctx, this, metadata.Destination, primaries); err == nil || len(fallbacks) == 0 {
+					return conn, addr, err
+				}
+			}
+			return N.ListenSerial(ctx, this, metadata.Destination, fallbacks)
+		}
+		switch domainStrategy {
+		case dns.DomainStrategyAsIS:
+			outConn, destinationAddress, err = connFunc(addresses, nil)
+		case dns.DomainStrategyUseIPv4:
+			outConn, destinationAddress, err = connFunc(addresses4, nil)
+		case dns.DomainStrategyUseIPv6:
+			outConn, destinationAddress, err = connFunc(addresses6, nil)
+		case dns.DomainStrategyPreferIPv4:
+			outConn, destinationAddress, err = connFunc(addresses4, addresses6)
+		case dns.DomainStrategyPreferIPv6:
+			outConn, destinationAddress, err = connFunc(addresses6, addresses4)
+		}
 	} else {
 		outConn, err = this.ListenPacket(ctx, metadata.Destination)
 	}

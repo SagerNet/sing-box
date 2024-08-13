@@ -102,6 +102,7 @@ type OutboundGroup interface {
 	Outbound
 	Now() string
 	All() []string
+	SelectedOutbound(network string) Outbound
 }
 
 type URLTestGroup interface {

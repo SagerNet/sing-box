@@ -32,6 +32,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*WireGuard)(nil)
+	_ adapter.OutboundUseIP           = (*WireGuard)(nil)
 	_ adapter.InterfaceUpdateListener = (*WireGuard)(nil)
 )
 
@@ -240,4 +241,8 @@ func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata a
 
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
+}
+
+func (w *WireGuard) UseIP() bool {
+	return true
 }

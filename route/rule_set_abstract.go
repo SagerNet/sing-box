@@ -52,6 +52,10 @@ func (s *abstractRuleSet) RuleCount() uint64 {
 	return s.ruleCount
 }
 
+func (s *abstractRuleSet) ContainsDestinationIPCIDRRule() bool {
+	return s.metadata.ContainsIPCIDRRule
+}
+
 func (s *abstractRuleSet) UpdatedTime() time.Time {
 	return s.lastUpdated
 }

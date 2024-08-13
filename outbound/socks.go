@@ -18,7 +18,10 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 )
 
-var _ adapter.Outbound = (*Socks)(nil)
+var (
+	_ adapter.Outbound      = (*Socks)(nil)
+	_ adapter.OutboundUseIP = (*Socks)(nil)
+)
 
 type Socks struct {
 	myOutboundAdapter
@@ -127,4 +130,8 @@ func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, meta
 	} else {
 		return NewPacketConnection(ctx, h, conn, metadata)
 	}
+}
+
+func (h *Socks) UseIP() bool {
+	return h.resolve
 }

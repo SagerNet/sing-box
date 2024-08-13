@@ -18,3 +18,7 @@ type Outbound interface {
 	NewConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 }
+
+type OutboundUseIP interface {
+	UseIP() bool
+}

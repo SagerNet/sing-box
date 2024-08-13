@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	_ adapter.Outbound = (*Direct)(nil)
-	_ N.ParallelDialer = (*Direct)(nil)
+	_ adapter.Outbound      = (*Direct)(nil)
+	_ adapter.OutboundUseIP = (*Direct)(nil)
+	_ N.ParallelDialer      = (*Direct)(nil)
 )
 
 type Direct struct {
@@ -167,4 +168,8 @@ func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, met
 		return E.New("reject loopback packet connection to ", metadata.Destination)
 	}
 	return NewPacketConnection(ctx, h, conn, metadata)
+}
+
+func (h *Direct) UseIP() bool {
+	return true
 }
