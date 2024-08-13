@@ -8,6 +8,7 @@ require (
 	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/dlclark/regexp2 v1.11.4
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.3.0
 	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
@@ -51,6 +52,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
+	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
 
@@ -96,6 +98,5 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )

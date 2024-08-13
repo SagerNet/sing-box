@@ -26,7 +26,12 @@ type Router interface {
 
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
+	OutboundsWithProvider() []Outbound
+	OutboundWithProvider(tag string) (Outbound, bool)
 	DefaultOutbound(network string) (Outbound, error)
+
+	OutboundProviders() []OutboundProvider
+	OutboundProvider(tag string) (OutboundProvider, bool)
 
 	FakeIPStore() FakeIPStore
 

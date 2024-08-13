@@ -86,7 +86,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 			result, err = urlTestGroup.URLTest(ctx)
 		} else {
 			outbounds := common.FilterNotNil(common.Map(group.All(), func(it string) adapter.Outbound {
-				itOutbound, _ := server.router.Outbound(it)
+				itOutbound, _ := server.router.OutboundWithProvider(it)
 				return itOutbound
 			}))
 			b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
@@ -100,7 +100,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 					continue
 				}
 				checked[realTag] = true
-				p, loaded := server.router.Outbound(realTag)
+				p, loaded := server.router.OutboundWithProvider(realTag)
 				if !loaded {
 					continue
 				}
@@ -123,6 +123,9 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 				})
 			}
 			b.Wait()
+			if selector, isSelector := group.(adapter.SelectorGroup); isSelector {
+				selector.UpdateSelected("")
+			}
 		}
 
 		if err != nil {

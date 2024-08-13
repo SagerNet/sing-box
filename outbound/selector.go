@@ -6,6 +6,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/interrupt"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -13,20 +14,24 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
+
+	R "github.com/dlclark/regexp2"
 )
 
 var (
 	_ adapter.Outbound      = (*Selector)(nil)
 	_ adapter.OutboundGroup = (*Selector)(nil)
+	_ adapter.SelectorGroup = (*Selector)(nil)
 )
 
 type Selector struct {
 	myOutboundAdapter
-	ctx                          context.Context
-	tags                         []string
+	myGroupAdapter
 	defaultTag                   string
-	outbounds                    map[string]adapter.Outbound
+	outbounds                    []adapter.Outbound
+	outboundByTag                map[string]adapter.Outbound
 	selected                     adapter.Outbound
+	fallbackByDelayTest          bool
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 }
@@ -40,15 +45,50 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 			tag:          tag,
 			dependencies: options.Outbounds,
 		},
-		ctx:                          ctx,
-		tags:                         options.Outbounds,
+		myGroupAdapter: myGroupAdapter{
+			ctx:             ctx,
+			tags:            options.Outbounds,
+			uses:            options.Providers,
+			useAllProviders: options.UseAllProviders,
+			types:           options.Types,
+			ports:           make(map[int]bool),
+			providers:       make(map[string]adapter.OutboundProvider),
+		},
 		defaultTag:                   options.Default,
-		outbounds:                    make(map[string]adapter.Outbound),
+		outbounds:                    []adapter.Outbound{},
+		outboundByTag:                make(map[string]adapter.Outbound),
+		fallbackByDelayTest:          options.FallbackByDelayTest,
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}
-	if len(outbound.tags) == 0 {
-		return nil, E.New("missing tags")
+	if len(outbound.tags) == 0 && len(outbound.uses) == 0 && !outbound.useAllProviders {
+		return nil, E.New("missing tags and uses")
+	}
+	if len(options.Includes) > 0 {
+		includes := make([]*R.Regexp, 0, len(options.Includes))
+		for i, include := range options.Includes {
+			regex, err := R.Compile(include, R.IgnoreCase)
+			if err != nil {
+				return nil, E.Cause(err, "parse includes[", i, "]")
+			}
+			includes = append(includes, regex)
+		}
+		outbound.includes = includes
+	}
+	if options.Excludes != "" {
+		regex, err := R.Compile(options.Excludes, R.IgnoreCase)
+		if err != nil {
+			return nil, E.Cause(err, "parse excludes")
+		}
+		outbound.excludes = regex
+	}
+	if !CheckType(outbound.types) {
+		return nil, E.New("invalid types")
+	}
+	if portMap, err := CreatePortsMap(options.Ports); err == nil {
+		outbound.ports = portMap
+	} else {
+		return nil, err
 	}
 	return outbound, nil
 }
@@ -61,12 +101,56 @@ func (s *Selector) Network() []string {
 }
 
 func (s *Selector) Start() error {
+	if s.useAllProviders {
+		uses := []string{}
+		for _, provider := range s.router.OutboundProviders() {
+			uses = append(uses, provider.Tag())
+		}
+		s.uses = uses
+	}
+	outbounds, outboundByTag, err := s.pickOutbounds()
+	s.outbounds = outbounds
+	s.outboundByTag = outboundByTag
+	return err
+}
+
+func (s *Selector) pickOutbounds() ([]adapter.Outbound, map[string]adapter.Outbound, error) {
+	outbounds := []adapter.Outbound{}
+	outboundByTag := map[string]adapter.Outbound{}
+
 	for i, tag := range s.tags {
 		detour, loaded := s.router.Outbound(tag)
 		if !loaded {
-			return E.New("outbound ", i, " not found: ", tag)
+			return nil, nil, E.New("outbound ", i, " not found: ", tag)
 		}
-		s.outbounds[tag] = detour
+		outbounds = append(outbounds, detour)
+		outboundByTag[tag] = detour
+	}
+
+	for i, tag := range s.uses {
+		provider, loaded := s.router.OutboundProvider(tag)
+		if !loaded {
+			return nil, nil, E.New("outbound provider ", i, " not found: ", tag)
+		}
+		if _, ok := s.providers[tag]; !ok {
+			s.providers[tag] = provider
+		}
+		for _, outbound := range provider.Outbounds() {
+			if !s.OutboundFilter(outbound) {
+				continue
+			}
+			tag := outbound.Tag()
+			outbounds = append(outbounds, outbound)
+			outboundByTag[tag] = outbound
+		}
+	}
+
+	if len(outbounds) == 0 {
+		OUTBOUNDLESS, _ := s.router.Outbound("OUTBOUNDLESS")
+		outbounds = append(outbounds, OUTBOUNDLESS)
+		outboundByTag["OUTBOUNDLESS"] = OUTBOUNDLESS
+		s.selected = OUTBOUNDLESS
+		return outbounds, outboundByTag, nil
 	}
 
 	if s.tag != "" {
@@ -74,26 +158,100 @@ func (s *Selector) Start() error {
 		if cacheFile != nil {
 			selected := cacheFile.LoadSelected(s.tag)
 			if selected != "" {
-				detour, loaded := s.outbounds[selected]
+				detour, loaded := outboundByTag[selected]
 				if loaded {
 					s.selected = detour
-					return nil
+					return outbounds, outboundByTag, nil
 				}
 			}
 		}
 	}
 
 	if s.defaultTag != "" {
-		detour, loaded := s.outbounds[s.defaultTag]
+		detour, loaded := outboundByTag[s.defaultTag]
 		if !loaded {
-			return E.New("default outbound not found: ", s.defaultTag)
+			return nil, nil, E.New("default outbound not found: ", s.defaultTag)
 		}
 		s.selected = detour
-		return nil
+		return outbounds, outboundByTag, nil
 	}
 
-	s.selected = s.outbounds[s.tags[0]]
+	s.selected = outbounds[0]
+	return outbounds, outboundByTag, nil
+}
+
+func (s *Selector) UpdateOutbounds(tag string) error {
+	if _, ok := s.providers[tag]; ok {
+		outbounds, outboundByTag, err := s.pickOutbounds()
+		if err != nil {
+			return E.New("update oubounds failed: ", s.tag)
+		}
+		s.outbounds = outbounds
+		s.outboundByTag = outboundByTag
+	}
 	return nil
+}
+
+func (s *Selector) setSelected(detour adapter.Outbound) {
+	if s.selected == detour {
+		return
+	}
+	defer s.interruptGroup.Interrupt(s.interruptExternalConnections)
+	s.selected = detour
+	if s.tag == "" {
+		return
+	}
+	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+	if cacheFile == nil {
+		return
+	}
+	err := cacheFile.StoreSelected(s.tag, detour.Tag())
+	if err != nil {
+		s.logger.Error("store selected: ", err)
+	}
+}
+
+func (s *Selector) getMinDelayDetour() (adapter.Outbound, bool) {
+	var minHistory *urltest.History
+	selected := s.outbounds[0]
+	for _, detour := range s.outbounds {
+		history := s.router.ClashServer().HistoryStorage().LoadURLTestHistory(adapter.OutboundTag(detour))
+		if history == nil {
+			continue
+		}
+		if minHistory == nil || (history.Delay < minHistory.Delay) {
+			selected = detour
+			minHistory = history
+		}
+	}
+	return selected, minHistory != nil
+}
+
+func (s *Selector) UpdateSelected(tag string) bool {
+	if !s.fallbackByDelayTest {
+		return false
+	}
+	if tag != "" {
+		if _, ok := s.providers[tag]; !ok {
+			return false
+		}
+	}
+	lastDetour := s.selected
+	switch lastDetour.Type() {
+	case C.TypeDNS, C.TypeDirect, C.TypeBlock:
+		return true
+	}
+	if history := s.router.ClashServer().HistoryStorage().LoadURLTestHistory(adapter.OutboundTag(lastDetour)); history != nil {
+		return true
+	}
+	if selector, isSelector := lastDetour.(adapter.SelectorGroup); isSelector && selector.UpdateSelected("") {
+		return true
+	}
+	if newDetour, ok := s.getMinDelayDetour(); ok {
+		s.setSelected(newDetour)
+		return true
+	}
+	return false
 }
 
 func (s *Selector) Now() string {
@@ -105,28 +263,19 @@ func (s *Selector) SelectedOutbound(network string) adapter.Outbound {
 }
 
 func (s *Selector) All() []string {
-	return s.tags
+	var all []string
+	for _, outbound := range s.outbounds {
+		all = append(all, outbound.Tag())
+	}
+	return all
 }
 
 func (s *Selector) SelectOutbound(tag string) bool {
-	detour, loaded := s.outbounds[tag]
+	detour, loaded := s.outboundByTag[tag]
 	if !loaded {
 		return false
 	}
-	if s.selected == detour {
-		return true
-	}
-	s.selected = detour
-	if s.tag != "" {
-		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
-		if cacheFile != nil {
-			err := cacheFile.StoreSelected(s.tag, tag)
-			if err != nil {
-				s.logger.Error("store selected: ", err)
-			}
-		}
-	}
-	s.interruptGroup.Interrupt(s.interruptExternalConnections)
+	s.setSelected(detour)
 	return true
 }
 

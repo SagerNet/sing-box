@@ -11,6 +11,7 @@ const (
 	QUICTimeout                = 30 * time.Second
 	STUNTimeout                = 15 * time.Second
 	UDPTimeout                 = 5 * time.Minute
+	DefaultDonloadInterval     = 1 * time.Hour
 	DefaultURLTestInterval     = 3 * time.Minute
 	DefaultURLTestIdleTimeout  = 30 * time.Minute
 	StartTimeout               = 10 * time.Second

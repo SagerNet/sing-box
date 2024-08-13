@@ -20,6 +20,8 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
+
+	R "github.com/dlclark/regexp2"
 )
 
 var (
@@ -30,7 +32,7 @@ var (
 
 type URLTest struct {
 	myOutboundAdapter
-	ctx                          context.Context
+	myGroupAdapter
 	tags                         []string
 	link                         string
 	interval                     time.Duration
@@ -50,7 +52,15 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 			tag:          tag,
 			dependencies: options.Outbounds,
 		},
-		ctx:                          ctx,
+		myGroupAdapter: myGroupAdapter{
+			ctx:             ctx,
+			tags:            options.Outbounds,
+			uses:            options.Providers,
+			useAllProviders: options.UseAllProviders,
+			types:           options.Types,
+			ports:           make(map[int]bool),
+			providers:       make(map[string]adapter.OutboundProvider),
+		},
 		tags:                         options.Outbounds,
 		link:                         options.URL,
 		interval:                     time.Duration(options.Interval),
@@ -58,20 +68,80 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}
-	if len(outbound.tags) == 0 {
-		return nil, E.New("missing tags")
+	if len(outbound.tags) == 0 && len(outbound.uses) == 0 && !outbound.useAllProviders {
+		return nil, E.New("missing tags and uses")
+	}
+	if len(options.Includes) > 0 {
+		includes := make([]*R.Regexp, 0, len(options.Includes))
+		for i, include := range options.Includes {
+			regex, err := R.Compile(include, R.IgnoreCase)
+			if err != nil {
+				return nil, E.Cause(err, "parse includes[", i, "]")
+			}
+			includes = append(includes, regex)
+		}
+		outbound.includes = includes
+	}
+	if options.Excludes != "" {
+		regex, err := R.Compile(options.Excludes, R.IgnoreCase)
+		if err != nil {
+			return nil, E.Cause(err, "parse excludes")
+		}
+		outbound.excludes = regex
+	}
+	if !CheckType(outbound.types) {
+		return nil, E.New("invalid types")
+	}
+	if portMap, err := CreatePortsMap(options.Ports); err == nil {
+		outbound.ports = portMap
+	} else {
+		return nil, err
 	}
 	return outbound, nil
 }
 
-func (s *URLTest) Start() error {
-	outbounds := make([]adapter.Outbound, 0, len(s.tags))
+func (s *URLTest) pickOutbounds() ([]adapter.Outbound, error) {
+	outbounds := []adapter.Outbound{}
 	for i, tag := range s.tags {
 		detour, loaded := s.router.Outbound(tag)
 		if !loaded {
-			return E.New("outbound ", i, " not found: ", tag)
+			return nil, E.New("outbound ", i, " not found: ", tag)
 		}
 		outbounds = append(outbounds, detour)
+	}
+	for i, tag := range s.uses {
+		provider, loaded := s.router.OutboundProvider(tag)
+		if !loaded {
+			return nil, E.New("provider ", i, " not found: ", tag)
+		}
+		if _, ok := s.providers[tag]; !ok {
+			s.providers[tag] = provider
+		}
+		for _, outbound := range provider.Outbounds() {
+			if !s.OutboundFilter(outbound) {
+				continue
+			}
+			outbounds = append(outbounds, outbound)
+		}
+	}
+	if len(outbounds) == 0 {
+		OUTBOUNDLESS, _ := s.router.Outbound("OUTBOUNDLESS")
+		outbounds = append(outbounds, OUTBOUNDLESS)
+	}
+	return outbounds, nil
+}
+
+func (s *URLTest) Start() error {
+	if s.useAllProviders {
+		uses := []string{}
+		for _, provider := range s.router.OutboundProviders() {
+			uses = append(uses, provider.Tag())
+		}
+		s.uses = uses
+	}
+	outbounds, err := s.pickOutbounds()
+	if err != nil {
+		return err
 	}
 	group, err := NewURLTestGroup(
 		s.ctx,
@@ -88,6 +158,18 @@ func (s *URLTest) Start() error {
 		return err
 	}
 	s.group = group
+	return nil
+}
+
+func (s *URLTest) UpdateOutbounds(tag string) error {
+	if _, ok := s.providers[tag]; ok {
+		outbounds, err := s.pickOutbounds()
+		if err != nil {
+			return E.New("update outbounds failed: ", s.tag, ", with reason: ", err)
+		}
+		s.group.outbounds = outbounds
+		s.group.performUpdateCheck()
+	}
 	return nil
 }
 
@@ -126,7 +208,11 @@ func (s *URLTest) SelectedOutbound(network string) adapter.Outbound {
 }
 
 func (s *URLTest) All() []string {
-	return s.tags
+	var all []string
+	for _, outbound := range s.group.outbounds {
+		all = append(all, outbound.Tag())
+	}
+	return all
 }
 
 func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
@@ -196,6 +282,13 @@ func (s *URLTest) InterfaceUpdated() {
 	return
 }
 
+func (s *URLTest) PerformUpdateCheck(tag string, force bool) {
+	if _, exists := s.providers[tag]; !exists && !force {
+		return
+	}
+	s.group.performUpdateCheck()
+}
+
 type URLTestGroup struct {
 	ctx                          context.Context
 	router                       adapter.Router
@@ -250,6 +343,18 @@ func NewURLTestGroup(
 	} else {
 		history = urltest.NewHistoryStorage()
 	}
+	var TCPOut, UDPOut adapter.Outbound
+	for _, detour := range outbounds {
+		if TCPOut == nil && common.Contains(detour.Network(), N.NetworkTCP) {
+			TCPOut = detour
+		}
+		if UDPOut == nil && common.Contains(detour.Network(), N.NetworkUDP) {
+			UDPOut = detour
+		}
+		if TCPOut != nil && UDPOut != nil {
+			break
+		}
+	}
 	return &URLTestGroup{
 		ctx:                          ctx,
 		router:                       router,
@@ -263,6 +368,8 @@ func NewURLTestGroup(
 		close:                        make(chan struct{}),
 		pauseManager:                 service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
+		selectedOutboundTCP:          TCPOut,
+		selectedOutboundUDP:          UDPOut,
 		interruptExternalConnections: interruptExternalConnections,
 	}, nil
 }
@@ -394,7 +501,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			continue
 		}
 		checked[realTag] = true
-		p, loaded := g.router.Outbound(realTag)
+		p, loaded := g.router.OutboundWithProvider(realTag)
 		if !loaded {
 			continue
 		}

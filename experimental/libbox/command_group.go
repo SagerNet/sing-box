@@ -130,7 +130,7 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		}
 
 		for _, itemTag := range iGroup.All() {
-			itemOutbound, isLoaded := boxService.instance.Router().Outbound(itemTag)
+			itemOutbound, isLoaded := boxService.instance.Router().OutboundWithProvider(itemTag)
 			if !isLoaded {
 				continue
 			}
@@ -143,9 +143,6 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 				item.URLTestDelay = int32(history.Delay)
 			}
 			group.ItemList = append(group.ItemList, &item)
-		}
-		if len(group.ItemList) < 2 {
-			continue
 		}
 		groups = append(groups, group)
 	}

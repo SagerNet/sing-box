@@ -55,7 +55,7 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	} else {
 		historyStorage := service.PtrFromContext[urltest.HistoryStorage](serviceNow.ctx)
 		outbounds := common.Filter(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
-			itOutbound, _ := serviceNow.instance.Router().Outbound(it)
+			itOutbound, _ := serviceNow.instance.Router().OutboundWithProvider(it)
 			return itOutbound
 		}), func(it adapter.Outbound) bool {
 			if it == nil {

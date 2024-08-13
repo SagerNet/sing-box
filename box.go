@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
+	P "github.com/sagernet/sing-box/provider"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -33,6 +34,7 @@ type Box struct {
 	router       adapter.Router
 	inbounds     []adapter.Inbound
 	outbounds    []adapter.Outbound
+	providers    []adapter.OutboundProvider
 	logFactory   log.Factory
 	logger       log.ContextLogger
 	preServices1 map[string]adapter.Service
@@ -98,7 +100,8 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "parse route options")
 	}
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
-	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
+	outbounds := []adapter.Outbound{}
+	providers := make([]adapter.OutboundProvider, 0, len(options.OutboundProviders))
 	for i, inboundOptions := range options.Inbounds {
 		var in adapter.Inbound
 		var tag string
@@ -120,6 +123,32 @@ func New(options Options) (*Box, error) {
 		}
 		inbounds = append(inbounds, in)
 	}
+	for i, outboundProvderOptions := range options.OutboundProviders {
+		var provider adapter.OutboundProvider
+		var tag string
+		if outboundProvderOptions.Tag != "" {
+			tag = outboundProvderOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		provider, err = P.New(
+			ctx,
+			router,
+			logFactory.NewLogger(F.ToString("provider", "[", tag, "]")),
+			outboundProvderOptions,
+		)
+		if err != nil {
+			return nil, E.Cause(err, "parse outbound provider[", i, "]")
+		}
+		providers = append(providers, provider)
+	}
+	OUTBOUNDLESS, _ := outbound.New(
+		ctx,
+		router,
+		logFactory.NewLogger(F.ToString("outbound/direct[OUTBOUNDLESS]")),
+		"OUTBOUNDLESS",
+		option.Outbound{Type: "direct", Tag: "OUTBOUNDLESS"})
+	outbounds = append(outbounds, OUTBOUNDLESS)
 	for i, outboundOptions := range options.Outbounds {
 		var out adapter.Outbound
 		var tag string
@@ -139,12 +168,7 @@ func New(options Options) (*Box, error) {
 		}
 		outbounds = append(outbounds, out)
 	}
-	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.Outbound{Type: "direct", Tag: "default"})
-		common.Must(oErr)
-		outbounds = append(outbounds, out)
-		return out
-	})
+	err = router.Initialize(inbounds, providers, outbounds)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +211,7 @@ func New(options Options) (*Box, error) {
 		router:       router,
 		inbounds:     inbounds,
 		outbounds:    outbounds,
+		providers:    providers,
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
@@ -267,6 +292,20 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return E.Cause(err, "pre-start router")
 	}
+	for i, p := range s.providers {
+		var tag string
+		if p.Tag() == "" {
+			tag = F.ToString(i)
+		} else {
+			tag = p.Tag()
+		}
+		monitor.Start("initialize outbound provider/", p.Type(), "[", tag, "]")
+		err := p.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "initialize outbound provider/", p.Type(), "[", tag, "]")
+		}
+	}
 	err = s.startOutbounds()
 	if err != nil {
 		return err
@@ -326,6 +365,12 @@ func (s *Box) postStart() error {
 			}
 		}
 	}
+	for _, provider := range s.providers {
+		err := provider.PostStart()
+		if err != nil {
+			return E.Cause(err, "post-start outbound provider/", provider.Tag())
+		}
+	}
 	err := s.router.PostStart()
 	if err != nil {
 		return err
@@ -368,6 +413,20 @@ func (s *Box) Close() error {
 		monitor.Start("close outbound/", out.Type(), "[", i, "]")
 		errors = E.Append(errors, common.Close(out), func(err error) error {
 			return E.Cause(err, "close outbound/", out.Type(), "[", i, "]")
+		})
+		monitor.Finish()
+	}
+	for i, prov := range s.providers {
+		for j, out := range prov.Outbounds() {
+			monitor.Start("closing provider/", prov.Type(), "[", i, "]", " outbound/", out.Type(), "[", j, "]")
+			errors = E.Append(errors, common.Close(out), func(err error) error {
+				return E.Cause(err, "close provider/", prov.Type(), "[", i, "]", " outbound/", out.Type(), "[", j, "]")
+			})
+			monitor.Finish()
+		}
+		monitor.Start("closing provider/", prov.Type(), "[", i, "]")
+		errors = E.Append(errors, common.Close(prov), func(err error) error {
+			return E.Cause(err, "close provider/", prov.Type(), "[", i, "]")
 		})
 		monitor.Finish()
 	}

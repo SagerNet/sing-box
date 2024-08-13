@@ -44,6 +44,7 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		dialer:     outboundDialer,

@@ -1,6 +1,7 @@
 package box
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -11,6 +12,47 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+func (s *Box) startProviderOutbounds() error {
+	monitor := taskmonitor.New(s.logger, C.StartTimeout)
+	outboundTag := make(map[string]int)
+	for _, out := range s.outbounds {
+		tag := out.Tag()
+		outboundTag[tag] = 0
+	}
+	for i, p := range s.providers {
+		var pTag string
+		if p.Tag() == "" {
+			pTag = F.ToString(i)
+		} else {
+			pTag = p.Tag()
+		}
+		for j, out := range p.Outbounds() {
+			var tag string
+			if out.Tag() == "" {
+				out.SetTag(fmt.Sprint("[", pTag, "]", F.ToString(j)))
+			}
+			tag = out.Tag()
+			if _, exists := outboundTag[tag]; exists {
+				count := outboundTag[tag] + 1
+				tag = fmt.Sprint(tag, "[", count, "]")
+				out.SetTag(tag)
+				outboundTag[tag] = count
+			}
+			outboundTag[tag] = 0
+			if starter, isStarter := out.(common.Starter); isStarter {
+				monitor.Start("initialize outbound provider[", pTag, "]", " outbound/", out.Type(), "[", tag, "]")
+				err := starter.Start()
+				monitor.Finish()
+				if err != nil {
+					return E.Cause(err, "initialize outbound provider[", pTag, "]", " outbound/", out.Type(), "[", tag, "]")
+				}
+			}
+		}
+		p.UpdateOutboundByTag()
+	}
+	return nil
+}
+
 func (s *Box) startOutbounds() error {
 	monitor := taskmonitor.New(s.logger, C.StartTimeout)
 	outboundTags := make(map[adapter.Outbound]string)
@@ -18,15 +60,18 @@ func (s *Box) startOutbounds() error {
 	for i, outboundToStart := range s.outbounds {
 		var outboundTag string
 		if outboundToStart.Tag() == "" {
-			outboundTag = F.ToString(i)
-		} else {
-			outboundTag = outboundToStart.Tag()
+			outboundToStart.SetTag(F.ToString(i))
 		}
+		outboundTag = outboundToStart.Tag()
 		if _, exists := outbounds[outboundTag]; exists {
 			return E.New("outbound tag ", outboundTag, " duplicated")
 		}
 		outboundTags[outboundToStart] = outboundTag
 		outbounds[outboundTag] = outboundToStart
+	}
+	err := s.startProviderOutbounds()
+	if err != nil {
+		return nil
 	}
 	started := make(map[string]bool)
 	for {

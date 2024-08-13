@@ -52,6 +52,7 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		client:  socks.NewClient(outboundDialer, options.ServerOptions.Build(), version, options.Username, options.Password),

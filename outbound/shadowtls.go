@@ -32,6 +32,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 	}

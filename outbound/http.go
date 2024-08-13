@@ -40,6 +40,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		sHTTP.NewClient(sHTTP.Options{

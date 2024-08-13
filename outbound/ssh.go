@@ -56,6 +56,7 @@ func NewSSH(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		ctx:               ctx,
