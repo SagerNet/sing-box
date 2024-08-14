@@ -12,7 +12,6 @@ import (
 type Outbound interface {
 	Type() string
 	Tag() string
-	Port() int
 	Network() []string
 	Dependencies() []string
 	N.Dialer

@@ -88,7 +88,6 @@ func NewRemoteProvider(ctx context.Context, router adapter.Router, logger log.Co
 			healthcheckUrl:      healthcheckUrl,
 			healthcheckInterval: healthcheckInterval,
 			types:               options.Types,
-			ports:               make(map[int]bool),
 			providerType:        C.ProviderTypeRemote,
 			outboundOverride:    options.OutboundOverride,
 			close:               make(chan struct{}),
@@ -120,7 +119,7 @@ func NewRemoteProvider(ctx context.Context, router adapter.Router, logger log.Co
 		}
 		provider.excludes = regex
 	}
-	if err := provider.firstStart(options.Ports); err != nil {
+	if err := provider.firstStart(); err != nil {
 		return nil, err
 	}
 	return provider, nil

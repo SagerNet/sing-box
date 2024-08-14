@@ -61,7 +61,6 @@ type myProviderAdapter struct {
 	includes            []*R.Regexp
 	excludes            *R.Regexp
 	types               []string
-	ports               map[int]bool
 
 	// Update cache
 	checking     atomic.Bool
@@ -100,14 +99,9 @@ func (a *myProviderAdapter) Outbounds() []adapter.Outbound {
 	return outbounds
 }
 
-func (a *myProviderAdapter) firstStart(ports []string) error {
+func (a *myProviderAdapter) firstStart() error {
 	if !O.CheckType(a.types) {
 		return E.New("invalid types")
-	}
-	if portMap, err := O.CreatePortsMap(ports); err == nil {
-		a.ports = portMap
-	} else {
-		return nil
 	}
 	if !rw.IsFile(a.path) {
 		return nil
@@ -254,7 +248,7 @@ func (p *myProviderAdapter) parseOutbounds(ctx context.Context, router adapter.R
 		return nil, err
 	}
 	finalOuts := common.Filter(outbounds, func(it option.Outbound) bool {
-		return O.TestIncludes(it.Tag, p.includes) && O.TestExcludes(it.Tag, p.excludes) && O.TestTypes(it.Type, p.types) && O.TestPorts(it.Port(), p.ports)
+		return O.TestIncludes(it.Tag, p.includes) && O.TestExcludes(it.Tag, p.excludes) && O.TestTypes(it.Type, p.types)
 	})
 	if !p.checkChange(finalOuts) {
 		return nil, nil

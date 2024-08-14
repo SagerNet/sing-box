@@ -52,7 +52,6 @@ func NewLocalProvider(ctx context.Context, router adapter.Router, logger log.Con
 			healthcheckInterval: interval,
 			outboundOverride:    options.OutboundOverride,
 			types:               options.Types,
-			ports:               make(map[int]bool),
 			providerType:        C.ProviderTypeLocal,
 			close:               make(chan struct{}),
 			pauseManager:        service.FromContext[pause.Manager](ctx),
@@ -79,7 +78,7 @@ func NewLocalProvider(ctx context.Context, router adapter.Router, logger log.Con
 		}
 		provider.excludes = regex
 	}
-	if err := provider.firstStart(options.Ports); err != nil {
+	if err := provider.firstStart(); err != nil {
 		return nil, err
 	}
 	return provider, nil

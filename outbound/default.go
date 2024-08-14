@@ -27,7 +27,6 @@ type myOutboundAdapter struct {
 	router       adapter.Router
 	logger       log.ContextLogger
 	tag          string
-	port         uint16
 	dependencies []string
 }
 
@@ -37,15 +36,6 @@ func (a *myOutboundAdapter) Type() string {
 
 func (a *myOutboundAdapter) Tag() string {
 	return a.tag
-}
-
-func (a *myOutboundAdapter) Port() int {
-	switch a.protocol {
-	case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeTor, C.TypeSelector, C.TypeURLTest:
-		return 65536
-	default:
-		return int(a.port)
-	}
 }
 
 func (a *myOutboundAdapter) SetTag(tag string) {

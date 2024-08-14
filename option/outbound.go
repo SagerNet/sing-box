@@ -102,39 +102,6 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (h *Outbound) Port() int {
-	var port uint16
-	switch h.Type {
-	case C.TypeSOCKS:
-		port = h.SocksOptions.ServerPort
-	case C.TypeHTTP:
-		port = h.HTTPOptions.ServerPort
-	case C.TypeShadowsocks:
-		port = h.ShadowsocksOptions.ServerPort
-	case C.TypeVMess:
-		port = h.VMessOptions.ServerPort
-	case C.TypeTrojan:
-		port = h.TrojanOptions.ServerPort
-	case C.TypeWireGuard:
-		port = h.WireGuardOptions.ServerPort
-	case C.TypeHysteria:
-		port = h.HysteriaOptions.ServerPort
-	case C.TypeSSH:
-		port = h.SSHOptions.ServerPort
-	case C.TypeShadowTLS:
-		port = h.ShadowTLSOptions.ServerPort
-	case C.TypeShadowsocksR:
-		port = h.ShadowsocksROptions.ServerPort
-	case C.TypeVLESS:
-		port = h.VLESSOptions.ServerPort
-	case C.TypeTUIC:
-		port = h.TUICOptions.ServerPort
-	case C.TypeHysteria2:
-		port = h.Hysteria2Options.ServerPort
-	}
-	return int(port)
-}
-
 type DialerOptionsWrapper interface {
 	TakeDialerOptions() DialerOptions
 	ReplaceDialerOptions(options DialerOptions)

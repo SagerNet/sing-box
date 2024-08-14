@@ -4,7 +4,6 @@ type FilterOptions struct {
 	Includes Listable[string] `json:"includes,omitempty"`
 	Excludes string           `json:"excludes,omitempty"`
 	Types    Listable[string] `json:"types,omitempty"`
-	Ports    Listable[string] `json:"ports,omitempty"`
 }
 
 type GroupOutboundOptions struct {

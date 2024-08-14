@@ -51,7 +51,6 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 			uses:            options.Providers,
 			useAllProviders: options.UseAllProviders,
 			types:           options.Types,
-			ports:           make(map[int]bool),
 			providers:       make(map[string]adapter.OutboundProvider),
 		},
 		defaultTag:                   options.Default,
@@ -84,11 +83,6 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if !CheckType(outbound.types) {
 		return nil, E.New("invalid types")
-	}
-	if portMap, err := CreatePortsMap(options.Ports); err == nil {
-		outbound.ports = portMap
-	} else {
-		return nil, err
 	}
 	return outbound, nil
 }

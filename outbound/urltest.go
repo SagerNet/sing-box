@@ -58,7 +58,6 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 			uses:            options.Providers,
 			useAllProviders: options.UseAllProviders,
 			types:           options.Types,
-			ports:           make(map[int]bool),
 			providers:       make(map[string]adapter.OutboundProvider),
 		},
 		tags:                         options.Outbounds,
@@ -91,11 +90,6 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 	}
 	if !CheckType(outbound.types) {
 		return nil, E.New("invalid types")
-	}
-	if portMap, err := CreatePortsMap(options.Ports); err == nil {
-		outbound.ports = portMap
-	} else {
-		return nil, err
 	}
 	return outbound, nil
 }

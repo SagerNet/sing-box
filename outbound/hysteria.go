@@ -95,7 +95,6 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			router:       router,
 			logger:       logger,
 			tag:          tag,
-			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		client: client,
