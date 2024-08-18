@@ -6,14 +6,7 @@ linters:
     - gci
     - staticcheck
     - paralleltest
-
-run:
-  skip-dirs:
-    - transport/simple-obfs
-    - transport/clashssr
-    - transport/cloudflaretls
-    - transport/shadowtls/tls
-    - transport/shadowtls/tls_go119
+    - ineffassign
 
 linters-settings:
   gci:
@@ -23,4 +16,13 @@ linters-settings:
       - prefix(github.com/sagernet/)
       - default
   staticcheck:
-    go: '1.20'
+    checks:
+      - all
+      - -SA1003
+
+run:
+  go: "1.23"
+
+issues:
+  exclude-dirs:
+    - transport/simple-obfs
