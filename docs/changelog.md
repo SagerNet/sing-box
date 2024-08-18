@@ -2,6 +2,26 @@
 icon: material/alert-decagram
 ---
 
+!!! failure "Help needed"
+
+    Due to problems with our Apple developer account, sing-box apps on Apple platforms are temporarily unavailable for download or update.
+
+    If your company or organization is willing to help us return to the App Store, please [contact us](mailto:contact@sagernet.org).
+
+### 1.9.4
+
+* Update quic-go to v0.46.0
+* Update Hysteria2 BBR congestion control
+* Filter HTTPS ipv4hint/ipv6hint with domain strategy
+* Fix crash on Android when using process rules
+* Fix non-IP queries accepted by address filter rules
+* Fix UDP server for shadowsocks AEAD multi-user inbounds
+* Fix default next protos for v2ray QUIC transport
+* Fix default end value of port range configuration options
+* Fix reset v2ray transports
+* Fix panic caused by rule-set generation of duplicate keys for `domain_suffix`
+* Fix UDP connnection leak when sniffing
+* Fixes and improvements
 
 ### 1.9.3
 
