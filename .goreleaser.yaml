@@ -7,7 +7,10 @@ builds:
       - -v
       - -trimpath
     ldflags:
-      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }} -s -w -buildid=
+      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }}
+      - -s
+      - -buildid=
+      - -checklinkname=0
     tags:
       - with_gvisor
       - with_quic
@@ -46,6 +49,10 @@ builds:
       - with_reality_server
       - with_acme
       - with_clash_api
+    ldflags:
+      - -X github.com/sagernet/sing-box/constant.Version={{ .Version }}
+      - -s
+      - -buildid=
     env:
       - CGO_ENABLED=0
       - GOROOT={{ .Env.GOPATH }}/go1.20.14
