@@ -69,7 +69,8 @@ func (p *platformLocalDNSTransport) Exchange(ctx context.Context, message *mDNS.
 		context: ctx,
 	}
 	var responseMessage *mDNS.Msg
-	return responseMessage, task.Run(ctx, func() error {
+	var group task.Group
+	group.Append0(func(ctx context.Context) error {
 		err = p.iif.Exchange(response, messageBytes)
 		if err != nil {
 			return err
@@ -80,6 +81,11 @@ func (p *platformLocalDNSTransport) Exchange(ctx context.Context, message *mDNS.
 		responseMessage = &response.message
 		return nil
 	})
+	err = group.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return responseMessage, nil
 }
 
 func (p *platformLocalDNSTransport) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
@@ -96,7 +102,8 @@ func (p *platformLocalDNSTransport) Lookup(ctx context.Context, domain string, s
 		context: ctx,
 	}
 	var responseAddr []netip.Addr
-	return responseAddr, task.Run(ctx, func() error {
+	var group task.Group
+	group.Append0(func(ctx context.Context) error {
 		err := p.iif.Lookup(response, network, domain)
 		if err != nil {
 			return err
@@ -121,6 +128,11 @@ func (p *platformLocalDNSTransport) Lookup(ctx context.Context, domain string, s
 		}*/
 		return nil
 	})
+	err := group.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return responseAddr, nil
 }
 
 type Func interface {
