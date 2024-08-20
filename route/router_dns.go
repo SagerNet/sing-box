@@ -188,6 +188,9 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	)
 	responseAddrs, cached = r.dnsClient.LookupCache(ctx, domain, strategy)
 	if cached {
+		if len(responseAddrs) == 0 {
+			return nil, dns.RCodeNameError
+		}
 		return responseAddrs, nil
 	}
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
