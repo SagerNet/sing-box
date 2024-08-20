@@ -24,14 +24,7 @@ icon: material/package
     sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo
     sudo dnf install sing-box # or sing-box-beta
     ```
-
-=== ":material-redhat: CentOS / YUM"
-
-    ```bash
-    sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://sing-box.app/sing-box.repo
-    sudo yum install sing-box # or sing-box-beta
-    ```
+    (This applies to any distribution that uses `dnf` as the package manager: Fedora, CentOS, even OpenSUSE with DNF installed.)
 
 ## :material-download-box: Manual Installation
 
@@ -46,6 +39,7 @@ icon: material/package
     ```bash
     bash <(curl -fsSL https://sing-box.app/rpm-install.sh)
     ```
+    (This applies to any distribution that uses `rpm` and `systemd`.  Because of how `rpm` defines dependencies, if it installs, it probably works.)
 
 === ":simple-archlinux: Archlinux / PKG"
 
