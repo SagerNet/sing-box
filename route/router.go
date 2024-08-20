@@ -860,9 +860,10 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			conn,
 			buffer,
 			time.Duration(metadata.InboundOptions.SniffTimeout),
-			sniff.StreamDomainNameQuery,
 			sniff.TLSClientHello,
 			sniff.HTTPHost,
+			sniff.StreamDomainNameQuery,
+			sniff.SSH,
 			sniff.BitTorrent,
 		)
 		if err == nil {
