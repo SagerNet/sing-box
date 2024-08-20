@@ -8,6 +8,7 @@ const (
 	ProtocolSTUN       = "stun"
 	ProtocolBitTorrent = "bittorrent"
 	ProtocolDTLS       = "dtls"
+	ProtocolSSH        = "ssh"
 )
 
 const (
