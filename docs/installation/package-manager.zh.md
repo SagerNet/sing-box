@@ -57,6 +57,7 @@ icon: material/package
     | nixpkgs  | NixOS         | `nix-env -iA nixos.sing-box` | [![nixpkgs unstable package](https://repology.org/badge/version-for-repo/nix_unstable/sing-box.svg)][nixpkgs] |
     | Homebrew | macOS / Linux | `brew install sing-box`      | [![Homebrew package](https://repology.org/badge/version-for-repo/homebrew/sing-box.svg)][brew]                |
     | APK      | Alpine        | `apk add sing-box`           | [![Alpine Linux Edge package](https://repology.org/badge/version-for-repo/alpine_edge/sing-box.svg)][alpine]  |
+    | DEB      | AOSC          | `apt install sing-box`       | [![AOSC package](https://repology.org/badge/version-for-repo/aosc/sing-box.svg)][aosc]                        |
 
 === ":material-apple: macOS"
 
@@ -83,6 +84,21 @@ icon: material/package
     | 类型         | 平台      | 链接                     | 命令                                                                                         |
     |------------|---------|------------------------|--------------------------------------------------------------------------------------------|
     | FreshPorts | FreeBSD | `pkg install sing-box` | [![FreeBSD port](https://repology.org/badge/version-for-repo/freebsd/sing-box.svg)][ports] |
+
+
+## :material-alert: 存在问题的源
+
+| 类型         | 平台      | 链接                                                                                        | 原因                    |
+|------------|---------|-------------------------------------------------------------------------------------------|-----------------------|
+| DEB        | AOSC    | [aosc-os-abbs](https://github.com/AOSC-Dev/aosc-os-abbs/tree/stable/app-network/sing-box) | 存在问题的构建标志列表修改; 没有活跃维护 |
+| Homebrew   | /       | [homebrew-core][brew]                                                                     | 存在问题的构建标志列表修改         |
+| Termux     | Android | [termux-packages][termux]                                                                 | 存在问题的构建标志列表修改         |
+| FreshPorts | FreeBSD | [FreeBSD ports][ports]                                                                    | 太旧的 Go (go1.20)       |
+
+如果您是其用户，请向他们报告问题：
+
+1. 在未完全了解相关功能的情况下，请勿修改发布版本标签：启用非默认标签可能会导致性能下降；缺少默认标签可能会引起用户混淆。
+2. sing-box 支持使用一些较旧的 Go 版本进行编译，但不推荐使用（特别是已不再受 Go 支持的版本）。
 
 ## :material-book-multiple: 服务管理
 
@@ -117,5 +133,7 @@ icon: material/package
 [termux]: https://github.com/termux/termux-packages/tree/master/packages/sing-box
 
 [ports]: https://www.freshports.org/net/sing-box
+
+[aosc]: https://packages.aosc.io/packages/sing-box
 
 [systemd]: https://systemd.io/
