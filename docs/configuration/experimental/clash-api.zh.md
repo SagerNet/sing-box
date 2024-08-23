@@ -1,3 +1,12 @@
+---
+icon: material/new-box
+---
+
+!!! quote "sing-box 1.10.0 中的更改"
+
+    :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
+    :material-plus: [access_control_allow_private_network](#access_control_allow_private_network)
+
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-delete-alert: [store_mode](#store_mode)  
@@ -8,24 +17,59 @@
 
 ### 结构
 
-```json
-{
-  "external_controller": "127.0.0.1:9090",
-  "external_ui": "",
-  "external_ui_download_url": "",
-  "external_ui_download_detour": "",
-  "secret": "",
-  "default_mode": "",
-  
-  // Deprecated
-  
-  "store_mode": false,
-  "store_selected": false,
-  "store_fakeip": false,
-  "cache_file": "",
-  "cache_id": ""
-}
-```
+=== "结构"
+
+    ```json
+    {
+      "external_controller": "127.0.0.1:9090",
+      "external_ui": "",
+      "external_ui_download_url": "",
+      "external_ui_download_detour": "",
+      "secret": "",
+      "default_mode": "",
+      "access_control_allow_origin": [],
+      "access_control_allow_private_network": false,
+      
+      // Deprecated
+      
+      "store_mode": false,
+      "store_selected": false,
+      "store_fakeip": false,
+      "cache_file": "",
+      "cache_id": ""
+    }
+    ```
+
+=== "示例 (在线)"
+
+    !!! question "自 sing-box 1.10.0 起"
+
+    ```json
+    {
+      "external_controller": "127.0.0.1:9090",
+      "access_control_allow_origin": [
+        "http://127.0.0.1",
+        "http://yacd.haishan.me"
+      ],
+      "access_control_allow_private_network": true
+    }
+    ```
+
+=== "示例 (下载)"
+
+    !!! question "自 sing-box 1.10.0 起"
+
+    ```json
+    {
+      "external_controller": "0.0.0.0:9090",
+      "external_ui": "dashboard"
+      // external_ui_download_detour: "direct"
+    }
+    ```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
 ### Fields
 
@@ -60,6 +104,22 @@ RESTful API 的密钥（可选）
 Clash 中的默认模式，默认使用 `Rule`。
 
 此设置没有直接影响，但可以通过 `clash_mode` 规则项在路由和 DNS 规则中使用。
+
+#### access_control_allow_origin
+
+!!! question "自 sing-box 1.10.0 起"
+
+允许的 CORS 来源，默认使用 `*`。
+
+要从公共网站访问私有网络上的 Clash API，必须在 `access_control_allow_origin` 中明确指定它而不是使用 `*`。
+
+#### access_control_allow_private_network
+
+!!! question "自 sing-box 1.10.0 起"
+
+允许从私有网络访问。
+
+要从公共网站访问私有网络上的 Clash API，必须启用 `access_control_allow_private_network`。
 
 #### store_mode
 
