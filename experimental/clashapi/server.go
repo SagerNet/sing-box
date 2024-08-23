@@ -277,10 +277,11 @@ func authentication(serverSecret string) func(next http.Handler) http.Handler {
 
 func hello(redirect bool) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if redirect {
-			http.Redirect(w, r, "/ui/", http.StatusTemporaryRedirect)
-		} else {
+		contentType := r.Header.Get("Content-Type")
+		if !redirect || contentType == "application/json" {
 			render.JSON(w, r, render.M{"hello": "clash"})
+		} else {
+			http.Redirect(w, r, "/ui/", http.StatusTemporaryRedirect)
 		}
 	}
 }
