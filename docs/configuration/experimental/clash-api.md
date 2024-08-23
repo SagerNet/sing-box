@@ -1,3 +1,12 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.10.0"
+
+    :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
+    :material-plus: [access_control_allow_private_network](#access_control_allow_private_network)
+
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-delete-alert: [store_mode](#store_mode)  
@@ -8,24 +17,59 @@
 
 ### Structure
 
-```json
-{
-  "external_controller": "127.0.0.1:9090",
-  "external_ui": "",
-  "external_ui_download_url": "",
-  "external_ui_download_detour": "",
-  "secret": "",
-  "default_mode": "",
-  
-  // Deprecated
-  
-  "store_mode": false,
-  "store_selected": false,
-  "store_fakeip": false,
-  "cache_file": "",
-  "cache_id": ""
-}
-```
+=== "Structure"
+
+    ```json
+    {
+      "external_controller": "127.0.0.1:9090",
+      "external_ui": "",
+      "external_ui_download_url": "",
+      "external_ui_download_detour": "",
+      "secret": "",
+      "default_mode": "",
+      "access_control_allow_origin": [],
+      "access_control_allow_private_network": false,
+      
+      // Deprecated
+      
+      "store_mode": false,
+      "store_selected": false,
+      "store_fakeip": false,
+      "cache_file": "",
+      "cache_id": ""
+    }
+    ```
+
+=== "Example (online)"
+
+    !!! question "Since sing-box 1.10.0"
+
+    ```json
+    {
+      "external_controller": "127.0.0.1:9090",
+      "access_control_allow_origin": [
+        "http://127.0.0.1",
+        "http://yacd.haishan.me"
+      ],
+      "access_control_allow_private_network": true
+    }
+    ```
+
+=== "Example (download)"
+
+    !!! question "Since sing-box 1.10.0"
+
+    ```json
+    {
+      "external_controller": "0.0.0.0:9090",
+      "external_ui": "dashboard"
+      // external_ui_download_detour: "direct"
+    }
+    ```
+
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
 
 ### Fields
 
@@ -62,6 +106,22 @@ ALWAYS set a secret if RESTful API is listening on 0.0.0.0
 Default mode in clash, `Rule` will be used if empty.
 
 This setting has no direct effect, but can be used in routing and DNS rules via the `clash_mode` rule item.
+
+#### access_control_allow_origin
+
+!!! question "Since sing-box 1.10.0"
+
+CORS allowed origins, `*` will be used if empty.
+
+To access the Clash API on a private network from a public website, you must explicitly specify it in `access_control_allow_origin` instead of using `*`.
+
+#### access_control_allow_private_network
+
+!!! question "Since sing-box 1.10.0"
+
+Allow access from private network.
+
+To access the Clash API on a private network from a public website, `access_control_allow_private_network` must be enabled.
 
 #### store_mode
 
