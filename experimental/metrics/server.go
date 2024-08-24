@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"errors"
+	"net"
 	"net/http"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -53,12 +55,15 @@ func (s *metricServer) Start() error {
 	if !s.opts.Enabled() {
 		return nil
 	}
+	listener, err := net.Listen("tcp", s.opts.Listen)
+	if err != nil {
+		return err
+	}
+	s.logger.Info("metrics api listening at ", s.http.Addr, s.opts.Path)
 	go func() {
-		err := s.http.ListenAndServe()
-		if err != nil {
-			s.logger.Error("metrics api listen error", err)
-		} else {
-			s.logger.Info("metrics api listening at ", s.http.Addr, s.opts.Path)
+		err := s.http.Serve(listener)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("metrics api serve error: ", err)
 		}
 	}()
 	return nil
