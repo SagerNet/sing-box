@@ -5,6 +5,7 @@ type ExperimentalOptions struct {
 	ClashAPI  *ClashAPIOptions  `json:"clash_api,omitempty"`
 	V2RayAPI  *V2RayAPIOptions  `json:"v2ray_api,omitempty"`
 	Debug     *DebugOptions     `json:"debug,omitempty"`
+	MetricAPI *MetricOptions    `json:"metrics,omitempty"`
 }
 
 type CacheFileOptions struct {
@@ -49,4 +50,13 @@ type V2RayStatsServiceOptions struct {
 	Inbounds  []string `json:"inbounds,omitempty"`
 	Outbounds []string `json:"outbounds,omitempty"`
 	Users     []string `json:"users,omitempty"`
+}
+
+type MetricOptions struct {
+	Listen string `json:"listen,omitempty"`
+	Path   string `json:"path,omitempty"`
+}
+
+func (m *MetricOptions) Enabled() bool {
+	return m != nil && m.Listen != ""
 }
