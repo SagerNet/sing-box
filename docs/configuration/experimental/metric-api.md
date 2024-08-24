@@ -3,8 +3,10 @@
 
 ```json
 {
-  "listen": ":8080",
-  "path": "/metrics"
+  "metrics": {
+    "listen": ":8080",
+    "path": "/metrics"
+  }
 }
 ```
 
