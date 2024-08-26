@@ -230,17 +230,13 @@ func (w *StackDevice) Events() <-chan wgTun.Event {
 }
 
 func (w *StackDevice) Close() error {
-	select {
-	case <-w.done:
-		return os.ErrClosed
-	default:
-	}
+	close(w.done)
+	close(w.events)
 	w.stack.Close()
 	for _, endpoint := range w.stack.CleanupEndpoints() {
 		endpoint.Abort()
 	}
 	w.stack.Wait()
-	close(w.done)
 	return nil
 }
 

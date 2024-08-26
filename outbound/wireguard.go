@@ -180,7 +180,6 @@ func (w *WireGuard) Close() error {
 	if w.pauseCallback != nil {
 		w.pauseManager.UnregisterCallback(w.pauseCallback)
 	}
-	w.tunDevice.Close()
 	return nil
 }
 
