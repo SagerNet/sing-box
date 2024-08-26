@@ -152,6 +152,10 @@ func (w *WireGuard) start() error {
 		}
 		bind = wireguard.NewClientBind(w.ctx, w, w.listener, isConnect, connectAddr, reserved)
 	}
+	err = w.tunDevice.Start()
+	if err != nil {
+		return err
+	}
 	wgDevice := device.NewDevice(w.tunDevice, bind, &device.Logger{
 		Verbosef: func(format string, args ...interface{}) {
 			w.logger.Debug(fmt.Sprintf(strings.ToLower(format), args...))
@@ -170,7 +174,7 @@ func (w *WireGuard) start() error {
 	}
 	w.device = wgDevice
 	w.pauseCallback = w.pauseManager.RegisterCallback(w.onPauseUpdated)
-	return w.tunDevice.Start()
+	return nil
 }
 
 func (w *WireGuard) Close() error {
@@ -180,7 +184,6 @@ func (w *WireGuard) Close() error {
 	if w.pauseCallback != nil {
 		w.pauseManager.UnregisterCallback(w.pauseCallback)
 	}
-	w.tunDevice.Close()
 	return nil
 }
 
