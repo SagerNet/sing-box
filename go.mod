@@ -16,6 +16,7 @@ require (
 	github.com/libdns/alidns v1.0.3
 	github.com/libdns/cloudflare v0.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
+	github.com/metacubex/tfo-go v0.0.0-20240821025650-e9be0afd5e7d
 	github.com/mholt/acmez v1.2.0
 	github.com/miekg/dns v1.1.59
 	github.com/ooni/go-libtor v1.1.8
@@ -36,7 +37,6 @@ require (
 	github.com/sagernet/sing-tun v0.3.2
 	github.com/sagernet/sing-vmess v0.1.12
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
-	github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6
 	github.com/sagernet/utls v1.5.4
 	github.com/sagernet/wireguard-go v0.0.0-20231215174105-89dec3b2f3e8
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
