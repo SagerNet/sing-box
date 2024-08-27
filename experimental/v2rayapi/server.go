@@ -70,6 +70,6 @@ func (s *Server) Close() error {
 	)
 }
 
-func (s *Server) StatsService() adapter.V2RayStatsService {
+func (s *Server) StatsService() adapter.PacketTracking {
 	return s.statsService
 }

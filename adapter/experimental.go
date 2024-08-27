@@ -118,10 +118,20 @@ func OutboundTag(detour Outbound) string {
 
 type V2RayServer interface {
 	Service
-	StatsService() V2RayStatsService
+	StatsService() PacketTracking
 }
 
-type V2RayStatsService interface {
-	RoutedConnection(inbound string, outbound string, user string, conn net.Conn) net.Conn
-	RoutedPacketConnection(inbound string, outbound string, user string, conn N.PacketConn) N.PacketConn
+type MetricService interface {
+	Service
+	PacketTracking
 }
+
+type PacketTracking interface {
+	WithConnCounters(inbound, outbound, user string) ConnAdapter[net.Conn]
+	WithPacketConnCounters(inbound, outbound, user string) ConnAdapter[N.PacketConn]
+}
+
+// ConnAdapter
+// Transform a connection to another connection. The T should be either of
+// net.Conn or N.PacketConn.
+type ConnAdapter[T any] func(T) T

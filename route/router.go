@@ -93,6 +93,7 @@ type Router struct {
 	pauseManager                       pause.Manager
 	clashServer                        adapter.ClashServer
 	v2rayServer                        adapter.V2RayServer
+	metricServer                       adapter.MetricService
 	platformInterface                  platform.Interface
 	needWIFIState                      bool
 	needPackageManager                 bool
@@ -921,8 +922,11 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 	if r.v2rayServer != nil {
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
+			conn = statsService.WithConnCounters(metadata.Inbound, detour.Tag(), metadata.User)(conn)
 		}
+	}
+	if r.metricServer != nil {
+		conn = r.metricServer.WithConnCounters(metadata.Inbound, detour.Tag(), metadata.User)(conn)
 	}
 	return detour.NewConnection(ctx, conn, metadata)
 }
@@ -1097,8 +1101,11 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	}
 	if r.v2rayServer != nil {
 		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
+			conn = statsService.WithPacketConnCounters(metadata.Inbound, detour.Tag(), metadata.User)(conn)
 		}
+	}
+	if r.metricServer != nil {
+		conn = r.metricServer.WithPacketConnCounters(metadata.Inbound, detour.Tag(), metadata.User)(conn)
 	}
 	if metadata.FakeIP {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
@@ -1263,6 +1270,10 @@ func (r *Router) V2RayServer() adapter.V2RayServer {
 
 func (r *Router) SetV2RayServer(server adapter.V2RayServer) {
 	r.v2rayServer = server
+}
+
+func (r *Router) SetMetricServer(server adapter.MetricService) {
+	r.metricServer = server
 }
 
 func (r *Router) OnPackagesUpdated(packages int, sharedUsers int) {

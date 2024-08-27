@@ -22,8 +22,8 @@ func init() {
 }
 
 var (
-	_ adapter.V2RayStatsService = (*StatsService)(nil)
-	_ StatsServiceServer        = (*StatsService)(nil)
+	_ adapter.PacketTracking = (*StatsService)(nil)
+	_ StatsServiceServer     = (*StatsService)(nil)
 )
 
 type StatsService struct {
@@ -60,14 +60,14 @@ func NewStatsService(options option.V2RayStatsServiceOptions) *StatsService {
 	}
 }
 
-func (s *StatsService) RoutedConnection(inbound string, outbound string, user string, conn net.Conn) net.Conn {
+func (s *StatsService) getPacketCounters(inbound, outbound, user string) (incRead N.CountFunc, inWrite N.CountFunc) {
 	var readCounter []*atomic.Int64
 	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
 	countOutbound := outbound != "" && s.outbounds[outbound]
 	countUser := user != "" && s.users[user]
 	if !countInbound && !countOutbound && !countUser {
-		return conn
+		return func(n int64) {}, func(n int64) {}
 	}
 	s.access.Lock()
 	if countInbound {
@@ -83,33 +83,29 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, user st
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
-	return bufio.NewInt64CounterConn(conn, readCounter, writeCounter)
+	return func(n int64) {
+			for _, c := range readCounter {
+				c.Add(n)
+			}
+		}, func(n int64) {
+			for _, c := range writeCounter {
+				c.Add(n)
+			}
+		}
 }
 
-func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, user string, conn N.PacketConn) N.PacketConn {
-	var readCounter []*atomic.Int64
-	var writeCounter []*atomic.Int64
-	countInbound := inbound != "" && s.inbounds[inbound]
-	countOutbound := outbound != "" && s.outbounds[outbound]
-	countUser := user != "" && s.users[user]
-	if !countInbound && !countOutbound && !countUser {
-		return conn
+func (s *StatsService) WithConnCounters(inbound, outbound, user string) adapter.ConnAdapter[net.Conn] {
+	rd, wr := s.getPacketCounters(inbound, outbound, user)
+	return func(conn net.Conn) net.Conn {
+		return bufio.NewCounterConn(conn, []N.CountFunc{rd}, []N.CountFunc{wr})
 	}
-	s.access.Lock()
-	if countInbound {
-		readCounter = append(readCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>uplink"))
-		writeCounter = append(writeCounter, s.loadOrCreateCounter("inbound>>>"+inbound+">>>traffic>>>downlink"))
+}
+
+func (s *StatsService) WithPacketConnCounters(inbound, outbound, user string) adapter.ConnAdapter[N.PacketConn] {
+	rd, wr := s.getPacketCounters(inbound, outbound, user)
+	return func(conn N.PacketConn) N.PacketConn {
+		return bufio.NewCounterPacketConn(conn, []N.CountFunc{rd}, []N.CountFunc{wr})
 	}
-	if countOutbound {
-		readCounter = append(readCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>uplink"))
-		writeCounter = append(writeCounter, s.loadOrCreateCounter("outbound>>>"+outbound+">>>traffic>>>downlink"))
-	}
-	if countUser {
-		readCounter = append(readCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>uplink"))
-		writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
-	}
-	s.access.Unlock()
-	return bufio.NewInt64CounterPacketConn(conn, readCounter, writeCounter)
 }
 
 func (s *StatsService) GetStats(ctx context.Context, request *GetStatsRequest) (*GetStatsResponse, error) {
