@@ -6,7 +6,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/tfo-go"
+	"github.com/metacubex/tfo-go"
 )
 
 const go120Available = true

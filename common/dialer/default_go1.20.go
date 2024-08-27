@@ -5,7 +5,7 @@ package dialer
 import (
 	"net"
 
-	"github.com/sagernet/tfo-go"
+	"github.com/metacubex/tfo-go"
 )
 
 type tcpDialer = tfo.Dialer

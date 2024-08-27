@@ -69,6 +69,8 @@ github.com/libdns/libdns v0.2.2 h1:O6ws7bAfRPaBsgAYt8MDe2HcNBGC29hkZ9MX2eUSX3s=
 github.com/libdns/libdns v0.2.2/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
 github.com/logrusorgru/aurora v2.0.3+incompatible h1:tOpm7WcpBTn4fjmVfgpQq0EfczGlG91VSDkswnjF5A8=
 github.com/logrusorgru/aurora v2.0.3+incompatible/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
+github.com/metacubex/tfo-go v0.0.0-20240821025650-e9be0afd5e7d h1:j9LtzkYstLFoNvXW824QQeN7Y26uPL5249kzWKbzO9U=
+github.com/metacubex/tfo-go v0.0.0-20240821025650-e9be0afd5e7d/go.mod h1:c7bVFM9f5+VzeZ/6Kg77T/jrg1Xp8QpqlSHvG/aXVts=
 github.com/mholt/acmez v1.2.0 h1:1hhLxSgY5FvH5HCnGUuwbKY2VQVo8IU7rxXKSnZ7F30=
 github.com/mholt/acmez v1.2.0/go.mod h1:VT9YwH1xgNX1kmYY89gY8xPJC84BFAisjo8Egigt4kE=
 github.com/miekg/dns v1.1.59 h1:C9EXc/UToRwKLhK5wKU/I4QVsBUc8kE6MkHBkeypWZs=
@@ -126,8 +128,6 @@ github.com/sagernet/sing-vmess v0.1.12 h1:2gFD8JJb+eTFMoa8FIVMnknEi+vCSfaiTXTfEY
 github.com/sagernet/sing-vmess v0.1.12/go.mod h1:luTSsfyBGAc9VhtCqwjR+dt1QgqBhuYBCONB/POhF8I=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7 h1:DImB4lELfQhplLTxeq2z31Fpv8CQqqrUwTbrIRumZqQ=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7/go.mod h1:FP9X2xjT/Az1EsG/orYYoC+5MojWnuI7hrffz8fGwwo=
-github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6 h1:z3SJQhVyU63FT26Wn/UByW6b7q8QKB0ZkPqsyqcz2PI=
-github.com/sagernet/tfo-go v0.0.0-20231209031829-7b5343ac1dc6/go.mod h1:73xRZuxwkFk4aiLw28hG8W6o9cr2UPrGL9pdY2UTbvY=
 github.com/sagernet/utls v1.5.4 h1:KmsEGbB2dKUtCNC+44NwAdNAqnqQ6GA4pTO0Yik56co=
 github.com/sagernet/utls v1.5.4/go.mod h1:CTGxPWExIloRipK3XFpYv0OVyhO8kk3XCGW/ieyTh1s=
 github.com/sagernet/wireguard-go v0.0.0-20231215174105-89dec3b2f3e8 h1:R0OMYAScomNAVpTfbHFpxqJpvwuhxSRi+g6z7gZhABs=
