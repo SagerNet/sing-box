@@ -832,7 +832,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		conn = deadline.NewConn(conn)
 	}
 
-	if metadata.InboundOptions.SniffEnabled {
+	if metadata.InboundOptions.SniffEnabled && !sniff.Skip(metadata) {
 		buffer := buf.NewPacket()
 		sniffMetadata, err := sniff.PeekStream(ctx, conn, buffer, time.Duration(metadata.InboundOptions.SniffTimeout), sniff.StreamDomainNameQuery, sniff.TLSClientHello, sniff.HTTPHost)
 		if sniffMetadata != nil {
