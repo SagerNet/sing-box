@@ -18,33 +18,44 @@ type (
 	PacketSniffer = func(ctx context.Context, packet []byte) (*adapter.InboundContext, error)
 )
 
+func Skip(metadata adapter.InboundContext) bool {
+	// skip server first protocols
+	switch metadata.Destination.Port {
+	case 25, 465, 587:
+		// SMTP
+		return true
+	case 143, 993:
+		// IMAP
+		return true
+	case 110, 995:
+		// POP3
+		return true
+	}
+	return false
+}
+
 func PeekStream(ctx context.Context, conn net.Conn, buffer *buf.Buffer, timeout time.Duration, sniffers ...StreamSniffer) (*adapter.InboundContext, error) {
 	if timeout == 0 {
 		timeout = C.ReadPayloadTimeout
 	}
 	deadline := time.Now().Add(timeout)
 	var errors []error
-
-	for i := 0; i < 3; i++ {
-		err := conn.SetReadDeadline(deadline)
-		if err != nil {
-			return nil, E.Cause(err, "set read deadline")
+	err := conn.SetReadDeadline(deadline)
+	if err != nil {
+		return nil, E.Cause(err, "set read deadline")
+	}
+	defer conn.SetReadDeadline(time.Time{})
+	var metadata *adapter.InboundContext
+	for _, sniffer := range sniffers {
+		if buffer.IsEmpty() {
+			metadata, err = sniffer(ctx, io.TeeReader(conn, buffer))
+		} else {
+			metadata, err = sniffer(ctx, io.MultiReader(bytes.NewReader(buffer.Bytes()), io.TeeReader(conn, buffer)))
 		}
-		_, err = buffer.ReadOnceFrom(conn)
-		err = E.Errors(err, conn.SetReadDeadline(time.Time{}))
-		if err != nil {
-			if i > 0 {
-				break
-			}
-			return nil, E.Cause(err, "read payload")
+		if metadata != nil {
+			return metadata, nil
 		}
-		for _, sniffer := range sniffers {
-			metadata, err := sniffer(ctx, bytes.NewReader(buffer.Bytes()))
-			if metadata != nil {
-				return metadata, nil
-			}
-			errors = append(errors, err)
-		}
+		errors = append(errors, err)
 	}
 	return nil, E.Errors(errors...)
 }
