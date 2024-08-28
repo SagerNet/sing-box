@@ -9,6 +9,7 @@ const (
 	ProtocolBitTorrent = "bittorrent"
 	ProtocolDTLS       = "dtls"
 	ProtocolSSH        = "ssh"
+	ProtocolRDP        = "rdp"
 )
 
 const (
