@@ -4,9 +4,9 @@ The universal proxy platform.
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/sing-box.svg)](https://repology.org/project/sing-box/versions)
 
-## Support
+## Documentation
 
-https://community.sagernet.org/c/sing-box/
+https://sing-box.sagernet.org
 
 ## License
 
