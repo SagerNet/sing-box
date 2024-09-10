@@ -4,8 +4,11 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"os"
 	"syscall"
 	"time"
+
+	""golang.org/x/sys/unix""
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/redir"
@@ -109,14 +112,61 @@ func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socks
 		}
 		return err
 	}
-	var listener net.ListenConfig
-	listener.Control = control.Append(listener.Control, control.ReuseAddr())
-	listener.Control = control.Append(listener.Control, redir.TProxyWriteBack())
-	packetConn, err := listener.ListenPacket(w.ctx, "udp", destination.String())
+	
+	var laddr = destination.String()
+	localAddr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return err
 	}
-	udpConn := packetConn.(*net.UDPConn)
+
+	var raddr = w.source.LocalAddr().String()
+	remoteAddr, err := net.ResolveUDPAddr("udp", raddr)
+	if err != nil {
+		return err
+	}
+
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd)
+
+	err = unix.SetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT, 1)
+	if err != nil {
+		return err
+	}
+	err = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
+	if err != nil {
+		return err
+	}
+	err = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+	if err != nil {
+		return err
+	}
+
+	sockaddr := &unix.SockaddrInet4{Port: localAddr.Port}
+	copy(sockaddr.Addr[:], localAddr.IP.To4())
+	err = unix.Bind(fd, sockaddr)
+	if err != nil {
+		return err
+	}
+
+	remoteSockaddr := &unix.SockaddrInet4{Port: remoteAddr.Port}
+	copy(remoteSockaddr.Addr[:], remoteAddr.IP.To4())
+	err = unix.Connect(fd, remoteSockaddr)
+	if err != nil {
+		return err
+	}
+
+	file := os.NewFile(uintptr(fd), "")
+	fileConn, err := net.FileConn(file)
+	if err != nil {
+		return err
+	}
+	file.Close()
+
+	var udpConn = fileConn.(*net.UDPConn)
+	
 	if w.destination == destination {
 		w.conn = udpConn
 	} else {
