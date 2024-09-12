@@ -26,8 +26,8 @@ func main() {
 	common.Must(decoder.Decode(&project))
 	objectsMap := project["objects"].(map[string]any)
 	projectContent := string(common.Must1(os.ReadFile("sing-box.xcodeproj/project.pbxproj")))
-	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfa"}, newVersion.VersionString())
-	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.independent", "io.nekohasekai.sfa.system"}, newVersion.String())
+	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfavt"}, newVersion.VersionString())
+	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfa.standalone", "io.nekohasekai.sfa.system"}, newVersion.String())
 	if updated0 || updated1 {
 		log.Info("updated version to ", newVersion.VersionString(), " (", newVersion.String(), ")")
 	}
