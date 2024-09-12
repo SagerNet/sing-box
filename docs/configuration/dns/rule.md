@@ -103,6 +103,12 @@ icon: material/new-box
         "process_path": [
           "/usr/bin/curl"
         ],
+        "process_path_prefix": [
+          "/usr/bin/"
+        ],
+        "process_path_regex": [
+          "^/usr/bin/.+"
+        ],
         "package_name": [
           "com.termux"
         ],
@@ -267,6 +273,26 @@ Match process name.
     Only supported on Linux, Windows, and macOS.
 
 Match process path.
+
+#### process_path_prefix
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process path using prefix.
+
+#### process_path_regex
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process path using regular expression.
 
 #### package_name
 

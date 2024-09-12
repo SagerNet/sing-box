@@ -103,6 +103,12 @@ icon: material/new-box
         "process_path": [
           "/usr/bin/curl"
         ],
+        "process_path_prefix": [
+          "/usr/bin/"
+        ],
+        "process_path_regex": [
+          "^/usr/bin/.+"
+        ],
         "package_name": [
           "com.termux"
         ],
@@ -265,6 +271,26 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
     仅支持 Linux、Windows 和 macOS.
 
 匹配进程路径。
+
+#### process_path_prefix
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配进程路径前缀。
+
+#### process_path_regex
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+使用正则表达式匹配进程路径。
 
 #### package_name
 
