@@ -2,12 +2,6 @@
 icon: material/alert-decagram
 ---
 
-!!! failure "Help needed"
-
-    Due to problems with our Apple developer account, sing-box apps on Apple platforms are temporarily unavailable for download or update.
-
-    If your company or organization is willing to help us return to the App Store, please [contact us](mailto:contact@sagernet.org).
-
 ### 1.9.4
 
 * Update quic-go to v0.46.0

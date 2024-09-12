@@ -3,9 +3,9 @@
 Maintained by Project S to provide a unified experience and platform-specific functionality.
 
 | Platform                              | Client                                   |
-| ------------------------------------- | ---------------------------------------- |
+|---------------------------------------|------------------------------------------|
 | :material-android: Android            | [sing-box for Android](./android/)       |
-| :material-apple: iOS/macOS/Apple tvOS | :material-alert: [Unavailable](./apple/) |
+| :material-apple: iOS/macOS/Apple tvOS | [sing-box for Apple platforms](./apple/) |
 | :material-laptop: Desktop             | Working in progress                      |
 
 Some third-party projects that claim to use sing-box or use sing-box as a selling point are not listed here. The core

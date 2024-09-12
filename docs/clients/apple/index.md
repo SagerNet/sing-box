@@ -11,8 +11,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
     Due to problems with our Apple developer account, sing-box apps on Apple platforms are temporarily unavailable for download or update.
 
-    If your company or organization is willing to help us return to the App Store, please [contact us](mailto:contact@sagernet.org).
-
+    We are working on getting sing-box apps back on the App Store, which should be completed within a month (TestFlight is already available).
 
 ## :material-graph: Requirements
 
@@ -21,13 +20,13 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 ## :material-download: Download
 
-* [App Store](https://apps.apple.com/us/app/sing-box/id6451272673)
-* ~~TestFlight (Beta)~~
+* ~~[App Store](https://apps.apple.com/us/app/sing-box/id6451272673)~~
+* TestFlight (Beta)
 
 TestFlight quota is only available to [sponsors](https://github.com/sponsors/nekohasekai)
 (one-time sponsorships are accepted).
-Once you donate, you can get an invitation by sending us your Apple ID [via email](mailto:contact@sagernet.org),
-or join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot).
+Once you donate, you can get an invitation by join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot)
+or sending us your Apple ID [via email](mailto:contact@sagernet.org).
 
 ## :material-file-download: Download (macOS standalone version)
 

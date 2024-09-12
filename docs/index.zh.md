@@ -4,13 +4,6 @@ description: 欢迎来到该 sing-box 项目的文档页。
 
 # :material-home: 开始
 
-!!! failure "需要帮助"
-
-    由于我们的 Apple 开发者账户出现问题，Apple 平台上的 sing-box 应用暂时无法下载或更新。
-
-    如果您的公司或组织愿意帮助我们重返 App Store，请[联系我们](mailto:contact@sagernet.org)。
-
-
 欢迎来到该 sing-box 项目的文档页。
 
 通用代理平台。

@@ -4,12 +4,6 @@ description: Welcome to the wiki page for the sing-box project.
 
 # :material-home: Home
 
-!!! failure "Help needed"
-
-    Due to problems with our Apple developer account, sing-box apps on Apple platforms are temporarily unavailable for download or update.
-
-    If your company or organization is willing to help us return to the App Store, please [contact us](mailto:contact@sagernet.org).
-
 Welcome to the wiki page for the sing-box project.
 
 The universal proxy platform.
