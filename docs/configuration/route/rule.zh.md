@@ -6,7 +6,8 @@ icon: material/alert-decagram
 
     :material-plus: [client](#client)  
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
-    :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)
+    :material-plus: [process_path_regex](#process_path_regex)
+
 
 !!! quote "sing-box 1.8.0 中的更改"
 
@@ -98,6 +99,9 @@ icon: material/alert-decagram
         ],
         "process_path": [
           "/usr/bin/curl"
+        ],
+        "process_path_regex": [
+          "^/usr/bin/.+"
         ],
         "package_name": [
           "com.termux"
@@ -274,6 +278,16 @@ icon: material/alert-decagram
     仅支持 Linux、Windows 和 macOS.
 
 匹配进程路径。
+
+#### process_path_regex
+
+!!! question "自 sing-box 1.10.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+使用正则表达式匹配进程路径。
 
 #### package_name
 

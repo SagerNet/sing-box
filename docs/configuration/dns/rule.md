@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
     :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
-    :material-plus: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)
+    :material-plus: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)  
+    :material-plus: [process_path_regex](#process_path_regex)
 
 !!! quote "Changes in sing-box 1.9.0"
 
@@ -102,6 +103,9 @@ icon: material/new-box
         ],
         "process_path": [
           "/usr/bin/curl"
+        ],
+        "process_path_regex": [
+          "^/usr/bin/.+"
         ],
         "package_name": [
           "com.termux"
@@ -267,6 +271,16 @@ Match process name.
     Only supported on Linux, Windows, and macOS.
 
 Match process path.
+
+#### process_path_regex
+
+!!! question "Since sing-box 1.10.0"
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match process path using regular expression.
 
 #### package_name
 
