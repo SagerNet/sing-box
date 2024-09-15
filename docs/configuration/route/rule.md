@@ -7,7 +7,6 @@ icon: material/alert-decagram
     :material-plus: [client](#client)
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
     :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
-    :material-plus: [process_path_prefix](#process_path_prefix)
     :material-plus: [process_path_regex](#process_path_regex)
 
 !!! quote "Changes in sing-box 1.8.0"
@@ -102,9 +101,6 @@ icon: material/alert-decagram
         ],
         "process_path": [
           "/usr/bin/curl"
-        ],
-        "process_path_prefix": [
-          "/usr/bin/"
         ],
         "process_path_regex": [
           "^/usr/bin/.+"
@@ -284,16 +280,6 @@ Match process name.
     Only supported on Linux, Windows, and macOS.
 
 Match process path.
-
-#### process_path_prefix
-
-!!! question "Since sing-box 1.10.0"
-
-!!! quote ""
-
-    Only supported on Linux, Windows, and macOS.
-
-Match process path using prefix.
 
 #### process_path_regex
 
