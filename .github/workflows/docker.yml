@@ -27,6 +27,7 @@ jobs:
           - linux/ppc64le
           - linux/riscv64
           - linux/s390x
+          - linux/mips64le
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
