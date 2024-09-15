@@ -183,6 +183,14 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.ProcessPathRegex) > 0 {
+		item, err := NewProcessPathRegexItem(options.ProcessPathRegex)
+		if err != nil {
+			return nil, E.Cause(err, "process_path_regex")
+		}
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.PackageName) > 0 {
 		item := NewPackageNameItem(options.PackageName)
 		rule.items = append(rule.items, item)
