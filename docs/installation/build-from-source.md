@@ -6,25 +6,17 @@ icon: material/file-code
 
 ## :material-graph: Requirements
 
-Before sing-box 1.4.0:
+### sing-box 1.10
 
-* Go 1.18.5 - 1.20.x
-
-Since sing-box 1.4.0:
-
-* Go 1.18.5 - ~
-* Go 1.20.0 - ~ with tag `with_quic` enabled
-
-Since sing-box 1.5.0:
-
-* Go 1.18.5 - ~
-* Go 1.20.0 - ~ with tag `with_quic` or `with_ech` enabled
-
-Since sing-box 1.8.0:
-
-* Go 1.18.5 - ~
+* Go 1.20.0 - ~
 * Go 1.20.0 - ~ with tag `with_quic`, or `with_utls` enabled
 * Go 1.21.0 - ~ with tag `with_ech` enabled
+
+### sing-box 1.9
+
+* Go 1.18.5 - 1.22.x
+* Go 1.20.0 - 1.22.x with tag `with_quic`, or `with_utls` enabled
+* Go 1.21.0 - 1.22.x with tag `with_ech` enabled
 
 You can download and install Go from: https://go.dev/doc/install, latest version is recommended.
 

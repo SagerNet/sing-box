@@ -6,25 +6,17 @@ icon: material/file-code
 
 ## :material-graph: 要求
 
-sing-box 1.4.0 前:
+### sing-box 1.10
 
-* Go 1.18.5 - 1.20.x
+* Go 1.20.0 - ~
+* Go 1.20.0 - ~ with tag `with_quic`, or `with_utls` enabled
+* Go 1.21.0 - ~ with tag `with_ech` enabled
 
-从 sing-box 1.4.0:
+### sing-box 1.9
 
-* Go 1.18.5 - ~
-* Go 1.20.0 - ~ 如果启用构建标记 `with_quic`
-
-从 sing-box 1.5.0:
-
-* Go 1.18.5 - ~
-* Go 1.20.0 - ~ 如果启用构建标记 `with_quic` 或 `with_ech`
-
-从 sing-box 1.8.0:
-
-* Go 1.18.5 - ~
-* Go 1.20.0 - ~ 如果启用构建标记 `with_quic` 或 `with_utls`
-* Go 1.20.1 - ~ 如果启用构建标记 `with_ech`
+* Go 1.18.5 - 1.22.x
+* Go 1.20.0 - 1.22.x with tag `with_quic`, or `with_utls` enabled
+* Go 1.21.0 - 1.22.x with tag `with_ech` enabled
 
 您可以从 https://go.dev/doc/install 下载并安装 Go，推荐使用最新版本。
 
