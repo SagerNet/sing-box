@@ -26,6 +26,7 @@ builds:
       - linux_arm_7
       - linux_s390x
       - linux_riscv64
+      - linux_mips64le
     mod_timestamp: '{{ .CommitTimestamp }}'
 snapshot:
   name_template: "{{ .Version }}.{{ .ShortCommit }}"
