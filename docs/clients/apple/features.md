@@ -42,6 +42,7 @@ SFI/SFM/SFT provides an unprivileged TUN implementation through NetworkExtension
 |-----------------------|------------------|-----------------------|
 | `process_name`        | :material-close: | No permission         |
 | `process_path`        | :material-close: | No permission         |
+| `process_path_regex`  | :material-close: | No permission         |
 | `package_name`        | :material-close: | /                     |
 | `user`                | :material-close: | No permission         |
 | `user_id`             | :material-close: | No permission         |
