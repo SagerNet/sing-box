@@ -2,6 +2,23 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.9.5
+
+### Bundle Identifier updates in Apple platform clients
+
+Due to problems with our old Apple developer account,
+we can only change Bundle Identifiers to re-list sing-box apps,
+which means the data will not be automatically inherited.
+
+For iOS, you need to back up your old data yourself (if you still have access to it);  
+for tvOS, you need to re-import profiles from your iPhone or iPad or create it manually;  
+for macOS, you can migrate the data folder using the following command:
+
+```bash
+cd ~/Library/Group\ Containers && \ 
+  mv group.io.nekohasekai.sfa group.io.nekohasekai.sfavt
+```
+
 ## 1.9.0
 
 ### `domain_suffix` behavior update
