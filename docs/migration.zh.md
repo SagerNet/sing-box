@@ -2,6 +2,22 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.9.5
+
+### Apple 平台客户端的 Bundle Identifier 更新
+
+由于我们旧的苹果开发者账户存在问题，我们只能通过更新 Bundle Identifiers
+来重新上架 sing-box 应用， 这意味着数据不会自动继承。
+
+对于 iOS，您需要自行备份旧的数据（如果您仍然可以访问）；  
+对于 Apple tvOS，您需要从 iPhone 或 iPad 重新导入配置或者手动创建；  
+对于 macOS，您可以使用以下命令迁移数据文件夹：
+
+```bash
+cd ~/Library/Group\ Containers && \ 
+  mv group.io.nekohasekai.sfa group.io.nekohasekai.sfavt
+```
+
 ## 1.9.0
 
 ### `domain_suffix` 行为更新

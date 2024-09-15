@@ -11,7 +11,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
     Due to problems with our Apple developer account, sing-box apps on Apple platforms are temporarily unavailable for download or update.
 
-    We are working on getting sing-box apps back on the App Store, which should be completed within a month (TestFlight is already available).
+    We are working on getting sing-box apps back on the App Store, which should be completed within a week (SFI on the App Store and others on TestFlight are already available).
 
 ## :material-graph: Requirements
 
@@ -20,7 +20,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 ## :material-download: Download
 
-* ~~[App Store](https://apps.apple.com/us/app/sing-box/id6451272673)~~
+* [App Store](https://apps.apple.com/app/sing-box-vt/id6673731168)
 * TestFlight (Beta)
 
 TestFlight quota is only available to [sponsors](https://github.com/sponsors/nekohasekai)
