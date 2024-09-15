@@ -37,6 +37,7 @@ const (
 	ruleItemWIFISSID
 	ruleItemWIFIBSSID
 	ruleItemAdGuardDomain
+	ruleItemProcessPathRegex
 	ruleItemFinal uint8 = 0xFF
 )
 
@@ -207,6 +208,8 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			rule.ProcessName, err = readRuleItemString(reader)
 		case ruleItemProcessPath:
 			rule.ProcessPath, err = readRuleItemString(reader)
+		case ruleItemProcessPathRegex:
+			rule.ProcessPathRegex, err = readRuleItemString(reader)
 		case ruleItemPackageName:
 			rule.PackageName, err = readRuleItemString(reader)
 		case ruleItemWIFISSID:
@@ -322,6 +325,12 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 	}
 	if len(rule.ProcessPath) > 0 {
 		err = writeRuleItemString(writer, ruleItemProcessPath, rule.ProcessPath)
+		if err != nil {
+			return err
+		}
+	}
+	if len(rule.ProcessPathRegex) > 0 {
+		err = writeRuleItemString(writer, ruleItemProcessPathRegex, rule.ProcessPathRegex)
 		if err != nil {
 			return err
 		}
