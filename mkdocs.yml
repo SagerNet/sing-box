@@ -44,6 +44,7 @@ nav:
       - Migration: migration.md
       - Deprecated: deprecated.md
       - Support: support.md
+      - Sponsors: sponsors.md
   - Installation:
       - Package Manager: installation/package-manager.md
       - Docker: installation/docker.md
