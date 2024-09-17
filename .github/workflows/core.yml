@@ -1,0 +1,178 @@
+name: Build Cores
+
+on:
+  push:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{steps.go.outputs.version}}
+    steps:
+      - name: get latest go version
+        id: go
+        run: |
+          echo version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/update-versions-manifest-file/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
+
+  sing-box:
+    runs-on: ubuntu-latest
+    needs: go
+    outputs:
+      version: ${{steps.sing-box.outputs.version}}
+    steps:
+      - uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: setup go
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version: ${{needs.go.outputs.version}}
+
+      - name: get sing-box version
+        id: sing-box
+        run: |
+          git remote add sekai https://github.com/SagerNet/sing-box.git
+          git fetch --tags sekai
+          version=$(CGO_ENABLED=0 go run ./cmd/internal/read_tag)
+          echo version=$version >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs:
+      - go
+      - sing-box
+    strategy:
+      matrix:
+        jobs:
+          # android
+          - { goos: android, goarch: 386, goarm: 7, ndk: i686-linux-android34, output: 386 }
+          - { goos: android, goarch: arm, goarm: 7, ndk: armv7a-linux-androideabi34, output: armeabi-v7a }
+          - { goos: android, goarch: arm64, goarm: 7, ndk: aarch64-linux-android34, output: arm64-v8a }
+          - { goos: android, goarch: amd64, goarm: 7, ndk: x86_64-linux-android34, output: amd64 }
+          
+          # darwin
+          - { goos: darwin, goarch: arm64, output: arm64 }
+          - { goos: darwin, goarch: amd64, goamd64: v1, output: amd64 }
+          - { goos: darwin, goarch: amd64, goamd64: v3, output: amd64v3 }
+          # linux
+          - { goos: linux, goarch: 386, output: 386 }
+
+          - { goos: linux, goarch: s390x, output: s390x }
+          - { goos: linux, goarch: riscv64, output: riscv64 }
+
+          - { goos: linux, goarch: arm64, output: arm64 }
+
+          - { goos: linux, goarch: loong64, abi: 1, output: loong64-abi1 }
+          - { goos: linux, goarch: loong64, abi: 2, output: loong64-abi2 }
+
+          - { goos: linux, goarch: arm, goarm: 5, output: armv5 }
+          - { goos: linux, goarch: arm, goarm: 6, output: armv6 }
+          - { goos: linux, goarch: arm, goarm: 7, output: armv7 }
+
+          - { goos: linux, goarch: amd64, goamd64: v1, output: amd64 }
+          - { goos: linux, goarch: amd64, goamd64: v3, output: amd64v3 }
+
+          - { goos: linux, goarch: mips, output: mips }
+          - { goos: linux, goarch: mips, gomips: softfloat, output: mips-softfloat }
+          - { goos: linux, goarch: mips, gomips: hardfloat, output: mips-hardfloat }
+          - { goos: linux, goarch: mipsle, output: mipsle }
+
+          - { goos: linux, goarch: mips64, output: mips64 }
+          - { goos: linux, goarch: mips64, gomips: softfloat, output: mips64-softfloat }
+          - { goos: linux, goarch: mips64, gomips: hardfloat, output: mips64-hardfloat }
+          - { goos: linux, goarch: mips64le, output: mips64le }
+          # windows
+          - { goos: windows, goarch: 386, output: 386 }
+
+          - { goos: windows, goarch: arm64, output: arm64 }
+
+          - { goos: windows, goarch: arm, goarm: 7, output: arm32v7 }
+
+          - { goos: windows, goarch: amd64, goamd64: v1, output: amd64 }
+          - { goos: windows, goarch: amd64, goamd64: v3, output: amd64v3 }
+          # freebsd
+          - { goos: freebsd, goarch: arm64, output: arm64 }
+
+          - { goos: freebsd, goarch: amd64, goamd64: v1, output: amd64 }
+          - { goos: freebsd, goarch: amd64, goamd64: v3, output: amd64v3 }
+    env:
+      GOOS: ${{ matrix.jobs.goos }}
+      GOARM: ${{ matrix.jobs.goarm }}
+      GOARCH: ${{ matrix.jobs.goarch }}
+      GOAMD64: ${{ matrix.jobs.goamd64 }}
+      GOMIPS: ${{ matrix.jobs.gomips }}
+      CGO_ENABLED: ${{ matrix.jobs.goos == 'android' && 1 || 0 }}
+      VERSION: ${{ needs.sing-box.outputs.version }}
+      SUFFIX: ${{ matrix.jobs.goos == 'windows' && '.exe' || '' }}
+    steps:
+      - uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: set up go1.22 loongarch
+        if: ${{ matrix.jobs.goarch == 'loong64' }}
+        run: |
+          wget -q https://github.com/MetaCubeX/loongarch64-golang/releases/download/1.22.4/go1.22.4.linux-amd64-abi${{ matrix.jobs.abi }}.tar.gz -O linux-amd64.tar.gz
+          sudo tar zxf linux-amd64.tar.gz -C /usr/local
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          
+      - name: setup go
+        uses: actions/setup-go@v5.0.0
+        if: ${{ matrix.jobs.goarch != 'loong64' }}
+        with:
+          go-version: ${{ needs.go.outputs.version }}
+
+      # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
+      # this patch file only works on golang1.23.x
+      # that means after golang1.24 release it must be changed
+      # see: https://github.com/MetaCubeX/go/commits/release-branch.go1.23/
+      # revert:
+      # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
+      # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
+      # 48042aa09c2f878c4faa576948b07fe625c4707a: "syscall: remove Windows 7 console handle workaround"
+      # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
+      - name: revert golang1.23 commit for windows7/8
+        if: ${{ matrix.jobs.goos == 'windows' }}
+        run: |
+          cd $(go env GOROOT)
+          curl https://github.com/MetaCubeX/go/commit/9ac42137ef6730e8b7daca016ece831297a1d75b.diff | patch --verbose -p 1
+          curl https://github.com/MetaCubeX/go/commit/21290de8a4c91408de7c2b5b68757b1e90af49dd.diff | patch --verbose -p 1
+          curl https://github.com/MetaCubeX/go/commit/6a31d3fa8e47ddabc10bd97bff10d9a85f4cfb76.diff | patch --verbose -p 1
+          curl https://github.com/MetaCubeX/go/commit/69e2eed6dd0f6d815ebf15797761c13f31213dd6.diff | patch --verbose -p 1
+
+      - name: Setup NDK
+        if: ${{ matrix.jobs.goos == 'android' }}
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27
+      
+      - name: Setup CC ENV
+        if: ${{ matrix.jobs.goos == 'android' }}
+        run: echo "CC=${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.jobs.ndk }}-clang" >> $GITHUB_ENV
+
+      - name: build both-side core
+        env:
+          TAGS: with_quic,with_dhcp,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_acme,with_reality_server,with_clash_api,with_gvisor
+        run: go build -o sing-box-both-side${{ env.SUFFIX }} -v -trimpath -ldflags "${{ matrix.jobs.goarch != 'loong64' && '-checklinkname=0 ' || '' }}-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' -s -w -buildid=" -tags "${TAGS}" ./cmd/sing-box
+
+      - name: build client core
+        env:
+          TAGS: with_quic,with_dhcp,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_clash_api,with_gvisor
+        run: go build -o sing-box-client${{ env.SUFFIX }} -v -trimpath -ldflags "${{ matrix.jobs.goarch != 'loong64' && '-checklinkname=0 ' || '' }}-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' -s -w -buildid=" -tags "${TAGS}" ./cmd/sing-box
+
+      - name: build server core
+        env:
+          TAGS: with_quic,with_dhcp,with_wireguard,with_ech,with_utls,with_acme,with_reality_server,with_gvisor
+        run: go build -o sing-box-server${{ env.SUFFIX }} -v -trimpath -ldflags "${{ matrix.jobs.goarch != 'loong64' && '-checklinkname=0 ' || '' }}-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' -s -w -buildid=" -tags "${TAGS}" ./cmd/sing-box
+
+      - name: upload core
+        uses: actions/upload-artifact@v4.1.0
+        with:
+          name: sing-box-${{ env.VERSION }}-${{ env.GOOS }}-${{ matrix.jobs.output }}
+          path: |
+            sing-box-client${{ env.SUFFIX }}
+            sing-box-server${{ env.SUFFIX }}
+            sing-box-both-side${{ env.SUFFIX }}
+          compression-level: 9
