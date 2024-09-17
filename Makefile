@@ -130,29 +130,36 @@ release_macos: build_macos upload_macos_app_store
 
 build_macos_standalone:
 	cd ../sing-box-for-apple && \
-	rm -rf build/SFT.System.xcarchive && \
+	rm -rf build/SFM.System.xcarchive && \
 	xcodebuild archive -scheme SFM.System -configuration Release -archivePath build/SFM.System.xcarchive -allowProvisioningUpdates
 
-notarize_macos_standalone:
-	cd ../sing-box-for-apple && \
-	xcodebuild -exportArchive -archivePath "build/SFM.System.xcarchive" -exportOptionsPlist SFM.System/Upload.plist -allowProvisioningUpdates
-
-wait_notarize_macos_standalone:
-	sleep 60
-
-export_macos_standalone:
+build_macos_dmg:
 	rm -rf dist/SFM
 	mkdir -p dist/SFM
 	cd ../sing-box-for-apple && \
-	xcodebuild -exportNotarizedApp -archivePath build/SFM.System.xcarchive -exportPath "../sing-box/dist/SFM"
+	rm -rf build/SFM.System && \
+	rm -rf build/SFM.dmg && \
+	xcodebuild -exportArchive \
+		-archivePath "build/SFM.System.xcarchive" \
+		-exportOptionsPlist SFM.System/Export.plist -allowProvisioningUpdates \
+		-exportPath "build/SFM.System" && \
+	create-dmg \
+		--volname "sing-box" \
+		--volicon "build/SFM.System/SFM.app/Contents/Resources/AppIcon.icns" \
+		--icon "SFM.app" 0 0 \
+ 		--hide-extension "SFM.app" \
+ 		--app-drop-link 0 0 \
+ 		--skip-jenkins \
+		--codesign "B2324162A090F01F96111CF802A83F0F36674F80" \
+		--notarize "notarytool-password" \
+		"../sing-box/dist/SFM/SFM.dmg" "build/SFM.System/SFM.app"
 
-upload_macos_standalone:
+upload_macos_dmg:
 	cd dist/SFM && \
-	rm -f *.zip && \
-	zip -ry "SFM-${VERSION}-universal.zip" SFM.app && \
-	ghr --replace --draft --prerelease "v${VERSION}" *.zip
+	cp SFM.dmg "SFM-${VERSION}-universal.dmg" && \
+	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dmg"
 
-release_macos_standalone: build_macos_standalone notarize_macos_standalone wait_notarize_macos_standalone export_macos_standalone upload_macos_standalone
+release_macos_standalone: build_macos_standalone build_macos_dmg upload_macos_dmg
 
 build_tvos:
 	cd ../sing-box-for-apple && \
@@ -168,7 +175,7 @@ release_tvos: build_tvos upload_tvos_app_store
 update_apple_version:
 	go run ./cmd/internal/update_apple_version
 
-release_apple: lib_ios update_apple_version release_ios release_macos release_tvos release_macos_standalone
+release_apple: lib_ios update_apple_version release_ios release_macos release_tvos
 
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
 
