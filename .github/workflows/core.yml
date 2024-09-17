@@ -147,6 +147,7 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r27
+        continue-on-error: true  # 允许步骤失败，观察错误日志
       
       - name: Setup CC ENV
         if: ${{ matrix.jobs.goos == 'android' }}
