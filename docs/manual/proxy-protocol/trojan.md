@@ -4,7 +4,7 @@ icon: material/horse
 
 # Trojan
 
-Torjan is the most commonly used TLS proxy made in China. It can be used in various combinations,
+Trojan is the most commonly used TLS proxy made in China. It can be used in various combinations,
 but only the combination of uTLS and multiplexing is recommended.
 
 | Protocol and implementation combination | Specification                                                        | Resists passive detection | Resists active probes |
