@@ -150,7 +150,6 @@ build_macos_dmg:
  		--hide-extension "SFM.app" \
  		--app-drop-link 0 0 \
  		--skip-jenkins \
-		--codesign "B2324162A090F01F96111CF802A83F0F36674F80" \
 		--notarize "notarytool-password" \
 		"../sing-box/dist/SFM/SFM.dmg" "build/SFM.System/SFM.app"
 
