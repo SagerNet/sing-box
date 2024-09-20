@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+### 1.9.6
+
+* Fixes and improvements
+
 ### 1.9.5
 
 * Update quic-go to v0.47.0
