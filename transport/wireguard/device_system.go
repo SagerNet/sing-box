@@ -57,7 +57,7 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 		inet4Addresses: inet4Addresses,
 		inet6Addresses: inet6Addresses,
 		gso:            gso,
-		events:         make(chan wgTun.Event),
+		events:         make(chan wgTun.Event, 1),
 	}, nil
 }
 
