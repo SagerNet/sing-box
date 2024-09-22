@@ -65,8 +65,8 @@ release:
 		dist/*.zip \
 		dist/*.deb \
 		dist/*.rpm \
+		dist/*.ipk \
 		dist/*_amd64.pkg.tar.zst \
-		dist/*_amd64v3.pkg.tar.zst \
 		dist/*_arm64.pkg.tar.zst \
 		dist/release
 	ghr --replace --draft --prerelease -p 3 "v${VERSION}" dist/release

@@ -1,3 +1,4 @@
+version: 2
 project_name: sing-box
 builds:
   - &template
@@ -25,7 +26,6 @@ builds:
     targets:
       - linux_386
       - linux_amd64_v1
-      - linux_amd64_v3
       - linux_arm64
       - linux_arm_6
       - linux_arm_7
@@ -33,7 +33,6 @@ builds:
       - linux_riscv64
       - linux_mips64le
       - windows_amd64_v1
-      - windows_amd64_v3
       - windows_386
       - windows_arm64
       - darwin_amd64_v1
@@ -90,8 +89,6 @@ builds:
       - android_arm64
       - android_386
       - android_amd64
-snapshot:
-  name_template: "{{ .Version }}.{{ .ShortCommit }}"
 archives:
   - &template
     id: archive
@@ -125,6 +122,7 @@ nfpms:
       - deb
       - rpm
       - archlinux
+      - ipk
     priority: extra
     contents:
       - src: release/config/config.json
@@ -151,7 +149,6 @@ nfpms:
       rpm:
         conflicts:
           - sing-box-beta
-
 source:
   enabled: false
   name_template: '{{ .ProjectName }}-{{ .Version }}.source'
