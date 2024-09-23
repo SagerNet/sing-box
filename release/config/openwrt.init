@@ -1,0 +1,31 @@
+#!/bin/sh /etc/rc.common
+
+PROG="/usr/bin/sing-box"
+
+start_service() {
+  config_load "sing-box"
+
+  local enabled config_file working_directory
+  local log_stdout log_stderr
+  config_get_bool enabled "main" "enabled" "0"
+  [ "$enabled" -eq "1" ] || return 0
+
+  config_get config_file "main" "conffile" "/etc/sing-box/config.json"
+  config_get working_directory "main" "workdir" "/usr/share/sing-box"
+  config_get_bool log_stdout "main" "log_stdout" "1"
+  config_get_bool log_stderr "main" "log_stderr" "1"
+
+  procd_open_instance
+  procd_swet_param command "$PROG" run -c "$conffile" -D "$workdir"
+  procd_set_param file "$conffile"
+  procd_set_param stderr "$log_stderr"
+  procd_set_param limits core="unlimited"
+  sprocd_set_param limits nofile="1000000 1000000"
+  procd_set_param respawn
+
+  procd_close_instance
+}
+
+service_triggers() {
+  procd_add_reload_trigger "sing-box"
+}

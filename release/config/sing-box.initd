@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="sing-box service"
+supervisor="supervise-daemon"
+command="/usr/bin/sing-box"
+command_args="-D /var/lib/sing-box -C /etc/sing-box run"
+extra_started_commands="reload"
+
+depend() {
+	after net dns
+}
+
+reload() {
+	ebegin "Reloading $RC_SVCNAME"
+        $supervisor "$RC_SVCNAME" --signal HUP
+	eend $?
+}

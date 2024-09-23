@@ -1,3 +1,4 @@
+version: 2
 project_name: sing-box
 builds:
   - &template
@@ -25,7 +26,6 @@ builds:
     targets:
       - linux_386
       - linux_amd64_v1
-      - linux_amd64_v3
       - linux_arm64
       - linux_arm_6
       - linux_arm_7
@@ -33,7 +33,6 @@ builds:
       - linux_riscv64
       - linux_mips64le
       - windows_amd64_v1
-      - windows_amd64_v3
       - windows_386
       - windows_arm64
       - darwin_amd64_v1
@@ -90,8 +89,6 @@ builds:
       - android_arm64
       - android_386
       - android_amd64
-snapshot:
-  name_template: "{{ .Version }}.{{ .ShortCommit }}"
 archives:
   - &template
     id: archive
@@ -105,7 +102,7 @@ archives:
     wrap_in_directory: true
     files:
       - LICENSE
-    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ if and .Mips (not (eq .Mips "hardfloat")) }}_{{ .Mips }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
   - id: archive-legacy
     <<: *template
     builds:
@@ -114,7 +111,7 @@ archives:
 nfpms:
   - id: package
     package_name: sing-box
-    file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
+    file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ if and .Mips (not (eq .Mips "hardfloat")) }}_{{ .Mips }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
     builds:
       - main
     homepage: https://sing-box.sagernet.org/
@@ -125,15 +122,26 @@ nfpms:
       - deb
       - rpm
       - archlinux
+#      - apk
+#      - ipk
     priority: extra
     contents:
       - src: release/config/config.json
         dst: /etc/sing-box/config.json
         type: config
+
       - src: release/config/sing-box.service
         dst: /usr/lib/systemd/system/sing-box.service
       - src: release/config/sing-box@.service
         dst: /usr/lib/systemd/system/sing-box@.service
+
+      - src: release/completions/sing-box.bash
+        dst: /usr/share/bash-completion/completions/sing-box.bash
+      - src: release/completions/sing-box.fish
+        dst: /usr/share/fish/vendor_completions.d/sing-box.fish
+      - src: release/completions/sing-box.zsh
+        dst: /usr/share/zsh/site-functions/_sing-box
+
       - src: LICENSE
         dst: /usr/share/licenses/sing-box/LICENSE
     deb:
@@ -145,13 +153,34 @@ nfpms:
       signature:
         key_file: "{{ .Env.NFPM_KEY_PATH }}"
     overrides:
-      deb:
-        conflicts:
-          - sing-box-beta
-      rpm:
-        conflicts:
-          - sing-box-beta
+      apk:
+        contents:
+          - src: release/config/config.json
+            dst: /etc/sing-box/config.json
+            type: config
 
+          - src: release/config/sing-box.initd
+            dst: /etc/init.d/sing-box
+
+          - src: release/completions/sing-box.bash
+            dst: /usr/share/bash-completion/completions/sing-box.bash
+          - src: release/completions/sing-box.fish
+            dst: /usr/share/fish/vendor_completions.d/sing-box.fish
+          - src: release/completions/sing-box.zsh
+            dst: /usr/share/zsh/site-functions/_sing-box
+
+          - src: LICENSE
+            dst: /usr/share/licenses/sing-box/LICENSE
+      ipk:
+        contents:
+          - src: release/config/config.json
+            dst: /etc/sing-box/config.json
+            type: config
+
+          - src: release/config/openwrt.init
+            dst: /etc/init.d/sing-box
+          - src: release/config/openwrt.conf
+            dst: /etc/config/sing-box
 source:
   enabled: false
   name_template: '{{ .ProjectName }}-{{ .Version }}.source'
