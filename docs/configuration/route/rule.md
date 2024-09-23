@@ -4,7 +4,7 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.10.0"
 
-    :material-plus: [client](#client)
+    :material-plus: [client](#client)  
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
     :material-plus: [rule_set_ip_cidr_match_source](#rule_set_ip_cidr_match_source)  
     :material-plus: [process_path_regex](#process_path_regex)
