@@ -47,7 +47,7 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 #### fallback
 
-!!! quote ""
+!!! failure ""
 
     There is no evidence that GFW detects and blocks Trojan servers based on HTTP responses, and opening the standard http/s port on the server is a much bigger signature.
 
