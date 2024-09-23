@@ -1,4 +1,8 @@
-!!! quote "sing-box 1.8.0 中的更改"
+---
+icon: material/alert-decagram
+---
+
+!!! quote "sing-box 1.10.0 中的更改"
 
     :material-alert-decagram: [utls](#utls)  
 
@@ -44,8 +48,8 @@
     "handshake": {
       "server": "google.com",
       "server_port": 443,
-
-      ... // 拨号字段
+      ...
+      // 拨号字段
     },
     "private_key": "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
     "short_id": [
@@ -202,28 +206,25 @@ TLS 版本值：
 
 ==仅客户端==
 
-!!! note ""
+!!! failure ""
 
-    uTLS 维护不善且其效果可能未经证实，使用风险自负。
+    没有证据表明 GFW 根据 TLS 客户端指纹检测并阻止服务器，并且，使用一个未经安全审查的不完美模拟可能带来安全隐患。
 
 uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻力。
 
 可用的指纹值：
 
-!!! question "自 sing-box 1.8.0 起"
+!!! warning "已在 sing-box 1.10.0 移除"
 
-    :material-plus: chrome_psk  
-    :material-plus: chrome_psk_shuffle  
-    :material-plus: chrome_padding_psk_shuffle  
-    :material-plus: chrome_pq  
-    :material-plus: chrome_pq_psk
+    一些旧 chrome 指纹已被删除，并将会退到 chrome：
+
+    :material-close: chrome_psk  
+    :material-close: chrome_psk_shuffle  
+    :material-close: chrome_padding_psk_shuffle  
+    :material-close: chrome_pq  
+    :material-close: chrome_pq_psk
 
 * chrome
-* chrome_psk
-* chrome_psk_shuffle
-* chrome_padding_psk_shuffle
-* chrome_pq
-* chrome_pq_psk
 * firefox
 * edge
 * safari
