@@ -120,7 +120,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
-	group.Append0(func(ctx context.Context) error {
+	group.Append0(func(_ context.Context) error {
 		for {
 			var message mDNS.Msg
 			var destination M.Socksaddr
@@ -185,11 +185,10 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 }
 
 func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
-	ctx = adapter.WithContext(ctx, &metadata)
 	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
-	group.Append0(func(ctx context.Context) error {
+	group.Append0(func(_ context.Context) error {
 		for {
 			var (
 				message     mDNS.Msg
