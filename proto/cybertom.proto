@@ -1,0 +1,17 @@
+syntax = "proto3";
+option go_package = "/cybertom";
+
+package proto;
+
+service CyberTom {
+  rpc UpdateUser (UpdateUserRequest) returns (UpdateUserReply) {}
+}
+
+message UpdateUserRequest {
+  string tag = 1;
+  repeated string users = 2;
+  repeated string passwords = 3;
+}
+
+message UpdateUserReply {
+}

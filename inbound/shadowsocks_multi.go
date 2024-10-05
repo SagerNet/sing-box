@@ -4,15 +4,10 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 	"time"
 
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/mux"
-	"github.com/sagernet/sing-box/common/uot"
-	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-shadowsocks"
+	shadowsocks "github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowaead"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	"github.com/sagernet/sing/common"
@@ -22,6 +17,13 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
+
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/mux"
+	"github.com/sagernet/sing-box/common/uot"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 )
 
 var (
@@ -33,6 +35,7 @@ type ShadowsocksMulti struct {
 	myInboundAdapter
 	service shadowsocks.MultiService[int]
 	users   []option.ShadowsocksUser
+	mu      sync.RWMutex
 }
 
 func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*ShadowsocksMulti, error) {
@@ -95,10 +98,14 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 }
 
 func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (h *ShadowsocksMulti) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
 }
 
@@ -126,7 +133,9 @@ func (h *ShadowsocksMulti) newPacketConnection(ctx context.Context, conn N.Packe
 	if !loaded {
 		return os.ErrInvalid
 	}
+	h.mu.RLock()
 	user := h.users[userIndex].Name
+	h.mu.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -136,4 +145,26 @@ func (h *ShadowsocksMulti) newPacketConnection(ctx context.Context, conn N.Packe
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection from ", metadata.Source)
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
+func (h *ShadowsocksMulti) UpdateUserPassword(users, passwords []string) error {
+	shadowsocksUsers := make([]option.ShadowsocksUser, 0, len(users))
+	for i, user := range users {
+		shadowsocksUsers = append(shadowsocksUsers, option.ShadowsocksUser{Name: user, Password: passwords[i]})
+	}
+
+	// mu must be locked before UpdateUsersWithPasswords
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	err := h.service.UpdateUsersWithPasswords(common.MapIndexed(shadowsocksUsers, func(index int, user option.ShadowsocksUser) int {
+		return index
+	}), common.Map(shadowsocksUsers, func(user option.ShadowsocksUser) string {
+		return user.Password
+	}))
+
+	if err != nil {
+		return err
+	}
+	h.users = shadowsocksUsers
+	return nil
 }
