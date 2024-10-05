@@ -87,12 +87,12 @@ icon: material/package
 
 ## :material-alert: Problematic Sources
 
-| Type       | Platform | Link                                                                                      | Promblem(s)                                                      |
-|------------|----------|-------------------------------------------------------------------------------------------|------------------------------------------------------------------|
-| DEB        | AOSC     | [aosc-os-abbs](https://github.com/AOSC-Dev/aosc-os-abbs/tree/stable/app-network/sing-box) | Problematic build tag list modification; Not actively maintained |
-| Homebrew   | /        | [homebrew-core][brew]                                                                     | Problematic build tag list modification                          |
-| Termux     | Android  | [termux-packages][termux]                                                                 | Problematic build tag list modification                          |
-| FreshPorts | FreeBSD  | [FreeBSD ports][ports]                                                                    | Old Go  (go1.20)                                                 |
+| Type       | Platform | Link                                                                                      | Promblem(s)                             |
+|------------|----------|-------------------------------------------------------------------------------------------|-----------------------------------------|
+| DEB        | AOSC     | [aosc-os-abbs](https://github.com/AOSC-Dev/aosc-os-abbs/tree/stable/app-network/sing-box) | Problematic build tag list modification |
+| Homebrew   | /        | [homebrew-core][brew]                                                                     | Problematic build tag list modification |
+| Termux     | Android  | [termux-packages][termux]                                                                 | Problematic build tag list modification |
+| FreshPorts | FreeBSD  | [FreeBSD ports][ports]                                                                    | Old Go  (go1.20)                        |
 
 If you are a user of them, please report issues to them:
 

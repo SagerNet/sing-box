@@ -85,15 +85,14 @@ icon: material/package
     |------------|---------|------------------------|--------------------------------------------------------------------------------------------|
     | FreshPorts | FreeBSD | `pkg install sing-box` | [![FreeBSD port](https://repology.org/badge/version-for-repo/freebsd/sing-box.svg)][ports] |
 
-
 ## :material-alert: 存在问题的源
 
-| 类型         | 平台      | 链接                                                                                        | 原因                    |
-|------------|---------|-------------------------------------------------------------------------------------------|-----------------------|
-| DEB        | AOSC    | [aosc-os-abbs](https://github.com/AOSC-Dev/aosc-os-abbs/tree/stable/app-network/sing-box) | 存在问题的构建标志列表修改; 没有活跃维护 |
-| Homebrew   | /       | [homebrew-core][brew]                                                                     | 存在问题的构建标志列表修改         |
-| Termux     | Android | [termux-packages][termux]                                                                 | 存在问题的构建标志列表修改         |
-| FreshPorts | FreeBSD | [FreeBSD ports][ports]                                                                    | 太旧的 Go (go1.20)       |
+| 类型         | 平台      | 链接                                                                                        | 原因              |
+|------------|---------|-------------------------------------------------------------------------------------------|-----------------|
+| DEB        | AOSC    | [aosc-os-abbs](https://github.com/AOSC-Dev/aosc-os-abbs/tree/stable/app-network/sing-box) | 存在问题的构建标志列表修改   |
+| Homebrew   | /       | [homebrew-core][brew]                                                                     | 存在问题的构建标志列表修改   |
+| Termux     | Android | [termux-packages][termux]                                                                 | 存在问题的构建标志列表修改   |
+| FreshPorts | FreeBSD | [FreeBSD ports][ports]                                                                    | 太旧的 Go (go1.20) |
 
 如果您是其用户，请向他们报告问题：
 
