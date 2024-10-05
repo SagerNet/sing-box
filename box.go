@@ -4,9 +4,21 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
+	"github.com/sagernet/sing-box/inbound"
+	pb "github.com/sagernet/sing-box/proto/cybertom"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/taskmonitor"
@@ -14,16 +26,11 @@ import (
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
-	"github.com/sagernet/sing-box/inbound"
+	pkginbound "github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/route"
-	"github.com/sagernet/sing/common"
-	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
-	"github.com/sagernet/sing/service"
-	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.Service = (*Box)(nil)
@@ -39,6 +46,7 @@ type Box struct {
 	preServices2 map[string]adapter.Service
 	postServices map[string]adapter.Service
 	done         chan struct{}
+	options      *Options
 }
 
 type Options struct {
@@ -194,6 +202,7 @@ func New(options Options) (*Box, error) {
 		preServices2: preServices2,
 		postServices: postServices,
 		done:         make(chan struct{}),
+		options:      options,
 	}, nil
 }
 
@@ -271,7 +280,27 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return err
 	}
-	return s.router.Start()
+
+	err = s.router.Start()
+	if err != nil {
+		return err
+	}
+	return s.startGRPCServer()
+}
+
+func (s *Box) startGRPCServer() error {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.options.TomConfig.ListenPort))
+	if err != nil {
+		return fmt.Errorf("CyberTom Start: failed to listen: %v", err)
+	}
+	srv := grpc.NewServer()
+	pb.RegisterCyberTom(srv, s)
+	go func() {
+		if err := srv.Serve(lis); err != nil {
+			panic(fmt.Errorf("Cyber Start: failed to serve: %v", err))
+		}
+	}()
+	return nil
 }
 
 func (s *Box) start() error {
@@ -402,4 +431,22 @@ func (s *Box) Close() error {
 
 func (s *Box) Router() adapter.Router {
 	return s.router
+}
+
+func (s *Box) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserReply, error) {
+	for _, inbound := range s.inbounds {
+		if inbound.Tag() == req.Tag {
+			switch inbound.(type) {
+			case *pkginbound.ShadowsocksMulti:
+				in := inbound.(*pkginbound.ShadowsocksMulti)
+				err := in.UpdateUserPassword(req.Users, req.Passwords)
+				if err != nil {
+					return nil, grpc.Errorf(codes.Internal, err.Error())
+				}
+				return &pb.UpdateUserReply{}, nil
+			}
+			break
+		}
+	}
+	return nil, grpc.Errorf(codes.InvalidArgument, "unsupported protocol")
 }

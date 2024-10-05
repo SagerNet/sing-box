@@ -6,6 +6,10 @@ import (
 	"github.com/sagernet/sing/common/json"
 )
 
+type TomConfig struct {
+	ListenPort uint16 `json:"listen_port,omitempty"`
+}
+
 type _Options struct {
 	RawMessage   json.RawMessage      `json:"-"`
 	Schema       string               `json:"$schema,omitempty"`
@@ -16,6 +20,7 @@ type _Options struct {
 	Outbounds    []Outbound           `json:"outbounds,omitempty"`
 	Route        *RouteOptions        `json:"route,omitempty"`
 	Experimental *ExperimentalOptions `json:"experimental,omitempty"`
+	TomConfig    *TomConfig           `json:tom_config,omitempty`
 }
 
 type Options _Options
