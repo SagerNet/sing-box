@@ -12,6 +12,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
@@ -21,11 +22,11 @@ type LocalRuleSet struct {
 	metadata adapter.RuleSetMetadata
 }
 
-func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleSet, error) {
+func NewLocalRuleSet(ctx context.Context, router adapter.Router, options option.RuleSet) (*LocalRuleSet, error) {
 	var plainRuleSet option.PlainRuleSet
 	switch options.Format {
 	case C.RuleSetFormatSource, "":
-		content, err := os.ReadFile(options.LocalOptions.Path)
+		content, err := os.ReadFile(filemanager.BasePath(ctx, options.LocalOptions.Path))
 		if err != nil {
 			return nil, err
 		}
@@ -35,7 +36,7 @@ func NewLocalRuleSet(router adapter.Router, options option.RuleSet) (*LocalRuleS
 		}
 		plainRuleSet = compat.Upgrade()
 	case C.RuleSetFormatBinary:
-		setFile, err := os.Open(options.LocalOptions.Path)
+		setFile, err := os.Open(filemanager.BasePath(ctx, options.LocalOptions.Path))
 		if err != nil {
 			return nil, err
 		}
