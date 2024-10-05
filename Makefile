@@ -176,7 +176,7 @@ release_tvos: build_tvos upload_tvos_app_store
 update_apple_version:
 	go run ./cmd/internal/update_apple_version
 
-release_apple: lib_ios update_apple_version release_ios release_macos release_tvos
+release_apple: lib_ios update_apple_version release_ios release_macos release_tvos release_macos_standalone
 
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
 
