@@ -49,7 +49,7 @@ require (
 	golang.org/x/net v0.27.0
 	golang.org/x/sys v0.25.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	google.golang.org/grpc v1.63.2
+	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.33.0
 	howett.net/plist v1.0.1
 )
@@ -94,8 +94,11 @@ require (
 	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
+
+// github.com/sagernet/sing-shadowsocks v0.2.7 =>	github.com/TomXProject/sing-shadowsocks v0.2.7
+replace github.com/sagernet/sing-box => /home/kongjun/projects/sing-box

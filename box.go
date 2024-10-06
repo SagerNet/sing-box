@@ -47,6 +47,7 @@ type Box struct {
 	postServices map[string]adapter.Service
 	done         chan struct{}
 	options      *Options
+	pb.UnimplementedCyberTomServer
 }
 
 type Options struct {
@@ -202,7 +203,7 @@ func New(options Options) (*Box, error) {
 		preServices2: preServices2,
 		postServices: postServices,
 		done:         make(chan struct{}),
-		options:      options,
+		options:      &options,
 	}, nil
 }
 
@@ -294,7 +295,7 @@ func (s *Box) startGRPCServer() error {
 		return fmt.Errorf("CyberTom Start: failed to listen: %v", err)
 	}
 	srv := grpc.NewServer()
-	pb.RegisterCyberTom(srv, s)
+	pb.RegisterCyberTomServer(srv, s)
 	go func() {
 		if err := srv.Serve(lis); err != nil {
 			panic(fmt.Errorf("Cyber Start: failed to serve: %v", err))
