@@ -4,6 +4,17 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
+
+	vmess "github.com/sagernet/sing-vmess"
+	"github.com/sagernet/sing-vmess/packetaddr"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/auth"
+	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/mux"
@@ -13,15 +24,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
-	"github.com/sagernet/sing-vmess"
-	"github.com/sagernet/sing-vmess/packetaddr"
-	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/auth"
-	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 )
 
 var (
@@ -36,6 +38,7 @@ type VMess struct {
 	users     []option.VMessUser
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
+	mu        sync.RWMutex
 }
 
 func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessInboundOptions) (*VMess, error) {
@@ -155,6 +158,8 @@ func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 			return err
 		}
 	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
@@ -196,6 +201,26 @@ func (h *VMess) newPacketConnection(ctx context.Context, conn N.PacketConn, meta
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	}
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
+func (v *VMess) UpdateUsers(nameList []string, userIdList []string, alterIdList []int) error {
+	users := make([]option.VMessUser, 0, len(nameList))
+	for i, name := range nameList {
+		users = append(users, option.VMessUser{Name: name, UUID: userIdList[i], AlterId: alterIdList[i]})
+	}
+
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	err := v.service.UpdateUsers(common.MapIndexed(users, func(index int, it option.VMessUser) int {
+		return index
+	}), userIdList, alterIdList)
+	if err != nil {
+		return err
+	}
+	v.users = users
+
+	return nil
 }
 
 var _ adapter.V2RayServerTransportHandler = (*vmessTransportHandler)(nil)

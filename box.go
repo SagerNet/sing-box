@@ -437,15 +437,20 @@ func (s *Box) Router() adapter.Router {
 func (s *Box) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserReply, error) {
 	for _, inbound := range s.inbounds {
 		if inbound.Tag() == req.Tag {
-			switch inbound.(type) {
+			switch inbound := inbound.(type) {
 			case *pkginbound.ShadowsocksMulti:
-				in := inbound.(*pkginbound.ShadowsocksMulti)
-				err := in.UpdateUserPassword(req.Users, req.Passwords)
+				err := inbound.UpdateUserPassword(req.Users, req.Passwords)
 				if err != nil {
 					return nil, grpc.Errorf(codes.Internal, err.Error())
 				}
 				return &pb.UpdateUserReply{}, nil
 			}
+			case *pkginbound.VMess:
+				err := inbound.Updateusers(req.Users, req.Passwords)
+				if err != nil {
+					return nil, grpc.Errorf(codes.Internal, err.Error())
+				}
+				return &pb.UpdateUserReply{}, nil
 			break
 		}
 	}
