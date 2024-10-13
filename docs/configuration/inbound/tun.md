@@ -232,12 +232,12 @@ Automatically configure iptables/nftables to redirect connections.
 
 *In Android*：
 
-Only local connections are forwarded. To share your VPN connection over hotspot or repeater,
+Only local IPv4 connections are forwarded. To share your VPN connection over hotspot or repeater,
 use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
 
 *In Linux*:
 
-`auto_route` with `auto_redirect` now works as expected on routers **without intervention**.
+`auto_route` with `auto_redirect` works as expected on routers **without intervention**.
 
 #### auto_redirect_input_mark
 

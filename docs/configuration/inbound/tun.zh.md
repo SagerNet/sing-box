@@ -232,7 +232,7 @@ tun 接口的 IPv6 前缀。
 
     仅支持 Linux，且需要 `auto_route` 已启用。 
 
-自动配置 iptables 以重定向 TCP 连接。
+自动配置 iptables/nftables 以重定向连接。
 
 *在 Android 中*：
 
@@ -240,7 +240,7 @@ tun 接口的 IPv6 前缀。
 
 *在 Linux 中*:
 
-带有 `auto_redirect `的 `auto_route` 现在可以在路由器上按预期工作，**无需干预**。
+带有 `auto_redirect `的 `auto_route` 可以在路由器上按预期工作，**无需干预**。
 
 #### auto_redirect_input_mark
 
