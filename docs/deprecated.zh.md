@@ -6,13 +6,18 @@ icon: material/delete-alert
 
 ## 1.10.0
 
+#### Match source 规则项已重命名
+
+`rule_set_ipcidr_match_source` 路由和 DNS 规则项已被重命名为
+`rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 中被移除。
+
 #### TUN 地址字段已合并
 
 `inet4_address` 和 `inet6_address` 已合并为 `address`，
 `inet4_route_address` 和 `inet6_route_address` 已合并为 `route_address`，
 `inet4_route_exclude_address` 和 `inet6_route_exclude_address` 已合并为 `route_exclude_address`。
 
-旧字段已废弃，且将在 sing-box 1.11.0 中移除。
+旧字段已废弃，且将在 sing-box 1.11.0 中被移除。
 
 #### 移除对 go1.18 和 go1.19 的支持
 

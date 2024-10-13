@@ -14,6 +14,11 @@ icon: material/delete-alert
 
 Old fields are deprecated and will be removed in sing-box 1.11.0.
 
+#### Match source rule items are renamed
+
+`rule_set_ipcidr_match_source` route and DNS rule items are renamed to
+`rule_set_ip_cidr_match_source` and will be remove in sing-box 1.11.0.
+
 #### Drop support for go1.18 and go1.19
 
 Due to maintenance difficulties, sing-box 1.10.0 requires at least Go 1.20 to compile.
