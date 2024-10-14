@@ -19,8 +19,8 @@ func NewSearcher(config Config) (Searcher, error) {
 	return &linuxSearcher{config.Logger}, nil
 }
 
-func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
-	inode, uid, err := resolveSocketByNetlink(network, source, destination)
+func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort) (*Info, error) {
+	inode, uid, err := resolveSocketByNetlink(network, source)
 	if err != nil {
 		return nil, err
 	}

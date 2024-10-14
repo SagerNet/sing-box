@@ -36,7 +36,7 @@ const (
 	pathProc                = "/proc"
 )
 
-func resolveSocketByNetlink(network string, source netip.AddrPort, destination netip.AddrPort) (inode, uid uint32, err error) {
+func resolveSocketByNetlink(network string, source netip.AddrPort) (inode, uid uint32, err error) {
 	var family uint8
 	var protocol uint8
 

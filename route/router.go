@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -50,11 +51,15 @@ import (
 var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
-	ctx                                context.Context
-	logger                             log.ContextLogger
-	dnsLogger                          log.ContextLogger
+	ctx       context.Context
+	logger    log.ContextLogger
+	dnsLogger log.ContextLogger
+	// Currently this is responsible for protecting inbound and outbound dynamic
+	// control. I'm not sure if it can be separated because I haven't delved
+	// into the logic yet to make sure they don't interfere with each other.
+	// To research, may improve performance on some high-load setups.
+	boundary                           sync.RWMutex
 	inboundByTag                       map[string]adapter.Inbound
-	outbounds                          []adapter.Outbound
 	outboundByTag                      map[string]adapter.Outbound
 	rules                              []adapter.Rule
 	defaultDetour                      string
@@ -113,6 +118,7 @@ func NewRouter(
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
 		dnsLogger:             logFactory.NewLogger("dns"),
+		inboundByTag:          make(map[string]adapter.Inbound),
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
@@ -373,76 +379,6 @@ func NewRouter(
 	return router, nil
 }
 
-func (r *Router) Initialize(inbounds []adapter.Inbound, outbounds []adapter.Outbound, defaultOutbound func() adapter.Outbound) error {
-	inboundByTag := make(map[string]adapter.Inbound)
-	for _, inbound := range inbounds {
-		inboundByTag[inbound.Tag()] = inbound
-	}
-	outboundByTag := make(map[string]adapter.Outbound)
-	for _, detour := range outbounds {
-		outboundByTag[detour.Tag()] = detour
-	}
-	var defaultOutboundForConnection adapter.Outbound
-	var defaultOutboundForPacketConnection adapter.Outbound
-	if r.defaultDetour != "" {
-		detour, loaded := outboundByTag[r.defaultDetour]
-		if !loaded {
-			return E.New("default detour not found: ", r.defaultDetour)
-		}
-		if common.Contains(detour.Network(), N.NetworkTCP) {
-			defaultOutboundForConnection = detour
-		}
-		if common.Contains(detour.Network(), N.NetworkUDP) {
-			defaultOutboundForPacketConnection = detour
-		}
-	}
-	if defaultOutboundForConnection == nil {
-		for _, detour := range outbounds {
-			if common.Contains(detour.Network(), N.NetworkTCP) {
-				defaultOutboundForConnection = detour
-				break
-			}
-		}
-	}
-	if defaultOutboundForPacketConnection == nil {
-		for _, detour := range outbounds {
-			if common.Contains(detour.Network(), N.NetworkUDP) {
-				defaultOutboundForPacketConnection = detour
-				break
-			}
-		}
-	}
-	if defaultOutboundForConnection == nil || defaultOutboundForPacketConnection == nil {
-		detour := defaultOutbound()
-		if defaultOutboundForConnection == nil {
-			defaultOutboundForConnection = detour
-		}
-		if defaultOutboundForPacketConnection == nil {
-			defaultOutboundForPacketConnection = detour
-		}
-		outbounds = append(outbounds, detour)
-		outboundByTag[detour.Tag()] = detour
-	}
-	r.inboundByTag = inboundByTag
-	r.outbounds = outbounds
-	r.defaultOutboundForConnection = defaultOutboundForConnection
-	r.defaultOutboundForPacketConnection = defaultOutboundForPacketConnection
-	r.outboundByTag = outboundByTag
-	for i, rule := range r.rules {
-		if _, loaded := outboundByTag[rule.Outbound()]; !loaded {
-			return E.New("outbound not found for rule[", i, "]: ", rule.Outbound())
-		}
-	}
-	return nil
-}
-
-func (r *Router) Outbounds() []adapter.Outbound {
-	if !r.started {
-		return nil
-	}
-	return r.outbounds
-}
-
 func (r *Router) PreStart() error {
 	monitor := taskmonitor.New(r.logger, C.StartTimeout)
 	if r.interfaceMonitor != nil {
@@ -581,9 +517,191 @@ func (r *Router) Start() error {
 	return nil
 }
 
+func (r *Router) Cleanup() error {
+	for _, ruleSet := range r.ruleSetMap {
+		ruleSet.Cleanup()
+	}
+	runtime.GC()
+	return nil
+}
+
+func (r *Router) AddOutbound(out adapter.Outbound) error {
+	r.boundary.Lock()
+	defer r.boundary.Unlock()
+
+	if _, ok := r.outboundByTag[out.Tag()]; ok {
+		return E.New("duplication of tag")
+	}
+
+	if r.defaultDetour == "" || r.defaultDetour == out.Tag() {
+		if r.defaultOutboundForConnection == nil {
+			if common.Contains(out.Network(), N.NetworkTCP) {
+				r.defaultOutboundForConnection = out
+			}
+		}
+		if r.defaultOutboundForPacketConnection == nil {
+			if common.Contains(out.Network(), N.NetworkUDP) {
+				r.defaultOutboundForPacketConnection = out
+			}
+		}
+	}
+
+	if r.started {
+		monitor := taskmonitor.New(r.logger, C.StartTimeout)
+		monitor.Start("initialize outbound/", out.Type(), "[", out.Tag(), "]")
+		defer monitor.Finish()
+
+		if startable, isStartable := out.(interface{ Start() error }); isStartable {
+			if err := startable.Start(); err != nil {
+				return E.Cause(err, "start")
+			}
+		}
+
+		if err := postStartOutbound(out); err != nil {
+			return E.Cause(err, "post start")
+		}
+	}
+
+	r.outboundByTag[out.Tag()] = out
+	return nil
+}
+
+func (r *Router) AddInbound(in adapter.Inbound) error {
+	r.boundary.Lock()
+	defer r.boundary.Unlock()
+
+	if _, ok := r.inboundByTag[in.Tag()]; ok {
+		return E.New("duplication of tag")
+	}
+
+	if r.started {
+		monitor := taskmonitor.New(r.logger, C.StartTimeout)
+		monitor.Start("initialize inbound/", in.Type(), "[", in.Tag(), "]")
+		defer monitor.Finish()
+
+		if err := in.Start(); err != nil {
+			return E.Cause(err, "start")
+		}
+
+		if err := postStartInbound(in); err != nil {
+			return E.Cause(err, "post-start")
+		}
+	}
+
+	r.inboundByTag[in.Tag()] = in
+	return nil
+}
+
+func (r *Router) RemoveOutbound(tag string) error {
+	r.boundary.Lock()
+	defer r.boundary.Unlock()
+
+	out, ok := r.outboundByTag[tag]
+	if !ok {
+		return E.New("unknown tag")
+	}
+	delete(r.outboundByTag, tag)
+
+	if out == r.defaultOutboundForConnection {
+		r.defaultOutboundForConnection = nil
+	}
+	if out == r.defaultOutboundForPacketConnection {
+		r.defaultOutboundForPacketConnection = nil
+	}
+	if r.defaultDetour == "" {
+		for _, out := range r.outboundByTag {
+			if r.defaultOutboundForConnection == nil {
+				if common.Contains(out.Network(), N.NetworkTCP) {
+					r.defaultOutboundForConnection = out
+				}
+				if common.Contains(out.Network(), N.NetworkUDP) {
+					r.defaultOutboundForPacketConnection = out
+				}
+				if r.defaultOutboundForConnection != nil && r.defaultOutboundForPacketConnection != nil {
+					break
+				}
+			}
+		}
+	}
+
+	if r.started {
+		if err := common.Close(out); err != nil {
+			return E.Cause(err, "close")
+		}
+	}
+
+	return nil
+}
+
+func (r *Router) RemoveInbound(tag string) error {
+	r.boundary.Lock()
+	defer r.boundary.Unlock()
+
+	in, ok := r.inboundByTag[tag]
+	if !ok {
+		return E.New("unknown tag")
+	}
+	delete(r.inboundByTag, tag)
+
+	if r.started {
+		if err := in.Close(); err != nil {
+			return E.Cause(err, "close")
+		}
+	}
+
+	return nil
+}
+
+func (r *Router) StartOutbounds() error {
+	monitor := taskmonitor.New(r.logger, C.StartTimeout)
+	startedTags := make(map[string]struct{})
+
+	for tag, out := range r.outboundByTag {
+		if err := (&OutboundStarter{
+			outboundByTag: r.outboundByTag,
+			startedTags:   startedTags,
+			monitor:       monitor,
+		}).Start(tag, make(map[string]struct{})); err != nil {
+			return E.Cause(err, "start outbound/", out.Type(), "[", tag, "]")
+		}
+	}
+
+	return nil
+}
+
+func (r *Router) StartInbounds() error {
+	for tag, in := range r.inboundByTag {
+		if err := in.Start(); err != nil {
+			return E.Cause(err, "start inbound/", in.Type(), "[", tag, "]")
+		}
+	}
+	return nil
+}
+
+func (r *Router) closeBounds(monitor *taskmonitor.Monitor) error {
+	r.boundary.Lock()
+	defer r.boundary.Unlock()
+	var err error
+	for tag, in := range r.inboundByTag {
+		monitor.Start("close inbound/", in.Type(), "[", tag, "]")
+		err = E.Append(err, in.Close(), func(err error) error {
+			return E.Cause(err, "close inbound/", in.Type(), "[", tag, "]")
+		})
+		monitor.Finish()
+	}
+	for tag, out := range r.outboundByTag {
+		monitor.Start("close outbound/", out.Type(), "[", tag, "]")
+		err = E.Append(err, common.Close(out), func(err error) error {
+			return E.Cause(err, "close outbound/", out.Type(), "[", tag, "]")
+		})
+		monitor.Finish()
+	}
+	return err
+}
+
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
-	var err error
+	err := r.closeBounds(monitor)
 	for i, rule := range r.rules {
 		monitor.Start("close rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
@@ -654,10 +772,35 @@ func (r *Router) Close() error {
 		})
 		monitor.Finish()
 	}
+	r.started = false
 	return err
 }
 
+func postStartOutbound(out adapter.Outbound) error {
+	if lateOutbound, isLateOutbound := out.(adapter.PostStarter); isLateOutbound {
+		if err := lateOutbound.PostStart(); err != nil {
+			return E.Cause(err, "outbound/", out.Type(), "[", out.Tag(), "]")
+		}
+	}
+	return nil
+}
+
+func postStartInbound(in adapter.Inbound) error {
+	if lateInbound, isLateInbound := in.(adapter.PostStarter); isLateInbound {
+		if err := lateInbound.PostStart(); err != nil {
+			return E.Cause(err, "inbound/", in.Type(), "[", in.Tag(), "]")
+		}
+	}
+	return nil
+}
+
 func (r *Router) PostStart() error {
+	// TODO: reorganize ALL start order
+	for _, out := range r.outboundByTag {
+		if err := postStartOutbound(out); err != nil {
+			return err
+		}
+	}
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	if len(r.ruleSets) > 0 {
 		monitor.Start("initialize rule-set")
@@ -749,35 +892,58 @@ func (r *Router) PostStart() error {
 			return E.Cause(err, "post start rule_set[", ruleSet.Name(), "]")
 		}
 	}
+	for _, in := range r.inboundByTag {
+		if err := postStartInbound(in); err != nil {
+			return err
+		}
+	}
 	r.started = true
 	return nil
 }
 
-func (r *Router) Cleanup() error {
-	for _, ruleSet := range r.ruleSetMap {
-		ruleSet.Cleanup()
-	}
-	runtime.GC()
-	return nil
-}
-
-func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
-	outbound, loaded := r.outboundByTag[tag]
-	return outbound, loaded
-}
-
 func (r *Router) DefaultOutbound(network string) (adapter.Outbound, error) {
-	if network == N.NetworkTCP {
+	r.boundary.RLock()
+	defer r.boundary.RUnlock()
+	switch network {
+	case N.NetworkTCP:
 		if r.defaultOutboundForConnection == nil {
 			return nil, E.New("missing default outbound for TCP connections")
 		}
 		return r.defaultOutboundForConnection, nil
-	} else {
+	case N.NetworkUDP:
 		if r.defaultOutboundForPacketConnection == nil {
 			return nil, E.New("missing default outbound for UDP connections")
 		}
 		return r.defaultOutboundForPacketConnection, nil
 	}
+	return nil, E.New("wrong network type provided")
+}
+
+func (r *Router) Outbounds() []adapter.Outbound {
+	if !r.started {
+		return nil
+	}
+	r.boundary.RLock()
+	defer r.boundary.RUnlock()
+	res := make([]adapter.Outbound, 0, len(r.outboundByTag))
+	for _, out := range r.outboundByTag {
+		res = append(res, out)
+	}
+	return res
+}
+
+func (r *Router) Outbound(tag string) (adapter.Outbound, bool) {
+	r.boundary.RLock()
+	defer r.boundary.RUnlock()
+	outbound, loaded := r.outboundByTag[tag]
+	return outbound, loaded
+}
+
+func (r *Router) Inbound(tag string) (adapter.Inbound, bool) {
+	r.boundary.RLock()
+	defer r.boundary.RUnlock()
+	inbound, loaded := r.inboundByTag[tag]
+	return inbound, loaded
 }
 
 func (r *Router) FakeIPStore() adapter.FakeIPStore {
@@ -802,8 +968,8 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour := r.inboundByTag[metadata.InboundDetour]
-		if detour == nil {
+		detour, ok := r.Inbound(metadata.InboundDetour)
+		if !ok {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
 		injectable, isInjectable := detour.(adapter.InjectableInbound)
@@ -908,15 +1074,27 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	} else if metadata.Destination.IsIPv6() {
 		metadata.IPVersion = 6
 	}
-	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
-	if err != nil {
-		return err
+
+	rule, detour := r.ruleByMetadata(ctx, &metadata)
+	if rule == nil {
+		var err error
+		detour, err = r.DefaultOutbound(N.NetworkTCP)
+		if err != nil {
+			return E.New("missing supported outbound, closing packet connection")
+		}
+	}
+	if tag, loaded := outbound.TagFromContext(ctx); loaded {
+		if tag == detour.Tag() {
+			return E.New("connection loopback in outbound/", detour.Type(), "[", detour.Tag(), "]")
+		}
 	}
 	if !common.Contains(detour.Network(), N.NetworkTCP) {
-		return E.New("missing supported outbound, closing connection")
+		return E.New("missing support of network type by outbound, closing packet connection")
 	}
+	ctx = outbound.ContextWithTag(ctx, detour.Tag())
+
 	if r.clashServer != nil {
-		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
+		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, rule)
 		defer tracker.Leave()
 		conn = trackerConn
 	}
@@ -936,8 +1114,8 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour := r.inboundByTag[metadata.InboundDetour]
-		if detour == nil {
+		detour, ok := r.Inbound(metadata.InboundDetour)
+		if !ok {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
 		injectable, isInjectable := detour.(adapter.InjectableInbound)
@@ -1082,15 +1260,27 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	} else if metadata.Destination.IsIPv6() {
 		metadata.IPVersion = 6
 	}
-	ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
-	if err != nil {
-		return err
+
+	rule, detour := r.ruleByMetadata(ctx, &metadata)
+	if rule == nil {
+		var err error
+		detour, err = r.DefaultOutbound(N.NetworkUDP)
+		if err != nil {
+			return E.New("missing supported outbound, closing packet connection")
+		}
+	}
+	if tag, loaded := outbound.TagFromContext(ctx); loaded {
+		if tag == detour.Tag() {
+			return E.New("connection loopback in outbound/", detour.Type(), "[", detour.Tag(), "]")
+		}
 	}
 	if !common.Contains(detour.Network(), N.NetworkUDP) {
-		return E.New("missing supported outbound, closing packet connection")
+		return E.New("missing support of network type by outbound, closing packet connection")
 	}
+	ctx = outbound.ContextWithTag(ctx, detour.Tag())
+
 	if r.clashServer != nil {
-		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
+		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, rule)
 		defer tracker.Leave()
 		conn = trackerConn
 	}
@@ -1105,26 +1295,9 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return detour.NewPacketConnection(ctx, conn, metadata)
 }
 
-func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (context.Context, adapter.Rule, adapter.Outbound, error) {
-	matchRule, matchOutbound := r.match0(ctx, metadata, defaultOutbound)
-	if contextOutbound, loaded := outbound.TagFromContext(ctx); loaded {
-		if contextOutbound == matchOutbound.Tag() {
-			return nil, nil, nil, E.New("connection loopback in outbound/", matchOutbound.Type(), "[", matchOutbound.Tag(), "]")
-		}
-	}
-	ctx = outbound.ContextWithTag(ctx, matchOutbound.Tag())
-	return ctx, matchRule, matchOutbound, nil
-}
-
-func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (adapter.Rule, adapter.Outbound) {
+func (r *Router) processInfoByMetadata(ctx context.Context, metadata *adapter.InboundContext) *process.Info {
 	if r.processSearcher != nil {
-		var originDestination netip.AddrPort
-		if metadata.OriginDestination.IsValid() {
-			originDestination = metadata.OriginDestination.AddrPort()
-		} else if metadata.Destination.IsIP() {
-			originDestination = metadata.Destination.AddrPort()
-		}
-		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.AddrPort(), originDestination)
+		processInfo, err := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.AddrPort())
 		if err != nil {
 			r.logger.InfoContext(ctx, "failed to search process: ", err)
 		} else {
@@ -1145,21 +1318,26 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 					r.logger.InfoContext(ctx, "found user id: ", processInfo.UserId)
 				}
 			}
-			metadata.ProcessInfo = processInfo
+			return processInfo
 		}
 	}
+	return nil
+}
+
+func (r *Router) ruleByMetadata(ctx context.Context, metadata *adapter.InboundContext) (adapter.Rule, adapter.Outbound) {
+	metadata.ProcessInfo = r.processInfoByMetadata(ctx, metadata)
 	for i, rule := range r.rules {
 		metadata.ResetRuleCache()
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
-			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
+			r.logger.DebugContext(ctx, "rule[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
 				return rule, outbound
 			}
-			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
+			r.logger.ErrorContext(ctx, "not found outbound[", detour, "]")
 		}
 	}
-	return nil, defaultOutbound
+	return nil, nil
 }
 
 func (r *Router) InterfaceFinder() control.InterfaceFinder {
@@ -1306,8 +1484,8 @@ func (r *Router) notifyNetworkUpdate(event int) {
 func (r *Router) ResetNetwork() error {
 	conntrack.Close()
 
-	for _, outbound := range r.outbounds {
-		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
+	for _, out := range r.Outbounds() {
+		listener, isListener := out.(adapter.InterfaceUpdateListener)
 		if isListener {
 			listener.InterfaceUpdated()
 		}
@@ -1316,6 +1494,7 @@ func (r *Router) ResetNetwork() error {
 	for _, transport := range r.transports {
 		transport.Reset()
 	}
+
 	return nil
 }
 
