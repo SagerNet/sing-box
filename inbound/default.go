@@ -115,6 +115,12 @@ func (a *myInboundAdapter) Start() error {
 
 func (a *myInboundAdapter) Close() error {
 	a.inShutdown.Store(true)
+	if a.tcpListener != nil {
+		a.logger.Info("tcp server closed at ", a.tcpListener.Addr())
+	}
+	if a.udpConn != nil {
+		a.logger.Info("udp server closed at ", a.udpConn.LocalAddr())
+	}
 	var err error
 	if a.systemProxy != nil && a.systemProxy.IsEnabled() {
 		err = a.systemProxy.Disable()
