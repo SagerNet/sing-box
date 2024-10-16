@@ -218,7 +218,7 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Read(reader, binary.BigEndian, &content.Type)
+	err = binary.Read(bReader, binary.BigEndian, &content.Type)
 	if err != nil {
 		return nil, err
 	}
