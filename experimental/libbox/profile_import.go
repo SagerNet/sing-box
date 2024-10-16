@@ -218,7 +218,7 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Read(reader, binary.BigEndian, &content.Type)
+	err = binary.Read(bReader, binary.BigEndian, &content.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -233,17 +233,17 @@ func DecodeProfileContent(data []byte) (*ProfileContent, error) {
 		}
 	}
 	if content.Type == ProfileTypeRemote || (version == 0 && content.Type != ProfileTypeLocal) {
-		err = binary.Read(reader, binary.BigEndian, &content.AutoUpdate)
+		err = binary.Read(bReader, binary.BigEndian, &content.AutoUpdate)
 		if err != nil {
 			return nil, err
 		}
 		if version >= 1 {
-			err = binary.Read(reader, binary.BigEndian, &content.AutoUpdateInterval)
+			err = binary.Read(bReader, binary.BigEndian, &content.AutoUpdateInterval)
 			if err != nil {
 				return nil, err
 			}
 		}
-		err = binary.Read(reader, binary.BigEndian, &content.LastUpdated)
+		err = binary.Read(bReader, binary.BigEndian, &content.LastUpdated)
 		if err != nil {
 			return nil, err
 		}
