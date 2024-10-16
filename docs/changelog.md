@@ -4,8 +4,6 @@ icon: material/alert-decagram
 
 ### 1.10.0
 
-* Fixes and improvements
-
 Important changes since 1.9:
 
 * Introducing auto-redirect **1**
