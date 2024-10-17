@@ -18,14 +18,28 @@ import (
 )
 
 type Router interface {
-	Service
+	AddOutbound(outbound Outbound) error
+	AddInbound(inbound Inbound) error
+
+	RemoveOutbound(tag string) error
+	RemoveInbound(tag string) error
+
 	PreStarter
+
+	StartOutbounds() error
+
+	Service
+
+	StartInbounds() error
+
 	PostStarter
+
 	Cleanup() error
 
+	DefaultOutbound(network string) (Outbound, error)
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
-	DefaultOutbound(network string) (Outbound, error)
+	Inbound(tag string) (Inbound, bool)
 
 	FakeIPStore() FakeIPStore
 
