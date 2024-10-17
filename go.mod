@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.4
 	github.com/sagernet/gvisor v0.0.0-20240428053021-e691de28565f
-	github.com/sagernet/quic-go v0.47.0-beta.2
+	github.com/sagernet/quic-go v0.48.0-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.5.0-rc.2
 	github.com/sagernet/sing-dns v0.3.0-rc.2
@@ -44,11 +44,11 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/mod v0.19.0
-	golang.org/x/net v0.27.0
-	golang.org/x/sys v0.25.0
+	golang.org/x/mod v0.20.0
+	golang.org/x/net v0.30.0
+	golang.org/x/sys v0.26.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
@@ -91,9 +91,9 @@ require (
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.23.0 // indirect
+	golang.org/x/tools v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
