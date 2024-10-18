@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -54,15 +55,18 @@ type Tun struct {
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
 	address := options.Address
+	var deprecatedAddressUsed bool
 	//nolint:staticcheck
 	//goland:noinspection GoDeprecation
 	if len(options.Inet4Address) > 0 {
 		address = append(address, options.Inet4Address...)
+		deprecatedAddressUsed = true
 	}
 	//nolint:staticcheck
 	//goland:noinspection GoDeprecation
 	if len(options.Inet6Address) > 0 {
 		address = append(address, options.Inet6Address...)
+		deprecatedAddressUsed = true
 	}
 	inet4Address := common.Filter(address, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
@@ -76,11 +80,13 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	//goland:noinspection GoDeprecation
 	if len(options.Inet4RouteAddress) > 0 {
 		routeAddress = append(routeAddress, options.Inet4RouteAddress...)
+		deprecatedAddressUsed = true
 	}
 	//nolint:staticcheck
 	//goland:noinspection GoDeprecation
 	if len(options.Inet6RouteAddress) > 0 {
 		routeAddress = append(routeAddress, options.Inet6RouteAddress...)
+		deprecatedAddressUsed = true
 	}
 	inet4RouteAddress := common.Filter(routeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
@@ -94,11 +100,13 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	//goland:noinspection GoDeprecation
 	if len(options.Inet4RouteExcludeAddress) > 0 {
 		routeExcludeAddress = append(routeExcludeAddress, options.Inet4RouteExcludeAddress...)
+		deprecatedAddressUsed = true
 	}
 	//nolint:staticcheck
 	//goland:noinspection GoDeprecation
 	if len(options.Inet6RouteExcludeAddress) > 0 {
 		routeExcludeAddress = append(routeExcludeAddress, options.Inet6RouteExcludeAddress...)
+		deprecatedAddressUsed = true
 	}
 	inet4RouteExcludeAddress := common.Filter(routeExcludeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
@@ -106,6 +114,10 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	inet6RouteExcludeAddress := common.Filter(routeExcludeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is6()
 	})
+
+	if deprecatedAddressUsed {
+		deprecated.Report(ctx, deprecated.OptionTUNAddressX)
+	}
 
 	tunMTU := options.MTU
 	if tunMTU == 0 {

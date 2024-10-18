@@ -153,14 +153,14 @@ func NewRouter(
 		Logger: router.dnsLogger,
 	})
 	for i, ruleOptions := range options.Rules {
-		routeRule, err := NewRule(router, router.logger, ruleOptions, true)
+		routeRule, err := NewRule(ctx, router, router.logger, ruleOptions, true)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule[", i, "]")
 		}
 		router.rules = append(router.rules, routeRule)
 	}
 	for i, dnsRuleOptions := range dnsOptions.Rules {
-		dnsRule, err := NewDNSRule(router, router.logger, dnsRuleOptions, true)
+		dnsRule, err := NewDNSRule(ctx, router, router.logger, dnsRuleOptions, true)
 		if err != nil {
 			return nil, E.Cause(err, "parse dns rule[", i, "]")
 		}

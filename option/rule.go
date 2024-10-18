@@ -64,7 +64,7 @@ func (r Rule) IsValid() bool {
 	}
 }
 
-type _DefaultRule struct {
+type DefaultRule struct {
 	Inbound                  Listable[string] `json:"inbound,omitempty"`
 	IPVersion                int              `json:"ip_version,omitempty"`
 	Network                  Listable[string] `json:"network,omitempty"`
@@ -102,22 +102,6 @@ type _DefaultRule struct {
 
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
 	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty"`
-}
-
-type DefaultRule _DefaultRule
-
-func (r *DefaultRule) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_DefaultRule)(r))
-	if err != nil {
-		return err
-	}
-	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
-	if r.Deprecated_RulesetIPCIDRMatchSource {
-		r.Deprecated_RulesetIPCIDRMatchSource = false
-		r.RuleSetIPCIDRMatchSource = true
-	}
-	return nil
 }
 
 func (r *DefaultRule) IsValid() bool {
