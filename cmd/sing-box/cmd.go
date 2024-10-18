@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	_ "github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/spf13/cobra"
@@ -65,4 +67,5 @@ func preRun(cmd *cobra.Command, args []string) {
 	if len(configPaths) == 0 && len(configDirectories) == 0 {
 		configPaths = append(configPaths, "config.json")
 	}
+	globalCtx = service.ContextWith(globalCtx, deprecated.NewEnvManager(log.StdLogger()))
 }
