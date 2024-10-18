@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -235,4 +236,8 @@ func (w *platformInterfaceWrapper) DisableColors() bool {
 
 func (w *platformInterfaceWrapper) WriteMessage(level log.Level, message string) {
 	w.iif.WriteLog(message)
+}
+
+func (w *platformInterfaceWrapper) ReportDeprecated(note deprecated.Note) {
+	w.iif.ReportDeprecated(DeprecatedNote(note))
 }

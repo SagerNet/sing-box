@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
@@ -95,6 +96,9 @@ func (s *platformInterfaceStub) ReadWIFIState() adapter.WIFIState {
 
 func (s *platformInterfaceStub) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
 	return nil, os.ErrInvalid
+}
+
+func (s *platformInterfaceStub) ReportDeprecated(note deprecated.Note) {
 }
 
 type interfaceMonitorStub struct{}
