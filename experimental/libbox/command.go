@@ -16,4 +16,5 @@ const (
 	CommandSetSystemProxyEnabled
 	CommandConnections
 	CommandCloseConnection
+	CommandGetDeprecatedNotes
 )

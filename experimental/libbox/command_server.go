@@ -174,6 +174,8 @@ func (s *CommandServer) handleConnection(conn net.Conn) error {
 		return s.handleConnectionsConn(conn)
 	case CommandCloseConnection:
 		return s.handleCloseConnection(conn)
+	case CommandGetDeprecatedNotes:
+		return s.handleGetDeprecatedNotes(conn)
 	default:
 		return E.New("unknown command: ", command)
 	}
