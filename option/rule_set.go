@@ -48,17 +48,6 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	if r.Tag == "" {
 		return E.New("missing tag")
 	}
-	if r.Type != C.RuleSetTypeInline {
-		switch r.Format {
-		case "":
-			return E.New("missing format")
-		case C.RuleSetFormatSource, C.RuleSetFormatBinary:
-		default:
-			return E.New("unknown rule-set format: " + r.Format)
-		}
-	} else {
-		r.Format = ""
-	}
 	var v any
 	switch r.Type {
 	case "", C.RuleSetTypeInline:
@@ -70,6 +59,17 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 		v = &r.RemoteOptions
 	default:
 		return E.New("unknown rule-set type: " + r.Type)
+	}
+	if r.Type != C.RuleSetTypeInline {
+		switch r.Format {
+		case "":
+			return E.New("missing format")
+		case C.RuleSetFormatSource, C.RuleSetFormatBinary:
+		default:
+			return E.New("unknown rule-set format: " + r.Format)
+		}
+	} else {
+		r.Format = ""
 	}
 	err = UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
 	if err != nil {
