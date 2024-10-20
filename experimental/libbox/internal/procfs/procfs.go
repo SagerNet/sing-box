@@ -30,7 +30,7 @@ func init() {
 	}
 }
 
-func ResolveSocketByProcSearch(network string, source, _ netip.AddrPort) int32 {
+func ResolveSocketByProcSearch(network string, source netip.AddrPort) int32 {
 	if netIndexOfLocal < 0 || netIndexOfUid < 0 {
 		return -1
 	}

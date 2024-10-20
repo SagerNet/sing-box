@@ -29,16 +29,16 @@ import (
 var _ adapter.Service = (*Box)(nil)
 
 type Box struct {
-	createdAt    time.Time
-	router       adapter.Router
-	inbounds     []adapter.Inbound
-	outbounds    []adapter.Outbound
-	logFactory   log.Factory
-	logger       log.ContextLogger
-	preServices1 map[string]adapter.Service
-	preServices2 map[string]adapter.Service
-	postServices map[string]adapter.Service
-	done         chan struct{}
+	createdAt         time.Time
+	router            adapter.Router
+	logFactory        log.Factory
+	logger            log.ContextLogger
+	preServices1      map[string]adapter.Service
+	preServices2      map[string]adapter.Service
+	postServices      map[string]adapter.Service
+	platformInterface platform.Interface
+	ctx               context.Context
+	done              chan struct{}
 }
 
 type Options struct {
@@ -97,57 +97,6 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
 	}
-	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
-	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
-	for i, inboundOptions := range options.Inbounds {
-		var in adapter.Inbound
-		var tag string
-		if inboundOptions.Tag != "" {
-			tag = inboundOptions.Tag
-		} else {
-			tag = F.ToString(i)
-		}
-		in, err = inbound.New(
-			ctx,
-			router,
-			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
-			tag,
-			inboundOptions,
-			options.PlatformInterface,
-		)
-		if err != nil {
-			return nil, E.Cause(err, "parse inbound[", i, "]")
-		}
-		inbounds = append(inbounds, in)
-	}
-	for i, outboundOptions := range options.Outbounds {
-		var out adapter.Outbound
-		var tag string
-		if outboundOptions.Tag != "" {
-			tag = outboundOptions.Tag
-		} else {
-			tag = F.ToString(i)
-		}
-		out, err = outbound.New(
-			ctx,
-			router,
-			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
-			tag,
-			outboundOptions)
-		if err != nil {
-			return nil, E.Cause(err, "parse outbound[", i, "]")
-		}
-		outbounds = append(outbounds, out)
-	}
-	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.Outbound{Type: "direct", Tag: "default"})
-		common.Must(oErr)
-		outbounds = append(outbounds, out)
-		return out
-	})
-	if err != nil {
-		return nil, err
-	}
 	if options.PlatformInterface != nil {
 		err = options.PlatformInterface.Initialize(ctx, router)
 		if err != nil {
@@ -183,18 +132,35 @@ func New(options Options) (*Box, error) {
 		router.SetV2RayServer(v2rayServer)
 		preServices2["v2ray api"] = v2rayServer
 	}
-	return &Box{
-		router:       router,
-		inbounds:     inbounds,
-		outbounds:    outbounds,
-		createdAt:    createdAt,
-		logFactory:   logFactory,
-		logger:       logFactory.Logger(),
-		preServices1: preServices1,
-		preServices2: preServices2,
-		postServices: postServices,
-		done:         make(chan struct{}),
-	}, nil
+	box := &Box{
+		router:            router,
+		createdAt:         createdAt,
+		logFactory:        logFactory,
+		logger:            logFactory.Logger(),
+		preServices1:      preServices1,
+		preServices2:      preServices2,
+		postServices:      postServices,
+		platformInterface: options.PlatformInterface,
+		ctx:               ctx,
+		done:              make(chan struct{}),
+	}
+	for i, outOpts := range options.Outbounds {
+		if outOpts.Tag == "" {
+			outOpts.Tag = F.ToString(i)
+		}
+		if err := box.AddOutbound(outOpts); err != nil {
+			return nil, E.Cause(err, "create outbound")
+		}
+	}
+	for i, inOpts := range options.Inbounds {
+		if inOpts.Tag == "" {
+			inOpts.Tag = F.ToString(i)
+		}
+		if err := box.AddInbound(inOpts); err != nil {
+			return nil, E.Cause(err, "create inbound")
+		}
+	}
+	return box, nil
 }
 
 func (s *Box) PreStart() error {
@@ -263,12 +229,10 @@ func (s *Box) preStart() error {
 			}
 		}
 	}
-	err = s.router.PreStart()
-	if err != nil {
+	if err := s.router.PreStart(); err != nil {
 		return E.Cause(err, "pre-start router")
 	}
-	err = s.startOutbounds()
-	if err != nil {
+	if err := s.router.StartOutbounds(); err != nil {
 		return err
 	}
 	return s.router.Start()
@@ -291,20 +255,10 @@ func (s *Box) start() error {
 			return E.Cause(err, "start ", serviceName)
 		}
 	}
-	for i, in := range s.inbounds {
-		var tag string
-		if in.Tag() == "" {
-			tag = F.ToString(i)
-		} else {
-			tag = in.Tag()
-		}
-		err = in.Start()
-		if err != nil {
-			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
-		}
+	if err := s.router.StartInbounds(); err != nil {
+		return E.Cause(err, "start inbounds")
 	}
-	err = s.postStart()
-	if err != nil {
+	if err = s.postStart(); err != nil {
 		return err
 	}
 	return s.router.Cleanup()
@@ -317,26 +271,8 @@ func (s *Box) postStart() error {
 			return E.Cause(err, "start ", serviceName)
 		}
 	}
-	// TODO: reorganize ALL start order
-	for _, out := range s.outbounds {
-		if lateOutbound, isLateOutbound := out.(adapter.PostStarter); isLateOutbound {
-			err := lateOutbound.PostStart()
-			if err != nil {
-				return E.Cause(err, "post-start outbound/", out.Tag())
-			}
-		}
-	}
-	err := s.router.PostStart()
-	if err != nil {
-		return err
-	}
-	for _, in := range s.inbounds {
-		if lateInbound, isLateInbound := in.(adapter.PostStarter); isLateInbound {
-			err = lateInbound.PostStart()
-			if err != nil {
-				return E.Cause(err, "post-start inbound/", in.Tag())
-			}
-		}
+	if err := s.router.PostStart(); err != nil {
+		return E.Cause(err, "post-start")
 	}
 	return nil
 }
@@ -354,20 +290,6 @@ func (s *Box) Close() error {
 		monitor.Start("close ", serviceName)
 		errors = E.Append(errors, service.Close(), func(err error) error {
 			return E.Cause(err, "close ", serviceName)
-		})
-		monitor.Finish()
-	}
-	for i, in := range s.inbounds {
-		monitor.Start("close inbound/", in.Type(), "[", i, "]")
-		errors = E.Append(errors, in.Close(), func(err error) error {
-			return E.Cause(err, "close inbound/", in.Type(), "[", i, "]")
-		})
-		monitor.Finish()
-	}
-	for i, out := range s.outbounds {
-		monitor.Start("close outbound/", out.Type(), "[", i, "]")
-		errors = E.Append(errors, common.Close(out), func(err error) error {
-			return E.Cause(err, "close outbound/", out.Type(), "[", i, "]")
 		})
 		monitor.Finish()
 	}
@@ -402,4 +324,59 @@ func (s *Box) Close() error {
 
 func (s *Box) Router() adapter.Router {
 	return s.router
+}
+
+func (s *Box) AddOutbound(option option.Outbound) error {
+	if option.Tag == "" {
+		return E.New("empty tag")
+	}
+	out, err := outbound.New(
+		s.ctx,
+		s.router,
+		s.logFactory.NewLogger(F.ToString("outbound/", option.Type, "[", option.Tag, "]")),
+		option.Tag,
+		option,
+	)
+	if err != nil {
+		return E.Cause(err, "parse addited outbound")
+	}
+	if err := s.router.AddOutbound(out); err != nil {
+		return E.Cause(err, "outbound/", option.Type, "[", option.Tag, "]")
+	}
+	return nil
+}
+
+func (s *Box) AddInbound(option option.Inbound) error {
+	if option.Tag == "" {
+		return E.New("empty tag")
+	}
+	in, err := inbound.New(
+		s.ctx,
+		s.router,
+		s.logFactory.NewLogger(F.ToString("inbound/", option.Type, "[", option.Tag, "]")),
+		option.Tag,
+		option,
+		s.platformInterface,
+	)
+	if err != nil {
+		return E.Cause(err, "parse addited inbound")
+	}
+	if err := s.router.AddInbound(in); err != nil {
+		return E.Cause(err, "inbound/", option.Type, "[", option.Tag, "]")
+	}
+	return nil
+}
+
+func (s *Box) RemoveOutbound(tag string) error {
+	if err := s.router.RemoveOutbound(tag); err != nil {
+		return E.Cause(err, "outbound[", tag, "]")
+	}
+	return nil
+}
+
+func (s *Box) RemoveInbound(tag string) error {
+	if err := s.router.RemoveInbound(tag); err != nil {
+		return E.Cause(err, "inbound[", tag, "]")
+	}
+	return nil
 }

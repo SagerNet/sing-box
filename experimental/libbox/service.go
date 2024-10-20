@@ -203,10 +203,10 @@ func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 	return (adapter.WIFIState)(*wifiState)
 }
 
-func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
+func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort) (*process.Info, error) {
 	var uid int32
 	if w.useProcFS {
-		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
+		uid = procfs.ResolveSocketByProcSearch(network, source)
 		if uid == -1 {
 			return nil, E.New("procfs: not found")
 		}
@@ -221,7 +221,7 @@ func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network 
 			return nil, E.New("unknown network: ", network)
 		}
 		var err error
-		uid, err = w.iif.FindConnectionOwner(ipProtocol, source.Addr().String(), int32(source.Port()), destination.Addr().String(), int32(destination.Port()))
+		uid, err = w.iif.FindConnectionOwner(ipProtocol, source.Addr().String(), int32(source.Port()))
 		if err != nil {
 			return nil, err
 		}
