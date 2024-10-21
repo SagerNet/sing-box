@@ -28,17 +28,18 @@ import (
 	"go4.org/netipx"
 )
 
-var _ adapter.Inbound = (*Tun)(nil)
+var _ adapter.Inbound = (*TUN)(nil)
 
-type Tun struct {
-	tag                         string
-	ctx                         context.Context
-	router                      adapter.Router
-	logger                      log.ContextLogger
+type TUN struct {
+	tag    string
+	ctx    context.Context
+	router adapter.Router
+	logger log.ContextLogger
+	// Deprecated
 	inboundOptions              option.InboundOptions
 	tunOptions                  tun.Options
 	endpointIndependentNat      bool
-	udpTimeout                  int64
+	udpTimeout                  time.Duration
 	stack                       string
 	tunIf                       tun.Tun
 	tunStack                    tun.Stack
@@ -53,7 +54,7 @@ type Tun struct {
 	routeExcludeAddressSet      []*netipx.IPSet
 }
 
-func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
+func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*TUN, error) {
 	address := options.Address
 	var deprecatedAddressUsed bool
 	//nolint:staticcheck
@@ -162,7 +163,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
 
-	inbound := &Tun{
+	inbound := &TUN{
 		tag:            tag,
 		ctx:            ctx,
 		router:         router,
@@ -194,7 +195,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			InterfaceMonitor:         router.InterfaceMonitor(),
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
-		udpTimeout:             int64(udpTimeout.Seconds()),
+		udpTimeout:             udpTimeout,
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),
@@ -207,7 +208,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		inbound.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
 			TunOptions:             &inbound.tunOptions,
 			Context:                ctx,
-			Handler:                inbound,
+			Handler:                (*autoRedirectHandler)(inbound),
 			Logger:                 logger,
 			NetworkMonitor:         router.NetworkMonitor(),
 			InterfaceFinder:        router.InterfaceFinder(),
@@ -283,17 +284,17 @@ func parseRange(uidRanges []ranges.Range[uint32], rangeList []string) ([]ranges.
 	return uidRanges, nil
 }
 
-func (t *Tun) Type() string {
+func (t *TUN) Type() string {
 	return C.TypeTun
 }
 
-func (t *Tun) Tag() string {
+func (t *TUN) Tag() string {
 	return t.tag
 }
 
-func (t *Tun) Start() error {
+func (t *TUN) Start() error {
 	if C.IsAndroid && t.platformInterface == nil {
-		t.tunOptions.BuildAndroidRules(t.router.PackageManager(), t)
+		t.tunOptions.BuildAndroidRules(t.router.PackageManager())
 	}
 	if t.tunOptions.Name == "" {
 		t.tunOptions.Name = tun.CalculateInterfaceName("")
@@ -327,7 +328,6 @@ func (t *Tun) Start() error {
 		Context:                t.ctx,
 		Tun:                    tunInterface,
 		TunOptions:             t.tunOptions,
-		EndpointIndependentNat: t.endpointIndependentNat,
 		UDPTimeout:             t.udpTimeout,
 		Handler:                t,
 		Logger:                 t.logger,
@@ -349,7 +349,7 @@ func (t *Tun) Start() error {
 	return nil
 }
 
-func (t *Tun) PostStart() error {
+func (t *TUN) PostStart() error {
 	monitor := taskmonitor.New(t.logger, C.StartTimeout)
 	if t.autoRedirect != nil {
 		t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
@@ -388,7 +388,7 @@ func (t *Tun) PostStart() error {
 	return nil
 }
 
-func (t *Tun) updateRouteAddressSet(it adapter.RuleSet) {
+func (t *TUN) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 	t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
 	t.autoRedirect.UpdateRouteAddressSet()
@@ -396,7 +396,7 @@ func (t *Tun) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeExcludeAddressSet = nil
 }
 
-func (t *Tun) Close() error {
+func (t *TUN) Close() error {
 	return common.Close(
 		t.tunStack,
 		t.tunIf,
@@ -404,44 +404,48 @@ func (t *Tun) Close() error {
 	)
 }
 
-func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
-	ctx = log.ContextWithNewID(ctx)
-	var metadata adapter.InboundContext
-	metadata.Inbound = t.tag
-	metadata.InboundType = C.TypeTun
-	metadata.Source = upstreamMetadata.Source
-	metadata.Destination = upstreamMetadata.Destination
-	metadata.InboundOptions = t.inboundOptions
-	if upstreamMetadata.Protocol != "" {
-		t.logger.InfoContext(ctx, "inbound ", upstreamMetadata.Protocol, " connection from ", metadata.Source)
-	} else {
-		t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
-	}
-	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-	err := t.router.RouteConnection(ctx, conn, metadata)
-	if err != nil {
-		t.NewError(ctx, err)
-	}
+func (t *TUN) PrepareConnection(source M.Socksaddr, destination M.Socksaddr) error {
+	// TODO: implement rejects
 	return nil
 }
 
-func (t *Tun) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
+func (t *TUN) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.tag
 	metadata.InboundType = C.TypeTun
-	metadata.Source = upstreamMetadata.Source
-	metadata.Destination = upstreamMetadata.Destination
+	metadata.Source = source
+	metadata.Destination = destination
+	metadata.InboundOptions = t.inboundOptions
+	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	t.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (t *TUN) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	ctx = log.ContextWithNewID(ctx)
+	var metadata adapter.InboundContext
+	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
+	metadata.Source = source
+	metadata.Destination = destination
 	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
-	err := t.router.RoutePacketConnection(ctx, conn, metadata)
-	if err != nil {
-		t.NewError(ctx, err)
-	}
-	return nil
+	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (t *Tun) NewError(ctx context.Context, err error) {
-	NewError(t.logger, ctx, err)
+type autoRedirectHandler TUN
+
+func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	ctx = log.ContextWithNewID(ctx)
+	var metadata adapter.InboundContext
+	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
+	metadata.Source = source
+	metadata.Destination = destination
+	metadata.InboundOptions = t.inboundOptions
+	t.logger.InfoContext(ctx, "inbound redirect connection from ", metadata.Source)
+	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	t.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }

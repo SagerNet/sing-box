@@ -22,13 +22,13 @@ type myInboundAdapter struct {
 	protocol         string
 	network          []string
 	ctx              context.Context
-	router           adapter.ConnectionRouter
+	router           adapter.ConnectionRouterEx
 	logger           log.ContextLogger
 	tag              string
 	listenOptions    option.ListenOptions
-	connHandler      adapter.ConnectionHandler
-	packetHandler    adapter.PacketHandler
-	oobPacketHandler adapter.OOBPacketHandler
+	connHandler      adapter.ConnectionHandlerEx
+	packetHandler    adapter.PacketHandlerEx
+	oobPacketHandler adapter.OOBPacketHandlerEx
 	packetUpstream   any
 
 	// http mixed
@@ -53,10 +53,6 @@ func (a *myInboundAdapter) Type() string {
 
 func (a *myInboundAdapter) Tag() string {
 	return a.tag
-}
-
-func (a *myInboundAdapter) Network() []string {
-	return a.network
 }
 
 func (a *myInboundAdapter) Start() error {
@@ -150,6 +146,31 @@ func (a *myInboundAdapter) newPacketConnection(ctx context.Context, conn N.Packe
 	return a.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
+func (a *myInboundAdapter) upstreamHandlerEx(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapterEx {
+	return adapter.NewUpstreamHandlerEx(metadata, a.newConnectionEx, a.streamPacketConnectionEx)
+}
+
+func (a *myInboundAdapter) upstreamContextHandlerEx() adapter.UpstreamHandlerAdapterEx {
+	return adapter.NewUpstreamContextHandlerEx(a.newConnectionEx, a.newPacketConnectionEx)
+}
+
+func (a *myInboundAdapter) newConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	a.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	a.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (a *myInboundAdapter) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	ctx = log.ContextWithNewID(ctx)
+	a.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	a.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (a *myInboundAdapter) streamPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	a.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+}
+
 func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.InboundContext) adapter.InboundContext {
 	metadata.Inbound = a.tag
 	metadata.InboundType = a.protocol
@@ -167,25 +188,17 @@ func (a *myInboundAdapter) createMetadata(conn net.Conn, metadata adapter.Inboun
 	return metadata
 }
 
-func (a *myInboundAdapter) createPacketMetadata(conn N.PacketConn, metadata adapter.InboundContext) adapter.InboundContext {
-	metadata.Inbound = a.tag
-	metadata.InboundType = a.protocol
-	metadata.InboundDetour = a.listenOptions.Detour
-	metadata.InboundOptions = a.listenOptions.InboundOptions
-	if !metadata.Destination.IsValid() {
-		metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
-	}
-	return metadata
-}
-
+// Deprecated: don't use
 func (a *myInboundAdapter) newError(err error) {
 	a.logger.Error(err)
 }
 
+// Deprecated: don't use
 func (a *myInboundAdapter) NewError(ctx context.Context, err error) {
 	NewError(a.logger, ctx, err)
 }
 
+// Deprecated: don't use
 func NewError(logger log.ContextLogger, ctx context.Context, err error) {
 	common.Close(err)
 	if E.IsClosedOrCanceled(err) {

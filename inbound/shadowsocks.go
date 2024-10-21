@@ -3,7 +3,6 @@ package inbound
 import (
 	"context"
 	"net"
-	"os"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -18,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
 )
@@ -36,8 +36,8 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 }
 
 var (
-	_ adapter.Inbound           = (*Shadowsocks)(nil)
-	_ adapter.InjectableInbound = (*Shadowsocks)(nil)
+	_ adapter.Inbound              = (*Shadowsocks)(nil)
+	_ adapter.TCPInjectableInbound = (*Shadowsocks)(nil)
 )
 
 type Shadowsocks struct {
@@ -74,11 +74,11 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	}
 	switch {
 	case options.Method == shadowsocks.MethodNone:
-		inbound.service = shadowsocks.NewNoneService(int64(udpTimeout.Seconds()), inbound.upstreamContextHandler())
+		inbound.service = shadowsocks.NewNoneService(int64(udpTimeout.Seconds()), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound))
 	case common.Contains(shadowaead.List, options.Method):
-		inbound.service, err = shadowaead.NewService(options.Method, nil, options.Password, int64(udpTimeout.Seconds()), inbound.upstreamContextHandler())
+		inbound.service, err = shadowaead.NewService(options.Method, nil, options.Password, int64(udpTimeout.Seconds()), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound))
 	case common.Contains(shadowaead_2022.List, options.Method):
-		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, int64(udpTimeout.Seconds()), inbound.upstreamContextHandler(), ntp.TimeFuncFromContext(ctx))
+		inbound.service, err = shadowaead_2022.NewServiceWithPassword(options.Method, options.Password, int64(udpTimeout.Seconds()), adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound), ntp.TimeFuncFromContext(ctx))
 	default:
 		err = E.New("unsupported method: ", options.Method)
 	}
@@ -86,14 +86,29 @@ func newShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 	return inbound, err
 }
 
-func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *Shadowsocks) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
-func (h *Shadowsocks) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
+func (h *Shadowsocks) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
+	err := h.service.NewPacket(h.ctx, h.packetConn(), buffer, M.Metadata{Source: source})
+	if err != nil {
+		h.logger.Error(E.Cause(err, "process packet from ", source))
+	}
 }
 
-func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *Shadowsocks) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	return h.router.RouteConnection(ctx, conn, h.createMetadata(conn, metadata))
+}
+
+func (h *Shadowsocks) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithNewID(ctx)
+	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	return h.router.RoutePacketConnection(ctx, conn, h.createPacketMetadata(conn, metadata))
 }

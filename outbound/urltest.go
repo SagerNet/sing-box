@@ -167,11 +167,15 @@ func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (ne
 	return nil, err
 }
 
+// TODO
+// Deprecated
 func (s *URLTest) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
 	return NewConnection(ctx, s, conn, metadata)
 }
 
+// TODO
+// Deprecated
 func (s *URLTest) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
 	return NewPacketConnection(ctx, s, conn, metadata)
