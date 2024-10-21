@@ -94,6 +94,9 @@ func (l *ProxyListener) acceptLoop() {
 	}
 }
 
+// TODO: migrate to new api
+//
+//nolint:staticcheck
 func (l *ProxyListener) accept(ctx context.Context, conn *net.TCPConn) error {
 	return socks.HandleConnection(ctx, conn, l.authenticator, l, M.Metadata{})
 }

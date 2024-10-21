@@ -18,7 +18,7 @@ type (
 	PacketSniffer = func(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error
 )
 
-func Skip(metadata adapter.InboundContext) bool {
+func Skip(metadata *adapter.InboundContext) bool {
 	// skip server first protocols
 	switch metadata.Destination.Port {
 	case 25, 465, 587:
