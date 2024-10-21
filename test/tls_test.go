@@ -76,9 +76,18 @@ func TestUTLS(t *testing.T) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "trojan-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "trojan-out",
+							},
+						},
 					},
 				},
 			},

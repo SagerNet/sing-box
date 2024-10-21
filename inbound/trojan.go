@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*Trojan)(nil)
-	_ adapter.InjectableInbound = (*Trojan)(nil)
+	_ adapter.Inbound              = (*Trojan)(nil)
+	_ adapter.TCPInjectableInbound = (*Trojan)(nil)
 )
 
 type Trojan struct {
@@ -90,7 +90,7 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		return nil, err
 	}
 	if options.Transport != nil {
-		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*trojanTransportHandler)(inbound))
+		inbound.transport, err = v2ray.NewServerTransport(ctx, logger, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*trojanTransportHandler)(inbound))
 		if err != nil {
 			return nil, E.Cause(err, "create server transport: ", options.Transport.Type)
 		}
@@ -149,11 +149,6 @@ func (h *Trojan) Close() error {
 	)
 }
 
-func (h *Trojan) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	h.injectTCP(conn, metadata)
-	return nil
-}
-
 func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	var err error
 	if h.tlsConfig != nil && h.transport == nil {
@@ -165,8 +160,12 @@ func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 	return h.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
-func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *Trojan) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.NewConnection(ctx, conn, metadata)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
 func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -226,9 +225,6 @@ var _ adapter.V2RayServerTransportHandler = (*trojanTransportHandler)(nil)
 
 type trojanTransportHandler Trojan
 
-func (t *trojanTransportHandler) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	return (*Trojan)(t).newTransportConnection(ctx, conn, adapter.InboundContext{
-		Source:      metadata.Source,
-		Destination: metadata.Destination,
-	})
+func (t *trojanTransportHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	(*Trojan)(t).routeTCP(ctx, conn, source, destination, onClose)
 }
