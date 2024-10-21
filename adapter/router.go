@@ -34,6 +34,7 @@ type Router interface {
 	FakeIPStore() FakeIPStore
 
 	ConnectionRouter
+	ConnectionRouterEx
 
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
@@ -70,34 +71,24 @@ type Router interface {
 	ResetNetwork() error
 }
 
+// Deprecated: Use ConnectionRouterEx instead.
+type ConnectionRouter interface {
+	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error
+	RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
+}
+
+type ConnectionRouterEx interface {
+	ConnectionRouter
+	RouteConnectionEx(ctx context.Context, conn net.Conn, metadata InboundContext, onClose N.CloseHandlerFunc)
+	RoutePacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata InboundContext, onClose N.CloseHandlerFunc)
+}
+
 func ContextWithRouter(ctx context.Context, router Router) context.Context {
 	return service.ContextWith(ctx, router)
 }
 
 func RouterFromContext(ctx context.Context) Router {
 	return service.FromContext[Router](ctx)
-}
-
-type HeadlessRule interface {
-	Match(metadata *InboundContext) bool
-	String() string
-}
-
-type Rule interface {
-	HeadlessRule
-	Service
-	Type() string
-	UpdateGeosite() error
-	Outbound() string
-}
-
-type DNSRule interface {
-	Rule
-	DisableCache() bool
-	RewriteTTL() *uint32
-	ClientSubnet() *netip.Prefix
-	WithAddressLimit() bool
-	MatchAddressLimit(metadata *InboundContext) bool
 }
 
 type RuleSet interface {
