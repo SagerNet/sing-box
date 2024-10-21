@@ -146,14 +146,26 @@ func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 }
 
+// TODO
+// Deprecated
 func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
-	return s.selected.NewConnection(ctx, conn, metadata)
+	if legacyHandler, ok := s.selected.(adapter.ConnectionHandler); ok {
+		return legacyHandler.NewConnection(ctx, conn, metadata)
+	} else {
+		return NewConnection(ctx, s.selected, conn, metadata)
+	}
 }
 
+// TODO
+// Deprecated
 func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
-	return s.selected.NewPacketConnection(ctx, conn, metadata)
+	if legacyHandler, ok := s.selected.(adapter.PacketConnectionHandler); ok {
+		return legacyHandler.NewPacketConnection(ctx, conn, metadata)
+	} else {
+		return NewPacketConnection(ctx, s.selected, conn, metadata)
+	}
 }
 
 func RealTag(detour adapter.Outbound) string {

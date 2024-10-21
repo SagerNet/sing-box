@@ -18,12 +18,12 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/udpnat"
+	"github.com/sagernet/sing/common/udpnat2"
 )
 
 type TProxy struct {
 	myInboundAdapter
-	udpNat *udpnat.Service[netip.AddrPort]
+	udpNat *udpnat.Service
 }
 
 func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TProxyInboundOptions) *TProxy {
@@ -46,8 +46,7 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 	}
 	tproxy.connHandler = tproxy
 	tproxy.oobPacketHandler = tproxy
-	tproxy.udpNat = udpnat.New[netip.AddrPort](int64(udpTimeout.Seconds()), tproxy.upstreamContextHandler())
-	tproxy.packetUpstream = tproxy.udpNat
+	tproxy.udpNat = udpnat.New(tproxy, tproxy.preparePacketConnection, udpTimeout, false)
 	return tproxy
 }
 
@@ -75,35 +74,43 @@ func (t *TProxy) Start() error {
 	return nil
 }
 
-func (t *TProxy) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (t *TProxy) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
-	return t.newConnection(ctx, conn, metadata)
+	t.newConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (t *TProxy) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, oob []byte, metadata adapter.InboundContext) error {
+func (t *TProxy) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	t.newPacketConnectionEx(ctx, conn, t.createPacketMetadataEx(source, destination), onClose)
+}
+
+func (t *TProxy) NewPacketEx(buffer *buf.Buffer, oob []byte, source M.Socksaddr) {
 	destination, err := redir.GetOriginalDestinationFromOOB(oob)
 	if err != nil {
-		return E.Cause(err, "get tproxy destination")
+		t.logger.Warn("process packet from ", source, ": get tproxy destination: ", err)
+		return
 	}
-	metadata.Destination = M.SocksaddrFromNetIP(destination).Unwrap()
-	t.udpNat.NewContextPacket(ctx, metadata.Source.AddrPort(), buffer, adapter.UpstreamMetadata(metadata), func(natConn N.PacketConn) (context.Context, N.PacketWriter) {
-		return adapter.WithContext(log.ContextWithNewID(ctx), &metadata), &tproxyPacketWriter{ctx: ctx, source: natConn, destination: metadata.Destination}
-	})
-	return nil
+	t.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, M.SocksaddrFromNetIP(destination), nil)
 }
 
 type tproxyPacketWriter struct {
 	ctx         context.Context
-	source      N.PacketConn
+	source      netip.AddrPort
 	destination M.Socksaddr
 	conn        *net.UDPConn
+}
+
+func (t *TProxy) preparePacketConnection(source M.Socksaddr, destination M.Socksaddr, userData any) (bool, context.Context, N.PacketWriter, N.CloseHandlerFunc) {
+	writer := &tproxyPacketWriter{ctx: t.ctx, source: source.AddrPort(), destination: destination}
+	return true, t.ctx, writer, func(it error) {
+		common.Close(common.PtrOrNil(writer.conn))
+	}
 }
 
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
 	conn := w.conn
 	if w.destination == destination && conn != nil {
-		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr()))
+		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
 		if err != nil {
 			w.conn = nil
 		}
@@ -122,9 +129,5 @@ func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socks
 	} else {
 		defer udpConn.Close()
 	}
-	return common.Error(udpConn.WriteToUDPAddrPort(buffer.Bytes(), M.AddrPortFromNet(w.source.LocalAddr())))
-}
-
-func (w *tproxyPacketWriter) Close() error {
-	return common.Close(common.PtrOrNil(w.conn))
+	return common.Error(udpConn.WriteToUDPAddrPort(buffer.Bytes(), w.source))
 }

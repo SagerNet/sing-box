@@ -23,3 +23,18 @@ const (
 	RuleSetVersion2
 	RuleSetVersionCurrent = RuleSetVersion2
 )
+
+const (
+	RuleActionTypeRoute     = "route"
+	RuleActionTypeReturn    = "return"
+	RuleActionTypeReject    = "reject"
+	RuleActionTypeHijackDNS = "hijack-dns"
+	RuleActionTypeSniff     = "sniff"
+	RuleActionTypeResolve   = "resolve"
+)
+
+const (
+	RuleActionRejectMethodDefault         = "default"
+	RuleActionRejectMethodPortUnreachable = "port-unreachable"
+	RuleActionRejectMethodDrop            = "drop"
+)

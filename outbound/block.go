@@ -39,12 +39,14 @@ func (h *Block) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	return nil, io.EOF
 }
 
+// Deprecated
 func (h *Block) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	conn.Close()
 	h.logger.InfoContext(ctx, "blocked connection to ", metadata.Destination)
 	return nil
 }
 
+// Deprecated
 func (h *Block) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	conn.Close()
 	h.logger.InfoContext(ctx, "blocked packet connection to ", metadata.Destination)
