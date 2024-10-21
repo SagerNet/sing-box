@@ -136,14 +136,6 @@ func (h *TUIC) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.P
 	}
 }
 
-func (h *TUIC) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
-}
-
-func (h *TUIC) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
 func (h *TUIC) InterfaceUpdated() {
 	_ = h.client.CloseWithError(E.New("network changed"))
 }
