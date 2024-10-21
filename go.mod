@@ -11,6 +11,7 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.3.0
+	github.com/google/go-querystring v1.0.0
 	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
 	github.com/libdns/alidns v1.0.3
 	github.com/libdns/cloudflare v0.1.1
@@ -28,14 +29,14 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20241123041152-536d05261cff
 	github.com/sagernet/quic-go v0.48.2-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.5.1
-	github.com/sagernet/sing-dns v0.3.0
-	github.com/sagernet/sing-mux v0.2.1
-	github.com/sagernet/sing-quic v0.3.1
+	github.com/sagernet/sing v0.6.0-beta.8
+	github.com/sagernet/sing-dns v0.4.0-beta.1
+	github.com/sagernet/sing-mux v0.3.0-alpha.1
+	github.com/sagernet/sing-quic v0.4.0-alpha.4
 	github.com/sagernet/sing-shadowsocks v0.2.7
 	github.com/sagernet/sing-shadowsocks2 v0.2.0
-	github.com/sagernet/sing-shadowtls v0.1.5
-	github.com/sagernet/sing-tun v0.4.5
+	github.com/sagernet/sing-shadowtls v0.2.0-alpha.2
+	github.com/sagernet/sing-tun v0.6.0-beta.6
 	github.com/sagernet/sing-vmess v0.1.12
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/utls v1.6.7
@@ -71,7 +72,6 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/pprof v0.0.0-20231101202521-4ca4178f5c7a // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
