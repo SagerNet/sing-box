@@ -1,9 +1,9 @@
 package inbound
 
 import (
+	std_bufio "bufio"
 	"context"
 	"net"
-	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/uot"
@@ -11,13 +11,14 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
+	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 )
 
 var (
-	_ adapter.Inbound           = (*Socks)(nil)
-	_ adapter.InjectableInbound = (*Socks)(nil)
+	_ adapter.Inbound              = (*Socks)(nil)
+	_ adapter.TCPInjectableInbound = (*Socks)(nil)
 )
 
 type Socks struct {
@@ -42,10 +43,10 @@ func NewSocks(ctx context.Context, router adapter.Router, logger log.ContextLogg
 	return inbound
 }
 
-func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return socks.HandleConnection(ctx, conn, h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
-}
-
-func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *Socks) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, h.upstreamUserHandlerEx(metadata), metadata.Source, metadata.Destination, onClose)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
