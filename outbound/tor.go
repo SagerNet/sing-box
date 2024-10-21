@@ -211,11 +211,3 @@ func (t *Tor) DialContext(ctx context.Context, network string, destination M.Soc
 func (t *Tor) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, os.ErrInvalid
 }
-
-func (t *Tor) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, t, conn, metadata)
-}
-
-func (t *Tor) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
-}
