@@ -10,9 +10,11 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
@@ -23,6 +25,7 @@ var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
 	ctx        context.Context
+	logger     logger.ContextLogger
 	tlsConfig  tls.ServerConfig
 	handler    adapter.V2RayServerTransportHandler
 	httpServer *http.Server
@@ -31,7 +34,7 @@ type Server struct {
 	headers    http.Header
 }
 
-func NewServer(ctx context.Context, options option.V2RayHTTPUpgradeOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
+func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayHTTPUpgradeOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
 		ctx:       ctx,
 		tlsConfig: tlsConfig,
@@ -49,6 +52,9 @@ func NewServer(ctx context.Context, options option.V2RayHTTPUpgradeOptions, tlsC
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
+		},
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return log.ContextWithNewID(ctx)
 		},
 		TLSNextProto: make(map[string]func(*http.Server, *tls.STDConn, http.Handler)),
 	}
@@ -104,16 +110,14 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, http.StatusInternalServerError, E.Cause(err, "hijack failed"))
 		return
 	}
-	var metadata M.Metadata
-	metadata.Source = sHttp.SourceAddress(request)
-	s.handler.NewConnection(request.Context(), conn, metadata)
+	s.handler.NewConnectionEx(request.Context(), conn, sHttp.SourceAddress(request), M.Socksaddr{}, nil)
 }
 
 func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
 	if statusCode > 0 {
 		writer.WriteHeader(statusCode)
 	}
-	s.handler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+	s.logger.ErrorContext(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Network() []string {
