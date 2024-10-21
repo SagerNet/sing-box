@@ -45,6 +45,7 @@ func (d *DNS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.Pa
 	return nil, os.ErrInvalid
 }
 
+// Deprecated
 func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	metadata.Destination = M.Socksaddr{}
 	defer conn.Close()
@@ -97,6 +98,7 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 	return nil
 }
 
+// Deprecated
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	metadata.Destination = M.Socksaddr{}
 	var reader N.PacketReader = conn
