@@ -118,12 +118,23 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 			},
 		},
 		Route: &option.RouteOptions{
-			Rules: []option.Rule{{
-				DefaultOptions: option.DefaultRule{
-					Inbound:  []string{"detour"},
-					Outbound: "direct",
+			Rules: []option.Rule{
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultRule{
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"detour"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "direct",
+							},
+						},
+					},
 				},
-			}},
+			},
 		},
 	})
 	testTCP(t, clientPort, testPort)
@@ -239,12 +250,23 @@ func TestShadowTLSInbound(t *testing.T) {
 			},
 		},
 		Route: &option.RouteOptions{
-			Rules: []option.Rule{{
-				DefaultOptions: option.DefaultRule{
-					Inbound:  []string{"in"},
-					Outbound: "out",
+			Rules: []option.Rule{
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultRule{
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "out",
+							},
+						},
+					},
 				},
-			}},
+			},
 		},
 	})
 	testTCP(t, clientPort, testPort)
@@ -319,12 +341,23 @@ func TestShadowTLSOutbound(t *testing.T) {
 			},
 		},
 		Route: &option.RouteOptions{
-			Rules: []option.Rule{{
-				DefaultOptions: option.DefaultRule{
-					Inbound:  []string{"detour"},
-					Outbound: "direct",
+			Rules: []option.Rule{
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultRule{
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"detour"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "direct",
+							},
+						},
+					},
 				},
-			}},
+			},
 		},
 	})
 	testTCP(t, clientPort, testPort)

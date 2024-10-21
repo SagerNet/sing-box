@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-shadowtls"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -90,4 +91,12 @@ func (h *ShadowTLS) newConnection(ctx context.Context, conn net.Conn, metadata a
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}
 	return h.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (h *ShadowTLS) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.NewConnection(ctx, conn, metadata)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }

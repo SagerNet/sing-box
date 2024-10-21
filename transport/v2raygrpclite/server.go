@@ -10,10 +10,12 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
@@ -26,18 +28,19 @@ import (
 var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
-	tlsConfig    tls.ServerConfig
-	handler      adapter.V2RayServerTransportHandler
-	errorHandler E.Handler
-	httpServer   *http.Server
-	h2Server     *http2.Server
-	h2cHandler   http.Handler
-	path         string
+	tlsConfig  tls.ServerConfig
+	logger     logger.ContextLogger
+	handler    adapter.V2RayServerTransportHandler
+	httpServer *http.Server
+	h2Server   *http2.Server
+	h2cHandler http.Handler
+	path       string
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
+func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
 		tlsConfig: tlsConfig,
+		logger:    logger,
 		handler:   handler,
 		path:      "/" + options.ServiceName + "/Tun",
 		h2Server: &http2.Server{
@@ -48,6 +51,9 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 		Handler: server,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
+		},
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return log.ContextWithNewID(ctx)
 		},
 	}
 	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
@@ -74,10 +80,12 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/grpc")
 	writer.Header().Set("TE", "trailers")
 	writer.WriteHeader(http.StatusOK)
-	var metadata M.Metadata
-	metadata.Source = sHttp.SourceAddress(request)
+	done := make(chan struct{})
 	conn := v2rayhttp.NewHTTP2Wrapper(newGunConn(request.Body, writer, writer.(http.Flusher)))
-	s.handler.NewConnection(request.Context(), conn, metadata)
+	s.handler.NewConnectionEx(request.Context(), conn, sHttp.SourceAddress(request), M.Socksaddr{}, N.OnceClose(func(it error) {
+		close(done)
+	}))
+	<-done
 	conn.CloseWrapper()
 }
 
@@ -85,7 +93,7 @@ func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Reques
 	if statusCode > 0 {
 		writer.WriteHeader(statusCode)
 	}
-	s.handler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+	s.logger.ErrorContext(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Network() []string {
