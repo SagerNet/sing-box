@@ -159,9 +159,18 @@ func TestMuxCoolSelf(t *testing.T) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "vmess-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "vmess-out",
+							},
+						},
 					},
 				},
 			},

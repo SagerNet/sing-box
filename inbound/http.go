@@ -4,7 +4,6 @@ import (
 	std_bufio "bufio"
 	"context"
 	"net"
-	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -20,8 +19,8 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*HTTP)(nil)
-	_ adapter.InjectableInbound = (*HTTP)(nil)
+	_ adapter.Inbound              = (*HTTP)(nil)
+	_ adapter.TCPInjectableInbound = (*HTTP)(nil)
 )
 
 type HTTP struct {
@@ -72,7 +71,15 @@ func (h *HTTP) Close() error {
 	)
 }
 
-func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (h *HTTP) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.newConnection(ctx, conn, metadata, onClose)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
+}
+
+func (h *HTTP) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
 	var err error
 	if h.tlsConfig != nil {
 		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
@@ -80,35 +87,33 @@ func (h *HTTP) NewConnection(ctx context.Context, conn net.Conn, metadata adapte
 			return err
 		}
 	}
-	return http.HandleConnection(ctx, conn, std_bufio.NewReader(conn), h.authenticator, h.upstreamUserHandler(metadata), adapter.UpstreamMetadata(metadata))
+	return http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, h.upstreamUserHandlerEx(metadata), metadata.Source, onClose)
 }
 
-func (h *HTTP) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (a *myInboundAdapter) upstreamUserHandlerEx(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapterEx {
+	return adapter.NewUpstreamHandlerEx(metadata, a.newUserConnection, a.streamUserPacketConnection)
 }
 
-func (a *myInboundAdapter) upstreamUserHandler(metadata adapter.InboundContext) adapter.UpstreamHandlerAdapter {
-	return adapter.NewUpstreamHandler(metadata, a.newUserConnection, a.streamUserPacketConnection, a)
-}
-
-func (a *myInboundAdapter) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (a *myInboundAdapter) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		a.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-		return a.router.RouteConnection(ctx, conn, metadata)
+		a.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+		return
 	}
 	metadata.User = user
 	a.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
-	return a.router.RouteConnection(ctx, conn, metadata)
+	a.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (a *myInboundAdapter) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+func (a *myInboundAdapter) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		a.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
-		return a.router.RoutePacketConnection(ctx, conn, metadata)
+		a.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+		return
 	}
 	metadata.User = user
 	a.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
-	return a.router.RoutePacketConnection(ctx, conn, metadata)
+	a.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
