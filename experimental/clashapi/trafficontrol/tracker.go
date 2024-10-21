@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
@@ -60,7 +61,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 	}
 	var rule string
 	if t.Rule != nil {
-		rule = F.ToString(t.Rule, " => ", t.Rule.Outbound())
+		rule = F.ToString(t.Rule, " => ", t.Rule.Action())
 	} else {
 		rule = "final"
 	}
@@ -131,19 +132,21 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 		outbound     string
 		outboundType string
 	)
-	if rule == nil {
-		if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
-			next = defaultOutbound.Tag()
-		}
-	} else {
-		next = rule.Outbound()
+	var action adapter.RuleAction
+	if rule != nil {
+		action = rule.Action()
+	}
+	if routeAction, isRouteAction := action.(*R.RuleActionRoute); isRouteAction {
+		next = routeAction.Outbound
+	} else if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
+		next = defaultOutbound.Tag()
 	}
 	for {
-		chain = append(chain, next)
 		detour, loaded := router.Outbound(next)
 		if !loaded {
 			break
 		}
+		chain = append(chain, next)
 		outbound = detour.Tag()
 		outboundType = detour.Type()
 		group, isGroup := detour.(adapter.OutboundGroup)
@@ -218,19 +221,21 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 		outbound     string
 		outboundType string
 	)
-	if rule == nil {
-		if defaultOutbound, err := router.DefaultOutbound(N.NetworkUDP); err == nil {
-			next = defaultOutbound.Tag()
-		}
-	} else {
-		next = rule.Outbound()
+	var action adapter.RuleAction
+	if rule != nil {
+		action = rule.Action()
+	}
+	if routeAction, isRouteAction := action.(*R.RuleActionRoute); isRouteAction {
+		next = routeAction.Outbound
+	} else if defaultOutbound, err := router.DefaultOutbound(N.NetworkUDP); err == nil {
+		next = defaultOutbound.Tag()
 	}
 	for {
-		chain = append(chain, next)
 		detour, loaded := router.Outbound(next)
 		if !loaded {
 			break
 		}
+		chain = append(chain, next)
 		outbound = detour.Tag()
 		outboundType = detour.Type()
 		group, isGroup := detour.(adapter.OutboundGroup)
