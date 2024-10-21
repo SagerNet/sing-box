@@ -17,6 +17,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
@@ -164,13 +165,13 @@ func (n *Naive) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			n.badRequest(ctx, request, E.New("hijack failed"))
 			return
 		}
-		n.newConnection(ctx, &naiveH1Conn{Conn: conn}, userName, source, destination)
+		n.newConnection(ctx, false, &naiveH1Conn{Conn: conn}, userName, source, destination)
 	} else {
-		n.newConnection(ctx, &naiveH2Conn{reader: request.Body, writer: writer, flusher: writer.(http.Flusher)}, userName, source, destination)
+		n.newConnection(ctx, true, &naiveH2Conn{reader: request.Body, writer: writer, flusher: writer.(http.Flusher)}, userName, source, destination)
 	}
 }
 
-func (n *Naive) newConnection(ctx context.Context, conn net.Conn, userName string, source, destination M.Socksaddr) {
+func (n *Naive) newConnection(ctx context.Context, waitForClose bool, conn net.Conn, userName string, source M.Socksaddr, destination M.Socksaddr) {
 	if userName != "" {
 		n.logger.InfoContext(ctx, "[", userName, "] inbound connection from ", source)
 		n.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", destination)
@@ -178,19 +179,26 @@ func (n *Naive) newConnection(ctx context.Context, conn net.Conn, userName strin
 		n.logger.InfoContext(ctx, "inbound connection from ", source)
 		n.logger.InfoContext(ctx, "inbound connection to ", destination)
 	}
-	hErr := n.router.RouteConnection(ctx, conn, n.createMetadata(conn, adapter.InboundContext{
+	metadata := n.createMetadata(conn, adapter.InboundContext{
 		Source:      source,
 		Destination: destination,
 		User:        userName,
-	}))
-	if hErr != nil {
-		conn.Close()
-		n.NewError(ctx, E.Cause(hErr, "process connection from ", source))
+	})
+	if !waitForClose {
+		n.router.RouteConnectionEx(ctx, conn, metadata, nil)
+	} else {
+		done := make(chan struct{})
+		wrapper := v2rayhttp.NewHTTP2Wrapper(conn)
+		n.router.RouteConnectionEx(ctx, conn, metadata, N.OnceClose(func(it error) {
+			close(done)
+		}))
+		<-done
+		wrapper.CloseWrapper()
 	}
 }
 
 func (n *Naive) badRequest(ctx context.Context, request *http.Request, err error) {
-	n.NewError(ctx, E.Cause(err, "process connection from ", request.RemoteAddr))
+	n.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
 func rejectHTTP(writer http.ResponseWriter, statusCode int) {
