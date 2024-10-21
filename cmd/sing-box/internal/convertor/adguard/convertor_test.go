@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/route/rule"
 
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ example.arpa
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := route.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(nil, rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.org",
@@ -85,7 +85,7 @@ func TestHosts(t *testing.T) {
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := route.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(nil, rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"google.com",
@@ -115,7 +115,7 @@ www.example.org
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := route.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(nil, rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.com",

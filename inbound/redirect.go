@@ -9,7 +9,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -34,11 +33,13 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 	return redirect
 }
 
-func (r *Redirect) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (r *Redirect) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	destination, err := redir.GetOriginalDestination(conn)
 	if err != nil {
-		return E.Cause(err, "get redirect destination")
+		conn.Close()
+		r.logger.ErrorContext(ctx, "process connection from ", conn.RemoteAddr(), ": get redirect destination: ", err)
+		return
 	}
 	metadata.Destination = M.SocksaddrFromNetIP(destination)
-	return r.newConnection(ctx, conn, metadata)
+	r.newConnectionEx(ctx, conn, metadata, onClose)
 }

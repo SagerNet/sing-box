@@ -20,13 +20,14 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
 )
 
 var (
-	_ adapter.Inbound           = (*ShadowsocksMulti)(nil)
-	_ adapter.InjectableInbound = (*ShadowsocksMulti)(nil)
+	_ adapter.Inbound              = (*ShadowsocksMulti)(nil)
+	_ adapter.TCPInjectableInbound = (*ShadowsocksMulti)(nil)
 )
 
 type ShadowsocksMulti struct {
@@ -66,14 +67,15 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 			options.Method,
 			options.Password,
 			int64(udpTimeout.Seconds()),
-			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
+			adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
 			ntp.TimeFuncFromContext(ctx),
 		)
 	} else if common.Contains(shadowaead.List, options.Method) {
 		service, err = shadowaead.NewMultiService[int](
 			options.Method,
 			int64(udpTimeout.Seconds()),
-			adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound))
+			adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
+		)
 	} else {
 		return nil, E.New("unsupported method: " + options.Method)
 	}
@@ -94,16 +96,19 @@ func newShadowsocksMulti(ctx context.Context, router adapter.Router, logger log.
 	return inbound, err
 }
 
-func (h *ShadowsocksMulti) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *ShadowsocksMulti) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
-func (h *ShadowsocksMulti) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
-}
-
-func (h *ShadowsocksMulti) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *ShadowsocksMulti) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
+	err := h.service.NewPacket(h.ctx, h.packetConn(), buffer, M.Metadata{Source: source})
+	if err != nil {
+		h.logger.Error(E.Cause(err, "process packet from ", source))
+	}
 }
 
 func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -118,7 +123,7 @@ func (h *ShadowsocksMulti) newConnection(ctx context.Context, conn net.Conn, met
 		metadata.User = user
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
-	return h.router.RouteConnection(ctx, conn, metadata)
+	return h.router.RouteConnection(ctx, conn, h.createMetadata(conn, metadata))
 }
 
 func (h *ShadowsocksMulti) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
@@ -135,5 +140,5 @@ func (h *ShadowsocksMulti) newPacketConnection(ctx context.Context, conn N.Packe
 	ctx = log.ContextWithNewID(ctx)
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection from ", metadata.Source)
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
-	return h.router.RoutePacketConnection(ctx, conn, metadata)
+	return h.router.RoutePacketConnection(ctx, conn, h.createPacketMetadata(conn, metadata))
 }

@@ -99,14 +99,6 @@ func (h *Trojan) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 	}
 }
 
-func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
-}
-
-func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
 func (h *Trojan) InterfaceUpdated() {
 	if h.transport != nil {
 		h.transport.Close()
