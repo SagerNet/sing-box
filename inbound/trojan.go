@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*Trojan)(nil)
-	_ adapter.InjectableInbound = (*Trojan)(nil)
+	_ adapter.Inbound              = (*Trojan)(nil)
+	_ adapter.TCPInjectableInbound = (*Trojan)(nil)
 )
 
 type Trojan struct {
@@ -165,8 +165,12 @@ func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 	return h.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
-func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *Trojan) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.NewConnection(ctx, conn, metadata)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
 func (h *Trojan) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

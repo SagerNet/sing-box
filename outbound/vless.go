@@ -118,14 +118,6 @@ func (h *VLESS) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 	}
 }
 
-func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
-}
-
-func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
 func (h *VLESS) InterfaceUpdated() {
 	if h.transport != nil {
 		h.transport.Close()

@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*VLESS)(nil)
-	_ adapter.InjectableInbound = (*VLESS)(nil)
+	_ adapter.Inbound              = (*VLESS)(nil)
+	_ adapter.TCPInjectableInbound = (*VLESS)(nil)
 )
 
 type VLESS struct {
@@ -144,8 +144,12 @@ func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
-func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *VLESS) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.NewConnection(ctx, conn, metadata)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
 func (h *VLESS) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

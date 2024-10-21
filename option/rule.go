@@ -64,7 +64,7 @@ func (r Rule) IsValid() bool {
 	}
 }
 
-type _DefaultRule struct {
+type RawDefaultRule struct {
 	Inbound                  Listable[string] `json:"inbound,omitempty"`
 	IPVersion                int              `json:"ip_version,omitempty"`
 	Network                  Listable[string] `json:"network,omitempty"`
@@ -98,16 +98,22 @@ type _DefaultRule struct {
 	RuleSet                  Listable[string] `json:"rule_set,omitempty"`
 	RuleSetIPCIDRMatchSource bool             `json:"rule_set_ip_cidr_match_source,omitempty"`
 	Invert                   bool             `json:"invert,omitempty"`
-	Outbound                 string           `json:"outbound,omitempty"`
 
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
 	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty"`
 }
 
-type DefaultRule _DefaultRule
+type DefaultRule struct {
+	RawDefaultRule
+	RuleAction
+}
 
-func (r *DefaultRule) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_DefaultRule)(r))
+func (r *DefaultRule) MarshalJSON() ([]byte, error) {
+	return MarshallObjects(r.RawDefaultRule, r.RuleAction)
+}
+
+func (r *DefaultRule) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &r.RawDefaultRule)
 	if err != nil {
 		return err
 	}
@@ -117,23 +123,39 @@ func (r *DefaultRule) UnmarshalJSON(bytes []byte) error {
 		r.Deprecated_RulesetIPCIDRMatchSource = false
 		r.RuleSetIPCIDRMatchSource = true
 	}
-	return nil
+	return UnmarshallExcluded(data, &r.RawDefaultRule, &r.RuleAction)
 }
 
 func (r *DefaultRule) IsValid() bool {
 	var defaultValue DefaultRule
 	defaultValue.Invert = r.Invert
-	defaultValue.Outbound = r.Outbound
+	defaultValue.Action = r.Action
 	return !reflect.DeepEqual(r, defaultValue)
 }
 
-type LogicalRule struct {
-	Mode     string `json:"mode"`
-	Rules    []Rule `json:"rules,omitempty"`
-	Invert   bool   `json:"invert,omitempty"`
-	Outbound string `json:"outbound,omitempty"`
+type _LogicalRule struct {
+	Mode   string `json:"mode"`
+	Rules  []Rule `json:"rules,omitempty"`
+	Invert bool   `json:"invert,omitempty"`
 }
 
-func (r LogicalRule) IsValid() bool {
+type LogicalRule struct {
+	_LogicalRule
+	RuleAction
+}
+
+func (r *LogicalRule) MarshalJSON() ([]byte, error) {
+	return MarshallObjects(r._LogicalRule, r.RuleAction)
+}
+
+func (r *LogicalRule) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &r._LogicalRule)
+	if err != nil {
+		return err
+	}
+	return UnmarshallExcluded(data, &r._LogicalRule, &r.RuleAction)
+}
+
+func (r *LogicalRule) IsValid() bool {
 	return len(r.Rules) > 0 && common.All(r.Rules, Rule.IsValid)
 }
