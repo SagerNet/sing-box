@@ -241,10 +241,14 @@ func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 	return w.tunDevice.ListenPacket(ctx, destination)
 }
 
+// TODO
+// Deprecated
 func (w *WireGuard) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	return NewDirectConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
 }
 
+// TODO
+// Deprecated
 func (w *WireGuard) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewDirectPacketConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
 }

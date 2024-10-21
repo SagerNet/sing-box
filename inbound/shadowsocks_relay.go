@@ -16,13 +16,15 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
 var (
-	_ adapter.Inbound           = (*ShadowsocksRelay)(nil)
-	_ adapter.InjectableInbound = (*ShadowsocksRelay)(nil)
+	_ adapter.Inbound              = (*ShadowsocksRelay)(nil)
+	_ adapter.TCPInjectableInbound = (*ShadowsocksRelay)(nil)
 )
 
 type ShadowsocksRelay struct {
@@ -61,7 +63,7 @@ func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.
 		options.Method,
 		options.Password,
 		int64(udpTimeout.Seconds()),
-		adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
+		adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
 	)
 	if err != nil {
 		return nil, err
@@ -79,16 +81,19 @@ func newShadowsocksRelay(ctx context.Context, router adapter.Router, logger log.
 	return inbound, err
 }
 
-func (h *ShadowsocksRelay) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *ShadowsocksRelay) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
-func (h *ShadowsocksRelay) NewPacket(ctx context.Context, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext) error {
-	return h.service.NewPacket(adapter.WithContext(ctx, &metadata), conn, buffer, adapter.UpstreamMetadata(metadata))
-}
-
-func (h *ShadowsocksRelay) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *ShadowsocksRelay) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
+	err := h.service.NewPacket(h.ctx, h.packetConn(), buffer, M.Metadata{Source: source})
+	if err != nil {
+		h.logger.Error(E.Cause(err, "process packet from ", source))
+	}
 }
 
 func (h *ShadowsocksRelay) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -103,7 +108,7 @@ func (h *ShadowsocksRelay) newConnection(ctx context.Context, conn net.Conn, met
 		metadata.User = destination
 	}
 	h.logger.InfoContext(ctx, "[", destination, "] inbound connection to ", metadata.Destination)
-	return h.router.RouteConnection(ctx, conn, metadata)
+	return h.router.RouteConnection(ctx, conn, h.createMetadata(conn, metadata))
 }
 
 func (h *ShadowsocksRelay) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
@@ -120,5 +125,5 @@ func (h *ShadowsocksRelay) newPacketConnection(ctx context.Context, conn N.Packe
 	ctx = log.ContextWithNewID(ctx)
 	h.logger.InfoContext(ctx, "[", destination, "] inbound packet connection from ", metadata.Source)
 	h.logger.InfoContext(ctx, "[", destination, "] inbound packet connection to ", metadata.Destination)
-	return h.router.RoutePacketConnection(ctx, conn, metadata)
+	return h.router.RoutePacketConnection(ctx, conn, h.createPacketMetadata(conn, metadata))
 }
