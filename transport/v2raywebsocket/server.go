@@ -11,11 +11,13 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
@@ -27,6 +29,7 @@ var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
 	ctx                 context.Context
+	logger              logger.ContextLogger
 	tlsConfig           tls.ServerConfig
 	handler             adapter.V2RayServerTransportHandler
 	httpServer          *http.Server
@@ -36,9 +39,10 @@ type Server struct {
 	upgrader            ws.HTTPUpgrader
 }
 
-func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
+func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayWebsocketOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	server := &Server{
 		ctx:                 ctx,
+		logger:              logger,
 		tlsConfig:           tlsConfig,
 		handler:             handler,
 		path:                options.Path,
@@ -58,6 +62,9 @@ func NewServer(ctx context.Context, options option.V2RayWebsocketOptions, tlsCon
 		MaxHeaderBytes:    http.DefaultMaxHeaderBytes,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
+		},
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return log.ContextWithNewID(ctx)
 		},
 	}
 	return server, nil
@@ -102,20 +109,19 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, 0, E.Cause(err, "upgrade websocket connection"))
 		return
 	}
-	var metadata M.Metadata
-	metadata.Source = sHttp.SourceAddress(request)
-	conn = NewConn(wsConn, metadata.Source.TCPAddr(), ws.StateServerSide)
+	source := sHttp.SourceAddress(request)
+	conn = NewConn(wsConn, source, ws.StateServerSide)
 	if len(earlyData) > 0 {
 		conn = bufio.NewCachedConn(conn, buf.As(earlyData))
 	}
-	s.handler.NewConnection(request.Context(), conn, metadata)
+	s.handler.NewConnectionEx(request.Context(), conn, source, M.Socksaddr{}, nil)
 }
 
 func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Request, statusCode int, err error) {
 	if statusCode > 0 {
 		writer.WriteHeader(statusCode)
 	}
-	s.handler.NewError(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
+	s.logger.ErrorContext(request.Context(), E.Cause(err, "process connection from ", request.RemoteAddr))
 }
 
 func (s *Server) Network() []string {
