@@ -108,14 +108,6 @@ func (h *Hysteria2) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 	return h.client.ListenPacket(ctx)
 }
 
-func (h *Hysteria2) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return NewConnection(ctx, h, conn, metadata)
-}
-
-func (h *Hysteria2) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
 func (h *Hysteria2) InterfaceUpdated() {
 	h.client.CloseWithError(E.New("network changed"))
 }
