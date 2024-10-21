@@ -9,8 +9,10 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -25,11 +27,12 @@ var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
 	ctx     context.Context
-	handler N.TCPConnectionHandler
+	logger  logger.ContextLogger
+	handler adapter.V2RayServerTransportHandler
 	server  *grpc.Server
 }
 
-func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler N.TCPConnectionHandler) (*Server, error) {
+func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
 	var serverOptions []grpc.ServerOption
 	if tlsConfig != nil {
 		if !common.Contains(tlsConfig.NextProtos(), http2.NextProtoTLS) {
@@ -43,17 +46,16 @@ func NewServer(ctx context.Context, options option.V2RayGRPCOptions, tlsConfig t
 			Timeout: time.Duration(options.PingTimeout),
 		}))
 	}
-	server := &Server{ctx, handler, grpc.NewServer(serverOptions...)}
+	server := &Server{ctx, logger, handler, grpc.NewServer(serverOptions...)}
 	RegisterGunServiceCustomNameServer(server.server, server, options.ServiceName)
 	return server, nil
 }
 
 func (s *Server) Tun(server GunService_TunServer) error {
-	ctx, cancel := common.ContextWithCancelCause(s.ctx)
-	conn := NewGRPCConn(server, cancel)
-	var metadata M.Metadata
+	conn := NewGRPCConn(server)
+	var source M.Socksaddr
 	if remotePeer, loaded := peer.FromContext(server.Context()); loaded {
-		metadata.Source = M.SocksaddrFromNet(remotePeer.Addr)
+		source = M.SocksaddrFromNet(remotePeer.Addr)
 	}
 	if grpcMetadata, loaded := gM.FromIncomingContext(server.Context()); loaded {
 		forwardFrom := strings.Join(grpcMetadata.Get("X-Forwarded-For"), ",")
@@ -61,13 +63,16 @@ func (s *Server) Tun(server GunService_TunServer) error {
 			for _, from := range strings.Split(forwardFrom, ",") {
 				originAddr := M.ParseSocksaddr(from)
 				if originAddr.IsValid() {
-					metadata.Source = originAddr.Unwrap()
+					source = originAddr.Unwrap()
 				}
 			}
 		}
 	}
-	go s.handler.NewConnection(ctx, conn, metadata)
-	<-ctx.Done()
+	done := make(chan struct{})
+	go s.handler.NewConnectionEx(log.ContextWithNewID(s.ctx), conn, source, M.Socksaddr{}, N.OnceClose(func(it error) {
+		close(done)
+	}))
+	<-done
 	return nil
 }
 

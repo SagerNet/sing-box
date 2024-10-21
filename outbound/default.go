@@ -69,7 +69,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	if err != nil {
 		return N.ReportHandshakeFailure(conn, err)
 	}
-	err = N.ReportHandshakeSuccess(conn)
+	err = N.ReportConnHandshakeSuccess(conn, outConn)
 	if err != nil {
 		outConn.Close()
 		return err
@@ -96,7 +96,7 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 	if err != nil {
 		return N.ReportHandshakeFailure(conn, err)
 	}
-	err = N.ReportHandshakeSuccess(conn)
+	err = N.ReportConnHandshakeSuccess(conn, outConn)
 	if err != nil {
 		outConn.Close()
 		return err
@@ -117,14 +117,14 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	if err != nil {
 		return N.ReportHandshakeFailure(conn, err)
 	}
-	err = N.ReportHandshakeSuccess(conn)
+	err = N.ReportPacketConnHandshakeSuccess(conn, outConn)
 	if err != nil {
 		outConn.Close()
 		return err
 	}
 	if destinationAddress.IsValid() {
 		if metadata.Destination.IsFqdn() {
-			if metadata.InboundOptions.UDPDisableDomainUnmapping {
+			if metadata.UDPDisableDomainUnmapping {
 				outConn = bufio.NewUnidirectionalNATPacketConn(bufio.NewPacketConn(outConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
 			} else {
 				outConn = bufio.NewNATPacketConn(bufio.NewPacketConn(outConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
@@ -165,7 +165,7 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 	if err != nil {
 		return N.ReportHandshakeFailure(conn, err)
 	}
-	err = N.ReportHandshakeSuccess(conn)
+	err = N.ReportPacketConnHandshakeSuccess(conn, outConn)
 	if err != nil {
 		outConn.Close()
 		return err
