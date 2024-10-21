@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	_ adapter.Inbound           = (*VMess)(nil)
-	_ adapter.InjectableInbound = (*VMess)(nil)
+	_ adapter.Inbound              = (*VMess)(nil)
+	_ adapter.TCPInjectableInbound = (*VMess)(nil)
 )
 
 type VMess struct {
@@ -83,7 +83,7 @@ func NewVMess(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		}
 	}
 	if options.Transport != nil {
-		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*vmessTransportHandler)(inbound))
+		inbound.transport, err = v2ray.NewServerTransport(ctx, logger, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*vmessTransportHandler)(inbound))
 		if err != nil {
 			return nil, E.Cause(err, "create server transport: ", options.Transport.Type)
 		}
@@ -142,11 +142,6 @@ func (h *VMess) Close() error {
 	)
 }
 
-func (h *VMess) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	h.injectTCP(conn, metadata)
-	return nil
-}
-
 func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	var err error
 	if h.tlsConfig != nil && h.transport == nil {
@@ -158,8 +153,12 @@ func (h *VMess) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
-func (h *VMess) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return os.ErrInvalid
+func (h *VMess) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.NewConnection(ctx, conn, metadata)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
 func (h *VMess) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -202,9 +201,6 @@ var _ adapter.V2RayServerTransportHandler = (*vmessTransportHandler)(nil)
 
 type vmessTransportHandler VMess
 
-func (t *vmessTransportHandler) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	return (*VMess)(t).newTransportConnection(ctx, conn, adapter.InboundContext{
-		Source:      metadata.Source,
-		Destination: metadata.Destination,
-	})
+func (t *vmessTransportHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	(*VMess)(t).routeTCP(ctx, conn, source, destination, onClose)
 }
