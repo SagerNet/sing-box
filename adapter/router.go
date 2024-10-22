@@ -34,6 +34,7 @@ type Router interface {
 	FakeIPStore() FakeIPStore
 
 	ConnectionRouter
+	PreMatch(metadata InboundContext) error
 	ConnectionRouterEx
 
 	GeoIPReader() *geoip.Reader
