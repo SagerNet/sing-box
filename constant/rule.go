@@ -34,7 +34,10 @@ const (
 )
 
 const (
-	RuleActionRejectMethodDefault         = "default"
-	RuleActionRejectMethodPortUnreachable = "port-unreachable"
-	RuleActionRejectMethodDrop            = "drop"
+	RuleActionRejectMethodDefault            = "default"
+	RuleActionRejectMethodReset              = "reset"
+	RuleActionRejectMethodNetworkUnreachable = "network-unreachable"
+	RuleActionRejectMethodHostUnreachable    = "host-unreachable"
+	RuleActionRejectMethodPortUnreachable    = "port-unreachable"
+	RuleActionRejectMethodDrop               = "drop"
 )
