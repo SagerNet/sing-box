@@ -21,7 +21,6 @@ import (
 	"github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -89,7 +88,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewConn(conn)
 	}
-	selectedRule, _, buffers, err := r.matchRule(ctx, &metadata, conn, nil, -1)
+	selectedRule, _, buffers, err := r.matchRule(ctx, &metadata, false, conn, nil, -1)
 	if err != nil {
 		return err
 	}
@@ -108,16 +107,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			selectReturn = true
 		case *rule.RuleActionReject:
 			buf.ReleaseMulti(buffers)
-			var rejectErr error
-			switch action.Method {
-			case C.RuleActionRejectMethodDefault:
-				rejectErr = os.ErrClosed
-			case C.RuleActionRejectMethodPortUnreachable:
-				rejectErr = syscall.ECONNREFUSED
-			case C.RuleActionRejectMethodDrop:
-				rejectErr = tun.ErrDrop
-			}
-			N.CloseOnHandshakeFailure(conn, onClose, rejectErr)
+			N.CloseOnHandshakeFailure(conn, onClose, action.Error())
 			return nil
 		}
 	}
@@ -236,7 +226,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
 	}*/
 
-	selectedRule, _, buffers, err := r.matchRule(ctx, &metadata, nil, conn, -1)
+	selectedRule, _, buffers, err := r.matchRule(ctx, &metadata, false, nil, conn, -1)
 	if err != nil {
 		return err
 	}
@@ -306,8 +296,23 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return nil
 }
 
+func (r *Router) PreMatch(metadata adapter.InboundContext) error {
+	selectedRule, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil, -1)
+	if err != nil {
+		return err
+	}
+	if selectedRule == nil {
+		return nil
+	}
+	rejectAction, isReject := selectedRule.Action().(*rule.RuleActionReject)
+	if !isReject {
+		return nil
+	}
+	return rejectAction.Error()
+}
+
 func (r *Router) matchRule(
-	ctx context.Context, metadata *adapter.InboundContext,
+	ctx context.Context, metadata *adapter.InboundContext, preMatch bool,
 	inputConn net.Conn, inputPacketConn N.PacketConn, ruleIndex int,
 ) (selectedRule adapter.Rule, selectedRuleIndex int, buffers []*buf.Buffer, fatalErr error) {
 	if r.processSearcher != nil && metadata.ProcessInfo == nil {
@@ -370,7 +375,7 @@ func (r *Router) matchRule(
 
 	//nolint:staticcheck
 	if metadata.InboundOptions != common.DefaultValue[option.InboundOptions]() {
-		if metadata.InboundOptions.SniffEnabled {
+		if !preMatch && metadata.InboundOptions.SniffEnabled {
 			newBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{
 				OverrideDestination: metadata.InboundOptions.SniffOverrideDestination,
 				Timeout:             time.Duration(metadata.InboundOptions.SniffTimeout),
@@ -415,15 +420,28 @@ match:
 		if !matched {
 			break
 		}
-		r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+		if !preMatch {
+			r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+		} else {
+			switch currentRule.Action().Type() {
+			case C.RuleActionTypeReject, C.RuleActionTypeResolve:
+				r.logger.DebugContext(ctx, "pre-match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+			}
+		}
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:
-			newBuffers, newErr := r.actionSniff(ctx, metadata, action, inputConn, inputPacketConn)
-			if newErr != nil {
-				fatalErr = newErr
-				return
+			if !preMatch {
+				newBuffers, newErr := r.actionSniff(ctx, metadata, action, inputConn, inputPacketConn)
+				if newErr != nil {
+					fatalErr = newErr
+					return
+				}
+				buffers = append(buffers, newBuffers...)
+			} else {
+				selectedRule = currentRule
+				selectedRuleIndex = currentRuleIndex
+				break match
 			}
-			buffers = append(buffers, newBuffers...)
 		case *rule.RuleActionResolve:
 			fatalErr = r.actionResolve(ctx, metadata, action)
 			if fatalErr != nil {
@@ -436,7 +454,7 @@ match:
 		}
 		ruleIndex = currentRuleIndex
 	}
-	if metadata.Destination.Addr.IsUnspecified() {
+	if !preMatch && metadata.Destination.Addr.IsUnspecified() {
 		newBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{}, inputConn, inputPacketConn)
 		if newErr != nil {
 			fatalErr = newErr
