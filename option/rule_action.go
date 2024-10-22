@@ -136,23 +136,29 @@ type DNSRouteActionOptions struct {
 	ClientSubnet *AddrPrefix `json:"client_subnet,omitempty"`
 }
 
-type RejectActionOptions struct {
-	Method RejectMethod `json:"method,omitempty"`
+type _RejectActionOptions struct {
+	Method string `json:"method,omitempty"`
 }
 
-type RejectMethod string
+type RejectActionOptions _RejectActionOptions
 
-func (m *RejectMethod) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*string)(m))
+func (r *RejectActionOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_RejectActionOptions)(r))
 	if err != nil {
 		return err
 	}
-	switch *m {
-	case C.RuleActionRejectMethodDefault, C.RuleActionRejectMethodPortUnreachable, C.RuleActionRejectMethodDrop:
-		return nil
+	switch r.Method {
+	case "", C.RuleActionRejectMethodDefault:
+		r.Method = C.RuleActionRejectMethodDefault
+	case C.RuleActionRejectMethodReset,
+		C.RuleActionRejectMethodNetworkUnreachable,
+		C.RuleActionRejectMethodHostUnreachable,
+		C.RuleActionRejectMethodPortUnreachable,
+		C.RuleActionRejectMethodDrop:
 	default:
-		return E.New("unknown reject method: " + *m)
+		return E.New("unknown reject method: " + r.Method)
 	}
+	return nil
 }
 
 type RouteActionSniff struct {
