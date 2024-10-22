@@ -185,41 +185,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 		cached        bool
 		err           error
 	)
-	responseAddrs, cached = r.dnsClient.LookupCache(ctx, domain, strategy)
-	if cached {
-		if len(responseAddrs) == 0 {
-			return nil, dns.RCodeNameError
-		}
-		return responseAddrs, nil
-	}
-	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
-	ctx, metadata := adapter.ExtendContext(ctx)
-	metadata.Destination = M.Socksaddr{}
-	metadata.Domain = domain
-	var (
-		transport dns.Transport
-		options   dns.QueryOptions
-		rule      adapter.DNSRule
-		ruleIndex int
-	)
-	ruleIndex = -1
-	for {
-		dnsCtx := adapter.OverrideContext(ctx)
-		var addressLimit bool
-		transport, options, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true)
-		if strategy != dns.DomainStrategyAsIS {
-			options.Strategy = strategy
-		}
-		if rule != nil && rule.WithAddressLimit() {
-			addressLimit = true
-			responseAddrs, err = r.dnsClient.LookupWithResponseCheck(dnsCtx, transport, domain, options, func(responseAddrs []netip.Addr) bool {
-				metadata.DestinationAddresses = responseAddrs
-				return rule.MatchAddressLimit(metadata)
-			})
-		} else {
-			addressLimit = false
-			responseAddrs, err = r.dnsClient.Lookup(dnsCtx, transport, domain, options)
-		}
+	printResult := func() {
 		if err != nil {
 			if errors.Is(err, dns.ErrResponseRejectedCached) {
 				r.dnsLogger.DebugContext(ctx, "response rejected for ", domain, " (cached)")
@@ -232,10 +198,63 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 			r.dnsLogger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
 			err = dns.RCodeNameError
 		}
-		if !addressLimit || err == nil {
-			break
+	}
+	responseAddrs, cached = r.dnsClient.LookupCache(ctx, domain, strategy)
+	if cached {
+		if len(responseAddrs) == 0 {
+			return nil, dns.RCodeNameError
+		}
+		return responseAddrs, nil
+	}
+	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
+	ctx, metadata := adapter.ExtendContext(ctx)
+	metadata.Destination = M.Socksaddr{}
+	metadata.Domain = domain
+	if metadata.DNSServer != "" {
+		transport, loaded := r.transportMap[metadata.DNSServer]
+		if !loaded {
+			return nil, E.New("transport not found: ", metadata.DNSServer)
+		}
+		if strategy == dns.DomainStrategyAsIS {
+			if transportDomainStrategy, loaded := r.transportDomainStrategy[transport]; loaded {
+				strategy = transportDomainStrategy
+			} else {
+				strategy = r.defaultDomainStrategy
+			}
+		}
+		responseAddrs, err = r.dnsClient.Lookup(ctx, transport, domain, dns.QueryOptions{Strategy: strategy})
+	} else {
+		var (
+			transport dns.Transport
+			options   dns.QueryOptions
+			rule      adapter.DNSRule
+			ruleIndex int
+		)
+		ruleIndex = -1
+		for {
+			dnsCtx := adapter.OverrideContext(ctx)
+			var addressLimit bool
+			transport, options, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true)
+			if strategy != dns.DomainStrategyAsIS {
+				options.Strategy = strategy
+			}
+			if rule != nil && rule.WithAddressLimit() {
+				addressLimit = true
+				responseAddrs, err = r.dnsClient.LookupWithResponseCheck(dnsCtx, transport, domain, options, func(responseAddrs []netip.Addr) bool {
+					metadata.DestinationAddresses = responseAddrs
+					return rule.MatchAddressLimit(metadata)
+				})
+			} else {
+				addressLimit = false
+				responseAddrs, err = r.dnsClient.Lookup(dnsCtx, transport, domain, options)
+			}
+			if !addressLimit || err == nil {
+				break
+			}
+			printResult()
 		}
 	}
+	printResult()
 	if len(responseAddrs) > 0 {
 		r.dnsLogger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
 	}
