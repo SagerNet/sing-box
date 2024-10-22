@@ -584,7 +584,7 @@ func (r *Router) actionSniff(
 
 func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundContext, action *rule.RuleActionResolve) error {
 	if metadata.Destination.IsFqdn() {
-		// TODO: check if WithContext is necessary
+		metadata.DNSServer = action.Server
 		addresses, err := r.Lookup(adapter.WithContext(ctx, metadata), metadata.Destination.Fqdn, action.Strategy)
 		if err != nil {
 			return err
