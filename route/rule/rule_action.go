@@ -2,7 +2,9 @@ package rule
 
 import (
 	"net/netip"
+	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -10,6 +12,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -22,10 +25,10 @@ func NewRuleAction(action option.RuleAction) (adapter.RuleAction, error) {
 			UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
 		}, nil
 	case C.RuleActionTypeReturn:
-		return &RuleActionReject{}, nil
+		return &RuleActionReturn{}, nil
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
-			Method: string(action.RejectOptions.Method),
+			Method: action.RejectOptions.Method,
 		}, nil
 	case C.RuleActionTypeHijackDNS:
 		return &RuleActionHijackDNS{}, nil
@@ -58,7 +61,7 @@ func NewDNSRuleAction(action option.DNSRuleAction) adapter.RuleAction {
 		return &RuleActionReturn{}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
-			Method: string(action.RejectOptions.Method),
+			Method: action.RejectOptions.Method,
 		}
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -116,6 +119,23 @@ func (r *RuleActionReject) String() string {
 		return "reject"
 	}
 	return F.ToString("reject(", r.Method, ")")
+}
+
+func (r *RuleActionReject) Error() error {
+	switch r.Method {
+	case C.RuleActionRejectMethodReset:
+		return os.ErrClosed
+	case C.RuleActionRejectMethodNetworkUnreachable:
+		return syscall.ENETUNREACH
+	case C.RuleActionRejectMethodHostUnreachable:
+		return syscall.EHOSTUNREACH
+	case C.RuleActionRejectMethodDefault, C.RuleActionRejectMethodPortUnreachable:
+		return syscall.ECONNREFUSED
+	case C.RuleActionRejectMethodDrop:
+		return tun.ErrDrop
+	default:
+		panic(F.ToString("unknown reject method: ", r.Method))
+	}
 }
 
 type RuleActionHijackDNS struct{}
