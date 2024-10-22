@@ -404,9 +404,15 @@ func (t *TUN) Close() error {
 	)
 }
 
-func (t *TUN) PrepareConnection(source M.Socksaddr, destination M.Socksaddr) error {
-	// TODO: implement rejects
-	return nil
+func (t *TUN) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
+	return t.router.PreMatch(adapter.InboundContext{
+		Inbound:        t.tag,
+		InboundType:    C.TypeTun,
+		Network:        network,
+		Source:         source,
+		Destination:    destination,
+		InboundOptions: t.inboundOptions,
+	})
 }
 
 func (t *TUN) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
