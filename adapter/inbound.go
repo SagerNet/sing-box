@@ -50,12 +50,14 @@ type InboundContext struct {
 	// Deprecated
 	InboundOptions            option.InboundOptions
 	UDPDisableDomainUnmapping bool
-	DestinationAddresses      []netip.Addr
-	SourceGeoIPCode           string
-	GeoIPCode                 string
-	ProcessInfo               *process.Info
-	QueryType                 uint16
-	FakeIP                    bool
+	DNSServer                 string
+
+	DestinationAddresses []netip.Addr
+	SourceGeoIPCode      string
+	GeoIPCode            string
+	ProcessInfo          *process.Info
+	QueryType            uint16
+	FakeIP               bool
 
 	// rule cache
 
