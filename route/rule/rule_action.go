@@ -162,53 +162,31 @@ func (r *RuleActionSniff) Type() string {
 }
 
 func (r *RuleActionSniff) build() error {
-	if len(r.StreamSniffers) > 0 || len(r.PacketSniffers) > 0 {
-		return nil
-	}
-	if len(r.snifferNames) > 0 {
-		for _, name := range r.snifferNames {
-			switch name {
-			case C.ProtocolTLS:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.TLSClientHello)
-			case C.ProtocolHTTP:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.HTTPHost)
-			case C.ProtocolQUIC:
-				r.PacketSniffers = append(r.PacketSniffers, sniff.QUICClientHello)
-			case C.ProtocolDNS:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.StreamDomainNameQuery)
-				r.PacketSniffers = append(r.PacketSniffers, sniff.DomainNameQuery)
-			case C.ProtocolSTUN:
-				r.PacketSniffers = append(r.PacketSniffers, sniff.STUNMessage)
-			case C.ProtocolBitTorrent:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrent)
-				r.PacketSniffers = append(r.PacketSniffers, sniff.UTP)
-				r.PacketSniffers = append(r.PacketSniffers, sniff.UDPTracker)
-			case C.ProtocolDTLS:
-				r.PacketSniffers = append(r.PacketSniffers, sniff.DTLSRecord)
-			case C.ProtocolSSH:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.SSH)
-			case C.ProtocolRDP:
-				r.StreamSniffers = append(r.StreamSniffers, sniff.RDP)
-			default:
-				return E.New("unknown sniffer: ", name)
-			}
-		}
-	} else {
-		r.StreamSniffers = []sniff.StreamSniffer{
-			sniff.TLSClientHello,
-			sniff.HTTPHost,
-			sniff.StreamDomainNameQuery,
-			sniff.BitTorrent,
-			sniff.SSH,
-			sniff.RDP,
-		}
-		r.PacketSniffers = []sniff.PacketSniffer{
-			sniff.DomainNameQuery,
-			sniff.QUICClientHello,
-			sniff.STUNMessage,
-			sniff.UTP,
-			sniff.UDPTracker,
-			sniff.DTLSRecord,
+	for _, name := range r.snifferNames {
+		switch name {
+		case C.ProtocolTLS:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.TLSClientHello)
+		case C.ProtocolHTTP:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.HTTPHost)
+		case C.ProtocolQUIC:
+			r.PacketSniffers = append(r.PacketSniffers, sniff.QUICClientHello)
+		case C.ProtocolDNS:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.StreamDomainNameQuery)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.DomainNameQuery)
+		case C.ProtocolSTUN:
+			r.PacketSniffers = append(r.PacketSniffers, sniff.STUNMessage)
+		case C.ProtocolBitTorrent:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrent)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.UTP)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.UDPTracker)
+		case C.ProtocolDTLS:
+			r.PacketSniffers = append(r.PacketSniffers, sniff.DTLSRecord)
+		case C.ProtocolSSH:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.SSH)
+		case C.ProtocolRDP:
+			r.StreamSniffers = append(r.StreamSniffers, sniff.RDP)
+		default:
+			return E.New("unknown sniffer: ", name)
 		}
 	}
 	return nil
