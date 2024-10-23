@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -50,14 +51,15 @@ func (d *DNS) NewConnection(ctx context.Context, conn net.Conn, metadata adapter
 	metadata.Destination = M.Socksaddr{}
 	defer conn.Close()
 	for {
-		err := d.handleConnection(ctx, conn, metadata)
+		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
+		err := HandleStreamDNSRequest(ctx, d.router, conn, metadata)
 		if err != nil {
 			return err
 		}
 	}
 }
 
-func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func HandleStreamDNSRequest(ctx context.Context, router adapter.Router, conn net.Conn, metadata adapter.InboundContext) error {
 	var queryLength uint16
 	err := binary.Read(conn, binary.BigEndian, &queryLength)
 	if err != nil {
@@ -79,7 +81,7 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 	}
 	metadataInQuery := metadata
 	go func() error {
-		response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+		response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 		if err != nil {
 			return err
 		}
@@ -100,10 +102,14 @@ func (d *DNS) handleConnection(ctx context.Context, conn net.Conn, metadata adap
 
 // Deprecated
 func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
+}
+
+func NewDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.PacketConn, cachedPackets []*N.PacketBuffer, metadata adapter.InboundContext) error {
 	metadata.Destination = M.Socksaddr{}
 	var reader N.PacketReader = conn
 	var counters []N.CountFunc
-	var cachedPackets []*N.PacketBuffer
+	cachedPackets = common.Reverse(cachedPackets)
 	for {
 		reader, counters = N.UnwrapCountPacketReader(reader, counters)
 		if cachedReader, isCached := reader.(N.CachedPacketReader); isCached {
@@ -115,7 +121,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 		}
 		if readWaiter, created := bufio.CreatePacketReadWaiter(reader); created {
 			readWaiter.InitializeReadWaiter(N.ReadWaitOptions{})
-			return d.newPacketConnection(ctx, conn, readWaiter, counters, cachedPackets, metadata)
+			return newDNSPacketConnection(ctx, router, conn, readWaiter, counters, cachedPackets, metadata)
 		}
 		break
 	}
@@ -161,7 +167,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 			}
 			metadataInQuery := metadata
 			go func() error {
-				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
 					cancel(err)
 					return err
@@ -186,7 +192,7 @@ func (d *DNS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metada
 	return group.Run(fastClose)
 }
 
-func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
+func newDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
 	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
@@ -206,11 +212,12 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 				}
 				err = message.Unpack(packet.Buffer.Bytes())
 				packet.Buffer.Release()
+				destination = packet.Destination
+				N.PutPacketBuffer(packet)
 				if err != nil {
 					cancel(err)
 					return err
 				}
-				destination = packet.Destination
 			} else {
 				buffer, destination, err = readWaiter.WaitReadPacket()
 				if err != nil {
@@ -230,7 +237,7 @@ func (d *DNS) newPacketConnection(ctx context.Context, conn N.PacketConn, readWa
 			}
 			metadataInQuery := metadata
 			go func() error {
-				response, err := d.router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 				if err != nil {
 					cancel(err)
 					return err
