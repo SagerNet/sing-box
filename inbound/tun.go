@@ -36,8 +36,9 @@ type TUN struct {
 	router adapter.Router
 	logger log.ContextLogger
 	// Deprecated
-	inboundOptions              option.InboundOptions
-	tunOptions                  tun.Options
+	inboundOptions option.InboundOptions
+	tunOptions     tun.Options
+	// Deprecated
 	endpointIndependentNat      bool
 	udpTimeout                  time.Duration
 	stack                       string
@@ -328,7 +329,6 @@ func (t *TUN) Start() error {
 		Context:                t.ctx,
 		Tun:                    tunInterface,
 		TunOptions:             t.tunOptions,
-		EndpointIndependentNat: t.endpointIndependentNat,
 		UDPTimeout:             t.udpTimeout,
 		Handler:                t,
 		Logger:                 t.logger,
