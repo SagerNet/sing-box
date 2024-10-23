@@ -36,8 +36,9 @@ type TUN struct {
 	router adapter.Router
 	logger log.ContextLogger
 	// Deprecated
-	inboundOptions              option.InboundOptions
-	tunOptions                  tun.Options
+	inboundOptions option.InboundOptions
+	tunOptions     tun.Options
+	// Deprecated
 	endpointIndependentNat      bool
 	udpTimeout                  time.Duration
 	stack                       string
