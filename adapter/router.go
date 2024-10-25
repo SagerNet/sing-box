@@ -2,13 +2,17 @@ package adapter
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/netip"
+	"sync"
 
 	"github.com/sagernet/sing-box/common/geoip"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
@@ -98,7 +102,7 @@ type DNSRule interface {
 
 type RuleSet interface {
 	Name() string
-	StartContext(ctx context.Context, startContext RuleSetStartContext) error
+	StartContext(ctx context.Context, startContext *HTTPStartContext) error
 	PostStart() error
 	Metadata() RuleSetMetadata
 	ExtractIPSet() []*netipx.IPSet
@@ -118,10 +122,42 @@ type RuleSetMetadata struct {
 	ContainsWIFIRule    bool
 	ContainsIPCIDRRule  bool
 }
+type HTTPStartContext struct {
+	access          sync.Mutex
+	httpClientCache map[string]*http.Client
+}
 
-type RuleSetStartContext interface {
-	HTTPClient(detour string, dialer N.Dialer) *http.Client
-	Close()
+func NewHTTPStartContext() *HTTPStartContext {
+	return &HTTPStartContext{
+		httpClientCache: make(map[string]*http.Client),
+	}
+}
+
+func (c *HTTPStartContext) HTTPClient(detour string, dialer N.Dialer) *http.Client {
+	c.access.Lock()
+	defer c.access.Unlock()
+	if httpClient, loaded := c.httpClientCache[detour]; loaded {
+		return httpClient
+	}
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			ForceAttemptHTTP2:   true,
+			TLSHandshakeTimeout: C.TCPTimeout,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+		},
+	}
+	c.httpClientCache[detour] = httpClient
+	return httpClient
+}
+
+func (c *HTTPStartContext) Close() {
+	c.access.Lock()
+	defer c.access.Unlock()
+	for _, client := range c.httpClientCache {
+		client.CloseIdleConnections()
+	}
 }
 
 type InterfaceUpdateListener interface {
