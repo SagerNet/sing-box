@@ -58,7 +58,6 @@ func NewLocalRuleSet(ctx context.Context, router adapter.Router, logger logger.L
 		}
 	}
 	if options.Type == C.RuleSetTypeLocal {
-		var watcher *fswatch.Watcher
 		filePath, _ := filepath.Abs(options.LocalOptions.Path)
 		watcher, err := fswatch.NewWatcher(fswatch.Options{
 			Path: []string{filePath},
@@ -85,7 +84,7 @@ func (s *LocalRuleSet) String() string {
 	return strings.Join(F.MapToString(s.rules), " ")
 }
 
-func (s *LocalRuleSet) StartContext(ctx context.Context, startContext adapter.RuleSetStartContext) error {
+func (s *LocalRuleSet) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	if s.watcher != nil {
 		err := s.watcher.Start()
 		if err != nil {
