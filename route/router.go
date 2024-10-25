@@ -659,14 +659,15 @@ func (r *Router) Close() error {
 
 func (r *Router) PostStart() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
+	var cacheContext *adapter.HTTPStartContext
 	if len(r.ruleSets) > 0 {
 		monitor.Start("initialize rule-set")
-		ruleSetStartContext := NewRuleSetStartContext()
+		cacheContext = adapter.NewHTTPStartContext()
 		var ruleSetStartGroup task.Group
 		for i, ruleSet := range r.ruleSets {
 			ruleSetInPlace := ruleSet
 			ruleSetStartGroup.Append0(func(ctx context.Context) error {
-				err := ruleSetInPlace.StartContext(ctx, ruleSetStartContext)
+				err := ruleSetInPlace.StartContext(ctx, cacheContext)
 				if err != nil {
 					return E.Cause(err, "initialize rule-set[", i, "]")
 				}
@@ -680,7 +681,9 @@ func (r *Router) PostStart() error {
 		if err != nil {
 			return err
 		}
-		ruleSetStartContext.Close()
+	}
+	if cacheContext != nil {
+		cacheContext.Close()
 	}
 	needFindProcess := r.needFindProcess
 	needWIFIState := r.needWIFIState
