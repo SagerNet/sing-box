@@ -54,7 +54,7 @@ func NewHTTP(ctx context.Context, router adapter.Router, logger log.ContextLogge
 }
 
 func (h *HTTP) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "outbound connection to ", destination)

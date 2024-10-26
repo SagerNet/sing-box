@@ -91,15 +91,6 @@ func ContextFrom(ctx context.Context) *InboundContext {
 	return metadata.(*InboundContext)
 }
 
-func AppendContext(ctx context.Context) (context.Context, *InboundContext) {
-	metadata := ContextFrom(ctx)
-	if metadata != nil {
-		return ctx, metadata
-	}
-	metadata = new(InboundContext)
-	return WithContext(ctx, metadata), metadata
-}
-
 func ExtendContext(ctx context.Context) (context.Context, *InboundContext) {
 	var newMetadata InboundContext
 	if metadata := ContextFrom(ctx); metadata != nil {
