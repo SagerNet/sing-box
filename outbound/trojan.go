@@ -124,7 +124,7 @@ func (h *Trojan) Close() error {
 type trojanDialer Trojan
 
 func (h *trojanDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	var conn net.Conn

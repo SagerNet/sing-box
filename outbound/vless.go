@@ -143,7 +143,7 @@ func (h *VLESS) Close() error {
 type vlessDialer VLESS
 
 func (h *vlessDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	var conn net.Conn
@@ -186,7 +186,7 @@ func (h *vlessDialer) DialContext(ctx context.Context, network string, destinati
 
 func (h *vlessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	var conn net.Conn
