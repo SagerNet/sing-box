@@ -70,7 +70,7 @@ func NewDirect(router adapter.Router, logger log.ContextLogger, tag string, opti
 }
 
 func (h *Direct) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	switch h.overrideOption {
@@ -98,7 +98,7 @@ func (h *Direct) DialContext(ctx context.Context, network string, destination M.
 }
 
 func (h *Direct) DialParallel(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	switch h.overrideOption {

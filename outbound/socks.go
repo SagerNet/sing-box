@@ -65,7 +65,7 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 }
 
 func (h *Socks) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	switch N.NetworkName(network) {
@@ -91,7 +91,7 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 }
 
 func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	if h.uotClient != nil {

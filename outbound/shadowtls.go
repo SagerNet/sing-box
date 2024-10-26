@@ -92,7 +92,7 @@ func NewShadowTLS(ctx context.Context, router adapter.Router, logger log.Context
 }
 
 func (h *ShadowTLS) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.AppendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.tag
 	metadata.Destination = destination
 	switch N.NetworkName(network) {
