@@ -181,6 +181,7 @@ func (w *platformInterfaceWrapper) Interfaces() ([]control.Interface, error) {
 			MTU:       int(netInterface.MTU),
 			Name:      netInterface.Name,
 			Addresses: common.Map(iteratorToArray[string](netInterface.Addresses), netip.MustParsePrefix),
+			Flags:     linkFlags(uint32(netInterface.Flags)),
 		})
 	}
 	return interfaces, nil
