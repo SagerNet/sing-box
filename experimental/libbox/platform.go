@@ -38,6 +38,7 @@ type NetworkInterface struct {
 	MTU       int32
 	Name      string
 	Addresses StringIterator
+	Flags     int32
 }
 
 type WIFIState struct {
