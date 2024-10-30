@@ -155,7 +155,16 @@ upload_macos_dmg:
 	cp SFM.dmg "SFM-${VERSION}-universal.dmg" && \
 	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dmg"
 
-release_macos_standalone: build_macos_standalone build_macos_dmg upload_macos_dmg
+upload_macos_dsyms:
+	pushd ../sing-box-for-apple/build/SFM.System.xcarchive && \
+	zip -r SFM.dSYMs.zip dSYMs && \
+	mv SFM.dSYMs.zip ../../../sing-box/dist/SFM && \
+	popd && \
+	cd dist/SFM && \
+	cp SFM.dSYMs.zip "SFM-${VERSION}-universal.dSYMs.zip" && \
+	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dSYMs.zip"
+
+release_macos_standalone: build_macos_standalone build_macos_dmg upload_macos_dmg upload_macos_dsyms
 
 build_tvos:
 	cd ../sing-box-for-apple && \
