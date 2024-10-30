@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/geoip"
@@ -158,7 +157,7 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: 5 * time.Second,
+			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
@@ -213,7 +212,7 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: 5 * time.Second,
+			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
