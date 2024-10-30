@@ -34,9 +34,9 @@ type BoxService struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	instance              *box.Box
+	platformInterface     *platformInterfaceWrapper
 	pauseManager          pause.Manager
 	urlTestHistoryStorage *urltest.HistoryStorage
-
 	servicePauseFields
 }
 
@@ -67,6 +67,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		ctx:                   ctx,
 		cancel:                cancel,
 		instance:              instance,
+		platformInterface:     platformWrapper,
 		urlTestHistoryStorage: urlTestHistoryStorage,
 		pauseManager:          service.FromContext[pause.Manager](ctx),
 	}, nil
@@ -102,9 +103,10 @@ var (
 )
 
 type platformInterfaceWrapper struct {
-	iif       PlatformInterface
-	useProcFS bool
-	router    adapter.Router
+	iif         PlatformInterface
+	useProcFS   bool
+	router      adapter.Router
+	openURLFunc func(url string)
 }
 
 func (w *platformInterfaceWrapper) Initialize(ctx context.Context, router adapter.Router) error {
@@ -237,4 +239,10 @@ func (w *platformInterfaceWrapper) DisableColors() bool {
 
 func (w *platformInterfaceWrapper) WriteMessage(level log.Level, message string) {
 	w.iif.WriteLog(message)
+}
+
+func (w *platformInterfaceWrapper) OpenURL(url string) {
+	if w.openURLFunc != nil {
+		w.openURLFunc(url)
+	}
 }

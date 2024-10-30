@@ -134,6 +134,9 @@ func (s *interfaceMonitorStub) RegisterCallback(callback tun.DefaultInterfaceUpd
 func (s *interfaceMonitorStub) UnregisterCallback(element *list.Element[tun.DefaultInterfaceUpdateCallback]) {
 }
 
+func (s *platformInterfaceStub) OpenURL(url string) {
+}
+
 func FormatConfig(configContent string) (string, error) {
 	options, err := parseConfig(configContent)
 	if err != nil {
