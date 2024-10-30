@@ -81,7 +81,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
 	} else {
-		dialer.Timeout = C.TCPTimeout
+		dialer.Timeout = C.TCPConnectTimeout
 	}
 	// TODO: Add an option to customize the keep alive period
 	dialer.KeepAlive = C.TCPKeepAliveInitial
