@@ -1,6 +1,7 @@
 package libbox
 
 import (
+	std_bufio "bufio"
 	"encoding/binary"
 	"net"
 	"runtime"
@@ -9,7 +10,13 @@ import (
 	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/memory"
+)
+
+const (
+	eventTypeEmpty byte = iota
+	eventTypeOpenURL
 )
 
 type StatusMessage struct {
@@ -44,31 +51,74 @@ func (s *CommandServer) readStatus() StatusMessage {
 }
 
 func (s *CommandServer) handleStatusConn(conn net.Conn) error {
+	var isMainClient bool
+	err := binary.Read(conn, binary.BigEndian, &isMainClient)
+	if err != nil {
+		return E.Cause(err, "read is main client")
+	}
 	var interval int64
-	err := binary.Read(conn, binary.BigEndian, &interval)
+	err = binary.Read(conn, binary.BigEndian, &interval)
 	if err != nil {
 		return E.Cause(err, "read interval")
 	}
 	ticker := time.NewTicker(time.Duration(interval))
 	defer ticker.Stop()
 	ctx := connKeepAlive(conn)
-	for {
-		err = binary.Write(conn, binary.BigEndian, s.readStatus())
-		if err != nil {
-			return err
+	writer := std_bufio.NewWriter(conn)
+	if isMainClient {
+		for {
+			writer.WriteByte(eventTypeEmpty)
+			err = binary.Write(conn, binary.BigEndian, s.readStatus())
+			if err != nil {
+				return err
+			}
+			writer.Flush()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			case event := <-s.events:
+				event.writeTo(writer)
+				writer.Flush()
+			}
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
+	} else {
+		for {
+			err = binary.Write(conn, binary.BigEndian, s.readStatus())
+			if err != nil {
+				return err
+			}
+			writer.Flush()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
 		}
 	}
 }
 
 func (c *CommandClient) handleStatusConn(conn net.Conn) {
+	reader := std_bufio.NewReader(conn)
 	for {
+		if c.options.IsMainClient {
+			rawEvent, err := readEvent(reader)
+			if err != nil {
+				c.handler.Disconnected(err.Error())
+				return
+			}
+			switch event := rawEvent.(type) {
+			case *eventOpenURL:
+				c.handler.OpenURL(event.URL)
+				continue
+			case nil:
+			default:
+				panic(F.ToString("unexpected event type: ", event))
+				return
+			}
+		}
 		var message StatusMessage
-		err := binary.Read(conn, binary.BigEndian, &message)
+		err := binary.Read(reader, binary.BigEndian, &message)
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return

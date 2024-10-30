@@ -25,4 +25,5 @@ type Interface interface {
 	ClearDNSCache()
 	ReadWIFIState() adapter.WIFIState
 	process.Searcher
+	OpenURL(url string)
 }
