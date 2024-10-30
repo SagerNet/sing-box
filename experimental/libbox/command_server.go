@@ -33,6 +33,7 @@ type CommandServer struct {
 	urlTestUpdate chan struct{}
 	modeUpdate    chan struct{}
 	logReset      chan struct{}
+	events        chan myEvent
 
 	closedConnections []Connection
 }
@@ -52,6 +53,7 @@ func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServ
 		urlTestUpdate: make(chan struct{}, 1),
 		modeUpdate:    make(chan struct{}, 1),
 		logReset:      make(chan struct{}, 1),
+		events:        make(chan myEvent, 8),
 	}
 	server.observer = observable.NewObserver[string](server.subscriber, 64)
 	return server
@@ -61,6 +63,12 @@ func (s *CommandServer) SetService(newService *BoxService) {
 	if newService != nil {
 		service.PtrFromContext[urltest.HistoryStorage](newService.ctx).SetHook(s.urlTestUpdate)
 		newService.instance.Router().ClashServer().(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
+		newService.platformInterface.openURLFunc = func(url string) {
+			select {
+			case s.events <- &eventOpenURL{URL: url}:
+			default:
+			}
+		}
 	}
 	s.service = newService
 	s.notifyURLTestUpdate()
