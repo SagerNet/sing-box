@@ -125,7 +125,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		setMultiPathTCP(&dialer4)
 	}
 	if options.IsWireGuardListener {
-		for _, controlFn := range wgControlFns {
+		for _, controlFn := range WgControlFns {
 			listener.Control = control.Append(listener.Control, controlFn)
 		}
 	}

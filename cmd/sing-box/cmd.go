@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/experimental/deprecated"
-	_ "github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
@@ -68,4 +69,5 @@ func preRun(cmd *cobra.Command, args []string) {
 		configPaths = append(configPaths, "config.json")
 	}
 	globalCtx = service.ContextWith(globalCtx, deprecated.NewStderrManager(log.StdLogger()))
+	globalCtx = box.Context(globalCtx, include.InboundRegistry(), include.OutboundRegistry())
 }
