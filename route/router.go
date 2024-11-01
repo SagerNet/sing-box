@@ -99,7 +99,6 @@ func NewRouter(
 	dnsOptions option.DNSOptions,
 	ntpOptions option.NTPOptions,
 	inbounds []option.Inbound,
-	platformInterface platform.Interface,
 ) (*Router, error) {
 	router := &Router{
 		ctx:                   ctx,
@@ -122,10 +121,13 @@ func NewRouter(
 		defaultInterface:      options.DefaultInterface,
 		defaultMark:           options.DefaultMark,
 		pauseManager:          service.FromContext[pause.Manager](ctx),
-		platformInterface:     platformInterface,
+		platformInterface:     service.FromContext[platform.Interface](ctx),
 		needWIFIState:         hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 		needPackageManager: common.Any(inbounds, func(inbound option.Inbound) bool {
-			return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
+			if tunOptions, isTUN := inbound.Options.(*option.TunInboundOptions); isTUN && tunOptions.AutoRoute {
+				return true
+			}
+			return false
 		}),
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
@@ -324,9 +326,15 @@ func NewRouter(
 		router.fakeIPStore = fakeip.NewStore(ctx, router.logger, inet4Range, inet6Range)
 	}
 
-	usePlatformDefaultInterfaceMonitor := platformInterface != nil && platformInterface.UsePlatformDefaultInterfaceMonitor()
+	usePlatformDefaultInterfaceMonitor := router.platformInterface != nil && router.platformInterface.UsePlatformDefaultInterfaceMonitor()
 	needInterfaceMonitor := options.AutoDetectInterface || common.Any(inbounds, func(inbound option.Inbound) bool {
-		return inbound.HTTPOptions.SetSystemProxy || inbound.MixedOptions.SetSystemProxy || inbound.TunOptions.AutoRoute
+		if httpMixedOptions, isHTTPMixed := inbound.Options.(*option.HTTPMixedInboundOptions); isHTTPMixed && httpMixedOptions.SetSystemProxy {
+			return true
+		}
+		if tunOptions, isTUN := inbound.Options.(*option.TunInboundOptions); isTUN && tunOptions.AutoRoute {
+			return true
+		}
+		return false
 	})
 
 	if !usePlatformDefaultInterfaceMonitor {
@@ -342,7 +350,7 @@ func NewRouter(
 			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
 				InterfaceFinder:       router.interfaceFinder,
 				OverrideAndroidVPN:    options.OverrideAndroidVPN,
-				UnderNetworkExtension: platformInterface != nil && platformInterface.UnderNetworkExtension(),
+				UnderNetworkExtension: router.platformInterface != nil && router.platformInterface.UnderNetworkExtension(),
 			})
 			if err != nil {
 				return nil, E.New("auto_detect_interface unsupported on current platform")
@@ -351,7 +359,7 @@ func NewRouter(
 			router.interfaceMonitor = interfaceMonitor
 		}
 	} else {
-		interfaceMonitor := platformInterface.CreateDefaultInterfaceMonitor(router.logger)
+		interfaceMonitor := router.platformInterface.CreateDefaultInterfaceMonitor(router.logger)
 		interfaceMonitor.RegisterCallback(router.notifyNetworkUpdate)
 		router.interfaceMonitor = interfaceMonitor
 	}

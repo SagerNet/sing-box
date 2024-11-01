@@ -21,7 +21,7 @@ func _TestWireGuard(t *testing.T) {
 	})
 	time.Sleep(5 * time.Second)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -32,7 +32,7 @@ func _TestWireGuard(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeWireGuard,
 				WireGuardOptions: option.WireGuardOutboundOptions{
