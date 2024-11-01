@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _Rule struct {
@@ -28,7 +29,7 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return MarshallObjects((_Rule)(r), v)
+	return badjson.MarshallObjects((_Rule)(r), v)
 }
 
 func (r *Rule) UnmarshalJSON(bytes []byte) error {
@@ -46,7 +47,7 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	err = UnmarshallExcluded(bytes, (*_Rule)(r), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_Rule)(r), v)
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ type DefaultRule struct {
 }
 
 func (r *DefaultRule) MarshalJSON() ([]byte, error) {
-	return MarshallObjects(r.RawDefaultRule, r.RuleAction)
+	return badjson.MarshallObjects(r.RawDefaultRule, r.RuleAction)
 }
 
 func (r *DefaultRule) UnmarshalJSON(data []byte) error {
@@ -117,7 +118,7 @@ func (r *DefaultRule) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshallExcluded(data, &r.RawDefaultRule, &r.RuleAction)
+	return badjson.UnmarshallExcluded(data, &r.RawDefaultRule, &r.RuleAction)
 }
 
 func (r *DefaultRule) IsValid() bool {
@@ -139,7 +140,7 @@ type LogicalRule struct {
 }
 
 func (r *LogicalRule) MarshalJSON() ([]byte, error) {
-	return MarshallObjects(r._LogicalRule, r.RuleAction)
+	return badjson.MarshallObjects(r._LogicalRule, r.RuleAction)
 }
 
 func (r *LogicalRule) UnmarshalJSON(data []byte) error {
@@ -147,7 +148,7 @@ func (r *LogicalRule) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshallExcluded(data, &r._LogicalRule, &r.RuleAction)
+	return badjson.UnmarshallExcluded(data, &r._LogicalRule, &r.RuleAction)
 }
 
 func (r *LogicalRule) IsValid() bool {
