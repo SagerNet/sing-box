@@ -10,7 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
-	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -59,7 +59,7 @@ func getGroup(server *Server) func(w http.ResponseWriter, r *http.Request) {
 func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy := r.Context().Value(CtxKeyProxy).(adapter.Outbound)
-		group, ok := proxy.(adapter.OutboundGroup)
+		outboundGroup, ok := proxy.(adapter.OutboundGroup)
 		if !ok {
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, ErrNotFound)
@@ -82,10 +82,10 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 		defer cancel()
 
 		var result map[string]uint16
-		if urlTestGroup, isURLTestGroup := group.(adapter.URLTestGroup); isURLTestGroup {
+		if urlTestGroup, isURLTestGroup := outboundGroup.(adapter.URLTestGroup); isURLTestGroup {
 			result, err = urlTestGroup.URLTest(ctx)
 		} else {
-			outbounds := common.FilterNotNil(common.Map(group.All(), func(it string) adapter.Outbound {
+			outbounds := common.FilterNotNil(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
 				itOutbound, _ := server.router.Outbound(it)
 				return itOutbound
 			}))
@@ -95,7 +95,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 			var resultAccess sync.Mutex
 			for _, detour := range outbounds {
 				tag := detour.Tag()
-				realTag := outbound.RealTag(detour)
+				realTag := group.RealTag(detour)
 				if checked[realTag] {
 					continue
 				}
