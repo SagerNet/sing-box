@@ -30,7 +30,7 @@ func createPreStartedClient() (*box.Box, error) {
 			return nil, err
 		}
 	}
-	instance, err := box.New(box.Options{Options: options})
+	instance, err := box.New(box.Options{Context: globalCtx, Options: options})
 	if err != nil {
 		return nil, E.Cause(err, "create service")
 	}

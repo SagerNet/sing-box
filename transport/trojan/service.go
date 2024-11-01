@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
@@ -17,7 +18,6 @@ import (
 type Handler interface {
 	N.TCPConnectionHandler
 	N.UDPConnectionHandler
-	E.Handler
 }
 
 type Service[K comparable] struct {
@@ -25,14 +25,16 @@ type Service[K comparable] struct {
 	keys            map[[56]byte]K
 	handler         Handler
 	fallbackHandler N.TCPConnectionHandler
+	logger          logger.ContextLogger
 }
 
-func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHandler) *Service[K] {
+func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHandler, logger logger.ContextLogger) *Service[K] {
 	return &Service[K]{
 		users:           make(map[K][56]byte),
 		keys:            make(map[[56]byte]K),
 		handler:         handler,
 		fallbackHandler: fallbackHandler,
+		logger:          logger,
 	}
 }
 
@@ -110,7 +112,7 @@ func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 		return s.handler.NewPacketConnection(ctx, &PacketConn{Conn: conn}, metadata)
 	// case CommandMux:
 	default:
-		return HandleMuxConnection(ctx, conn, metadata, s.handler)
+		return HandleMuxConnection(ctx, conn, metadata, s.handler, s.logger)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/netip"
 
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -23,6 +24,11 @@ type TCPInjectableInbound interface {
 type UDPInjectableInbound interface {
 	Inbound
 	PacketConnectionHandlerEx
+}
+
+type InboundRegistry interface {
+	option.InboundOptionsRegistry
+	CreateInbound(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) (Inbound, error)
 }
 
 type InboundContext struct {
@@ -44,6 +50,7 @@ type InboundContext struct {
 
 	// cache
 
+	// Deprecated: implement in rule action
 	InboundDetour     string
 	LastInbound       string
 	OriginDestination M.Socksaddr
