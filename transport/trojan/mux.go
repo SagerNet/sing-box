@@ -8,12 +8,13 @@ import (
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/smux"
 )
 
-func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler) error {
+func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler, logger logger.ContextLogger) error {
 	session, err := smux.Server(conn, smuxConfig())
 	if err != nil {
 		return err
@@ -26,7 +27,7 @@ func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata
 			if err != nil {
 				return err
 			}
-			go newMuxConnection(ctx, stream, metadata, handler)
+			go newMuxConnection(ctx, stream, metadata, handler, logger)
 		}
 	})
 	group.Cleanup(func() {
@@ -35,10 +36,10 @@ func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata
 	return group.Run(ctx)
 }
 
-func newMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler) {
+func newMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler, logger logger.ContextLogger) {
 	err := newMuxConnection0(ctx, conn, metadata, handler)
 	if err != nil {
-		handler.NewError(ctx, E.Cause(err, "process trojan-go multiplex connection"))
+		logger.ErrorContext(ctx, E.Cause(err, "process trojan-go multiplex connection"))
 	}
 }
 
