@@ -6,7 +6,7 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	dns "github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-dns"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -14,7 +14,7 @@ import (
 func TestTUICDomainUDP(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -49,7 +49,7 @@ func TestTUICDomainUDP(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
