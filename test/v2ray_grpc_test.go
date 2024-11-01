@@ -27,7 +27,7 @@ func testV2RayGRPCInbound(t *testing.T, forceLite bool) {
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
@@ -126,7 +126,7 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -138,7 +138,7 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
