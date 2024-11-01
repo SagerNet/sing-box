@@ -14,7 +14,7 @@ import (
 
 func TestV2RayAPI(t *testing.T) {
 	i := startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "in",
@@ -26,7 +26,7 @@ func TestV2RayAPI(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 				Tag:  "out",

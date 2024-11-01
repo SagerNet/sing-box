@@ -11,7 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -168,7 +168,7 @@ func updateProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := r.Context().Value(CtxKeyProxy).(adapter.Outbound)
-	selector, ok := proxy.(*outbound.Selector)
+	selector, ok := proxy.(*group.Selector)
 	if !ok {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, newError("Must be a Selector"))
@@ -204,7 +204,7 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 
 		delay, err := urltest.URLTest(ctx, url, proxy)
 		defer func() {
-			realTag := outbound.RealTag(proxy)
+			realTag := group.RealTag(proxy)
 			if err != nil {
 				server.urlTestHistory.DeleteURLTestHistory(realTag)
 			} else {
