@@ -68,29 +68,19 @@ func merge(outputPath string) error {
 }
 
 func mergePathResources(options *option.Options) error {
-	for index, inbound := range options.Inbounds {
-		rawOptions, err := inbound.RawOptions()
-		if err != nil {
-			return err
-		}
-		if tlsOptions, containsTLSOptions := rawOptions.(option.InboundTLSOptionsWrapper); containsTLSOptions {
+	for _, inbound := range options.Inbounds {
+		if tlsOptions, containsTLSOptions := inbound.Options.(option.InboundTLSOptionsWrapper); containsTLSOptions {
 			tlsOptions.ReplaceInboundTLSOptions(mergeTLSInboundOptions(tlsOptions.TakeInboundTLSOptions()))
 		}
-		options.Inbounds[index] = inbound
 	}
-	for index, outbound := range options.Outbounds {
-		rawOptions, err := outbound.RawOptions()
-		if err != nil {
-			return err
-		}
+	for _, outbound := range options.Outbounds {
 		switch outbound.Type {
 		case C.TypeSSH:
-			outbound.SSHOptions = mergeSSHOutboundOptions(outbound.SSHOptions)
+			mergeSSHOutboundOptions(outbound.Options.(*option.SSHOutboundOptions))
 		}
-		if tlsOptions, containsTLSOptions := rawOptions.(option.OutboundTLSOptionsWrapper); containsTLSOptions {
+		if tlsOptions, containsTLSOptions := outbound.Options.(option.OutboundTLSOptionsWrapper); containsTLSOptions {
 			tlsOptions.ReplaceOutboundTLSOptions(mergeTLSOutboundOptions(tlsOptions.TakeOutboundTLSOptions()))
 		}
-		options.Outbounds[index] = outbound
 	}
 	return nil
 }
@@ -138,13 +128,12 @@ func mergeTLSOutboundOptions(options *option.OutboundTLSOptions) *option.Outboun
 	return options
 }
 
-func mergeSSHOutboundOptions(options option.SSHOutboundOptions) option.SSHOutboundOptions {
+func mergeSSHOutboundOptions(options *option.SSHOutboundOptions) {
 	if options.PrivateKeyPath != "" {
 		if content, err := os.ReadFile(os.ExpandEnv(options.PrivateKeyPath)); err == nil {
 			options.PrivateKey = trimStringArray(strings.Split(string(content), "\n"))
 		}
 	}
-	return options
 }
 
 func trimStringArray(array []string) []string {
