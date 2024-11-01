@@ -33,7 +33,7 @@ func testShadowsocksPlugin(t *testing.T, name string, opts string, args string) 
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -44,7 +44,7 @@ func testShadowsocksPlugin(t *testing.T, name string, opts string, args string) 
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{

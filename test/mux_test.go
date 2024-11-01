@@ -55,7 +55,7 @@ func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -81,7 +81,7 @@ func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -125,7 +125,7 @@ func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 func testVMessMux(t *testing.T, options option.OutboundMultiplexOptions) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -154,7 +154,7 @@ func testVMessMux(t *testing.T, options option.OutboundMultiplexOptions) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
