@@ -13,7 +13,7 @@ func TestTCPSlowOpen(t *testing.T) {
 	method := shadowaead.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -37,7 +37,7 @@ func TestTCPSlowOpen(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

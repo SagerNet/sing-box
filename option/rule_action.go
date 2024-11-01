@@ -4,6 +4,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _RuleAction struct {
@@ -36,9 +37,9 @@ func (r RuleAction) MarshalJSON() ([]byte, error) {
 		return nil, E.New("unknown rule action: " + r.Action)
 	}
 	if v == nil {
-		return MarshallObjects((_RuleAction)(r))
+		return badjson.MarshallObjects((_RuleAction)(r))
 	}
-	return MarshallObjects((_RuleAction)(r), v)
+	return badjson.MarshallObjects((_RuleAction)(r), v)
 }
 
 func (r *RuleAction) UnmarshalJSON(data []byte) error {
@@ -68,7 +69,7 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 		// check unknown fields
 		return json.UnmarshalDisallowUnknownFields(data, &_RuleAction{})
 	}
-	return UnmarshallExcluded(data, (*_RuleAction)(r), v)
+	return badjson.UnmarshallExcluded(data, (*_RuleAction)(r), v)
 }
 
 type _DNSRuleAction struct {
@@ -95,9 +96,9 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 		return nil, E.New("unknown DNS rule action: " + r.Action)
 	}
 	if v == nil {
-		return MarshallObjects((_DNSRuleAction)(r))
+		return badjson.MarshallObjects((_DNSRuleAction)(r))
 	}
-	return MarshallObjects((_DNSRuleAction)(r), v)
+	return badjson.MarshallObjects((_DNSRuleAction)(r), v)
 }
 
 func (r *DNSRuleAction) UnmarshalJSON(data []byte) error {
@@ -121,7 +122,7 @@ func (r *DNSRuleAction) UnmarshalJSON(data []byte) error {
 		// check unknown fields
 		return json.UnmarshalDisallowUnknownFields(data, &_DNSRuleAction{})
 	}
-	return UnmarshallExcluded(data, (*_DNSRuleAction)(r), v)
+	return badjson.UnmarshallExcluded(data, (*_DNSRuleAction)(r), v)
 }
 
 type RouteActionOptions struct {
