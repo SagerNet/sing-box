@@ -14,10 +14,9 @@ import (
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
-	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -44,8 +43,21 @@ type Box struct {
 type Options struct {
 	option.Options
 	Context           context.Context
-	PlatformInterface platform.Interface
 	PlatformLogWriter log.PlatformWriter
+}
+
+func Context(ctx context.Context, inboundRegistry adapter.InboundRegistry, outboundRegistry adapter.OutboundRegistry) context.Context {
+	if service.FromContext[option.InboundOptionsRegistry](ctx) == nil ||
+		service.FromContext[adapter.InboundRegistry](ctx) == nil {
+		ctx = service.ContextWith[option.InboundOptionsRegistry](ctx, inboundRegistry)
+		ctx = service.ContextWith[adapter.InboundRegistry](ctx, inboundRegistry)
+	}
+	if service.FromContext[option.OutboundOptionsRegistry](ctx) == nil ||
+		service.FromContext[adapter.OutboundRegistry](ctx) == nil {
+		ctx = service.ContextWith[option.OutboundOptionsRegistry](ctx, outboundRegistry)
+		ctx = service.ContextWith[adapter.OutboundRegistry](ctx, outboundRegistry)
+	}
+	return ctx
 }
 
 func New(options Options) (*Box, error) {
@@ -53,6 +65,14 @@ func New(options Options) (*Box, error) {
 	ctx := options.Context
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	inboundRegistry := service.FromContext[adapter.InboundRegistry](ctx)
+	if inboundRegistry == nil {
+		return nil, E.New("missing inbound registry in context")
+	}
+	outboundRegistry := service.FromContext[adapter.OutboundRegistry](ctx)
+	if outboundRegistry == nil {
+		return nil, E.New("missing outbound registry in context")
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
 	ctx = pause.WithDefaultManager(ctx)
@@ -70,8 +90,9 @@ func New(options Options) (*Box, error) {
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
 		needV2RayAPI = true
 	}
+	platformInterface := service.FromContext[platform.Interface](ctx)
 	var defaultLogWriter io.Writer
-	if options.PlatformInterface != nil {
+	if platformInterface != nil {
 		defaultLogWriter = io.Discard
 	}
 	logFactory, err := log.New(log.Options{
@@ -92,64 +113,70 @@ func New(options Options) (*Box, error) {
 		common.PtrValueOrDefault(options.DNS),
 		common.PtrValueOrDefault(options.NTP),
 		options.Inbounds,
-		options.PlatformInterface,
 	)
 	if err != nil {
 		return nil, E.Cause(err, "parse route options")
 	}
-	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
-	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
 	for i, inboundOptions := range options.Inbounds {
-		var in adapter.Inbound
+		var currentInbound adapter.Inbound
 		var tag string
 		if inboundOptions.Tag != "" {
 			tag = inboundOptions.Tag
 		} else {
 			tag = F.ToString(i)
 		}
-		in, err = inbound.New(
+		currentInbound, err = inboundRegistry.CreateInbound(
 			ctx,
 			router,
 			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
 			tag,
-			inboundOptions,
-			options.PlatformInterface,
+			inboundOptions.Type,
+			inboundOptions.Options,
 		)
 		if err != nil {
 			return nil, E.Cause(err, "parse inbound[", i, "]")
 		}
-		inbounds = append(inbounds, in)
+		inbounds = append(inbounds, currentInbound)
 	}
 	for i, outboundOptions := range options.Outbounds {
-		var out adapter.Outbound
+		var currentOutbound adapter.Outbound
 		var tag string
 		if outboundOptions.Tag != "" {
 			tag = outboundOptions.Tag
 		} else {
 			tag = F.ToString(i)
 		}
-		out, err = outbound.New(
-			ctx,
+		outboundCtx := ctx
+		if tag != "" {
+			// TODO: remove this
+			outboundCtx = adapter.WithContext(outboundCtx, &adapter.InboundContext{
+				Outbound: tag,
+			})
+		}
+		currentOutbound, err = outboundRegistry.CreateOutbound(
+			outboundCtx,
 			router,
 			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
 			tag,
-			outboundOptions)
+			outboundOptions.Type,
+			outboundOptions.Options,
+		)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
-		outbounds = append(outbounds, out)
+		outbounds = append(outbounds, currentOutbound)
 	}
 	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.Outbound{Type: "direct", Tag: "default"})
-		common.Must(oErr)
-		outbounds = append(outbounds, out)
-		return out
+		defaultOutbound, cErr := direct.NewOutbound(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.DirectOutboundOptions{})
+		common.Must(cErr)
+		outbounds = append(outbounds, defaultOutbound)
+		return defaultOutbound
 	})
 	if err != nil {
 		return nil, err
 	}
-	if options.PlatformInterface != nil {
-		err = options.PlatformInterface.Initialize(ctx, router)
+	if platformInterface != nil {
+		err = platformInterface.Initialize(ctx, router)
 		if err != nil {
 			return nil, E.Cause(err, "initialize platform interface")
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -21,10 +22,10 @@ var _ conn.Bind = (*ClientBind)(nil)
 
 type ClientBind struct {
 	ctx                 context.Context
+	logger              logger.Logger
 	pauseManager        pause.Manager
 	bindCtx             context.Context
 	bindDone            context.CancelFunc
-	errorHandler        E.Handler
 	dialer              N.Dialer
 	reservedForEndpoint map[netip.AddrPort][3]uint8
 	connAccess          sync.Mutex
@@ -35,11 +36,11 @@ type ClientBind struct {
 	reserved            [3]uint8
 }
 
-func NewClientBind(ctx context.Context, errorHandler E.Handler, dialer N.Dialer, isConnect bool, connectAddr netip.AddrPort, reserved [3]uint8) *ClientBind {
+func NewClientBind(ctx context.Context, logger logger.Logger, dialer N.Dialer, isConnect bool, connectAddr netip.AddrPort, reserved [3]uint8) *ClientBind {
 	return &ClientBind{
 		ctx:                 ctx,
+		logger:              logger,
 		pauseManager:        service.FromContext[pause.Manager](ctx),
-		errorHandler:        errorHandler,
 		dialer:              dialer,
 		reservedForEndpoint: make(map[netip.AddrPort][3]uint8),
 		done:                make(chan struct{}),
@@ -115,7 +116,7 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 			return
 		default:
 		}
-		c.errorHandler.NewError(context.Background(), E.Cause(err, "connect to server"))
+		c.logger.Error(E.Cause(err, "connect to server"))
 		err = nil
 		c.pauseManager.WaitActive()
 		time.Sleep(time.Second)
@@ -127,7 +128,7 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		select {
 		case <-c.done:
 		default:
-			c.errorHandler.NewError(context.Background(), E.Cause(err, "read packet"))
+			c.logger.Error(context.Background(), E.Cause(err, "read packet"))
 			err = nil
 		}
 		return
