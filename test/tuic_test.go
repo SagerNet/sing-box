@@ -29,7 +29,7 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 		udpRelayMode = "quic"
 	}
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -62,7 +62,7 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -113,7 +113,7 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 func TestTUICInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeTUIC,
 				TUICOptions: option.TUICInboundOptions{
@@ -160,7 +160,7 @@ func TestTUICOutbound(t *testing.T) {
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -171,7 +171,7 @@ func TestTUICOutbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeTUIC,
 				TUICOptions: option.TUICOutboundOptions{

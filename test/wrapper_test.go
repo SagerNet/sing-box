@@ -10,7 +10,7 @@ import (
 )
 
 func TestOptionsWrapper(t *testing.T) {
-	inbound := option.Inbound{
+	inbound := option.LegacyInbound{
 		Type: C.TypeHTTP,
 		HTTPOptions: option.HTTPMixedInboundOptions{
 			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
