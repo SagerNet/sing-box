@@ -4,6 +4,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _V2RayTransportOptions struct {
@@ -35,7 +36,7 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown transport type: " + o.Type)
 	}
-	return MarshallObjects((_V2RayTransportOptions)(o), v)
+	return badjson.MarshallObjects((_V2RayTransportOptions)(o), v)
 }
 
 func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
@@ -58,7 +59,7 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown transport type: " + o.Type)
 	}
-	err = UnmarshallExcluded(bytes, (*_V2RayTransportOptions)(o), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_V2RayTransportOptions)(o), v)
 	if err != nil {
 		return err
 	}
