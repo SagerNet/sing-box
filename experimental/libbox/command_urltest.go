@@ -7,7 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
-	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -49,7 +49,7 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	if !isOutboundGroup {
 		return writeError(conn, E.New("outbound is not a group: ", groupTag))
 	}
-	urlTest, isURLTest := abstractOutboundGroup.(*outbound.URLTest)
+	urlTest, isURLTest := abstractOutboundGroup.(*group.URLTest)
 	if isURLTest {
 		go urlTest.CheckOutbounds()
 	} else {
