@@ -138,7 +138,7 @@ func testV2RayGRPCOutbound(t *testing.T, forceLite bool) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",

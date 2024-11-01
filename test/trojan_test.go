@@ -31,7 +31,7 @@ func TestTrojanOutbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeTrojan,
 				TrojanOptions: option.TrojanOutboundOptions{
@@ -92,7 +92,7 @@ func TestTrojanSelf(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -167,7 +167,7 @@ func TestTrojanPlainSelf(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

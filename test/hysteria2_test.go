@@ -63,7 +63,7 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -178,7 +178,7 @@ func TestHysteria2Outbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeHysteria2,
 				Hysteria2Options: option.Hysteria2OutboundOptions{

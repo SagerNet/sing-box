@@ -44,7 +44,7 @@ func testShadowsocksPlugin(t *testing.T, name string, opts string, args string) 
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{

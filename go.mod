@@ -3,7 +3,6 @@ module github.com/sagernet/sing-box
 go 1.20
 
 require (
-	berty.tech/go-libtor v1.0.385
 	github.com/caddyserver/certmagic v0.20.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
@@ -17,7 +16,6 @@ require (
 	github.com/metacubex/tfo-go v0.0.0-20241006021335-daedaf0ca7aa
 	github.com/mholt/acmez v1.2.0
 	github.com/miekg/dns v1.1.62
-	github.com/ooni/go-libtor v1.1.8
 	github.com/oschwald/maxminddb-golang v1.12.0
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1
@@ -27,7 +25,7 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20241021032506-a4324256e4a3
 	github.com/sagernet/quic-go v0.48.0-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
-	github.com/sagernet/sing v0.5.0-rc.4.0.20241023053048-94f058276959
+	github.com/sagernet/sing v0.5.0-rc.4.0.20241101160402-8452992a6369
 	github.com/sagernet/sing-dns v0.3.0-rc.2.0.20241023053951-feb6d5403f2a
 	github.com/sagernet/sing-mux v0.2.1-0.20241020175909-fe6153f7a9ec
 	github.com/sagernet/sing-quic v0.3.0-rc.1

@@ -6,6 +6,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _Inbound struct {
@@ -79,7 +80,7 @@ func (h Inbound) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshallObjects((_Inbound)(h), rawOptions)
+	return badjson.MarshallObjects((_Inbound)(h), rawOptions)
 }
 
 func (h *Inbound) UnmarshalJSON(bytes []byte) error {
@@ -91,7 +92,7 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	err = UnmarshallExcluded(bytes, (*_Inbound)(h), rawOptions)
+	err = badjson.UnmarshallExcluded(bytes, (*_Inbound)(h), rawOptions)
 	if err != nil {
 		return err
 	}

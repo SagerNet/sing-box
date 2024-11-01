@@ -81,7 +81,7 @@ func testShadowsocksMux(t *testing.T, options option.OutboundMultiplexOptions) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -154,7 +154,7 @@ func testVMessMux(t *testing.T, options option.OutboundMultiplexOptions) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

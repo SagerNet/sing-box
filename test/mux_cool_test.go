@@ -92,7 +92,7 @@ func TestMuxCoolClient(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessOutboundOptions{
@@ -139,7 +139,7 @@ func TestMuxCoolSelf(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

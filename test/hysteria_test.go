@@ -46,7 +46,7 @@ func TestHysteriaSelf(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -160,7 +160,7 @@ func TestHysteriaOutbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeHysteria,
 				HysteriaOptions: option.HysteriaOutboundOptions{

@@ -32,7 +32,7 @@ func _TestWireGuard(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeWireGuard,
 				WireGuardOptions: option.WireGuardOutboundOptions{

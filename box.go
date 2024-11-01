@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing-box/inbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -48,11 +48,25 @@ type Options struct {
 	PlatformLogWriter log.PlatformWriter
 }
 
+func Context(ctx context.Context, registry adapter.OutboundRegistry) context.Context {
+	if service.FromContext[option.OutboundOptionsRegistry](ctx) != nil &&
+		service.FromContext[adapter.OutboundRegistry](ctx) != nil {
+		return ctx
+	}
+	ctx = service.ContextWith[option.OutboundOptionsRegistry](ctx, registry)
+	ctx = service.ContextWith[adapter.OutboundRegistry](ctx, registry)
+	return ctx
+}
+
 func New(options Options) (*Box, error) {
 	createdAt := time.Now()
 	ctx := options.Context
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	outboundRegistry := service.FromContext[adapter.OutboundRegistry](ctx)
+	if outboundRegistry == nil {
+		return nil, E.New("missing outbound registry in context")
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
 	ctx = pause.WithDefaultManager(ctx)
@@ -98,6 +112,16 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "parse route options")
 	}
 	inbounds := make([]adapter.Inbound, 0, len(options.Inbounds))
+	//nolint:staticcheck
+	if len(options.LegacyOutbounds) > 0 {
+		for _, legacyOutbound := range options.LegacyOutbounds {
+			options.Outbounds = append(options.Outbounds, option.Outbound{
+				Type:    legacyOutbound.Type,
+				Tag:     legacyOutbound.Tag,
+				Options: common.Must1(legacyOutbound.RawOptions()),
+			})
+		}
+	}
 	outbounds := make([]adapter.Outbound, 0, len(options.Outbounds))
 	for i, inboundOptions := range options.Inbounds {
 		var in adapter.Inbound
@@ -121,29 +145,38 @@ func New(options Options) (*Box, error) {
 		inbounds = append(inbounds, in)
 	}
 	for i, outboundOptions := range options.Outbounds {
-		var out adapter.Outbound
+		var currentOutbound adapter.Outbound
 		var tag string
 		if outboundOptions.Tag != "" {
 			tag = outboundOptions.Tag
 		} else {
 			tag = F.ToString(i)
 		}
-		out, err = outbound.New(
-			ctx,
+		outboundCtx := ctx
+		if tag != "" {
+			// TODO: remove this
+			outboundCtx = adapter.WithContext(outboundCtx, &adapter.InboundContext{
+				Outbound: tag,
+			})
+		}
+		currentOutbound, err = outboundRegistry.CreateOutbound(
+			outboundCtx,
 			router,
 			logFactory.NewLogger(F.ToString("outbound/", outboundOptions.Type, "[", tag, "]")),
 			tag,
-			outboundOptions)
+			outboundOptions.Type,
+			outboundOptions.Options,
+		)
 		if err != nil {
 			return nil, E.Cause(err, "parse outbound[", i, "]")
 		}
-		outbounds = append(outbounds, out)
+		outbounds = append(outbounds, currentOutbound)
 	}
 	err = router.Initialize(inbounds, outbounds, func() adapter.Outbound {
-		out, oErr := outbound.New(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.Outbound{Type: "direct", Tag: "default"})
-		common.Must(oErr)
-		outbounds = append(outbounds, out)
-		return out
+		defaultOutbound, cErr := direct.NewOutbound(ctx, router, logFactory.NewLogger("outbound/direct"), "direct", option.DirectOutboundOptions{})
+		common.Must(cErr)
+		outbounds = append(outbounds, defaultOutbound)
+		return defaultOutbound
 	})
 	if err != nil {
 		return nil, err

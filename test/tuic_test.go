@@ -62,7 +62,7 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -171,7 +171,7 @@ func TestTUICOutbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeTUIC,
 				TUICOptions: option.TUICOutboundOptions{

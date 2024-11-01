@@ -240,7 +240,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessOutboundOptions{
@@ -291,7 +291,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

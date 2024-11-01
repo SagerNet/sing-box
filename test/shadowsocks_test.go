@@ -135,7 +135,7 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
@@ -177,7 +177,7 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -244,7 +244,7 @@ func TestShadowsocksUoT(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -317,7 +317,7 @@ func testShadowsocks2022EIH(t *testing.T, method string, password string) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},

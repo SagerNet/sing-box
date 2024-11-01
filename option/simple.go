@@ -14,7 +14,7 @@ type HTTPMixedInboundOptions struct {
 	InboundTLSOptionsContainer
 }
 
-type SocksOutboundOptions struct {
+type SOCKSOutboundOptions struct {
 	DialerOptions
 	ServerOptions
 	Version    string             `json:"version,omitempty"`
