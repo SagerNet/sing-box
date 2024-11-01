@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 
@@ -38,7 +39,7 @@ func format() error {
 		return err
 	}
 	for _, optionsEntry := range optionsList {
-		optionsEntry.options, err = badjson.Omitempty(optionsEntry.options)
+		optionsEntry.options, err = badjson.Omitempty(context.TODO(), optionsEntry.options)
 		if err != nil {
 			return err
 		}

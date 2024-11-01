@@ -11,7 +11,7 @@ import (
 // Since this is a feature one-off added by outsiders, I won't address these anymore.
 func _TestProxyProtocol(t *testing.T) {
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -33,7 +33,7 @@ func _TestProxyProtocol(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
