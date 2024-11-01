@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _DNSRule struct {
@@ -28,7 +29,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return MarshallObjects((_DNSRule)(r), v)
+	return badjson.MarshallObjects((_DNSRule)(r), v)
 }
 
 func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
@@ -46,7 +47,7 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	err = UnmarshallExcluded(bytes, (*_DNSRule)(r), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_DNSRule)(r), v)
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ type DefaultDNSRule struct {
 }
 
 func (r *DefaultDNSRule) MarshalJSON() ([]byte, error) {
-	return MarshallObjects(r.RawDefaultDNSRule, r.DNSRuleAction)
+	return badjson.MarshallObjects(r.RawDefaultDNSRule, r.DNSRuleAction)
 }
 
 func (r *DefaultDNSRule) UnmarshalJSON(data []byte) error {
@@ -119,7 +120,7 @@ func (r *DefaultDNSRule) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshallExcluded(data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	return badjson.UnmarshallExcluded(data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
 }
 
 func (r *DefaultDNSRule) IsValid() bool {
@@ -141,7 +142,7 @@ type LogicalDNSRule struct {
 }
 
 func (r *LogicalDNSRule) MarshalJSON() ([]byte, error) {
-	return MarshallObjects(r._LogicalDNSRule, r.DNSRuleAction)
+	return badjson.MarshallObjects(r._LogicalDNSRule, r.DNSRuleAction)
 }
 
 func (r *LogicalDNSRule) UnmarshalJSON(data []byte) error {
@@ -149,7 +150,7 @@ func (r *LogicalDNSRule) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshallExcluded(data, &r._LogicalDNSRule, &r.DNSRuleAction)
+	return badjson.UnmarshallExcluded(data, &r._LogicalDNSRule, &r.DNSRuleAction)
 }
 
 func (r *LogicalDNSRule) IsValid() bool {
