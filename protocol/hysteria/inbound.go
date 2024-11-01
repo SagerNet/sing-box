@@ -1,0 +1,175 @@
+package hysteria
+
+import (
+	"context"
+	"net"
+	"time"
+
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/adapter/inbound"
+	"github.com/sagernet/sing-box/common/humanize"
+	"github.com/sagernet/sing-box/common/listener"
+	"github.com/sagernet/sing-box/common/tls"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-quic/hysteria"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/auth"
+	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
+)
+
+func RegisterInbound(registry *inbound.Registry) {
+	inbound.Register[option.HysteriaInboundOptions](registry, C.TypeHysteria, NewInbound)
+}
+
+type Inbound struct {
+	inbound.Adapter
+	router       adapter.Router
+	logger       log.ContextLogger
+	listener     *listener.Listener
+	tlsConfig    tls.ServerConfig
+	service      *hysteria.Service[int]
+	userNameList []string
+}
+
+func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaInboundOptions) (adapter.Inbound, error) {
+	options.UDPFragmentDefault = true
+	if options.TLS == nil || !options.TLS.Enabled {
+		return nil, C.ErrTLSRequired
+	}
+	tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+	if err != nil {
+		return nil, err
+	}
+	inbound := &Inbound{
+		Adapter: inbound.NewAdapter(C.TypeHysteria, tag),
+		router:  router,
+		logger:  logger,
+		listener: listener.New(listener.Options{
+			Context: ctx,
+			Logger:  logger,
+			Listen:  options.ListenOptions,
+		}),
+		tlsConfig: tlsConfig,
+	}
+	var sendBps, receiveBps uint64
+	if len(options.Up) > 0 {
+		sendBps, err = humanize.ParseBytes(options.Up)
+		if err != nil {
+			return nil, E.Cause(err, "invalid up speed format: ", options.Up)
+		}
+	} else {
+		sendBps = uint64(options.UpMbps) * hysteria.MbpsToBps
+	}
+	if len(options.Down) > 0 {
+		receiveBps, err = humanize.ParseBytes(options.Down)
+		if receiveBps == 0 {
+			return nil, E.New("invalid down speed format: ", options.Down)
+		}
+	} else {
+		receiveBps = uint64(options.DownMbps) * hysteria.MbpsToBps
+	}
+	var udpTimeout time.Duration
+	if options.UDPTimeout != 0 {
+		udpTimeout = time.Duration(options.UDPTimeout)
+	} else {
+		udpTimeout = C.UDPTimeout
+	}
+	service, err := hysteria.NewService[int](hysteria.ServiceOptions{
+		Context:       ctx,
+		Logger:        logger,
+		SendBPS:       sendBps,
+		ReceiveBPS:    receiveBps,
+		XPlusPassword: options.Obfs,
+		TLSConfig:     tlsConfig,
+		UDPTimeout:    udpTimeout,
+		Handler:       adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, nil),
+
+		// Legacy options
+
+		ConnReceiveWindow:   options.ReceiveWindowConn,
+		StreamReceiveWindow: options.ReceiveWindowClient,
+		MaxIncomingStreams:  int64(options.MaxConnClient),
+		DisableMTUDiscovery: options.DisableMTUDiscovery,
+	})
+	if err != nil {
+		return nil, err
+	}
+	userList := make([]int, 0, len(options.Users))
+	userNameList := make([]string, 0, len(options.Users))
+	userPasswordList := make([]string, 0, len(options.Users))
+	for index, user := range options.Users {
+		userList = append(userList, index)
+		userNameList = append(userNameList, user.Name)
+		var password string
+		if user.AuthString != "" {
+			password = user.AuthString
+		} else {
+			password = string(user.Auth)
+		}
+		userPasswordList = append(userPasswordList, password)
+	}
+	service.UpdateUsers(userList, userPasswordList)
+	inbound.service = service
+	inbound.userNameList = userNameList
+	return inbound, nil
+}
+
+func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithNewID(ctx)
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
+	userID, _ := auth.UserFromContext[int](ctx)
+	if userName := h.userNameList[userID]; userName != "" {
+		metadata.User = userName
+		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
+	} else {
+		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	}
+	return h.router.RouteConnection(ctx, conn, metadata)
+}
+
+func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	ctx = log.ContextWithNewID(ctx)
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	metadata.OriginDestination = h.listener.UDPAddr()
+	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
+	userID, _ := auth.UserFromContext[int](ctx)
+	if userName := h.userNameList[userID]; userName != "" {
+		metadata.User = userName
+		h.logger.InfoContext(ctx, "[", userName, "] inbound packet connection to ", metadata.Destination)
+	} else {
+		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+	}
+	return h.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
+func (h *Inbound) Start() error {
+	if h.tlsConfig != nil {
+		err := h.tlsConfig.Start()
+		if err != nil {
+			return err
+		}
+	}
+	packetConn, err := h.listener.ListenUDP()
+	if err != nil {
+		return err
+	}
+	return h.service.Start(packetConn)
+}
+
+func (h *Inbound) Close() error {
+	return common.Close(
+		&h.listener,
+		h.tlsConfig,
+		common.PtrOrNil(h.service),
+	)
+}
