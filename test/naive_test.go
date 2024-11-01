@@ -13,7 +13,7 @@ import (
 func TestNaiveInboundWithNginx(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
@@ -59,7 +59,7 @@ func TestNaiveInboundWithNginx(t *testing.T) {
 func TestNaiveInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
@@ -103,7 +103,7 @@ func TestNaiveInbound(t *testing.T) {
 func TestNaiveHTTP3Inbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeNaive,
 				NaiveOptions: option.NaiveInboundOptions{
