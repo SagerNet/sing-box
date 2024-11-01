@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/sing-box/common/humanize"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/locale"
-	_ "github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 )
 
