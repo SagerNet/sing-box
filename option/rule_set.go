@@ -9,6 +9,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
 
 	"go4.org/netipx"
 )
@@ -37,7 +38,7 @@ func (r RuleSet) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule-set type: " + r.Type)
 	}
-	return MarshallObjects((_RuleSet)(r), v)
+	return badjson.MarshallObjects((_RuleSet)(r), v)
 }
 
 func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
@@ -71,7 +72,7 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	} else {
 		r.Format = ""
 	}
-	err = UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,7 @@ func (r HeadlessRule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return MarshallObjects((_HeadlessRule)(r), v)
+	return badjson.MarshallObjects((_HeadlessRule)(r), v)
 }
 
 func (r *HeadlessRule) UnmarshalJSON(bytes []byte) error {
@@ -125,7 +126,7 @@ func (r *HeadlessRule) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	err = UnmarshallExcluded(bytes, (*_HeadlessRule)(r), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_HeadlessRule)(r), v)
 	if err != nil {
 		return err
 	}
@@ -203,7 +204,7 @@ func (r PlainRuleSetCompat) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule-set version: ", r.Version)
 	}
-	return MarshallObjects((_PlainRuleSetCompat)(r), v)
+	return badjson.MarshallObjects((_PlainRuleSetCompat)(r), v)
 }
 
 func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
@@ -220,7 +221,7 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule-set version: ", r.Version)
 	}
-	err = UnmarshallExcluded(bytes, (*_PlainRuleSetCompat)(r), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_PlainRuleSetCompat)(r), v)
 	if err != nil {
 		return err
 	}

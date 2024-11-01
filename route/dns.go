@@ -7,7 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/outbound"
+	dnsOutbound "github.com/sagernet/sing-box/protocol/dns"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -22,7 +22,7 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 	metadata.Destination = M.Socksaddr{}
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
-		err := outbound.HandleStreamDNSRequest(ctx, r, conn, metadata)
+		err := dnsOutbound.HandleStreamDNSRequest(ctx, r, conn, metadata)
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetB
 		})
 		return
 	}
-	err := outbound.NewDNSPacketConnection(ctx, r, conn, packetBuffers, metadata)
+	err := dnsOutbound.NewDNSPacketConnection(ctx, r, conn, packetBuffers, metadata)
 	if err != nil && !E.IsClosedOrCanceled(err) {
 		r.dnsLogger.ErrorContext(ctx, E.Cause(err, "process packet connection"))
 	}
