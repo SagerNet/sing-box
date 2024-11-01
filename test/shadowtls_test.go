@@ -37,7 +37,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -80,7 +80,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
@@ -142,7 +142,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 
 func TestShadowTLSFallback(t *testing.T) {
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeShadowTLS,
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
@@ -189,7 +189,7 @@ func TestShadowTLSInbound(t *testing.T) {
 		Cmd:        []string{"--v3", "--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "in",
@@ -232,7 +232,7 @@ func TestShadowTLSInbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeDirect,
 			},
@@ -283,7 +283,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 		Env:        []string{"RUST_LOG=trace"},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -306,7 +306,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 				},
 			},
 		},
-		Outbounds: []option.Outbound{
+		LegacyOutbounds: []option.LegacyOutbound{
 			{
 				Type: C.TypeShadowsocks,
 				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
