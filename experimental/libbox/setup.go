@@ -24,7 +24,6 @@ var (
 
 func init() {
 	debug.SetPanicOnFault(true)
-	debug.SetTraceback("all")
 }
 
 func Setup(basePath string, workingPath string, tempPath string, isTVOS bool) {
