@@ -37,7 +37,7 @@ func TestMuxCoolServer(t *testing.T) {
 	})
 
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
@@ -81,7 +81,7 @@ func TestMuxCoolClient(t *testing.T) {
 	})
 
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -112,7 +112,7 @@ func TestMuxCoolClient(t *testing.T) {
 func TestMuxCoolSelf(t *testing.T) {
 	user := newUUID()
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",

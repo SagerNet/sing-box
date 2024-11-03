@@ -42,22 +42,22 @@ type BoxService struct {
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
-	options, err := parseConfig(configContent)
+	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry())
+	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return nil, err
 	}
 	runtimeDebug.FreeOSMemory()
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = box.Context(ctx, include.OutboundRegistry())
+	ctx, cancel := context.WithCancel(ctx)
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
 	ctx = service.ContextWith[deprecated.Manager](ctx, new(deprecatedManager))
 	platformWrapper := &platformInterfaceWrapper{iif: platformInterface, useProcFS: platformInterface.UseProcFS()}
+	ctx = service.ContextWith[platform.Interface](ctx, platformWrapper)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
-		PlatformInterface: platformWrapper,
 		PlatformLogWriter: platformWrapper,
 	})
 	if err != nil {

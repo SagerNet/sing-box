@@ -68,15 +68,10 @@ func merge(outputPath string) error {
 }
 
 func mergePathResources(options *option.Options) error {
-	for index, inbound := range options.Inbounds {
-		rawOptions, err := inbound.RawOptions()
-		if err != nil {
-			return err
-		}
-		if tlsOptions, containsTLSOptions := rawOptions.(option.InboundTLSOptionsWrapper); containsTLSOptions {
+	for _, inbound := range options.Inbounds {
+		if tlsOptions, containsTLSOptions := inbound.Options.(option.InboundTLSOptionsWrapper); containsTLSOptions {
 			tlsOptions.ReplaceInboundTLSOptions(mergeTLSInboundOptions(tlsOptions.TakeInboundTLSOptions()))
 		}
-		options.Inbounds[index] = inbound
 	}
 	for _, outbound := range options.Outbounds {
 		switch outbound.Type {

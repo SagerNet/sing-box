@@ -181,7 +181,7 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authe
 	})
 
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
@@ -229,7 +229,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 	})
 
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
@@ -263,7 +263,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 func testVMessSelf(t *testing.T, security string, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
 	user := newUUID()
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",

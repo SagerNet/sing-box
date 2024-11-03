@@ -29,13 +29,13 @@ type (
 
 type Registry struct {
 	access       sync.Mutex
-	optiosnType  map[string]optionsConstructorFunc
+	optionsType  map[string]optionsConstructorFunc
 	constructors map[string]constructorFunc
 }
 
 func NewRegistry() *Registry {
 	return &Registry{
-		optiosnType:  make(map[string]optionsConstructorFunc),
+		optionsType:  make(map[string]optionsConstructorFunc),
 		constructors: make(map[string]constructorFunc),
 	}
 }
@@ -43,7 +43,7 @@ func NewRegistry() *Registry {
 func (r *Registry) CreateOptions(outboundType string) (any, bool) {
 	r.access.Lock()
 	defer r.access.Unlock()
-	optionsConstructor, loaded := r.optiosnType[outboundType]
+	optionsConstructor, loaded := r.optionsType[outboundType]
 	if !loaded {
 		return nil, false
 	}
@@ -63,6 +63,6 @@ func (r *Registry) CreateOutbound(ctx context.Context, router adapter.Router, lo
 func (r *Registry) register(outboundType string, optionsConstructor optionsConstructorFunc, constructor constructorFunc) {
 	r.access.Lock()
 	defer r.access.Unlock()
-	r.optiosnType[outboundType] = optionsConstructor
+	r.optionsType[outboundType] = optionsConstructor
 	r.constructors[outboundType] = constructor
 }

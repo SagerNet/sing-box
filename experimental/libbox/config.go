@@ -9,6 +9,8 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
@@ -16,10 +18,11 @@ import (
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 )
 
-func parseConfig(configContent string) (option.Options, error) {
-	options, err := json.UnmarshalExtended[option.Options]([]byte(configContent))
+func parseConfig(ctx context.Context, configContent string) (option.Options, error) {
+	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(configContent))
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
@@ -27,16 +30,16 @@ func parseConfig(configContent string) (option.Options, error) {
 }
 
 func CheckConfig(configContent string) error {
-	options, err := parseConfig(configContent)
+	options, err := parseConfig(box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry()), configContent)
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = service.ContextWith[platform.Interface](ctx, (*platformInterfaceStub)(nil))
 	instance, err := box.New(box.Options{
-		Context:           ctx,
-		Options:           options,
-		PlatformInterface: (*platformInterfaceStub)(nil),
+		Context: ctx,
+		Options: options,
 	})
 	if err == nil {
 		instance.Close()
@@ -138,7 +141,7 @@ func (s *platformInterfaceStub) OpenURL(url string) {
 }
 
 func FormatConfig(configContent string) (string, error) {
-	options, err := parseConfig(configContent)
+	options, err := parseConfig(box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry()), configContent)
 	if err != nil {
 		return "", err
 	}

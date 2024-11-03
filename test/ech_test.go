@@ -16,7 +16,7 @@ func TestECH(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -109,7 +109,7 @@ func TestECHQUIC(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -199,7 +199,7 @@ func TestECHHysteria2(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",

@@ -15,7 +15,7 @@ func TestBrutalShadowsocks(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -100,7 +100,7 @@ func TestBrutalTrojan(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -197,7 +197,7 @@ func TestBrutalTrojan(t *testing.T) {
 func TestBrutalVMess(t *testing.T) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
@@ -279,7 +279,7 @@ func TestBrutalVMess(t *testing.T) {
 func TestBrutalVLESS(t *testing.T) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
+		Inbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
