@@ -20,7 +20,6 @@ type CommandClient struct {
 type CommandClientOptions struct {
 	Command        int32
 	StatusInterval int64
-	IsMainClient   bool
 }
 
 type CommandClientHandler interface {
@@ -29,7 +28,6 @@ type CommandClientHandler interface {
 	ClearLogs()
 	WriteLogs(messageList StringIterator)
 	WriteStatus(message *StatusMessage)
-	OpenURL(url string)
 	WriteGroups(message OutboundGroupIterator)
 	InitializeClashMode(modeList StringIterator, currentMode string)
 	UpdateClashMode(newMode string)
@@ -93,13 +91,9 @@ func (c *CommandClient) Connect() error {
 		c.handler.Connected()
 		go c.handleLogConn(conn)
 	case CommandStatus:
-		err = binary.Write(conn, binary.BigEndian, c.options.IsMainClient)
-		if err != nil {
-			return E.Cause(err, "write is main client")
-		}
 		err = binary.Write(conn, binary.BigEndian, c.options.StatusInterval)
 		if err != nil {
-			return E.Cause(err, "write header")
+			return E.Cause(err, "write interval")
 		}
 		c.handler.Connected()
 		go c.handleStatusConn(conn)
