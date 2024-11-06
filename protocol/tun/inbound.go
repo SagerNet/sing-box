@@ -343,19 +343,25 @@ func (t *Inbound) Start() error {
 	if err != nil {
 		return err
 	}
-	monitor.Start("initiating tun stack")
-	err = tunStack.Start()
-	monitor.Finish()
 	t.tunStack = tunStack
-	if err != nil {
-		return err
-	}
 	t.logger.Info("started at ", t.tunOptions.Name)
 	return nil
 }
 
 func (t *Inbound) PostStart() error {
 	monitor := taskmonitor.New(t.logger, C.StartTimeout)
+	monitor.Start("starting tun stack")
+	err := t.tunStack.Start()
+	monitor.Finish()
+	if err != nil {
+		return E.Cause(err, "starting tun stack")
+	}
+	monitor.Start("starting tun interface")
+	err = t.tunIf.Start()
+	monitor.Finish()
+	if err != nil {
+		return E.Cause(err, "starting TUN interface")
+	}
 	if t.autoRedirect != nil {
 		t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 		for _, routeRuleSet := range t.routeRuleSet {
