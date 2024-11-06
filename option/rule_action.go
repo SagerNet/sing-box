@@ -148,9 +148,6 @@ func (r *RouteActionOptions) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Outbound == "" {
-		return E.New("missing outbound")
-	}
 	return nil
 }
 
@@ -188,9 +185,6 @@ func (r *DNSRouteActionOptions) UnmarshalJSONContext(ctx context.Context, data [
 	err := json.Unmarshal(data, (*_DNSRouteActionOptions)(r))
 	if err != nil {
 		return err
-	}
-	if r.Server == "" {
-		return E.New("missing server")
 	}
 	if r.DisableCache || r.RewriteTTL != nil || r.ClientSubnet != nil {
 		deprecated.Report(ctx, deprecated.OptionLegacyDNSRouteOptions)
