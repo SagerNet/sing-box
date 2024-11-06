@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -211,12 +212,19 @@ func NewRouter(
 			} else {
 				detour = dialer.NewDetour(router, server.Detour)
 			}
+			var serverProtocol string
 			switch server.Address {
 			case "local":
+				serverProtocol = "local"
 			default:
 				serverURL, _ := url.Parse(server.Address)
 				var serverAddress string
 				if serverURL != nil {
+					if serverURL.Scheme == "" {
+						serverProtocol = "udp"
+					} else {
+						serverProtocol = serverURL.Scheme
+					}
 					serverAddress = serverURL.Hostname()
 				}
 				if serverAddress == "" {
@@ -242,9 +250,12 @@ func NewRouter(
 			} else if dnsOptions.ClientSubnet != nil {
 				clientSubnet = dnsOptions.ClientSubnet.Build()
 			}
+			if serverProtocol == "" {
+				serverProtocol = "transport"
+			}
 			transport, err := dns.CreateTransport(dns.TransportOptions{
 				Context:      ctx,
-				Logger:       logFactory.NewLogger(F.ToString("dns/transport[", tag, "]")),
+				Logger:       logFactory.NewLogger(F.ToString("dns/", serverProtocol, "[", tag, "]")),
 				Name:         tag,
 				Dialer:       detour,
 				Address:      server.Address,
@@ -1188,7 +1199,11 @@ func (r *Router) AutoDetectInterface() bool {
 
 func (r *Router) AutoDetectInterfaceFunc() control.Func {
 	if r.platformInterface != nil && r.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-		return r.platformInterface.AutoDetectInterfaceControl()
+		return func(network, address string, conn syscall.RawConn) error {
+			return control.Raw(conn, func(fd uintptr) error {
+				return r.platformInterface.AutoDetectInterfaceControl(int(fd))
+			})
+		}
 	} else {
 		if r.interfaceMonitor == nil {
 			return nil
