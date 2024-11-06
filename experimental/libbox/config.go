@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
@@ -54,7 +55,7 @@ func (s *platformInterfaceStub) UsePlatformAutoDetectInterfaceControl() bool {
 	return true
 }
 
-func (s *platformInterfaceStub) AutoDetectInterfaceControl() control.Func {
+func (s *platformInterfaceStub) AutoDetectInterfaceControl(fd int) error {
 	return nil
 }
 
@@ -132,6 +133,10 @@ func (s *interfaceMonitorStub) RegisterCallback(callback tun.DefaultInterfaceUpd
 }
 
 func (s *interfaceMonitorStub) UnregisterCallback(element *list.Element[tun.DefaultInterfaceUpdateCallback]) {
+}
+
+func (s *platformInterfaceStub) SendNotification(notification *platform.Notification) error {
+	return nil
 }
 
 func FormatConfig(configContent string) (string, error) {

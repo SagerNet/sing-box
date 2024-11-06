@@ -116,12 +116,8 @@ func (w *platformInterfaceWrapper) UsePlatformAutoDetectInterfaceControl() bool 
 	return w.iif.UsePlatformAutoDetectInterfaceControl()
 }
 
-func (w *platformInterfaceWrapper) AutoDetectInterfaceControl() control.Func {
-	return func(network, address string, conn syscall.RawConn) error {
-		return control.Raw(conn, func(fd uintptr) error {
-			return w.iif.AutoDetectInterfaceControl(int32(fd))
-		})
-	}
+func (w *platformInterfaceWrapper) AutoDetectInterfaceControl(fd int) error {
+	return w.iif.AutoDetectInterfaceControl(int32(fd))
 }
 
 func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
@@ -238,4 +234,8 @@ func (w *platformInterfaceWrapper) DisableColors() bool {
 
 func (w *platformInterfaceWrapper) WriteMessage(level log.Level, message string) {
 	w.iif.WriteLog(message)
+}
+
+func (w *platformInterfaceWrapper) SendNotification(notification *platform.Notification) error {
+	return w.iif.SendNotification((*Notification)(notification))
 }
