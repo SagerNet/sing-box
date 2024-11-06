@@ -1,6 +1,11 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [action](#action)  
+    :material-alert: [outbound](#outbound)
 
 !!! quote "sing-box 1.10.0 中的更改"
 
@@ -127,6 +132,7 @@ icon: material/alert-decagram
         "rule_set_ipcidr_match_source": false,
         "rule_set_ip_cidr_match_source": false,
         "invert": false,
+        "action": "route",
         "outbound": "direct"
       },
       {
@@ -134,6 +140,7 @@ icon: material/alert-decagram
         "mode": "and",
         "rules": [],
         "invert": false,
+        "action": "route",
         "outbound": "direct"
       }
     ]
@@ -355,11 +362,17 @@ icon: material/alert-decagram
 
 反选匹配结果。
 
-#### outbound
+#### action
 
 ==必填==
 
-目标出站的标签。
+参阅 [规则行动](../rule_action/)。
+
+#### outbound
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [规则行动](../rule_action#route).
 
 ### 逻辑字段
 
