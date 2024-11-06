@@ -1,6 +1,11 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.11.0"
+
+    :material-plus: [action](#action)  
+    :material-alert: [outbound](#outbound)
 
 !!! quote "Changes in sing-box 1.10.0"
 
@@ -129,6 +134,7 @@ icon: material/alert-decagram
         "rule_set_ipcidr_match_source": false,
         "rule_set_ip_cidr_match_source": false,
         "invert": false,
+        "action": "route",
         "outbound": "direct"
       },
       {
@@ -136,6 +142,7 @@ icon: material/alert-decagram
         "mode": "and",
         "rules": [],
         "invert": false,
+        "action": "route",
         "outbound": "direct"
       }
     ]
@@ -357,11 +364,17 @@ Make `ip_cidr` in rule-sets match the source IP.
 
 Invert match result.
 
-#### outbound
+#### action
 
 ==Required==
 
-Tag of the target outbound.
+See [Rule Actions](../rule_action/) for details.
+
+#### outbound
+
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    Moved to [Rule Action](../rule_action#route).
 
 ### Logical Fields
 
