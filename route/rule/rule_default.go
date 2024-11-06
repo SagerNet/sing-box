@@ -52,7 +52,7 @@ type RuleItem interface {
 }
 
 func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
-	action, err := NewRuleAction(logger, options.RuleAction)
+	action, err := NewRuleAction(router, logger, options.RuleAction)
 	if err != nil {
 		return nil, E.Cause(err, "action")
 	}
@@ -254,7 +254,7 @@ type LogicalRule struct {
 }
 
 func NewLogicalRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
-	action, err := NewRuleAction(logger, options.RuleAction)
+	action, err := NewRuleAction(router, logger, options.RuleAction)
 	if err != nil {
 		return nil, E.Cause(err, "action")
 	}
