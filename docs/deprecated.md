@@ -12,7 +12,7 @@ icon: material/delete-alert
 `inet4_route_address` and `inet6_route_address` are merged into `route_address`,
 `inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
 
-Old fields are deprecated and will be removed in sing-box 1.11.0.
+Old fields are deprecated and will be removed in sing-box 1.12.0.
 
 #### Match source rule items are renamed
 
@@ -32,7 +32,7 @@ check [Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-o
 
 #### GeoIP
 
-GeoIP is deprecated and may be removed in the future.
+GeoIP is deprecated and may be removed in sing-box 1.12.0.
 
 The maxmind GeoIP National Database, as an IP classification database,
 is not entirely suitable for traffic bypassing,
@@ -43,7 +43,7 @@ check [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 #### Geosite
 
-Geosite is deprecated and may be removed in the future.
+Geosite is deprecated and will be removed in sing-box 1.12.0.
 
 Geosite, the `domain-list-community` project maintained by V2Ray as an early traffic bypassing solution,
 suffers from a number of problems, including lack of maintenance, inaccurate rules, and difficult management.
