@@ -82,6 +82,7 @@ nav:
           - configuration/dns/index.md
           - DNS Server: configuration/dns/server.md
           - DNS Rule: configuration/dns/rule.md
+          - DNS Rule Action: configuration/dns/rule_action.md
           - FakeIP: configuration/dns/fakeip.md
       - NTP:
           - configuration/ntp/index.md
@@ -90,6 +91,7 @@ nav:
           - GeoIP: configuration/route/geoip.md
           - Geosite: configuration/route/geosite.md
           - Route Rule: configuration/route/rule.md
+          - Rule Action: configuration/route/rule_action.md
           - Protocol Sniff: configuration/route/sniff.md
       - Rule Set:
           - configuration/rule-set/index.md
@@ -218,9 +220,11 @@ plugins:
             Log: 日志
             DNS Server: DNS 服务器
             DNS Rule: DNS 规则
+            DNS Rule Action: DNS 规则动作
 
             Route: 路由
             Route Rule: 路由规则
+            Rule Action: 规则动作
             Protocol Sniff: 协议探测
 
             Rule Set: 规则集
