@@ -111,7 +111,7 @@ type DefaultDNSRule struct {
 	DNSRuleAction
 }
 
-func (r *DefaultDNSRule) MarshalJSON() ([]byte, error) {
+func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawDefaultDNSRule, r.DNSRuleAction)
 }
 
@@ -123,7 +123,7 @@ func (r *DefaultDNSRule) UnmarshalJSON(data []byte) error {
 	return badjson.UnmarshallExcluded(data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
 }
 
-func (r *DefaultDNSRule) IsValid() bool {
+func (r DefaultDNSRule) IsValid() bool {
 	var defaultValue DefaultDNSRule
 	defaultValue.Invert = r.Invert
 	defaultValue.DNSRuleAction = r.DNSRuleAction
