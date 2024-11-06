@@ -4,6 +4,32 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.11.0
+
+#### Legacy special outbounds
+
+Legacy special outbounds (`block` / `dns`) are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-legacy-special-outbounds-to-rule-actions).
+
+Old fields will be removed in sing-box 1.13.0.
+
+#### Legacy inbound fields
+
+Legacy inbound fields （`inbound.<sniff/domain_strategy/...>` are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-legacy-inbound-fields-to-rule-actions).
+
+Old fields will be removed in sing-box 1.13.0.
+
+#### Legacy DNS route options
+
+Legacy DNS route options (`disable_cache`, `rewrite_ttl`, `client_subnet`) are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-legacy-dns-route-options-to-rule-actions).
+
+Old fields will be removed in sing-box 1.12.0.
+
 ## 1.10.0
 
 #### TUN address fields are merged
@@ -12,7 +38,7 @@ icon: material/delete-alert
 `inet4_route_address` and `inet6_route_address` are merged into `route_address`,
 `inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
 
-Old fields are deprecated and will be removed in sing-box 1.12.0.
+Old fields will be removed in sing-box 1.12.0.
 
 #### Match source rule items are renamed
 
@@ -32,7 +58,7 @@ check [Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-o
 
 #### GeoIP
 
-GeoIP is deprecated and may be removed in sing-box 1.12.0.
+GeoIP is deprecated and will be removed in sing-box 1.12.0.
 
 The maxmind GeoIP National Database, as an IP classification database,
 is not entirely suitable for traffic bypassing,
