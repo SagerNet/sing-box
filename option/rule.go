@@ -109,7 +109,7 @@ type DefaultRule struct {
 	RuleAction
 }
 
-func (r *DefaultRule) MarshalJSON() ([]byte, error) {
+func (r DefaultRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawDefaultRule, r.RuleAction)
 }
 
@@ -128,27 +128,27 @@ func (r *DefaultRule) IsValid() bool {
 	return !reflect.DeepEqual(r, defaultValue)
 }
 
-type _LogicalRule struct {
+type RawLogicalRule struct {
 	Mode   string `json:"mode"`
 	Rules  []Rule `json:"rules,omitempty"`
 	Invert bool   `json:"invert,omitempty"`
 }
 
 type LogicalRule struct {
-	_LogicalRule
+	RawLogicalRule
 	RuleAction
 }
 
-func (r *LogicalRule) MarshalJSON() ([]byte, error) {
-	return badjson.MarshallObjects(r._LogicalRule, r.RuleAction)
+func (r LogicalRule) MarshalJSON() ([]byte, error) {
+	return badjson.MarshallObjects(r.RawLogicalRule, r.RuleAction)
 }
 
 func (r *LogicalRule) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &r._LogicalRule)
+	err := json.Unmarshal(data, &r.RawLogicalRule)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcluded(data, &r._LogicalRule, &r.RuleAction)
+	return badjson.UnmarshallExcluded(data, &r.RawLogicalRule, &r.RuleAction)
 }
 
 func (r *LogicalRule) IsValid() bool {
