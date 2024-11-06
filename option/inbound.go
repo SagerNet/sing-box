@@ -34,7 +34,7 @@ func (h *Inbound) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 	}
 	registry := service.FromContext[InboundOptionsRegistry](ctx)
 	if registry == nil {
-		return E.New("missing inbound options registry in context")
+		return E.New("missing Inbound fields registry in context")
 	}
 	options, loaded := registry.CreateOptions(h.Type)
 	if !loaded {
