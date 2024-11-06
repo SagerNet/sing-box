@@ -43,6 +43,7 @@ func HandleStreamDNSRequest(ctx context.Context, router adapter.Router, conn net
 	go func() error {
 		response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
 		if err != nil {
+			conn.Close()
 			return err
 		}
 		responseBuffer := buf.NewPacket()
