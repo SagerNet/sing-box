@@ -111,7 +111,7 @@ type DefaultDNSRule struct {
 	DNSRuleAction
 }
 
-func (r *DefaultDNSRule) MarshalJSON() ([]byte, error) {
+func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawDefaultDNSRule, r.DNSRuleAction)
 }
 
@@ -123,34 +123,34 @@ func (r *DefaultDNSRule) UnmarshalJSON(data []byte) error {
 	return badjson.UnmarshallExcluded(data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
 }
 
-func (r *DefaultDNSRule) IsValid() bool {
+func (r DefaultDNSRule) IsValid() bool {
 	var defaultValue DefaultDNSRule
 	defaultValue.Invert = r.Invert
 	defaultValue.DNSRuleAction = r.DNSRuleAction
 	return !reflect.DeepEqual(r, defaultValue)
 }
 
-type _LogicalDNSRule struct {
+type RawLogicalDNSRule struct {
 	Mode   string    `json:"mode"`
 	Rules  []DNSRule `json:"rules,omitempty"`
 	Invert bool      `json:"invert,omitempty"`
 }
 
 type LogicalDNSRule struct {
-	_LogicalDNSRule
+	RawLogicalDNSRule
 	DNSRuleAction
 }
 
-func (r *LogicalDNSRule) MarshalJSON() ([]byte, error) {
-	return badjson.MarshallObjects(r._LogicalDNSRule, r.DNSRuleAction)
+func (r LogicalDNSRule) MarshalJSON() ([]byte, error) {
+	return badjson.MarshallObjects(r.RawLogicalDNSRule, r.DNSRuleAction)
 }
 
 func (r *LogicalDNSRule) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &r._LogicalDNSRule)
+	err := json.Unmarshal(data, &r.RawLogicalDNSRule)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcluded(data, &r._LogicalDNSRule, &r.DNSRuleAction)
+	return badjson.UnmarshallExcluded(data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
 }
 
 func (r *LogicalDNSRule) IsValid() bool {
