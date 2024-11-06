@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/user"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -107,7 +106,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			selectReturn = true
 		case *rule.RuleActionReject:
 			buf.ReleaseMulti(buffers)
-			N.CloseOnHandshakeFailure(conn, onClose, action.Error())
+			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
 			return nil
 		case *rule.RuleActionHijackDNS:
 			for _, buffer := range buffers {
@@ -252,7 +251,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			selectReturn = true
 		case *rule.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
-			N.CloseOnHandshakeFailure(conn, onClose, syscall.ECONNREFUSED)
+			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
 			return nil
 		case *rule.RuleActionHijackDNS:
 			r.hijackDNSPacket(ctx, conn, packetBuffers, metadata)
@@ -317,7 +316,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext) error {
 	if !isReject {
 		return nil
 	}
-	return rejectAction.Error()
+	return rejectAction.Error(nil)
 }
 
 func (r *Router) matchRule(
