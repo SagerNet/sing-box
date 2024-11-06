@@ -73,11 +73,9 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 }
 
 type _DNSRuleAction struct {
-	Action         string                `json:"action,omitempty"`
-	RouteOptions   DNSRouteActionOptions `json:"-"`
-	RejectOptions  RejectActionOptions   `json:"-"`
-	SniffOptions   RouteActionSniff      `json:"-"`
-	ResolveOptions RouteActionResolve    `json:"-"`
+	Action        string                `json:"action,omitempty"`
+	RouteOptions  DNSRouteActionOptions `json:"-"`
+	RejectOptions RejectActionOptions   `json:"-"`
 }
 
 type DNSRuleAction _DNSRuleAction
@@ -139,6 +137,7 @@ type DNSRouteActionOptions struct {
 
 type _RejectActionOptions struct {
 	Method string `json:"method,omitempty"`
+	NoDrop bool   `json:"no_drop,omitempty"`
 }
 
 type RejectActionOptions _RejectActionOptions
@@ -151,13 +150,12 @@ func (r *RejectActionOptions) UnmarshalJSON(bytes []byte) error {
 	switch r.Method {
 	case "", C.RuleActionRejectMethodDefault:
 		r.Method = C.RuleActionRejectMethodDefault
-	case C.RuleActionRejectMethodReset,
-		C.RuleActionRejectMethodNetworkUnreachable,
-		C.RuleActionRejectMethodHostUnreachable,
-		C.RuleActionRejectMethodPortUnreachable,
-		C.RuleActionRejectMethodDrop:
+	case C.RuleActionRejectMethodDrop:
 	default:
 		return E.New("unknown reject method: " + r.Method)
+	}
+	if r.Method == C.RuleActionRejectMethodDrop && r.NoDrop {
+		return E.New("no_drop is not allowed when method is drop")
 	}
 	return nil
 }
