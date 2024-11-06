@@ -2,6 +2,212 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.11.0
+
+### Migrate legacy special outbounds to rule actions
+
+Legacy special outbounds are deprecated and can be replaced by rule actions.
+
+!!! info "References"
+
+    [Rule Action](/configuration/route/rule_action/) / 
+    [Block](/configuration/outbound/block/) / 
+    [DNS](/configuration/outbound/dns)
+
+=== "Block"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "outbounds": [
+            {
+              "type": "block",
+              "tag": "block"
+            }
+          ],
+          "route": {
+            "rules": [
+              {
+                ...,
+                
+                "outbound": "block"
+              }
+            ]
+          }
+        }
+        ```
+
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "route": {
+            "rules": [
+              {
+                ...,
+                
+                "action": "reject"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "DNS"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "inbound": [
+            {
+              ...,
+              
+              "sniff": true
+            }
+          ],
+          "outbounds": [
+            {
+              "tag": "dns",
+              "type": "dns"
+            }
+          ],
+          "route": {
+            "rules": [
+              {
+                "protocol": "dns",
+                "outbound": "dns"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "route": {
+            "rules": [
+              {
+                "action": "sniff"
+              },
+              {
+                "protocol": "dns",
+                "action": "hijack-dns"
+              }
+            ]
+          }
+        }
+        ```
+
+### Migrate legacy inbound fields to rule actions
+
+Inbound fields are deprecated and can be replaced by rule actions.
+
+!!! info "References"
+
+    [Listen Fields](/configuration/inbound/listen/) /
+    [Rule](/configuration/route/rule/) / 
+    [Rule Action](/configuration/route/rule_action/) / 
+    [DNS Rule](/configuration/dns/rule/) / 
+    [DNS Rule Action](/configuration/dns/rule_action/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "mixed",
+          "sniff": true,
+          "sniff_timeout": "1s",
+          "domain_strategy": "prefer_ipv4"
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "mixed",
+          "tag": "in"
+        }
+      ],
+      "route": {
+        "rules": [
+          {
+            "inbound": "in",
+            "action": "resolve",
+            "strategy": "prefer_ipv4"
+          },
+          {
+            "inbound": "in",
+            "action": "sniff",
+            "timeout": "1s"
+          }
+        ]
+      }
+    }
+    ```
+
+### Migrate legacy DNS route options to rule actions
+
+Legacy DNS route options are deprecated and can be replaced by rule actions.
+
+!!! info "References"
+
+    [DNS Rule](/configuration/dns/rule/) / 
+    [DNS Rule Action](/configuration/dns/rule_action/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            ...,
+            
+            "server": "local",
+            "disable_cache": true,
+            "rewrite_ttl": 600,
+            "client_subnet": "1.1.1.1/24"
+          }
+        ]
+      }
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            ...,
+            
+            "action": "route-options",
+            "disable_cache": true,
+            "rewrite_ttl": 600,
+            "client_subnet": "1.1.1.1/24"
+          },
+          {
+            ...,
+            
+            "server": "local"
+          }
+        ]
+      }
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN address fields are merged
@@ -9,8 +215,6 @@ icon: material/arrange-bring-forward
 `inet4_address` and `inet6_address` are merged into `address`,
 `inet4_route_address` and `inet6_route_address` are merged into `route_address`,
 `inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
-
-Old fields are deprecated and will be removed in sing-box 1.11.0.
 
 !!! info "References"
 
