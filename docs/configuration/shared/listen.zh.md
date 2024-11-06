@@ -1,3 +1,15 @@
+---
+icon: material/delete-clock
+---
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-delete-clock: [sniff](#sniff)  
+    :material-delete-clock: [sniff_override_destination](#sniff_override_destination)  
+    :material-delete-clock: [sniff_timeout](#sniff_timeout)  
+    :material-delete-clock: [domain_strategy](#domain_strategy)  
+    :material-delete-clock: [udp_disable_domain_unmapping](#udp_disable_domain_unmapping)
+
 ### 结构
 
 ```json
@@ -69,11 +81,19 @@ UDP NAT 过期时间，以秒为单位。
 
 #### sniff
 
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
+
 启用协议探测。
 
 参阅 [协议探测](/zh/configuration/route/sniff/)
 
 #### sniff_override_destination
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除。
 
 用探测出的域名覆盖连接目标地址。
 
@@ -81,11 +101,19 @@ UDP NAT 过期时间，以秒为单位。
 
 #### sniff_timeout
 
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
+
 探测超时时间。
 
 默认使用 300ms。
 
 #### domain_strategy
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 可选值： `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
@@ -94,6 +122,10 @@ UDP NAT 过期时间，以秒为单位。
 如果 `sniff_override_destination` 生效，它的值将作为后备。
 
 #### udp_disable_domain_unmapping
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 如果启用，对于地址为域的 UDP 代理请求，将在响应中发送原始包地址而不是映射的域。
 

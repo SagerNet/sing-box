@@ -2,6 +2,212 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.11.0
+
+### 迁移旧的特殊出站到规则动作
+
+旧的特殊出站已被弃用，且可以被规则动作替代。
+
+!!! info "参考"
+
+    [规则动作](/zh/configuration/route/rule_action/) /
+    [Block](/zh/configuration/outbound/block/) / 
+    [DNS](/zh/configuration/outbound/dns)
+
+=== "Block"
+
+    === ":material-card-remove: 弃用的"
+    
+        ```json
+        {
+          "outbounds": [
+            {
+              "type": "block",
+              "tag": "block"
+            }
+          ],
+          "route": {
+            "rules": [
+              {
+                ...,
+                
+                "outbound": "block"
+              }
+            ]
+          }
+        }
+        ```
+
+    === ":material-card-multiple: 新的"
+    
+        ```json
+        {
+          "route": {
+            "rules": [
+              {
+                ...,
+                
+                "action": "reject"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "DNS"
+
+    === ":material-card-remove: 弃用的"
+    
+        ```json
+        {
+          "inbound": [
+            {
+              ...,
+              
+              "sniff": true
+            }
+          ],
+          "outbounds": [
+            {
+              "tag": "dns",
+              "type": "dns"
+            }
+          ],
+          "route": {
+            "rules": [
+              {
+                "protocol": "dns",
+                "outbound": "dns"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: 新的"
+    
+        ```json
+        {
+          "route": {
+            "rules": [
+              {
+                "action": "sniff"
+              },
+              {
+                "protocol": "dns",
+                "action": "hijack-dns"
+              }
+            ]
+          }
+        }
+        ```
+
+### 迁移旧的入站字段到规则动作
+
+入站选项已被弃用，且可以被规则动作替代。
+
+!!! info "参考"
+
+    [监听字段](/zh/configuration/shared/listen/) /
+    [规则](/zh/configuration/route/rule/) /
+    [规则动作](/zh/configuration/route/rule_action/) /
+    [DNS 规则](/zh/configuration/dns/rule/) /
+    [DNS 规则动作](/zh/configuration/dns/rule_action/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "mixed",
+          "sniff": true,
+          "sniff_timeout": "1s",
+          "domain_strategy": "prefer_ipv4"
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "mixed",
+          "tag": "in"
+        }
+      ],
+      "route": {
+        "rules": [
+          {
+            "inbound": "in",
+            "action": "resolve",
+            "strategy": "prefer_ipv4"
+          },
+          {
+            "inbound": "in",
+            "action": "sniff",
+            "timeout": "1s"
+          }
+        ]
+      }
+    }
+    ```
+
+### 迁移旧的 DNS 路由选项到规则动作
+
+旧的 DNS 路由选项已被弃用，且可以被规则动作替代。
+
+!!! info "参考"
+
+    [DNS 规则](/zh/configuration/dns/rule/) / 
+    [DNS 规则动作](/zh/configuration/dns/rule_action/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            ...,
+            
+            "server": "local",
+            "disable_cache": true,
+            "rewrite_ttl": 600,
+            "client_subnet": "1.1.1.1/24"
+          }
+        ]
+      }
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            ...,
+            
+            "action": "route-options",
+            "disable_cache": true,
+            "rewrite_ttl": 600,
+            "client_subnet": "1.1.1.1/24"
+          },
+          {
+            ...,
+            
+            "server": "local"
+          }
+        ]
+      }
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN 地址字段已合并
