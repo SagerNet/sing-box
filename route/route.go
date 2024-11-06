@@ -76,7 +76,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	metadata.Network = N.NetworkTCP
 	switch metadata.Destination.Fqdn {
 	case mux.Destination.Fqdn:
-		return E.New("global multiplex is deprecated since sing-box v1.7.0, enable multiplex in inbound options instead.")
+		return E.New("global multiplex is deprecated since sing-box v1.7.0, enable multiplex in Inbound fields instead.")
 	case vmess.MuxDestination.Fqdn:
 		return E.New("global multiplex (v2ray legacy) not supported since sing-box v1.7.0.")
 	case uot.MagicAddress:
