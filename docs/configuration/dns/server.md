@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [client_subnet](#client_subnet)
