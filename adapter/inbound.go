@@ -57,7 +57,9 @@ type InboundContext struct {
 	// Deprecated
 	InboundOptions            option.InboundOptions
 	UDPDisableDomainUnmapping bool
-	DNSServer                 string
+	UDPConnect                bool
+
+	DNSServer string
 
 	DestinationAddresses []netip.Addr
 	SourceGeoIPCode      string
