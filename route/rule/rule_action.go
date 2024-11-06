@@ -1,10 +1,10 @@
 package rule
 
 import (
+	"context"
 	"net/netip"
-	"os"
 	"strings"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -13,11 +13,15 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/logger"
+
+	"golang.org/x/sys/unix"
 )
 
-func NewRuleAction(action option.RuleAction) (adapter.RuleAction, error) {
+func NewRuleAction(logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
 	switch action.Action {
 	case C.RuleActionTypeRoute:
 		return &RuleActionRoute{
@@ -29,6 +33,8 @@ func NewRuleAction(action option.RuleAction) (adapter.RuleAction, error) {
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
 			Method: action.RejectOptions.Method,
+			NoDrop: action.RejectOptions.NoDrop,
+			logger: logger,
 		}, nil
 	case C.RuleActionTypeHijackDNS:
 		return &RuleActionHijackDNS{}, nil
@@ -48,7 +54,7 @@ func NewRuleAction(action option.RuleAction) (adapter.RuleAction, error) {
 	}
 }
 
-func NewDNSRuleAction(action option.DNSRuleAction) adapter.RuleAction {
+func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) adapter.RuleAction {
 	switch action.Action {
 	case C.RuleActionTypeRoute:
 		return &RuleActionDNSRoute{
@@ -62,6 +68,8 @@ func NewDNSRuleAction(action option.DNSRuleAction) adapter.RuleAction {
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
 			Method: action.RejectOptions.Method,
+			NoDrop: action.RejectOptions.NoDrop,
+			logger: logger,
 		}
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -107,7 +115,11 @@ func (r *RuleActionReturn) String() string {
 }
 
 type RuleActionReject struct {
-	Method string
+	Method      string
+	NoDrop      bool
+	logger      logger.ContextLogger
+	dropAccess  sync.Mutex
+	dropCounter []time.Time
 }
 
 func (r *RuleActionReject) Type() string {
@@ -121,21 +133,30 @@ func (r *RuleActionReject) String() string {
 	return F.ToString("reject(", r.Method, ")")
 }
 
-func (r *RuleActionReject) Error() error {
+func (r *RuleActionReject) Error(ctx context.Context) error {
+	var returnErr error
 	switch r.Method {
-	case C.RuleActionRejectMethodReset:
-		return os.ErrClosed
-	case C.RuleActionRejectMethodNetworkUnreachable:
-		return syscall.ENETUNREACH
-	case C.RuleActionRejectMethodHostUnreachable:
-		return syscall.EHOSTUNREACH
-	case C.RuleActionRejectMethodDefault, C.RuleActionRejectMethodPortUnreachable:
-		return syscall.ECONNREFUSED
+	case C.RuleActionRejectMethodDefault:
+		returnErr = unix.ECONNREFUSED
 	case C.RuleActionRejectMethodDrop:
 		return tun.ErrDrop
 	default:
 		panic(F.ToString("unknown reject method: ", r.Method))
 	}
+	r.dropAccess.Lock()
+	defer r.dropAccess.Unlock()
+	timeNow := time.Now()
+	r.dropCounter = common.Filter(r.dropCounter, func(t time.Time) bool {
+		return timeNow.Sub(t) <= 30*time.Second
+	})
+	r.dropCounter = append(r.dropCounter, timeNow)
+	if len(r.dropCounter) > 50 {
+		if ctx != nil {
+			r.logger.DebugContext(ctx, "dropped due to flooding")
+		}
+		return tun.ErrDrop
+	}
+	return returnErr
 }
 
 type RuleActionHijackDNS struct{}
