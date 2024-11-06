@@ -2,6 +2,66 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-alpha.10
+
+* Fixes and improvements
+
+#### 1.11.0-alpha.9
+
+* Improve tun compatibility **1**
+* Fixes and improvements
+
+**1**:
+
+When `gvisor` tun stack is enabled, even if the request passes routing,
+if the outbound connection establishment fails,
+the connection still does not need to be established and a TCP RST is replied.
+
+#### 1.11.0-alpha.7
+
+* Introducing rule actions **1**
+
+**1**:
+
+New rule actions replace legacy inbound fields and special outbound fields,
+and can be used for pre-matching **2**.
+
+See [Rule](/configuration/route/rule/),
+[Rule Action](/configuration/route/rule_action/),
+[DNS Rule](/configuration/dns/rule/) and
+[DNS Rule Action](/configuration/dns/rule_action/).
+
+For migration, see
+[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions), 
+[Migrate legacy inbound fields to rule actions](/migration/#migrate-legacy-inbound-fields-to-rule-actions)
+and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
+
+**2**:
+
+Similar to Surge's pre-matching.
+
+Specifically, the new rule actions allow you to reject connections with
+TCP RST (for TCP connections) and ICMP port unreachable (for UDP packets)
+before connection established to improve tun's compatibility.
+
+See [Rule Action](/configuration/route/rule_action/).
+
+#### 1.11.0-alpha.6
+
+* Update quic-go to v0.48.1
+* Set gateway for tun correctly
+* Fixes and improvements
+
+#### 1.11.0-alpha.2
+
+* Add warnings for usage of deprecated features
+* Fixes and improvements
+
+#### 1.11.0-alpha.1
+
+* Update quic-go to v0.48.0
+* Fixes and improvements
+
 ### 1.10.1
 
 * Fixes and improvements
@@ -33,7 +93,7 @@ Important changes since 1.9:
 The new auto-redirect feature allows TUN to automatically
 configure connection redirection to improve proxy performance.
 
-When auto-redirect is enabled, new route address set options will allow you to 
+When auto-redirect is enabled, new route address set options will allow you to
 automatically configure destination IP CIDR rules from a specified rule set to the firewall.
 
 Specified or unspecified destinations will bypass the sing-box routes to get better performance
