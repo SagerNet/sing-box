@@ -7,6 +7,8 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic/hysteria2"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 func TestHysteria2Self(t *testing.T) {
@@ -28,13 +30,13 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 		}
 	}
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -43,7 +45,7 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 				Type: C.TypeHysteria2,
 				Hysteria2Options: option.Hysteria2InboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					UpMbps:   100,
@@ -115,12 +117,12 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 func TestHysteria2Inbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeHysteria2,
 				Hysteria2Options: option.Hysteria2InboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Obfs: &option.Hysteria2Obfs{
@@ -167,12 +169,12 @@ func TestHysteria2Outbound(t *testing.T) {
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},

@@ -8,19 +8,21 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/v2rayapi"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestV2RayAPI(t *testing.T) {
 	i := startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},

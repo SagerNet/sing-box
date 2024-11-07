@@ -7,6 +7,8 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/spyzhov/ajson"
@@ -61,12 +63,12 @@ func testV2RayWebsocketInbound(t *testing.T, maxEarlyData uint32, earlyDataHeade
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -158,13 +160,13 @@ func testV2RayWebsocketOutbound(t *testing.T, maxEarlyData uint32, earlyDataHead
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
