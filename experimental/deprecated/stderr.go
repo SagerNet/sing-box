@@ -7,15 +7,23 @@ import (
 	"github.com/sagernet/sing/common/logger"
 )
 
-type envManager struct {
-	logger logger.Logger
+type stderrManager struct {
+	logger   logger.Logger
+	reported map[string]bool
 }
 
-func NewEnvManager(logger logger.Logger) Manager {
-	return &envManager{logger: logger}
+func NewStderrManager(logger logger.Logger) Manager {
+	return &stderrManager{
+		logger:   logger,
+		reported: make(map[string]bool),
+	}
 }
 
-func (f *envManager) ReportDeprecated(feature Note) {
+func (f *stderrManager) ReportDeprecated(feature Note) {
+	if f.reported[feature.Name] {
+		return
+	}
+	f.reported[feature.Name] = true
 	if !feature.Impending() {
 		f.logger.Warn(feature.MessageWithLink())
 		return

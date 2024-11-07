@@ -67,5 +67,5 @@ func preRun(cmd *cobra.Command, args []string) {
 	if len(configPaths) == 0 && len(configDirectories) == 0 {
 		configPaths = append(configPaths, "config.json")
 	}
-	globalCtx = service.ContextWith(globalCtx, deprecated.NewEnvManager(log.StdLogger()))
+	globalCtx = service.ContextWith(globalCtx, deprecated.NewStderrManager(log.StdLogger()))
 }
