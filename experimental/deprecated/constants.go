@@ -82,9 +82,39 @@ var OptionTUNAddressX = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#tun-address-fields-are-merged",
 }
 
+var OptionSpecialOutbounds = Note{
+	Name:              "special-outbounds",
+	Description:       "legacy special outbounds",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.13.0",
+	EnvName:           "SPECIAL_OUTBOUNDS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-special-outbounds-to-rule-actions",
+}
+
+var OptionInboundOptions = Note{
+	Name:              "inbound-options",
+	Description:       "legacy inbound fields",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.13.0",
+	EnvName:           "INBOUND_OPTIONS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-special-outbounds-to-rule-actions",
+}
+
+var OptionLegacyDNSRouteOptions = Note{
+	Name:              "legacy-dns-route-options",
+	Description:       "legacy dns route options",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.12.0",
+	EnvName:           "LEGACY_DNS_ROUTE_OPTIONS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-dns-route-options-to-rule-actions",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
 	OptionGEOSITE,
 	OptionTUNAddressX,
+	OptionSpecialOutbounds,
+	OptionInboundOptions,
+	OptionLegacyDNSRouteOptions,
 }
