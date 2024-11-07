@@ -1,6 +1,7 @@
 package option
 
 import (
+	"context"
 	"reflect"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -32,7 +33,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects((_DNSRule)(r), v)
 }
 
-func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
+func (r *DNSRule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {
 	err := json.Unmarshal(bytes, (*_DNSRule)(r))
 	if err != nil {
 		return err
@@ -47,7 +48,7 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	err = badjson.UnmarshallExcluded(bytes, (*_DNSRule)(r), v)
+	err = badjson.UnmarshallExcludedContext(ctx, bytes, (*_DNSRule)(r), v)
 	if err != nil {
 		return err
 	}
@@ -115,12 +116,12 @@ func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawDefaultDNSRule, r.DNSRuleAction)
 }
 
-func (r *DefaultDNSRule) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &r.RawDefaultDNSRule)
+func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
+	err := json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcluded(data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -145,12 +146,12 @@ func (r LogicalDNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawLogicalDNSRule, r.DNSRuleAction)
 }
 
-func (r *LogicalDNSRule) UnmarshalJSON(data []byte) error {
+func (r *LogicalDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
 	err := json.Unmarshal(data, &r.RawLogicalDNSRule)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcluded(data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
+	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
 }
 
 func (r *LogicalDNSRule) IsValid() bool {
