@@ -7,7 +7,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks2/shadowstream"
+	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 func TestShadowsocksLegacy(t *testing.T) {
@@ -24,12 +26,12 @@ func testShadowsocksLegacy(t *testing.T, method string) {
 		},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},

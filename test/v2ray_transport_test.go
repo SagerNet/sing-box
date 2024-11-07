@@ -6,6 +6,8 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/require"
@@ -44,13 +46,13 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -59,7 +61,7 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -133,13 +135,13 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -148,7 +150,7 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 				Type: C.TypeTrojan,
 				TrojanOptions: option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.TrojanUser{
@@ -224,13 +226,13 @@ func TestVMessQUICSelf(t *testing.T) {
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -239,7 +241,7 @@ func TestVMessQUICSelf(t *testing.T) {
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -312,13 +314,13 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -327,7 +329,7 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 				Type: C.TypeVMess,
 				VMessOptions: option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{

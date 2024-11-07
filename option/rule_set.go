@@ -10,6 +10,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"go4.org/netipx"
 )
@@ -84,9 +85,9 @@ type LocalRuleSet struct {
 }
 
 type RemoteRuleSet struct {
-	URL            string   `json:"url"`
-	DownloadDetour string   `json:"download_detour,omitempty"`
-	UpdateInterval Duration `json:"update_interval,omitempty"`
+	URL            string             `json:"url"`
+	DownloadDetour string             `json:"download_detour,omitempty"`
+	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
 }
 
 type _HeadlessRule struct {
@@ -145,32 +146,32 @@ func (r HeadlessRule) IsValid() bool {
 }
 
 type DefaultHeadlessRule struct {
-	QueryType        Listable[DNSQueryType] `json:"query_type,omitempty"`
-	Network          Listable[string]       `json:"network,omitempty"`
-	Domain           Listable[string]       `json:"domain,omitempty"`
-	DomainSuffix     Listable[string]       `json:"domain_suffix,omitempty"`
-	DomainKeyword    Listable[string]       `json:"domain_keyword,omitempty"`
-	DomainRegex      Listable[string]       `json:"domain_regex,omitempty"`
-	SourceIPCIDR     Listable[string]       `json:"source_ip_cidr,omitempty"`
-	IPCIDR           Listable[string]       `json:"ip_cidr,omitempty"`
-	SourcePort       Listable[uint16]       `json:"source_port,omitempty"`
-	SourcePortRange  Listable[string]       `json:"source_port_range,omitempty"`
-	Port             Listable[uint16]       `json:"port,omitempty"`
-	PortRange        Listable[string]       `json:"port_range,omitempty"`
-	ProcessName      Listable[string]       `json:"process_name,omitempty"`
-	ProcessPath      Listable[string]       `json:"process_path,omitempty"`
-	ProcessPathRegex Listable[string]       `json:"process_path_regex,omitempty"`
-	PackageName      Listable[string]       `json:"package_name,omitempty"`
-	WIFISSID         Listable[string]       `json:"wifi_ssid,omitempty"`
-	WIFIBSSID        Listable[string]       `json:"wifi_bssid,omitempty"`
-	Invert           bool                   `json:"invert,omitempty"`
+	QueryType        badoption.Listable[DNSQueryType] `json:"query_type,omitempty"`
+	Network          badoption.Listable[string]       `json:"network,omitempty"`
+	Domain           badoption.Listable[string]       `json:"domain,omitempty"`
+	DomainSuffix     badoption.Listable[string]       `json:"domain_suffix,omitempty"`
+	DomainKeyword    badoption.Listable[string]       `json:"domain_keyword,omitempty"`
+	DomainRegex      badoption.Listable[string]       `json:"domain_regex,omitempty"`
+	SourceIPCIDR     badoption.Listable[string]       `json:"source_ip_cidr,omitempty"`
+	IPCIDR           badoption.Listable[string]       `json:"ip_cidr,omitempty"`
+	SourcePort       badoption.Listable[uint16]       `json:"source_port,omitempty"`
+	SourcePortRange  badoption.Listable[string]       `json:"source_port_range,omitempty"`
+	Port             badoption.Listable[uint16]       `json:"port,omitempty"`
+	PortRange        badoption.Listable[string]       `json:"port_range,omitempty"`
+	ProcessName      badoption.Listable[string]       `json:"process_name,omitempty"`
+	ProcessPath      badoption.Listable[string]       `json:"process_path,omitempty"`
+	ProcessPathRegex badoption.Listable[string]       `json:"process_path_regex,omitempty"`
+	PackageName      badoption.Listable[string]       `json:"package_name,omitempty"`
+	WIFISSID         badoption.Listable[string]       `json:"wifi_ssid,omitempty"`
+	WIFIBSSID        badoption.Listable[string]       `json:"wifi_bssid,omitempty"`
+	Invert           bool                             `json:"invert,omitempty"`
 
 	DomainMatcher *domain.Matcher `json:"-"`
 	SourceIPSet   *netipx.IPSet   `json:"-"`
 	IPSet         *netipx.IPSet   `json:"-"`
 
-	AdGuardDomain        Listable[string]       `json:"-"`
-	AdGuardDomainMatcher *domain.AdGuardMatcher `json:"-"`
+	AdGuardDomain        badoption.Listable[string] `json:"-"`
+	AdGuardDomainMatcher *domain.AdGuardMatcher     `json:"-"`
 }
 
 func (r DefaultHeadlessRule) IsValid() bool {
