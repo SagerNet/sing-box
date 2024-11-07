@@ -1,10 +1,12 @@
 package option
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	dns "github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -113,7 +115,7 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects((_DNSRuleAction)(r), v)
 }
 
-func (r *DNSRuleAction) UnmarshalJSON(data []byte) error {
+func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) error {
 	err := json.Unmarshal(data, (*_DNSRuleAction)(r))
 	if err != nil {
 		return err
@@ -130,11 +132,7 @@ func (r *DNSRuleAction) UnmarshalJSON(data []byte) error {
 	default:
 		return E.New("unknown DNS rule action: " + r.Action)
 	}
-	if v == nil {
-		// check unknown fields
-		return json.UnmarshalDisallowUnknownFields(data, &_DNSRuleAction{})
-	}
-	return badjson.UnmarshallExcluded(data, (*_DNSRuleAction)(r), v)
+	return badjson.UnmarshallExcludedContext(ctx, data, (*_DNSRuleAction)(r), v)
 }
 
 type _RouteActionOptions struct {
@@ -184,13 +182,16 @@ type _DNSRouteActionOptions struct {
 
 type DNSRouteActionOptions _DNSRouteActionOptions
 
-func (r *DNSRouteActionOptions) UnmarshalJSON(data []byte) error {
+func (r *DNSRouteActionOptions) UnmarshalJSONContext(ctx context.Context, data []byte) error {
 	err := json.Unmarshal(data, (*_DNSRouteActionOptions)(r))
 	if err != nil {
 		return err
 	}
 	if r.Server == "" {
 		return E.New("missing server")
+	}
+	if r.DisableCache || r.RewriteTTL != nil || r.ClientSubnet != nil {
+		deprecated.Report(ctx, deprecated.OptionLegacyDNSRouteOptions)
 	}
 	return nil
 }
