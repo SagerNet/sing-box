@@ -3,6 +3,8 @@ package option
 import (
 	"context"
 
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -35,6 +37,10 @@ func (h *Outbound) UnmarshalJSONContext(ctx context.Context, content []byte) err
 	if registry == nil {
 		return E.New("missing outbound options registry in context")
 	}
+	switch h.Type {
+	case C.TypeBlock, C.TypeDNS:
+		deprecated.Report(ctx, deprecated.OptionSpecialOutbounds)
+	}
 	options, loaded := registry.CreateOptions(h.Type)
 	if !loaded {
 		return E.New("unknown outbound type: ", h.Type)
@@ -42,6 +48,11 @@ func (h *Outbound) UnmarshalJSONContext(ctx context.Context, content []byte) err
 	err = badjson.UnmarshallExcludedContext(ctx, content, (*_Outbound)(h), options)
 	if err != nil {
 		return err
+	}
+	if listenWrapper, isListen := options.(ListenOptionsWrapper); isListen {
+		if listenWrapper.TakeListenOptions().InboundOptions != (InboundOptions{}) {
+			deprecated.Report(ctx, deprecated.OptionInboundOptions)
+		}
 	}
 	h.Options = options
 	return nil
