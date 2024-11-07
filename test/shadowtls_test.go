@@ -10,7 +10,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/stretchr/testify/require"
 )
@@ -37,12 +39,12 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -52,9 +54,12 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				Tag:  "in",
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
-						Detour:     "detour",
+
+						InboundOptions: option.InboundOptions{
+							Detour: "detour",
+						},
 					},
 					Handshake: option.ShadowTLSHandshakeOptions{
 						ServerOptions: option.ServerOptions{
@@ -72,7 +77,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
 					},
 					Method:   method,
@@ -142,12 +147,12 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 
 func TestShadowTLSFallback(t *testing.T) {
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeShadowTLS,
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Handshake: option.ShadowTLSHandshakeOptions{
@@ -189,13 +194,13 @@ func TestShadowTLSInbound(t *testing.T) {
 		Cmd:        []string{"--v3", "--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "in",
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -204,9 +209,11 @@ func TestShadowTLSInbound(t *testing.T) {
 				Type: C.TypeShadowTLS,
 				ShadowTLSOptions: option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
-						Detour:     "detour",
+						InboundOptions: option.InboundOptions{
+							Detour: "detour",
+						},
 					},
 					Handshake: option.ShadowTLSHandshakeOptions{
 						ServerOptions: option.ServerOptions{
@@ -225,7 +232,7 @@ func TestShadowTLSInbound(t *testing.T) {
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen: option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen: common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 					},
 					Method:   method,
 					Password: password,
@@ -283,12 +290,12 @@ func TestShadowTLSOutbound(t *testing.T) {
 		Env:        []string{"RUST_LOG=trace"},
 	})
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		LegacyInbounds: []option.LegacyInbound{
 			{
 				Type: C.TypeMixed,
 				MixedOptions: option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -298,7 +305,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 				Tag:  "detour",
 				ShadowsocksOptions: option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
 					},
 					Method:   method,
