@@ -24,10 +24,10 @@ func (n Note) Impending() bool {
 		return false
 	}
 	versionMinor := semver.Compare(semver.MajorMinor("v"+C.Version), "v"+n.ScheduledVersion)
-	if versionMinor < 0 {
+	if semver.Prerelease("v"+C.Version) == "" && versionMinor > 0 {
 		panic("invalid deprecated note: " + n.Name)
 	}
-	return versionMinor <= 1
+	return versionMinor >= -1
 }
 
 func (n Note) Message() string {
