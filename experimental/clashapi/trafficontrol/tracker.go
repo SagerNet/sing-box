@@ -124,7 +124,7 @@ func (tt *TCPConn) WriterReplaceable() bool {
 	return true
 }
 
-func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundContext, router adapter.Router, rule adapter.Rule) *TCPConn {
+func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundContext, outboundManager adapter.OutboundManager, rule adapter.Rule) *TCPConn {
 	id, _ := uuid.NewV4()
 	var (
 		chain        []string
@@ -138,11 +138,11 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 	}
 	if routeAction, isRouteAction := action.(*R.RuleActionRoute); isRouteAction {
 		next = routeAction.Outbound
-	} else if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
-		next = defaultOutbound.Tag()
+	} else {
+		next = outboundManager.Default().Tag()
 	}
 	for {
-		detour, loaded := router.Outbound(next)
+		detour, loaded := outboundManager.Outbound(next)
 		if !loaded {
 			break
 		}
@@ -213,7 +213,7 @@ func (ut *UDPConn) WriterReplaceable() bool {
 	return true
 }
 
-func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.InboundContext, router adapter.Router, rule adapter.Rule) *UDPConn {
+func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.InboundContext, outboundManager adapter.OutboundManager, rule adapter.Rule) *UDPConn {
 	id, _ := uuid.NewV4()
 	var (
 		chain        []string
@@ -227,11 +227,11 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 	}
 	if routeAction, isRouteAction := action.(*R.RuleActionRoute); isRouteAction {
 		next = routeAction.Outbound
-	} else if defaultOutbound, err := router.DefaultOutbound(N.NetworkUDP); err == nil {
-		next = defaultOutbound.Tag()
+	} else {
+		next = outboundManager.Default().Tag()
 	}
 	for {
-		detour, loaded := router.Outbound(next)
+		detour, loaded := outboundManager.Outbound(next)
 		if !loaded {
 			break
 		}
