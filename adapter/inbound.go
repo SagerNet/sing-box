@@ -28,7 +28,15 @@ type UDPInjectableInbound interface {
 
 type InboundRegistry interface {
 	option.InboundOptionsRegistry
-	CreateInbound(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) (Inbound, error)
+	Create(ctx context.Context, router Router, logger log.ContextLogger, tag string, inboundType string, options any) (Inbound, error)
+}
+
+type InboundManager interface {
+	NewService
+	Inbounds() []Inbound
+	Get(tag string) (Inbound, bool)
+	Remove(tag string) error
+	Create(ctx context.Context, router Router, logger log.ContextLogger, tag string, inboundType string, options any) error
 }
 
 type InboundContext struct {

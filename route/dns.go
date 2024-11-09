@@ -75,7 +75,6 @@ func exchangeDNSPacket(ctx context.Context, router *Router, conn N.PacketConn, b
 		return err
 	}
 	err = conn.WritePacket(responseBuffer, destination)
-	responseBuffer.Release()
 	return err
 }
 
