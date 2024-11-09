@@ -15,21 +15,13 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
-	"github.com/sagernet/sing/service"
 
 	mdns "github.com/miekg/dns"
 	"go4.org/netipx"
 )
 
 type Router interface {
-	Service
-	PreStarter
-	PostStarter
-	Cleanup() error
-
-	Outbounds() []Outbound
-	Outbound(tag string) (Outbound, bool)
-	DefaultOutbound(network string) (Outbound, error)
+	NewService
 
 	FakeIPStore() FakeIPStore
 
@@ -82,14 +74,6 @@ type ConnectionRouterEx interface {
 	ConnectionRouter
 	RouteConnectionEx(ctx context.Context, conn net.Conn, metadata InboundContext, onClose N.CloseHandlerFunc)
 	RoutePacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata InboundContext, onClose N.CloseHandlerFunc)
-}
-
-func ContextWithRouter(ctx context.Context, router Router) context.Context {
-	return service.ContextWith(ctx, router)
-}
-
-func RouterFromContext(ctx context.Context) Router {
-	return service.FromContext[Router](ctx)
 }
 
 type RuleSet interface {

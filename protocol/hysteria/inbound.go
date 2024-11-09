@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -85,7 +86,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		XPlusPassword: options.Obfs,
 		TLSConfig:     tlsConfig,
 		UDPTimeout:    udpTimeout,
-		Handler:       adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, nil),
+		Handler:       inbound,
 
 		// Legacy options
 
@@ -117,12 +118,16 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
-func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
+	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	metadata.OriginDestination = h.listener.UDPAddr()
+	metadata.Source = source
+	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
 	if userName := h.userNameList[userID]; userName != "" {
@@ -131,16 +136,19 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	} else {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}
-	return h.router.RouteConnection(ctx, conn, metadata)
+	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
+	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.OriginDestination = h.listener.UDPAddr()
+	metadata.Source = source
+	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
 	if userName := h.userNameList[userID]; userName != "" {
@@ -149,7 +157,7 @@ func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, me
 	} else {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	}
-	return h.router.RoutePacketConnection(ctx, conn, metadata)
+	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
 func (h *Inbound) Start() error {
@@ -168,7 +176,7 @@ func (h *Inbound) Start() error {
 
 func (h *Inbound) Close() error {
 	return common.Close(
-		&h.listener,
+		h.listener,
 		h.tlsConfig,
 		common.PtrOrNil(h.service),
 	)
