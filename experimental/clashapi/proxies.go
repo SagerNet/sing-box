@@ -23,10 +23,10 @@ import (
 
 func proxyRouter(server *Server, router adapter.Router) http.Handler {
 	r := chi.NewRouter()
-	r.Get("/", getProxies(server, router))
+	r.Get("/", getProxies(server))
 
 	r.Route("/{name}", func(r chi.Router) {
-		r.Use(parseProxyName, findProxyByName(router))
+		r.Use(parseProxyName, findProxyByName(server))
 		r.Get("/", getProxy(server))
 		r.Get("/delay", getProxyDelay(server))
 		r.Put("/", updateProxy)
@@ -42,11 +42,11 @@ func parseProxyName(next http.Handler) http.Handler {
 	})
 }
 
-func findProxyByName(router adapter.Router) func(next http.Handler) http.Handler {
+func findProxyByName(server *Server) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			name := r.Context().Value(CtxKeyProxyName).(string)
-			proxy, exist := router.Outbound(name)
+			proxy, exist := server.outboundManager.Outbound(name)
 			if !exist {
 				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, ErrNotFound)
@@ -83,10 +83,10 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	return &info
 }
 
-func getProxies(server *Server, router adapter.Router) func(w http.ResponseWriter, r *http.Request) {
+func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var proxyMap badjson.JSONObject
-		outbounds := common.Filter(router.Outbounds(), func(detour adapter.Outbound) bool {
+		outbounds := common.Filter(server.outboundManager.Outbounds(), func(detour adapter.Outbound) bool {
 			return detour.Tag() != ""
 		})
 
@@ -100,12 +100,7 @@ func getProxies(server *Server, router adapter.Router) func(w http.ResponseWrite
 			allProxies = append(allProxies, detour.Tag())
 		}
 
-		var defaultTag string
-		if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
-			defaultTag = defaultOutbound.Tag()
-		} else {
-			defaultTag = allProxies[0]
-		}
+		defaultTag := server.outboundManager.Default().Tag()
 
 		sort.SliceStable(allProxies, func(i, j int) bool {
 			return allProxies[i] == defaultTag
