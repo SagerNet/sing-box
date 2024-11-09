@@ -36,6 +36,7 @@ type URLTest struct {
 	outbound.Adapter
 	ctx                          context.Context
 	router                       adapter.Router
+	outboundManager              adapter.OutboundManager
 	logger                       log.ContextLogger
 	tags                         []string
 	link                         string
@@ -51,6 +52,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		Adapter:                      outbound.NewAdapter(C.TypeURLTest, []string{N.NetworkTCP, N.NetworkUDP}, tag, options.Outbounds),
 		ctx:                          ctx,
 		router:                       router,
+		outboundManager:              service.FromContext[adapter.OutboundManager](ctx),
 		logger:                       logger,
 		tags:                         options.Outbounds,
 		link:                         options.URL,
@@ -68,7 +70,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 func (s *URLTest) Start() error {
 	outbounds := make([]adapter.Outbound, 0, len(s.tags))
 	for i, tag := range s.tags {
-		detour, loaded := s.router.Outbound(tag)
+		detour, loaded := s.outboundManager.Outbound(tag)
 		if !loaded {
 			return E.New("outbound ", i, " not found: ", tag)
 		}
@@ -77,6 +79,7 @@ func (s *URLTest) Start() error {
 	group, err := NewURLTestGroup(
 		s.ctx,
 		s.router,
+		s.outboundManager,
 		s.logger,
 		outbounds,
 		s.link,
@@ -190,6 +193,7 @@ func (s *URLTest) InterfaceUpdated() {
 type URLTestGroup struct {
 	ctx                          context.Context
 	router                       adapter.Router
+	outboundManager              adapter.OutboundManager
 	logger                       log.Logger
 	outbounds                    []adapter.Outbound
 	link                         string
@@ -214,6 +218,7 @@ type URLTestGroup struct {
 func NewURLTestGroup(
 	ctx context.Context,
 	router adapter.Router,
+	outboundManager adapter.OutboundManager,
 	logger log.Logger,
 	outbounds []adapter.Outbound,
 	link string,
@@ -244,6 +249,7 @@ func NewURLTestGroup(
 	return &URLTestGroup{
 		ctx:                          ctx,
 		router:                       router,
+		outboundManager:              outboundManager,
 		logger:                       logger,
 		outbounds:                    outbounds,
 		link:                         link,
@@ -385,7 +391,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			continue
 		}
 		checked[realTag] = true
-		p, loaded := g.router.Outbound(realTag)
+		p, loaded := g.outboundManager.Outbound(realTag)
 		if !loaded {
 			continue
 		}
