@@ -33,23 +33,24 @@ import (
 var _ adapter.RuleSet = (*RemoteRuleSet)(nil)
 
 type RemoteRuleSet struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	router         adapter.Router
-	logger         logger.ContextLogger
-	options        option.RuleSet
-	metadata       adapter.RuleSetMetadata
-	updateInterval time.Duration
-	dialer         N.Dialer
-	rules          []adapter.HeadlessRule
-	lastUpdated    time.Time
-	lastEtag       string
-	updateTicker   *time.Ticker
-	cacheFile      adapter.CacheFile
-	pauseManager   pause.Manager
-	callbackAccess sync.Mutex
-	callbacks      list.List[adapter.RuleSetUpdateCallback]
-	refs           atomic.Int32
+	ctx             context.Context
+	cancel          context.CancelFunc
+	router          adapter.Router
+	outboundManager adapter.OutboundManager
+	logger          logger.ContextLogger
+	options         option.RuleSet
+	metadata        adapter.RuleSetMetadata
+	updateInterval  time.Duration
+	dialer          N.Dialer
+	rules           []adapter.HeadlessRule
+	lastUpdated     time.Time
+	lastEtag        string
+	updateTicker    *time.Ticker
+	cacheFile       adapter.CacheFile
+	pauseManager    pause.Manager
+	callbackAccess  sync.Mutex
+	callbacks       list.List[adapter.RuleSetUpdateCallback]
+	refs            atomic.Int32
 }
 
 func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -61,13 +62,14 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 		updateInterval = 24 * time.Hour
 	}
 	return &RemoteRuleSet{
-		ctx:            ctx,
-		cancel:         cancel,
-		router:         router,
-		logger:         logger,
-		options:        options,
-		updateInterval: updateInterval,
-		pauseManager:   service.FromContext[pause.Manager](ctx),
+		ctx:             ctx,
+		cancel:          cancel,
+		router:          router,
+		outboundManager: service.FromContext[adapter.OutboundManager](ctx),
+		logger:          logger,
+		options:         options,
+		updateInterval:  updateInterval,
+		pauseManager:    service.FromContext[pause.Manager](ctx),
 	}
 }
 
@@ -83,17 +85,13 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	var dialer N.Dialer
 	if s.options.RemoteOptions.DownloadDetour != "" {
-		outbound, loaded := s.router.Outbound(s.options.RemoteOptions.DownloadDetour)
+		outbound, loaded := s.outboundManager.Outbound(s.options.RemoteOptions.DownloadDetour)
 		if !loaded {
 			return E.New("download_detour not found: ", s.options.RemoteOptions.DownloadDetour)
 		}
 		dialer = outbound
 	} else {
-		outbound, err := s.router.DefaultOutbound(N.NetworkTCP)
-		if err != nil {
-			return err
-		}
-		dialer = outbound
+		dialer = s.outboundManager.Default()
 	}
 	s.dialer = dialer
 	if s.cacheFile != nil {
