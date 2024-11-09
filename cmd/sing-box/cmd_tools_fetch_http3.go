@@ -16,7 +16,7 @@ import (
 )
 
 func initializeHTTP3Client(instance *box.Box) error {
-	dialer, err := createDialer(instance, N.NetworkUDP, commandToolsFlagOutbound)
+	dialer, err := createDialer(instance, commandToolsFlagOutbound)
 	if err != nil {
 		return err
 	}
