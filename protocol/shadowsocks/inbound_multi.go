@@ -113,7 +113,11 @@ func (h *MultiInbound) NewConnectionEx(ctx context.Context, conn net.Conn, metad
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		if E.IsClosedOrCanceled(err) {
+			h.logger.DebugContext(ctx, "connection closed: ", err)
+		} else {
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		}
 	}
 }
 
@@ -138,6 +142,8 @@ func (h *MultiInbound) newConnection(ctx context.Context, conn net.Conn, metadat
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 

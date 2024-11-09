@@ -12,6 +12,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/shell"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 )
 
 type DarwinSystemProxy struct {
@@ -24,7 +25,7 @@ type DarwinSystemProxy struct {
 }
 
 func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (*DarwinSystemProxy, error) {
-	interfaceMonitor := adapter.RouterFromContext(ctx).InterfaceMonitor()
+	interfaceMonitor := service.FromContext[adapter.Router](ctx).InterfaceMonitor()
 	if interfaceMonitor == nil {
 		return nil, E.New("missing interface monitor")
 	}
