@@ -66,7 +66,11 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	err := h.newConnection(ctx, conn, metadata, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		if E.IsClosedOrCanceled(err) {
+			h.logger.DebugContext(ctx, "connection closed: ", err)
+		} else {
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		}
 	}
 }
 
@@ -85,6 +89,10 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
@@ -97,6 +105,10 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 }
 
 func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
