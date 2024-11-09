@@ -12,15 +12,15 @@ import (
 )
 
 type DetourDialer struct {
-	router   adapter.Router
-	detour   string
-	dialer   N.Dialer
-	initOnce sync.Once
-	initErr  error
+	outboundManager adapter.OutboundManager
+	detour          string
+	dialer          N.Dialer
+	initOnce        sync.Once
+	initErr         error
 }
 
-func NewDetour(router adapter.Router, detour string) N.Dialer {
-	return &DetourDialer{router: router, detour: detour}
+func NewDetour(outboundManager adapter.OutboundManager, detour string) N.Dialer {
+	return &DetourDialer{outboundManager: outboundManager, detour: detour}
 }
 
 func (d *DetourDialer) Start() error {
@@ -31,7 +31,7 @@ func (d *DetourDialer) Start() error {
 func (d *DetourDialer) Dialer() (N.Dialer, error) {
 	d.initOnce.Do(func() {
 		var loaded bool
-		d.dialer, loaded = d.router.Outbound(d.detour)
+		d.dialer, loaded = d.outboundManager.Outbound(d.detour)
 		if !loaded {
 			d.initErr = E.New("outbound detour not found: ", d.detour)
 		}

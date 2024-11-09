@@ -26,7 +26,7 @@ var _ adapter.OutboundGroup = (*Selector)(nil)
 type Selector struct {
 	outbound.Adapter
 	ctx                          context.Context
-	router                       adapter.Router
+	outboundManager              adapter.OutboundManager
 	logger                       logger.ContextLogger
 	tags                         []string
 	defaultTag                   string
@@ -40,7 +40,7 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 	outbound := &Selector{
 		Adapter:                      outbound.NewAdapter(C.TypeSelector, nil, tag, options.Outbounds),
 		ctx:                          ctx,
-		router:                       router,
+		outboundManager:              service.FromContext[adapter.OutboundManager](ctx),
 		logger:                       logger,
 		tags:                         options.Outbounds,
 		defaultTag:                   options.Default,
@@ -63,7 +63,7 @@ func (s *Selector) Network() []string {
 
 func (s *Selector) Start() error {
 	for i, tag := range s.tags {
-		detour, loaded := s.router.Outbound(tag)
+		detour, loaded := s.outboundManager.Outbound(tag)
 		if !loaded {
 			return E.New("outbound ", i, " not found: ", tag)
 		}
