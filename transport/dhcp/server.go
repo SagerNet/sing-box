@@ -23,6 +23,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	mDNS "github.com/miekg/dns"
@@ -53,7 +54,7 @@ func NewTransport(options dns.TransportOptions) (*Transport, error) {
 	if linkURL.Host == "" {
 		return nil, E.New("missing interface name for DHCP")
 	}
-	router := adapter.RouterFromContext(options.Context)
+	router := service.FromContext[adapter.Router](options.Context)
 	if router == nil {
 		return nil, E.New("missing router in context")
 	}
