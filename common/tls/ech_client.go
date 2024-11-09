@@ -19,6 +19,7 @@ import (
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -213,7 +214,7 @@ func fetchECHClientConfig(ctx context.Context) func(_ context.Context, serverNam
 				},
 			},
 		}
-		response, err := adapter.RouterFromContext(ctx).Exchange(ctx, message)
+		response, err := service.FromContext[adapter.Router](ctx).Exchange(ctx, message)
 		if err != nil {
 			return nil, err
 		}
