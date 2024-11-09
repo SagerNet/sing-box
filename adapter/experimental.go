@@ -15,7 +15,7 @@ import (
 
 type ClashServer interface {
 	Service
-	PreStarter
+	LegacyPreStarter
 	Mode() string
 	ModeList() []string
 	HistoryStorage() *urltest.HistoryStorage
@@ -25,7 +25,7 @@ type ClashServer interface {
 
 type CacheFile interface {
 	Service
-	PreStarter
+	LegacyPreStarter
 
 	StoreFakeIP() bool
 	FakeIPStorage

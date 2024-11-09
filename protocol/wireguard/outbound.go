@@ -78,7 +78,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		options.IsWireGuardListener = true
 		outbound.useStdNetBind = true
 	}
-	listener, err := dialer.New(router, options.DialerOptions)
+	listener, err := dialer.New(ctx, options.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
