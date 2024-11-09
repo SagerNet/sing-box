@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sagernet/reality"
-	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -102,7 +101,7 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 		tlsConfig.ShortIds[shortID] = true
 	}
 
-	handshakeDialer, err := dialer.New(adapter.RouterFromContext(ctx), options.Reality.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(ctx, options.Reality.Handshake.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
