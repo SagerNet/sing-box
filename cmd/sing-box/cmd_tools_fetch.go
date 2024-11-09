@@ -48,7 +48,7 @@ func fetch(args []string) error {
 	httpClient = &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer, err := createDialer(instance, network, commandToolsFlagOutbound)
+				dialer, err := createDialer(instance, commandToolsFlagOutbound)
 				if err != nil {
 					return nil, err
 				}

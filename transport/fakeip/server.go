@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -32,7 +33,7 @@ type Transport struct {
 }
 
 func NewTransport(options dns.TransportOptions) (*Transport, error) {
-	router := adapter.RouterFromContext(options.Context)
+	router := service.FromContext[adapter.Router](options.Context)
 	if router == nil {
 		return nil, E.New("missing router in context")
 	}

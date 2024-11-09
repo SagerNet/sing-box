@@ -22,7 +22,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func NewRuleAction(router adapter.Router, logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
+func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
 	switch action.Action {
 	case "":
 		return nil, nil
@@ -36,7 +36,7 @@ func NewRuleAction(router adapter.Router, logger logger.ContextLogger, action op
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
 		}, nil
 	case C.RuleActionTypeDirect:
-		directDialer, err := dialer.New(router, option.DialerOptions(action.DirectOptions))
+		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions))
 		if err != nil {
 			return nil, err
 		}
