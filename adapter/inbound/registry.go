@@ -15,8 +15,12 @@ type ConstructorFunc[T any] func(ctx context.Context, router adapter.Router, log
 func Register[Options any](registry *Registry, outboundType string, constructor ConstructorFunc[Options]) {
 	registry.register(outboundType, func() any {
 		return new(Options)
-	}, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options any) (adapter.Inbound, error) {
-		return constructor(ctx, router, logger, tag, common.PtrValueOrDefault(options.(*Options)))
+	}, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, rawOptions any) (adapter.Inbound, error) {
+		var options *Options
+		if rawOptions != nil {
+			options = rawOptions.(*Options)
+		}
+		return constructor(ctx, router, logger, tag, common.PtrValueOrDefault(options))
 	})
 }
 
@@ -28,41 +32,41 @@ type (
 )
 
 type Registry struct {
-	access       sync.Mutex
-	optionsType  map[string]optionsConstructorFunc
-	constructors map[string]constructorFunc
+	access      sync.Mutex
+	optionsType map[string]optionsConstructorFunc
+	constructor map[string]constructorFunc
 }
 
 func NewRegistry() *Registry {
 	return &Registry{
-		optionsType:  make(map[string]optionsConstructorFunc),
-		constructors: make(map[string]constructorFunc),
+		optionsType: make(map[string]optionsConstructorFunc),
+		constructor: make(map[string]constructorFunc),
 	}
 }
 
-func (r *Registry) CreateOptions(outboundType string) (any, bool) {
-	r.access.Lock()
-	defer r.access.Unlock()
-	optionsConstructor, loaded := r.optionsType[outboundType]
+func (m *Registry) CreateOptions(outboundType string) (any, bool) {
+	m.access.Lock()
+	defer m.access.Unlock()
+	optionsConstructor, loaded := m.optionsType[outboundType]
 	if !loaded {
 		return nil, false
 	}
 	return optionsConstructor(), true
 }
 
-func (r *Registry) CreateInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) (adapter.Inbound, error) {
-	r.access.Lock()
-	defer r.access.Unlock()
-	constructor, loaded := r.constructors[outboundType]
+func (m *Registry) Create(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) (adapter.Inbound, error) {
+	m.access.Lock()
+	defer m.access.Unlock()
+	constructor, loaded := m.constructor[outboundType]
 	if !loaded {
 		return nil, E.New("outbound type not found: " + outboundType)
 	}
 	return constructor(ctx, router, logger, tag, options)
 }
 
-func (r *Registry) register(outboundType string, optionsConstructor optionsConstructorFunc, constructor constructorFunc) {
-	r.access.Lock()
-	defer r.access.Unlock()
-	r.optionsType[outboundType] = optionsConstructor
-	r.constructors[outboundType] = constructor
+func (m *Registry) register(outboundType string, optionsConstructor optionsConstructorFunc, constructor constructorFunc) {
+	m.access.Lock()
+	defer m.access.Unlock()
+	m.optionsType[outboundType] = optionsConstructor
+	m.constructor[outboundType] = constructor
 }
