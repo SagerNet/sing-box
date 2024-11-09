@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -46,7 +47,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if options.Version > 1 {
 		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
 		for serverName, serverOptions := range options.HandshakeForServerName {
-			handshakeDialer, err := dialer.New(router, serverOptions.DialerOptions)
+			handshakeDialer, err := dialer.New(ctx, serverOptions.DialerOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -56,7 +57,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			}
 		}
 	}
-	handshakeDialer, err := dialer.New(router, options.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		},
 		HandshakeForServerName: handshakeForServerName,
 		StrictMode:             options.StrictMode,
-		Handler:                adapter.NewUpstreamContextHandler(inbound.newConnection, nil, nil),
+		Handler:                (*inboundHandler)(inbound),
 		Logger:                 logger,
 	})
 	if err != nil {
@@ -97,24 +98,33 @@ func (h *Inbound) Close() error {
 	return h.listener.Close()
 }
 
-func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, adapter.UpstreamMetadata(metadata))
+func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	err := h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, metadata.Source, metadata.Destination, onClose)
+	N.CloseOnHandshakeFailure(conn, onClose, err)
+	if err != nil {
+		if E.IsClosedOrCanceled(err) {
+			h.logger.DebugContext(ctx, "connection closed: ", err)
+		} else {
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		}
+	}
 }
 
-func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+type inboundHandler Inbound
+
+func (h *inboundHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	var metadata adapter.InboundContext
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	metadata.Source = source
+	metadata.Destination = destination
 	if userName, _ := auth.UserFromContext[string](ctx); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
 	} else {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}
-	return h.router.RouteConnection(ctx, conn, metadata)
-}
-
-func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	err := h.NewConnection(ctx, conn, metadata)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
-	if err != nil {
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
-	}
+	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
