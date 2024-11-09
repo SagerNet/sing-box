@@ -15,8 +15,12 @@ type ConstructorFunc[T any] func(ctx context.Context, router adapter.Router, log
 func Register[Options any](registry *Registry, outboundType string, constructor ConstructorFunc[Options]) {
 	registry.register(outboundType, func() any {
 		return new(Options)
-	}, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options any) (adapter.Outbound, error) {
-		return constructor(ctx, router, logger, tag, common.PtrValueOrDefault(options.(*Options)))
+	}, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, rawOptions any) (adapter.Outbound, error) {
+		var options *Options
+		if rawOptions != nil {
+			options = rawOptions.(*Options)
+		}
+		return constructor(ctx, router, logger, tag, common.PtrValueOrDefault(options))
 	})
 }
 

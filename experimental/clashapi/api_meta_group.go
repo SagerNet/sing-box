@@ -23,7 +23,7 @@ func groupRouter(server *Server) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getGroups(server))
 	r.Route("/{name}", func(r chi.Router) {
-		r.Use(parseProxyName, findProxyByName(server.router))
+		r.Use(parseProxyName, findProxyByName(server))
 		r.Get("/", getGroup(server))
 		r.Get("/delay", getGroupDelay(server))
 	})
@@ -32,7 +32,7 @@ func groupRouter(server *Server) http.Handler {
 
 func getGroups(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		groups := common.Map(common.Filter(server.router.Outbounds(), func(it adapter.Outbound) bool {
+		groups := common.Map(common.Filter(server.outboundManager.Outbounds(), func(it adapter.Outbound) bool {
 			_, isGroup := it.(adapter.OutboundGroup)
 			return isGroup
 		}), func(it adapter.Outbound) *badjson.JSONObject {
@@ -86,7 +86,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 			result, err = urlTestGroup.URLTest(ctx)
 		} else {
 			outbounds := common.FilterNotNil(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
-				itOutbound, _ := server.router.Outbound(it)
+				itOutbound, _ := server.outboundManager.Outbound(it)
 				return itOutbound
 			}))
 			b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
@@ -100,7 +100,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 					continue
 				}
 				checked[realTag] = true
-				p, loaded := server.router.Outbound(realTag)
+				p, loaded := server.outboundManager.Outbound(realTag)
 				if !loaded {
 					continue
 				}
