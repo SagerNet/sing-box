@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service/filemanager"
 )
 
@@ -45,16 +44,13 @@ func (s *Server) downloadExternalUI() error {
 	s.logger.Info("downloading external ui")
 	var detour adapter.Outbound
 	if s.externalUIDownloadDetour != "" {
-		outbound, loaded := s.router.Outbound(s.externalUIDownloadDetour)
+		outbound, loaded := s.outboundManager.Outbound(s.externalUIDownloadDetour)
 		if !loaded {
 			return E.New("detour outbound not found: ", s.externalUIDownloadDetour)
 		}
 		detour = outbound
 	} else {
-		outbound, err := s.router.DefaultOutbound(N.NetworkTCP)
-		if err != nil {
-			return err
-		}
+		outbound := s.outboundManager.Default()
 		detour = outbound
 	}
 	httpClient := &http.Client{
