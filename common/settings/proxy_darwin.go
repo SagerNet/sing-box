@@ -25,7 +25,7 @@ type DarwinSystemProxy struct {
 }
 
 func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (*DarwinSystemProxy, error) {
-	interfaceMonitor := service.FromContext[adapter.Router](ctx).InterfaceMonitor()
+	interfaceMonitor := service.FromContext[adapter.NetworkManager](ctx).InterfaceMonitor()
 	if interfaceMonitor == nil {
 		return nil, E.New("missing interface monitor")
 	}

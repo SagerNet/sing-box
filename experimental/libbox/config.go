@@ -50,7 +50,7 @@ func CheckConfig(configContent string) error {
 
 type platformInterfaceStub struct{}
 
-func (s *platformInterfaceStub) Initialize(ctx context.Context, router adapter.Router) error {
+func (s *platformInterfaceStub) Initialize(networkManager adapter.NetworkManager) error {
 	return nil
 }
 
