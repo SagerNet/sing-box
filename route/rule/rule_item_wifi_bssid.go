@@ -10,12 +10,12 @@ import (
 var _ RuleItem = (*WIFIBSSIDItem)(nil)
 
 type WIFIBSSIDItem struct {
-	bssidList []string
-	bssidMap  map[string]bool
-	router    adapter.Router
+	bssidList      []string
+	bssidMap       map[string]bool
+	networkManager adapter.NetworkManager
 }
 
-func NewWIFIBSSIDItem(router adapter.Router, bssidList []string) *WIFIBSSIDItem {
+func NewWIFIBSSIDItem(networkManager adapter.NetworkManager, bssidList []string) *WIFIBSSIDItem {
 	bssidMap := make(map[string]bool)
 	for _, bssid := range bssidList {
 		bssidMap[bssid] = true
@@ -23,12 +23,12 @@ func NewWIFIBSSIDItem(router adapter.Router, bssidList []string) *WIFIBSSIDItem 
 	return &WIFIBSSIDItem{
 		bssidList,
 		bssidMap,
-		router,
+		networkManager,
 	}
 }
 
 func (r *WIFIBSSIDItem) Match(metadata *adapter.InboundContext) bool {
-	return r.bssidMap[r.router.WIFIState().BSSID]
+	return r.bssidMap[r.networkManager.WIFIState().BSSID]
 }
 
 func (r *WIFIBSSIDItem) String() string {
