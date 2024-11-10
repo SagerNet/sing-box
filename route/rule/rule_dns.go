@@ -10,9 +10,10 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service"
 )
 
-func NewDNSRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
+func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
@@ -24,7 +25,7 @@ func NewDNSRule(ctx context.Context, router adapter.Router, logger log.ContextLo
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewDefaultDNSRule(ctx, router, logger, options.DefaultOptions)
+		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
@@ -35,7 +36,7 @@ func NewDNSRule(ctx context.Context, router adapter.Router, logger log.ContextLo
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewLogicalDNSRule(ctx, router, logger, options.LogicalOptions)
+		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -47,7 +48,7 @@ type DefaultDNSRule struct {
 	abstractDefaultRule
 }
 
-func NewDefaultDNSRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
 			invert: options.Invert,
@@ -59,6 +60,8 @@ func NewDefaultDNSRule(ctx context.Context, router adapter.Router, logger log.Co
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	router := service.FromContext[adapter.Router](ctx)
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if options.IPVersion > 0 {
 		switch options.IPVersion {
 		case 4, 6:
@@ -218,12 +221,12 @@ func NewDefaultDNSRule(ctx context.Context, router adapter.Router, logger log.Co
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.WIFISSID) > 0 {
-		item := NewWIFISSIDItem(router, options.WIFISSID)
+		item := NewWIFISSIDItem(networkManager, options.WIFISSID)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.WIFIBSSID) > 0 {
-		item := NewWIFIBSSIDItem(router, options.WIFIBSSID)
+		item := NewWIFIBSSIDItem(networkManager, options.WIFIBSSID)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -282,7 +285,7 @@ type LogicalDNSRule struct {
 	abstractLogicalRule
 }
 
-func NewLogicalDNSRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
@@ -299,7 +302,7 @@ func NewLogicalDNSRule(ctx context.Context, router adapter.Router, logger log.Co
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDNSRule(ctx, router, logger, subRule, false)
+		rule, err := NewDNSRule(ctx, logger, subRule, false)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
