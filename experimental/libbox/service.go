@@ -34,17 +34,18 @@ import (
 type BoxService struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
-	instance              *box.Box
-	pauseManager          pause.Manager
 	urlTestHistoryStorage *urltest.HistoryStorage
+	instance              *box.Box
+	clashServer           adapter.ClashServer
+	pauseManager          pause.Manager
 
 	servicePauseFields
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
 	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry())
-	ctx = service.ContextWith[deprecated.Manager](ctx, new(deprecatedManager))
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
+	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
 	platformWrapper := &platformInterfaceWrapper{iif: platformInterface, useProcFS: platformInterface.UseProcFS()}
-	ctx = service.ContextWith[platform.Interface](ctx, platformWrapper)
+	service.MustRegister[platform.Interface](ctx, platformWrapper)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,
@@ -71,6 +72,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		instance:              instance,
 		urlTestHistoryStorage: urlTestHistoryStorage,
 		pauseManager:          service.FromContext[pause.Manager](ctx),
+		clashServer:           service.FromContext[adapter.ClashServer](ctx),
 	}, nil
 }
 

@@ -91,16 +91,12 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if err != nil {
 		return err
 	}
-	var (
-		// selectedOutbound adapter.Outbound
-		selectedDialer      N.Dialer
-		selectedTag         string
-		selectedDescription string
-	)
+	var selectedOutbound adapter.Outbound
 	if selectedRule != nil {
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
-			selectedOutbound, loaded := r.outboundManager.Outbound(action.Outbound)
+			var loaded bool
+			selectedOutbound, loaded = r.outboundManager.Outbound(action.Outbound)
 			if !loaded {
 				buf.ReleaseMulti(buffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -109,12 +105,6 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 				buf.ReleaseMulti(buffers)
 				return E.New("TCP is not supported by outbound: ", selectedOutbound.Tag())
 			}
-			selectedDialer = selectedOutbound
-			selectedTag = selectedOutbound.Tag()
-			selectedDescription = F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]")
-		case *rule.RuleActionDirect:
-			selectedDialer = action.Dialer
-			selectedDescription = action.String()
 		case *rule.RuleActionReject:
 			buf.ReleaseMulti(buffers)
 			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
@@ -133,25 +123,16 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			buf.ReleaseMulti(buffers)
 			return E.New("TCP is not supported by default outbound: ", defaultOutbound.Tag())
 		}
-		selectedDialer = defaultOutbound
-		selectedTag = defaultOutbound.Tag()
-		selectedDescription = F.ToString("outbound/", defaultOutbound.Type(), "[", defaultOutbound.Tag(), "]")
+		selectedOutbound = defaultOutbound
 	}
 
 	for _, buffer := range buffers {
 		conn = bufio.NewCachedConn(conn, buffer)
 	}
-	if r.clashServer != nil {
-		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, selectedRule)
-		defer tracker.Leave()
-		conn = trackerConn
+	if r.tracker != nil {
+		conn = r.tracker.RoutedConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
-	if r.v2rayServer != nil {
-		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedConnection(metadata.Inbound, selectedTag, metadata.User, conn)
-		}
-	}
-	legacyOutbound, isLegacy := selectedDialer.(adapter.ConnectionHandler)
+	legacyOutbound, isLegacy := selectedOutbound.(adapter.ConnectionHandler)
 	if isLegacy {
 		err = legacyOutbound.NewConnection(ctx, conn, metadata)
 		if err != nil {
@@ -159,7 +140,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			if onClose != nil {
 				onClose(err)
 			}
-			return E.Cause(err, selectedDescription)
+			return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
 		} else {
 			if onClose != nil {
 				onClose(nil)
@@ -168,13 +149,13 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		return nil
 	}
 	// TODO
-	err = outbound.NewConnection(ctx, selectedDialer, conn, metadata)
+	err = outbound.NewConnection(ctx, selectedOutbound, conn, metadata)
 	if err != nil {
 		conn.Close()
 		if onClose != nil {
 			onClose(err)
 		}
-		return E.Cause(err, selectedDescription)
+		return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
 	} else {
 		if onClose != nil {
 			onClose(nil)
@@ -246,16 +227,13 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if err != nil {
 		return err
 	}
-	var (
-		selectedDialer      N.Dialer
-		selectedTag         string
-		selectedDescription string
-	)
+	var selectedOutbound adapter.Outbound
 	var selectReturn bool
 	if selectedRule != nil {
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
-			selectedOutbound, loaded := r.outboundManager.Outbound(action.Outbound)
+			var loaded bool
+			selectedOutbound, loaded = r.outboundManager.Outbound(action.Outbound)
 			if !loaded {
 				N.ReleaseMultiPacketBuffer(packetBuffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -264,12 +242,6 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 				N.ReleaseMultiPacketBuffer(packetBuffers)
 				return E.New("UDP is not supported by outbound: ", selectedOutbound.Tag())
 			}
-			selectedDialer = selectedOutbound
-			selectedTag = selectedOutbound.Tag()
-			selectedDescription = F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]")
-		case *rule.RuleActionDirect:
-			selectedDialer = action.Dialer
-			selectedDescription = action.String()
 		case *rule.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
 			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
@@ -285,41 +257,32 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			N.ReleaseMultiPacketBuffer(packetBuffers)
 			return E.New("UDP is not supported by outbound: ", defaultOutbound.Tag())
 		}
-		selectedDialer = defaultOutbound
-		selectedTag = defaultOutbound.Tag()
-		selectedDescription = F.ToString("outbound/", defaultOutbound.Type(), "[", defaultOutbound.Tag(), "]")
+		selectedOutbound = defaultOutbound
 	}
 	for _, buffer := range packetBuffers {
 		conn = bufio.NewCachedPacketConn(conn, buffer.Buffer, buffer.Destination)
 		N.PutPacketBuffer(buffer)
 	}
-	if r.clashServer != nil {
-		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, selectedRule)
-		defer tracker.Leave()
-		conn = trackerConn
-	}
-	if r.v2rayServer != nil {
-		if statsService := r.v2rayServer.StatsService(); statsService != nil {
-			conn = statsService.RoutedPacketConnection(metadata.Inbound, selectedTag, metadata.User, conn)
-		}
+	if r.tracker != nil {
+		conn = r.tracker.RoutedPacketConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
 	if metadata.FakeIP {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
-	legacyOutbound, isLegacy := selectedDialer.(adapter.PacketConnectionHandler)
+	legacyOutbound, isLegacy := selectedOutbound.(adapter.PacketConnectionHandler)
 	if isLegacy {
 		err = legacyOutbound.NewPacketConnection(ctx, conn, metadata)
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		if err != nil {
-			return E.Cause(err, selectedDescription)
+			return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
 		}
 		return nil
 	}
 	// TODO
-	err = outbound.NewPacketConnection(ctx, selectedDialer, conn, metadata)
+	err = outbound.NewPacketConnection(ctx, selectedOutbound, conn, metadata)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
-		return E.Cause(err, selectedDescription)
+		return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
 	}
 	return nil
 }
