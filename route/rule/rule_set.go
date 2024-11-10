@@ -13,12 +13,12 @@ import (
 	"go4.org/netipx"
 )
 
-func NewRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) (adapter.RuleSet, error) {
+func NewRuleSet(ctx context.Context, logger logger.ContextLogger, options option.RuleSet) (adapter.RuleSet, error) {
 	switch options.Type {
 	case C.RuleSetTypeInline, C.RuleSetTypeLocal, "":
-		return NewLocalRuleSet(ctx, router, logger, options)
+		return NewLocalRuleSet(ctx, logger, options)
 	case C.RuleSetTypeRemote:
-		return NewRemoteRuleSet(ctx, router, logger, options), nil
+		return NewRemoteRuleSet(ctx, logger, options), nil
 	default:
 		return nil, E.New("unknown rule-set type: ", options.Type)
 	}

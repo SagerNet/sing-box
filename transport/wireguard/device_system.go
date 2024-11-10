@@ -34,7 +34,7 @@ type SystemDevice struct {
 	closeOnce      sync.Once
 }
 
-func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes []netip.Prefix, mtu uint32, gso bool) (*SystemDevice, error) {
+func NewSystemDevice(networkManager adapter.NetworkManager, interfaceName string, localPrefixes []netip.Prefix, mtu uint32, gso bool) (*SystemDevice, error) {
 	var inet4Addresses []netip.Prefix
 	var inet6Addresses []netip.Prefix
 	for _, prefixes := range localPrefixes {
@@ -49,7 +49,7 @@ func NewSystemDevice(router adapter.Router, interfaceName string, localPrefixes 
 	}
 
 	return &SystemDevice{
-		dialer: common.Must1(dialer.NewDefault(router, option.DialerOptions{
+		dialer: common.Must1(dialer.NewDefault(networkManager, option.DialerOptions{
 			BindInterface: interfaceName,
 		})),
 		name:           interfaceName,
