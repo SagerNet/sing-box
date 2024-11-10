@@ -48,16 +48,17 @@ func (m *Manager) Initialize(defaultOutboundFallback adapter.Outbound) {
 
 func (m *Manager) Start(stage adapter.StartStage) error {
 	m.access.Lock()
-	defer m.access.Unlock()
 	if m.started && m.stage >= stage {
 		panic("already started")
 	}
 	m.started = true
 	m.stage = stage
+	outbounds := m.outbounds
+	m.access.Unlock()
 	if stage == adapter.StartStateStart {
-		m.startOutbounds()
+		return m.startOutbounds(outbounds)
 	} else {
-		for _, outbound := range m.outbounds {
+		for _, outbound := range outbounds {
 			err := adapter.LegacyStart(outbound, stage)
 			if err != nil {
 				return E.Cause(err, stage.Action(), " outbound/", outbound.Type(), "[", outbound.Tag(), "]")
@@ -67,13 +68,13 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	return nil
 }
 
-func (m *Manager) startOutbounds() error {
+func (m *Manager) startOutbounds(outbounds []adapter.Outbound) error {
 	monitor := taskmonitor.New(m.logger, C.StartTimeout)
 	started := make(map[string]bool)
 	for {
 		canContinue := false
 	startOne:
-		for _, outboundToStart := range m.outbounds {
+		for _, outboundToStart := range outbounds {
 			outboundTag := outboundToStart.Tag()
 			if started[outboundTag] {
 				continue
@@ -97,13 +98,13 @@ func (m *Manager) startOutbounds() error {
 				}
 			}
 		}
-		if len(started) == len(m.outbounds) {
+		if len(started) == len(outbounds) {
 			break
 		}
 		if canContinue {
 			continue
 		}
-		currentOutbound := common.Find(m.outbounds, func(it adapter.Outbound) bool {
+		currentOutbound := common.Find(outbounds, func(it adapter.Outbound) bool {
 			return !started[it.Tag()]
 		})
 		var lintOutbound func(oTree []string, oCurrent adapter.Outbound) error
@@ -114,7 +115,9 @@ func (m *Manager) startOutbounds() error {
 			if common.Contains(oTree, problemOutboundTag) {
 				return E.New("circular outbound dependency: ", strings.Join(oTree, " -> "), " -> ", problemOutboundTag)
 			}
+			m.access.Lock()
 			problemOutbound := m.outboundByTag[problemOutboundTag]
+			m.access.Unlock()
 			if problemOutbound == nil {
 				return E.New("dependency[", problemOutboundTag, "] not found for outbound[", oCurrent.Tag(), "]")
 			}
@@ -129,7 +132,8 @@ func (m *Manager) Close() error {
 	monitor := taskmonitor.New(m.logger, C.StopTimeout)
 	m.access.Lock()
 	if !m.started {
-		panic("not started")
+		m.access.Unlock()
+		return nil
 	}
 	m.started = false
 	outbounds := m.outbounds

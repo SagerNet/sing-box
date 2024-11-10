@@ -29,5 +29,5 @@ func (s *BoxService) Wake() {
 }
 
 func (s *BoxService) ResetNetwork() {
-	_ = s.instance.Router().ResetNetwork()
+	s.instance.Router().ResetNetwork()
 }

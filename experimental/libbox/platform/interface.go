@@ -1,8 +1,6 @@
 package platform
 
 import (
-	"context"
-
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/option"
@@ -12,7 +10,7 @@ import (
 )
 
 type Interface interface {
-	Initialize(ctx context.Context, router adapter.Router) error
+	Initialize(networkManager adapter.NetworkManager) error
 	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int) error
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
