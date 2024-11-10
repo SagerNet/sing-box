@@ -24,7 +24,7 @@ type OutboundRegistry interface {
 }
 
 type OutboundManager interface {
-	NewService
+	Lifecycle
 	Outbounds() []Outbound
 	Outbound(tag string) (Outbound, bool)
 	Default() Outbound

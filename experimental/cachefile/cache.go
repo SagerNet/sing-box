@@ -93,7 +93,18 @@ func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
 	}
 }
 
-func (c *CacheFile) start() error {
+func (c *CacheFile) Name() string {
+	return "cache-file"
+}
+
+func (c *CacheFile) Dependencies() []string {
+	return nil
+}
+
+func (c *CacheFile) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
 	const fileMode = 0o666
 	options := bbolt.Options{Timeout: time.Second}
 	var (
@@ -148,14 +159,6 @@ func (c *CacheFile) start() error {
 		return err
 	}
 	c.DB = db
-	return nil
-}
-
-func (c *CacheFile) PreStart() error {
-	return c.start()
-}
-
-func (c *CacheFile) Start() error {
 	return nil
 }
 

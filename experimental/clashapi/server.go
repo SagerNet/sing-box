@@ -136,45 +136,50 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	return s, nil
 }
 
-func (s *Server) PreStart() error {
-	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
-	if cacheFile != nil {
-		mode := cacheFile.LoadMode()
-		if common.Any(s.modeList, func(it string) bool {
-			return strings.EqualFold(it, mode)
-		}) {
-			s.mode = mode
-		}
-	}
-	return nil
+func (s *Server) Name() string {
+	return "clash server"
 }
 
-func (s *Server) Start() error {
-	if s.externalController {
-		s.checkAndDownloadExternalUI()
-		var (
-			listener net.Listener
-			err      error
-		)
-		for i := 0; i < 3; i++ {
-			listener, err = net.Listen("tcp", s.httpServer.Addr)
-			if runtime.GOOS == "android" && errors.Is(err, syscall.EADDRINUSE) {
-				time.Sleep(100 * time.Millisecond)
-				continue
+func (s *Server) Start(stage adapter.StartStage) error {
+	switch stage {
+	case adapter.StartStateStart:
+		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+		if cacheFile != nil {
+			mode := cacheFile.LoadMode()
+			if common.Any(s.modeList, func(it string) bool {
+				return strings.EqualFold(it, mode)
+			}) {
+				s.mode = mode
 			}
-			break
 		}
-		if err != nil {
-			return E.Cause(err, "external controller listen error")
-		}
-		s.logger.Info("restful api listening at ", listener.Addr())
-		go func() {
-			err = s.httpServer.Serve(listener)
-			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				s.logger.Error("external controller serve error: ", err)
+	case adapter.StartStateStarted:
+		if s.externalController {
+			s.checkAndDownloadExternalUI()
+			var (
+				listener net.Listener
+				err      error
+			)
+			for i := 0; i < 3; i++ {
+				listener, err = net.Listen("tcp", s.httpServer.Addr)
+				if runtime.GOOS == "android" && errors.Is(err, syscall.EADDRINUSE) {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				break
 			}
-		}()
+			if err != nil {
+				return E.Cause(err, "external controller listen error")
+			}
+			s.logger.Info("restful api listening at ", listener.Addr())
+			go func() {
+				err = s.httpServer.Serve(listener)
+				if err != nil && !errors.Is(err, http.ErrServerClosed) {
+					s.logger.Error("external controller serve error: ", err)
+				}
+			}()
+		}
 	}
+
 	return nil
 }
 
@@ -236,14 +241,12 @@ func (s *Server) TrafficManager() *trafficontrol.Manager {
 	return s.trafficManager
 }
 
-func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule) (net.Conn, adapter.Tracker) {
-	tracker := trafficontrol.NewTCPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule)
-	return tracker, tracker
+func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
+	return trafficontrol.NewTCPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule, matchOutbound)
 }
 
-func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule) (N.PacketConn, adapter.Tracker) {
-	tracker := trafficontrol.NewUDPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule)
-	return tracker, tracker
+func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) N.PacketConn {
+	return trafficontrol.NewUDPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule, matchOutbound)
 }
 
 func authentication(serverSecret string) func(next http.Handler) http.Handler {

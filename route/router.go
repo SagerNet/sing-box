@@ -27,7 +27,6 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -63,16 +62,14 @@ type Router struct {
 	dnsReverseMapping       *DNSReverseMapping
 	fakeIPStore             adapter.FakeIPStore
 	processSearcher         process.Searcher
-	timeService             *ntp.Service
 	pauseManager            pause.Manager
-	clashServer             adapter.ClashServer
-	v2rayServer             adapter.V2RayServer
+	tracker                 adapter.ConnectionTracker
 	platformInterface       platform.Interface
 	needWIFIState           bool
 	started                 bool
 }
 
-func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions, ntpOptions option.NTPOptions) (*Router, error) {
+func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
 	router := &Router{
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
@@ -94,7 +91,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		platformInterface:     service.FromContext[platform.Interface](ctx),
 		needWIFIState:         hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 	}
-	ctx = service.ContextWith[adapter.Router](ctx, router)
+	service.MustRegister[adapter.Router](ctx, router)
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
 		DisableExpire:    dnsOptions.DNSClientOptions.DisableExpire,
@@ -290,23 +287,6 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		}
 		router.fakeIPStore = fakeip.NewStore(ctx, router.logger, inet4Range, inet6Range)
 	}
-
-	if ntpOptions.Enabled {
-		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions)
-		if err != nil {
-			return nil, E.Cause(err, "create NTP service")
-		}
-		timeService := ntp.NewService(ntp.Options{
-			Context:       ctx,
-			Dialer:        ntpDialer,
-			Logger:        logFactory.NewLogger("ntp"),
-			Server:        ntpOptions.ServerOptions.Build(),
-			Interval:      time.Duration(ntpOptions.Interval),
-			WriteToSystem: ntpOptions.WriteToSystem,
-		})
-		service.MustRegister[ntp.TimeService](ctx, timeService)
-		router.timeService = timeService
-	}
 	return router, nil
 }
 
@@ -378,14 +358,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			monitor.Finish()
 			if err != nil {
 				return E.Cause(err, "initialize DNS server[", i, "]")
-			}
-		}
-		if r.timeService != nil {
-			monitor.Start("initialize time service")
-			err := r.timeService.Start()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "initialize time service")
 			}
 		}
 	case adapter.StartStatePostStart:
@@ -502,13 +474,6 @@ func (r *Router) Close() error {
 		})
 		monitor.Finish()
 	}
-	if r.timeService != nil {
-		monitor.Start("close time service")
-		err = E.Append(err, r.timeService.Close(), func(err error) error {
-			return E.Cause(err, "close time service")
-		})
-		monitor.Finish()
-	}
 	if r.fakeIPStore != nil {
 		monitor.Start("close fakeip store")
 		err = E.Append(err, r.fakeIPStore.Close(), func(err error) error {
@@ -536,29 +501,8 @@ func (r *Router) Rules() []adapter.Rule {
 	return r.rules
 }
 
-func (r *Router) ClashServer() adapter.ClashServer {
-	return r.clashServer
-}
-
-func (r *Router) SetClashServer(server adapter.ClashServer) {
-	r.clashServer = server
-}
-
-func (r *Router) V2RayServer() adapter.V2RayServer {
-	return r.v2rayServer
-}
-
-func (r *Router) SetV2RayServer(server adapter.V2RayServer) {
-	r.v2rayServer = server
-}
-
-func (r *Router) NewError(ctx context.Context, err error) {
-	common.Close(err)
-	if E.IsClosedOrCanceled(err) {
-		r.logger.DebugContext(ctx, "connection closed: ", err)
-		return
-	}
-	r.logger.ErrorContext(ctx, err)
+func (r *Router) SetTracker(tracker adapter.ConnectionTracker) {
+	r.tracker = tracker
 }
 
 func (r *Router) ResetNetwork() {
