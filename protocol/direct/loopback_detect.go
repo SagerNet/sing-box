@@ -11,18 +11,18 @@ import (
 )
 
 type loopBackDetector struct {
-	router           adapter.Router
+	networkManager   adapter.NetworkManager
 	connAccess       sync.RWMutex
 	packetConnAccess sync.RWMutex
 	connMap          map[netip.AddrPort]netip.AddrPort
 	packetConnMap    map[uint16]uint16
 }
 
-func newLoopBackDetector(router adapter.Router) *loopBackDetector {
+func newLoopBackDetector(networkManager adapter.NetworkManager) *loopBackDetector {
 	return &loopBackDetector{
-		router:        router,
-		connMap:       make(map[netip.AddrPort]netip.AddrPort),
-		packetConnMap: make(map[uint16]uint16),
+		networkManager: networkManager,
+		connMap:        make(map[netip.AddrPort]netip.AddrPort),
+		packetConnMap:  make(map[uint16]uint16),
 	}
 }
 
@@ -33,7 +33,7 @@ func (l *loopBackDetector) NewConn(conn net.Conn) net.Conn {
 	}
 	if udpConn, isUDPConn := conn.(abstractUDPConn); isUDPConn {
 		if !source.Addr().IsLoopback() {
-			_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
+			_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
 			if err != nil {
 				return conn
 			}
@@ -59,7 +59,7 @@ func (l *loopBackDetector) NewPacketConn(conn N.NetPacketConn, destination M.Soc
 		return conn
 	}
 	if !source.Addr().IsLoopback() {
-		_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
+		_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
 		if err != nil {
 			return conn
 		}
@@ -82,7 +82,7 @@ func (l *loopBackDetector) CheckPacketConn(source netip.AddrPort, local netip.Ad
 		return false
 	}
 	if !source.Addr().IsLoopback() {
-		_, err := l.router.InterfaceFinder().InterfaceByAddr(source.Addr())
+		_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
 		if err != nil {
 			return false
 		}

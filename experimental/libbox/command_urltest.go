@@ -41,7 +41,7 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	if serviceNow == nil {
 		return nil
 	}
-	abstractOutboundGroup, isLoaded := serviceNow.instance.Router().Outbound(groupTag)
+	abstractOutboundGroup, isLoaded := serviceNow.instance.Outbound().Outbound(groupTag)
 	if !isLoaded {
 		return writeError(conn, E.New("outbound group not found: ", groupTag))
 	}
@@ -55,7 +55,7 @@ func (s *CommandServer) handleURLTest(conn net.Conn) error {
 	} else {
 		historyStorage := service.PtrFromContext[urltest.HistoryStorage](serviceNow.ctx)
 		outbounds := common.Filter(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
-			itOutbound, _ := serviceNow.instance.Router().Outbound(it)
+			itOutbound, _ := serviceNow.instance.Outbound().Outbound(it)
 			return itOutbound
 		}), func(it adapter.Outbound) bool {
 			if it == nil {

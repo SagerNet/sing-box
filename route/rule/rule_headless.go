@@ -1,24 +1,27 @@
 package rule
 
 import (
+	"context"
+
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service"
 )
 
-func NewHeadlessRule(router adapter.Router, options option.HeadlessRule) (adapter.HeadlessRule, error) {
+func NewHeadlessRule(ctx context.Context, options option.HeadlessRule) (adapter.HeadlessRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		return NewDefaultHeadlessRule(router, options.DefaultOptions)
+		return NewDefaultHeadlessRule(ctx, options.DefaultOptions)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
-		return NewLogicalHeadlessRule(router, options.LogicalOptions)
+		return NewLogicalHeadlessRule(ctx, options.LogicalOptions)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -30,7 +33,8 @@ type DefaultHeadlessRule struct {
 	abstractDefaultRule
 }
 
-func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadlessRule) (*DefaultHeadlessRule, error) {
+func NewDefaultHeadlessRule(ctx context.Context, options option.DefaultHeadlessRule) (*DefaultHeadlessRule, error) {
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	rule := &DefaultHeadlessRule{
 		abstractDefaultRule{
 			invert: options.Invert,
@@ -137,15 +141,15 @@ func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadles
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.WIFISSID) > 0 {
-		if router != nil {
-			item := NewWIFISSIDItem(router, options.WIFISSID)
+		if networkManager != nil {
+			item := NewWIFISSIDItem(networkManager, options.WIFISSID)
 			rule.items = append(rule.items, item)
 			rule.allItems = append(rule.allItems, item)
 		}
 	}
 	if len(options.WIFIBSSID) > 0 {
-		if router != nil {
-			item := NewWIFIBSSIDItem(router, options.WIFIBSSID)
+		if networkManager != nil {
+			item := NewWIFIBSSIDItem(networkManager, options.WIFIBSSID)
 			rule.items = append(rule.items, item)
 			rule.allItems = append(rule.allItems, item)
 		}
@@ -168,7 +172,7 @@ type LogicalHeadlessRule struct {
 	abstractLogicalRule
 }
 
-func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadlessRule) (*LogicalHeadlessRule, error) {
+func NewLogicalHeadlessRule(ctx context.Context, options option.LogicalHeadlessRule) (*LogicalHeadlessRule, error) {
 	r := &LogicalHeadlessRule{
 		abstractLogicalRule{
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
@@ -184,7 +188,7 @@ func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadles
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewHeadlessRule(router, subRule)
+		rule, err := NewHeadlessRule(ctx, subRule)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}

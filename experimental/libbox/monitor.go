@@ -124,7 +124,7 @@ func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName s
 		err = m.updateInterfaces()
 	}
 	if err == nil {
-		err = m.router.UpdateInterfaces()
+		err = m.networkManager.UpdateInterfaces()
 	}
 	if err != nil {
 		m.logger.Error(E.Cause(err, "update interfaces"))
