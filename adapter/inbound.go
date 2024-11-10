@@ -32,7 +32,7 @@ type InboundRegistry interface {
 }
 
 type InboundManager interface {
-	NewService
+	Lifecycle
 	Inbounds() []Inbound
 	Get(tag string) (Inbound, bool)
 	Remove(tag string) error

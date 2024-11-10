@@ -44,7 +44,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	for _, inbound := range m.inbounds {
 		err := adapter.LegacyStart(inbound, stage)
 		if err != nil {
-			return E.Cause(err, stage.Action(), " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
+			return E.Cause(err, stage, " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
 		}
 	}
 	return nil
@@ -118,7 +118,7 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 		for _, stage := range adapter.ListStartStages {
 			err = adapter.LegacyStart(inbound, stage)
 			if err != nil {
-				return E.Cause(err, stage.Action(), " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
+				return E.Cause(err, stage, " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
 			}
 		}
 	}
