@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 
@@ -83,7 +84,7 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	}
 	for i, ruleOptions := range plainRuleSet.Rules {
 		var currentRule adapter.HeadlessRule
-		currentRule, err = rule.NewHeadlessRule(nil, ruleOptions)
+		currentRule, err = rule.NewHeadlessRule(context.Background(), ruleOptions)
 		if err != nil {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
