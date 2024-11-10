@@ -109,7 +109,7 @@ func readGroups(reader io.Reader) (OutboundGroupIterator, error) {
 func writeGroups(writer io.Writer, boxService *BoxService) error {
 	historyStorage := service.PtrFromContext[urltest.HistoryStorage](boxService.ctx)
 	cacheFile := service.FromContext[adapter.CacheFile](boxService.ctx)
-	outbounds := boxService.instance.Router().Outbounds()
+	outbounds := boxService.instance.Outbound().Outbounds()
 	var iGroups []adapter.OutboundGroup
 	for _, it := range outbounds {
 		if group, isGroup := it.(adapter.OutboundGroup); isGroup {
@@ -130,7 +130,7 @@ func writeGroups(writer io.Writer, boxService *BoxService) error {
 		}
 
 		for _, itemTag := range iGroup.All() {
-			itemOutbound, isLoaded := boxService.instance.Router().Outbound(itemTag)
+			itemOutbound, isLoaded := boxService.instance.Outbound().Outbound(itemTag)
 			if !isLoaded {
 				continue
 			}
