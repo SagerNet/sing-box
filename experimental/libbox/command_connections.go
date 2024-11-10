@@ -49,11 +49,7 @@ func (s *CommandServer) handleConnectionsConn(conn net.Conn) error {
 	for {
 		service := s.service
 		if service != nil {
-			clashServer := service.instance.Router().ClashServer()
-			if clashServer == nil {
-				return E.New("Clash API disabled")
-			}
-			trafficManager = clashServer.(*clashapi.Server).TrafficManager()
+			trafficManager = service.clashServer.(*clashapi.Server).TrafficManager()
 			break
 		}
 		select {
