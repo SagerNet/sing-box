@@ -35,7 +35,6 @@ var _ adapter.RuleSet = (*RemoteRuleSet)(nil)
 type RemoteRuleSet struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
-	router          adapter.Router
 	outboundManager adapter.OutboundManager
 	logger          logger.ContextLogger
 	options         option.RuleSet
@@ -53,7 +52,7 @@ type RemoteRuleSet struct {
 	refs            atomic.Int32
 }
 
-func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
+func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
 	ctx, cancel := context.WithCancel(ctx)
 	var updateInterval time.Duration
 	if options.RemoteOptions.UpdateInterval > 0 {
@@ -64,7 +63,6 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 	return &RemoteRuleSet{
 		ctx:             ctx,
 		cancel:          cancel,
-		router:          router,
 		outboundManager: service.FromContext[adapter.OutboundManager](ctx),
 		logger:          logger,
 		options:         options,
@@ -180,7 +178,7 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	}
 	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
 	for i, ruleOptions := range plainRuleSet.Rules {
-		rules[i], err = NewHeadlessRule(s.router, ruleOptions)
+		rules[i], err = NewHeadlessRule(s.ctx, ruleOptions)
 		if err != nil {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}

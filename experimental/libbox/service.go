@@ -104,13 +104,13 @@ var (
 )
 
 type platformInterfaceWrapper struct {
-	iif       PlatformInterface
-	useProcFS bool
-	router    adapter.Router
+	iif            PlatformInterface
+	useProcFS      bool
+	networkManager adapter.NetworkManager
 }
 
-func (w *platformInterfaceWrapper) Initialize(ctx context.Context, router adapter.Router) error {
-	w.router = router
+func (w *platformInterfaceWrapper) Initialize(networkManager adapter.NetworkManager) error {
+	w.networkManager = networkManager
 	return nil
 }
 
