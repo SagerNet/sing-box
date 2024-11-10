@@ -1,5 +1,7 @@
 package adapter
 
+import E "github.com/sagernet/sing/common/exceptions"
+
 type StartStage uint8
 
 const (
@@ -16,7 +18,7 @@ var ListStartStages = []StartStage{
 	StartStateStarted,
 }
 
-func (s StartStage) Action() string {
+func (s StartStage) String() string {
 	switch s {
 	case StartStateInitialize:
 		return "initialize"
@@ -25,17 +27,38 @@ func (s StartStage) Action() string {
 	case StartStatePostStart:
 		return "post-start"
 	case StartStateStarted:
-		return "start-after-started"
+		return "finish-start"
 	default:
 		panic("unknown stage")
 	}
 }
 
-type NewService interface {
-	NewStarter
+type Lifecycle interface {
+	Start(stage StartStage) error
 	Close() error
 }
 
-type NewStarter interface {
-	Start(stage StartStage) error
+type LifecycleService interface {
+	Name() string
+	Lifecycle
+}
+
+func Start(stage StartStage, services ...Lifecycle) error {
+	for _, service := range services {
+		err := service.Start(stage)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func StartNamed(stage StartStage, services []LifecycleService) error {
+	for _, service := range services {
+		err := service.Start(stage)
+		if err != nil {
+			return E.Cause(err, stage.String(), " ", service.Name())
+		}
+	}
+	return nil
 }
