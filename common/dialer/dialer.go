@@ -13,16 +13,16 @@ import (
 )
 
 func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
-	router := service.FromContext[adapter.Router](ctx)
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if options.IsWireGuardListener {
-		return NewDefault(router, options)
+		return NewDefault(networkManager, options)
 	}
 	var (
 		dialer N.Dialer
 		err    error
 	)
 	if options.Detour == "" {
-		dialer, err = NewDefault(router, options)
+		dialer, err = NewDefault(networkManager, options)
 		if err != nil {
 			return nil, err
 		}
@@ -33,16 +33,19 @@ func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
 		}
 		dialer = NewDetour(outboundManager, options.Detour)
 	}
-	if router == nil {
-		return NewDefault(router, options)
+	if networkManager == nil {
+		return NewDefault(networkManager, options)
 	}
 	if options.Detour == "" {
-		dialer = NewResolveDialer(
-			router,
-			dialer,
-			options.Detour == "" && !options.TCPFastOpen,
-			dns.DomainStrategy(options.DomainStrategy),
-			time.Duration(options.FallbackDelay))
+		router := service.FromContext[adapter.Router](ctx)
+		if router != nil {
+			dialer = NewResolveDialer(
+				router,
+				dialer,
+				options.Detour == "" && !options.TCPFastOpen,
+				dns.DomainStrategy(options.DomainStrategy),
+				time.Duration(options.FallbackDelay))
+		}
 	}
 	return dialer, nil
 }
