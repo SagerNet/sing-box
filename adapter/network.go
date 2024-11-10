@@ -6,7 +6,7 @@ import (
 )
 
 type NetworkManager interface {
-	NewService
+	Lifecycle
 	InterfaceFinder() control.InterfaceFinder
 	UpdateInterfaces() error
 	DefaultInterface() string
