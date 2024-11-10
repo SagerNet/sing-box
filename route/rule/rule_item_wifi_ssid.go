@@ -10,12 +10,12 @@ import (
 var _ RuleItem = (*WIFISSIDItem)(nil)
 
 type WIFISSIDItem struct {
-	ssidList []string
-	ssidMap  map[string]bool
-	router   adapter.Router
+	ssidList       []string
+	ssidMap        map[string]bool
+	networkManager adapter.NetworkManager
 }
 
-func NewWIFISSIDItem(router adapter.Router, ssidList []string) *WIFISSIDItem {
+func NewWIFISSIDItem(networkManager adapter.NetworkManager, ssidList []string) *WIFISSIDItem {
 	ssidMap := make(map[string]bool)
 	for _, ssid := range ssidList {
 		ssidMap[ssid] = true
@@ -23,12 +23,12 @@ func NewWIFISSIDItem(router adapter.Router, ssidList []string) *WIFISSIDItem {
 	return &WIFISSIDItem{
 		ssidList,
 		ssidMap,
-		router,
+		networkManager,
 	}
 }
 
 func (r *WIFISSIDItem) Match(metadata *adapter.InboundContext) bool {
-	return r.ssidMap[r.router.WIFIState().SSID]
+	return r.ssidMap[r.networkManager.WIFIState().SSID]
 }
 
 func (r *WIFISSIDItem) String() string {
