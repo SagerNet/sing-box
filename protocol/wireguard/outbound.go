@@ -100,7 +100,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if !options.SystemInterface && tun.WithGVisor {
 		wireTunDevice, err = wireguard.NewStackDevice(options.LocalAddress, mtu)
 	} else {
-		wireTunDevice, err = wireguard.NewSystemDevice(router, options.InterfaceName, options.LocalAddress, mtu, options.GSO)
+		wireTunDevice, err = wireguard.NewSystemDevice(service.FromContext[adapter.NetworkManager](ctx), options.InterfaceName, options.LocalAddress, mtu, options.GSO)
 	}
 	if err != nil {
 		return nil, E.Cause(err, "create WireGuard device")
