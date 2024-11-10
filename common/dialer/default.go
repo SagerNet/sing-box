@@ -29,31 +29,31 @@ type DefaultDialer struct {
 	isWireGuardListener bool
 }
 
-func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDialer, error) {
+func NewDefault(networkManager adapter.NetworkManager, options option.DialerOptions) (*DefaultDialer, error) {
 	var dialer net.Dialer
 	var listener net.ListenConfig
 	if options.BindInterface != "" {
 		var interfaceFinder control.InterfaceFinder
-		if router != nil {
-			interfaceFinder = router.InterfaceFinder()
+		if networkManager != nil {
+			interfaceFinder = networkManager.InterfaceFinder()
 		} else {
 			interfaceFinder = control.NewDefaultInterfaceFinder()
 		}
 		bindFunc := control.BindToInterface(interfaceFinder, options.BindInterface, -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
-	} else if router != nil && router.AutoDetectInterface() {
-		bindFunc := router.AutoDetectInterfaceFunc()
+	} else if networkManager != nil && networkManager.AutoDetectInterface() {
+		bindFunc := networkManager.AutoDetectInterfaceFunc()
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
-	} else if router != nil && router.DefaultInterface() != "" {
-		bindFunc := control.BindToInterface(router.InterfaceFinder(), router.DefaultInterface(), -1)
+	} else if networkManager != nil && networkManager.DefaultInterface() != "" {
+		bindFunc := control.BindToInterface(networkManager.InterfaceFinder(), networkManager.DefaultInterface(), -1)
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
 	var autoRedirectOutputMark uint32
-	if router != nil {
-		autoRedirectOutputMark = router.AutoRedirectOutputMark()
+	if networkManager != nil {
+		autoRedirectOutputMark = networkManager.AutoRedirectOutputMark()
 	}
 	if autoRedirectOutputMark > 0 {
 		dialer.Control = control.Append(dialer.Control, control.RoutingMark(autoRedirectOutputMark))
@@ -65,9 +65,9 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		if autoRedirectOutputMark > 0 {
 			return nil, E.New("`auto_redirect` with `route_[_exclude]_address_set is conflict with `routing_mark`")
 		}
-	} else if router != nil && router.DefaultMark() > 0 {
-		dialer.Control = control.Append(dialer.Control, control.RoutingMark(router.DefaultMark()))
-		listener.Control = control.Append(listener.Control, control.RoutingMark(router.DefaultMark()))
+	} else if networkManager != nil && networkManager.DefaultMark() > 0 {
+		dialer.Control = control.Append(dialer.Control, control.RoutingMark(networkManager.DefaultMark()))
+		listener.Control = control.Append(listener.Control, control.RoutingMark(networkManager.DefaultMark()))
 		if autoRedirectOutputMark > 0 {
 			return nil, E.New("`auto_redirect` with `route_[_exclude]_address_set is conflict with `default_mark`")
 		}
