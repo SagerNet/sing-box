@@ -44,7 +44,14 @@ func NewServer(logger log.Logger, options option.V2RayAPIOptions) (adapter.V2Ray
 	return server, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) Name() string {
+	return "v2ray server"
+}
+
+func (s *Server) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStatePostStart {
+		return nil
+	}
 	listener, err := net.Listen("tcp", s.listen)
 	if err != nil {
 		return err
@@ -70,6 +77,6 @@ func (s *Server) Close() error {
 	)
 }
 
-func (s *Server) StatsService() adapter.V2RayStatsService {
+func (s *Server) StatsService() adapter.ConnectionTracker {
 	return s.statsService
 }
