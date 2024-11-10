@@ -31,11 +31,12 @@ func (s StartStage) Action() string {
 	}
 }
 
-type NewService interface {
-	NewStarter
+type Lifecycle interface {
+	Start(stage StartStage) error
 	Close() error
 }
 
-type NewStarter interface {
-	Start(stage StartStage) error
+type LifecycleService interface {
+	Name() string
+	Lifecycle
 }

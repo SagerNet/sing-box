@@ -1,13 +1,5 @@
 package adapter
 
-type LegacyPreStarter interface {
-	PreStart() error
-}
-
-type LegacyPostStarter interface {
-	PostStart() error
-}
-
 func LegacyStart(starter any, stage StartStage) error {
 	switch stage {
 	case StartStateInitialize:
@@ -30,4 +22,28 @@ func LegacyStart(starter any, stage StartStage) error {
 		}
 	}
 	return nil
+}
+
+type lifecycleServiceWrapper struct {
+	Service
+	name string
+}
+
+func NewLifecycleService(service Service, name string) LifecycleService {
+	return &lifecycleServiceWrapper{
+		Service: service,
+		name:    name,
+	}
+}
+
+func (l *lifecycleServiceWrapper) Name() string {
+	return l.name
+}
+
+func (l *lifecycleServiceWrapper) Start(stage StartStage) error {
+	return LegacyStart(l.Service, stage)
+}
+
+func (l *lifecycleServiceWrapper) Close() error {
+	return l.Service.Close()
 }
