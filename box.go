@@ -34,6 +34,7 @@ type Box struct {
 	router       adapter.Router
 	inbound      *inbound.Manager
 	outbound     *outbound.Manager
+	network      *route.NetworkManager
 	logFactory   log.Factory
 	logger       log.ContextLogger
 	preServices1 map[string]adapter.Service
@@ -109,20 +110,18 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "create log factory")
 	}
 	routeOptions := common.PtrValueOrDefault(options.Route)
-	inboundManager := inbound.NewManager(logFactory.NewLogger("inbound-manager"), inboundRegistry)
-	outboundManager := outbound.NewManager(logFactory.NewLogger("outbound-manager"), outboundRegistry, routeOptions.Final)
+	inboundManager := inbound.NewManager(logFactory.NewLogger("inbound"), inboundRegistry)
+	outboundManager := outbound.NewManager(logFactory.NewLogger("outbound"), outboundRegistry, routeOptions.Final)
 	ctx = service.ContextWith[adapter.InboundManager](ctx, inboundManager)
 	ctx = service.ContextWith[adapter.OutboundManager](ctx, outboundManager)
-	router, err := route.NewRouter(
-		ctx,
-		logFactory,
-		routeOptions,
-		common.PtrValueOrDefault(options.DNS),
-		common.PtrValueOrDefault(options.NTP),
-		options.Inbounds,
-	)
+	networkManager, err := route.NewNetworkManager(ctx, logFactory.NewLogger("network"), routeOptions)
 	if err != nil {
-		return nil, E.Cause(err, "parse route options")
+		return nil, E.Cause(err, "initialize network manager")
+	}
+	ctx = service.ContextWith[adapter.NetworkManager](ctx, networkManager)
+	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS), common.PtrValueOrDefault(options.NTP))
+	if err != nil {
+		return nil, E.Cause(err, "initialize router")
 	}
 	for i, inboundOptions := range options.Inbounds {
 		var tag string
@@ -177,11 +176,8 @@ func New(options Options) (*Box, error) {
 			option.DirectOutboundOptions{},
 		),
 	))
-	if err != nil {
-		return nil, err
-	}
 	if platformInterface != nil {
-		err = platformInterface.Initialize(ctx, router)
+		err = platformInterface.Initialize(networkManager)
 		if err != nil {
 			return nil, E.Cause(err, "initialize platform interface")
 		}
@@ -219,6 +215,7 @@ func New(options Options) (*Box, error) {
 		router:       router,
 		inbound:      inboundManager,
 		outbound:     outboundManager,
+		network:      networkManager,
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
@@ -295,11 +292,19 @@ func (s *Box) preStart() error {
 			}
 		}
 	}
+	err = s.network.Start(adapter.StartStateInitialize)
+	if err != nil {
+		return E.Cause(err, "initialize network manager")
+	}
 	err = s.router.Start(adapter.StartStateInitialize)
 	if err != nil {
 		return E.Cause(err, "initialize router")
 	}
 	err = s.outbound.Start(adapter.StartStateStart)
+	if err != nil {
+		return err
+	}
+	err = s.network.Start(adapter.StartStateStart)
 	if err != nil {
 		return err
 	}
@@ -337,11 +342,19 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
+	err = s.network.Start(adapter.StartStatePostStart)
+	if err != nil {
+		return err
+	}
 	err = s.router.Start(adapter.StartStatePostStart)
 	if err != nil {
 		return err
 	}
 	err = s.inbound.Start(adapter.StartStatePostStart)
+	if err != nil {
+		return err
+	}
+	err = s.network.Start(adapter.StartStateStarted)
 	if err != nil {
 		return err
 	}
@@ -378,13 +391,8 @@ func (s *Box) Close() error {
 	}
 	errors = E.Errors(errors, s.inbound.Close())
 	errors = E.Errors(errors, s.outbound.Close())
-	monitor.Start("close router")
-	if err := common.Close(s.router); err != nil {
-		errors = E.Append(errors, err, func(err error) error {
-			return E.Cause(err, "close router")
-		})
-	}
-	monitor.Finish()
+	errors = E.Errors(errors, s.network.Close())
+	errors = E.Errors(errors, s.router.Close())
 	for serviceName, service := range s.preServices1 {
 		monitor.Start("close ", serviceName)
 		errors = E.Append(errors, service.Close(), func(err error) error {
@@ -413,6 +421,10 @@ func (s *Box) Inbound() adapter.InboundManager {
 
 func (s *Box) Outbound() adapter.OutboundManager {
 	return s.outbound
+}
+
+func (s *Box) Network() adapter.NetworkManager {
+	return s.network
 }
 
 func (s *Box) Router() adapter.Router {
