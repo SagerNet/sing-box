@@ -58,8 +58,8 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour := r.inboundByTag[metadata.InboundDetour]
-		if detour == nil {
+		detour, loaded := r.inboundManager.Get(metadata.InboundDetour)
+		if !loaded {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
 		injectable, isInjectable := detour.(adapter.TCPInjectableInbound)
@@ -100,7 +100,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if selectedRule != nil {
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
-			selectedOutbound, loaded := r.Outbound(action.Outbound)
+			selectedOutbound, loaded := r.outboundManager.Outbound(action.Outbound)
 			if !loaded {
 				buf.ReleaseMulti(buffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -128,13 +128,14 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 	}
 	if selectedRule == nil {
-		if r.defaultOutboundForConnection == nil {
+		defaultOutbound := r.outboundManager.Default()
+		if !common.Contains(defaultOutbound.Network(), N.NetworkTCP) {
 			buf.ReleaseMulti(buffers)
-			return E.New("missing default outbound with TCP support")
+			return E.New("TCP is not supported by default outbound: ", defaultOutbound.Tag())
 		}
-		selectedDialer = r.defaultOutboundForConnection
-		selectedTag = r.defaultOutboundForConnection.Tag()
-		selectedDescription = F.ToString("outbound/", r.defaultOutboundForConnection.Type(), "[", r.defaultOutboundForConnection.Tag(), "]")
+		selectedDialer = defaultOutbound
+		selectedTag = defaultOutbound.Tag()
+		selectedDescription = F.ToString("outbound/", defaultOutbound.Type(), "[", defaultOutbound.Tag(), "]")
 	}
 
 	for _, buffer := range buffers {
@@ -217,8 +218,8 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour := r.inboundByTag[metadata.InboundDetour]
-		if detour == nil {
+		detour, loaded := r.inboundManager.Get(metadata.InboundDetour)
+		if !loaded {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
 		injectable, isInjectable := detour.(adapter.UDPInjectableInbound)
@@ -254,7 +255,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if selectedRule != nil {
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
-			selectedOutbound, loaded := r.Outbound(action.Outbound)
+			selectedOutbound, loaded := r.outboundManager.Outbound(action.Outbound)
 			if !loaded {
 				N.ReleaseMultiPacketBuffer(packetBuffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -279,13 +280,14 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 	}
 	if selectedRule == nil || selectReturn {
-		if r.defaultOutboundForPacketConnection == nil {
+		defaultOutbound := r.outboundManager.Default()
+		if !common.Contains(defaultOutbound.Network(), N.NetworkUDP) {
 			N.ReleaseMultiPacketBuffer(packetBuffers)
-			return E.New("missing default outbound with UDP support")
+			return E.New("UDP is not supported by outbound: ", defaultOutbound.Tag())
 		}
-		selectedDialer = r.defaultOutboundForPacketConnection
-		selectedTag = r.defaultOutboundForPacketConnection.Tag()
-		selectedDescription = F.ToString("outbound/", r.defaultOutboundForPacketConnection.Type(), "[", r.defaultOutboundForPacketConnection.Tag(), "]")
+		selectedDialer = defaultOutbound
+		selectedTag = defaultOutbound.Tag()
+		selectedDescription = F.ToString("outbound/", defaultOutbound.Type(), "[", defaultOutbound.Tag(), "]")
 	}
 	for _, buffer := range packetBuffers {
 		conn = bufio.NewCachedPacketConn(conn, buffer.Buffer, buffer.Destination)
