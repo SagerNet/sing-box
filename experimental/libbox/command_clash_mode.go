@@ -38,11 +38,7 @@ func (s *CommandServer) handleSetClashMode(conn net.Conn) error {
 	if service == nil {
 		return writeError(conn, E.New("service not ready"))
 	}
-	clashServer := service.instance.Router().ClashServer()
-	if clashServer == nil {
-		return writeError(conn, E.New("Clash API disabled"))
-	}
-	clashServer.(*clashapi.Server).SetMode(newMode)
+	service.clashServer.(*clashapi.Server).SetMode(newMode)
 	return writeError(conn, nil)
 }
 
@@ -69,18 +65,14 @@ func (s *CommandServer) handleModeConn(conn net.Conn) error {
 			return ctx.Err()
 		}
 	}
-	clashServer := s.service.instance.Router().ClashServer()
-	if clashServer == nil {
-		return binary.Write(conn, binary.BigEndian, uint16(0))
-	}
-	err := writeClashModeList(conn, clashServer)
+	err := writeClashModeList(conn, s.service.clashServer)
 	if err != nil {
 		return err
 	}
 	for {
 		select {
 		case <-s.modeUpdate:
-			err = varbin.Write(conn, binary.BigEndian, clashServer.Mode())
+			err = varbin.Write(conn, binary.BigEndian, s.service.clashServer.Mode())
 			if err != nil {
 				return err
 			}
