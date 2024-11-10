@@ -45,11 +45,7 @@ func (s *CommandServer) handleCloseConnection(conn net.Conn) error {
 	if service == nil {
 		return writeError(conn, E.New("service not ready"))
 	}
-	clashServer := service.instance.Router().ClashServer()
-	if clashServer == nil {
-		return writeError(conn, E.New("Clash API disabled"))
-	}
-	targetConn := clashServer.(*clashapi.Server).TrafficManager().Connection(uuid.FromStringOrNil(connId))
+	targetConn := service.clashServer.(*clashapi.Server).TrafficManager().Connection(uuid.FromStringOrNil(connId))
 	if targetConn == nil {
 		return writeError(conn, E.New("connection already closed"))
 	}
