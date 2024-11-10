@@ -31,12 +31,10 @@ func (s *CommandServer) readStatus() StatusMessage {
 	message.ConnectionsOut = int32(conntrack.Count())
 
 	if s.service != nil {
-		if clashServer := s.service.instance.Router().ClashServer(); clashServer != nil {
-			message.TrafficAvailable = true
-			trafficManager := clashServer.(*clashapi.Server).TrafficManager()
-			message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
-			message.ConnectionsIn = int32(trafficManager.ConnectionsLen())
-		}
+		message.TrafficAvailable = true
+		trafficManager := s.service.clashServer.(*clashapi.Server).TrafficManager()
+		message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
+		message.ConnectionsIn = int32(trafficManager.ConnectionsLen())
 	}
 
 	return message

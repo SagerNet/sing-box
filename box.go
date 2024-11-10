@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
@@ -23,6 +24,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
 )
@@ -30,17 +32,15 @@ import (
 var _ adapter.Service = (*Box)(nil)
 
 type Box struct {
-	createdAt    time.Time
-	router       adapter.Router
-	inbound      *inbound.Manager
-	outbound     *outbound.Manager
-	network      *route.NetworkManager
-	logFactory   log.Factory
-	logger       log.ContextLogger
-	preServices1 map[string]adapter.Service
-	preServices2 map[string]adapter.Service
-	postServices map[string]adapter.Service
-	done         chan struct{}
+	createdAt  time.Time
+	logFactory log.Factory
+	logger     log.ContextLogger
+	network    *route.NetworkManager
+	router     *route.Router
+	inbound    *inbound.Manager
+	outbound   *outbound.Manager
+	services   []adapter.LifecycleService
+	done       chan struct{}
 }
 
 type Options struct {
@@ -49,7 +49,11 @@ type Options struct {
 	PlatformLogWriter log.PlatformWriter
 }
 
-func Context(ctx context.Context, inboundRegistry adapter.InboundRegistry, outboundRegistry adapter.OutboundRegistry) context.Context {
+func Context(
+	ctx context.Context,
+	inboundRegistry adapter.InboundRegistry,
+	outboundRegistry adapter.OutboundRegistry,
+) context.Context {
 	if service.FromContext[option.InboundOptionsRegistry](ctx) == nil ||
 		service.FromContext[adapter.InboundRegistry](ctx) == nil {
 		ctx = service.ContextWith[option.InboundOptionsRegistry](ctx, inboundRegistry)
@@ -70,14 +74,17 @@ func New(options Options) (*Box, error) {
 		ctx = context.Background()
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
+
 	inboundRegistry := service.FromContext[adapter.InboundRegistry](ctx)
 	if inboundRegistry == nil {
 		return nil, E.New("missing inbound registry in context")
 	}
+
 	outboundRegistry := service.FromContext[adapter.OutboundRegistry](ctx)
 	if outboundRegistry == nil {
 		return nil, E.New("missing outbound registry in context")
 	}
+
 	ctx = pause.WithDefaultManager(ctx)
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
@@ -109,17 +116,19 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "create log factory")
 	}
+
 	routeOptions := common.PtrValueOrDefault(options.Route)
 	inboundManager := inbound.NewManager(logFactory.NewLogger("inbound"), inboundRegistry)
 	outboundManager := outbound.NewManager(logFactory.NewLogger("outbound"), outboundRegistry, routeOptions.Final)
-	ctx = service.ContextWith[adapter.InboundManager](ctx, inboundManager)
-	ctx = service.ContextWith[adapter.OutboundManager](ctx, outboundManager)
+	service.MustRegister[adapter.InboundManager](ctx, inboundManager)
+	service.MustRegister[adapter.OutboundManager](ctx, outboundManager)
+
 	networkManager, err := route.NewNetworkManager(ctx, logFactory.NewLogger("network"), routeOptions)
 	if err != nil {
 		return nil, E.Cause(err, "initialize network manager")
 	}
-	ctx = service.ContextWith[adapter.NetworkManager](ctx, networkManager)
-	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS), common.PtrValueOrDefault(options.NTP))
+	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
+	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS))
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
@@ -182,47 +191,61 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "initialize platform interface")
 		}
 	}
-	preServices1 := make(map[string]adapter.Service)
-	preServices2 := make(map[string]adapter.Service)
-	postServices := make(map[string]adapter.Service)
+	var services []adapter.LifecycleService
 	if needCacheFile {
-		cacheFile := service.FromContext[adapter.CacheFile](ctx)
-		if cacheFile == nil {
-			cacheFile = cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
-			service.MustRegister[adapter.CacheFile](ctx, cacheFile)
-		}
-		preServices1["cache file"] = cacheFile
+		cacheFile := cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
+		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
+		services = append(services, cacheFile)
 	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
 		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
 		clashServer, err := experimental.NewClashServer(ctx, logFactory.(log.ObservableFactory), clashAPIOptions)
 		if err != nil {
-			return nil, E.Cause(err, "create clash api server")
+			return nil, E.Cause(err, "create clash-server")
 		}
-		router.SetClashServer(clashServer)
-		preServices2["clash api"] = clashServer
+		router.SetTracker(clashServer)
+		service.MustRegister[adapter.ClashServer](ctx, clashServer)
+		services = append(services, clashServer)
 	}
 	if needV2RayAPI {
 		v2rayServer, err := experimental.NewV2RayServer(logFactory.NewLogger("v2ray-api"), common.PtrValueOrDefault(experimentalOptions.V2RayAPI))
 		if err != nil {
-			return nil, E.Cause(err, "create v2ray api server")
+			return nil, E.Cause(err, "create v2ray-server")
 		}
-		router.SetV2RayServer(v2rayServer)
-		preServices2["v2ray api"] = v2rayServer
+		if v2rayServer.StatsService() != nil {
+			router.SetTracker(v2rayServer.StatsService())
+			services = append(services, v2rayServer)
+			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
+		}
+	}
+	ntpOptions := common.PtrValueOrDefault(options.NTP)
+	if ntpOptions.Enabled {
+		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions)
+		if err != nil {
+			return nil, E.Cause(err, "create NTP service")
+		}
+		timeService := ntp.NewService(ntp.Options{
+			Context:       ctx,
+			Dialer:        ntpDialer,
+			Logger:        logFactory.NewLogger("ntp"),
+			Server:        ntpOptions.ServerOptions.Build(),
+			Interval:      time.Duration(ntpOptions.Interval),
+			WriteToSystem: ntpOptions.WriteToSystem,
+		})
+		service.MustRegister[ntp.TimeService](ctx, timeService)
+		services = append(services, adapter.NewLifecycleService(timeService, "ntp service"))
 	}
 	return &Box{
-		router:       router,
-		inbound:      inboundManager,
-		outbound:     outboundManager,
-		network:      networkManager,
-		createdAt:    createdAt,
-		logFactory:   logFactory,
-		logger:       logFactory.Logger(),
-		preServices1: preServices1,
-		preServices2: preServices2,
-		postServices: postServices,
-		done:         make(chan struct{}),
+		network:    networkManager,
+		router:     router,
+		inbound:    inboundManager,
+		outbound:   outboundManager,
+		createdAt:  createdAt,
+		logFactory: logFactory,
+		logger:     logFactory.Logger(),
+		services:   services,
+		done:       make(chan struct{}),
 	}, nil
 }
 
@@ -272,43 +295,19 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return E.Cause(err, "start logger")
 	}
-	for serviceName, service := range s.preServices1 {
-		if preService, isPreService := service.(adapter.LegacyPreStarter); isPreService {
-			monitor.Start("pre-start ", serviceName)
-			err := preService.PreStart()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "pre-start ", serviceName)
-			}
-		}
-	}
-	for serviceName, service := range s.preServices2 {
-		if preService, isPreService := service.(adapter.LegacyPreStarter); isPreService {
-			monitor.Start("pre-start ", serviceName)
-			err := preService.PreStart()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "pre-start ", serviceName)
-			}
-		}
-	}
-	err = s.network.Start(adapter.StartStateInitialize)
-	if err != nil {
-		return E.Cause(err, "initialize network manager")
-	}
-	err = s.router.Start(adapter.StartStateInitialize)
-	if err != nil {
-		return E.Cause(err, "initialize router")
-	}
-	err = s.outbound.Start(adapter.StartStateStart)
+	err = adapter.StartNamed(adapter.StartStateInitialize, s.services) // cache-file clash-api v2ray-api
 	if err != nil {
 		return err
 	}
-	err = s.network.Start(adapter.StartStateStart)
+	err = adapter.Start(adapter.StartStateInitialize, s.network, s.router, s.outbound, s.inbound)
 	if err != nil {
 		return err
 	}
-	return s.router.Start(adapter.StartStateStart)
+	err = adapter.Start(adapter.StartStateStart, s.outbound, s.network, s.router)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Box) start() error {
@@ -316,57 +315,27 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	for serviceName, service := range s.preServices1 {
-		err = service.Start()
-		if err != nil {
-			return E.Cause(err, "start ", serviceName)
-		}
-	}
-	for serviceName, service := range s.preServices2 {
-		err = service.Start()
-		if err != nil {
-			return E.Cause(err, "start ", serviceName)
-		}
+	err = adapter.StartNamed(adapter.StartStateStart, s.services)
+	if err != nil {
+		return err
 	}
 	err = s.inbound.Start(adapter.StartStateStart)
 	if err != nil {
 		return err
 	}
-	for serviceName, service := range s.postServices {
-		err := service.Start()
-		if err != nil {
-			return E.Cause(err, "start ", serviceName)
-		}
-	}
-	err = s.outbound.Start(adapter.StartStatePostStart)
+	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.router, s.inbound)
 	if err != nil {
 		return err
 	}
-	err = s.network.Start(adapter.StartStatePostStart)
+	err = adapter.StartNamed(adapter.StartStatePostStart, s.services)
 	if err != nil {
 		return err
 	}
-	err = s.router.Start(adapter.StartStatePostStart)
+	err = adapter.Start(adapter.StartStateStarted, s.network, s.router, s.outbound, s.inbound)
 	if err != nil {
 		return err
 	}
-	err = s.inbound.Start(adapter.StartStatePostStart)
-	if err != nil {
-		return err
-	}
-	err = s.network.Start(adapter.StartStateStarted)
-	if err != nil {
-		return err
-	}
-	err = s.router.Start(adapter.StartStateStarted)
-	if err != nil {
-		return err
-	}
-	err = s.outbound.Start(adapter.StartStateStarted)
-	if err != nil {
-		return err
-	}
-	err = s.inbound.Start(adapter.StartStateStarted)
+	err = adapter.StartNamed(adapter.StartStateStarted, s.services)
 	if err != nil {
 		return err
 	}
@@ -380,47 +349,18 @@ func (s *Box) Close() error {
 	default:
 		close(s.done)
 	}
-	monitor := taskmonitor.New(s.logger, C.StopTimeout)
-	var errors error
-	for serviceName, service := range s.postServices {
-		monitor.Start("close ", serviceName)
-		errors = E.Append(errors, service.Close(), func(err error) error {
-			return E.Cause(err, "close ", serviceName)
-		})
-		monitor.Finish()
-	}
-	errors = E.Errors(errors, s.inbound.Close())
-	errors = E.Errors(errors, s.outbound.Close())
-	errors = E.Errors(errors, s.network.Close())
-	errors = E.Errors(errors, s.router.Close())
-	for serviceName, service := range s.preServices1 {
-		monitor.Start("close ", serviceName)
-		errors = E.Append(errors, service.Close(), func(err error) error {
-			return E.Cause(err, "close ", serviceName)
-		})
-		monitor.Finish()
-	}
-	for serviceName, service := range s.preServices2 {
-		monitor.Start("close ", serviceName)
-		errors = E.Append(errors, service.Close(), func(err error) error {
-			return E.Cause(err, "close ", serviceName)
-		})
-		monitor.Finish()
-	}
-	if err := common.Close(s.logFactory); err != nil {
-		errors = E.Append(errors, err, func(err error) error {
-			return E.Cause(err, "close logger")
+	err := common.Close(
+		s.inbound, s.outbound, s.router, s.network,
+	)
+	for _, lifecycleService := range s.services {
+		err = E.Append(err, lifecycleService.Close(), func(err error) error {
+			return E.Cause(err, "close ", lifecycleService.Name())
 		})
 	}
-	return errors
-}
-
-func (s *Box) Inbound() adapter.InboundManager {
-	return s.inbound
-}
-
-func (s *Box) Outbound() adapter.OutboundManager {
-	return s.outbound
+	err = E.Append(err, s.logFactory.Close(), func(err error) error {
+		return E.Cause(err, "close logger")
+	})
+	return err
 }
 
 func (s *Box) Network() adapter.NetworkManager {
@@ -429,4 +369,12 @@ func (s *Box) Network() adapter.NetworkManager {
 
 func (s *Box) Router() adapter.Router {
 	return s.router
+}
+
+func (s *Box) Inbound() adapter.InboundManager {
+	return s.inbound
+}
+
+func (s *Box) Outbound() adapter.OutboundManager {
+	return s.outbound
 }
