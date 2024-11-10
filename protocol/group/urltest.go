@@ -76,18 +76,7 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	group, err := NewURLTestGroup(
-		s.ctx,
-		s.router,
-		s.outboundManager,
-		s.logger,
-		outbounds,
-		s.link,
-		s.interval,
-		s.tolerance,
-		s.idleTimeout,
-		s.interruptExternalConnections,
-	)
+	group, err := NewURLTestGroup(s.ctx, s.outboundManager, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
 	if err != nil {
 		return err
 	}
@@ -215,18 +204,7 @@ type URLTestGroup struct {
 	lastActive atomic.TypedValue[time.Time]
 }
 
-func NewURLTestGroup(
-	ctx context.Context,
-	router adapter.Router,
-	outboundManager adapter.OutboundManager,
-	logger log.Logger,
-	outbounds []adapter.Outbound,
-	link string,
-	interval time.Duration,
-	tolerance uint16,
-	idleTimeout time.Duration,
-	interruptExternalConnections bool,
-) (*URLTestGroup, error) {
+func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
@@ -241,14 +219,13 @@ func NewURLTestGroup(
 	}
 	var history *urltest.HistoryStorage
 	if history = service.PtrFromContext[urltest.HistoryStorage](ctx); history != nil {
-	} else if clashServer := router.ClashServer(); clashServer != nil {
+	} else if clashServer := service.FromContext[adapter.ClashServer](ctx); clashServer != nil {
 		history = clashServer.HistoryStorage()
 	} else {
 		history = urltest.NewHistoryStorage()
 	}
 	return &URLTestGroup{
 		ctx:                          ctx,
-		router:                       router,
 		outboundManager:              outboundManager,
 		logger:                       logger,
 		outbounds:                    outbounds,
