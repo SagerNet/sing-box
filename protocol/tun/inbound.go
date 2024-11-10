@@ -36,10 +36,11 @@ func RegisterInbound(registry *inbound.Registry) {
 }
 
 type Inbound struct {
-	tag    string
-	ctx    context.Context
-	router adapter.Router
-	logger log.ContextLogger
+	tag            string
+	ctx            context.Context
+	router         adapter.Router
+	networkManager adapter.NetworkManager
+	logger         log.ContextLogger
 	// Deprecated
 	inboundOptions option.InboundOptions
 	tunOptions     tun.Options
@@ -168,11 +169,12 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if outputMark == 0 {
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
-
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	inbound := &Inbound{
 		tag:            tag,
 		ctx:            ctx,
 		router:         router,
+		networkManager: networkManager,
 		logger:         logger,
 		inboundOptions: options.InboundOptions,
 		tunOptions: tun.Options{
@@ -198,7 +200,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IncludeAndroidUser:       options.IncludeAndroidUser,
 			IncludePackage:           options.IncludePackage,
 			ExcludePackage:           options.ExcludePackage,
-			InterfaceMonitor:         router.InterfaceMonitor(),
+			InterfaceMonitor:         networkManager.InterfaceMonitor(),
 		},
 		endpointIndependentNat: options.EndpointIndependentNat,
 		udpTimeout:             udpTimeout,
@@ -216,8 +218,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			Context:                ctx,
 			Handler:                (*autoRedirectHandler)(inbound),
 			Logger:                 logger,
-			NetworkMonitor:         router.NetworkMonitor(),
-			InterfaceFinder:        router.InterfaceFinder(),
+			NetworkMonitor:         networkManager.NetworkMonitor(),
+			InterfaceFinder:        networkManager.InterfaceFinder(),
 			TableName:              "sing-box",
 			DisableNFTables:        dErr == nil && disableNFTables,
 			RouteAddressSet:        &inbound.routeAddressSet,
@@ -248,7 +250,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			}
 			if markMode {
 				inbound.tunOptions.AutoRedirectMarkMode = true
-				err = router.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMark)
+				err = networkManager.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMark)
 				if err != nil {
 					return nil, err
 				}
@@ -300,7 +302,7 @@ func (t *Inbound) Tag() string {
 
 func (t *Inbound) Start() error {
 	if C.IsAndroid && t.platformInterface == nil {
-		t.tunOptions.BuildAndroidRules(t.router.PackageManager())
+		t.tunOptions.BuildAndroidRules(t.networkManager.PackageManager())
 	}
 	if t.tunOptions.Name == "" {
 		t.tunOptions.Name = tun.CalculateInterfaceName("")
@@ -338,7 +340,7 @@ func (t *Inbound) Start() error {
 		Handler:                t,
 		Logger:                 t.logger,
 		ForwarderBindInterface: forwarderBindInterface,
-		InterfaceFinder:        t.router.InterfaceFinder(),
+		InterfaceFinder:        t.networkManager.InterfaceFinder(),
 		IncludeAllNetworks:     includeAllNetworks,
 	})
 	if err != nil {

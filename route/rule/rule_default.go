@@ -9,9 +9,10 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service"
 )
 
-func NewRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
+func NewRule(ctx context.Context, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
@@ -23,7 +24,7 @@ func NewRule(ctx context.Context, router adapter.Router, logger log.ContextLogge
 				return nil, E.New("missing outbound field")
 			}
 		}
-		return NewDefaultRule(ctx, router, logger, options.DefaultOptions)
+		return NewDefaultRule(ctx, logger, options.DefaultOptions)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
@@ -34,7 +35,7 @@ func NewRule(ctx context.Context, router adapter.Router, logger log.ContextLogge
 				return nil, E.New("missing outbound field")
 			}
 		}
-		return NewLogicalRule(ctx, router, logger, options.LogicalOptions)
+		return NewLogicalRule(ctx, logger, options.LogicalOptions)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -51,7 +52,7 @@ type RuleItem interface {
 	String() string
 }
 
-func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
+func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
 	action, err := NewRuleAction(ctx, logger, options.RuleAction)
 	if err != nil {
 		return nil, E.Cause(err, "action")
@@ -62,6 +63,8 @@ func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.Conte
 			action: action,
 		},
 	}
+	router := service.FromContext[adapter.Router](ctx)
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
 		rule.items = append(rule.items, item)
@@ -221,12 +224,12 @@ func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.Conte
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.WIFISSID) > 0 {
-		item := NewWIFISSIDItem(router, options.WIFISSID)
+		item := NewWIFISSIDItem(networkManager, options.WIFISSID)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.WIFIBSSID) > 0 {
-		item := NewWIFIBSSIDItem(router, options.WIFIBSSID)
+		item := NewWIFIBSSIDItem(networkManager, options.WIFIBSSID)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -253,7 +256,7 @@ type LogicalRule struct {
 	abstractLogicalRule
 }
 
-func NewLogicalRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
+func NewLogicalRule(ctx context.Context, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
 	action, err := NewRuleAction(ctx, logger, options.RuleAction)
 	if err != nil {
 		return nil, E.Cause(err, "action")
@@ -274,7 +277,7 @@ func NewLogicalRule(ctx context.Context, router adapter.Router, logger log.Conte
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subOptions := range options.Rules {
-		subRule, err := NewRule(ctx, router, logger, subOptions, false)
+		subRule, err := NewRule(ctx, logger, subOptions, false)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
