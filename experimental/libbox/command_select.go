@@ -43,7 +43,7 @@ func (s *CommandServer) handleSelectOutbound(conn net.Conn) error {
 	if service == nil {
 		return writeError(conn, E.New("service not ready"))
 	}
-	outboundGroup, isLoaded := service.instance.Router().Outbound(groupTag)
+	outboundGroup, isLoaded := service.instance.Outbound().Outbound(groupTag)
 	if !isLoaded {
 		return writeError(conn, E.New("selector not found: ", groupTag))
 	}
