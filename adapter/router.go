@@ -19,7 +19,7 @@ import (
 )
 
 type Router interface {
-	NewService
+	Lifecycle
 
 	FakeIPStore() FakeIPStore
 
@@ -38,13 +38,14 @@ type Router interface {
 	ClearDNSCache()
 	Rules() []Rule
 
-	ClashServer() ClashServer
-	SetClashServer(server ClashServer)
-
-	V2RayServer() V2RayServer
-	SetV2RayServer(server V2RayServer)
+	SetTracker(tracker ConnectionTracker)
 
 	ResetNetwork()
+}
+
+type ConnectionTracker interface {
+	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) net.Conn
+	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) N.PacketConn
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
