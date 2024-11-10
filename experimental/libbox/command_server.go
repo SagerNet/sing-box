@@ -60,7 +60,7 @@ func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServ
 func (s *CommandServer) SetService(newService *BoxService) {
 	if newService != nil {
 		service.PtrFromContext[urltest.HistoryStorage](newService.ctx).SetHook(s.urlTestUpdate)
-		newService.instance.Router().ClashServer().(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
+		newService.clashServer.(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
 	}
 	s.service = newService
 	s.notifyURLTestUpdate()
