@@ -38,6 +38,7 @@ func init() {
 type Transport struct {
 	options           dns.TransportOptions
 	router            adapter.Router
+	networkManager    adapter.NetworkManager
 	interfaceName     string
 	autoInterface     bool
 	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
@@ -54,15 +55,11 @@ func NewTransport(options dns.TransportOptions) (*Transport, error) {
 	if linkURL.Host == "" {
 		return nil, E.New("missing interface name for DHCP")
 	}
-	router := service.FromContext[adapter.Router](options.Context)
-	if router == nil {
-		return nil, E.New("missing router in context")
-	}
 	transport := &Transport{
-		options:       options,
-		router:        router,
-		interfaceName: linkURL.Host,
-		autoInterface: linkURL.Host == "auto",
+		options:        options,
+		networkManager: service.FromContext[adapter.NetworkManager](options.Context),
+		interfaceName:  linkURL.Host,
+		autoInterface:  linkURL.Host == "auto",
 	}
 	return transport, nil
 }
@@ -77,7 +74,7 @@ func (t *Transport) Start() error {
 		return err
 	}
 	if t.autoInterface {
-		t.interfaceCallback = t.router.InterfaceMonitor().RegisterCallback(t.interfaceUpdated)
+		t.interfaceCallback = t.networkManager.InterfaceMonitor().RegisterCallback(t.interfaceUpdated)
 	}
 	return nil
 }
@@ -93,7 +90,7 @@ func (t *Transport) Close() error {
 		transport.Close()
 	}
 	if t.interfaceCallback != nil {
-		t.router.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
+		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
 	return nil
 }
@@ -125,10 +122,10 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 func (t *Transport) fetchInterface() (*net.Interface, error) {
 	interfaceName := t.interfaceName
 	if t.autoInterface {
-		if t.router.InterfaceMonitor() == nil {
+		if t.networkManager.InterfaceMonitor() == nil {
 			return nil, E.New("missing monitor for auto DHCP, set route.auto_detect_interface")
 		}
-		interfaceName = t.router.InterfaceMonitor().DefaultInterfaceName(netip.Addr{})
+		interfaceName = t.networkManager.InterfaceMonitor().DefaultInterfaceName(netip.Addr{})
 	}
 	if interfaceName == "" {
 		return nil, E.New("missing default interface")
@@ -177,7 +174,7 @@ func (t *Transport) interfaceUpdated(int) {
 
 func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) error {
 	var listener net.ListenConfig
-	listener.Control = control.Append(listener.Control, control.BindToInterface(t.router.InterfaceFinder(), iface.Name, iface.Index))
+	listener.Control = control.Append(listener.Control, control.BindToInterface(t.networkManager.InterfaceFinder(), iface.Name, iface.Index))
 	listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	listenAddr := "0.0.0.0:68"
 	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
@@ -255,7 +252,7 @@ func (t *Transport) recreateServers(iface *net.Interface, serverAddrs []netip.Ad
 			return it.String()
 		}), ","), "]")
 	}
-	serverDialer := common.Must1(dialer.NewDefault(t.router, option.DialerOptions{
+	serverDialer := common.Must1(dialer.NewDefault(t.networkManager, option.DialerOptions{
 		BindInterface:      iface.Name,
 		UDPFragmentDefault: true,
 	}))

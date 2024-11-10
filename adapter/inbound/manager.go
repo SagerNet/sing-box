@@ -52,13 +52,13 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 
 func (m *Manager) Close() error {
 	m.access.Lock()
+	defer m.access.Unlock()
 	if !m.started {
-		panic("not started")
+		return nil
 	}
 	m.started = false
 	inbounds := m.inbounds
 	m.inbounds = nil
-	m.access.Unlock()
 	monitor := taskmonitor.New(m.logger, C.StopTimeout)
 	var err error
 	for _, inbound := range inbounds {
