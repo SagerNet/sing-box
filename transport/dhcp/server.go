@@ -119,18 +119,19 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	return nil, err
 }
 
-func (t *Transport) fetchInterface() (*net.Interface, error) {
-	interfaceName := t.interfaceName
+func (t *Transport) fetchInterface() (*control.Interface, error) {
 	if t.autoInterface {
 		if t.networkManager.InterfaceMonitor() == nil {
 			return nil, E.New("missing monitor for auto DHCP, set route.auto_detect_interface")
 		}
-		interfaceName = t.networkManager.InterfaceMonitor().DefaultInterfaceName(netip.Addr{})
+		defaultInterface := t.networkManager.InterfaceMonitor().DefaultInterface()
+		if defaultInterface == nil {
+			return nil, E.New("missing default interface")
+		}
+		return defaultInterface, nil
+	} else {
+		return t.networkManager.InterfaceFinder().ByName(t.interfaceName)
 	}
-	if interfaceName == "" {
-		return nil, E.New("missing default interface")
-	}
-	return net.InterfaceByName(interfaceName)
 }
 
 func (t *Transport) fetchServers() error {
@@ -172,7 +173,7 @@ func (t *Transport) interfaceUpdated(int) {
 	}
 }
 
-func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) error {
+func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface) error {
 	var listener net.ListenConfig
 	listener.Control = control.Append(listener.Control, control.BindToInterface(t.networkManager.InterfaceFinder(), iface.Name, iface.Index))
 	listener.Control = control.Append(listener.Control, control.ReuseAddr())
@@ -206,7 +207,7 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *net.Interface) err
 	return group.Run(ctx)
 }
 
-func (t *Transport) fetchServersResponse(iface *net.Interface, packetConn net.PacketConn, transactionID dhcpv4.TransactionID) error {
+func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn net.PacketConn, transactionID dhcpv4.TransactionID) error {
 	buffer := buf.NewSize(dhcpv4.MaxMessageSize)
 	defer buffer.Release()
 
@@ -246,7 +247,7 @@ func (t *Transport) fetchServersResponse(iface *net.Interface, packetConn net.Pa
 	}
 }
 
-func (t *Transport) recreateServers(iface *net.Interface, serverAddrs []netip.Addr) error {
+func (t *Transport) recreateServers(iface *control.Interface, serverAddrs []netip.Addr) error {
 	if len(serverAddrs) > 0 {
 		t.options.Logger.Info("dhcp: updated DNS servers from ", iface.Name, ": [", strings.Join(common.Map(serverAddrs, func(it netip.Addr) string {
 			return it.String()
