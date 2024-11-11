@@ -146,25 +146,28 @@ func (r HeadlessRule) IsValid() bool {
 }
 
 type DefaultHeadlessRule struct {
-	QueryType        badoption.Listable[DNSQueryType] `json:"query_type,omitempty"`
-	Network          badoption.Listable[string]       `json:"network,omitempty"`
-	Domain           badoption.Listable[string]       `json:"domain,omitempty"`
-	DomainSuffix     badoption.Listable[string]       `json:"domain_suffix,omitempty"`
-	DomainKeyword    badoption.Listable[string]       `json:"domain_keyword,omitempty"`
-	DomainRegex      badoption.Listable[string]       `json:"domain_regex,omitempty"`
-	SourceIPCIDR     badoption.Listable[string]       `json:"source_ip_cidr,omitempty"`
-	IPCIDR           badoption.Listable[string]       `json:"ip_cidr,omitempty"`
-	SourcePort       badoption.Listable[uint16]       `json:"source_port,omitempty"`
-	SourcePortRange  badoption.Listable[string]       `json:"source_port_range,omitempty"`
-	Port             badoption.Listable[uint16]       `json:"port,omitempty"`
-	PortRange        badoption.Listable[string]       `json:"port_range,omitempty"`
-	ProcessName      badoption.Listable[string]       `json:"process_name,omitempty"`
-	ProcessPath      badoption.Listable[string]       `json:"process_path,omitempty"`
-	ProcessPathRegex badoption.Listable[string]       `json:"process_path_regex,omitempty"`
-	PackageName      badoption.Listable[string]       `json:"package_name,omitempty"`
-	WIFISSID         badoption.Listable[string]       `json:"wifi_ssid,omitempty"`
-	WIFIBSSID        badoption.Listable[string]       `json:"wifi_bssid,omitempty"`
-	Invert           bool                             `json:"invert,omitempty"`
+	QueryType            badoption.Listable[DNSQueryType] `json:"query_type,omitempty"`
+	Network              badoption.Listable[string]       `json:"network,omitempty"`
+	Domain               badoption.Listable[string]       `json:"domain,omitempty"`
+	DomainSuffix         badoption.Listable[string]       `json:"domain_suffix,omitempty"`
+	DomainKeyword        badoption.Listable[string]       `json:"domain_keyword,omitempty"`
+	DomainRegex          badoption.Listable[string]       `json:"domain_regex,omitempty"`
+	SourceIPCIDR         badoption.Listable[string]       `json:"source_ip_cidr,omitempty"`
+	IPCIDR               badoption.Listable[string]       `json:"ip_cidr,omitempty"`
+	SourcePort           badoption.Listable[uint16]       `json:"source_port,omitempty"`
+	SourcePortRange      badoption.Listable[string]       `json:"source_port_range,omitempty"`
+	Port                 badoption.Listable[uint16]       `json:"port,omitempty"`
+	PortRange            badoption.Listable[string]       `json:"port_range,omitempty"`
+	ProcessName          badoption.Listable[string]       `json:"process_name,omitempty"`
+	ProcessPath          badoption.Listable[string]       `json:"process_path,omitempty"`
+	ProcessPathRegex     badoption.Listable[string]       `json:"process_path_regex,omitempty"`
+	PackageName          badoption.Listable[string]       `json:"package_name,omitempty"`
+	NetworkType          badoption.Listable[string]       `json:"network_type,omitempty"`
+	NetworkIsExpensive   bool                             `json:"network_is_expensive,omitempty"`
+	NetworkIsConstrained bool                             `json:"network_is_constrained,omitempty"`
+	WIFISSID             badoption.Listable[string]       `json:"wifi_ssid,omitempty"`
+	WIFIBSSID            badoption.Listable[string]       `json:"wifi_bssid,omitempty"`
+	Invert               bool                             `json:"invert,omitempty"`
 
 	DomainMatcher *domain.Matcher `json:"-"`
 	SourceIPSet   *netipx.IPSet   `json:"-"`
@@ -200,7 +203,7 @@ type PlainRuleSetCompat _PlainRuleSetCompat
 func (r PlainRuleSetCompat) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Version {
-	case C.RuleSetVersion1, C.RuleSetVersion2:
+	case C.RuleSetVersion1, C.RuleSetVersion2, C.RuleSetVersion3:
 		v = r.Options
 	default:
 		return nil, E.New("unknown rule-set version: ", r.Version)
@@ -215,7 +218,7 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch r.Version {
-	case C.RuleSetVersion1, C.RuleSetVersion2:
+	case C.RuleSetVersion1, C.RuleSetVersion2, C.RuleSetVersion3:
 		v = &r.Options
 	case 0:
 		return E.New("missing rule-set version")
@@ -231,7 +234,7 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 
 func (r PlainRuleSetCompat) Upgrade() (PlainRuleSet, error) {
 	switch r.Version {
-	case C.RuleSetVersion1, C.RuleSetVersion2:
+	case C.RuleSetVersion1, C.RuleSetVersion2, C.RuleSetVersion3:
 	default:
 		return PlainRuleSet{}, E.New("unknown rule-set version: " + F.ToString(r.Version))
 	}
