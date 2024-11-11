@@ -74,11 +74,7 @@ func (s *platformInterfaceStub) CreateDefaultInterfaceMonitor(logger logger.Logg
 	return (*interfaceMonitorStub)(nil)
 }
 
-func (s *platformInterfaceStub) UsePlatformInterfaceGetter() bool {
-	return true
-}
-
-func (s *platformInterfaceStub) Interfaces() ([]control.Interface, error) {
+func (s *platformInterfaceStub) Interfaces() ([]adapter.NetworkInterface, error) {
 	return nil, os.ErrInvalid
 }
 
@@ -111,16 +107,8 @@ func (s *interfaceMonitorStub) Close() error {
 	return os.ErrInvalid
 }
 
-func (s *interfaceMonitorStub) DefaultInterfaceName(destination netip.Addr) string {
-	return ""
-}
-
-func (s *interfaceMonitorStub) DefaultInterfaceIndex(destination netip.Addr) int {
-	return -1
-}
-
-func (s *interfaceMonitorStub) DefaultInterface(destination netip.Addr) (string, int) {
-	return "", -1
+func (s *interfaceMonitorStub) DefaultInterface() *control.Interface {
+	return nil
 }
 
 func (s *interfaceMonitorStub) OverrideAndroidVPN() bool {
