@@ -14,7 +14,8 @@ icon: material/new-box
 {
   "action": "route", // 默认
   "outbound": "",
-  "udp_disable_domain_unmapping": false
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
 }
 ```
 
@@ -26,16 +27,6 @@ icon: material/new-box
 
 目标出站的标签。
 
-### route-options
-
-```json
-{
-  "action": "route-options",
-  "udp_disable_domain_unmapping": false,
-    "udp_connect": false
-}
-```
-
 #### udp_disable_domain_unmapping
 
 如果启用，对于地址为域的 UDP 代理请求，将在响应中发送原始包地址而不是映射的域。
@@ -45,6 +36,18 @@ icon: material/new-box
 #### udp_connect
 
 如果启用，将尝试将 UDP 连接 connect 到目标而不是 listen。
+
+### route-options
+
+```json
+{
+  "action": "route-options",
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
+}
+```
+
+`route-options` 为路由设置选项。
 
 ### reject
 
