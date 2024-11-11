@@ -28,24 +28,6 @@ icon: material/new-box
 
 目标 DNS 服务器的标签。
 
-#### disable_cache/rewrite_ttl/client_subnet
-
-!!! failure "自 sing-box 1.11.0 起"
-
-    旧的路由选项已弃用，且将在 sing-box 1.12.0 中移除，参阅 [迁移指南](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
-
-### route-options
-
-```json
-{
-  "action": "route-options",
-  "disable_cache": false,
-  "rewrite_ttl": null,
-  "client_subnet": null
-}
-```
-
-
 #### disable_cache
 
 在此查询中禁用缓存。
@@ -61,6 +43,19 @@ icon: material/new-box
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
 将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
+
+### route-options
+
+```json
+{
+  "action": "route-options",
+  "disable_cache": false,
+  "rewrite_ttl": null,
+  "client_subnet": null
+}
+```
+
+`route-options` 为路由设置选项。
 
 ### reject
 
