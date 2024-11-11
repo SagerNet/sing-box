@@ -189,7 +189,7 @@ func (r LogicalHeadlessRule) IsValid() bool {
 }
 
 type _PlainRuleSetCompat struct {
-	Version int          `json:"version"`
+	Version uint8        `json:"version"`
 	Options PlainRuleSet `json:"-"`
 }
 
