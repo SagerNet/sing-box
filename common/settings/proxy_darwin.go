@@ -2,7 +2,6 @@ package settings
 
 import (
 	"context"
-	"net/netip"
 	"strconv"
 	"strings"
 
@@ -77,14 +76,14 @@ func (p *DarwinSystemProxy) update(event int) {
 }
 
 func (p *DarwinSystemProxy) update0() error {
-	newInterfaceName := p.monitor.DefaultInterfaceName(netip.IPv4Unspecified())
-	if p.interfaceName == newInterfaceName {
+	newInterface := p.monitor.DefaultInterface()
+	if p.interfaceName == newInterface.Name {
 		return nil
 	}
 	if p.interfaceName != "" {
 		_ = p.Disable()
 	}
-	p.interfaceName = newInterfaceName
+	p.interfaceName = newInterface.Name
 	interfaceDisplayName, err := getInterfaceDisplayName(p.interfaceName)
 	if err != nil {
 		return err
