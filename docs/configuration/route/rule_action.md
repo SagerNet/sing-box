@@ -13,7 +13,9 @@ icon: material/new-box
 ```json
 {
   "action": "route", // default
-  "outbound": ""
+  "outbound": "",
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
 }
 ```
 
@@ -24,18 +26,6 @@ icon: material/new-box
 ==Required==
 
 Tag of target outbound.
-
-### route-options
-
-```json
-{
-  "action": "route-options",
-  "udp_disable_domain_unmapping": false,
-  "udp_connect": false
-}
-```
-
-`route-options` set options for routing.
 
 #### udp_disable_domain_unmapping
 
@@ -48,6 +38,18 @@ do not support receiving UDP packets with domain addresses, such as Surge.
 #### udp_connect
 
 If enabled, attempts to connect UDP connection to the destination instead of listen.
+
+### route-options
+
+```json
+{
+  "action": "route-options",
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
+}
+```
+
+`route-options` set options for routing.
 
 ### reject
 
