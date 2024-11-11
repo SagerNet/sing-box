@@ -140,18 +140,33 @@ func NewDefaultHeadlessRule(ctx context.Context, options option.DefaultHeadlessR
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if len(options.WIFISSID) > 0 {
-		if networkManager != nil {
-			item := NewWIFISSIDItem(networkManager, options.WIFISSID)
+	if networkManager != nil {
+		if len(options.NetworkType) > 0 {
+			item := NewNetworkTypeItem(networkManager, options.NetworkType)
 			rule.items = append(rule.items, item)
 			rule.allItems = append(rule.allItems, item)
 		}
-	}
-	if len(options.WIFIBSSID) > 0 {
-		if networkManager != nil {
+		if options.NetworkIsExpensive {
+			item := NewNetworkIsExpensiveItem(networkManager)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
+		}
+		if options.NetworkIsConstrained {
+			item := NewNetworkIsConstrainedItem(networkManager)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
+		}
+		if len(options.WIFISSID) > 0 {
+			item := NewWIFISSIDItem(networkManager, options.WIFISSID)
+			rule.items = append(rule.items, item)
+			rule.allItems = append(rule.allItems, item)
+
+		}
+		if len(options.WIFIBSSID) > 0 {
 			item := NewWIFIBSSIDItem(networkManager, options.WIFIBSSID)
 			rule.items = append(rule.items, item)
 			rule.allItems = append(rule.allItems, item)
+
 		}
 	}
 	if len(options.AdGuardDomain) > 0 {
