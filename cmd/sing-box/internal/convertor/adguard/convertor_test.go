@@ -1,6 +1,7 @@
 package adguard
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ example.arpa
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.org",
@@ -85,7 +86,7 @@ func TestHosts(t *testing.T) {
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"google.com",
@@ -115,7 +116,7 @@ www.example.org
 `))
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(nil, rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.com",
