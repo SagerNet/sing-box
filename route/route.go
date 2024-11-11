@@ -437,6 +437,12 @@ match:
 			}
 		}
 		switch action := currentRule.Action().(type) {
+		case *rule.RuleActionRoute:
+			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
+			metadata.UDPConnect = action.UDPConnect
+			selectedRule = currentRule
+			selectedRuleIndex = currentRuleIndex
+			break match
 		case *rule.RuleActionRouteOptions:
 			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
 			metadata.UDPConnect = action.UDPConnect
