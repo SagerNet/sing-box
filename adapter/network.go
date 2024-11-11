@@ -9,6 +9,8 @@ type NetworkManager interface {
 	Lifecycle
 	InterfaceFinder() control.InterfaceFinder
 	UpdateInterfaces() error
+	DefaultNetworkInterface() *NetworkInterface
+	NetworkInterfaces() []NetworkInterface
 	DefaultInterface() string
 	AutoDetectInterface() bool
 	AutoDetectInterfaceFunc() control.Func
@@ -20,4 +22,21 @@ type NetworkManager interface {
 	PackageManager() tun.PackageManager
 	WIFIState() WIFIState
 	ResetNetwork()
+}
+
+type InterfaceUpdateListener interface {
+	InterfaceUpdated()
+}
+
+type WIFIState struct {
+	SSID  string
+	BSSID string
+}
+
+type NetworkInterface struct {
+	control.Interface
+	Type        string
+	DNSServers  []string
+	Expensive   bool
+	Constrained bool
 }
