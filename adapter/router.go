@@ -119,12 +119,3 @@ func (c *HTTPStartContext) Close() {
 		client.CloseIdleConnections()
 	}
 }
-
-type InterfaceUpdateListener interface {
-	InterfaceUpdated()
-}
-
-type WIFIState struct {
-	SSID  string
-	BSSID string
-}
