@@ -21,7 +21,8 @@ const (
 const (
 	RuleSetVersion1 = 1 + iota
 	RuleSetVersion2
-	RuleSetVersionCurrent = RuleSetVersion2
+	RuleSetVersion3
+	RuleSetVersionCurrent = RuleSetVersion3
 )
 
 const (
