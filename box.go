@@ -371,6 +371,12 @@ func (s *Box) start() error {
 			return err
 		}
 	}
+	for _, lifecycleService := range s.services {
+		err = lifecycleService.Start(adapter.StartStateStarted)
+		if err != nil {
+			return E.Cause(err, "start state started", lifecycleService.Name())
+		}
+	}
 	return nil
 }
 
