@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
+	"sync"
 	"syscall"
 	"time"
 
@@ -54,7 +55,10 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	ctx, cancel := context.WithCancel(ctx)
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
-	platformWrapper := &platformInterfaceWrapper{iif: platformInterface, useProcFS: platformInterface.UseProcFS()}
+	platformWrapper := &platformInterfaceWrapper{
+		iif:       platformInterface,
+		useProcFS: platformInterface.UseProcFS(),
+	}
 	service.MustRegister[platform.Interface](ctx, platformWrapper)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
@@ -106,9 +110,14 @@ var (
 )
 
 type platformInterfaceWrapper struct {
-	iif            PlatformInterface
-	useProcFS      bool
-	networkManager adapter.NetworkManager
+	iif                    PlatformInterface
+	useProcFS              bool
+	networkManager         adapter.NetworkManager
+	myTunName              string
+	defaultInterfaceAccess sync.Mutex
+	defaultInterface       *control.Interface
+	isExpensive            bool
+	isConstrained          bool
 }
 
 func (w *platformInterfaceWrapper) Initialize(networkManager adapter.NetworkManager) error {
@@ -148,38 +157,42 @@ func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions
 		return nil, E.Cause(err, "dup tun file descriptor")
 	}
 	options.FileDescriptor = dupFd
+	w.myTunName = options.Name
 	return tun.New(*options)
-}
-
-func (w *platformInterfaceWrapper) UsePlatformDefaultInterfaceMonitor() bool {
-	return w.iif.UsePlatformDefaultInterfaceMonitor()
 }
 
 func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor {
 	return &platformDefaultInterfaceMonitor{
 		platformInterfaceWrapper: w,
-		defaultInterfaceIndex:    -1,
 		logger:                   logger,
 	}
 }
 
-func (w *platformInterfaceWrapper) UsePlatformInterfaceGetter() bool {
-	return w.iif.UsePlatformInterfaceGetter()
-}
-
-func (w *platformInterfaceWrapper) Interfaces() ([]control.Interface, error) {
+func (w *platformInterfaceWrapper) Interfaces() ([]adapter.NetworkInterface, error) {
 	interfaceIterator, err := w.iif.GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
-	var interfaces []control.Interface
+	var interfaces []adapter.NetworkInterface
 	for _, netInterface := range iteratorToArray[*NetworkInterface](interfaceIterator) {
-		interfaces = append(interfaces, control.Interface{
-			Index:     int(netInterface.Index),
-			MTU:       int(netInterface.MTU),
-			Name:      netInterface.Name,
-			Addresses: common.Map(iteratorToArray[string](netInterface.Addresses), netip.MustParsePrefix),
-			Flags:     linkFlags(uint32(netInterface.Flags)),
+		if netInterface.Name == w.myTunName {
+			continue
+		}
+		w.defaultInterfaceAccess.Lock()
+		isDefault := w.defaultInterface != nil && int(netInterface.Index) == w.defaultInterface.Index
+		w.defaultInterfaceAccess.Unlock()
+		interfaces = append(interfaces, adapter.NetworkInterface{
+			Interface: control.Interface{
+				Index:     int(netInterface.Index),
+				MTU:       int(netInterface.MTU),
+				Name:      netInterface.Name,
+				Addresses: common.Map(iteratorToArray[string](netInterface.Addresses), netip.MustParsePrefix),
+				Flags:     linkFlags(uint32(netInterface.Flags)),
+			},
+			Type:        netInterface.Type,
+			DNSServers:  iteratorToArray[string](netInterface.DNSServer),
+			Expensive:   netInterface.Metered || isDefault && w.isExpensive,
+			Constrained: isDefault && w.isConstrained,
 		})
 	}
 	return interfaces, nil
