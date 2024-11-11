@@ -2,6 +2,17 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [action](#action)  
+    :material-alert: [server](#server)  
+    :material-alert: [disable_cache](#disable_cache)  
+    :material-alert: [rewrite_ttl](#rewrite_ttl)  
+    :material-alert: [client_subnet](#client_subnet)  
+    :material-plus: [network_type](#network_type)  
+    :material-plus: [network_is_expensive](#network_is_expensive)  
+    :material-plus: [network_is_constrained](#network_is_constrained)
+
 !!! quote "sing-box 1.10.0 中的更改"
 
     :material-delete-clock: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)  
@@ -117,6 +128,11 @@ icon: material/new-box
           1000
         ],
         "clash_mode": "direct",
+        "network_type": [
+          "wifi"
+        ],
+        "network_is_expensive": false,
+        "network_is_constrained": false,
         "wifi_ssid": [
           "My WIFI"
         ],
@@ -135,17 +151,15 @@ icon: material/new-box
         "outbound": [
           "direct"
         ],
-        "server": "local",
-        "disable_cache": false,
-        "client_subnet": "127.0.0.1/24"
+        "action": "route",
+        "server": "local"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
-        "server": "local",
-        "disable_cache": false,
-        "client_subnet": "127.0.0.1/24"
+        "action": "route",
+        "server": "local"
       }
     ]
   }
@@ -304,6 +318,39 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 匹配 Clash 模式。
 
+#### network_type
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配网络类型。
+
+Available values: `wifi`, `cellular`, `ethernet` and `other`.
+
+#### network_is_expensive
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配如果网络被视为计费 (在 Android) 或被视为昂贵，
+像蜂窝网络或个人热点 (在 Apple 平台)。
+
+#### network_is_constrained
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Apple 平台图形客户端中支持。
+
+匹配如果网络在低数据模式下。
+
 #### wifi_ssid
 
 !!! quote ""
@@ -352,29 +399,35 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 `any` 可作为值用于匹配任意出站。
 
-#### server
+#### action
 
 ==必填==
 
-目标 DNS 服务器的标签。
+参阅 [规则动作](../rule_action/)。
+
+#### server
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### disable_cache
 
-在此查询中禁用缓存。
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### rewrite_ttl
 
-重写 DNS 回应中的 TTL。
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### client_subnet
 
-!!! question "自 sing-box 1.9.0 起"
+!!! failure "已在 sing-box 1.11.0 废弃"
 
-默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
-
-如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
-
-将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 ### 地址筛选字段
 
@@ -420,8 +473,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### mode
 
+==必填==
+
 `and` 或 `or`
 
 #### rules
+
+==必填==
 
 包括的规则。
