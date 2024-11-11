@@ -155,27 +155,26 @@ func (s *RemoteRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSet
 
 func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	var (
-		plainRuleSet option.PlainRuleSet
-		err          error
+		ruleSet option.PlainRuleSetCompat
+		err     error
 	)
 	switch s.options.Format {
 	case C.RuleSetFormatSource:
-		var compat option.PlainRuleSetCompat
-		compat, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
-		if err != nil {
-			return err
-		}
-		plainRuleSet, err = compat.Upgrade()
+		ruleSet, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
 		if err != nil {
 			return err
 		}
 	case C.RuleSetFormatBinary:
-		plainRuleSet, err = srs.Read(bytes.NewReader(content), false)
+		ruleSet, err = srs.Read(bytes.NewReader(content), false)
 		if err != nil {
 			return err
 		}
 	default:
 		return E.New("unknown rule-set format: ", s.options.Format)
+	}
+	plainRuleSet, err := ruleSet.Upgrade()
+	if err != nil {
+		return err
 	}
 	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
 	for i, ruleOptions := range plainRuleSet.Rules {

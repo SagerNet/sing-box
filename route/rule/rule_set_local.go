@@ -95,32 +95,33 @@ func (s *LocalRuleSet) StartContext(ctx context.Context, startContext *adapter.H
 }
 
 func (s *LocalRuleSet) reloadFile(path string) error {
-	var plainRuleSet option.PlainRuleSet
+	var ruleSet option.PlainRuleSetCompat
 	switch s.fileFormat {
 	case C.RuleSetFormatSource, "":
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		compat, err := json.UnmarshalExtended[option.PlainRuleSetCompat](content)
+		ruleSet, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
 		if err != nil {
 			return err
 		}
-		plainRuleSet, err = compat.Upgrade()
-		if err != nil {
-			return err
-		}
+
 	case C.RuleSetFormatBinary:
 		setFile, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-		plainRuleSet, err = srs.Read(setFile, false)
+		ruleSet, err = srs.Read(setFile, false)
 		if err != nil {
 			return err
 		}
 	default:
 		return E.New("unknown rule-set format: ", s.fileFormat)
+	}
+	plainRuleSet, err := ruleSet.Upgrade()
+	if err != nil {
+		return err
 	}
 	return s.reloadRules(plainRuleSet.Rules)
 }

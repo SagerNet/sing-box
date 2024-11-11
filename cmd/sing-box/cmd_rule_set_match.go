@@ -56,25 +56,24 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	if err != nil {
 		return E.Cause(err, "read rule-set")
 	}
-	var plainRuleSet option.PlainRuleSet
+	var ruleSet option.PlainRuleSetCompat
 	switch flagRuleSetMatchFormat {
 	case C.RuleSetFormatSource:
-		var compat option.PlainRuleSetCompat
-		compat, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
-		if err != nil {
-			return err
-		}
-		plainRuleSet, err = compat.Upgrade()
+		ruleSet, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
 		if err != nil {
 			return err
 		}
 	case C.RuleSetFormatBinary:
-		plainRuleSet, err = srs.Read(bytes.NewReader(content), false)
+		ruleSet, err = srs.Read(bytes.NewReader(content), false)
 		if err != nil {
 			return err
 		}
 	default:
 		return E.New("unknown rule-set format: ", flagRuleSetMatchFormat)
+	}
+	plainRuleSet, err := ruleSet.Upgrade()
+	if err != nil {
+		return err
 	}
 	ipAddress := M.ParseAddr(domain)
 	var metadata adapter.InboundContext

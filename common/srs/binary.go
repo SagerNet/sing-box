@@ -41,7 +41,7 @@ const (
 	ruleItemFinal uint8 = 0xFF
 )
 
-func Read(reader io.Reader, recover bool) (ruleSet option.PlainRuleSet, err error) {
+func Read(reader io.Reader, recover bool) (ruleSetCompat option.PlainRuleSetCompat, err error) {
 	var magicBytes [3]byte
 	_, err = io.ReadFull(reader, magicBytes[:])
 	if err != nil {
@@ -54,10 +54,10 @@ func Read(reader io.Reader, recover bool) (ruleSet option.PlainRuleSet, err erro
 	var version uint8
 	err = binary.Read(reader, binary.BigEndian, &version)
 	if err != nil {
-		return ruleSet, err
+		return ruleSetCompat, err
 	}
-	if version > C.RuleSetVersion2 {
-		return ruleSet, E.New("unsupported version: ", version)
+	if version > C.RuleSetVersionCurrent {
+		return ruleSetCompat, E.New("unsupported version: ", version)
 	}
 	compressReader, err := zlib.NewReader(reader)
 	if err != nil {
@@ -68,9 +68,10 @@ func Read(reader io.Reader, recover bool) (ruleSet option.PlainRuleSet, err erro
 	if err != nil {
 		return
 	}
-	ruleSet.Rules = make([]option.HeadlessRule, length)
+	ruleSetCompat.Version = version
+	ruleSetCompat.Options.Rules = make([]option.HeadlessRule, length)
 	for i := uint64(0); i < length; i++ {
-		ruleSet.Rules[i], err = readRule(bReader, recover)
+		ruleSetCompat.Options.Rules[i], err = readRule(bReader, recover)
 		if err != nil {
 			err = E.Cause(err, "read rule[", i, "]")
 			return
@@ -79,18 +80,12 @@ func Read(reader io.Reader, recover bool) (ruleSet option.PlainRuleSet, err erro
 	return
 }
 
-func Write(writer io.Writer, ruleSet option.PlainRuleSet, generateUnstable bool) error {
+func Write(writer io.Writer, ruleSet option.PlainRuleSet, generateVersion uint8) error {
 	_, err := writer.Write(MagicBytes[:])
 	if err != nil {
 		return err
 	}
-	var version uint8
-	if generateUnstable {
-		version = C.RuleSetVersion2
-	} else {
-		version = C.RuleSetVersion1
-	}
-	err = binary.Write(writer, binary.BigEndian, version)
+	err = binary.Write(writer, binary.BigEndian, generateVersion)
 	if err != nil {
 		return err
 	}
@@ -104,7 +99,7 @@ func Write(writer io.Writer, ruleSet option.PlainRuleSet, generateUnstable bool)
 		return err
 	}
 	for _, rule := range ruleSet.Rules {
-		err = writeRule(bWriter, rule, generateUnstable)
+		err = writeRule(bWriter, rule, generateVersion)
 		if err != nil {
 			return err
 		}
@@ -135,12 +130,12 @@ func readRule(reader varbin.Reader, recover bool) (rule option.HeadlessRule, err
 	return
 }
 
-func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateUnstable bool) error {
+func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion uint8) error {
 	switch rule.Type {
 	case C.RuleTypeDefault:
-		return writeDefaultRule(writer, rule.DefaultOptions, generateUnstable)
+		return writeDefaultRule(writer, rule.DefaultOptions, generateVersion)
 	case C.RuleTypeLogical:
-		return writeLogicalRule(writer, rule.LogicalOptions, generateUnstable)
+		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion)
 	default:
 		panic("unknown rule type: " + rule.Type)
 	}
@@ -240,7 +235,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 	}
 }
 
-func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, generateUnstable bool) error {
+func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, generateVersion uint8) error {
 	err := binary.Write(writer, binary.BigEndian, uint8(0))
 	if err != nil {
 		return err
@@ -264,7 +259,7 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		if err != nil {
 			return err
 		}
-		err = domain.NewMatcher(rule.Domain, rule.DomainSuffix, !generateUnstable).Write(writer)
+		err = domain.NewMatcher(rule.Domain, rule.DomainSuffix, generateVersion == C.RuleSetVersion1).Write(writer)
 		if err != nil {
 			return err
 		}
@@ -354,6 +349,9 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		}
 	}
 	if len(rule.AdGuardDomain) > 0 {
+		if generateVersion < C.RuleSetVersion2 {
+			return E.New("AdGuard rule items is only supported in version 2 or later")
+		}
 		err = binary.Write(writer, binary.BigEndian, ruleItemAdGuardDomain)
 		if err != nil {
 			return err
@@ -457,7 +455,7 @@ func readLogicalRule(reader varbin.Reader, recovery bool) (logicalRule option.Lo
 	return
 }
 
-func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRule, generateUnstable bool) error {
+func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRule, generateVersion uint8) error {
 	err := binary.Write(writer, binary.BigEndian, uint8(1))
 	if err != nil {
 		return err
@@ -478,7 +476,7 @@ func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRu
 		return err
 	}
 	for _, rule := range logicalRule.Rules {
-		err = writeRule(writer, rule, generateUnstable)
+		err = writeRule(writer, rule, generateVersion)
 		if err != nil {
 			return err
 		}
