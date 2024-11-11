@@ -100,15 +100,6 @@ var OptionInboundOptions = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-special-outbounds-to-rule-actions",
 }
 
-var OptionLegacyDNSRouteOptions = Note{
-	Name:              "legacy-dns-route-options",
-	Description:       "legacy dns route options",
-	DeprecatedVersion: "1.11.0",
-	ScheduledVersion:  "1.12.0",
-	EnvName:           "LEGACY_DNS_ROUTE_OPTIONS",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-dns-route-options-to-rule-actions",
-}
-
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
@@ -116,5 +107,4 @@ var Options = []Note{
 	OptionTUNAddressX,
 	OptionSpecialOutbounds,
 	OptionInboundOptions,
-	OptionLegacyDNSRouteOptions,
 }
