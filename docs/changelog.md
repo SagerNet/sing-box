@@ -2,9 +2,27 @@
 icon: material/alert-decagram
 ---
 
-#### 1.11.0-alpha.11
+#### 1.11.0-alpha.12
 
+* Merge route options to route actions **1**
+* Add `network_type`, `network_is_expensive` and `network_is_constrainted` rule items **2**
 * Fixes and improvements
+
+**1**:
+
+Route options in DNS route actions will no longer be considered deprecated,
+see [DNS Route Action](/configuration/dns/rule_action/).
+
+Also, now `udp_disable_domain_unmapping` and `udp_connect` can also be configured in route action,
+see [Route Action](/configuration/route/rule_action/).
+
+**2**:
+
+When using in graphical clients, new routing rule items allow you to match on
+network type (WIFI, cellular, etc.), whether the network is expensive, and whether Low Data Mode is enabled.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
 
 #### 1.11.0-alpha.9
 
@@ -32,7 +50,7 @@ See [Rule](/configuration/route/rule/),
 [DNS Rule Action](/configuration/dns/rule_action/).
 
 For migration, see
-[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions), 
+[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions),
 [Migrate legacy inbound fields to rule actions](/migration/#migrate-legacy-inbound-fields-to-rule-actions)
 and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
 
