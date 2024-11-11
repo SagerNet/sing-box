@@ -5,7 +5,6 @@ import (
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common/control"
 	"github.com/sagernet/sing/common/logger"
 )
 
@@ -14,10 +13,8 @@ type Interface interface {
 	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int) error
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
-	UsePlatformDefaultInterfaceMonitor() bool
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
-	UsePlatformInterfaceGetter() bool
-	Interfaces() ([]control.Interface, error)
+	Interfaces() ([]adapter.NetworkInterface, error)
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ClearDNSCache()
