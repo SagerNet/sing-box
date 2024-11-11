@@ -156,58 +156,6 @@ Inbound fields are deprecated and can be replaced by rule actions.
     }
     ```
 
-### Migrate legacy DNS route options to rule actions
-
-Legacy DNS route options are deprecated and can be replaced by rule actions.
-
-!!! info "References"
-
-    [DNS Rule](/configuration/dns/rule/) / 
-    [DNS Rule Action](/configuration/dns/rule_action/)
-
-=== ":material-card-remove: Deprecated"
-
-    ```json
-    {
-      "dns": {
-        "rules": [
-          {
-            ...,
-            
-            "server": "local",
-            "disable_cache": true,
-            "rewrite_ttl": 600,
-            "client_subnet": "1.1.1.1/24"
-          }
-        ]
-      }
-    }
-    ```
-
-=== ":material-card-multiple: New"
-
-    ```json
-    {
-      "dns": {
-        "rules": [
-          {
-            ...,
-            
-            "action": "route-options",
-            "disable_cache": true,
-            "rewrite_ttl": 600,
-            "client_subnet": "1.1.1.1/24"
-          },
-          {
-            ...,
-            
-            "server": "local"
-          }
-        ]
-      }
-    }
-    ```
-
 ## 1.10.0
 
 ### TUN address fields are merged

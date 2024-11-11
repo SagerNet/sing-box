@@ -22,14 +22,6 @@ check [Migration](../migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 Old fields will be removed in sing-box 1.13.0.
 
-#### Legacy DNS route options
-
-Legacy DNS route options (`disable_cache`, `rewrite_ttl`, `client_subnet`) are deprecated
-and can be replaced by rule actions,
-check [Migration](../migration/#migrate-legacy-dns-route-options-to-rule-actions).
-
-Old fields will be removed in sing-box 1.12.0.
-
 ## 1.10.0
 
 #### TUN address fields are merged
