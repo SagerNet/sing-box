@@ -467,7 +467,12 @@ match:
 			selectedRuleIndex = currentRuleIndex
 			break match
 		}
-		ruleIndex = currentRuleIndex
+		if ruleIndex == -1 {
+			ruleIndex = currentRuleIndex
+		} else {
+			ruleIndex += currentRuleIndex
+		}
+		ruleIndex++
 	}
 	if !preMatch && metadata.Destination.Addr.IsUnspecified() {
 		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{}, inputConn, inputPacketConn)
