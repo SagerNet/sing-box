@@ -33,7 +33,7 @@ func (l *loopBackDetector) NewConn(conn net.Conn) net.Conn {
 	}
 	if udpConn, isUDPConn := conn.(abstractUDPConn); isUDPConn {
 		if !source.Addr().IsLoopback() {
-			_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
+			_, err := l.networkManager.InterfaceFinder().ByAddr(source.Addr())
 			if err != nil {
 				return conn
 			}
@@ -59,7 +59,7 @@ func (l *loopBackDetector) NewPacketConn(conn N.NetPacketConn, destination M.Soc
 		return conn
 	}
 	if !source.Addr().IsLoopback() {
-		_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
+		_, err := l.networkManager.InterfaceFinder().ByAddr(source.Addr())
 		if err != nil {
 			return conn
 		}
@@ -82,7 +82,7 @@ func (l *loopBackDetector) CheckPacketConn(source netip.AddrPort, local netip.Ad
 		return false
 	}
 	if !source.Addr().IsLoopback() {
-		_, err := l.networkManager.InterfaceFinder().InterfaceByAddr(source.Addr())
+		_, err := l.networkManager.InterfaceFinder().ByAddr(source.Addr())
 		if err != nil {
 			return false
 		}
