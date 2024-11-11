@@ -14,7 +14,7 @@ func LegacyStart(starter any, stage StartStage) error {
 		}); isStarter {
 			return starter.Start()
 		}
-	case StartStatePostStart:
+	case StartStateStarted:
 		if postStarter, isPostStarter := starter.(interface {
 			PostStart() error
 		}); isPostStarter {

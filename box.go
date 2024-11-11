@@ -315,27 +315,17 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return E.Cause(err, "start logger")
 	}
-	for _, lifecycleService := range s.services {
-		err = lifecycleService.Start(adapter.StartStateInitialize) // cache-file
-		if err != nil {
-			return E.Cause(err, "initialize ", lifecycleService.Name())
-		}
+	err = adapter.StartNamed(adapter.StartStateInitialize, s.services) // cache-file clash-api v2ray-api
+	if err != nil {
+		return err
 	}
-	for _, lifecycle := range []adapter.Lifecycle{
-		s.network, s.router, s.outbound, s.inbound,
-	} {
-		err = lifecycle.Start(adapter.StartStateInitialize)
-		if err != nil {
-			return err
-		}
+	err = adapter.Start(adapter.StartStateInitialize, s.network, s.router, s.outbound, s.inbound)
+	if err != nil {
+		return err
 	}
-	for _, lifecycle := range []adapter.Lifecycle{
-		s.outbound, s.network, s.router,
-	} {
-		err = lifecycle.Start(adapter.StartStateStart)
-		if err != nil {
-			return err
-		}
+	err = adapter.Start(adapter.StartStateStart, s.outbound, s.network, s.router)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -345,31 +335,29 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	for _, lifecycleService := range s.services {
-		err = lifecycleService.Start(adapter.StartStateStart)
-		if err != nil {
-			return E.Cause(err, "initialize ", lifecycleService.Name())
-		}
+	err = adapter.StartNamed(adapter.StartStateStart, s.services)
+	if err != nil {
+		return err
 	}
 	err = s.inbound.Start(adapter.StartStateStart)
 	if err != nil {
 		return err
 	}
-	for _, lifecycleService := range []adapter.Lifecycle{
-		s.outbound, s.network, s.router, s.inbound,
-	} {
-		err = lifecycleService.Start(adapter.StartStatePostStart)
-		if err != nil {
-			return err
-		}
+	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.router, s.inbound)
+	if err != nil {
+		return err
 	}
-	for _, lifecycleService := range []adapter.Lifecycle{
-		s.network, s.router, s.outbound, s.inbound,
-	} {
-		err = lifecycleService.Start(adapter.StartStateStarted)
-		if err != nil {
-			return err
-		}
+	err = adapter.StartNamed(adapter.StartStatePostStart, s.services)
+	if err != nil {
+		return err
+	}
+	err = adapter.Start(adapter.StartStateStarted, s.network, s.router, s.outbound, s.inbound)
+	if err != nil {
+		return err
+	}
+	err = adapter.StartNamed(adapter.StartStateStarted, s.services)
+	if err != nil {
+		return err
 	}
 	return nil
 }
