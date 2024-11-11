@@ -220,6 +220,21 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.NetworkType) > 0 {
+		item := NewNetworkTypeItem(networkManager, options.NetworkType)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.NetworkIsExpensive {
+		item := NewNetworkIsExpensiveItem(networkManager)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.NetworkIsConstrained {
+		item := NewNetworkIsConstrainedItem(networkManager)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.WIFISSID) > 0 {
 		item := NewWIFISSIDItem(networkManager, options.WIFISSID)
 		rule.items = append(rule.items, item)
