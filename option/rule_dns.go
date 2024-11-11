@@ -97,6 +97,9 @@ type RawDefaultDNSRule struct {
 	UserID                   badoption.Listable[int32]        `json:"user_id,omitempty"`
 	Outbound                 badoption.Listable[string]       `json:"outbound,omitempty"`
 	ClashMode                string                           `json:"clash_mode,omitempty"`
+	NetworkType              badoption.Listable[string]       `json:"network_type,omitempty"`
+	NetworkIsExpensive       bool                             `json:"network_is_expensive,omitempty"`
+	NetworkIsConstrained     bool                             `json:"network_is_constrained,omitempty"`
 	WIFISSID                 badoption.Listable[string]       `json:"wifi_ssid,omitempty"`
 	WIFIBSSID                badoption.Listable[string]       `json:"wifi_bssid,omitempty"`
 	RuleSet                  badoption.Listable[string]       `json:"rule_set,omitempty"`
