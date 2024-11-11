@@ -38,6 +38,9 @@ const (
 	ruleItemWIFIBSSID
 	ruleItemAdGuardDomain
 	ruleItemProcessPathRegex
+	ruleItemNetworkType
+	ruleItemNetworkIsExpensive
+	ruleItemNetworkIsConstrained
 	ruleItemFinal uint8 = 0xFF
 )
 
@@ -222,6 +225,12 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 				return
 			}
 			rule.AdGuardDomainMatcher = matcher
+		case ruleItemNetworkType:
+			rule.NetworkType, err = readRuleItemString(reader)
+		case ruleItemNetworkIsExpensive:
+			rule.NetworkIsExpensive = true
+		case ruleItemNetworkIsConstrained:
+			rule.NetworkIsConstrained = true
 		case ruleItemFinal:
 			err = binary.Read(reader, binary.BigEndian, &rule.Invert)
 			return
@@ -332,6 +341,27 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 	}
 	if len(rule.PackageName) > 0 {
 		err = writeRuleItemString(writer, ruleItemPackageName, rule.PackageName)
+		if err != nil {
+			return err
+		}
+	}
+	if len(rule.NetworkType) > 0 {
+		if generateVersion < C.RuleSetVersion3 {
+			return E.New("network_type rule item is only supported in version 3 or later")
+		}
+		err = writeRuleItemString(writer, ruleItemNetworkType, rule.NetworkType)
+		if err != nil {
+			return err
+		}
+	}
+	if rule.NetworkIsExpensive {
+		err = binary.Write(writer, binary.BigEndian, ruleItemNetworkIsExpensive)
+		if err != nil {
+			return err
+		}
+	}
+	if rule.NetworkIsConstrained {
+		err = binary.Write(writer, binary.BigEndian, ruleItemNetworkIsConstrained)
 		if err != nil {
 			return err
 		}
