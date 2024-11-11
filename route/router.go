@@ -20,16 +20,17 @@ import (
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	"github.com/sagernet/sing-box/common/taskmonitor"
+	"github.com/sagernet/sing-box/constant"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	mux "github.com/sagernet/sing-mux"
+	tun "github.com/sagernet/sing-tun"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -1113,6 +1114,10 @@ func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, de
 		}
 	}
 	ctx = outbound.ContextWithTag(ctx, matchOutbound.Tag())
+	if matchOutbound.Type() == constant.TypeSelector {
+		tag := outbound.RealTag(matchOutbound)
+		metadata.Outbound = tag
+	}
 	return ctx, matchRule, matchOutbound, nil
 }
 
