@@ -20,13 +20,6 @@ icon: material/delete-alert
 
 旧字段将在 sing-box 1.13.0 中被移除。
 
-#### 旧的 DNS 路由参数
-
-旧的 DNS 路由参数（`disable_cache`、`rewrite_ttl`、`client_subnet`）已废弃且可以通过规则动作替代，
-参阅 [迁移指南](/migration/#migrate-legacy-dns-route-options-to-rule-actions)。
-
-旧字段将在 sing-box 1.12.0 中被移除。
-
 ## 1.10.0
 
 #### Match source 规则项已重命名
