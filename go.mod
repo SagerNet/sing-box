@@ -32,7 +32,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.7
 	github.com/sagernet/sing-shadowsocks2 v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.4
-	github.com/sagernet/sing-tun v0.6.0-alpha.4
+	github.com/sagernet/sing-tun v0.6.0-alpha.5
 	github.com/sagernet/sing-vmess v0.1.12
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/utls v1.6.7
@@ -52,10 +52,6 @@ require (
 	google.golang.org/protobuf v1.33.0
 	howett.net/plist v1.0.1
 )
-
-replace github.com/sagernet/sing => ../sing
-
-replace github.com/sagernet/sing-tun => ../sing-tun
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
