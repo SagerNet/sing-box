@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/conntrack"
@@ -38,8 +39,7 @@ type NetworkManager struct {
 	networkInterfaces atomic.TypedValue[[]adapter.NetworkInterface]
 
 	autoDetectInterface    bool
-	defaultInterface       string
-	defaultMark            uint32
+	defaultOptions         adapter.NetworkOptions
 	autoRedirectOutputMark uint32
 
 	networkMonitor    tun.NetworkUpdateMonitor
@@ -58,11 +58,23 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
 		autoDetectInterface: routeOptions.AutoDetectInterface,
-		defaultInterface:    routeOptions.DefaultInterface,
-		defaultMark:         routeOptions.DefaultMark,
-		pauseManager:        service.FromContext[pause.Manager](ctx),
-		platformInterface:   service.FromContext[platform.Interface](ctx),
-		outboundManager:     service.FromContext[adapter.OutboundManager](ctx),
+		defaultOptions: adapter.NetworkOptions{
+			DefaultInterface:       routeOptions.DefaultInterface,
+			DefaultMark:            routeOptions.DefaultMark,
+			DefaultNetworkStrategy: C.NetworkStrategy(routeOptions.DefaultNetworkStrategy),
+			DefaultFallbackDelay:   time.Duration(routeOptions.DefaultFallbackDelay),
+		},
+		pauseManager:      service.FromContext[pause.Manager](ctx),
+		platformInterface: service.FromContext[platform.Interface](ctx),
+		outboundManager:   service.FromContext[adapter.OutboundManager](ctx),
+	}
+	if C.NetworkStrategy(routeOptions.DefaultNetworkStrategy) != C.NetworkStrategyDefault {
+		if routeOptions.DefaultInterface != "" {
+			return nil, E.New("`default_network_strategy` is conflict with `default_interface`")
+		}
+		if !routeOptions.AutoDetectInterface {
+			return nil, E.New("`auto_detect_interface` is required by `default_network_strategy`")
+		}
 	}
 	usePlatformDefaultInterfaceMonitor := nm.platformInterface != nil
 	enforceInterfaceMonitor := routeOptions.AutoDetectInterface
@@ -84,12 +96,12 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 			if err != nil {
 				return nil, E.New("auto_detect_interface unsupported on current platform")
 			}
-			interfaceMonitor.RegisterCallback(nm.notifyNetworkUpdate)
+			interfaceMonitor.RegisterCallback(nm.notifyInterfaceUpdate)
 			nm.interfaceMonitor = interfaceMonitor
 		}
 	} else {
 		interfaceMonitor := nm.platformInterface.CreateDefaultInterfaceMonitor(logger)
-		interfaceMonitor.RegisterCallback(nm.notifyNetworkUpdate)
+		interfaceMonitor.RegisterCallback(nm.notifyInterfaceUpdate)
 		nm.interfaceMonitor = interfaceMonitor
 	}
 	return nm, nil
@@ -265,10 +277,6 @@ func (r *NetworkManager) NetworkInterfaces() []adapter.NetworkInterface {
 	return r.networkInterfaces.Load()
 }
 
-func (r *NetworkManager) DefaultInterface() string {
-	return r.defaultInterface
-}
-
 func (r *NetworkManager) AutoDetectInterface() bool {
 	return r.autoDetectInterface
 }
@@ -301,8 +309,19 @@ func (r *NetworkManager) AutoDetectInterfaceFunc() control.Func {
 	}
 }
 
-func (r *NetworkManager) DefaultMark() uint32 {
-	return r.defaultMark
+func (r *NetworkManager) ProtectFunc() control.Func {
+	if r.platformInterface != nil && r.platformInterface.UsePlatformAutoDetectInterfaceControl() {
+		return func(network, address string, conn syscall.RawConn) error {
+			return control.Raw(conn, func(fd uintptr) error {
+				return r.platformInterface.AutoDetectInterfaceControl(int(fd))
+			})
+		}
+	}
+	return nil
+}
+
+func (r *NetworkManager) DefaultOptions() adapter.NetworkOptions {
+	return r.defaultOptions
 }
 
 func (r *NetworkManager) RegisterAutoRedirectOutputMark(mark uint32) error {
@@ -344,45 +363,47 @@ func (r *NetworkManager) ResetNetwork() {
 	}
 }
 
-func (r *NetworkManager) notifyNetworkUpdate(event int) {
-	if event == tun.EventNoRoute {
+func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
+	if defaultInterface == nil {
 		r.pauseManager.NetworkPause()
 		r.logger.Error("missing default interface")
-	} else {
-		r.pauseManager.NetworkWake()
-		defaultInterface := r.DefaultNetworkInterface()
-		if defaultInterface == nil {
-			panic("invalid interface context")
-		}
-		var options []string
-		options = append(options, F.ToString("index ", defaultInterface.Index))
-		if C.IsAndroid && r.platformInterface == nil {
-			var vpnStatus string
-			if r.interfaceMonitor.AndroidVPNEnabled() {
-				vpnStatus = "enabled"
-			} else {
-				vpnStatus = "disabled"
-			}
-			options = append(options, "vpn "+vpnStatus)
+		return
+	}
+
+	r.pauseManager.NetworkWake()
+	var options []string
+	options = append(options, F.ToString("index ", defaultInterface.Index))
+	if C.IsAndroid && r.platformInterface == nil {
+		var vpnStatus string
+		if r.interfaceMonitor.AndroidVPNEnabled() {
+			vpnStatus = "enabled"
 		} else {
-			if defaultInterface.Type != "" {
-				options = append(options, F.ToString("type ", defaultInterface.Type))
-			}
-			if defaultInterface.Expensive {
-				options = append(options, "expensive")
-			}
-			if defaultInterface.Constrained {
-				options = append(options, "constrained")
-			}
+			vpnStatus = "disabled"
 		}
-		r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
-		if r.platformInterface != nil {
-			state := r.platformInterface.ReadWIFIState()
-			if state != r.wifiState {
-				r.wifiState = state
-				if state.SSID != "" {
-					r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
-				}
+		options = append(options, "vpn "+vpnStatus)
+	} else if r.platformInterface != nil {
+		networkInterface := common.Find(r.networkInterfaces.Load(), func(it adapter.NetworkInterface) bool {
+			return it.Interface.Index == defaultInterface.Index
+		})
+		if networkInterface.Type == "" {
+			// race
+			return
+		}
+		options = append(options, F.ToString("type ", networkInterface.Type))
+		if networkInterface.Expensive {
+			options = append(options, "expensive")
+		}
+		if networkInterface.Constrained {
+			options = append(options, "constrained")
+		}
+	}
+	r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
+	if r.platformInterface != nil {
+		state := r.platformInterface.ReadWIFIState()
+		if state != r.wifiState {
+			r.wifiState = state
+			if state.SSID != "" {
+				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
 			}
 		}
 	}
