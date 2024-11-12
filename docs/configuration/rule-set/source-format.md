@@ -2,8 +2,6 @@
 icon: material/new-box
 ---
 
-# Source Format
-
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: version `3`
