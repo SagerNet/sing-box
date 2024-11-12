@@ -3,8 +3,10 @@ package adapter
 import (
 	"context"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-box/common/process"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
@@ -66,6 +68,8 @@ type InboundContext struct {
 	InboundOptions            option.InboundOptions
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
+	NetworkStrategy           C.NetworkStrategy
+	FallbackDelay             time.Duration
 
 	DNSServer string
 
