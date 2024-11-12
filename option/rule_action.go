@@ -137,14 +137,18 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 }
 
 type RouteActionOptions struct {
-	Outbound                  string `json:"outbound,omitempty"`
-	UDPDisableDomainUnmapping bool   `json:"udp_disable_domain_unmapping,omitempty"`
-	UDPConnect                bool   `json:"udp_connect,omitempty"`
+	Outbound                  string          `json:"outbound,omitempty"`
+	NetworkStrategy           NetworkStrategy `json:"network_strategy,omitempty"`
+	FallbackDelay             uint32          `json:"fallback_delay,omitempty"`
+	UDPDisableDomainUnmapping bool            `json:"udp_disable_domain_unmapping,omitempty"`
+	UDPConnect                bool            `json:"udp_connect,omitempty"`
 }
 
 type _RouteOptionsActionOptions struct {
-	UDPDisableDomainUnmapping bool `json:"udp_disable_domain_unmapping,omitempty"`
-	UDPConnect                bool `json:"udp_connect,omitempty"`
+	NetworkStrategy           NetworkStrategy `json:"network_strategy,omitempty"`
+	FallbackDelay             uint32          `json:"fallback_delay,omitempty"`
+	UDPDisableDomainUnmapping bool            `json:"udp_disable_domain_unmapping,omitempty"`
+	UDPConnect                bool            `json:"udp_connect,omitempty"`
 }
 
 type RouteOptionsActionOptions _RouteOptionsActionOptions
