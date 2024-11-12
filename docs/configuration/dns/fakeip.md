@@ -1,5 +1,3 @@
-# FakeIP
-
 ### Structure
 
 ```json

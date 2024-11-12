@@ -380,7 +380,7 @@ See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/) for details
 
 ==Required==
 
-Handshake server address and [Dial options](/configuration/shared/dial/).
+Handshake server address and [Dial Fields](/configuration/shared/dial/).
 
 #### private_key
 
