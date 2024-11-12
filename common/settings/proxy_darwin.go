@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/shell"
@@ -33,7 +34,7 @@ func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bo
 		serverAddr:   serverAddr,
 		supportSOCKS: supportSOCKS,
 	}
-	proxy.element = interfaceMonitor.RegisterCallback(proxy.update)
+	proxy.element = interfaceMonitor.RegisterCallback(proxy.routeUpdate)
 	return proxy, nil
 }
 
@@ -65,11 +66,8 @@ func (p *DarwinSystemProxy) Disable() error {
 	return err
 }
 
-func (p *DarwinSystemProxy) update(event int) {
-	if event&tun.EventInterfaceUpdate == 0 {
-		return
-	}
-	if !p.isEnabled {
+func (p *DarwinSystemProxy) routeUpdate(defaultInterface *control.Interface, flags int) {
+	if !p.isEnabled || defaultInterface == nil {
 		return
 	}
 	_ = p.update0()
