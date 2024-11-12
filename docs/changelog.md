@@ -2,6 +2,23 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-alpha.14
+
+* Add multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+Similar to Surge's strategy.
+
+New options allow you to connect using multiple network interfaces,
+prefer or only use one type of interface,
+and configure a timeout to fallback to other interfaces.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
 #### 1.11.0-alpha.13
 
 * Fixes and improvements
@@ -62,7 +79,7 @@ and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legac
 
 Similar to Surge's pre-matching.
 
-Specifically, the new rule actions allow you to reject connections with
+Specifically, new rule actions allow you to reject connections with
 TCP RST (for TCP connections) and ICMP port unreachable (for UDP packets)
 before connection established to improve tun's compatibility.
 
@@ -159,7 +176,7 @@ allows you to write headless rules directly without creating a rule-set file.
 
 **8**:
 
-With the new access control options, not only can you allow Clash dashboards
+With new access control options, not only can you allow Clash dashboards
 to access the Clash API on your local network,
 you can also manually limit the websites that can access the API instead of allowing everyone.
 
