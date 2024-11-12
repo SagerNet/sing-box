@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -25,35 +25,11 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
-	} else {
-		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
-	}
-	if err != nil {
-		return N.ReportHandshakeFailure(conn, err)
-	}
-	err = N.ReportConnHandshakeSuccess(conn, outConn)
-	if err != nil {
-		outConn.Close()
-		return err
-	}
-	return CopyEarlyConn(ctx, conn, outConn)
-}
-
-func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, domainStrategy dns.DomainStrategy) error {
-	defer conn.Close()
-	ctx = adapter.WithContext(ctx, &metadata)
-	var outConn net.Conn
-	var err error
-	if len(metadata.DestinationAddresses) > 0 {
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
-	} else if metadata.Destination.IsFqdn() {
-		var destinationAddresses []netip.Addr
-		destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
-		if err != nil {
-			return N.ReportHandshakeFailure(conn, err)
+		if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
+			outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+		} else {
+			outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 		}
-		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, destinationAddresses)
 	} else {
 		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
@@ -79,7 +55,11 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	)
 	if metadata.UDPConnect {
 		if len(metadata.DestinationAddresses) > 0 {
-			outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
+			if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
+				outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+			} else {
+				outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
+			}
 		} else {
 			outConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
 		}
@@ -93,7 +73,11 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 		}
 	} else {
 		if len(metadata.DestinationAddresses) > 0 {
-			outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+			if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
+				outPacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, parallelDialer, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+			} else {
+				outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
+			}
 		} else {
 			outPacketConn, err = this.ListenPacket(ctx, metadata.Destination)
 		}
@@ -113,76 +97,6 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 			} else {
 				outPacketConn = bufio.NewNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
 			}
-		}
-		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
-			natConn.UpdateDestination(destinationAddress)
-		}
-	}
-	switch metadata.Protocol {
-	case C.ProtocolSTUN:
-		ctx, conn = canceler.NewPacketConn(ctx, conn, C.STUNTimeout)
-	case C.ProtocolQUIC:
-		ctx, conn = canceler.NewPacketConn(ctx, conn, C.QUICTimeout)
-	case C.ProtocolDNS:
-		ctx, conn = canceler.NewPacketConn(ctx, conn, C.DNSTimeout)
-	}
-	return bufio.CopyPacketConn(ctx, conn, bufio.NewPacketConn(outPacketConn))
-}
-
-func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext, domainStrategy dns.DomainStrategy) error {
-	defer conn.Close()
-	ctx = adapter.WithContext(ctx, &metadata)
-	var (
-		outPacketConn      net.PacketConn
-		outConn            net.Conn
-		destinationAddress netip.Addr
-		err                error
-	)
-	if metadata.UDPConnect {
-		if len(metadata.DestinationAddresses) > 0 {
-			outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
-		} else if metadata.Destination.IsFqdn() {
-			var destinationAddresses []netip.Addr
-			destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
-			if err != nil {
-				return N.ReportHandshakeFailure(conn, err)
-			}
-			outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, destinationAddresses)
-		} else {
-			outConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
-		}
-		if err != nil {
-			return N.ReportHandshakeFailure(conn, err)
-		}
-		connRemoteAddr := M.AddrFromNet(outConn.RemoteAddr())
-		if connRemoteAddr != metadata.Destination.Addr {
-			destinationAddress = connRemoteAddr
-		}
-	} else {
-		if len(metadata.DestinationAddresses) > 0 {
-			outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
-		} else if metadata.Destination.IsFqdn() {
-			var destinationAddresses []netip.Addr
-			destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
-			if err != nil {
-				return N.ReportHandshakeFailure(conn, err)
-			}
-			outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, destinationAddresses)
-		} else {
-			outPacketConn, err = this.ListenPacket(ctx, metadata.Destination)
-		}
-		if err != nil {
-			return N.ReportHandshakeFailure(conn, err)
-		}
-	}
-	err = N.ReportPacketConnHandshakeSuccess(conn, outPacketConn)
-	if err != nil {
-		outPacketConn.Close()
-		return err
-	}
-	if destinationAddress.IsValid() {
-		if metadata.Destination.IsFqdn() {
-			outPacketConn = bufio.NewNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
 		}
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
 			natConn.UpdateDestination(destinationAddress)
