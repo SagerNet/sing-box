@@ -2,8 +2,6 @@
 icon: material/new-box
 ---
 
-# DNS Rule Action
-
 !!! question "Since sing-box 1.11.0"
 
 ### route
