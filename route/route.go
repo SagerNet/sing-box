@@ -424,9 +424,13 @@ match:
 		}
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionRoute:
+			metadata.NetworkStrategy = action.NetworkStrategy
+			metadata.FallbackDelay = action.FallbackDelay
 			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
 			metadata.UDPConnect = action.UDPConnect
 		case *rule.RuleActionRouteOptions:
+			metadata.NetworkStrategy = action.NetworkStrategy
+			metadata.FallbackDelay = action.FallbackDelay
 			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
 			metadata.UDPConnect = action.UDPConnect
 		case *rule.RuleActionSniff:
