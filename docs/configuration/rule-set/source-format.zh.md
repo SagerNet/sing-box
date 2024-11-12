@@ -2,8 +2,6 @@
 icon: material/new-box
 ---
 
-# 源文件格式
-
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: version `3`
