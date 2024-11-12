@@ -16,7 +16,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -237,16 +236,4 @@ func (w *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return packetConn, err
 	}
 	return w.tunDevice.ListenPacket(ctx, destination)
-}
-
-// TODO
-// Deprecated
-func (w *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return outbound.NewDirectConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
-}
-
-// TODO
-// Deprecated
-func (w *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return outbound.NewDirectPacketConnection(ctx, w.router, w, conn, metadata, dns.DomainStrategyAsIS)
 }
