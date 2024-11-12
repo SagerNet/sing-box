@@ -76,7 +76,7 @@ func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName s
 		callbacks := m.callbacks.Array()
 		m.defaultInterfaceAccess.Unlock()
 		for _, callback := range callbacks {
-			callback(tun.EventInterfaceUpdate)
+			callback(nil, 0)
 		}
 		return
 	}
@@ -95,6 +95,6 @@ func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName s
 	callbacks := m.callbacks.Array()
 	m.defaultInterfaceAccess.Unlock()
 	for _, callback := range callbacks {
-		callback(tun.EventInterfaceUpdate)
+		callback(newInterface, 0)
 	}
 }
