@@ -1,6 +1,9 @@
 package adapter
 
 import (
+	"time"
+
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 )
@@ -11,10 +14,10 @@ type NetworkManager interface {
 	UpdateInterfaces() error
 	DefaultNetworkInterface() *NetworkInterface
 	NetworkInterfaces() []NetworkInterface
-	DefaultInterface() string
 	AutoDetectInterface() bool
 	AutoDetectInterfaceFunc() control.Func
-	DefaultMark() uint32
+	ProtectFunc() control.Func
+	DefaultOptions() NetworkOptions
 	RegisterAutoRedirectOutputMark(mark uint32) error
 	AutoRedirectOutputMark() uint32
 	NetworkMonitor() tun.NetworkUpdateMonitor
@@ -22,6 +25,13 @@ type NetworkManager interface {
 	PackageManager() tun.PackageManager
 	WIFIState() WIFIState
 	ResetNetwork()
+}
+
+type NetworkOptions struct {
+	DefaultNetworkStrategy C.NetworkStrategy
+	DefaultFallbackDelay   time.Duration
+	DefaultInterface       string
+	DefaultMark            uint32
 }
 
 type InterfaceUpdateListener interface {
