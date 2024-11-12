@@ -16,3 +16,7 @@ func newTCPDialer(dialer net.Dialer, tfoEnabled bool) (tcpDialer, error) {
 	}
 	return dialer, nil
 }
+
+func dialerFromTCPDialer(dialer tcpDialer) net.Dialer {
+	return dialer
+}

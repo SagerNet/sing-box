@@ -10,7 +10,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -114,24 +113,4 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
-}
-
-// TODO
-// Deprecated
-func (h *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	if h.resolve {
-		return outbound.NewDirectConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyUseIPv4)
-	} else {
-		return outbound.NewConnection(ctx, h, conn, metadata)
-	}
-}
-
-// TODO
-// Deprecated
-func (h *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	if h.resolve {
-		return outbound.NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyUseIPv4)
-	} else {
-		return outbound.NewPacketConnection(ctx, h, conn, metadata)
-	}
 }
