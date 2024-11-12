@@ -87,7 +87,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewConn(conn)
 	}
-	selectedRule, _, buffers, _, err := r.matchRule(ctx, &metadata, false, conn, nil, -1)
+	selectedRule, _, buffers, _, err := r.matchRule(ctx, &metadata, false, conn, nil)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
 	}*/
 
-	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, false, nil, conn, -1)
+	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, false, nil, conn)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 }
 
 func (r *Router) PreMatch(metadata adapter.InboundContext) error {
-	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil, -1)
+	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext) error {
 
 func (r *Router) matchRule(
 	ctx context.Context, metadata *adapter.InboundContext, preMatch bool,
-	inputConn net.Conn, inputPacketConn N.PacketConn, ruleIndex int,
+	inputConn net.Conn, inputPacketConn N.PacketConn,
 ) (
 	selectedRule adapter.Rule, selectedRuleIndex int,
 	buffers []*buf.Buffer, packetBuffers []*N.PacketBuffer, fatalErr error,
@@ -399,24 +399,9 @@ func (r *Router) matchRule(
 	}
 
 match:
-	for ruleIndex < len(r.rules) {
-		rules := r.rules
-		if ruleIndex != -1 {
-			rules = rules[ruleIndex+1:]
-		}
-		var (
-			currentRule      adapter.Rule
-			currentRuleIndex int
-			matched          bool
-		)
-		for currentRuleIndex, currentRule = range rules {
-			if currentRule.Match(metadata) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			break
+	for currentRuleIndex, currentRule := range r.rules {
+		if !currentRule.Match(metadata) {
+			continue
 		}
 		if !preMatch {
 			ruleDescription := currentRule.String()
@@ -440,9 +425,6 @@ match:
 		case *rule.RuleActionRoute:
 			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
 			metadata.UDPConnect = action.UDPConnect
-			selectedRule = currentRule
-			selectedRuleIndex = currentRuleIndex
-			break match
 		case *rule.RuleActionRouteOptions:
 			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
 			metadata.UDPConnect = action.UDPConnect
@@ -468,17 +450,16 @@ match:
 			if fatalErr != nil {
 				return
 			}
-		default:
+		}
+		actionType := currentRule.Action().Type()
+		if actionType == C.RuleActionTypeRoute ||
+			actionType == C.RuleActionTypeReject ||
+			actionType == C.RuleActionTypeHijackDNS ||
+			(actionType == C.RuleActionTypeSniff && preMatch) {
 			selectedRule = currentRule
 			selectedRuleIndex = currentRuleIndex
 			break match
 		}
-		if ruleIndex == -1 {
-			ruleIndex = currentRuleIndex
-		} else {
-			ruleIndex += currentRuleIndex
-		}
-		ruleIndex++
 	}
 	if !preMatch && metadata.Destination.Addr.IsUnspecified() {
 		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{}, inputConn, inputPacketConn)
