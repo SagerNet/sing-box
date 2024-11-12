@@ -166,7 +166,7 @@ func (t *Transport) updateServers() error {
 	}
 }
 
-func (t *Transport) interfaceUpdated(int) {
+func (t *Transport) interfaceUpdated(defaultInterface *control.Interface, flags int) {
 	err := t.updateServers()
 	if err != nil {
 		t.options.Logger.Error("update servers: ", err)

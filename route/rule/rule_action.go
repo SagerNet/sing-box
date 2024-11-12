@@ -30,12 +30,16 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return &RuleActionRoute{
 			Outbound: action.RouteOptions.Outbound,
 			RuleActionRouteOptions: RuleActionRouteOptions{
+				NetworkStrategy:           C.NetworkStrategy(action.RouteOptions.NetworkStrategy),
+				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
 				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
 				UDPConnect:                action.RouteOptions.UDPConnect,
 			},
 		}, nil
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionRouteOptions{
+			NetworkStrategy:           C.NetworkStrategy(action.RouteOptionsOptions.NetworkStrategy),
+			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
 		}, nil
@@ -135,6 +139,8 @@ func (r *RuleActionRoute) String() string {
 }
 
 type RuleActionRouteOptions struct {
+	NetworkStrategy           C.NetworkStrategy
+	FallbackDelay             time.Duration
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
 }
