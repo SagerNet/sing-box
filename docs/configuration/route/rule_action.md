@@ -2,10 +2,6 @@
 icon: material/new-box
 ---
 
-# Rule Action
-
-!!! question "Since sing-box 1.11.0"
-
 ## Final actions
 
 ### route
@@ -14,6 +10,8 @@ icon: material/new-box
 {
   "action": "route", // default
   "outbound": "",
+  "network_strategy": "",
+  "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }
@@ -26,6 +24,27 @@ icon: material/new-box
 ==Required==
 
 Tag of target outbound.
+
+#### network_strategy
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled.
+
+Strategy for selecting network interfaces.
+
+Only take effect if outbound is direct without `outbound.bind_interface`,
+`outbound.inet4_bind_address` and `outbound.inet6_bind_address` set.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy) for available values.
+
+#### fallback_delay
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled and `network_strategy` set.
+
+See [Dial Fields](/configuration/shared/dial/#fallback_delay) for details.
 
 #### udp_disable_domain_unmapping
 
@@ -44,6 +63,8 @@ If enabled, attempts to connect UDP connection to the destination instead of lis
 ```json
 {
   "action": "route-options",
+  "network_strategy": "",
+  "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }

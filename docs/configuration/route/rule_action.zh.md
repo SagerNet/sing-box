@@ -2,10 +2,6 @@
 icon: material/new-box
 ---
 
-# 规则动作
-
-!!! question "自 sing-box 1.11.0 起"
-
 ## 最终动作
 
 ### route
@@ -14,6 +10,8 @@ icon: material/new-box
 {
   "action": "route", // 默认
   "outbound": "",
+  "network_strategy": "",
+  "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }
@@ -26,6 +24,27 @@ icon: material/new-box
 ==必填==
 
 目标出站的标签。
+
+#### network_strategy
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface`。
+
+选择网络接口的策略。
+
+仅当出站为 `direct` 且 `outbound.bind_interface`, `outbound.inet4_bind_address`
+且 `outbound.inet6_bind_address` 未设置时生效。
+
+可用值参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
+
+#### fallback_delay
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface` 且 `network_strategy` 已设置。
+
+详情参阅 [拨号字段](/configuration/shared/dial/#fallback_delay)。
 
 #### udp_disable_domain_unmapping
 
@@ -42,6 +61,8 @@ icon: material/new-box
 ```json
 {
   "action": "route-options",
+  "network_strategy": "",
+  "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }
