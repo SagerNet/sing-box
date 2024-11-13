@@ -2,6 +2,19 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-alpha.15
+
+* Improve multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+New options allow you to configure the network strategy flexibly.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
 #### 1.11.0-alpha.14
 
 * Add multi network dialing **1**
