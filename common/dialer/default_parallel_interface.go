@@ -7,14 +7,14 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 )
 
-func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Dialer, network string, addr string, strategy C.NetworkStrategy, fallbackDelay time.Duration) (net.Conn, bool, error) {
-	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy)
+func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Dialer, network string, addr string, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, bool, error) {
+	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy, interfaceType, fallbackInterfaceType)
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, false, E.New("no available network interface")
 	}
@@ -84,8 +84,8 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 	}
 }
 
-func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, dialer net.Dialer, network string, addr string, strategy C.NetworkStrategy, fallbackDelay time.Duration, resetFastFallback func(time.Time)) (net.Conn, bool, error) {
-	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy)
+func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, dialer net.Dialer, network string, addr string, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration, resetFastFallback func(time.Time)) (net.Conn, bool, error) {
+	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy, interfaceType, fallbackInterfaceType)
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, false, E.New("no available network interface")
 	}
@@ -144,8 +144,8 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 	}
 }
 
-func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listener net.ListenConfig, network string, addr string, strategy C.NetworkStrategy, fallbackDelay time.Duration) (net.PacketConn, error) {
-	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy)
+func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listener net.ListenConfig, network string, addr string, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {
+	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy, interfaceType, fallbackInterfaceType)
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, E.New("no available network interface")
 	}
@@ -174,12 +174,12 @@ func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listene
 	return nil, E.Errors(errors...)
 }
 
-func selectInterfaces(networkManager adapter.NetworkManager, strategy C.NetworkStrategy) (primaryInterfaces []adapter.NetworkInterface, fallbackInterfaces []adapter.NetworkInterface) {
+func selectInterfaces(networkManager adapter.NetworkManager, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType) (primaryInterfaces []adapter.NetworkInterface, fallbackInterfaces []adapter.NetworkInterface) {
 	interfaces := networkManager.NetworkInterfaces()
 	switch strategy {
-	case C.NetworkStrategyFallback:
-		defaultIf := networkManager.InterfaceMonitor().DefaultInterface()
-		if defaultIf != nil {
+	case C.NetworkStrategyDefault:
+		if len(interfaceType) == 0 {
+			defaultIf := networkManager.InterfaceMonitor().DefaultInterface()
 			for _, iif := range interfaces {
 				if iif.Index == defaultIf.Index {
 					primaryInterfaces = append(primaryInterfaces, iif)
@@ -188,54 +188,36 @@ func selectInterfaces(networkManager adapter.NetworkManager, strategy C.NetworkS
 				}
 			}
 		} else {
-			primaryInterfaces = interfaces
+			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, iif.Type)
+			})
 		}
 	case C.NetworkStrategyHybrid:
-		primaryInterfaces = interfaces
-	case C.NetworkStrategyWIFI:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeWIFI {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			} else {
-				fallbackInterfaces = append(fallbackInterfaces, iif)
-			}
+		if len(interfaceType) == 0 {
+			primaryInterfaces = interfaces
+		} else {
+			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, iif.Type)
+			})
 		}
-	case C.NetworkStrategyCellular:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeCellular {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			} else {
-				fallbackInterfaces = append(fallbackInterfaces, iif)
+	case C.NetworkStrategyFallback:
+		if len(interfaceType) == 0 {
+			defaultIf := networkManager.InterfaceMonitor().DefaultInterface()
+			for _, iif := range interfaces {
+				if iif.Index == defaultIf.Index {
+					primaryInterfaces = append(primaryInterfaces, iif)
+				} else {
+					fallbackInterfaces = append(fallbackInterfaces, iif)
+				}
 			}
+		} else {
+			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, iif.Type)
+			})
 		}
-	case C.NetworkStrategyEthernet:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeEthernet {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			} else {
-				fallbackInterfaces = append(fallbackInterfaces, iif)
-			}
-		}
-	case C.NetworkStrategyWIFIOnly:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeWIFI {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			}
-		}
-	case C.NetworkStrategyCellularOnly:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeCellular {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			}
-		}
-	case C.NetworkStrategyEthernetOnly:
-		for _, iif := range interfaces {
-			if iif.Type == C.InterfaceTypeEthernet {
-				primaryInterfaces = append(primaryInterfaces, iif)
-			}
-		}
-	default:
-		panic(F.ToString("unknown network strategy: ", strategy))
+		fallbackInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
+			return common.Contains(fallbackInterfaceType, iif.Type)
+		})
 	}
 	return primaryInterfaces, fallbackInterfaces
 }
