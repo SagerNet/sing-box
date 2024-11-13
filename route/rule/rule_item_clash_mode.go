@@ -1,23 +1,31 @@
 package rule
 
 import (
+	"context"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/service"
 )
 
 var _ RuleItem = (*ClashModeItem)(nil)
 
 type ClashModeItem struct {
+	ctx         context.Context
 	clashServer adapter.ClashServer
 	mode        string
 }
 
-func NewClashModeItem(clashServer adapter.ClashServer, mode string) *ClashModeItem {
+func NewClashModeItem(ctx context.Context, mode string) *ClashModeItem {
 	return &ClashModeItem{
-		clashServer: clashServer,
-		mode:        mode,
+		ctx:  ctx,
+		mode: mode,
 	}
+}
+
+func (r *ClashModeItem) Start() error {
+	r.clashServer = service.FromContext[adapter.ClashServer](r.ctx)
+	return nil
 }
 
 func (r *ClashModeItem) Match(metadata *adapter.InboundContext) bool {
