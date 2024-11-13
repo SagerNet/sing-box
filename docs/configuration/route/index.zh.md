@@ -1,4 +1,15 @@
+---
+icon: material/new-box
+---
+
 # 路由
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [network_strategy](#network_strategy)  
+    :material-plus: [default_network_type](#default_network_type)  
+    :material-plus: [default_fallback_network_type](#default_fallback_network_type)  
+    :material-alert: [default_fallback_delay](#default_fallback_delay)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
@@ -25,6 +36,10 @@
   }
 }
 ```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
 ### 字段
 
@@ -87,11 +102,9 @@
 
 #### network_strategy
 
-!!! quote ""
+!!! question "自 sing-box 1.11.0 起"
 
-    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface`。
-
-选择网络接口的策略。
+详情参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
 
 当 `outbound.bind_interface`, `outbound.inet4_bind_address` 或 `outbound.inet6_bind_address` 已设置时不生效。
 
@@ -99,12 +112,20 @@
 
 与 `default_interface` 冲突。
 
-可用值请参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
+#### default_network_type
 
-#### fallback_delay
+!!! question "自 sing-box 1.11.0 起"
 
-!!! quote ""
+详情参阅 [拨号字段](/configuration/shared/dial/#default_network_type)。
 
-    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface` 且 `network_strategy` 已设置。
+#### default_fallback_network_type
 
-详情请参阅 [拨号字段](/configuration/shared/dial/#fallback_delay)。
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#default_fallback_network_type)。
+
+#### default_fallback_delay
+
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#fallback_delay)。
