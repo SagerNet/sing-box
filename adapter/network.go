@@ -28,10 +28,12 @@ type NetworkManager interface {
 }
 
 type NetworkOptions struct {
-	DefaultNetworkStrategy C.NetworkStrategy
-	DefaultFallbackDelay   time.Duration
-	DefaultInterface       string
-	DefaultMark            uint32
+	NetworkStrategy     C.NetworkStrategy
+	NetworkType         []C.InterfaceType
+	FallbackNetworkType []C.InterfaceType
+	FallbackDelay       time.Duration
+	BindInterface       string
+	RoutingMark         uint32
 }
 
 type InterfaceUpdateListener interface {
@@ -45,7 +47,7 @@ type WIFIState struct {
 
 type NetworkInterface struct {
 	control.Interface
-	Type        string
+	Type        C.InterfaceType
 	DNSServers  []string
 	Expensive   bool
 	Constrained bool
