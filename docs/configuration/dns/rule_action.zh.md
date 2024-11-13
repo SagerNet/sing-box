@@ -1,5 +1,5 @@
 ---
-icon: material/new-box
+status: new
 ---
 
 !!! question "自 sing-box 1.11.0 起"

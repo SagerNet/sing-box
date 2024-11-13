@@ -1,5 +1,5 @@
 ---
-icon: material/delete-clock
+status: deprecated
 ---
 
 !!! quote "Changes in sing-box 1.11.0"

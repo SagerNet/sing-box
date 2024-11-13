@@ -181,10 +181,16 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 extra:
+  status:
+    alert: "Warning present"
+    deprecated: "Deprecated content included"
+    new: "New content available"
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/SagerNet/sing-box
   generator: false
+extra_css:
+  - stylesheets/extra.css
 plugins:
   - search
   - i18n:
