@@ -400,6 +400,7 @@ func (r *Router) matchRule(
 
 match:
 	for currentRuleIndex, currentRule := range r.rules {
+		metadata.ResetRuleCache()
 		if !currentRule.Match(metadata) {
 			continue
 		}
