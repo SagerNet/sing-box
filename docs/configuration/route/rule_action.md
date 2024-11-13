@@ -11,11 +11,17 @@ icon: material/new-box
   "action": "route", // default
   "outbound": "",
   "network_strategy": "",
+  "network_type": [],
+  "fallback_network_type": [],
   "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }
 ```
+
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
 
 `route` inherits the classic rule behavior of routing connection to the specified outbound.
 
@@ -27,22 +33,20 @@ Tag of target outbound.
 
 #### network_strategy
 
-!!! quote ""
-
-    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled.
-
-Strategy for selecting network interfaces.
+See [Dial Fields](/configuration/shared/dial/#network_strategy) for details.
 
 Only take effect if outbound is direct without `outbound.bind_interface`,
 `outbound.inet4_bind_address` and `outbound.inet6_bind_address` set.
 
-See [Dial Fields](/configuration/shared/dial/#network_strategy) for available values.
+#### network_type
+
+See [Dial Fields](/configuration/shared/dial/#network_type) for details.
+
+#### fallback_network_type
+
+See [Dial Fields](/configuration/shared/dial/#fallback_network_type) for details.
 
 #### fallback_delay
-
-!!! quote ""
-
-    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled and `network_strategy` set.
 
 See [Dial Fields](/configuration/shared/dial/#fallback_delay) for details.
 

@@ -171,3 +171,27 @@ func (n *NetworkStrategy) UnmarshalJSON(content []byte) error {
 	*n = NetworkStrategy(strategy)
 	return nil
 }
+
+type InterfaceType C.InterfaceType
+
+func (t InterfaceType) Build() C.InterfaceType {
+	return C.InterfaceType(t)
+}
+
+func (t InterfaceType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(C.InterfaceType(t).String())
+}
+
+func (t *InterfaceType) UnmarshalJSON(content []byte) error {
+	var value string
+	err := json.Unmarshal(content, &value)
+	if err != nil {
+		return err
+	}
+	interfaceType, loaded := C.StringToInterfaceType[value]
+	if !loaded {
+		return E.New("unknown interface type: ", value)
+	}
+	*t = InterfaceType(interfaceType)
+	return nil
+}
