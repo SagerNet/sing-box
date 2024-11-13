@@ -140,6 +140,8 @@ func (r *RuleActionRoute) String() string {
 
 type RuleActionRouteOptions struct {
 	NetworkStrategy           C.NetworkStrategy
+	NetworkType               []C.InterfaceType
+	FallbackNetworkType       []C.InterfaceType
 	FallbackDelay             time.Duration
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool

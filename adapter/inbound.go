@@ -69,6 +69,8 @@ type InboundContext struct {
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
 	NetworkStrategy           C.NetworkStrategy
+	NetworkType               []C.InterfaceType
+	FallbackNetworkType       []C.InterfaceType
 	FallbackDelay             time.Duration
 
 	DNSServer string
