@@ -106,7 +106,7 @@ func (d *resolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	return bufio.NewNATPacketConn(bufio.NewPacketConn(conn), M.SocksaddrFrom(destinationAddress, destination.Port), destination), nil
 }
 
-func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy C.NetworkStrategy, fallbackDelay time.Duration) (net.Conn, error) {
+func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
 	if !destination.IsFqdn() {
 		return d.dialer.DialContext(ctx, network, destination)
 	}
@@ -128,13 +128,13 @@ func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context
 		fallbackDelay = d.fallbackDelay
 	}
 	if d.parallel {
-		return DialParallelNetwork(ctx, d.dialer, network, destination, addresses, d.strategy == dns.DomainStrategyPreferIPv6, strategy, fallbackDelay)
+		return DialParallelNetwork(ctx, d.dialer, network, destination, addresses, d.strategy == dns.DomainStrategyPreferIPv6, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	} else {
-		return DialSerialNetwork(ctx, d.dialer, network, destination, addresses, strategy, fallbackDelay)
+		return DialSerialNetwork(ctx, d.dialer, network, destination, addresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	}
 }
 
-func (d *resolveParallelNetworkDialer) ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy C.NetworkStrategy, fallbackDelay time.Duration) (net.PacketConn, error) {
+func (d *resolveParallelNetworkDialer) ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {
 	if !destination.IsFqdn() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
@@ -152,7 +152,7 @@ func (d *resolveParallelNetworkDialer) ListenSerialInterfacePacket(ctx context.C
 	if err != nil {
 		return nil, err
 	}
-	conn, destinationAddress, err := ListenSerialNetworkPacket(ctx, d.dialer, destination, addresses, strategy, fallbackDelay)
+	conn, destinationAddress, err := ListenSerialNetworkPacket(ctx, d.dialer, destination, addresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	if err != nil {
 		return nil, err
 	}

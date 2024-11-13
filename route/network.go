@@ -59,10 +59,12 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
 		autoDetectInterface: routeOptions.AutoDetectInterface,
 		defaultOptions: adapter.NetworkOptions{
-			DefaultInterface:       routeOptions.DefaultInterface,
-			DefaultMark:            routeOptions.DefaultMark,
-			DefaultNetworkStrategy: C.NetworkStrategy(routeOptions.DefaultNetworkStrategy),
-			DefaultFallbackDelay:   time.Duration(routeOptions.DefaultFallbackDelay),
+			BindInterface:       routeOptions.DefaultInterface,
+			RoutingMark:         uint32(routeOptions.DefaultMark),
+			NetworkStrategy:     C.NetworkStrategy(routeOptions.DefaultNetworkStrategy),
+			NetworkType:         common.Map(routeOptions.DefaultNetworkType, option.InterfaceType.Build),
+			FallbackNetworkType: common.Map(routeOptions.DefaultFallbackNetworkType, option.InterfaceType.Build),
+			FallbackDelay:       time.Duration(routeOptions.DefaultFallbackDelay),
 		},
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[platform.Interface](ctx),
@@ -385,7 +387,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 		networkInterface := common.Find(r.networkInterfaces.Load(), func(it adapter.NetworkInterface) bool {
 			return it.Interface.Index == defaultInterface.Index
 		})
-		if networkInterface.Type == "" {
+		if networkInterface.Name == "" {
 			// race
 			return
 		}
