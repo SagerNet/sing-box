@@ -12,6 +12,8 @@ icon: material/new-box
   "outbound": "",
   "network_strategy": "",
   "fallback_delay": "",
+  "network_type": [],
+  "fallback_network_type": [],
   "udp_disable_domain_unmapping": false,
   "udp_connect": false
 }
@@ -27,22 +29,20 @@ icon: material/new-box
 
 #### network_strategy
 
-!!! quote ""
-
-    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface`。
-
-选择网络接口的策略。
+详情参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
 
 仅当出站为 `direct` 且 `outbound.bind_interface`, `outbound.inet4_bind_address`
 且 `outbound.inet6_bind_address` 未设置时生效。
 
-可用值参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
+#### network_type
+
+详情参阅 [拨号字段](/configuration/shared/dial/#network_type)。
+
+#### fallback_network_type
+
+详情参阅 [拨号字段](/configuration/shared/dial/#fallback_network_type)。
 
 #### fallback_delay
-
-!!! quote ""
-
-    仅在 Android 与 Apple 平台图形客户端中支持，并且需要 `auto_detect_interface` 且 `network_strategy` 已设置。
 
 详情参阅 [拨号字段](/configuration/shared/dial/#fallback_delay)。
 
@@ -67,6 +67,10 @@ icon: material/new-box
   "udp_connect": false
 }
 ```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
 `route-options` 为路由设置选项。
 
