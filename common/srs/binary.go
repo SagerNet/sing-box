@@ -226,7 +226,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			}
 			rule.AdGuardDomainMatcher = matcher
 		case ruleItemNetworkType:
-			rule.NetworkType, err = readRuleItemString(reader)
+			rule.NetworkType, err = readRuleItemUint8[option.InterfaceType](reader)
 		case ruleItemNetworkIsExpensive:
 			rule.NetworkIsExpensive = true
 		case ruleItemNetworkIsConstrained:
@@ -349,7 +349,7 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		if generateVersion < C.RuleSetVersion3 {
 			return E.New("network_type rule item is only supported in version 3 or later")
 		}
-		err = writeRuleItemString(writer, ruleItemNetworkType, rule.NetworkType)
+		err = writeRuleItemUint8(writer, ruleItemNetworkType, rule.NetworkType)
 		if err != nil {
 			return err
 		}
@@ -407,6 +407,18 @@ func readRuleItemString(reader varbin.Reader) ([]string, error) {
 }
 
 func writeRuleItemString(writer varbin.Writer, itemType uint8, value []string) error {
+	err := writer.WriteByte(itemType)
+	if err != nil {
+		return err
+	}
+	return varbin.Write(writer, binary.BigEndian, value)
+}
+
+func readRuleItemUint8[E ~uint8](reader varbin.Reader) ([]E, error) {
+	return varbin.ReadValue[[]E](reader, binary.BigEndian)
+}
+
+func writeRuleItemUint8[E ~uint8](writer varbin.Writer, itemType uint8, value []E) error {
 	err := writer.WriteByte(itemType)
 	if err != nil {
 		return err

@@ -26,7 +26,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
 		if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
-			outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+			outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 		} else {
 			outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 		}
@@ -56,7 +56,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	if metadata.UDPConnect {
 		if len(metadata.DestinationAddresses) > 0 {
 			if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
-				outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+				outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 			} else {
 				outConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
 			}
@@ -74,7 +74,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 	} else {
 		if len(metadata.DestinationAddresses) > 0 {
 			if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
-				outPacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, parallelDialer, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.FallbackDelay)
+				outPacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, parallelDialer, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 			} else {
 				outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
 			}

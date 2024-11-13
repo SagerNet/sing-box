@@ -34,10 +34,10 @@ type InterfaceUpdateListener interface {
 }
 
 const (
-	InterfaceTypeWIFI     = C.InterfaceTypeWIFI
-	InterfaceTypeCellular = C.InterfaceTypeCellular
-	InterfaceTypeEthernet = C.InterfaceTypeEthernet
-	InterfaceTypeOther    = C.InterfaceTypeOther
+	InterfaceTypeWIFI     = int32(C.InterfaceTypeWIFI)
+	InterfaceTypeCellular = int32(C.InterfaceTypeCellular)
+	InterfaceTypeEthernet = int32(C.InterfaceTypeEthernet)
+	InterfaceTypeOther    = int32(C.InterfaceTypeOther)
 )
 
 type NetworkInterface struct {
@@ -47,7 +47,7 @@ type NetworkInterface struct {
 	Addresses StringIterator
 	Flags     int32
 
-	Type      string
+	Type      int32
 	DNSServer StringIterator
 	Metered   bool
 }
