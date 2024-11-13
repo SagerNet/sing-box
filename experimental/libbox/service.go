@@ -189,7 +189,7 @@ func (w *platformInterfaceWrapper) Interfaces() ([]adapter.NetworkInterface, err
 				Addresses: common.Map(iteratorToArray[string](netInterface.Addresses), netip.MustParsePrefix),
 				Flags:     linkFlags(uint32(netInterface.Flags)),
 			},
-			Type:        netInterface.Type,
+			Type:        C.InterfaceType(netInterface.Type),
 			DNSServers:  iteratorToArray[string](netInterface.DNSServer),
 			Expensive:   netInterface.Metered || isDefault && w.isExpensive,
 			Constrained: isDefault && w.isConstrained,
