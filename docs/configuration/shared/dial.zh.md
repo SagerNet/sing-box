@@ -5,7 +5,9 @@ icon: material/new-box
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [network_strategy](#network_strategy)  
-    :material-alert: [fallback_delay](#fallback_delay)
+    :material-alert: [fallback_delay](#fallback_delay)  
+    :material-alert: [network_type](#network_type)  
+    :material-alert: [fallback_network_type](#fallback_network_type)
 
 ### 结构
 
@@ -23,9 +25,15 @@ icon: material/new-box
   "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "network_strategy": "",
+  "network_type": [],
+  "fallback_network_type": [],
   "fallback_delay": "300ms"
 }
 ```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
 ### 字段
 
@@ -99,25 +107,47 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅在 Android 与 iOS 平台图形客户端中支持。
+    仅在 Android 与 iOS 平台图形客户端中支持，并且需要 `route.auto_detect_interface`。
 
 用于选择网络接口的策略。
 
 可用值：
 
-- `default` (默认): 连接到默认接口，
-- `fallback`: 如果超时，尝试所有剩余接口。
-- `hybrid`: 同时尝试所有接口，选择最快的一个。
-- `wifi`:  优先使用 WIFI，但在不可用或超时时尝试所有其他接口。
-- `cellular`: 优先使用蜂窝数据，但在不可用或超时时尝试所有其他接口。
-- `ethernet`: 优先使用以太网，但在不可用或超时时尝试所有其他接口。
-- `wifi_only`: 仅连接到 WIFI。
-- `cellular_only`: 仅连接到蜂窝数据。
-- `ethernet_only`: 仅连接到以太网。
+- `default`（默认值）：按顺序连接默认网络或 `network_type` 中指定的网络。
+- `hybrid`：同时连接所有网络或 `network_type` 中指定的网络。
+- `fallback`：同时连接默认网络或 `network_type` 中指定的首选网络，当不可用或超时时尝试回退网络。
 
-对于回退策略, 当优先使用的接口发生故障或超时时， 将进入 15 秒的快速回退状态（升级为 `hybrid`）， 且恢复后立即退出。
+对于回退模式，当首选接口失败或超时时，
+将进入15秒的快速回退状态（同时连接所有首选和回退网络），
+如果首选网络恢复，则立即退出。
 
 与 `bind_interface`, `bind_inet4_address` 和 `bind_inet6_address` 冲突。
+
+#### network_type
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 iOS 平台图形客户端中支持，并且需要 `route.auto_detect_interface`。
+
+当使用 `default` 或 `hybrid` 网络策略时要使用的网络类型，或当使用 `fallback` 网络策略时要使用的首选网络类型。
+
+可用值：`wifi`, `cellular`, `ethernet`, `other`。
+
+默认使用设备默认网络。
+
+#### fallback_network_type
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 iOS 平台图形客户端中支持，并且需要 `route.auto_detect_interface`。
+
+当使用 `fallback` 网络策略时，在首选网络不可用或超时的情况下要使用的回退网络类型。
+
+默认使用除首选网络外的所有其他网络。
 
 #### fallback_delay
 
