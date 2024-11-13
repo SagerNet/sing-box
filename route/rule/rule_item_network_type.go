@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -12,10 +13,10 @@ var _ RuleItem = (*NetworkTypeItem)(nil)
 
 type NetworkTypeItem struct {
 	networkManager adapter.NetworkManager
-	networkType    []string
+	networkType    []C.InterfaceType
 }
 
-func NewNetworkTypeItem(networkManager adapter.NetworkManager, networkType []string) *NetworkTypeItem {
+func NewNetworkTypeItem(networkManager adapter.NetworkManager, networkType []C.InterfaceType) *NetworkTypeItem {
 	return &NetworkTypeItem{
 		networkManager: networkManager,
 		networkType:    networkType,
