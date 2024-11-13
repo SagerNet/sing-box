@@ -7,6 +7,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [default_network_strategy](#default_network_strategy)  
+    :material-plus: [default_network_type](#default_network_type)  
+    :material-plus: [default_fallback_network_type](#default_fallback_network_type)  
     :material-alert: [default_fallback_delay](#default_fallback_delay)
 
 !!! quote "Changes in sing-box 1.8.0"
@@ -30,17 +32,18 @@ icon: material/new-box
     "default_interface": "",
     "default_mark": 0,
     "default_network_strategy": "",
+    "default_network_type": [],
+    "default_fallback_network_type": [],
     "default_fallback_delay": ""
   }
 }
 ```
 
-### Fields
+!!! note ""
 
-| Key       | Format                |
-|-----------|-----------------------|
-| `geoip`   | [GeoIP](./geoip/)     |
-| `geosite` | [Geosite](./geosite/) |
+    You can ignore the JSON Array [] tag when the content is only one item
+
+### Fields
 
 #### rules
 
@@ -96,11 +99,9 @@ Takes no effect if `outbound.routing_mark` is set.
 
 #### default_network_strategy
 
-!!! quote ""
+!!! question "Since sing-box 1.11.0"
 
-    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled.
-
-Strategy for selecting network interfaces.
+See [Dial Fields](/configuration/shared/dial/#network_strategy) for details.
 
 Takes no effect if `outbound.bind_interface`, `outbound.inet4_bind_address` or `outbound.inet6_bind_address` is set.
 
@@ -108,12 +109,20 @@ Can be overrides by `outbound.network_strategy`.
 
 Conflicts with `default_interface`.
 
-See [Dial Fields](/configuration/shared/dial/#network_strategy) for available values.
+#### default_network_type
+
+!!! question "Since sing-box 1.11.0"
+
+See [Dial Fields](/configuration/shared/dial/#network_type) for details.
+
+#### default_fallback_network_type
+
+!!! question "Since sing-box 1.11.0"
+
+See [Dial Fields](/configuration/shared/dial/#fallback_network_type) for details.
 
 #### default_fallback_delay
 
-!!! quote ""
-
-    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled and `network_strategy` set.
+!!! question "Since sing-box 1.11.0"
 
 See [Dial Fields](/configuration/shared/dial/#fallback_delay) for details.

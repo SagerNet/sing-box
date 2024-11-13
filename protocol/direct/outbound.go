@@ -12,7 +12,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	dns "github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -37,6 +37,8 @@ type Outbound struct {
 	domainStrategy       dns.DomainStrategy
 	fallbackDelay        time.Duration
 	networkStrategy      C.NetworkStrategy
+	networkType          []C.InterfaceType
+	fallbackNetworkType  []C.InterfaceType
 	networkFallbackDelay time.Duration
 	overrideOption       int
 	overrideDestination  M.Socksaddr
@@ -55,6 +57,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		domainStrategy:       dns.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:        time.Duration(options.FallbackDelay),
 		networkStrategy:      C.NetworkStrategy(options.NetworkStrategy),
+		networkType:          common.Map(options.NetworkType, option.InterfaceType.Build),
+		fallbackNetworkType:  common.Map(options.FallbackNetworkType, option.InterfaceType.Build),
 		networkFallbackDelay: time.Duration(options.NetworkFallbackDelay),
 		dialer:               outboundDialer,
 		// loopBack:       newLoopBackDetector(router),
@@ -171,10 +175,10 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 			return nil, E.New("no IPv6 address available for ", destination)
 		}
 	}
-	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, h.networkStrategy, h.fallbackDelay)
+	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, h.networkStrategy, h.networkType, h.fallbackNetworkType, h.fallbackDelay)
 }
 
-func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, fallbackDelay time.Duration) (net.Conn, error) {
+func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
@@ -210,10 +214,10 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 			return nil, E.New("no IPv6 address available for ", destination)
 		}
 	}
-	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, networkStrategy, fallbackDelay)
+	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 }
 
-func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
+func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
@@ -232,7 +236,7 @@ func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.
 	} else {
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	conn, newDestination, err := dialer.ListenSerialNetworkPacket(ctx, h.dialer, destination, destinationAddresses, networkStrategy, fallbackDelay)
+	conn, newDestination, err := dialer.ListenSerialNetworkPacket(ctx, h.dialer, destination, destinationAddresses, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 	if err != nil {
 		return nil, netip.Addr{}, err
 	}

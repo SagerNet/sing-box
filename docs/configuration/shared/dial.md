@@ -5,7 +5,9 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [network_strategy](#network_strategy)  
-    :material-alert: [fallback_delay](#fallback_delay)
+    :material-alert: [fallback_delay](#fallback_delay)  
+    :material-alert: [network_type](#network_type)  
+    :material-alert: [fallback_network_type](#fallback_network_type)
 
 ### Structure
 
@@ -23,9 +25,15 @@ icon: material/new-box
   "udp_fragment": false,
   "domain_strategy": "prefer_ipv6",
   "network_strategy": "default",
+  "network_type": [],
+  "fallback_network_type": [],
   "fallback_delay": "300ms"
 }
 ```
+
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
 
 ### Fields
 
@@ -101,29 +109,56 @@ If set, the requested domain name will be resolved to IP before connect.
 
 !!! quote ""
 
-    Only supported in graphical clients on Android and iOS with `auto_detect_interface` enabled.
+    Only supported in graphical clients on Android and Apple platforms with `auto_detect_interface` enabled.
 
 Strategy for selecting network interfaces.
 
 Available values:
 
-- `default` (default): Connect to the default interface.
-- `fallback`: Try all other interfaces when timeout.
-- `hybrid`: Connect to all interfaces concurrently and choose the fastest one.
-- `wifi`:  Prioritize WIFI, but try all other interfaces when unavailable or timeout.
-- `cellular`: Prioritize Cellular, but try all other interfaces when unavailable or timeout.
-- `ethernet`: Prioritize Ethernet, but try all other interfaces when unavailable or timeout.
-- `wifi_only`: Connect to WIFI only.
-- `cellular_only`: Connect to Cellular only.
-- `ethernet_only`: Connect to Ethernet only.
+- `default` (default): Connect to default network or networks specified in `network_type` sequentially.
+- `hybrid`: Connect to all networks or networks specified in `network_type` concurrently.
+- `fallback`: Connect to default network or preferred networks specified in `network_type` concurrently, and try fallback networks when unavailable or timeout.
 
-For fallback strategies, when preferred interfaces fails or times out,
-it will enter a 15s fast fallback state (upgraded to `hybrid`),
-and exit immediately if recovers.
+For fallback, when preferred interfaces fails or times out,
+it will enter a 15s fast fallback state (Connect to all preferred and fallback networks concurrently),
+and exit immediately if preferred networks recover.
 
 Conflicts with `bind_interface`, `inet4_bind_address` and `inet6_bind_address`.
 
+#### network_type
+
+!!! question "Since sing-box 1.11.0"
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and Apple platforms with `auto_detect_interface` enabled.
+
+Network types to use when using `default` or `hybrid` network strategy or
+preferred network types to use when using `fallback` network strategy.
+
+Available values: `wifi`, `cellular`, `ethernet`, `other`.
+
+Device's default network is used by default.
+
+#### fallback_network_type
+
+!!! question "Since sing-box 1.11.0"
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and Apple platforms with `auto_detect_interface` enabled.
+
+Fallback network types when preferred networks are unavailable or timeout when using `fallback` network strategy.
+
+All other networks expect preferred are used by default.
+
 #### fallback_delay
+
+!!! question "Since sing-box 1.11.0"
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and Apple platforms with `auto_detect_interface` enabled.
 
 The length of time to wait before spawning a RFC 6555 Fast Fallback connection.
 
