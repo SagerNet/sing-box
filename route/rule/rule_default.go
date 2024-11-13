@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
 )
@@ -224,7 +225,7 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.NetworkType) > 0 {
-		item := NewNetworkTypeItem(networkManager, options.NetworkType)
+		item := NewNetworkTypeItem(networkManager, common.Map(options.NetworkType, option.InterfaceType.Build))
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
