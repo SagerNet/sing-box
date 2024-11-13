@@ -97,7 +97,11 @@ func (s *Selector) Start() error {
 }
 
 func (s *Selector) Now() string {
-	return s.selected.Tag()
+	selected := s.selected
+	if selected == nil {
+		return s.tags[0]
+	}
+	return selected.Tag()
 }
 
 func (s *Selector) All() []string {
