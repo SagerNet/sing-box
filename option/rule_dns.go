@@ -146,7 +146,7 @@ type LogicalDNSRule struct {
 	DNSRuleAction
 }
 
-func (r *LogicalDNSRule) MarshalJSON() ([]byte, error) {
+func (r LogicalDNSRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawLogicalDNSRule, r.DNSRuleAction)
 }
 
