@@ -96,6 +96,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
 		DisableExpire:    dnsOptions.DNSClientOptions.DisableExpire,
 		IndependentCache: dnsOptions.DNSClientOptions.IndependentCache,
+		CacheCapacity:    dnsOptions.DNSClientOptions.CacheCapacity,
 		RDRC: func() dns.RDRCStore {
 			cacheFile := service.FromContext[adapter.CacheFile](ctx)
 			if cacheFile == nil {
