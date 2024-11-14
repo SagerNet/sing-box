@@ -422,17 +422,38 @@ match:
 				}
 			}
 		}
+		var routeOptions *rule.RuleActionRouteOptions
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionRoute:
-			metadata.NetworkStrategy = action.NetworkStrategy
-			metadata.FallbackDelay = action.FallbackDelay
-			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
-			metadata.UDPConnect = action.UDPConnect
+			routeOptions = &action.RuleActionRouteOptions
 		case *rule.RuleActionRouteOptions:
-			metadata.NetworkStrategy = action.NetworkStrategy
-			metadata.FallbackDelay = action.FallbackDelay
-			metadata.UDPDisableDomainUnmapping = action.UDPDisableDomainUnmapping
-			metadata.UDPConnect = action.UDPConnect
+			routeOptions = action
+		}
+		if routeOptions != nil {
+			// TODO: add nat
+			if (routeOptions.OverrideAddress.IsValid() || routeOptions.OverridePort > 0) && !metadata.RouteOriginalDestination.IsValid() {
+				metadata.RouteOriginalDestination = metadata.Destination
+			}
+			if routeOptions.OverrideAddress.IsValid() {
+				metadata.Destination = M.Socksaddr{
+					Addr: routeOptions.OverrideAddress.Addr,
+					Port: metadata.Destination.Port,
+					Fqdn: routeOptions.OverrideAddress.Fqdn,
+				}
+			}
+			if routeOptions.OverridePort > 0 {
+				metadata.Destination = M.Socksaddr{
+					Addr: metadata.Destination.Addr,
+					Port: routeOptions.OverridePort,
+					Fqdn: metadata.Destination.Fqdn,
+				}
+			}
+			metadata.NetworkStrategy = routeOptions.NetworkStrategy
+			metadata.FallbackDelay = routeOptions.FallbackDelay
+			metadata.UDPDisableDomainUnmapping = routeOptions.UDPDisableDomainUnmapping
+			metadata.UDPConnect = routeOptions.UDPConnect
+		}
+		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:
 			if !preMatch {
 				newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, action, inputConn, inputPacketConn)
