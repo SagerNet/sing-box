@@ -104,6 +104,7 @@ icon: material/arrange-bring-forward
 
 ### 迁移旧的入站字段到规则动作
 
+
 入站选项已被弃用，且可以被规则动作替代。
 
 !!! info "参考"
@@ -156,6 +157,45 @@ icon: material/arrange-bring-forward
     }
     ```
 
+### 迁移 direct 出站中的目标地址覆盖字段到路由字段
+
+direct 出站中的目标地址覆盖字段已废弃，且可以被路由字段替代。
+
+!!! info "参考"
+
+    [Rule Action](/zh/configuration/route/rule_action/) /
+    [Direct](/zh/configuration/outbound/direct/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "direct",
+          "override_address": "1.1.1.1",
+          "override_port": 443
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "route": {
+        "rules": [
+          {
+            "action": "route-options", // 或 route
+            "override_address": "1.1.1.1",
+            "override_port": 443
+          }
+        ]
+      }
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN 地址字段已合并
@@ -163,8 +203,6 @@ icon: material/arrange-bring-forward
 `inet4_address` 和 `inet6_address` 已合并为 `address`，
 `inet4_route_address` 和 `inet6_route_address` 已合并为 `route_address`，
 `inet4_route_exclude_address` 和 `inet6_route_exclude_address` 已合并为 `route_exclude_address`。
-
-旧字段已废弃，且将在 sing-box 1.11.0 中移除。
 
 !!! info "参考"
 

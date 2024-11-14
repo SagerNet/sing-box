@@ -137,24 +137,25 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 }
 
 type RouteActionOptions struct {
-	Outbound                  string          `json:"outbound,omitempty"`
-	NetworkStrategy           NetworkStrategy `json:"network_strategy,omitempty"`
-	FallbackDelay             uint32          `json:"fallback_delay,omitempty"`
-	UDPDisableDomainUnmapping bool            `json:"udp_disable_domain_unmapping,omitempty"`
-	UDPConnect                bool            `json:"udp_connect,omitempty"`
+	Outbound string `json:"outbound,omitempty"`
+	RawRouteOptionsActionOptions
 }
 
-type _RouteOptionsActionOptions struct {
-	NetworkStrategy           NetworkStrategy `json:"network_strategy,omitempty"`
-	FallbackDelay             uint32          `json:"fallback_delay,omitempty"`
-	UDPDisableDomainUnmapping bool            `json:"udp_disable_domain_unmapping,omitempty"`
-	UDPConnect                bool            `json:"udp_connect,omitempty"`
+type RawRouteOptionsActionOptions struct {
+	OverrideAddress string `json:"override_address,omitempty"`
+	OverridePort    uint16 `json:"override_port,omitempty"`
+
+	NetworkStrategy NetworkStrategy `json:"network_strategy,omitempty"`
+	FallbackDelay   uint32          `json:"fallback_delay,omitempty"`
+
+	UDPDisableDomainUnmapping bool `json:"udp_disable_domain_unmapping,omitempty"`
+	UDPConnect                bool `json:"udp_connect,omitempty"`
 }
 
-type RouteOptionsActionOptions _RouteOptionsActionOptions
+type RouteOptionsActionOptions RawRouteOptionsActionOptions
 
 func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, (*_RouteOptionsActionOptions)(r))
+	err := json.Unmarshal(data, (*RawRouteOptionsActionOptions)(r))
 	if err != nil {
 		return err
 	}
