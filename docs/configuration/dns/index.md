@@ -1,15 +1,10 @@
 ---
-icon: material/new
+icon: material/new-box
 ---
-
 
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [cache_capacity](#cache_capacity)
-
-!!! quote "Changes in sing-box 1.9.0"
-
-    :material-plus: [client_subnet](#client_subnet)
 
 # DNS
 
@@ -70,7 +65,7 @@ Make each DNS server's cache independent for special purposes. If enabled, will 
 
 #### cache_capacity
 
-!!! quote "Since sing-box 1.11.0"
+!!! question "Since sing-box 1.11.0"
 
 LRU cache capacity.
 
