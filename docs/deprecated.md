@@ -22,6 +22,12 @@ check [Migration](../migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 Old fields will be removed in sing-box 1.13.0.
 
+#### Destination override fields in direct outbound
+
+Destination override fields (`override_address` / `override_port`) in direct outbound are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-destination-override-fields-to-route-options).
+
 ## 1.10.0
 
 #### TUN address fields are merged

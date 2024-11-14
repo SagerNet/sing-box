@@ -13,17 +13,27 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func DialSerialNetwork(ctx context.Context, dialer ParallelInterfaceDialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+func DialSerialNetwork(ctx context.Context, dialer N.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
 	if parallelDialer, isParallel := dialer.(ParallelNetworkDialer); isParallel {
 		return parallelDialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	}
 	var errors []error
-	for _, address := range destinationAddresses {
-		conn, err := dialer.DialParallelInterface(ctx, network, M.SocksaddrFrom(address, destination.Port), strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
-		if err == nil {
-			return conn, nil
+	if parallelDialer, isParallel := dialer.(ParallelInterfaceDialer); isParallel {
+		for _, address := range destinationAddresses {
+			conn, err := parallelDialer.DialParallelInterface(ctx, network, M.SocksaddrFrom(address, destination.Port), strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+			if err == nil {
+				return conn, nil
+			}
+			errors = append(errors, err)
 		}
-		errors = append(errors, err)
+	} else {
+		for _, address := range destinationAddresses {
+			conn, err := dialer.DialContext(ctx, network, M.SocksaddrFrom(address, destination.Port))
+			if err == nil {
+				return conn, nil
+			}
+			errors = append(errors, err)
+		}
 	}
 	return nil, E.Errors(errors...)
 }
@@ -106,17 +116,27 @@ func DialParallelNetwork(ctx context.Context, dialer ParallelInterfaceDialer, ne
 	}
 }
 
-func ListenSerialNetworkPacket(ctx context.Context, dialer ParallelInterfaceDialer, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
+func ListenSerialNetworkPacket(ctx context.Context, dialer N.Dialer, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
 	if parallelDialer, isParallel := dialer.(ParallelNetworkDialer); isParallel {
 		return parallelDialer.ListenSerialNetworkPacket(ctx, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	}
 	var errors []error
-	for _, address := range destinationAddresses {
-		conn, err := dialer.ListenSerialInterfacePacket(ctx, M.SocksaddrFrom(address, destination.Port), strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
-		if err == nil {
-			return conn, address, nil
+	if parallelDialer, isParallel := dialer.(ParallelInterfaceDialer); isParallel {
+		for _, address := range destinationAddresses {
+			conn, err := parallelDialer.ListenSerialInterfacePacket(ctx, M.SocksaddrFrom(address, destination.Port), strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+			if err == nil {
+				return conn, address, nil
+			}
+			errors = append(errors, err)
 		}
-		errors = append(errors, err)
+	} else {
+		for _, address := range destinationAddresses {
+			conn, err := dialer.ListenPacket(ctx, M.SocksaddrFrom(address, destination.Port))
+			if err == nil {
+				return conn, address, nil
+			}
+			errors = append(errors, err)
+		}
 	}
 	return nil, netip.Addr{}, E.Errors(errors...)
 }
