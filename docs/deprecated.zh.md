@@ -20,6 +20,13 @@ icon: material/delete-alert
 
 旧字段将在 sing-box 1.13.0 中被移除。
 
+####  direct 出站中的目标地址覆盖字段
+
+direct 出站中的目标地址覆盖字段（`override_address` / `override_port`）已废弃且可以通过规则动作替代，
+参阅 [迁移指南](/migration/#migrate-destination-override-fields-to-route-options)。
+
+旧字段将在 sing-box 1.13.0 中被移除。
+
 ## 1.10.0
 
 #### Match source 规则项已重命名
