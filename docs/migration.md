@@ -156,6 +156,44 @@ Inbound fields are deprecated and can be replaced by rule actions.
     }
     ```
 
+### Migrate destination override fields to route options
+
+Destination override fields in direct outbound are deprecated and can be replaced by route options.
+
+!!! info "References"
+
+    [Rule Action](/configuration/route/rule_action/) /
+    [Direct](/configuration/outbound/direct/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "direct",
+          "override_address": "1.1.1.1",
+          "override_port": 443
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "route": {
+        "rules": [
+          {
+            "action": "route-options", // or route
+            "override_address": "1.1.1.1",
+            "override_port": 443
+          }
+        ]
+      }
+    ```
+
 ## 1.10.0
 
 ### TUN address fields are merged
