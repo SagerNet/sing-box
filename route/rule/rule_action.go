@@ -19,6 +19,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/logger"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -30,6 +31,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return &RuleActionRoute{
 			Outbound: action.RouteOptions.Outbound,
 			RuleActionRouteOptions: RuleActionRouteOptions{
+				OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptions.OverrideAddress, 0),
+				OverridePort:              action.RouteOptions.OverridePort,
 				NetworkStrategy:           C.NetworkStrategy(action.RouteOptions.NetworkStrategy),
 				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
 				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
@@ -38,6 +41,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		}, nil
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionRouteOptions{
+			OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptionsOptions.OverrideAddress, 0),
+			OverridePort:              action.RouteOptionsOptions.OverridePort,
 			NetworkStrategy:           C.NetworkStrategy(action.RouteOptionsOptions.NetworkStrategy),
 			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
@@ -139,6 +144,8 @@ func (r *RuleActionRoute) String() string {
 }
 
 type RuleActionRouteOptions struct {
+	OverrideAddress           M.Socksaddr
+	OverridePort              uint16
 	NetworkStrategy           C.NetworkStrategy
 	NetworkType               []C.InterfaceType
 	FallbackNetworkType       []C.InterfaceType

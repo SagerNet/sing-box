@@ -10,12 +10,8 @@ icon: material/new-box
 {
   "action": "route", // 默认
   "outbound": "",
-  "network_strategy": "",
-  "fallback_delay": "",
-  "network_type": [],
-  "fallback_network_type": [],
-  "udp_disable_domain_unmapping": false,
-  "udp_connect": false
+  
+  ... // route-options 字段
 }
 ```
 
@@ -26,6 +22,38 @@ icon: material/new-box
 ==必填==
 
 目标出站的标签。
+
+#### route-options 字段
+
+参阅下方的 `route-options` 字段。
+
+### route-options
+
+```json
+{
+  "action": "route-options",
+  "override_address": "",
+  "override_port": 0,
+  "network_strategy": "",
+  "fallback_delay": "",
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
+}
+```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+
+`route-options` 为路由设置选项。
+
+#### override_address
+
+覆盖目标地址。
+
+#### override_port
+
+覆盖目标端口。
 
 #### network_strategy
 
@@ -55,24 +83,6 @@ icon: material/new-box
 #### udp_connect
 
 如果启用，将尝试将 UDP 连接 connect 到目标而不是 listen。
-
-### route-options
-
-```json
-{
-  "action": "route-options",
-  "network_strategy": "",
-  "fallback_delay": "",
-  "udp_disable_domain_unmapping": false,
-  "udp_connect": false
-}
-```
-
-!!! note ""
-
-    当内容只有一项时，可以忽略 JSON 数组 [] 标签
-
-`route-options` 为路由设置选项。
 
 ### reject
 
