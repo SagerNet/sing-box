@@ -10,12 +10,8 @@ icon: material/new-box
 {
   "action": "route", // default
   "outbound": "",
-  "network_strategy": "",
-  "network_type": [],
-  "fallback_network_type": [],
-  "fallback_delay": "",
-  "udp_disable_domain_unmapping": false,
-  "udp_connect": false
+ 
+  ... // route-options Fields
 }
 ```
 
@@ -30,6 +26,34 @@ icon: material/new-box
 ==Required==
 
 Tag of target outbound.
+
+#### route-options Fields
+
+See `route-options` fields below.
+
+### route-options
+
+```json
+{
+  "action": "route-options",
+  "override_address": "",
+  "override_port": 0,
+  "network_strategy": "",
+  "fallback_delay": "",
+  "udp_disable_domain_unmapping": false,
+  "udp_connect": false
+}
+```
+
+`route-options` set options for routing.
+
+#### override_address
+
+Override the connection destination address.
+
+#### override_port
+
+Override the connection destination port.
 
 #### network_strategy
 
@@ -61,20 +85,6 @@ do not support receiving UDP packets with domain addresses, such as Surge.
 #### udp_connect
 
 If enabled, attempts to connect UDP connection to the destination instead of listen.
-
-### route-options
-
-```json
-{
-  "action": "route-options",
-  "network_strategy": "",
-  "fallback_delay": "",
-  "udp_disable_domain_unmapping": false,
-  "udp_connect": false
-}
-```
-
-`route-options` set options for routing.
 
 ### reject
 
