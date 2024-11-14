@@ -25,11 +25,7 @@ func NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata a
 	var outConn net.Conn
 	var err error
 	if len(metadata.DestinationAddresses) > 0 {
-		if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
-			outConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
-		} else {
-			outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
-		}
+		outConn, err = dialer.DialSerialNetwork(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 	} else {
 		outConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
@@ -73,11 +69,7 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 		}
 	} else {
 		if len(metadata.DestinationAddresses) > 0 {
-			if parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer); isParallelDialer {
-				outPacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, parallelDialer, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
-			} else {
-				outPacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
-			}
+			outPacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, this, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 		} else {
 			outPacketConn, err = this.ListenPacket(ctx, metadata.Destination)
 		}
@@ -91,11 +83,17 @@ func NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, 
 		return err
 	}
 	if destinationAddress.IsValid() {
-		if metadata.Destination.IsFqdn() {
+		var originDestination M.Socksaddr
+		if metadata.RouteOriginalDestination.IsValid() {
+			originDestination = metadata.RouteOriginalDestination
+		} else {
+			originDestination = metadata.Destination
+		}
+		if metadata.Destination != M.SocksaddrFrom(destinationAddress, metadata.Destination.Port) {
 			if metadata.UDPDisableDomainUnmapping {
-				outPacketConn = bufio.NewUnidirectionalNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
+				outPacketConn = bufio.NewUnidirectionalNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), originDestination)
 			} else {
-				outPacketConn = bufio.NewNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), metadata.Destination)
+				outPacketConn = bufio.NewNATPacketConn(bufio.NewPacketConn(outPacketConn), M.SocksaddrFrom(destinationAddress, metadata.Destination.Port), originDestination)
 			}
 		}
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
