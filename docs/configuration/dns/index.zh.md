@@ -1,14 +1,10 @@
 ---
-icon: material/new
+icon: material/new-box
 ---
 
-!!! quote "自 sing-box 1.11.0 起"
+!!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [cache_capacity](#cache_capacity)
-
-!!! quote "自 sing-box 1.9.0 起"
-
-    :material-plus: [client_subnet](#client_subnet)
 
 # DNS
 
@@ -68,7 +64,7 @@ icon: material/new
 
 #### cache_capacity
 
-!!! quote "自 sing-box 1.11.0 起"
+!!! question "自 sing-box 1.11.0 起"
 
 LRU 缓存容量。
 
