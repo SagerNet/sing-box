@@ -2,6 +2,21 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-alpha.16
+
+* Add `cache_capacity` DNS option **1**
+* Add `override_address` and `override_port` route options **2**
+* Fixes and improvements
+
+**1**:
+
+See [DNS](/configuration/dns/#cache_capacity).
+
+**2**:
+
+See [Rule Action](/configuration/route/#override_address) and
+[Migrate destination override fields to route options](/migration/#migrate-destination-override-fields-to-route-options).
+
 #### 1.11.0-alpha.15
 
 * Improve multi network dialing **1**
