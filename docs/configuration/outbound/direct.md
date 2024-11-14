@@ -1,3 +1,12 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "Changes in sing-box 1.11.0"
+
+    :material-alert-decagram: [override_address](#override_address)  
+    :material-alert-decagram: [override_port](#override_port)
+
 `direct` outbound send requests directly.
 
 ### Structure
@@ -9,7 +18,6 @@
   
   "override_address": "1.0.0.1",
   "override_port": 53,
-  "proxy_protocol": 0,
   
   ... // Dial Fields
 }
@@ -19,15 +27,19 @@
 
 #### override_address
 
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    Destination override fields are deprecated in sing-box 1.11.0 and will be removed in sing-box 1.13.0, see [Migration](/migration/#migrate-destination-override-fields-to-route-options).
+
 Override the connection destination address.
 
 #### override_port
 
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    Destination override fields are deprecated in sing-box 1.11.0 and will be removed in sing-box 1.13.0, see [Migration](/migration/#migrate-destination-override-fields-to-route-options).
+
 Override the connection destination port.
-
-#### proxy_protocol
-
-Write [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.
 
 Protocol value can be `1` or `2`.
 
