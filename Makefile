@@ -96,11 +96,7 @@ upload_android:
 release_android: lib_android update_android_version build_android upload_android
 
 publish_android:
-	cd ../sing-box-for-android && ./gradlew :app:publishPlayReleaseBundle
-
-publish_android_appcenter:
-	cd ../sing-box-for-android && ./gradlew :app:appCenterAssembleAndUploadPlayRelease
-
+	cd ../sing-box-for-android && ./gradlew :app:publishPlayReleaseBundle && ./gradlew --stop
 
 # TODO: find why and remove `-destination 'generic/platform=iOS'`
 build_ios:
@@ -147,8 +143,12 @@ build_macos_dmg:
  		--hide-extension "SFM.app" \
  		--app-drop-link 0 0 \
  		--skip-jenkins \
-		--notarize "notarytool-password" \
 		"../sing-box/dist/SFM/SFM.dmg" "build/SFM.System/SFM.app"
+
+notarize_macos_dmg:
+	xcrun notarytool submit "dist/SFM/SFM.dmg" --wait \
+	  --keychain-profile "notarytool-password" \
+  	  --no-s3-acceleration
 
 upload_macos_dmg:
 	cd dist/SFM && \
@@ -164,7 +164,7 @@ upload_macos_dsyms:
 	cp SFM.dSYMs.zip "SFM-${VERSION}-universal.dSYMs.zip" && \
 	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dSYMs.zip"
 
-release_macos_standalone: build_macos_standalone build_macos_dmg upload_macos_dmg upload_macos_dsyms
+release_macos_standalone: build_macos_standalone build_macos_dmg notarize_macos_dmg upload_macos_dmg upload_macos_dsyms
 
 build_tvos:
 	cd ../sing-box-for-apple && \
