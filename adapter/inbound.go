@@ -61,9 +61,10 @@ type InboundContext struct {
 	// cache
 
 	// Deprecated: implement in rule action
-	InboundDetour     string
-	LastInbound       string
-	OriginDestination M.Socksaddr
+	InboundDetour            string
+	LastInbound              string
+	OriginDestination        M.Socksaddr
+	RouteOriginalDestination M.Socksaddr
 	// Deprecated
 	InboundOptions            option.InboundOptions
 	UDPDisableDomainUnmapping bool

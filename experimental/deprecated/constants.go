@@ -100,6 +100,15 @@ var OptionInboundOptions = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-legacy-special-outbounds-to-rule-actions",
 }
 
+var OptionDestinationOverrideFields = Note{
+	Name:              "destination-override-fields",
+	Description:       "destination override fields in direct outbound",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.13.0",
+	EnvName:           "DESTINATION_OVERRIDE_FIELDS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-destination-override-fields-to-route-options",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
@@ -107,4 +116,5 @@ var Options = []Note{
 	OptionTUNAddressX,
 	OptionSpecialOutbounds,
 	OptionInboundOptions,
+	OptionDestinationOverrideFields,
 }
