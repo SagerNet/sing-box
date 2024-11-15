@@ -179,7 +179,7 @@ func (h *Inbound) Start() error {
 
 func (h *Inbound) Close() error {
 	return common.Close(
-		&h.listener,
+		h.listener,
 		h.tlsConfig,
 		common.PtrOrNil(h.service),
 	)

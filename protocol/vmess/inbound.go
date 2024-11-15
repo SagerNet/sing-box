@@ -143,7 +143,7 @@ func (h *Inbound) Start() error {
 func (h *Inbound) Close() error {
 	return common.Close(
 		h.service,
-		&h.listener,
+		h.listener,
 		h.tlsConfig,
 		h.transport,
 	)
