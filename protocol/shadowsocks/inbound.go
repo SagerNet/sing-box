@@ -120,6 +120,8 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 

@@ -110,6 +110,8 @@ func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	i.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
+	metadata.InboundDetour = i.listener.ListenOptions().Detour
+	metadata.InboundOptions = i.listener.ListenOptions().InboundOptions
 	i.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
@@ -119,6 +121,8 @@ func (i *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	var metadata adapter.InboundContext
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
+	metadata.InboundDetour = i.listener.ListenOptions().Detour
+	metadata.InboundOptions = i.listener.ListenOptions().InboundOptions
 	metadata.Source = source
 	metadata.Destination = destination
 	metadata.OriginDestination = i.listener.UDPAddr()

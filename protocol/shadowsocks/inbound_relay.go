@@ -123,6 +123,8 @@ func (h *RelayInbound) newConnection(ctx context.Context, conn net.Conn, metadat
 	h.logger.InfoContext(ctx, "[", destination, "] inbound connection to ", metadata.Destination)
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
