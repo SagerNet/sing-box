@@ -121,7 +121,7 @@ func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
-	err := json.Unmarshal(data, &r.RawDefaultDNSRule)
+	err := json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
 	if err != nil {
 		return err
 	}
