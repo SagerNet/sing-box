@@ -438,7 +438,7 @@ match:
 				metadata.Destination = M.Socksaddr{
 					Addr: routeOptions.OverrideAddress.Addr,
 					Port: metadata.Destination.Port,
-					Fqdn: metadata.Destination.Fqdn,
+					Fqdn: routeOptions.OverrideAddress.Fqdn,
 				}
 			}
 			if routeOptions.OverridePort > 0 {
