@@ -9,7 +9,7 @@ icon: material/new-box
     :material-plus: [network_strategy](#network_strategy)  
     :material-plus: [default_network_type](#default_network_type)  
     :material-plus: [default_fallback_network_type](#default_fallback_network_type)  
-    :material-alert: [default_fallback_delay](#default_fallback_delay)
+    :material-plus: [default_fallback_delay](#default_fallback_delay)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
