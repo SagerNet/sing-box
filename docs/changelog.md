@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-alpha.17
+
+* Fixes and improvements
+
 #### 1.11.0-alpha.16
 
 * Add `cache_capacity` DNS option **1**
