@@ -17,11 +17,6 @@ type _Options struct {
 	Outbounds    []Outbound           `json:"outbounds,omitempty"`
 	Route        *RouteOptions        `json:"route,omitempty"`
 	Experimental *ExperimentalOptions `json:"experimental,omitempty"`
-
-	// Deprecated: use Inbounds instead
-	LegacyInbounds []LegacyInbound `json:"-"`
-	// Deprecated: use Outbounds instead
-	LegacyOutbounds []LegacyOutbound `json:"-"`
 }
 
 type Options _Options

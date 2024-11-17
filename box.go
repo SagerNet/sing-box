@@ -132,26 +132,6 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
-	//nolint:staticcheck
-	if len(options.LegacyInbounds) > 0 {
-		for _, legacyInbound := range options.LegacyInbounds {
-			options.Inbounds = append(options.Inbounds, option.Inbound{
-				Type:    legacyInbound.Type,
-				Tag:     legacyInbound.Tag,
-				Options: common.Must1(legacyInbound.RawOptions()),
-			})
-		}
-	}
-	//nolint:staticcheck
-	if len(options.LegacyOutbounds) > 0 {
-		for _, legacyOutbound := range options.LegacyOutbounds {
-			options.Outbounds = append(options.Outbounds, option.Outbound{
-				Type:    legacyOutbound.Type,
-				Tag:     legacyOutbound.Tag,
-				Options: common.Must1(legacyOutbound.RawOptions()),
-			})
-		}
-	}
 	for i, inboundOptions := range options.Inbounds {
 		var tag string
 		if inboundOptions.Tag != "" {
