@@ -76,21 +76,6 @@ func (i *Inbound) Close() error {
 	return i.listener.Close()
 }
 
-func (i *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	switch i.overrideOption {
-	case 1:
-		metadata.Destination = i.overrideDestination
-	case 2:
-		destination := i.overrideDestination
-		destination.Port = metadata.Destination.Port
-		metadata.Destination = destination
-	case 3:
-		metadata.Destination.Port = i.overrideDestination.Port
-	}
-	i.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
-	return i.router.RouteConnection(ctx, conn, metadata)
-}
-
 func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
 	var destination M.Socksaddr
 	switch i.overrideOption {
@@ -107,6 +92,16 @@ func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
 }
 
 func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	switch i.overrideOption {
+	case 1:
+		metadata.Destination = i.overrideDestination
+	case 2:
+		destination := i.overrideDestination
+		destination.Port = metadata.Destination.Port
+		metadata.Destination = destination
+	case 3:
+		metadata.Destination.Port = i.overrideDestination.Port
+	}
 	i.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
