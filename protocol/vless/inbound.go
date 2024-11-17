@@ -155,6 +155,10 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 }
 
 func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	userIndex, loaded := auth.UserFromContext[int](ctx)
 	if !loaded {
 		return os.ErrInvalid
@@ -170,6 +174,10 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 }
 
 func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	userIndex, loaded := auth.UserFromContext[int](ctx)
 	if !loaded {
 		return os.ErrInvalid
@@ -196,10 +204,6 @@ type inboundTransportHandler Inbound
 
 func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	var metadata adapter.InboundContext
-	metadata.Inbound = h.Tag()
-	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.Source = source
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
