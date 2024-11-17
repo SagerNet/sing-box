@@ -4,7 +4,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"time"
 
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
@@ -124,7 +123,7 @@ func (l *Listener) loopUDPOut() {
 			case packet := <-l.packetOutbound:
 				packet.Buffer.Release()
 				N.PutPacketBuffer(packet)
-			case <-time.After(time.Second):
+			default:
 				return
 			}
 		}
