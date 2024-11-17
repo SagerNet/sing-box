@@ -26,10 +26,10 @@ func testShadowsocksLegacy(t *testing.T, method string) {
 		},
 	})
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -37,10 +37,10 @@ func testShadowsocksLegacy(t *testing.T, method string) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

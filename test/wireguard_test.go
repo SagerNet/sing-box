@@ -23,10 +23,10 @@ func _TestWireGuard(t *testing.T) {
 	})
 	time.Sleep(5 * time.Second)
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -34,10 +34,10 @@ func _TestWireGuard(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeWireGuard,
-				WireGuardOptions: option.WireGuardOutboundOptions{
+				Options: &option.WireGuardOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

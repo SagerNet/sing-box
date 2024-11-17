@@ -39,10 +39,10 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 	method := shadowaead_2022.List[0]
 	ssPassword := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -52,7 +52,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 			{
 				Type: C.TypeShadowTLS,
 				Tag:  "in",
-				ShadowTLSOptions: option.ShadowTLSInboundOptions{
+				Options: &option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -75,7 +75,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour",
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
@@ -85,10 +85,10 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					Method:   method,
 					Password: ssPassword,
 					DialerOptions: option.DialerOptions{
@@ -99,7 +99,7 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 			{
 				Type: C.TypeShadowTLS,
 				Tag:  "detour",
-				ShadowTLSOptions: option.ShadowTLSOutboundOptions{
+				Options: &option.ShadowTLSOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -147,10 +147,10 @@ func testShadowTLS(t *testing.T, version int, password string, utlsEanbled bool)
 
 func TestShadowTLSFallback(t *testing.T) {
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeShadowTLS,
-				ShadowTLSOptions: option.ShadowTLSInboundOptions{
+				Options: &option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -194,11 +194,11 @@ func TestShadowTLSInbound(t *testing.T) {
 		Cmd:        []string{"--v3", "--threads", "1", "client", "--listen", "0.0.0.0:" + F.ToString(otherPort), "--server", "127.0.0.1:" + F.ToString(serverPort), "--sni", "google.com", "--password", password},
 	})
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -207,7 +207,7 @@ func TestShadowTLSInbound(t *testing.T) {
 			},
 			{
 				Type: C.TypeShadowTLS,
-				ShadowTLSOptions: option.ShadowTLSInboundOptions{
+				Options: &option.ShadowTLSInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -230,7 +230,7 @@ func TestShadowTLSInbound(t *testing.T) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour",
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen: common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 					},
@@ -239,14 +239,14 @@ func TestShadowTLSInbound(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: otherPort,
@@ -290,10 +290,10 @@ func TestShadowTLSOutbound(t *testing.T) {
 		Env:        []string{"RUST_LOG=trace"},
 	})
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -303,7 +303,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour",
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
@@ -313,10 +313,10 @@ func TestShadowTLSOutbound(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					Method:   method,
 					Password: password,
 					DialerOptions: option.DialerOptions{
@@ -327,7 +327,7 @@ func TestShadowTLSOutbound(t *testing.T) {
 			{
 				Type: C.TypeShadowTLS,
 				Tag:  "detour",
-				ShadowTLSOptions: option.ShadowTLSOutboundOptions{
+				Options: &option.ShadowTLSOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

@@ -17,11 +17,11 @@ func TestBrutalShadowsocks(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -30,7 +30,7 @@ func TestBrutalShadowsocks(t *testing.T) {
 			},
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -48,14 +48,14 @@ func TestBrutalShadowsocks(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -102,11 +102,11 @@ func TestBrutalTrojan(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -115,7 +115,7 @@ func TestBrutalTrojan(t *testing.T) {
 			},
 			{
 				Type: C.TypeTrojan,
-				TrojanOptions: option.TrojanInboundOptions{
+				Options: &option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -140,14 +140,14 @@ func TestBrutalTrojan(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTrojan,
 				Tag:  "ss-out",
-				TrojanOptions: option.TrojanOutboundOptions{
+				Options: &option.TrojanOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -199,11 +199,11 @@ func TestBrutalTrojan(t *testing.T) {
 func TestBrutalVMess(t *testing.T) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -212,7 +212,7 @@ func TestBrutalVMess(t *testing.T) {
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -229,14 +229,14 @@ func TestBrutalVMess(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVMess,
 				Tag:  "ss-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -281,11 +281,11 @@ func TestBrutalVMess(t *testing.T) {
 func TestBrutalVLESS(t *testing.T) {
 	user, _ := uuid.NewV4()
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -294,7 +294,7 @@ func TestBrutalVLESS(t *testing.T) {
 			},
 			{
 				Type: C.TypeVLESS,
-				VLESSOptions: option.VLESSInboundOptions{
+				Options: &option.VLESSInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -328,14 +328,14 @@ func TestBrutalVLESS(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVLESS,
 				Tag:  "ss-out",
-				VLESSOptions: option.VLESSOutboundOptions{
+				Options: &option.VLESSOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

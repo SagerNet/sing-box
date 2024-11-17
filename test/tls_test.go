@@ -13,11 +13,11 @@ import (
 func TestUTLS(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -26,7 +26,7 @@ func TestUTLS(t *testing.T) {
 			},
 			{
 				Type: C.TypeTrojan,
-				TrojanOptions: option.TrojanInboundOptions{
+				Options: &option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -48,14 +48,14 @@ func TestUTLS(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTrojan,
 				Tag:  "trojan-out",
-				TrojanOptions: option.TrojanOutboundOptions{
+				Options: &option.TrojanOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

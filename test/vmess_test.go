@@ -183,10 +183,10 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authe
 	})
 
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -231,10 +231,10 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 	})
 
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -242,10 +242,10 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -265,11 +265,11 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 func testVMessSelf(t *testing.T, security string, alterId int, globalPadding bool, authenticatedLength bool, packetAddr bool) {
 	user := newUUID()
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -278,7 +278,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -293,14 +293,14 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

@@ -17,11 +17,11 @@ func TestECH(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -30,7 +30,7 @@ func TestECH(t *testing.T) {
 			},
 			{
 				Type: C.TypeTrojan,
-				TrojanOptions: option.TrojanInboundOptions{
+				Options: &option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -56,14 +56,14 @@ func TestECH(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTrojan,
 				Tag:  "trojan-out",
-				TrojanOptions: option.TrojanOutboundOptions{
+				Options: &option.TrojanOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -110,11 +110,11 @@ func TestECHQUIC(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -123,7 +123,7 @@ func TestECHQUIC(t *testing.T) {
 			},
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICInboundOptions{
+				Options: &option.TUICInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -146,14 +146,14 @@ func TestECHQUIC(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTUIC,
 				Tag:  "tuic-out",
-				TUICOptions: option.TUICOutboundOptions{
+				Options: &option.TUICOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -200,11 +200,11 @@ func TestECHHysteria2(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -213,7 +213,7 @@ func TestECHHysteria2(t *testing.T) {
 			},
 			{
 				Type: C.TypeHysteria2,
-				Hysteria2Options: option.Hysteria2InboundOptions{
+				Options: &option.Hysteria2InboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -236,14 +236,14 @@ func TestECHHysteria2(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeHysteria2,
 				Tag:  "hy2-out",
-				Hysteria2Options: option.Hysteria2OutboundOptions{
+				Options: &option.Hysteria2OutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

@@ -46,11 +46,11 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -59,7 +59,7 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -82,14 +82,14 @@ func testVMessTransportSelf(t *testing.T, server *option.V2RayTransportOptions, 
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -135,11 +135,11 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -148,7 +148,7 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 			},
 			{
 				Type: C.TypeTrojan,
-				TrojanOptions: option.TrojanInboundOptions{
+				Options: &option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -171,14 +171,14 @@ func testTrojanTransportSelf(t *testing.T, server *option.V2RayTransportOptions,
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTrojan,
 				Tag:  "vmess-out",
-				TrojanOptions: option.TrojanOutboundOptions{
+				Options: &option.TrojanOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -226,11 +226,11 @@ func TestVMessQUICSelf(t *testing.T) {
 	require.NoError(t, err)
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -239,7 +239,7 @@ func TestVMessQUICSelf(t *testing.T) {
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -262,14 +262,14 @@ func TestVMessQUICSelf(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -314,11 +314,11 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 	user, err := uuid.DefaultGenerator.NewV4()
 	require.NoError(t, err)
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -327,7 +327,7 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -342,14 +342,14 @@ func testV2RayTransportNOTLSSelf(t *testing.T, transport *option.V2RayTransportO
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,

@@ -15,10 +15,10 @@ import (
 func TestNaiveInboundWithNginx(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeNaive,
-				NaiveOptions: option.NaiveInboundOptions{
+				Options: &option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
@@ -61,10 +61,10 @@ func TestNaiveInboundWithNginx(t *testing.T) {
 func TestNaiveInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeNaive,
-				NaiveOptions: option.NaiveInboundOptions{
+				Options: &option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -105,10 +105,10 @@ func TestNaiveInbound(t *testing.T) {
 func TestNaiveHTTP3Inbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeNaive,
-				NaiveOptions: option.NaiveInboundOptions{
+				Options: &option.NaiveInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,

@@ -13,11 +13,11 @@ import (
 // Since this is a feature one-off added by outsiders, I won't address these anymore.
 func _TestProxyProtocol(t *testing.T) {
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -26,7 +26,7 @@ func _TestProxyProtocol(t *testing.T) {
 			},
 			{
 				Type: C.TypeDirect,
-				DirectOptions: option.DirectInboundOptions{
+				Options: &option.DirectInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:        common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort:    serverPort,
@@ -35,14 +35,14 @@ func _TestProxyProtocol(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeDirect,
 				Tag:  "proxy-out",
-				DirectOptions: option.DirectOutboundOptions{
+				Options: &option.DirectOutboundOptions{
 					OverrideAddress: "127.0.0.1",
 					OverridePort:    serverPort,
 					ProxyProtocol:   2,

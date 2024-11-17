@@ -31,11 +31,11 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 		udpRelayMode = "quic"
 	}
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -44,7 +44,7 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 			},
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICInboundOptions{
+				Options: &option.TUICInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -64,14 +64,14 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTUIC,
 				Tag:  "tuic-out",
-				TUICOptions: option.TUICOutboundOptions{
+				Options: &option.TUICOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -115,10 +115,10 @@ func testTUICSelf(t *testing.T, udpStream bool, zeroRTTHandshake bool) {
 func TestTUICInbound(t *testing.T) {
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICInboundOptions{
+				Options: &option.TUICInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
@@ -162,10 +162,10 @@ func TestTUICOutbound(t *testing.T) {
 		},
 	})
 	startInstance(t, option.Options{
-		LegacyInbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
@@ -173,10 +173,10 @@ func TestTUICOutbound(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICOutboundOptions{
+				Options: &option.TUICOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
