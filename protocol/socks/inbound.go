@@ -62,7 +62,11 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	err := socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, metadata.Destination, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		if E.IsClosedOrCanceled(err) {
+			h.logger.DebugContext(ctx, "connection closed: ", err)
+		} else {
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		}
 	}
 }
 
