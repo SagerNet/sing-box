@@ -1,6 +1,9 @@
 package option
 
-import "github.com/sagernet/sing/common/auth"
+import (
+	"github.com/sagernet/sing/common/auth"
+	"github.com/sagernet/sing/common/json/badoption"
+)
 
 type SocksInboundOptions struct {
 	ListenOptions
@@ -30,6 +33,6 @@ type HTTPOutboundOptions struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 	OutboundTLSOptionsContainer
-	Path    string     `json:"path,omitempty"`
-	Headers HTTPHeader `json:"headers,omitempty"`
+	Path    string               `json:"path,omitempty"`
+	Headers badoption.HTTPHeader `json:"headers,omitempty"`
 }
