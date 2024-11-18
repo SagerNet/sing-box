@@ -2,6 +2,7 @@ package deprecated
 
 import (
 	"context"
+
 	"github.com/sagernet/sing/service"
 )
 
