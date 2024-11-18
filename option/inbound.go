@@ -7,6 +7,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/service"
 )
 
@@ -49,24 +50,24 @@ func (h *Inbound) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 
 // Deprecated: Use rule action instead
 type InboundOptions struct {
-	SniffEnabled              bool           `json:"sniff,omitempty"`
-	SniffOverrideDestination  bool           `json:"sniff_override_destination,omitempty"`
-	SniffTimeout              Duration       `json:"sniff_timeout,omitempty"`
-	DomainStrategy            DomainStrategy `json:"domain_strategy,omitempty"`
-	UDPDisableDomainUnmapping bool           `json:"udp_disable_domain_unmapping,omitempty"`
-	Detour                    string         `json:"detour,omitempty"`
+	SniffEnabled              bool               `json:"sniff,omitempty"`
+	SniffOverrideDestination  bool               `json:"sniff_override_destination,omitempty"`
+	SniffTimeout              badoption.Duration `json:"sniff_timeout,omitempty"`
+	DomainStrategy            DomainStrategy     `json:"domain_strategy,omitempty"`
+	UDPDisableDomainUnmapping bool               `json:"udp_disable_domain_unmapping,omitempty"`
+	Detour                    string             `json:"detour,omitempty"`
 }
 
 type ListenOptions struct {
-	Listen               *ListenAddress   `json:"listen,omitempty"`
-	ListenPort           uint16           `json:"listen_port,omitempty"`
-	TCPKeepAlive         Duration         `json:"tcp_keep_alive,omitempty"`
-	TCPKeepAliveInterval Duration         `json:"tcp_keep_alive_interval,omitempty"`
-	TCPFastOpen          bool             `json:"tcp_fast_open,omitempty"`
-	TCPMultiPath         bool             `json:"tcp_multi_path,omitempty"`
-	UDPFragment          *bool            `json:"udp_fragment,omitempty"`
-	UDPFragmentDefault   bool             `json:"-"`
-	UDPTimeout           UDPTimeoutCompat `json:"udp_timeout,omitempty"`
+	Listen               *badoption.Addr    `json:"listen,omitempty"`
+	ListenPort           uint16             `json:"listen_port,omitempty"`
+	TCPKeepAlive         badoption.Duration `json:"tcp_keep_alive,omitempty"`
+	TCPKeepAliveInterval badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
+	TCPFastOpen          bool               `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath         bool               `json:"tcp_multi_path,omitempty"`
+	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
+	UDPFragmentDefault   bool               `json:"-"`
+	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
 
 	// Deprecated: removed
 	ProxyProtocol bool `json:"proxy_protocol,omitempty"`
@@ -75,7 +76,7 @@ type ListenOptions struct {
 	InboundOptions
 }
 
-type UDPTimeoutCompat Duration
+type UDPTimeoutCompat badoption.Duration
 
 func (c UDPTimeoutCompat) MarshalJSON() ([]byte, error) {
 	return json.Marshal((time.Duration)(c).String())
@@ -88,7 +89,7 @@ func (c *UDPTimeoutCompat) UnmarshalJSON(data []byte) error {
 		*c = UDPTimeoutCompat(time.Second * time.Duration(valueNumber))
 		return nil
 	}
-	return json.Unmarshal(data, (*Duration)(c))
+	return json.Unmarshal(data, (*badoption.Duration)(c))
 }
 
 type ListenOptionsWrapper interface {
