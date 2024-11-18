@@ -98,7 +98,7 @@ func (c *echServerConfig) startWatcher() error {
 		return err
 	}
 	c.watcher = watcher
-	return nil
+	return c.watcher.Start()
 }
 
 func (c *echServerConfig) credentialsUpdated(path string) error {
@@ -232,7 +232,7 @@ func NewECHServer(ctx context.Context, logger log.Logger, options option.Inbound
 	var echKey []byte
 	if len(options.ECH.Key) > 0 {
 		echKey = []byte(strings.Join(options.ECH.Key, "\n"))
-	} else if options.KeyPath != "" {
+	} else if options.ECH.KeyPath != "" {
 		content, err := os.ReadFile(options.ECH.KeyPath)
 		if err != nil {
 			return nil, E.Cause(err, "read ECH key")
