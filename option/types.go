@@ -1,10 +1,7 @@
 package option
 
 import (
-	"net/http"
-	"net/netip"
 	"strings"
-	"time"
 
 	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -14,79 +11,6 @@ import (
 
 	mDNS "github.com/miekg/dns"
 )
-
-type ListenAddress netip.Addr
-
-func NewListenAddress(addr netip.Addr) *ListenAddress {
-	address := ListenAddress(addr)
-	return &address
-}
-
-func (a ListenAddress) MarshalJSON() ([]byte, error) {
-	addr := netip.Addr(a)
-	if !addr.IsValid() {
-		return nil, nil
-	}
-	return json.Marshal(addr.String())
-}
-
-func (a *ListenAddress) UnmarshalJSON(content []byte) error {
-	var value string
-	err := json.Unmarshal(content, &value)
-	if err != nil {
-		return err
-	}
-	addr, err := netip.ParseAddr(value)
-	if err != nil {
-		return err
-	}
-	*a = ListenAddress(addr)
-	return nil
-}
-
-func (a *ListenAddress) Build() netip.Addr {
-	if a == nil {
-		return netip.AddrFrom4([4]byte{127, 0, 0, 1})
-	}
-	return (netip.Addr)(*a)
-}
-
-type AddrPrefix netip.Prefix
-
-func (a AddrPrefix) MarshalJSON() ([]byte, error) {
-	prefix := netip.Prefix(a)
-	if prefix.Bits() == prefix.Addr().BitLen() {
-		return json.Marshal(prefix.Addr().String())
-	} else {
-		return json.Marshal(prefix.String())
-	}
-}
-
-func (a *AddrPrefix) UnmarshalJSON(content []byte) error {
-	var value string
-	err := json.Unmarshal(content, &value)
-	if err != nil {
-		return err
-	}
-	prefix, prefixErr := netip.ParsePrefix(value)
-	if prefixErr == nil {
-		*a = AddrPrefix(prefix)
-		return nil
-	}
-	addr, addrErr := netip.ParseAddr(value)
-	if addrErr == nil {
-		*a = AddrPrefix(netip.PrefixFrom(addr, addr.BitLen()))
-		return nil
-	}
-	return prefixErr
-}
-
-func (a *AddrPrefix) Build() netip.Prefix {
-	if a == nil {
-		return netip.Prefix{}
-	}
-	return netip.Prefix(*a)
-}
 
 type NetworkList string
 
@@ -118,30 +42,6 @@ func (v NetworkList) Build() []string {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
 	return strings.Split(string(v), "\n")
-}
-
-type Listable[T any] []T
-
-func (l Listable[T]) MarshalJSON() ([]byte, error) {
-	arrayList := []T(l)
-	if len(arrayList) == 1 {
-		return json.Marshal(arrayList[0])
-	}
-	return json.Marshal(arrayList)
-}
-
-func (l *Listable[T]) UnmarshalJSON(content []byte) error {
-	err := json.UnmarshalDisallowUnknownFields(content, (*[]T)(l))
-	if err == nil {
-		return nil
-	}
-	var singleItem T
-	newError := json.UnmarshalDisallowUnknownFields(content, &singleItem)
-	if newError != nil {
-		return E.Errors(err, newError)
-	}
-	*l = []T{singleItem}
-	return nil
 }
 
 type DomainStrategy dns.DomainStrategy
@@ -206,26 +106,6 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-type Duration time.Duration
-
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal((time.Duration)(d).String())
-}
-
-func (d *Duration) UnmarshalJSON(bytes []byte) error {
-	var value string
-	err := json.Unmarshal(bytes, &value)
-	if err != nil {
-		return err
-	}
-	duration, err := ParseDuration(value)
-	if err != nil {
-		return err
-	}
-	*d = Duration(duration)
-	return nil
-}
-
 type DNSQueryType uint16
 
 func (t DNSQueryType) String() string {
@@ -269,16 +149,4 @@ func DNSQueryTypeToString(queryType uint16) string {
 		return typeName
 	}
 	return F.ToString(queryType)
-}
-
-type HTTPHeader map[string]Listable[string]
-
-func (h HTTPHeader) Build() http.Header {
-	header := make(http.Header)
-	for name, values := range h {
-		for _, value := range values {
-			header.Add(name, value)
-		}
-	}
-	return header
 }
