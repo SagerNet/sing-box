@@ -2,14 +2,198 @@
 icon: material/alert-decagram
 ---
 
+#### 1.11.0-beta.7
+
+* Fixes and improvements
+
+#### 1.11.0-beta.3
+
+* Add more masquerade options for hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2](/configuration/inbound/hysteria2/#masquerade).
+
 ### 1.10.3
 
 * Fixes and improvements
+
+#### 1.11.0-alpha.25
+
+* Update quic-go to v0.48.2
+* Fixes and improvements
+
+#### 1.11.0-alpha.22
+
+* Add UDP timeout route option **1**
+* Fixes and improvements
+
+**1**:
+
+See [Rule Action](/configuration/route/rule_action/#udp_timeout).
+
+#### 1.11.0-alpha.20
+
+* Add UDP GSO support for WireGuard
+* Make GSO adaptive **1**
+
+**1**:
+
+For WireGuard outbound and endpoint, GSO will be automatically enabled when available,
+see [WireGuard Outbound](/configuration/outbound/wireguard/#gso).
+
+For TUN, GSO has been removed,
+see [Deprecated](/deprecated/#gso-option-in-tun).
+
+#### 1.11.0-alpha.19
+
+* Upgrade WireGuard outbound to endpoint **1**
+* Fixes and improvements
+
+**1**:
+
+The new WireGuard endpoint combines inbound and outbound capabilities,
+and the old outbound will be removed in sing-box 1.13.0.
+
+See [Endpoint](/configuration/endpoint/), [WireGuard Endpoint](/configuration/endpoint/wireguard/)
+and [Migrate WireGuard outbound fields to route options](/migration/#migrate-wireguard-outbound-to-endpoint).
 
 ### 1.10.2
 
 * Add deprecated warnings
 * Fix proxying websocket connections in HTTP/mixed inbounds
+* Fixes and improvements
+
+#### 1.11.0-alpha.18
+
+* Fixes and improvements
+
+#### 1.11.0-alpha.16
+
+* Add `cache_capacity` DNS option **1**
+* Add `override_address` and `override_port` route options **2**
+* Fixes and improvements
+
+**1**:
+
+See [DNS](/configuration/dns/#cache_capacity).
+
+**2**:
+
+See [Rule Action](/configuration/route/#override_address) and
+[Migrate destination override fields to route options](/migration/#migrate-destination-override-fields-to-route-options).
+
+#### 1.11.0-alpha.15
+
+* Improve multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+New options allow you to configure the network strategy flexibly.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
+#### 1.11.0-alpha.14
+
+* Add multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+Similar to Surge's strategy.
+
+New options allow you to connect using multiple network interfaces,
+prefer or only use one type of interface,
+and configure a timeout to fallback to other interfaces.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
+#### 1.11.0-alpha.13
+
+* Fixes and improvements
+
+#### 1.11.0-alpha.12
+
+* Merge route options to route actions **1**
+* Add `network_type`, `network_is_expensive` and `network_is_constrainted` rule items **2**
+* Fixes and improvements
+
+**1**:
+
+Route options in DNS route actions will no longer be considered deprecated,
+see [DNS Route Action](/configuration/dns/rule_action/).
+
+Also, now `udp_disable_domain_unmapping` and `udp_connect` can also be configured in route action,
+see [Route Action](/configuration/route/rule_action/).
+
+**2**:
+
+When using in graphical clients, new routing rule items allow you to match on
+network type (WIFI, cellular, etc.), whether the network is expensive, and whether Low Data Mode is enabled.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
+
+#### 1.11.0-alpha.9
+
+* Improve tun compatibility **1**
+* Fixes and improvements
+
+**1**:
+
+When `gvisor` tun stack is enabled, even if the request passes routing,
+if the outbound connection establishment fails,
+the connection still does not need to be established and a TCP RST is replied.
+
+#### 1.11.0-alpha.7
+
+* Introducing rule actions **1**
+
+**1**:
+
+New rule actions replace legacy inbound fields and special outbound fields,
+and can be used for pre-matching **2**.
+
+See [Rule](/configuration/route/rule/),
+[Rule Action](/configuration/route/rule_action/),
+[DNS Rule](/configuration/dns/rule/) and
+[DNS Rule Action](/configuration/dns/rule_action/).
+
+For migration, see
+[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions),
+[Migrate legacy inbound fields to rule actions](/migration/#migrate-legacy-inbound-fields-to-rule-actions)
+and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
+
+**2**:
+
+Similar to Surge's pre-matching.
+
+Specifically, new rule actions allow you to reject connections with
+TCP RST (for TCP connections) and ICMP port unreachable (for UDP packets)
+before connection established to improve tun's compatibility.
+
+See [Rule Action](/configuration/route/rule_action/).
+
+#### 1.11.0-alpha.6
+
+* Update quic-go to v0.48.1
+* Set gateway for tun correctly
+* Fixes and improvements
+
+#### 1.11.0-alpha.2
+
+* Add warnings for usage of deprecated features
+* Fixes and improvements
+
+#### 1.11.0-alpha.1
+
+* Update quic-go to v0.48.0
 * Fixes and improvements
 
 ### 1.10.1
@@ -87,7 +271,7 @@ allows you to write headless rules directly without creating a rule-set file.
 
 **8**:
 
-With the new access control options, not only can you allow Clash dashboards
+With new access control options, not only can you allow Clash dashboards
 to access the Clash API on your local network,
 you can also manually limit the websites that can access the API instead of allowing everyone.
 
