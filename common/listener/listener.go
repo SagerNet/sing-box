@@ -3,6 +3,7 @@ package listener
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -92,7 +93,7 @@ func (l *Listener) Start() error {
 	if l.setSystemProxy {
 		listenPort := M.SocksaddrFromNet(l.tcpListener.Addr()).Port
 		var listenAddrString string
-		listenAddr := l.listenOptions.Listen.Build()
+		listenAddr := l.listenOptions.Listen.Build(netip.IPv4Unspecified())
 		if listenAddr.IsUnspecified() {
 			listenAddrString = "127.0.0.1"
 		} else {
