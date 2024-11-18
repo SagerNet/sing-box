@@ -106,8 +106,12 @@ func (c *STDServerConfig) startWatcher() error {
 	if err != nil {
 		return err
 	}
+	err = c.watcher.Start()
+	if err != nil {
+		return err
+	}
 	c.watcher = watcher
-	return c.watcher.Start()
+	return nil
 }
 
 func (c *STDServerConfig) certificateUpdated(path string) error {

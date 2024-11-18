@@ -97,8 +97,12 @@ func (c *echServerConfig) startWatcher() error {
 	if err != nil {
 		return err
 	}
+	err = c.watcher.Start()
+	if err != nil {
+		return err
+	}
 	c.watcher = watcher
-	return c.watcher.Start()
+	return nil
 }
 
 func (c *echServerConfig) credentialsUpdated(path string) error {
