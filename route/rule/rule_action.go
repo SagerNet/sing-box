@@ -88,13 +88,13 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Server:       action.RouteOptions.Server,
 			DisableCache: action.RouteOptions.DisableCache,
 			RewriteTTL:   action.RouteOptions.RewriteTTL,
-			ClientSubnet: action.RouteOptions.ClientSubnet.Build(),
+			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
 		}
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
 			DisableCache: action.RouteOptionsOptions.DisableCache,
 			RewriteTTL:   action.RouteOptionsOptions.RewriteTTL,
-			ClientSubnet: action.RouteOptionsOptions.ClientSubnet.Build(),
+			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
 		}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{

@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -102,7 +103,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		udpAddr4   string
 	)
 	if options.Inet4BindAddress != nil {
-		bindAddr := options.Inet4BindAddress.Build()
+		bindAddr := options.Inet4BindAddress.Build(netip.IPv4Unspecified())
 		dialer4.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
 		udpDialer4.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
 		udpAddr4 = M.SocksaddrFrom(bindAddr, 0).String()
@@ -113,7 +114,7 @@ func NewDefault(router adapter.Router, options option.DialerOptions) (*DefaultDi
 		udpAddr6   string
 	)
 	if options.Inet6BindAddress != nil {
-		bindAddr := options.Inet6BindAddress.Build()
+		bindAddr := options.Inet6BindAddress.Build(netip.IPv6Unspecified())
 		dialer6.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
 		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
 		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()

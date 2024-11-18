@@ -1,6 +1,10 @@
 package option
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"github.com/sagernet/sing/common/json/badoption"
+)
 
 type DNSOptions struct {
 	Servers        []DNSServerOptions `json:"servers,omitempty"`
@@ -12,22 +16,22 @@ type DNSOptions struct {
 }
 
 type DNSServerOptions struct {
-	Tag                  string         `json:"tag,omitempty"`
-	Address              string         `json:"address"`
-	AddressResolver      string         `json:"address_resolver,omitempty"`
-	AddressStrategy      DomainStrategy `json:"address_strategy,omitempty"`
-	AddressFallbackDelay Duration       `json:"address_fallback_delay,omitempty"`
-	Strategy             DomainStrategy `json:"strategy,omitempty"`
-	Detour               string         `json:"detour,omitempty"`
-	ClientSubnet         *AddrPrefix    `json:"client_subnet,omitempty"`
+	Tag                  string                `json:"tag,omitempty"`
+	Address              string                `json:"address"`
+	AddressResolver      string                `json:"address_resolver,omitempty"`
+	AddressStrategy      DomainStrategy        `json:"address_strategy,omitempty"`
+	AddressFallbackDelay badoption.Duration    `json:"address_fallback_delay,omitempty"`
+	Strategy             DomainStrategy        `json:"strategy,omitempty"`
+	Detour               string                `json:"detour,omitempty"`
+	ClientSubnet         *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type DNSClientOptions struct {
-	Strategy         DomainStrategy `json:"strategy,omitempty"`
-	DisableCache     bool           `json:"disable_cache,omitempty"`
-	DisableExpire    bool           `json:"disable_expire,omitempty"`
-	IndependentCache bool           `json:"independent_cache,omitempty"`
-	ClientSubnet     *AddrPrefix    `json:"client_subnet,omitempty"`
+	Strategy         DomainStrategy        `json:"strategy,omitempty"`
+	DisableCache     bool                  `json:"disable_cache,omitempty"`
+	DisableExpire    bool                  `json:"disable_expire,omitempty"`
+	IndependentCache bool                  `json:"independent_cache,omitempty"`
+	ClientSubnet     *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type DNSFakeIPOptions struct {
