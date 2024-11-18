@@ -7,6 +7,8 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -14,22 +16,22 @@ import (
 func TestTUICDomainUDP(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICInboundOptions{
+				Options: &option.TUICInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 						InboundOptions: option.InboundOptions{
 							DomainStrategy: option.DomainStrategy(dns.DomainStrategyUseIPv6),
@@ -49,14 +51,14 @@ func TestTUICDomainUDP(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeTUIC,
 				Tag:  "tuic-out",
-				TUICOptions: option.TUICOutboundOptions{
+				Options: &option.TUICOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
