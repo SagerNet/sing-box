@@ -21,6 +21,7 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ranges"
@@ -257,7 +258,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
-func uidToRange(uidList option.Listable[uint32]) []ranges.Range[uint32] {
+func uidToRange(uidList badoption.Listable[uint32]) []ranges.Range[uint32] {
 	return common.Map(uidList, func(uid uint32) ranges.Range[uint32] {
 		return ranges.NewSingle(uid)
 	})

@@ -5,6 +5,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 type _V2RayTransportOptions struct {
@@ -67,33 +68,33 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 }
 
 type V2RayHTTPOptions struct {
-	Host        Listable[string] `json:"host,omitempty"`
-	Path        string           `json:"path,omitempty"`
-	Method      string           `json:"method,omitempty"`
-	Headers     HTTPHeader       `json:"headers,omitempty"`
-	IdleTimeout Duration         `json:"idle_timeout,omitempty"`
-	PingTimeout Duration         `json:"ping_timeout,omitempty"`
+	Host        badoption.Listable[string] `json:"host,omitempty"`
+	Path        string                     `json:"path,omitempty"`
+	Method      string                     `json:"method,omitempty"`
+	Headers     badoption.HTTPHeader       `json:"headers,omitempty"`
+	IdleTimeout badoption.Duration         `json:"idle_timeout,omitempty"`
+	PingTimeout badoption.Duration         `json:"ping_timeout,omitempty"`
 }
 
 type V2RayWebsocketOptions struct {
-	Path                string     `json:"path,omitempty"`
-	Headers             HTTPHeader `json:"headers,omitempty"`
-	MaxEarlyData        uint32     `json:"max_early_data,omitempty"`
-	EarlyDataHeaderName string     `json:"early_data_header_name,omitempty"`
+	Path                string               `json:"path,omitempty"`
+	Headers             badoption.HTTPHeader `json:"headers,omitempty"`
+	MaxEarlyData        uint32               `json:"max_early_data,omitempty"`
+	EarlyDataHeaderName string               `json:"early_data_header_name,omitempty"`
 }
 
 type V2RayQUICOptions struct{}
 
 type V2RayGRPCOptions struct {
-	ServiceName         string   `json:"service_name,omitempty"`
-	IdleTimeout         Duration `json:"idle_timeout,omitempty"`
-	PingTimeout         Duration `json:"ping_timeout,omitempty"`
-	PermitWithoutStream bool     `json:"permit_without_stream,omitempty"`
-	ForceLite           bool     `json:"-"` // for test
+	ServiceName         string             `json:"service_name,omitempty"`
+	IdleTimeout         badoption.Duration `json:"idle_timeout,omitempty"`
+	PingTimeout         badoption.Duration `json:"ping_timeout,omitempty"`
+	PermitWithoutStream bool               `json:"permit_without_stream,omitempty"`
+	ForceLite           bool               `json:"-"` // for test
 }
 
 type V2RayHTTPUpgradeOptions struct {
-	Host    string     `json:"host,omitempty"`
-	Path    string     `json:"path,omitempty"`
-	Headers HTTPHeader `json:"headers,omitempty"`
+	Host    string               `json:"host,omitempty"`
+	Path    string               `json:"path,omitempty"`
+	Headers badoption.HTTPHeader `json:"headers,omitempty"`
 }
