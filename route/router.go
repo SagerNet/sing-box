@@ -239,9 +239,9 @@ func NewRouter(
 			}
 			var clientSubnet netip.Prefix
 			if server.ClientSubnet != nil {
-				clientSubnet = server.ClientSubnet.Build()
+				clientSubnet = netip.Prefix(common.PtrValueOrDefault(server.ClientSubnet))
 			} else if dnsOptions.ClientSubnet != nil {
-				clientSubnet = dnsOptions.ClientSubnet.Build()
+				clientSubnet = netip.Prefix(common.PtrValueOrDefault(dnsOptions.ClientSubnet))
 			}
 			if serverProtocol == "" {
 				serverProtocol = "transport"
