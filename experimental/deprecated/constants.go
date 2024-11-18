@@ -1,6 +1,7 @@
 package deprecated
 
 import (
+	"github.com/sagernet/sing-box/common/badversion"
 	C "github.com/sagernet/sing-box/constant"
 	F "github.com/sagernet/sing/common/format"
 
@@ -23,11 +24,12 @@ func (n Note) Impending() bool {
 	if !semver.IsValid("v" + C.Version) {
 		return false
 	}
-	versionMinor := semver.Compare(semver.MajorMinor("v"+C.Version), "v"+n.ScheduledVersion)
-	if semver.Prerelease("v"+C.Version) == "" && versionMinor > 0 {
+	versionCurrent := badversion.Parse(C.Version)
+	versionMinor := badversion.Parse(n.ScheduledVersion).Minor - versionCurrent.Minor
+	if versionCurrent.PreReleaseIdentifier == "" && versionMinor < 0 {
 		panic("invalid deprecated note: " + n.Name)
 	}
-	return versionMinor >= -1
+	return versionMinor <= 1
 }
 
 func (n Note) Message() string {
@@ -49,6 +51,7 @@ var OptionBadMatchSource = Note{
 	Description:       "legacy match source rule item",
 	DeprecatedVersion: "1.10.0",
 	ScheduledVersion:  "1.11.0",
+	EnvName:           "BAD_MATCH_SOURCE",
 	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#match-source-rule-items-are-renamed",
 }
 
@@ -75,6 +78,7 @@ var OptionTUNAddressX = Note{
 	Description:       "legacy tun address fields",
 	DeprecatedVersion: "1.10.0",
 	ScheduledVersion:  "1.12.0",
+	EnvName:           "TUN_ADDRESS_X",
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#tun-address-fields-are-merged",
 }
 
