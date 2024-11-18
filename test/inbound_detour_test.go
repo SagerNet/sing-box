@@ -7,30 +7,34 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 func TestChainedInbound(t *testing.T) {
 	method := shadowaead_2022.List[0]
 	password := mkBase64(t, 16)
 	startInstance(t, option.Options{
-		Inbounds: []option.LegacyInbound{
+		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
-						Detour:     "detour",
+						InboundOptions: option.InboundOptions{
+							Detour: "detour",
+						},
 					},
 					Method:   method,
 					Password: password,
@@ -39,9 +43,9 @@ func TestChainedInbound(t *testing.T) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour",
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: otherPort,
 					},
 					Method:   method,
@@ -49,14 +53,14 @@ func TestChainedInbound(t *testing.T) {
 				},
 			},
 		},
-		LegacyOutbounds: []option.LegacyOutbound{
+		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeDirect,
 			},
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					Method:   method,
 					Password: password,
 					DialerOptions: option.DialerOptions{
@@ -67,7 +71,7 @@ func TestChainedInbound(t *testing.T) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "detour-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
