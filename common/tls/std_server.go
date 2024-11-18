@@ -107,7 +107,7 @@ func (c *STDServerConfig) startWatcher() error {
 		return err
 	}
 	c.watcher = watcher
-	return nil
+	return c.watcher.Start()
 }
 
 func (c *STDServerConfig) certificateUpdated(path string) error {
