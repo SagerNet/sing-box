@@ -2,6 +2,7 @@ package listener
 
 import (
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -16,7 +17,7 @@ import (
 
 func (l *Listener) ListenTCP() (net.Listener, error) {
 	var err error
-	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(), l.listenOptions.ListenPort)
+	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})), l.listenOptions.ListenPort)
 	var tcpListener net.Listener
 	var listenConfig net.ListenConfig
 	if l.listenOptions.TCPKeepAlive >= 0 {
