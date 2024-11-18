@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -11,6 +12,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 type _RuleAction struct {
@@ -177,7 +179,7 @@ type _DNSRouteActionOptions struct {
 	// Deprecated: Use DNSRouteOptionsActionOptions instead.
 	RewriteTTL *uint32 `json:"rewrite_ttl,omitempty"`
 	// Deprecated: Use DNSRouteOptionsActionOptions instead.
-	ClientSubnet *AddrPrefix `json:"client_subnet,omitempty"`
+	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type DNSRouteActionOptions _DNSRouteActionOptions
@@ -197,9 +199,9 @@ func (r *DNSRouteActionOptions) UnmarshalJSONContext(ctx context.Context, data [
 }
 
 type _DNSRouteOptionsActionOptions struct {
-	DisableCache bool        `json:"disable_cache,omitempty"`
-	RewriteTTL   *uint32     `json:"rewrite_ttl,omitempty"`
-	ClientSubnet *AddrPrefix `json:"client_subnet,omitempty"`
+	DisableCache bool                  `json:"disable_cache,omitempty"`
+	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
+	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type DNSRouteOptionsActionOptions _DNSRouteOptionsActionOptions
@@ -225,10 +227,10 @@ func (d DirectActionOptions) Descriptions() []string {
 		descriptions = append(descriptions, "bind_interface="+d.BindInterface)
 	}
 	if d.Inet4BindAddress != nil {
-		descriptions = append(descriptions, "inet4_bind_address="+d.Inet4BindAddress.Build().String())
+		descriptions = append(descriptions, "inet4_bind_address="+d.Inet4BindAddress.Build(netip.IPv4Unspecified()).String())
 	}
 	if d.Inet6BindAddress != nil {
-		descriptions = append(descriptions, "inet6_bind_address="+d.Inet6BindAddress.Build().String())
+		descriptions = append(descriptions, "inet6_bind_address="+d.Inet6BindAddress.Build(netip.IPv6Unspecified()).String())
 	}
 	if d.RoutingMark != 0 {
 		descriptions = append(descriptions, "routing_mark="+fmt.Sprintf("0x%x", d.RoutingMark))
@@ -294,8 +296,8 @@ func (r *RejectActionOptions) UnmarshalJSON(bytes []byte) error {
 }
 
 type RouteActionSniff struct {
-	Sniffer Listable[string] `json:"sniffer,omitempty"`
-	Timeout Duration         `json:"timeout,omitempty"`
+	Sniffer badoption.Listable[string] `json:"sniffer,omitempty"`
+	Timeout badoption.Duration         `json:"timeout,omitempty"`
 }
 
 type RouteActionResolve struct {
