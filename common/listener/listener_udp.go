@@ -2,6 +2,7 @@ package listener
 
 import (
 	"net"
+	"net/netip"
 	"os"
 
 	"github.com/sagernet/sing/common/buf"
@@ -12,7 +13,7 @@ import (
 )
 
 func (l *Listener) ListenUDP() (net.PacketConn, error) {
-	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(), l.listenOptions.ListenPort)
+	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})), l.listenOptions.ListenPort)
 	var lc net.ListenConfig
 	var udpFragment bool
 	if l.listenOptions.UDPFragment != nil {
