@@ -72,7 +72,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			masqueradeHandler = &httputil.ReverseProxy{
 				Rewrite: func(r *httputil.ProxyRequest) {
 					r.SetURL(masqueradeURL)
-					r.Out.Host = r.In.Host
 				},
 				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 					w.WriteHeader(http.StatusBadGateway)
