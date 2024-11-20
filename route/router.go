@@ -38,9 +38,10 @@ type Router struct {
 	ctx                     context.Context
 	logger                  log.ContextLogger
 	dnsLogger               log.ContextLogger
-	inboundManager          adapter.InboundManager
-	outboundManager         adapter.OutboundManager
-	networkManager          adapter.NetworkManager
+	inbound                 adapter.InboundManager
+	outbound                adapter.OutboundManager
+	connection              adapter.ConnectionManager
+	network                 adapter.NetworkManager
 	rules                   []adapter.Rule
 	needGeoIPDatabase       bool
 	needGeositeDatabase     bool
@@ -74,9 +75,10 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
 		dnsLogger:             logFactory.NewLogger("dns"),
-		inboundManager:        service.FromContext[adapter.InboundManager](ctx),
-		outboundManager:       service.FromContext[adapter.OutboundManager](ctx),
-		networkManager:        service.FromContext[adapter.NetworkManager](ctx),
+		inbound:               service.FromContext[adapter.InboundManager](ctx),
+		outbound:              service.FromContext[adapter.OutboundManager](ctx),
+		connection:            service.FromContext[adapter.ConnectionManager](ctx),
+		network:               service.FromContext[adapter.NetworkManager](ctx),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
 		ruleSetMap:            make(map[string]adapter.RuleSet),
@@ -260,7 +262,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 				Context: ctx,
 				Name:    "local",
 				Address: "local",
-				Dialer:  common.Must1(dialer.NewDefault(router.networkManager, option.DialerOptions{})),
+				Dialer:  common.Must1(dialer.NewDefault(router.network, option.DialerOptions{})),
 			})))
 		}
 		defaultTransport = transports[0]
@@ -405,7 +407,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 				monitor.Start("initialize process searcher")
 				searcher, err := process.NewSearcher(process.Config{
 					Logger:         r.logger,
-					PackageManager: r.networkManager.PackageManager(),
+					PackageManager: r.network.PackageManager(),
 				})
 				monitor.Finish()
 				if err != nil {
@@ -507,7 +509,7 @@ func (r *Router) SetTracker(tracker adapter.ConnectionTracker) {
 }
 
 func (r *Router) ResetNetwork() {
-	r.networkManager.ResetNetwork()
+	r.network.ResetNetwork()
 	for _, transport := range r.transports {
 		transport.Reset()
 	}
