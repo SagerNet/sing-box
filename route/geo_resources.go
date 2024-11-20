@@ -145,13 +145,13 @@ func (r *Router) downloadGeoIPDatabase(savePath string) error {
 	r.logger.Info("downloading geoip database")
 	var detour adapter.Outbound
 	if r.geoIPOptions.DownloadDetour != "" {
-		outbound, loaded := r.outboundManager.Outbound(r.geoIPOptions.DownloadDetour)
+		outbound, loaded := r.outbound.Outbound(r.geoIPOptions.DownloadDetour)
 		if !loaded {
 			return E.New("detour outbound not found: ", r.geoIPOptions.DownloadDetour)
 		}
 		detour = outbound
 	} else {
-		detour = r.outboundManager.Default()
+		detour = r.outbound.Default()
 	}
 
 	if parentDir := filepath.Dir(savePath); parentDir != "" {
@@ -200,13 +200,13 @@ func (r *Router) downloadGeositeDatabase(savePath string) error {
 	r.logger.Info("downloading geosite database")
 	var detour adapter.Outbound
 	if r.geositeOptions.DownloadDetour != "" {
-		outbound, loaded := r.outboundManager.Outbound(r.geositeOptions.DownloadDetour)
+		outbound, loaded := r.outbound.Outbound(r.geositeOptions.DownloadDetour)
 		if !loaded {
 			return E.New("detour outbound not found: ", r.geositeOptions.DownloadDetour)
 		}
 		detour = outbound
 	} else {
-		detour = r.outboundManager.Default()
+		detour = r.outbound.Default()
 	}
 
 	if parentDir := filepath.Dir(savePath); parentDir != "" {
