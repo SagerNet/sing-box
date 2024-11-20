@@ -83,7 +83,7 @@ func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
 		destination = i.overrideDestination
 	case 2:
 		destination = i.overrideDestination
-		destination.Port = source.Port
+		destination.Port = i.listener.UDPAddr().Port
 	case 3:
 		destination = source
 		destination.Port = i.overrideDestination.Port
