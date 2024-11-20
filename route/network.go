@@ -48,6 +48,7 @@ type NetworkManager struct {
 	powerListener     winpowrprof.EventListener
 	pauseManager      pause.Manager
 	platformInterface platform.Interface
+	inboundManager    adapter.InboundManager
 	outboundManager   adapter.OutboundManager
 	wifiState         adapter.WIFIState
 	started           bool
@@ -353,6 +354,13 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 
 func (r *NetworkManager) ResetNetwork() {
 	conntrack.Close()
+
+	for _, inbound := range r.inboundManager.Inbounds() {
+		listener, isListener := inbound.(adapter.InterfaceUpdateListener)
+		if isListener {
+			listener.InterfaceUpdated()
+		}
+	}
 
 	for _, outbound := range r.outboundManager.Outbounds() {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
