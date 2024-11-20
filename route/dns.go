@@ -32,15 +32,15 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext) {
-	if uConn, isUDPNAT2 := conn.(*udpnat.Conn); isUDPNAT2 {
+	if natConn, isNatConn := conn.(udpnat.Conn); isNatConn {
 		metadata.Destination = M.Socksaddr{}
 		for _, packet := range packetBuffers {
 			buffer := packet.Buffer
 			destination := packet.Destination
 			N.PutPacketBuffer(packet)
-			go ExchangeDNSPacket(ctx, r, uConn, buffer, metadata, destination)
+			go ExchangeDNSPacket(ctx, r, natConn, buffer, metadata, destination)
 		}
-		uConn.SetHandler(&dnsHijacker{
+		natConn.SetHandler(&dnsHijacker{
 			router:   r,
 			conn:     conn,
 			ctx:      ctx,
