@@ -106,7 +106,7 @@ func (c *STDServerConfig) startWatcher() error {
 	if err != nil {
 		return err
 	}
-	err = c.watcher.Start()
+	err = watcher.Start()
 	if err != nil {
 		return err
 	}
