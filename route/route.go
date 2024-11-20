@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
@@ -58,7 +57,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour, loaded := r.inboundManager.Get(metadata.InboundDetour)
+		detour, loaded := r.inbound.Get(metadata.InboundDetour)
 		if !loaded {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
@@ -96,7 +95,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
 			var loaded bool
-			selectedOutbound, loaded = r.outboundManager.Outbound(action.Outbound)
+			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
 			if !loaded {
 				buf.ReleaseMulti(buffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -118,7 +117,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 	}
 	if selectedRule == nil {
-		defaultOutbound := r.outboundManager.Default()
+		defaultOutbound := r.outbound.Default()
 		if !common.Contains(defaultOutbound.Network(), N.NetworkTCP) {
 			buf.ReleaseMulti(buffers)
 			return E.New("TCP is not supported by default outbound: ", defaultOutbound.Tag())
@@ -148,19 +147,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 		return nil
 	}
-	// TODO
-	err = outbound.NewConnection(ctx, selectedOutbound, conn, metadata)
-	if err != nil {
-		conn.Close()
-		if onClose != nil {
-			onClose(err)
-		}
-		return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
-	} else {
-		if onClose != nil {
-			onClose(nil)
-		}
-	}
+	r.connection.NewConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	return nil
 }
 
@@ -199,7 +186,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
 		}
-		detour, loaded := r.inboundManager.Get(metadata.InboundDetour)
+		detour, loaded := r.inbound.Get(metadata.InboundDetour)
 		if !loaded {
 			return E.New("inbound detour not found: ", metadata.InboundDetour)
 		}
@@ -233,7 +220,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		switch action := selectedRule.Action().(type) {
 		case *rule.RuleActionRoute:
 			var loaded bool
-			selectedOutbound, loaded = r.outboundManager.Outbound(action.Outbound)
+			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
 			if !loaded {
 				N.ReleaseMultiPacketBuffer(packetBuffers)
 				return E.New("outbound not found: ", action.Outbound)
@@ -252,7 +239,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 	}
 	if selectedRule == nil || selectReturn {
-		defaultOutbound := r.outboundManager.Default()
+		defaultOutbound := r.outbound.Default()
 		if !common.Contains(defaultOutbound.Network(), N.NetworkUDP) {
 			N.ReleaseMultiPacketBuffer(packetBuffers)
 			return E.New("UDP is not supported by outbound: ", defaultOutbound.Tag())
@@ -278,12 +265,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		return nil
 	}
-	// TODO
-	err = outbound.NewPacketConnection(ctx, selectedOutbound, conn, metadata)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
-	if err != nil {
-		return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
-	}
+	r.connection.NewPacketConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	return nil
 }
 
@@ -450,8 +432,12 @@ match:
 			}
 			metadata.NetworkStrategy = routeOptions.NetworkStrategy
 			metadata.FallbackDelay = routeOptions.FallbackDelay
-			metadata.UDPDisableDomainUnmapping = routeOptions.UDPDisableDomainUnmapping
-			metadata.UDPConnect = routeOptions.UDPConnect
+			if routeOptions.UDPDisableDomainUnmapping {
+				metadata.UDPDisableDomainUnmapping = true
+			}
+			if routeOptions.UDPConnect {
+				metadata.UDPConnect = true
+			}
 		}
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:

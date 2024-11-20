@@ -36,9 +36,10 @@ type Box struct {
 	logFactory log.Factory
 	logger     log.ContextLogger
 	network    *route.NetworkManager
-	router     *route.Router
 	inbound    *inbound.Manager
 	outbound   *outbound.Manager
+	connection *route.ConnectionManager
+	router     *route.Router
 	services   []adapter.LifecycleService
 	done       chan struct{}
 }
@@ -128,6 +129,8 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize network manager")
 	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
+	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"))
+	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
 	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS))
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
@@ -238,9 +241,10 @@ func New(options Options) (*Box, error) {
 	}
 	return &Box{
 		network:    networkManager,
-		router:     router,
 		inbound:    inboundManager,
 		outbound:   outboundManager,
+		connection: connectionManager,
+		router:     router,
 		createdAt:  createdAt,
 		logFactory: logFactory,
 		logger:     logFactory.Logger(),
@@ -299,11 +303,11 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateInitialize, s.network, s.router, s.outbound, s.inbound)
+	err = adapter.Start(adapter.StartStateInitialize, s.network, s.connection, s.router, s.outbound, s.inbound)
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateStart, s.outbound, s.network, s.router)
+	err = adapter.Start(adapter.StartStateStart, s.outbound, s.network, s.connection, s.router)
 	if err != nil {
 		return err
 	}
@@ -323,7 +327,7 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.router, s.inbound)
+	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.connection, s.router, s.inbound)
 	if err != nil {
 		return err
 	}
@@ -331,7 +335,7 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateStarted, s.network, s.router, s.outbound, s.inbound)
+	err = adapter.Start(adapter.StartStateStarted, s.network, s.connection, s.router, s.outbound, s.inbound)
 	if err != nil {
 		return err
 	}
@@ -350,7 +354,7 @@ func (s *Box) Close() error {
 		close(s.done)
 	}
 	err := common.Close(
-		s.inbound, s.outbound, s.router, s.network,
+		s.inbound, s.outbound, s.router, s.connection, s.network,
 	)
 	for _, lifecycleService := range s.services {
 		err = E.Append(err, lifecycleService.Close(), func(err error) error {
