@@ -36,9 +36,10 @@ type Box struct {
 	logFactory log.Factory
 	logger     log.ContextLogger
 	network    *route.NetworkManager
-	router     *route.Router
 	inbound    *inbound.Manager
 	outbound   *outbound.Manager
+	connection *route.ConnectionManager
+	router     *route.Router
 	services   []adapter.LifecycleService
 	done       chan struct{}
 }
@@ -128,6 +129,8 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize network manager")
 	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
+	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"))
+	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
 	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS))
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
@@ -238,9 +241,10 @@ func New(options Options) (*Box, error) {
 	}
 	return &Box{
 		network:    networkManager,
-		router:     router,
 		inbound:    inboundManager,
 		outbound:   outboundManager,
+		connection: connectionManager,
+		router:     router,
 		createdAt:  createdAt,
 		logFactory: logFactory,
 		logger:     logFactory.Logger(),
