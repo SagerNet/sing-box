@@ -38,7 +38,7 @@ type Selector struct {
 
 func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SelectorOutboundOptions) (adapter.Outbound, error) {
 	outbound := &Selector{
-		Adapter:                      outbound.NewAdapter(C.TypeSelector, nil, tag, options.Outbounds),
+		Adapter:                      outbound.NewAdapter(C.TypeSelector, tag, nil, options.Outbounds),
 		ctx:                          ctx,
 		outboundManager:              service.FromContext[adapter.OutboundManager](ctx),
 		logger:                       logger,

@@ -194,6 +194,78 @@ Destination override fields in direct outbound are deprecated and can be replace
       }
     ```
 
+### Migrate WireGuard outbound to endpoint
+
+WireGuard outbound is deprecated and can be replaced by endpoint.
+
+!!! info "References"
+
+    [Endpoint](/configuration/endpoint/) /
+    [WireGuard Endpoint](/configuration/endpoint/wireguard/) /
+    [WireGuard Outbound](/configuration/outbound/wireguard/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "wireguard",
+          "tag": "wg-out",
+
+          "server": "127.0.0.1",
+          "server_port": 10001,
+          "system_interface": true,
+          "gso": true,
+          "interface_name": "wg0",
+          "local_address": [
+            "10.0.0.1/32"
+          ],
+          "private_key": "<private_key>",
+          "peer_public_key": "<peer_public_key>",
+          "pre_shared_key": "<pre_shared_key>",
+          "reserved": [0, 0, 0],
+          "mtu": 1408
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "endpoints": [
+        {
+          "type": "wireguard",
+          "tag": "wg-ep",
+          "system": true,
+          "name": "wg0",
+          "mtu": 1408,
+          "gso": true,
+          "address": [
+            "10.0.0.2/32"
+          ],
+          "private_key": "<private_key>",
+          "listen_port": 10000,
+          "peers": [
+            {
+              "address": "127.0.0.1",
+              "port": 10001,
+              "public_key": "<peer_public_key>",
+              "pre_shared_key": "<pre_shared_key>",
+              "allowed_ips": [
+                "0.0.0.0/0"
+              ],
+              "persistent_keepalive_interval": 30,
+              "reserved": [0, 0, 0]
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN address fields are merged
