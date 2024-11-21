@@ -78,7 +78,10 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
-func (n *Inbound) Start() error {
+func (n *Inbound) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
 	var tlsConfig *tls.STDConfig
 	if n.tlsConfig != nil {
 		err := n.tlsConfig.Start()

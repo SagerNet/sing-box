@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	C "github.com/sagernet/sing-box/constant"
@@ -78,6 +79,14 @@ func OutboundRegistry() *outbound.Registry {
 	registerQUICOutbounds(registry)
 	registerWireGuardOutbound(registry)
 	registerStubForRemovedOutbounds(registry)
+
+	return registry
+}
+
+func EndpointRegistry() *endpoint.Registry {
+	registry := endpoint.NewRegistry()
+
+	registerWireGuardEndpoint(registry)
 
 	return registry
 }
