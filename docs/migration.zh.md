@@ -104,7 +104,6 @@ icon: material/arrange-bring-forward
 
 ### 迁移旧的入站字段到规则动作
 
-
 入站选项已被弃用，且可以被规则动作替代。
 
 !!! info "参考"
@@ -193,6 +192,78 @@ direct 出站中的目标地址覆盖字段已废弃，且可以被路由字段�
           }
         ]
       }
+    }
+    ```
+
+### 迁移 WireGuard 出站到端点
+
+WireGuard 出站已被弃用，且可以被端点替代。
+
+!!! info "参考"
+
+    [端点](/zh/configuration/endpoint/) /
+    [WireGuard 端点](/zh/configuration/endpoint/wireguard/) / 
+    [WireGuard 出站](/zh/configuration/outbound/wireguard/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "wireguard",
+          "tag": "wg-out",
+
+          "server": "127.0.0.1",
+          "server_port": 10001,
+          "system_interface": true,
+          "gso": true,
+          "interface_name": "wg0",
+          "local_address": [
+            "10.0.0.1/32"
+          ],
+          "private_key": "<private_key>",
+          "peer_public_key": "<peer_public_key>",
+          "pre_shared_key": "<pre_shared_key>",
+          "reserved": [0, 0, 0],
+          "mtu": 1408
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "endpoints": [
+        {
+          "type": "wireguard",
+          "tag": "wg-ep",
+          "system": true,
+          "name": "wg0",
+          "mtu": 1408,
+          "gso": true,
+          "address": [
+            "10.0.0.2/32"
+          ],
+          "private_key": "<private_key>",
+          "listen_port": 10000,
+          "peers": [
+            {
+              "address": "127.0.0.1",
+              "port": 10001,
+              "public_key": "<peer_public_key>",
+              "pre_shared_key": "<pre_shared_key>",
+              "allowed_ips": [
+                "0.0.0.0/0"
+              ],
+              "persistent_keepalive_interval": 30,
+              "reserved": [0, 0, 0]
+            }
+          ]
+        }
+      ]
     }
     ```
 

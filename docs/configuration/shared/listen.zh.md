@@ -69,7 +69,7 @@ icon: material/delete-clock
 
 #### udp_timeout
 
-UDP NAT 过期时间，以秒为单位。
+UDP NAT 过期时间。
 
 默认使用 `5m`。
 
