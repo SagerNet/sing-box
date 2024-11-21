@@ -28,7 +28,7 @@ func (h *Inbound) MarshalJSONContext(ctx context.Context) ([]byte, error) {
 }
 
 func (h *Inbound) UnmarshalJSONContext(ctx context.Context, content []byte) error {
-	err := json.Unmarshal(content, (*_Inbound)(h))
+	err := json.UnmarshalContext(ctx, content, (*_Inbound)(h))
 	if err != nil {
 		return err
 	}
