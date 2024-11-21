@@ -360,7 +360,9 @@ Performance may degrade slightly, so it is not recommended to enable on when it 
 
 #### udp_timeout
 
-UDP NAT expiration time in seconds, default is 300 (5 minutes).
+UDP NAT expiration time.
+
+`5m` will be used by default.
 
 #### stack
 
