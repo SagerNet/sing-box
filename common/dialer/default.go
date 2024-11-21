@@ -285,7 +285,7 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
-	return d.listenSerialInterfacePacket(context.Background(), d.udpListener, network, address, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
+	return d.udpListener.ListenPacket(context.Background(), network, address)
 }
 
 func trackConn(conn net.Conn, err error) (net.Conn, error) {

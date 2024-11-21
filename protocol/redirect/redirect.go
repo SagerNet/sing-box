@@ -42,7 +42,10 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 	return redirect, nil
 }
 
-func (h *Redirect) Start() error {
+func (h *Redirect) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
 	return h.listener.Start()
 }
 
