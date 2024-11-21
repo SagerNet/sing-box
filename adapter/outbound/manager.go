@@ -21,6 +21,7 @@ var _ adapter.OutboundManager = (*Manager)(nil)
 type Manager struct {
 	logger                  log.ContextLogger
 	registry                adapter.OutboundRegistry
+	endpoint                adapter.EndpointManager
 	defaultTag              string
 	access                  sync.Mutex
 	started                 bool
@@ -32,10 +33,11 @@ type Manager struct {
 	defaultOutboundFallback adapter.Outbound
 }
 
-func NewManager(logger logger.ContextLogger, registry adapter.OutboundRegistry, defaultTag string) *Manager {
+func NewManager(logger logger.ContextLogger, registry adapter.OutboundRegistry, endpoint adapter.EndpointManager, defaultTag string) *Manager {
 	return &Manager{
 		logger:        logger,
 		registry:      registry,
+		endpoint:      endpoint,
 		defaultTag:    defaultTag,
 		outboundByTag: make(map[string]adapter.Outbound),
 		dependByTag:   make(map[string][]string),
@@ -56,7 +58,14 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	outbounds := m.outbounds
 	m.access.Unlock()
 	if stage == adapter.StartStateStart {
-		return m.startOutbounds(outbounds)
+		if m.defaultTag != "" && m.defaultOutbound == nil {
+			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
+			if !loaded {
+				return E.New("default outbound not found: ", m.defaultTag)
+			}
+			m.defaultOutbound = defaultEndpoint
+		}
+		return m.startOutbounds(append(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })...))
 	} else {
 		for _, outbound := range outbounds {
 			err := adapter.LegacyStart(outbound, stage)
@@ -87,7 +96,14 @@ func (m *Manager) startOutbounds(outbounds []adapter.Outbound) error {
 			}
 			started[outboundTag] = true
 			canContinue = true
-			if starter, isStarter := outboundToStart.(interface {
+			if starter, isStarter := outboundToStart.(adapter.Lifecycle); isStarter {
+				monitor.Start("start outbound/", outboundToStart.Type(), "[", outboundTag, "]")
+				err := starter.Start(adapter.StartStateStart)
+				monitor.Finish()
+				if err != nil {
+					return E.Cause(err, "start outbound/", outboundToStart.Type(), "[", outboundTag, "]")
+				}
+			} else if starter, isStarter := outboundToStart.(interface {
 				Start() error
 			}); isStarter {
 				monitor.Start("start outbound/", outboundToStart.Type(), "[", outboundTag, "]")
@@ -160,9 +176,12 @@ func (m *Manager) Outbounds() []adapter.Outbound {
 
 func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
 	m.access.Lock()
-	defer m.access.Unlock()
 	outbound, found := m.outboundByTag[tag]
-	return outbound, found
+	m.access.Unlock()
+	if found {
+		return outbound, true
+	}
+	return m.endpoint.Get(tag)
 }
 
 func (m *Manager) Default() adapter.Outbound {

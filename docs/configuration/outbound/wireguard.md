@@ -1,3 +1,11 @@
+---
+icon: material/delete-clock
+---
+
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    WireGuard outbound is deprecated and will be removed in sing-box 1.13.0, check [Migration](/migration/#migrate-wireguard-outbound-to-endpoint).
+
 !!! quote "Changes in sing-box 1.8.0"
     
     :material-plus: [gso](#gso)  
@@ -15,7 +23,7 @@
   "gso": false,
   "interface_name": "wg0",
   "local_address": [
-    "10.0.0.2/32"
+    "10.0.0.1/32"
   ],
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
   "peers": [
