@@ -5,35 +5,35 @@ import (
 )
 
 type Adapter struct {
-	protocol     string
+	outboundType string
+	outboundTag  string
 	network      []string
-	tag          string
 	dependencies []string
 }
 
-func NewAdapter(protocol string, network []string, tag string, dependencies []string) Adapter {
+func NewAdapter(outboundType string, outboundTag string, network []string, dependencies []string) Adapter {
 	return Adapter{
-		protocol:     protocol,
+		outboundType: outboundType,
+		outboundTag:  outboundTag,
 		network:      network,
-		tag:          tag,
 		dependencies: dependencies,
 	}
 }
 
-func NewAdapterWithDialerOptions(protocol string, network []string, tag string, dialOptions option.DialerOptions) Adapter {
+func NewAdapterWithDialerOptions(outboundType string, outboundTag string, network []string, dialOptions option.DialerOptions) Adapter {
 	var dependencies []string
 	if dialOptions.Detour != "" {
 		dependencies = []string{dialOptions.Detour}
 	}
-	return NewAdapter(protocol, network, tag, dependencies)
+	return NewAdapter(outboundType, outboundTag, network, dependencies)
 }
 
 func (a *Adapter) Type() string {
-	return a.protocol
+	return a.outboundType
 }
 
 func (a *Adapter) Tag() string {
-	return a.tag
+	return a.outboundTag
 }
 
 func (a *Adapter) Network() []string {
