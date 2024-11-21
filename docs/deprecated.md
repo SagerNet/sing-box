@@ -28,6 +28,13 @@ Destination override fields (`override_address` / `override_port`) in direct out
 and can be replaced by rule actions,
 check [Migration](../migration/#migrate-destination-override-fields-to-route-options).
 
+#### WireGuard outbound
+
+WireGuard outbound is deprecated and can be replaced by endpoint,
+check [Migration](../migration/#migrate-wireguard-outbound-to-endpoint).
+
+Old outbound will be removed in sing-box 1.13.0.
+
 ## 1.10.0
 
 #### TUN address fields are merged

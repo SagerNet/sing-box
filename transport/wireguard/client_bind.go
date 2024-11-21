@@ -128,7 +128,7 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		select {
 		case <-c.done:
 		default:
-			c.logger.Error(context.Background(), E.Cause(err, "read packet"))
+			c.logger.Error(E.Cause(err, "read packet"))
 			err = nil
 		}
 		return
@@ -138,7 +138,7 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		b := packets[0]
 		common.ClearArray(b[1:4])
 	}
-	eps[0] = Endpoint(M.AddrPortFromNet(addr))
+	eps[0] = remoteEndpoint(M.AddrPortFromNet(addr))
 	count = 1
 	return
 }
@@ -169,7 +169,7 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint) error {
 		time.Sleep(time.Second)
 		return err
 	}
-	destination := netip.AddrPort(ep.(Endpoint))
+	destination := netip.AddrPort(ep.(remoteEndpoint))
 	for _, b := range bufs {
 		if len(b) > 3 {
 			reserved, loaded := c.reservedForEndpoint[destination]
@@ -192,7 +192,7 @@ func (c *ClientBind) ParseEndpoint(s string) (conn.Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Endpoint(ap), nil
+	return remoteEndpoint(ap), nil
 }
 
 func (c *ClientBind) BatchSize() int {
@@ -228,4 +228,32 @@ func (w *wireConn) Close() error {
 	w.PacketConn.Close()
 	close(w.done)
 	return nil
+}
+
+var _ conn.Endpoint = (*remoteEndpoint)(nil)
+
+type remoteEndpoint netip.AddrPort
+
+func (e remoteEndpoint) ClearSrc() {
+}
+
+func (e remoteEndpoint) SrcToString() string {
+	return ""
+}
+
+func (e remoteEndpoint) DstToString() string {
+	return (netip.AddrPort)(e).String()
+}
+
+func (e remoteEndpoint) DstToBytes() []byte {
+	b, _ := (netip.AddrPort)(e).MarshalBinary()
+	return b
+}
+
+func (e remoteEndpoint) DstIP() netip.Addr {
+	return (netip.AddrPort)(e).Addr()
+}
+
+func (e remoteEndpoint) SrcIP() netip.Addr {
+	return netip.Addr{}
 }
