@@ -18,6 +18,7 @@ var _ adapter.InboundManager = (*Manager)(nil)
 type Manager struct {
 	logger       log.ContextLogger
 	registry     adapter.InboundRegistry
+	endpoint     adapter.EndpointManager
 	access       sync.Mutex
 	started      bool
 	stage        adapter.StartStage
@@ -25,10 +26,11 @@ type Manager struct {
 	inboundByTag map[string]adapter.Inbound
 }
 
-func NewManager(logger log.ContextLogger, registry adapter.InboundRegistry) *Manager {
+func NewManager(logger log.ContextLogger, registry adapter.InboundRegistry, endpoint adapter.EndpointManager) *Manager {
 	return &Manager{
 		logger:       logger,
 		registry:     registry,
+		endpoint:     endpoint,
 		inboundByTag: make(map[string]adapter.Inbound),
 	}
 }
@@ -79,9 +81,12 @@ func (m *Manager) Inbounds() []adapter.Inbound {
 
 func (m *Manager) Get(tag string) (adapter.Inbound, bool) {
 	m.access.Lock()
-	defer m.access.Unlock()
 	inbound, found := m.inboundByTag[tag]
-	return inbound, found
+	m.access.Unlock()
+	if found {
+		return inbound, true
+	}
+	return m.endpoint.Get(tag)
 }
 
 func (m *Manager) Remove(tag string) error {
