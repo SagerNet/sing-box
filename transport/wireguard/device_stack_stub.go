@@ -2,12 +2,12 @@
 
 package wireguard
 
-import (
-	"net/netip"
+import "github.com/sagernet/sing-tun"
 
-	"github.com/sagernet/sing-tun"
-)
+func newStackDevice(options DeviceOptions) (Device, error) {
+	return nil, tun.ErrGVisorNotIncluded
+}
 
-func NewStackDevice(localAddresses []netip.Prefix, mtu uint32) (Device, error) {
+func newSystemStackDevice(options DeviceOptions) (Device, error) {
 	return nil, tun.ErrGVisorNotIncluded
 }
