@@ -356,7 +356,9 @@ tun 接口的 IPv6 前缀。
 
 #### udp_timeout
 
-UDP NAT 过期时间，以秒为单位，默认为 300（5 分钟）。
+UDP NAT 过期时间。
+
+默认使用 `5m`。
 
 #### stack
 

@@ -300,104 +300,104 @@ func (t *Inbound) Tag() string {
 	return t.tag
 }
 
-func (t *Inbound) Start() error {
-	if C.IsAndroid && t.platformInterface == nil {
-		t.tunOptions.BuildAndroidRules(t.networkManager.PackageManager())
-	}
-	if t.tunOptions.Name == "" {
-		t.tunOptions.Name = tun.CalculateInterfaceName("")
-	}
-	var (
-		tunInterface tun.Tun
-		err          error
-	)
-	monitor := taskmonitor.New(t.logger, C.StartTimeout)
-	monitor.Start("open tun interface")
-	if t.platformInterface != nil {
-		tunInterface, err = t.platformInterface.OpenTun(&t.tunOptions, t.platformOptions)
-	} else {
-		tunInterface, err = tun.New(t.tunOptions)
-	}
-	monitor.Finish()
-	if err != nil {
-		return E.Cause(err, "configure tun interface")
-	}
-	t.logger.Trace("creating stack")
-	t.tunIf = tunInterface
-	var (
-		forwarderBindInterface bool
-		includeAllNetworks     bool
-	)
-	if t.platformInterface != nil {
-		forwarderBindInterface = true
-		includeAllNetworks = t.platformInterface.IncludeAllNetworks()
-	}
-	tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
-		Context:                t.ctx,
-		Tun:                    tunInterface,
-		TunOptions:             t.tunOptions,
-		UDPTimeout:             t.udpTimeout,
-		Handler:                t,
-		Logger:                 t.logger,
-		ForwarderBindInterface: forwarderBindInterface,
-		InterfaceFinder:        t.networkManager.InterfaceFinder(),
-		IncludeAllNetworks:     includeAllNetworks,
-	})
-	if err != nil {
-		return err
-	}
-	t.tunStack = tunStack
-	t.logger.Info("started at ", t.tunOptions.Name)
-	return nil
-}
-
-func (t *Inbound) PostStart() error {
-	monitor := taskmonitor.New(t.logger, C.StartTimeout)
-	monitor.Start("starting tun stack")
-	err := t.tunStack.Start()
-	monitor.Finish()
-	if err != nil {
-		return E.Cause(err, "starting tun stack")
-	}
-	monitor.Start("starting tun interface")
-	err = t.tunIf.Start()
-	monitor.Finish()
-	if err != nil {
-		return E.Cause(err, "starting TUN interface")
-	}
-	if t.autoRedirect != nil {
-		t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
-		for _, routeRuleSet := range t.routeRuleSet {
-			ipSets := routeRuleSet.ExtractIPSet()
-			if len(ipSets) == 0 {
-				t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeRuleSet.Name())
-			}
-			t.routeAddressSet = append(t.routeAddressSet, ipSets...)
+func (t *Inbound) Start(stage adapter.StartStage) error {
+	switch stage {
+	case adapter.StartStateStart:
+		if C.IsAndroid && t.platformInterface == nil {
+			t.tunOptions.BuildAndroidRules(t.networkManager.PackageManager())
 		}
-		t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
-		for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
-			ipSets := routeExcludeRuleSet.ExtractIPSet()
-			if len(ipSets) == 0 {
-				t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
-			}
-			t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
+		if t.tunOptions.Name == "" {
+			t.tunOptions.Name = tun.CalculateInterfaceName("")
 		}
-		monitor.Start("initialize auto-redirect")
-		err := t.autoRedirect.Start()
+		var (
+			tunInterface tun.Tun
+			err          error
+		)
+		monitor := taskmonitor.New(t.logger, C.StartTimeout)
+		monitor.Start("open tun interface")
+		if t.platformInterface != nil {
+			tunInterface, err = t.platformInterface.OpenTun(&t.tunOptions, t.platformOptions)
+		} else {
+			tunInterface, err = tun.New(t.tunOptions)
+		}
 		monitor.Finish()
 		if err != nil {
-			return E.Cause(err, "auto-redirect")
+			return E.Cause(err, "configure tun interface")
 		}
-		for _, routeRuleSet := range t.routeRuleSet {
-			t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
-			routeRuleSet.DecRef()
+		t.logger.Trace("creating stack")
+		t.tunIf = tunInterface
+		var (
+			forwarderBindInterface bool
+			includeAllNetworks     bool
+		)
+		if t.platformInterface != nil {
+			forwarderBindInterface = true
+			includeAllNetworks = t.platformInterface.IncludeAllNetworks()
 		}
-		for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
-			t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
-			routeExcludeRuleSet.DecRef()
+		tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
+			Context:                t.ctx,
+			Tun:                    tunInterface,
+			TunOptions:             t.tunOptions,
+			UDPTimeout:             t.udpTimeout,
+			Handler:                t,
+			Logger:                 t.logger,
+			ForwarderBindInterface: forwarderBindInterface,
+			InterfaceFinder:        t.networkManager.InterfaceFinder(),
+			IncludeAllNetworks:     includeAllNetworks,
+		})
+		if err != nil {
+			return err
 		}
-		t.routeAddressSet = nil
-		t.routeExcludeAddressSet = nil
+		t.tunStack = tunStack
+		t.logger.Info("started at ", t.tunOptions.Name)
+	case adapter.StartStatePostStart:
+		monitor := taskmonitor.New(t.logger, C.StartTimeout)
+		monitor.Start("starting tun stack")
+		err := t.tunStack.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "starting tun stack")
+		}
+		monitor.Start("starting tun interface")
+		err = t.tunIf.Start()
+		monitor.Finish()
+		if err != nil {
+			return E.Cause(err, "starting TUN interface")
+		}
+		if t.autoRedirect != nil {
+			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
+			for _, routeRuleSet := range t.routeRuleSet {
+				ipSets := routeRuleSet.ExtractIPSet()
+				if len(ipSets) == 0 {
+					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeRuleSet.Name())
+				}
+				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
+			}
+			t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
+			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
+				ipSets := routeExcludeRuleSet.ExtractIPSet()
+				if len(ipSets) == 0 {
+					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
+				}
+				t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
+			}
+			monitor.Start("initialize auto-redirect")
+			err := t.autoRedirect.Start()
+			monitor.Finish()
+			if err != nil {
+				return E.Cause(err, "auto-redirect")
+			}
+			for _, routeRuleSet := range t.routeRuleSet {
+				t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				routeRuleSet.DecRef()
+			}
+			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
+				t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				routeExcludeRuleSet.DecRef()
+			}
+			t.routeAddressSet = nil
+			t.routeExcludeAddressSet = nil
+		}
 	}
 	return nil
 }
