@@ -27,6 +27,13 @@ direct 出站中的目标地址覆盖字段（`override_address` / `override_por
 
 旧字段将在 sing-box 1.13.0 中被移除。
 
+#### WireGuard 出站
+
+WireGuard 出站已废弃且可以通过端点替代，
+参阅 [迁移指南](/migration/#migrate-wireguard-outbound-to-endpoint)。
+
+旧出站将在 sing-box 1.13.0 中被移除。
+
 ## 1.10.0
 
 #### Match source 规则项已重命名

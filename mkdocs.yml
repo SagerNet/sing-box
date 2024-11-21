@@ -112,6 +112,9 @@ nav:
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md
           - TCP Brutal: configuration/shared/tcp-brutal.md
+      - Endpoint:
+          - configuration/endpoint/index.md
+          - WireGuard: configuration/endpoint/wireguard.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
@@ -241,6 +244,7 @@ plugins:
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层
 
+            Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
 
