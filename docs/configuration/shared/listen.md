@@ -68,9 +68,9 @@ Enable UDP fragmentation.
 
 #### udp_timeout
 
-UDP NAT expiration time in seconds.
+UDP NAT expiration time.
 
-`5m` is used by default.
+`5m` will be used by default.
 
 #### detour
 
