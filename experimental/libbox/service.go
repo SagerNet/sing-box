@@ -44,7 +44,7 @@ type BoxService struct {
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry())
+	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	options, err := parseConfig(ctx, configContent)
