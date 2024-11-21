@@ -13,7 +13,7 @@ import (
 )
 
 type Inbound interface {
-	Service
+	Lifecycle
 	Type() string
 	Tag() string
 }
