@@ -101,7 +101,10 @@ func newMultiInbound(ctx context.Context, router adapter.Router, logger log.Cont
 	return inbound, err
 }
 
-func (h *MultiInbound) Start() error {
+func (h *MultiInbound) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
 	return h.listener.Start()
 }
 

@@ -69,5 +69,5 @@ func preRun(cmd *cobra.Command, args []string) {
 		configPaths = append(configPaths, "config.json")
 	}
 	globalCtx = service.ContextWith(globalCtx, deprecated.NewStderrManager(log.StdLogger()))
-	globalCtx = box.Context(globalCtx, include.InboundRegistry(), include.OutboundRegistry())
+	globalCtx = box.Context(globalCtx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
 }
