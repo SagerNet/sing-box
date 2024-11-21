@@ -61,7 +61,10 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 	return tproxy, nil
 }
 
-func (t *TProxy) Start() error {
+func (t *TProxy) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
 	err := t.listener.Start()
 	if err != nil {
 		return err

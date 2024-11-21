@@ -41,17 +41,17 @@ type NetworkManager struct {
 	autoDetectInterface    bool
 	defaultOptions         adapter.NetworkOptions
 	autoRedirectOutputMark uint32
-
-	networkMonitor    tun.NetworkUpdateMonitor
-	interfaceMonitor  tun.DefaultInterfaceMonitor
-	packageManager    tun.PackageManager
-	powerListener     winpowrprof.EventListener
-	pauseManager      pause.Manager
-	platformInterface platform.Interface
-	inboundManager    adapter.InboundManager
-	outboundManager   adapter.OutboundManager
-	wifiState         adapter.WIFIState
-	started           bool
+	networkMonitor         tun.NetworkUpdateMonitor
+	interfaceMonitor       tun.DefaultInterfaceMonitor
+	packageManager         tun.PackageManager
+	powerListener          winpowrprof.EventListener
+	pauseManager           pause.Manager
+	platformInterface      platform.Interface
+	endpoint               adapter.EndpointManager
+	inbound                adapter.InboundManager
+	outbound               adapter.OutboundManager
+	wifiState              adapter.WIFIState
+	started                bool
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
@@ -69,7 +69,9 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		},
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[platform.Interface](ctx),
-		outboundManager:   service.FromContext[adapter.OutboundManager](ctx),
+		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
+		inbound:           service.FromContext[adapter.InboundManager](ctx),
+		outbound:          service.FromContext[adapter.OutboundManager](ctx),
 	}
 	if C.NetworkStrategy(routeOptions.DefaultNetworkStrategy) != C.NetworkStrategyDefault {
 		if routeOptions.DefaultInterface != "" {
@@ -358,14 +360,21 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 func (r *NetworkManager) ResetNetwork() {
 	conntrack.Close()
 
-	for _, inbound := range r.inboundManager.Inbounds() {
+	for _, endpoint := range r.endpoint.Endpoints() {
+		listener, isListener := endpoint.(adapter.InterfaceUpdateListener)
+		if isListener {
+			listener.InterfaceUpdated()
+		}
+	}
+
+	for _, inbound := range r.inbound.Inbounds() {
 		listener, isListener := inbound.(adapter.InterfaceUpdateListener)
 		if isListener {
 			listener.InterfaceUpdated()
 		}
 	}
 
-	for _, outbound := range r.outboundManager.Outbounds() {
+	for _, outbound := range r.outbound.Outbounds() {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
 			listener.InterfaceUpdated()

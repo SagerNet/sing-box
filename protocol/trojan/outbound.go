@@ -43,7 +43,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter:    outbound.NewAdapterWithDialerOptions(C.TypeTrojan, options.Network.Build(), tag, options.DialerOptions),
+		Adapter:    outbound.NewAdapterWithDialerOptions(C.TypeTrojan, tag, options.Network.Build(), options.DialerOptions),
 		logger:     logger,
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
