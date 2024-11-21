@@ -1,6 +1,9 @@
 package adapter
 
 func LegacyStart(starter any, stage StartStage) error {
+	if lifecycle, isLifecycle := starter.(Lifecycle); isLifecycle {
+		return lifecycle.Start(stage)
+	}
 	switch stage {
 	case StartStateInitialize:
 		if preStarter, isPreStarter := starter.(interface {
