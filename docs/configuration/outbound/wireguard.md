@@ -6,6 +6,10 @@ icon: material/delete-clock
 
     WireGuard outbound is deprecated and will be removed in sing-box 1.13.0, check [Migration](/migration/#migrate-wireguard-outbound-to-endpoint).
 
+!!! quote "Changes in sing-box 1.11.0"
+
+    :material-delete-alert: [gso](#gso)
+
 !!! quote "Changes in sing-box 1.8.0"
     
     :material-plus: [gso](#gso)  
@@ -20,7 +24,6 @@ icon: material/delete-clock
   "server": "127.0.0.1",
   "server_port": 1080,
   "system_interface": false,
-  "gso": false,
   "interface_name": "wg0",
   "local_address": [
     "10.0.0.1/32"
@@ -44,6 +47,10 @@ icon: material/delete-clock
   "workers": 4,
   "mtu": 1408,
   "network": "tcp",
+
+  // Deprecated
+  
+  "gso": false,
 
   ... // Dial Fields
 }
@@ -76,6 +83,10 @@ Forced if gVisor not included in the build.
 Custom interface name for system interface.
 
 #### gso
+
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    GSO will be automatically enabled when available since sing-box 1.11.0.
 
 !!! question "Since sing-box 1.8.0"
 

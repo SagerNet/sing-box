@@ -104,7 +104,6 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 		CreateDialer:   options.CreateDialer,
 		Name:           options.Name,
 		MTU:            options.MTU,
-		GSO:            options.GSO,
 		Address:        options.Address,
 		AllowedAddress: allowedAddresses,
 	}
