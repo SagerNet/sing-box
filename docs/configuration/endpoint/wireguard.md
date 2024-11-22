@@ -14,7 +14,6 @@ icon: material/new-box
   "system": false,
   "name": "",
   "mtu": 1408,
-  "gso": false,
   "address": [],
   "private_key": "",
   "listen_port": 10000,
@@ -36,6 +35,10 @@ icon: material/new-box
 }
 ```
 
+!!! note ""
+
+    You can ignore the JSON Array [] tag when the content is only one item
+
 ### Fields
 
 #### system
@@ -53,14 +56,6 @@ Custom interface name for system interface.
 WireGuard MTU.
 
 `1408` will be used by default.
-
-#### gso
-
-!!! quote ""
-
-    Only supported on Linux.
-
-Try to enable generic segmentation offload.
 
 #### address
 
