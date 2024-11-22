@@ -243,7 +243,6 @@ WireGuard 出站已被弃用，且可以被端点替代。
           "system": true,
           "name": "wg0",
           "mtu": 1408,
-          "gso": true,
           "address": [
             "10.0.0.2/32"
           ],
