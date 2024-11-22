@@ -4,7 +4,16 @@ icon: material/alert-decagram
 
 #### 1.11.0-alpha.19
 
+* Upgrade WireGuard outbound to endpoint **1**
 * Fixes and improvements
+
+**1**:
+
+The new WireGuard endpoint combines inbound and outbound capabilities,
+and the old outbound will be removed in sing-box 1.13.0.
+
+See [Endpoint](/configuration/endpoint/), [WireGuard Endpoint](/configuration/endpoint/wireguard/)
+and [Migrate WireGuard outbound fields to route options](/migration/#migrate-wireguard-outbound-to-endpoint).
 
 ### 1.10.2
 
