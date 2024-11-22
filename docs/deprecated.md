@@ -35,6 +35,12 @@ check [Migration](../migration/#migrate-wireguard-outbound-to-endpoint).
 
 Old outbound will be removed in sing-box 1.13.0.
 
+#### GSO option in TUN
+
+GSO has no advantages for transparent proxy scenarios, is deprecated and no longer works in TUN.
+
+Old fields will be removed in sing-box 1.13.0.
+
 ## 1.10.0
 
 #### TUN address fields are merged

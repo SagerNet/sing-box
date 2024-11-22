@@ -1,6 +1,10 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
+
+!!! quote "Changes in sing-box 1.11.0"
+
+    :material-delete-alert: [gso](#gso)
 
 !!! quote "Changes in sing-box 1.10.0"
 
@@ -46,16 +50,7 @@ icon: material/new-box
     "172.18.0.1/30",
     "fdfe:dcba:9876::1/126"
   ],
-  // deprecated
-  "inet4_address": [
-    "172.19.0.1/30"
-  ],
-  // deprecated
-  "inet6_address": [
-    "fdfe:dcba:9876::1/126"
-  ],
   "mtu": 9000,
-  "gso": false,
   "auto_route": true,
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
@@ -69,26 +64,9 @@ icon: material/new-box
     "::/1",
     "8000::/1"
   ],
-  // deprecated
-  "inet4_route_address": [
-    "0.0.0.0/1",
-    "128.0.0.0/1"
-  ],
-  // deprecated
-  "inet6_route_address": [
-    "::/1",
-    "8000::/1"
-  ],
+  
   "route_exclude_address": [
     "192.168.0.0/16",
-    "fc00::/7"
-  ],
-  // deprecated
-  "inet4_route_exclude_address": [
-    "192.168.0.0/16"
-  ],
-  // deprecated
-  "inet6_route_exclude_address": [
     "fc00::/7"
   ],
   "route_address_set": [
@@ -137,8 +115,31 @@ icon: material/new-box
       "match_domain": []
     }
   },
-  ...
-  // Listen Fields
+
+  // Deprecated
+  "gso": false,
+  "inet4_address": [
+    "172.19.0.1/30"
+  ],
+  "inet6_address": [
+    "fdfe:dcba:9876::1/126"
+  ],
+  "inet4_route_address": [
+    "0.0.0.0/1",
+    "128.0.0.0/1"
+  ],
+  "inet6_route_address": [
+    "::/1",
+    "8000::/1"
+  ],
+  "inet4_route_exclude_address": [
+    "192.168.0.0/16"
+  ],
+  "inet6_route_exclude_address": [
+    "fc00::/7"
+  ],
+  
+  ... // Listen Fields
 }
 ```
 
@@ -166,7 +167,7 @@ IPv4 and IPv6 prefix for the tun interface.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-    `inet4_address` is merged to `address` and will be removed in sing-box 1.11.0.
+    `inet4_address` is merged to `address` and will be removed in sing-box 1.12.0.
 
 IPv4 prefix for the tun interface.
 
@@ -174,7 +175,7 @@ IPv4 prefix for the tun interface.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-    `inet6_address` is merged to `address` and will be removed in sing-box 1.11.0.
+    `inet6_address` is merged to `address` and will be removed in sing-box 1.12.0.
 
 IPv6 prefix for the tun interface.
 
@@ -183,6 +184,10 @@ IPv6 prefix for the tun interface.
 The maximum transmission unit.
 
 #### gso
+
+!!! failure "Deprecated in sing-box 1.11.0"
+
+    GSO has no advantages for transparent proxy scenarios, is deprecated and no longer works, and will be removed in sing-box 1.12.0.
 
 !!! question "Since sing-box 1.8.0"
 
@@ -284,7 +289,7 @@ Use custom routes instead of default when `auto_route` is enabled.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-`inet4_route_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_address](#route_address)
+`inet4_route_address` is deprecated and will be removed in sing-box 1.12.0, please use [route_address](#route_address)
 instead.
 
 Use custom routes instead of default when `auto_route` is enabled.
@@ -293,7 +298,7 @@ Use custom routes instead of default when `auto_route` is enabled.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-`inet6_route_address` is deprecated and will be removed in sing-box 1.11.0, please use [route_address](#route_address)
+`inet6_route_address` is deprecated and will be removed in sing-box 1.12.0, please use [route_address](#route_address)
 instead.
 
 Use custom routes instead of default when `auto_route` is enabled.
@@ -308,7 +313,7 @@ Exclude custom routes when `auto_route` is enabled.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-`inet4_route_exclude_address` is deprecated and will be removed in sing-box 1.11.0, please
+`inet4_route_exclude_address` is deprecated and will be removed in sing-box 1.12.0, please
 use [route_exclude_address](#route_exclude_address) instead.
 
 Exclude custom routes when `auto_route` is enabled.
@@ -317,7 +322,7 @@ Exclude custom routes when `auto_route` is enabled.
 
 !!! failure "Deprecated in sing-box 1.10.0"
 
-`inet6_route_exclude_address` is deprecated and will be removed in sing-box 1.11.0, please
+`inet6_route_exclude_address` is deprecated and will be removed in sing-box 1.12.0, please
 use [route_exclude_address](#route_exclude_address) instead.
 
 Exclude custom routes when `auto_route` is enabled.
