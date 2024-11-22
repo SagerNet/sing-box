@@ -42,6 +42,9 @@ type Outbound struct {
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.LegacyWireGuardOutboundOptions) (adapter.Outbound, error) {
 	deprecated.Report(ctx, deprecated.OptionWireGuardOutbound)
+	if options.GSO {
+		deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
+	}
 	outbound := &Outbound{
 		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
 		ctx:            ctx,
@@ -89,7 +92,6 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		},
 		Name:       options.InterfaceName,
 		MTU:        options.MTU,
-		GSO:        options.GSO,
 		Address:    options.LocalAddress,
 		PrivateKey: options.PrivateKey,
 		ResolvePeer: func(domain string) (netip.Addr, error) {
