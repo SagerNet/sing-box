@@ -14,7 +14,6 @@ icon: material/new-box
   "system": false,
   "name": "",
   "mtu": 1408,
-  "gso": false,
   "address": [],
   "private_key": "",
   "listen_port": 10000,
@@ -36,6 +35,10 @@ icon: material/new-box
 }
 ```
 
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+
 ### 字段
 
 #### system_interface
@@ -53,14 +56,6 @@ icon: material/new-box
 WireGuard MTU。
 
 默认使用 1408。
-
-#### gso
-
-!!! quote ""
-
-    仅支持 Linux。
-
-尝试启用通用分段卸载。
 
 #### address
 
