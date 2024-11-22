@@ -10,7 +10,6 @@ type WireGuardEndpointOptions struct {
 	System     bool                             `json:"system,omitempty"`
 	Name       string                           `json:"name,omitempty"`
 	MTU        uint32                           `json:"mtu,omitempty"`
-	GSO        bool                             `json:"gso,omitempty"`
 	Address    badoption.Listable[netip.Prefix] `json:"address"`
 	PrivateKey string                           `json:"private_key"`
 	ListenPort uint16                           `json:"listen_port,omitempty"`

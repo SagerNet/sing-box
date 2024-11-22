@@ -34,5 +34,5 @@ func (f *stderrManager) ReportDeprecated(feature Note) {
 		return
 	}
 	f.logger.Error(feature.MessageWithLink())
-	f.logger.Fatal("to continuing using this feature, set ENABLE_DEPRECATED_" + feature.EnvName + "=true")
+	f.logger.Fatal("to continuing using this feature, set environment variable ENABLE_DEPRECATED_" + feature.EnvName + "=true")
 }
