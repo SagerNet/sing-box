@@ -33,17 +33,31 @@ func (n Note) Impending() bool {
 }
 
 func (n Note) Message() string {
-	return F.ToString(
-		n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
-		" and will be removed in sing-box ", n.ScheduledVersion, ", please checkout documentation for migration.",
-	)
+	if n.MigrationLink != "" {
+		return F.ToString(
+			n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
+			" and will be removed in sing-box ", n.ScheduledVersion, ", please checkout documentation for migration.",
+		)
+	} else {
+		return F.ToString(
+			n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
+			" and will be removed in sing-box ", n.ScheduledVersion, ".",
+		)
+	}
 }
 
 func (n Note) MessageWithLink() string {
-	return F.ToString(
-		n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
-		" and will be removed in sing-box ", n.ScheduledVersion, ", checkout documentation for migration: ", n.MigrationLink,
-	)
+	if n.MigrationLink != "" {
+		return F.ToString(
+			n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
+			" and will be removed in sing-box ", n.ScheduledVersion, ", checkout documentation for migration: ", n.MigrationLink,
+		)
+	} else {
+		return F.ToString(
+			n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
+			" and will be removed in sing-box ", n.ScheduledVersion, ".",
+		)
+	}
 }
 
 var OptionBadMatchSource = Note{
@@ -118,6 +132,23 @@ var OptionWireGuardOutbound = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-wireguard-outbound-to-endpoint",
 }
 
+var OptionWireGuardGSO = Note{
+	Name:              "wireguard-gso",
+	Description:       "GSO option in wireguard outbound",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.13.0",
+	EnvName:           "WIREGUARD_GSO",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-wireguard-outbound-to-endpoint",
+}
+
+var OptionTUNGSO = Note{
+	Name:              "tun-gso",
+	Description:       "GSO option in tun",
+	DeprecatedVersion: "1.11.0",
+	ScheduledVersion:  "1.12.0",
+	EnvName:           "TUN_GSO",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
@@ -127,4 +158,6 @@ var Options = []Note{
 	OptionInboundOptions,
 	OptionDestinationOverrideFields,
 	OptionWireGuardOutbound,
+	OptionWireGuardGSO,
+	OptionTUNGSO,
 }

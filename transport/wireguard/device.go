@@ -28,7 +28,6 @@ type DeviceOptions struct {
 	CreateDialer   func(interfaceName string) N.Dialer
 	Name           string
 	MTU            uint32
-	GSO            bool
 	Address        []netip.Prefix
 	AllowedAddress []netip.Prefix
 }
