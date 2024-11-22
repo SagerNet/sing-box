@@ -26,6 +26,7 @@ type configSchema struct {
 	AllowLan    bool           `json:"allow-lan"`
 	BindAddress string         `json:"bind-address"`
 	Mode        string         `json:"mode"`
+	ModeList    []string       `json:"mode-list"`
 	LogLevel    string         `json:"log-level"`
 	IPv6        bool           `json:"ipv6"`
 	Tun         map[string]any `json:"tun"`
@@ -40,6 +41,7 @@ func getConfigs(server *Server, logFactory log.Factory) func(w http.ResponseWrit
 			logLevel = log.LevelError
 		}
 		render.JSON(w, r, &configSchema{
+			ModeList:    server.modeList,
 			Mode:        server.mode,
 			BindAddress: "*",
 			LogLevel:    log.FormatLevel(logLevel),
