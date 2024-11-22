@@ -13,7 +13,6 @@ import (
 type TunInboundOptions struct {
 	InterfaceName          string                           `json:"interface_name,omitempty"`
 	MTU                    uint32                           `json:"mtu,omitempty"`
-	GSO                    bool                             `json:"gso,omitempty"`
 	Address                badoption.Listable[netip.Prefix] `json:"address,omitempty"`
 	AutoRoute              bool                             `json:"auto_route,omitempty"`
 	IPRoute2TableIndex     int                              `json:"iproute2_table_index,omitempty"`
@@ -41,6 +40,8 @@ type TunInboundOptions struct {
 	Platform               *TunPlatformOptions              `json:"platform,omitempty"`
 	InboundOptions
 
+	// Deprecated: removed
+	GSO bool `json:"gso,omitempty"`
 	// Deprecated: merged to Address
 	Inet4Address badoption.Listable[netip.Prefix] `json:"inet4_address,omitempty"`
 	// Deprecated: merged to Address
