@@ -242,7 +242,6 @@ WireGuard outbound is deprecated and can be replaced by endpoint.
           "system": true,
           "name": "wg0",
           "mtu": 1408,
-          "gso": true,
           "address": [
             "10.0.0.2/32"
           ],
