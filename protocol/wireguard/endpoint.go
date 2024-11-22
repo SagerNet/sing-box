@@ -51,8 +51,6 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if options.Detour == "" {
 		options.IsWireGuardListener = true
-	} else if options.GSO {
-		return nil, E.New("gso is conflict with detour")
 	}
 	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
 	if err != nil {
@@ -72,7 +70,6 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		},
 		Name:       options.Name,
 		MTU:        options.MTU,
-		GSO:        options.GSO,
 		Address:    options.Address,
 		PrivateKey: options.PrivateKey,
 		ListenPort: options.ListenPort,

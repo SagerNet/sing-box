@@ -64,14 +64,14 @@ type Inbound struct {
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (adapter.Inbound, error) {
 	address := options.Address
 	var deprecatedAddressUsed bool
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet4Address) > 0 {
 		address = append(address, options.Inet4Address...)
 		deprecatedAddressUsed = true
 	}
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet6Address) > 0 {
 		address = append(address, options.Inet6Address...)
 		deprecatedAddressUsed = true
@@ -84,14 +84,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	routeAddress := options.RouteAddress
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet4RouteAddress) > 0 {
 		routeAddress = append(routeAddress, options.Inet4RouteAddress...)
 		deprecatedAddressUsed = true
 	}
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet6RouteAddress) > 0 {
 		routeAddress = append(routeAddress, options.Inet6RouteAddress...)
 		deprecatedAddressUsed = true
@@ -104,14 +104,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	routeExcludeAddress := options.RouteExcludeAddress
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet4RouteExcludeAddress) > 0 {
 		routeExcludeAddress = append(routeExcludeAddress, options.Inet4RouteExcludeAddress...)
 		deprecatedAddressUsed = true
 	}
+
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	if len(options.Inet6RouteExcludeAddress) > 0 {
 		routeExcludeAddress = append(routeExcludeAddress, options.Inet6RouteExcludeAddress...)
 		deprecatedAddressUsed = true
@@ -125,6 +125,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 
 	if deprecatedAddressUsed {
 		deprecated.Report(ctx, deprecated.OptionTUNAddressX)
+	}
+
+	//nolint:staticcheck
+	if options.GSO {
+		deprecated.Report(ctx, deprecated.OptionTUNGSO)
 	}
 
 	tunMTU := options.MTU
@@ -180,7 +185,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		tunOptions: tun.Options{
 			Name:                     options.InterfaceName,
 			MTU:                      tunMTU,
-			GSO:                      options.GSO,
 			Inet4Address:             inet4Address,
 			Inet6Address:             inet6Address,
 			AutoRoute:                options.AutoRoute,
