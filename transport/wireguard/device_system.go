@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -64,7 +63,7 @@ func (w *systemDevice) Start() error {
 			return it.Addr().Is6()
 		}),
 		MTU:            w.options.MTU,
-		GSO:            w.options.GSO,
+		GSO:            true,
 		InterfaceScope: true,
 		Inet4RouteAddress: common.Filter(w.options.AllowedAddress, func(it netip.Prefix) bool {
 			return it.Addr().Is4()
@@ -87,12 +86,8 @@ func (w *systemDevice) Start() error {
 	}
 	w.options.Logger.Info("started at ", w.options.Name)
 	w.device = tunInterface
-	if w.options.GSO {
-		batchTUN, isBatchTUN := tunInterface.(tun.LinuxTUN)
-		if !isBatchTUN {
-			tunInterface.Close()
-			return E.New("GSO is not supported on current platform")
-		}
+	batchTUN, isBatchTUN := tunInterface.(tun.LinuxTUN)
+	if isBatchTUN {
 		w.batchDevice = batchTUN
 	}
 	w.events <- wgTun.EventUp
