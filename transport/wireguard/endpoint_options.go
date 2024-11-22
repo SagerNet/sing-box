@@ -21,7 +21,6 @@ type EndpointOptions struct {
 	CreateDialer func(interfaceName string) N.Dialer
 	Name         string
 	MTU          uint32
-	GSO          bool
 	Address      []netip.Prefix
 	PrivateKey   string
 	ListenPort   uint16
