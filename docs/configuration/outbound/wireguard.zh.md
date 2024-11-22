@@ -1,3 +1,11 @@
+---
+icon: material/delete-clock
+---
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    WireGuard 出站已被启用，且将在 sing-box 1.13.0 中被移除，参阅 [迁移指南](/migration/#migrate-wireguard-outbound-to-endpoint)。
+
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-plus: [gso](#gso)  
@@ -15,7 +23,7 @@
   "gso": false,
   "interface_name": "wg0",
   "local_address": [
-    "10.0.0.2/32"
+    "10.0.0.1/32"
   ],
   "private_key": "YNXtAzepDqRv9H52osJVDQnznT5AM11eCK3ESpwSt04=",
   "peer_public_key": "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=",
