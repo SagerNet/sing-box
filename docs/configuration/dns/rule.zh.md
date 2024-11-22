@@ -379,7 +379,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `rule_set_ipcidr_match_source` 已重命名为 `rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 移除。
+    `rule_set_ipcidr_match_source` 已重命名为 `rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 中被移除。
 
 使规则集中的 `ip_cidr` 规则匹配源 IP。
 
