@@ -149,9 +149,6 @@ func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listene
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, E.New("no available network interface")
 	}
-	if fallbackDelay == 0 {
-		fallbackDelay = N.DefaultFallbackDelay
-	}
 	var errors []error
 	for _, primaryInterface := range primaryInterfaces {
 		perNetListener := listener

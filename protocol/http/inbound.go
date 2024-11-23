@@ -82,33 +82,25 @@ func (h *Inbound) Close() error {
 }
 
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	err := h.newConnection(ctx, conn, metadata, onClose)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
-	if err != nil {
-		if E.IsClosedOrCanceled(err) {
-			h.logger.DebugContext(ctx, "connection closed: ", err)
-		} else {
-			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
-		}
-	}
-}
-
-func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
 	var err error
 	if h.tlsConfig != nil {
 		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
 		if err != nil {
-			return err
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source, ": TLS handshake"))
+			return
 		}
 	}
-	return http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+	err = http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+	if err != nil {
+		N.CloseOnHandshakeFailure(conn, onClose, err)
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	}
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
@@ -123,8 +115,6 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
