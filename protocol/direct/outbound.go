@@ -63,9 +63,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		dialer:               outboundDialer,
 		// loopBack:       newLoopBackDetector(router),
 	}
+	//nolint:staticcheck
 	if options.ProxyProtocol != 0 {
 		return nil, E.New("Proxy Protocol is deprecated and removed in sing-box 1.6.0")
 	}
+	//nolint:staticcheck
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		outbound.overrideOption = 1
 		outbound.overrideDestination = M.ParseSocksaddrHostPort(options.OverrideAddress, options.OverridePort)
@@ -161,6 +163,7 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 	if h.domainStrategy != dns.DomainStrategyAsIS {
 		domainStrategy = h.domainStrategy
 	} else {
+		//nolint:staticcheck
 		domainStrategy = dns.DomainStrategy(metadata.InboundOptions.DomainStrategy)
 	}
 	switch domainStrategy {
@@ -200,6 +203,7 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	if h.domainStrategy != dns.DomainStrategyAsIS {
 		domainStrategy = h.domainStrategy
 	} else {
+		//nolint:staticcheck
 		domainStrategy = dns.DomainStrategy(metadata.InboundOptions.DomainStrategy)
 	}
 	switch domainStrategy {
