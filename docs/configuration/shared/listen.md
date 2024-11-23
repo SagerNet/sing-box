@@ -92,7 +92,7 @@ See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 !!! failure "Deprecated in sing-box 1.11.0"
 
-    Inbound fields are deprecated and will be removed in sing-box 1.13.0.
+    Inbound fields are deprecated and will be removed in sing-box 1.13.0, check [Migration](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 Override the connection destination address with the sniffed domain.
 

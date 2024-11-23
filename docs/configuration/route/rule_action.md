@@ -131,7 +131,8 @@ Not available when `method` is set to drop.
 {
   "action": "sniff",
   "sniffer": [],
-  "timeout": ""
+  "timeout": "",
+  "override_destination": false
 }
 ```
 
@@ -152,6 +153,12 @@ Available protocol values an be found on in [Protocol Sniff](../sniff/)
 Timeout for sniffing.
 
 `300ms` is used by default.
+
+### override_destination
+
+Override the connection destination address with the sniffed domain.
+
+If the domain name is invalid (like tor), this will not work.
 
 ### resolve
 

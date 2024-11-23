@@ -123,6 +123,7 @@ Inbound fields are deprecated and can be replaced by rule actions.
           "type": "mixed",
           "sniff": true,
           "sniff_timeout": "1s",
+          "sniff_override_destination": true,
           "domain_strategy": "prefer_ipv4"
         }
       ]
@@ -149,7 +150,8 @@ Inbound fields are deprecated and can be replaced by rule actions.
           {
             "inbound": "in",
             "action": "sniff",
-            "timeout": "1s"
+            "timeout": "1s",
+            "override_destination": true
           }
         ]
       }

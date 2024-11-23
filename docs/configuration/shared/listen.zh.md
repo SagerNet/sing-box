@@ -93,7 +93,7 @@ UDP NAT 过期时间。
 
 !!! failure "已在 sing-box 1.11.0 废弃"
 
-    入站字段已废弃且将在 sing-box 1.12.0 中被移除。
+    入站字段已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/migration/#migrate-legacy-inbound-fields-to-rule-actions).
 
 用探测出的域名覆盖连接目标地址。
 

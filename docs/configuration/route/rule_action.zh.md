@@ -129,7 +129,8 @@ icon: material/new-box
 {
   "action": "sniff",
   "sniffer": [],
-  "timeout": ""
+  "timeout": "",
+  "override_destination": false
 }
 ```
 
@@ -150,6 +151,12 @@ icon: material/new-box
 探测超时时间。
 
 默认使用 300ms。
+
+#### override_destination
+
+用探测出的域名覆盖连接目标地址。
+
+如果域名无效（如 Tor），将不生效。
 
 ### resolve
 
