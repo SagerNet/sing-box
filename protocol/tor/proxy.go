@@ -1,13 +1,13 @@
 package tor
 
 import (
+	std_bufio "bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"net"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
@@ -15,12 +15,14 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
+	"github.com/sagernet/sing/service"
 )
 
 type ProxyListener struct {
 	ctx           context.Context
 	logger        log.ContextLogger
 	dialer        N.Dialer
+	connection    adapter.ConnectionManager
 	tcpListener   *net.TCPListener
 	username      string
 	password      string
@@ -38,6 +40,7 @@ func NewProxyListener(ctx context.Context, logger log.ContextLogger, dialer N.Di
 		ctx:           ctx,
 		logger:        logger,
 		dialer:        dialer,
+		connection:    service.FromContext[adapter.ConnectionManager](ctx),
 		authenticator: auth.NewAuthenticator([]auth.User{{Username: username, Password: password}}),
 		username:      username,
 		password:      password,
@@ -95,25 +98,24 @@ func (l *ProxyListener) acceptLoop() {
 	}
 }
 
-// TODO: migrate to new api
-//
-//nolint:staticcheck
 func (l *ProxyListener) accept(ctx context.Context, conn *net.TCPConn) error {
-	return socks.HandleConnection(ctx, conn, l.authenticator, l, M.Metadata{})
+	return socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), l.authenticator, nil, l, M.SocksaddrFromNet(conn.RemoteAddr()), M.Socksaddr{}, nil)
 }
 
-func (l *ProxyListener) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata M.Metadata) error {
+func (l *ProxyListener) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	var metadata adapter.InboundContext
+	metadata.Source = source
+	metadata.Destination = destination
 	metadata.Network = N.NetworkTCP
-	metadata.Destination = upstreamMetadata.Destination
 	l.logger.InfoContext(ctx, "proxy connection to ", metadata.Destination)
-	return outbound.NewConnection(ctx, l.dialer, conn, metadata)
+	l.connection.NewConnection(ctx, l.dialer, conn, metadata, onClose)
 }
 
-func (l *ProxyListener) NewPacketConnection(ctx context.Context, conn N.PacketConn, upstreamMetadata M.Metadata) error {
+func (l *ProxyListener) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	var metadata adapter.InboundContext
+	metadata.Source = source
+	metadata.Destination = destination
 	metadata.Network = N.NetworkUDP
-	metadata.Destination = upstreamMetadata.Destination
 	l.logger.InfoContext(ctx, "proxy packet connection to ", metadata.Destination)
-	return outbound.NewPacketConnection(ctx, l.dialer, conn, metadata)
+	l.connection.NewPacketConnection(ctx, l.dialer, conn, metadata, onClose)
 }

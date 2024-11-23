@@ -16,19 +16,19 @@ import (
 )
 
 type Handler interface {
-	N.TCPConnectionHandler
-	N.UDPConnectionHandler
+	N.TCPConnectionHandlerEx
+	N.UDPConnectionHandlerEx
 }
 
 type Service[K comparable] struct {
 	users           map[K][56]byte
 	keys            map[[56]byte]K
 	handler         Handler
-	fallbackHandler N.TCPConnectionHandler
+	fallbackHandler N.TCPConnectionHandlerEx
 	logger          logger.ContextLogger
 }
 
-func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHandler, logger logger.ContextLogger) *Service[K] {
+func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHandlerEx, logger logger.ContextLogger) *Service[K] {
 	return &Service[K]{
 		users:           make(map[K][56]byte),
 		keys:            make(map[[56]byte]K),
@@ -59,19 +59,19 @@ func (s *Service[K]) UpdateUsers(userList []K, passwordList []string) error {
 	return nil
 }
 
-func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, onClose N.CloseHandlerFunc) error {
 	var key [KeyLength]byte
 	n, err := conn.Read(key[:])
 	if err != nil {
 		return err
 	} else if n != KeyLength {
-		return s.fallback(ctx, conn, metadata, key[:n], E.New("bad request size"))
+		return s.fallback(ctx, conn, source, key[:n], E.New("bad request size"), onClose)
 	}
 
 	if user, loaded := s.keys[key]; loaded {
 		ctx = auth.ContextWithUser(ctx, user)
 	} else {
-		return s.fallback(ctx, conn, metadata, key[:], E.New("bad request"))
+		return s.fallback(ctx, conn, source, key[:], E.New("bad request"), onClose)
 	}
 
 	err = rw.SkipN(conn, 2)
@@ -102,26 +102,25 @@ func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, metadata 
 		return E.Cause(err, "skip crlf")
 	}
 
-	metadata.Protocol = "trojan"
-	metadata.Destination = destination
-
 	switch command {
 	case CommandTCP:
-		return s.handler.NewConnection(ctx, conn, metadata)
+		s.handler.NewConnectionEx(ctx, conn, source, destination, onClose)
 	case CommandUDP:
-		return s.handler.NewPacketConnection(ctx, &PacketConn{Conn: conn}, metadata)
+		s.handler.NewPacketConnectionEx(ctx, &PacketConn{Conn: conn}, source, destination, onClose)
 	// case CommandMux:
 	default:
-		return HandleMuxConnection(ctx, conn, metadata, s.handler, s.logger)
+		return HandleMuxConnection(ctx, conn, source, s.handler, s.logger, onClose)
 	}
+	return nil
 }
 
-func (s *Service[K]) fallback(ctx context.Context, conn net.Conn, metadata M.Metadata, header []byte, err error) error {
+func (s *Service[K]) fallback(ctx context.Context, conn net.Conn, source M.Socksaddr, header []byte, err error, onClose N.CloseHandlerFunc) error {
 	if s.fallbackHandler == nil {
 		return E.Extend(err, "fallback disabled")
 	}
 	conn = bufio.NewCachedConn(conn, buf.As(header).ToOwned())
-	return s.fallbackHandler.NewConnection(ctx, conn, metadata)
+	s.fallbackHandler.NewConnectionEx(ctx, conn, source, M.Socksaddr{}, onClose)
+	return nil
 }
 
 type PacketConn struct {
