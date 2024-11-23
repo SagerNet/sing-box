@@ -80,36 +80,25 @@ func (i *Inbound) Close() error {
 }
 
 func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
-	var destination M.Socksaddr
-	switch i.overrideOption {
-	case 1:
-		destination = i.overrideDestination
-	case 2:
-		destination = i.overrideDestination
-		destination.Port = i.listener.UDPAddr().Port
-	case 3:
-		destination = source
-		destination.Port = i.overrideDestination.Port
-	}
-	i.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, destination, nil)
+	i.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, M.Socksaddr{}, nil)
 }
 
 func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	switch i.overrideOption {
-	case 1:
-		metadata.Destination = i.overrideDestination
-	case 2:
-		destination := i.overrideDestination
-		destination.Port = metadata.Destination.Port
-		metadata.Destination = destination
-	case 3:
-		metadata.Destination.Port = i.overrideDestination.Port
-	}
-	i.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
-	metadata.InboundDetour = i.listener.ListenOptions().Detour
-	metadata.InboundOptions = i.listener.ListenOptions().InboundOptions
+	destination := metadata.OriginDestination
+	switch i.overrideOption {
+	case 1:
+		destination = i.overrideDestination
+	case 2:
+		destination.Addr = i.overrideDestination.Addr
+	case 3:
+		destination.Port = metadata.Destination.Port
+	}
+	metadata.Destination = destination
+	if i.overrideOption != 0 {
+		i.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
+	}
 	i.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
@@ -119,9 +108,21 @@ func (i *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	var metadata adapter.InboundContext
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
+	//nolint:staticcheck
 	metadata.InboundDetour = i.listener.ListenOptions().Detour
+	//nolint:staticcheck
 	metadata.InboundOptions = i.listener.ListenOptions().InboundOptions
 	metadata.Source = source
+	destination = i.listener.UDPAddr()
+	switch i.overrideOption {
+	case 1:
+		destination = i.overrideDestination
+	case 2:
+		destination.Addr = i.overrideDestination.Addr
+	case 3:
+		destination.Port = i.overrideDestination.Port
+	default:
+	}
 	metadata.Destination = destination
 	metadata.OriginDestination = i.listener.UDPAddr()
 	i.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
