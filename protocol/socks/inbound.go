@@ -76,8 +76,6 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
@@ -92,8 +90,6 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
