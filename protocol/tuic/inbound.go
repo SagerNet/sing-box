@@ -105,7 +105,9 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	//nolint:staticcheck
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.OriginDestination = h.listener.UDPAddr()
 	metadata.Source = source
@@ -126,7 +128,9 @@ func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	//nolint:staticcheck
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.OriginDestination = h.listener.UDPAddr()
 	metadata.Source = source
