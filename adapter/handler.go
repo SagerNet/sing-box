@@ -46,6 +46,9 @@ type PacketConnectionHandlerEx interface {
 	NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata InboundContext, onClose N.CloseHandlerFunc)
 }
 
+// Deprecated: use TCPConnectionHandlerEx instead
+//
+//nolint:staticcheck
 type UpstreamHandlerAdapter interface {
 	N.TCPConnectionHandler
 	N.UDPConnectionHandler
