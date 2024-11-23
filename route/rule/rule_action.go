@@ -78,8 +78,9 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return &RuleActionHijackDNS{}, nil
 	case C.RuleActionTypeSniff:
 		sniffAction := &RuleActionSniff{
-			snifferNames: action.SniffOptions.Sniffer,
-			Timeout:      time.Duration(action.SniffOptions.Timeout),
+			snifferNames:        action.SniffOptions.Sniffer,
+			Timeout:             time.Duration(action.SniffOptions.Timeout),
+			OverrideDestination: action.SniffOptions.OverrideDestination,
 		}
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
@@ -286,11 +287,10 @@ func (r *RuleActionHijackDNS) String() string {
 }
 
 type RuleActionSniff struct {
-	snifferNames   []string
-	StreamSniffers []sniff.StreamSniffer
-	PacketSniffers []sniff.PacketSniffer
-	Timeout        time.Duration
-	// Deprecated
+	snifferNames        []string
+	StreamSniffers      []sniff.StreamSniffer
+	PacketSniffers      []sniff.PacketSniffer
+	Timeout             time.Duration
 	OverrideDestination bool
 }
 
