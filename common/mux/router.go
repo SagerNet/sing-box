@@ -41,10 +41,10 @@ func NewRouterWithOptions(router adapter.ConnectionRouterEx, logger logger.Conte
 		NewStreamContext: func(ctx context.Context, conn net.Conn) context.Context {
 			return log.ContextWithNewID(ctx)
 		},
-		Logger:  logger,
-		Handler: adapter.NewRouteContextHandler(router, logger),
-		Padding: options.Padding,
-		Brutal:  brutalOptions,
+		Logger:    logger,
+		HandlerEx: adapter.NewRouteContextHandlerEx(router),
+		Padding:   options.Padding,
+		Brutal:    brutalOptions,
 	})
 	if err != nil {
 		return nil, err
@@ -52,6 +52,7 @@ func NewRouterWithOptions(router adapter.ConnectionRouterEx, logger logger.Conte
 	return &Router{router, service}, nil
 }
 
+// Deprecated: Use RouteConnectionEx instead.
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if metadata.Destination == mux.Destination {
 		// TODO: check if WithContext is necessary
@@ -61,6 +62,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 }
 
+// Deprecated: Use RoutePacketConnectionEx instead.
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return r.router.RoutePacketConnection(ctx, conn, metadata)
 }
