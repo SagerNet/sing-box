@@ -21,7 +21,15 @@
   ],
   "ignore_client_bandwidth": false,
   "tls": {},
-  "masquerade": "",
+  "masquerade": {
+    "type": "proxy",
+    "proxy": {
+      "url": "",
+      "rewriteHost": true
+    },
+    "file": "/var/www",
+    "string": "Some-Stuffs"
+  },
   "brutal_debug": false
 }
 ```
@@ -81,10 +89,13 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 HTTP3 server behavior when authentication fails.
 
-| Scheme       | Example                 | Description        |
-|--------------|-------------------------|--------------------|
-| `file`       | `file:///var/www`       | As a file server   |
-| `http/https` | `http://127.0.0.1:8080` | As a reverse proxy |
+| Key          | Example                        | Description          |
+|--------------|--------------------------------|----------------------|
+| `type`       | `file \| proxy \| string`      | masquerade modes     |
+| `file`       | `/var/www`                     | As a file server     |
+| `proxy.url`         | `http://127.0.0.1:8080` | As a reverse proxy   |
+| `proxy.rewriteHost` | `true \| false`         | Rewrite the Host header to match the proxied website |
+| `string`            | `Some-Stuffs`           | as a constant string server |
 
 A 404 page will be returned if empty.
 

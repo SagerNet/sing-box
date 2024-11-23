@@ -60,25 +60,37 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 	}
 	var masqueradeHandler http.Handler
-	if options.Masquerade != "" {
-		masqueradeURL, err := url.Parse(options.Masquerade)
-		if err != nil {
-			return nil, E.Cause(err, "parse masquerade URL")
-		}
-		switch masqueradeURL.Scheme {
+	if options.Masquerade != (option.Hysteria2Masquerade{}) {
+		switch options.Masquerade.Type {
 		case "file":
-			masqueradeHandler = http.FileServer(http.Dir(masqueradeURL.Path))
-		case "http", "https":
+			masqueradeHandler = http.FileServer(http.Dir(options.Masquerade.File))
+		case "proxy":
+			masqueradeURL, err := url.Parse(options.Masquerade.Proxy.URL)
+			if err != nil {
+				return nil, E.Cause(err, "parse masquerade URL")
+			}
 			masqueradeHandler = &httputil.ReverseProxy{
 				Rewrite: func(r *httputil.ProxyRequest) {
 					r.SetURL(masqueradeURL)
+					// SetURL rewrites the Host header,
+					// but we don't want that if rewriteHost is false
+					if !options.Masquerade.Proxy.RewriteHost {
+						r.Out.Host = r.In.Host
+					}
 				},
 				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 					w.WriteHeader(http.StatusBadGateway)
 				},
 			}
+		case "string":
+			if options.Masquerade.String != "" {
+				masqueradeHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK) // Use 200 OK by default
+					_, _ = w.Write([]byte(options.Masquerade.String))
+				})
+			}
 		default:
-			return nil, E.New("unknown masquerade URL scheme: ", masqueradeURL.Scheme)
+			return nil, E.New("unknown masquerade type: ", options.Masquerade.Type)
 		}
 	}
 	inbound := &Inbound{

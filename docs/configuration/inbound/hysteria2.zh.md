@@ -21,7 +21,15 @@
   ],
   "ignore_client_bandwidth": false,
   "tls": {},
-  "masquerade": "",
+  "masquerade": {
+    "type": "proxy",
+    "proxy": {
+      "url": "",
+      "rewriteHost": true
+    },
+    "file": "/var/www",
+    "string": "Some-Stuffs"
+  },
   "brutal_debug": false
 }
 ```
@@ -82,6 +90,14 @@ HTTP3 服务器认证失败时的行为。
 |--------------|-------------------------|---------|
 | `file`       | `file:///var/www`       | 作为文件服务器 |
 | `http/https` | `http://127.0.0.1:8080` | 作为反向代理  |
+
+| Key          | 示例                           | 描述                 |
+|--------------|--------------------------------|----------------------|
+| `type`       | `file \| proxy \| string`      | 模式     |
+| `file`       | `/var/www`                     | 作为文件服务器 |
+| `proxy.url`         | `http://127.0.0.1:8080` | 作为反向代理   |
+| `proxy.rewriteHost` | `true \| false`         | 重写 `Host` 头以匹配被代理的网站 |
+| `string`            | `Some-Stuffs`           | 作为常量字符服务器 |
 
 如果为空，则返回 404 页。
 
