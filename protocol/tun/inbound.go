@@ -41,11 +41,9 @@ type Inbound struct {
 	router         adapter.Router
 	networkManager adapter.NetworkManager
 	logger         log.ContextLogger
-	// Deprecated
-	inboundOptions option.InboundOptions
-	tunOptions     tun.Options
-	// Deprecated
-	endpointIndependentNat      bool
+	//nolint:staticcheck
+	inboundOptions              option.InboundOptions
+	tunOptions                  tun.Options
 	udpTimeout                  time.Duration
 	stack                       string
 	tunIf                       tun.Tun
@@ -202,11 +200,10 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			ExcludePackage:           options.ExcludePackage,
 			InterfaceMonitor:         networkManager.InterfaceMonitor(),
 		},
-		endpointIndependentNat: options.EndpointIndependentNat,
-		udpTimeout:             udpTimeout,
-		stack:                  options.Stack,
-		platformInterface:      service.FromContext[platform.Interface](ctx),
-		platformOptions:        common.PtrValueOrDefault(options.Platform),
+		udpTimeout:        udpTimeout,
+		stack:             options.Stack,
+		platformInterface: service.FromContext[platform.Interface](ctx),
+		platformOptions:   common.PtrValueOrDefault(options.Platform),
 	}
 	if options.AutoRedirect {
 		if !options.AutoRoute {
@@ -436,6 +433,7 @@ func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	metadata.InboundType = C.TypeTun
 	metadata.Source = source
 	metadata.Destination = destination
+	//nolint:staticcheck
 	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
@@ -449,6 +447,7 @@ func (t *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	metadata.InboundType = C.TypeTun
 	metadata.Source = source
 	metadata.Destination = destination
+	//nolint:staticcheck
 	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
@@ -464,6 +463,7 @@ func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn
 	metadata.InboundType = C.TypeTun
 	metadata.Source = source
 	metadata.Destination = destination
+	//nolint:staticcheck
 	metadata.InboundOptions = t.inboundOptions
 	t.logger.InfoContext(ctx, "inbound redirect connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
