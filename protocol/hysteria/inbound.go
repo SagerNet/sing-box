@@ -66,7 +66,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	}
 	if len(options.Down) > 0 {
 		receiveBps, err = humanize.ParseBytes(options.Down)
-		if receiveBps == 0 {
+		if err != nil {
 			return nil, E.New("invalid down speed format: ", options.Down)
 		}
 	} else {
@@ -123,7 +123,9 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	//nolint:staticcheck
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.OriginDestination = h.listener.UDPAddr()
 	metadata.Source = source
@@ -144,7 +146,9 @@ func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	var metadata adapter.InboundContext
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	//nolint:staticcheck
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	metadata.OriginDestination = h.listener.UDPAddr()
 	metadata.Source = source
