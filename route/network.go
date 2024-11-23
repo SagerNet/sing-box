@@ -205,7 +205,7 @@ func (r *NetworkManager) Close() error {
 		})
 		monitor.Finish()
 	}
-	return nil
+	return err
 }
 
 func (r *NetworkManager) InterfaceFinder() control.InterfaceFinder {
