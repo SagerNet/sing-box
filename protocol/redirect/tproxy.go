@@ -106,8 +106,6 @@ func (t *TProxy) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, s
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.Tag()
 	metadata.InboundType = t.Type()
-	metadata.InboundDetour = t.listener.ListenOptions().Detour
-	metadata.InboundOptions = t.listener.ListenOptions().InboundOptions
 	metadata.Source = source
 	metadata.Destination = destination
 	metadata.OriginDestination = t.listener.UDPAddr()

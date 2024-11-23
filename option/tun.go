@@ -35,7 +35,6 @@ type TunInboundOptions struct {
 	IncludeAndroidUser     badoption.Listable[int]          `json:"include_android_user,omitempty"`
 	IncludePackage         badoption.Listable[string]       `json:"include_package,omitempty"`
 	ExcludePackage         badoption.Listable[string]       `json:"exclude_package,omitempty"`
-	EndpointIndependentNat bool                             `json:"endpoint_independent_nat,omitempty"`
 	UDPTimeout             UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
 	Stack                  string                           `json:"stack,omitempty"`
 	Platform               *TunPlatformOptions              `json:"platform,omitempty"`
@@ -53,6 +52,8 @@ type TunInboundOptions struct {
 	Inet4RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet4_route_exclude_address,omitempty"`
 	// Deprecated: merged to RouteExcludeAddress
 	Inet6RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet6_route_exclude_address,omitempty"`
+	// Deprecated: removed
+	EndpointIndependentNat bool `json:"endpoint_independent_nat,omitempty"`
 }
 
 type FwMark uint32
