@@ -65,7 +65,8 @@ type InboundContext struct {
 	LastInbound              string
 	OriginDestination        M.Socksaddr
 	RouteOriginalDestination M.Socksaddr
-	// Deprecated
+	// Deprecated: to be removed
+	//nolint:staticcheck
 	InboundOptions            option.InboundOptions
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool

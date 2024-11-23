@@ -53,6 +53,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		return E.New("reject connection to ", metadata.Destination, " while device paused")
 	}
 
+	//nolint:staticcheck
 	if metadata.InboundDetour != "" {
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
@@ -182,6 +183,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if r.pauseManager.IsDevicePaused() {
 		return E.New("reject packet connection to ", metadata.Destination, " while device paused")
 	}
+	//nolint:staticcheck
 	if metadata.InboundDetour != "" {
 		if metadata.LastInbound == metadata.InboundDetour {
 			return E.New("routing loop on detour: ", metadata.InboundDetour)
@@ -281,7 +283,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext) error {
 	if !isReject {
 		return nil
 	}
-	return rejectAction.Error(nil)
+	return rejectAction.Error(context.Background())
 }
 
 func (r *Router) matchRule(
