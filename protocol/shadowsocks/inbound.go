@@ -104,6 +104,7 @@ func (h *Inbound) Close() error {
 	return h.listener.Close()
 }
 
+//nolint:staticcheck
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
@@ -116,6 +117,7 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	}
 }
 
+//nolint:staticcheck
 func (h *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
 	err := h.service.NewPacket(h.ctx, &stubPacketConn{h.listener.PacketWriter()}, buffer, M.Metadata{Source: source})
 	if err != nil {
@@ -127,8 +129,6 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -138,8 +138,6 @@ func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, me
 	h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }
 

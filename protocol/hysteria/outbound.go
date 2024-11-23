@@ -69,8 +69,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if len(options.Down) > 0 {
 		receiveBps, err = humanize.ParseBytes(options.Down)
-		if receiveBps == 0 {
-			return nil, E.New("invalid down speed format: ", options.Down)
+		if err != nil {
+			return nil, E.Cause(err, "invalid down speed format: ", options.Down)
 		}
 	} else {
 		receiveBps = uint64(options.DownMbps) * hysteria.MbpsToBps
