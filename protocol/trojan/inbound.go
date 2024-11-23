@@ -56,7 +56,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 		inbound.tlsConfig = tlsConfig
 	}
-	var fallbackHandler N.TCPConnectionHandler
+	var fallbackHandler N.TCPConnectionHandlerEx
 	if options.Fallback != nil && options.Fallback.Server != "" || len(options.FallbackForALPN) > 0 {
 		if options.Fallback != nil && options.Fallback.Server != "" {
 			inbound.fallbackAddr = options.Fallback.Build()
@@ -78,9 +78,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			}
 			inbound.fallbackAddrTLSNextProto = fallbackAddrNextProto
 		}
-		fallbackHandler = adapter.NewUpstreamContextHandler(inbound.fallbackConnection, nil, nil)
+		fallbackHandler = adapter.NewUpstreamContextHandlerEx(inbound.fallbackConnection, nil)
 	}
-	service := trojan.NewService[int](adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, nil), fallbackHandler, logger)
+	service := trojan.NewService[int](adapter.NewUpstreamContextHandlerEx(inbound.newConnection, inbound.newPacketConnection), fallbackHandler, logger)
 	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.TrojanUser) int {
 		return index
 	}), common.Map(options.Users, func(it option.TrojanUser) string {
@@ -158,37 +158,30 @@ func (h *Inbound) Close() error {
 	)
 }
 
-func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	var err error
 	if h.tlsConfig != nil && h.transport == nil {
 		conn, err = tls.ServerHandshake(ctx, conn, h.tlsConfig)
 		if err != nil {
-			return err
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source, ": TLS handshake"))
+			return
 		}
 	}
-	return h.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, adapter.UpstreamMetadata(metadata))
-}
-
-func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	err := h.NewConnection(ctx, conn, metadata)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
+	err = h.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Source, onClose)
 	if err != nil {
-		if E.IsClosedOrCanceled(err) {
-			h.logger.DebugContext(ctx, "connection closed: ", err)
-		} else {
-			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
-		}
+		N.CloseOnHandshakeFailure(conn, onClose, err)
+		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
 	}
 }
 
-func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	userIndex, loaded := auth.UserFromContext[int](ctx)
 	if !loaded {
-		return os.ErrInvalid
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
 	}
 	user := h.users[userIndex].Name
 	if user == "" {
@@ -197,44 +190,16 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 		metadata.User = user
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
-	return h.router.RouteConnection(ctx, conn, metadata)
+	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (h *Inbound) fallbackConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	var fallbackAddr M.Socksaddr
-	if len(h.fallbackAddrTLSNextProto) > 0 {
-		if tlsConn, loaded := common.Cast[tls.Conn](conn); loaded {
-			connectionState := tlsConn.ConnectionState()
-			if connectionState.NegotiatedProtocol != "" {
-				if fallbackAddr, loaded = h.fallbackAddrTLSNextProto[connectionState.NegotiatedProtocol]; !loaded {
-					return E.New("fallback disabled for ALPN: ", connectionState.NegotiatedProtocol)
-				}
-			}
-		}
-	}
-	if !fallbackAddr.IsValid() {
-		if !h.fallbackAddr.IsValid() {
-			return E.New("fallback disabled by default")
-		}
-		fallbackAddr = h.fallbackAddr
-	}
+func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
-	h.logger.InfoContext(ctx, "fallback connection to ", fallbackAddr)
-	metadata.Destination = fallbackAddr
-	return h.router.RouteConnection(ctx, conn, metadata)
-}
-
-func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	metadata.Inbound = h.Tag()
-	metadata.InboundType = h.Type()
-	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	userIndex, loaded := auth.UserFromContext[int](ctx)
 	if !loaded {
-		return os.ErrInvalid
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
 	}
 	user := h.users[userIndex].Name
 	if user == "" {
@@ -243,7 +208,36 @@ func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, me
 		metadata.User = user
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
-	return h.router.RoutePacketConnection(ctx, conn, metadata)
+	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (h *Inbound) fallbackConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	var fallbackAddr M.Socksaddr
+	if len(h.fallbackAddrTLSNextProto) > 0 {
+		if tlsConn, loaded := common.Cast[tls.Conn](conn); loaded {
+			connectionState := tlsConn.ConnectionState()
+			if connectionState.NegotiatedProtocol != "" {
+				if fallbackAddr, loaded = h.fallbackAddrTLSNextProto[connectionState.NegotiatedProtocol]; !loaded {
+					h.logger.DebugContext(ctx, "process connection from ", metadata.Source, ": fallback disabled for ALPN: ", connectionState.NegotiatedProtocol)
+					N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+					return
+				}
+			}
+		}
+	}
+	if !fallbackAddr.IsValid() {
+		if !h.fallbackAddr.IsValid() {
+			h.logger.DebugContext(ctx, "process connection from ", metadata.Source, ": fallback disabled by default")
+			N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+			return
+		}
+		fallbackAddr = h.fallbackAddr
+	}
+	metadata.Inbound = h.Tag()
+	metadata.InboundType = h.Type()
+	metadata.Destination = fallbackAddr
+	h.logger.InfoContext(ctx, "fallback connection to ", fallbackAddr)
+	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
 var _ adapter.V2RayServerTransportHandler = (*inboundTransportHandler)(nil)
@@ -254,6 +248,10 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	var metadata adapter.InboundContext
 	metadata.Source = source
 	metadata.Destination = destination
+	//nolint:staticcheck
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	//nolint:staticcheck
+	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
 }
