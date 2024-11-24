@@ -132,23 +132,11 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if r.tracker != nil {
 		conn = r.tracker.RoutedConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
-	legacyOutbound, isLegacy := selectedOutbound.(adapter.ConnectionHandler)
-	if isLegacy {
-		err = legacyOutbound.NewConnection(ctx, conn, metadata)
-		if err != nil {
-			conn.Close()
-			if onClose != nil {
-				onClose(err)
-			}
-			return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
-		} else {
-			if onClose != nil {
-				onClose(nil)
-			}
-		}
-		return nil
+	if outboundHandler, isHandler := selectedOutbound.(adapter.ConnectionHandlerEx); isHandler {
+		outboundHandler.NewConnectionEx(ctx, conn, metadata, onClose)
+	} else {
+		r.connection.NewConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	}
-	r.connection.NewConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	return nil
 }
 
@@ -258,16 +246,11 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if metadata.FakeIP {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
-	legacyOutbound, isLegacy := selectedOutbound.(adapter.PacketConnectionHandler)
-	if isLegacy {
-		err = legacyOutbound.NewPacketConnection(ctx, conn, metadata)
-		N.CloseOnHandshakeFailure(conn, onClose, err)
-		if err != nil {
-			return E.Cause(err, F.ToString("outbound/", selectedOutbound.Type(), "[", selectedOutbound.Tag(), "]"))
-		}
-		return nil
+	if outboundHandler, isHandler := selectedOutbound.(adapter.PacketConnectionHandlerEx); isHandler {
+		outboundHandler.NewPacketConnectionEx(ctx, conn, metadata, onClose)
+	} else {
+		r.connection.NewPacketConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	}
-	r.connection.NewPacketConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	return nil
 }
 
@@ -439,6 +422,9 @@ match:
 			}
 			if routeOptions.UDPConnect {
 				metadata.UDPConnect = true
+			}
+			if routeOptions.UDPTimeout > 0 {
+				metadata.UDPTimeout = routeOptions.UDPTimeout
 			}
 		}
 		switch action := currentRule.Action().(type) {
