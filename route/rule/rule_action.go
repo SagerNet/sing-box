@@ -47,6 +47,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
+			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
 		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions))
@@ -152,6 +153,7 @@ type RuleActionRouteOptions struct {
 	FallbackDelay             time.Duration
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
+	UDPTimeout                time.Duration
 }
 
 func (r *RuleActionRouteOptions) Type() string {
