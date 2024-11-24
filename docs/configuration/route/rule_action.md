@@ -41,7 +41,8 @@ See `route-options` fields below.
   "network_strategy": "",
   "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
-  "udp_connect": false
+  "udp_connect": false,
+  "udp_timeout": ""
 }
 ```
 
@@ -85,6 +86,28 @@ do not support receiving UDP packets with domain addresses, such as Surge.
 #### udp_connect
 
 If enabled, attempts to connect UDP connection to the destination instead of listen.
+
+#### udp_timeout
+
+Timeout for UDP connections.
+
+Setting a larger value than the UDP timeout in inbounds will have no effect.
+
+Default value for protocol sniffed connections:
+
+| Timeout | Protocol             |
+|---------|----------------------|
+| `10s`   | `dns`, `ntp`, `stun` |
+| `30s`   | `quic`, `dtls`       |
+
+If no protocol is sniffed, the following ports will be recognized as protocols by default:
+
+| Port | Protocol |
+|------|----------|
+| 53   | `dns`    |
+| 123  | `ntp`    |
+| 443  | `quic`   |
+| 3478 | `stun`   |
 
 ### reject
 
