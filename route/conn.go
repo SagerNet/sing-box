@@ -6,11 +6,14 @@ import (
 	"net"
 	"net/netip"
 	"sync/atomic"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/canceler"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -207,6 +210,21 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
 			natConn.UpdateDestination(destinationAddress)
 		}
+	}
+	var udpTimeout time.Duration
+	if metadata.UDPTimeout > 0 {
+		udpTimeout = metadata.UDPTimeout
+	} else {
+		protocol := metadata.Protocol
+		if protocol == "" {
+			protocol = C.PortProtocols[metadata.Destination.Port]
+		}
+		if protocol != "" {
+			udpTimeout = C.ProtocolTimeouts[protocol]
+		}
+	}
+	if udpTimeout > 0 {
+		ctx, conn = canceler.NewPacketConn(ctx, conn, udpTimeout)
 	}
 	destination := bufio.NewPacketConn(remotePacketConn)
 	var done atomic.Bool
