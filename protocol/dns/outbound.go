@@ -42,20 +42,21 @@ func (d *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return nil, os.ErrInvalid
 }
 
-// Deprecated
-func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (d *Outbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Destination = M.Socksaddr{}
-	defer conn.Close()
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
 		err := HandleStreamDNSRequest(ctx, d.router, conn, metadata)
 		if err != nil {
-			return err
+			conn.Close()
+			if onClose != nil {
+				onClose(err)
+			}
+			return
 		}
 	}
 }
 
-// Deprecated
-func (d *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
+func (d *Outbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
 }

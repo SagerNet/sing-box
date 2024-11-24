@@ -10,6 +10,7 @@ const (
 	ProtocolDTLS       = "dtls"
 	ProtocolSSH        = "ssh"
 	ProtocolRDP        = "rdp"
+	ProtocolNTP        = "ntp"
 )
 
 const (
