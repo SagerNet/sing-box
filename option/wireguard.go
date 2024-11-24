@@ -14,7 +14,7 @@ type WireGuardEndpointOptions struct {
 	PrivateKey string                           `json:"private_key"`
 	ListenPort uint16                           `json:"listen_port,omitempty"`
 	Peers      []WireGuardPeer                  `json:"peers,omitempty"`
-	UDPTimeout UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
+	UDPTimeout badoption.Duration               `json:"udp_timeout,omitempty"`
 	Workers    int                              `json:"workers,omitempty"`
 	DialerOptions
 }
