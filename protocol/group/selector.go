@@ -10,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/atomic"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -21,17 +22,22 @@ func RegisterSelector(registry *outbound.Registry) {
 	outbound.Register[option.SelectorOutboundOptions](registry, C.TypeSelector, NewSelector)
 }
 
-var _ adapter.OutboundGroup = (*Selector)(nil)
+var (
+	_ adapter.OutboundGroup             = (*Selector)(nil)
+	_ adapter.ConnectionHandlerEx       = (*Selector)(nil)
+	_ adapter.PacketConnectionHandlerEx = (*Selector)(nil)
+)
 
 type Selector struct {
 	outbound.Adapter
 	ctx                          context.Context
-	outboundManager              adapter.OutboundManager
+	outbound                     adapter.OutboundManager
+	connection                   adapter.ConnectionManager
 	logger                       logger.ContextLogger
 	tags                         []string
 	defaultTag                   string
 	outbounds                    map[string]adapter.Outbound
-	selected                     adapter.Outbound
+	selected                     atomic.TypedValue[adapter.Outbound]
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 }
@@ -40,7 +46,8 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 	outbound := &Selector{
 		Adapter:                      outbound.NewAdapter(C.TypeSelector, tag, nil, options.Outbounds),
 		ctx:                          ctx,
-		outboundManager:              service.FromContext[adapter.OutboundManager](ctx),
+		outbound:                     service.FromContext[adapter.OutboundManager](ctx),
+		connection:                   service.FromContext[adapter.ConnectionManager](ctx),
 		logger:                       logger,
 		tags:                         options.Outbounds,
 		defaultTag:                   options.Default,
@@ -55,15 +62,16 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 }
 
 func (s *Selector) Network() []string {
-	if s.selected == nil {
+	selected := s.selected.Load()
+	if selected == nil {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
-	return s.selected.Network()
+	return selected.Network()
 }
 
 func (s *Selector) Start() error {
 	for i, tag := range s.tags {
-		detour, loaded := s.outboundManager.Outbound(tag)
+		detour, loaded := s.outbound.Outbound(tag)
 		if !loaded {
 			return E.New("outbound ", i, " not found: ", tag)
 		}
@@ -77,7 +85,7 @@ func (s *Selector) Start() error {
 			if selected != "" {
 				detour, loaded := s.outbounds[selected]
 				if loaded {
-					s.selected = detour
+					s.selected.Store(detour)
 					return nil
 				}
 			}
@@ -89,16 +97,16 @@ func (s *Selector) Start() error {
 		if !loaded {
 			return E.New("default outbound not found: ", s.defaultTag)
 		}
-		s.selected = detour
+		s.selected.Store(detour)
 		return nil
 	}
 
-	s.selected = s.outbounds[s.tags[0]]
+	s.selected.Store(s.outbounds[s.tags[0]])
 	return nil
 }
 
 func (s *Selector) Now() string {
-	selected := s.selected
+	selected := s.selected.Load()
 	if selected == nil {
 		return s.tags[0]
 	}
@@ -114,10 +122,9 @@ func (s *Selector) SelectOutbound(tag string) bool {
 	if !loaded {
 		return false
 	}
-	if s.selected == detour {
+	if s.selected.Swap(detour) == detour {
 		return true
 	}
-	s.selected = detour
 	if s.Tag() != "" {
 		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
 		if cacheFile != nil {
@@ -132,7 +139,7 @@ func (s *Selector) SelectOutbound(tag string) bool {
 }
 
 func (s *Selector) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	conn, err := s.selected.DialContext(ctx, network, destination)
+	conn, err := s.selected.Load().DialContext(ctx, network, destination)
 	if err != nil {
 		return nil, err
 	}
@@ -140,32 +147,30 @@ func (s *Selector) DialContext(ctx context.Context, network string, destination 
 }
 
 func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	conn, err := s.selected.ListenPacket(ctx, destination)
+	conn, err := s.selected.Load().ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
 	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 }
 
-// TODO
-// Deprecated
-func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+func (s *Selector) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
-	if legacyHandler, ok := s.selected.(adapter.ConnectionHandler); ok {
-		return legacyHandler.NewConnection(ctx, conn, metadata)
+	selected := s.selected.Load()
+	if outboundHandler, isHandler := selected.(adapter.ConnectionHandlerEx); isHandler {
+		outboundHandler.NewConnectionEx(ctx, conn, metadata, onClose)
 	} else {
-		return outbound.NewConnection(ctx, s.selected, conn, metadata)
+		s.connection.NewConnection(ctx, selected, conn, metadata, onClose)
 	}
 }
 
-// TODO
-// Deprecated
-func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+func (s *Selector) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
-	if legacyHandler, ok := s.selected.(adapter.PacketConnectionHandler); ok {
-		return legacyHandler.NewPacketConnection(ctx, conn, metadata)
+	selected := s.selected.Load()
+	if outboundHandler, isHandler := selected.(adapter.PacketConnectionHandlerEx); isHandler {
+		outboundHandler.NewPacketConnectionEx(ctx, conn, metadata, onClose)
 	} else {
-		return outbound.NewPacketConnection(ctx, s.selected, conn, metadata)
+		s.connection.NewPacketConnection(ctx, selected, conn, metadata, onClose)
 	}
 }
 
