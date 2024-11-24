@@ -37,7 +37,8 @@ icon: material/new-box
   "network_strategy": "",
   "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
-  "udp_connect": false
+  "udp_connect": false,
+  "udp_timeout": ""
 }
 ```
 
@@ -83,6 +84,28 @@ icon: material/new-box
 #### udp_connect
 
 如果启用，将尝试将 UDP 连接 connect 到目标而不是 listen。
+
+#### udp_timeout
+
+UDP 连接超时时间。
+
+设置比入站 UDP 超时更大的值将无效。
+
+已探测协议连接的默认值：
+
+| 超时    | 协议                   |
+|-------|----------------------|
+| `10s` | `dns`, `ntp`, `stun` |
+| `30s` | `quic`, `dtls`       |
+
+如果没有探测到协议，以下端口将默认识别为协议：
+
+| 端口   | 协议     |
+|------|--------|
+| 53   | `dns`  |
+| 123  | `ntp`  |
+| 443  | `quic` |
+| 3478 | `stun` |
 
 ### reject
 
