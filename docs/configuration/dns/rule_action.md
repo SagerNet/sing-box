@@ -10,6 +10,8 @@ icon: material/new-box
 {
   "action": "route",  // default
   "server": "",
+
+  // compatibility
   "disable_cache": false,
   "rewrite_ttl": 0,
   "client_subnet": null

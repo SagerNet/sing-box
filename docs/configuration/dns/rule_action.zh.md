@@ -60,7 +60,7 @@ icon: material/new-box
 ```json
 {
   "action": "reject",
-  "method": "default", // default
+  "method": "default", // 默认
   "no_drop": false
 }
 ```
