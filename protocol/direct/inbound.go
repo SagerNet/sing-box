@@ -72,10 +72,15 @@ func (i *Inbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return i.listener.Start()
+	err := i.listener.Start()
+	if err != nil {
+		return err
+	}
+	return i.udpNat.Start()
 }
 
 func (i *Inbound) Close() error {
+	i.udpNat.Close()
 	return i.listener.Close()
 }
 

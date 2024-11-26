@@ -85,10 +85,15 @@ func (t *TProxy) Start(stage adapter.StartStage) error {
 			return E.Cause(err, "configure tproxy UDP listener")
 		}
 	}
+	err = t.udpNat.Start()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (t *TProxy) Close() error {
+	t.udpNat.Close()
 	return t.listener.Close()
 }
 
