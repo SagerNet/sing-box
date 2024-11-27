@@ -99,9 +99,11 @@ publish_android:
 	cd ../sing-box-for-android && ./gradlew :app:publishPlayReleaseBundle && ./gradlew --stop
 
 # TODO: find why and remove `-destination 'generic/platform=iOS'`
+# TODO: remove xcode clean when fix control widget fixed
 build_ios:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFI.xcarchive && \
+	xcodebuild clean -scheme SFI && \
 	xcodebuild archive -scheme SFI -configuration Release -destination 'generic/platform=iOS' -archivePath build/SFI.xcarchive -allowProvisioningUpdates
 
 upload_ios_app_store:
