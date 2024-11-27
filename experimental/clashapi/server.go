@@ -316,27 +316,31 @@ func traffic(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, 
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
 		buf := &bytes.Buffer{}
-		var err error
+		var (
+			uploadTotal   int64
+			doanloadTotal int64
+			err           error
+		)
 		for range tick.C {
 			buf.Reset()
-			up, down := trafficManager.Now()
+			uploadTotalNew, downloadTotalNew := trafficManager.Total()
 			if err := json.NewEncoder(buf).Encode(Traffic{
-				Up:   up,
-				Down: down,
+				Up:   uploadTotalNew - uploadTotal,
+				Down: downloadTotalNew - doanloadTotal,
 			}); err != nil {
 				break
 			}
-
 			if conn == nil {
 				_, err = w.Write(buf.Bytes())
 				w.(http.Flusher).Flush()
 			} else {
 				err = wsutil.WriteServerText(conn, buf.Bytes())
 			}
-
 			if err != nil {
 				break
 			}
+			uploadTotal = uploadTotalNew
+			doanloadTotal = downloadTotalNew
 		}
 	}
 }
