@@ -33,7 +33,6 @@ func (s *CommandServer) readStatus() StatusMessage {
 	if s.service != nil {
 		message.TrafficAvailable = true
 		trafficManager := s.service.clashServer.(*clashapi.Server).TrafficManager()
-		message.Uplink, message.Downlink = trafficManager.Now()
 		message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
 		message.ConnectionsIn = int32(trafficManager.ConnectionsLen())
 	}
@@ -50,8 +49,20 @@ func (s *CommandServer) handleStatusConn(conn net.Conn) error {
 	ticker := time.NewTicker(time.Duration(interval))
 	defer ticker.Stop()
 	ctx := connKeepAlive(conn)
+	var (
+		status        StatusMessage
+		uploadTotal   int64
+		downloadTotal int64
+	)
 	for {
-		err = binary.Write(conn, binary.BigEndian, s.readStatus())
+		status = s.readStatus()
+		upload := status.UplinkTotal - uploadTotal
+		download := status.DownlinkTotal - downloadTotal
+		uploadTotal = status.UplinkTotal
+		downloadTotal = status.DownlinkTotal
+		status.Uplink = upload
+		status.Downlink = download
+		err = binary.Write(conn, binary.BigEndian, status)
 		if err != nil {
 			return err
 		}
