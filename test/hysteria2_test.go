@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -10,6 +11,35 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/json/badoption"
 )
+
+func TestHysteria2InboundOptionsMasqueradeUnmarshalJSON(t *testing.T) {
+	t.Run("schema-file", func(t *testing.T) {
+		m := testMasqueradeUnmarshalJSON(t, []byte(`"file:///var/www"`))
+		if m.Type != "file" || m.File != "/var/www" {
+			t.Errorf("Unexpected values: %+v", m)
+		}
+	})
+	t.Run("schema-https", func(t *testing.T) {
+		m := testMasqueradeUnmarshalJSON(t, []byte(`"https://example.org:443"`))
+		if m.Type != "proxy" || m.Proxy.URL != "https://example.org:443" || m.Proxy.RewriteHost != false {
+			t.Errorf("Unexpected values: %+v", m)
+		}
+	})
+	t.Run("schema-string", func(t *testing.T) {
+		m := testMasqueradeUnmarshalJSON(t, []byte(`"Some-Stuffs"`))
+		if m.Type != "string" || m.String != "Some-Stuffs" {
+			t.Errorf("Unexpected values: %+v", m)
+		}
+	})
+}
+
+func testMasqueradeUnmarshalJSON(t *testing.T, jsonData []byte) option.Hysteria2Masquerade {
+	var m option.Hysteria2Masquerade
+	if err := json.Unmarshal(jsonData, &m); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	return m
+}
 
 func TestHysteria2Self(t *testing.T) {
 	t.Run("self", func(t *testing.T) {
