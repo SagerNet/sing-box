@@ -1,11 +1,19 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "Changes in sing-box 1.11.0"
+
+    :material-alert: [masquerade](#masquerade)
+
 ### Structure
 
 ```json
 {
   "type": "hysteria2",
   "tag": "hy2-in",
-  ...
-  // Listen Fields
+  
+  ... // Listen Fields
 
   "up_mbps": 100,
   "down_mbps": 100,
@@ -21,7 +29,7 @@
   ],
   "ignore_client_bandwidth": false,
   "tls": {},
-  "masquerade": "",
+  "masquerade": "", // or {}
   "brutal_debug": false
 }
 ```
@@ -79,14 +87,54 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 
 #### masquerade
 
-HTTP3 server behavior when authentication fails.
+HTTP3 server behavior (URL string configuration) when authentication fails.
 
 | Scheme       | Example                 | Description        |
 |--------------|-------------------------|--------------------|
 | `file`       | `file:///var/www`       | As a file server   |
 | `http/https` | `http://127.0.0.1:8080` | As a reverse proxy |
 
-A 404 page will be returned if empty.
+Conflict with `masquerade.type`.
+
+A 404 page will be returned if masquerade is not configured.
+
+#### masquerade.type
+
+HTTP3 server behavior (Object configuration) when authentication fails.
+
+| Type     | Description                 | Fields                              |
+|----------|-----------------------------|-------------------------------------|
+| `file`   | As a file server            | `directory`                         |
+| `proxy`  | As a reverse proxy          | `url`, `rewrite_host`               |
+| `string` | Reply with a fixed response | `status_code`, `headers`, `content` |
+
+Conflict with `masquerade`.
+
+A 404 page will be returned if masquerade is not configured.
+
+#### masquerade.directory
+
+File server root directory.
+
+#### masquerade.url
+
+Reverse proxy target URL.
+
+#### masquerade.rewrite_host
+
+Rewrite the `Host` header to the target URL.
+
+#### masquerade.status_code
+
+Fixed response status code.
+
+#### masquerade.headers
+
+Fixed response headers.
+
+#### masquerade.content
+
+Fixed response content.
 
 #### brutal_debug
 
