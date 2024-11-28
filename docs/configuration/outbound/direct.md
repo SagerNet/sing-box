@@ -4,8 +4,8 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.11.0"
 
-    :material-alert-decagram: [override_address](#override_address)  
-    :material-alert-decagram: [override_port](#override_port)
+    :material-delete-clock: [override_address](#override_address)  
+    :material-delete-clock: [override_port](#override_port)
 
 `direct` outbound send requests directly.
 
