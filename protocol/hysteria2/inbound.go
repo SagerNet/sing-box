@@ -60,26 +60,40 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 	}
 	var masqueradeHandler http.Handler
-	if options.Masquerade != "" {
-		masqueradeURL, err := url.Parse(options.Masquerade)
-		if err != nil {
-			return nil, E.Cause(err, "parse masquerade URL")
-		}
-		switch masqueradeURL.Scheme {
-		case "file":
-			masqueradeHandler = http.FileServer(http.Dir(masqueradeURL.Path))
-		case "http", "https":
+	if options.Masquerade != nil && options.Masquerade.Type != "" {
+		switch options.Masquerade.Type {
+		case C.Hysterai2MasqueradeTypeFile:
+			masqueradeHandler = http.FileServer(http.Dir(options.Masquerade.FileOptions.Directory))
+		case C.Hysterai2MasqueradeTypeProxy:
+			masqueradeURL, err := url.Parse(options.Masquerade.ProxyOptions.URL)
+			if err != nil {
+				return nil, E.Cause(err, "parse masquerade URL")
+			}
 			masqueradeHandler = &httputil.ReverseProxy{
 				Rewrite: func(r *httputil.ProxyRequest) {
 					r.SetURL(masqueradeURL)
-					r.Out.Host = r.In.Host
+					if !options.Masquerade.ProxyOptions.RewriteHost {
+						r.Out.Host = r.In.Host
+					}
 				},
 				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 					w.WriteHeader(http.StatusBadGateway)
 				},
 			}
+		case C.Hysterai2MasqueradeTypeString:
+			masqueradeHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if options.Masquerade.StringOptions.StatusCode != 0 {
+					w.WriteHeader(options.Masquerade.StringOptions.StatusCode)
+				}
+				for key, values := range options.Masquerade.StringOptions.Headers {
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+				}
+				w.Write([]byte(options.Masquerade.StringOptions.Content))
+			})
 		default:
-			return nil, E.New("unknown masquerade URL scheme: ", masqueradeURL.Scheme)
+			return nil, E.New("unknown masquerade type: ", options.Masquerade.Type)
 		}
 	}
 	inbound := &Inbound{
