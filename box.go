@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"
+	"github.com/sagernet/sing-box/adapter/hook"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -44,6 +45,7 @@ type Box struct {
 	router     *route.Router
 	services   []adapter.LifecycleService
 	done       chan struct{}
+	hook       *hook.Manager
 }
 
 type Options struct {
@@ -283,6 +285,7 @@ func New(options Options) (*Box, error) {
 		logger:     logFactory.Logger(),
 		services:   services,
 		done:       make(chan struct{}),
+		hook:       hook.NewManager(options.Hook),
 	}, nil
 }
 
@@ -321,10 +324,13 @@ func (s *Box) Start() error {
 		return err
 	}
 	s.logger.Info("sing-box started (", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
-	return nil
+	return s.hook.PostStart()
 }
 
 func (s *Box) preStart() error {
+	if err := s.hook.PreStart(); err != nil {
+		return err
+	}
 	monitor := taskmonitor.New(s.logger, C.StartTimeout)
 	monitor.Start("start logger")
 	err := s.logFactory.Start()
@@ -390,6 +396,9 @@ func (s *Box) Close() error {
 	default:
 		close(s.done)
 	}
+	if err := s.preClose(); err != nil {
+		return err
+	}
 	err := common.Close(
 		s.inbound, s.outbound, s.router, s.connection, s.network,
 	)
@@ -401,7 +410,10 @@ func (s *Box) Close() error {
 	err = E.Append(err, s.logFactory.Close(), func(err error) error {
 		return E.Cause(err, "close logger")
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return s.postClose()
 }
 
 func (s *Box) Network() adapter.NetworkManager {
@@ -418,4 +430,18 @@ func (s *Box) Inbound() adapter.InboundManager {
 
 func (s *Box) Outbound() adapter.OutboundManager {
 	return s.outbound
+}
+
+func (s *Box) preClose() error {
+	if err := s.hook.PreStop(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Box) postClose() error {
+	if err := s.hook.PostStop(); err != nil {
+		return err
+	}
+	return nil
 }
