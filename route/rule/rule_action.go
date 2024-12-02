@@ -13,7 +13,6 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -85,7 +84,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
-			Strategy: dns.DomainStrategy(action.ResolveOptions.Strategy),
+			Strategy: C.DomainStrategy(action.ResolveOptions.Strategy),
 			Server:   action.ResolveOptions.Server,
 		}, nil
 	default:
@@ -344,7 +343,7 @@ func (r *RuleActionSniff) String() string {
 }
 
 type RuleActionResolve struct {
-	Strategy dns.DomainStrategy
+	Strategy C.DomainStrategy
 	Server   string
 }
 
@@ -353,11 +352,11 @@ func (r *RuleActionResolve) Type() string {
 }
 
 func (r *RuleActionResolve) String() string {
-	if r.Strategy == dns.DomainStrategyAsIS && r.Server == "" {
+	if r.Strategy == C.DomainStrategyAsIS && r.Server == "" {
 		return F.ToString("resolve")
-	} else if r.Strategy != dns.DomainStrategyAsIS && r.Server == "" {
+	} else if r.Strategy != C.DomainStrategyAsIS && r.Server == "" {
 		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ")")
-	} else if r.Strategy == dns.DomainStrategyAsIS && r.Server != "" {
+	} else if r.Strategy == C.DomainStrategyAsIS && r.Server != "" {
 		return F.ToString("resolve(", r.Server, ")")
 	} else {
 		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ",", r.Server, ")")

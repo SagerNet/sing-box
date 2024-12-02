@@ -3,12 +3,18 @@
 package include
 
 import (
-	"github.com/sagernet/sing-dns"
+	"context"
+
+	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func init() {
-	dns.RegisterTransport([]string{"dhcp"}, func(options dns.TransportOptions) (dns.Transport, error) {
+func registerDHCPTransport(registry *dns.TransportRegistry) {
+	dns.RegisterTransport[option.DHCPDNSServerOptions](registry, C.DNSTypeDHCP, func(ctx context.Context, logger log.ContextLogger, tag string, options option.DHCPDNSServerOptions) (adapter.DNSTransport, error) {
 		return nil, E.New(`DHCP is not included in this build, rebuild with -tags with_dhcp`)
 	})
 }
