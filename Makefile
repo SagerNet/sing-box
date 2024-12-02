@@ -2,14 +2,15 @@ NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
 TAGS_GO120 = with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,with_quic,with_utls
 TAGS_GO121 = with_ech
-TAGS ?= $(TAGS_GO118),$(TAGS_GO120),$(TAGS_GO121)
+TAGS_GO123 = badlinkname
+TAGS ?= $(TAGS_GO118),$(TAGS_GO120),$(TAGS_GO121),$(TAGS_GO123)
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server
 
 GOHOSTOS = $(shell go env GOHOSTOS)
 GOHOSTARCH = $(shell go env GOHOSTARCH)
 VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run ./cmd/internal/read_tag)
 
-PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
+PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid= -checklinkname=0"
 MAIN_PARAMS = $(PARAMS) -tags $(TAGS)
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)

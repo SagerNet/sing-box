@@ -7,7 +7,6 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -225,7 +224,7 @@ func (d DirectActionOptions) Descriptions() []string {
 	if d.UDPFragment != nil {
 		descriptions = append(descriptions, "udp_fragment="+fmt.Sprint(*d.UDPFragment))
 	}
-	if d.DomainStrategy != DomainStrategy(dns.DomainStrategyAsIS) {
+	if d.DomainStrategy != DomainStrategy(C.DomainStrategyAsIS) {
 		descriptions = append(descriptions, "domain_strategy="+d.DomainStrategy.String())
 	}
 	if d.FallbackDelay != 0 {
