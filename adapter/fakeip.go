@@ -3,7 +3,6 @@ package adapter
 import (
 	"net/netip"
 
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/logger"
 )
 
@@ -27,6 +26,6 @@ type FakeIPStorage interface {
 }
 
 type FakeIPTransport interface {
-	dns.Transport
+	DNSTransport
 	Store() FakeIPStore
 }

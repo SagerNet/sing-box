@@ -23,7 +23,7 @@ type Manager struct {
 	registry                adapter.OutboundRegistry
 	endpoint                adapter.EndpointManager
 	defaultTag              string
-	access                  sync.Mutex
+	access                  sync.RWMutex
 	started                 bool
 	stage                   adapter.StartStage
 	outbounds               []adapter.Outbound
@@ -169,15 +169,15 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) Outbounds() []adapter.Outbound {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	return m.outbounds
 }
 
 func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
-	m.access.Lock()
+	m.access.RLock()
 	outbound, found := m.outboundByTag[tag]
-	m.access.Unlock()
+	m.access.RUnlock()
 	if found {
 		return outbound, true
 	}
@@ -185,8 +185,8 @@ func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
 }
 
 func (m *Manager) Default() adapter.Outbound {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	if m.defaultOutbound != nil {
 		return m.defaultOutbound
 	} else {
@@ -196,9 +196,9 @@ func (m *Manager) Default() adapter.Outbound {
 
 func (m *Manager) Remove(tag string) error {
 	m.access.Lock()
+	defer m.access.Unlock()
 	outbound, found := m.outboundByTag[tag]
 	if !found {
-		m.access.Unlock()
 		return os.ErrInvalid
 	}
 	delete(m.outboundByTag, tag)
@@ -232,7 +232,6 @@ func (m *Manager) Remove(tag string) error {
 			})
 		}
 	}
-	m.access.Unlock()
 	if started {
 		return common.Close(outbound)
 	}

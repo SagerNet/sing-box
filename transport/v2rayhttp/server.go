@@ -164,7 +164,7 @@ func (s *Server) Serve(listener net.Listener) error {
 		if len(s.tlsConfig.NextProtos()) == 0 {
 			s.tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
 		} else if !common.Contains(s.tlsConfig.NextProtos(), http2.NextProtoTLS) {
-			s.tlsConfig.SetNextProtos(append([]string{"h2"}, s.tlsConfig.NextProtos()...))
+			s.tlsConfig.SetNextProtos(append([]string{http2.NextProtoTLS}, s.tlsConfig.NextProtos()...))
 		}
 		listener = aTLS.NewListener(listener, s.tlsConfig)
 	}
