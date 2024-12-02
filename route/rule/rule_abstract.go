@@ -51,18 +51,6 @@ func (r *abstractDefaultRule) Close() error {
 	return nil
 }
 
-func (r *abstractDefaultRule) UpdateGeosite() error {
-	for _, item := range r.allItems {
-		if geositeItem, isSite := item.(*GeositeItem); isSite {
-			err := geositeItem.Update()
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 	if len(r.allItems) == 0 {
 		return true
@@ -171,19 +159,6 @@ type abstractLogicalRule struct {
 
 func (r *abstractLogicalRule) Type() string {
 	return C.RuleTypeLogical
-}
-
-func (r *abstractLogicalRule) UpdateGeosite() error {
-	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (adapter.Rule, bool) {
-		rule, loaded := it.(adapter.Rule)
-		return rule, loaded
-	}) {
-		err := rule.UpdateGeosite()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (r *abstractLogicalRule) Start() error {
