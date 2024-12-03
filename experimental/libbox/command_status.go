@@ -51,19 +51,10 @@ func (s *CommandServer) handleStatusConn(conn net.Conn) error {
 	ticker := time.NewTicker(time.Duration(interval))
 	defer ticker.Stop()
 	ctx := connKeepAlive(conn)
-	var (
-		status        StatusMessage
-		uploadTotal   int64
-		downloadTotal int64
-	)
+	status := s.readStatus()
+	uploadTotal := status.UplinkTotal
+	downloadTotal := status.DownlinkTotal
 	for {
-		status = s.readStatus()
-		upload := status.UplinkTotal - uploadTotal
-		download := status.DownlinkTotal - downloadTotal
-		uploadTotal = status.UplinkTotal
-		downloadTotal = status.DownlinkTotal
-		status.Uplink = upload
-		status.Downlink = download
 		err = binary.Write(conn, binary.BigEndian, status)
 		if err != nil {
 			return err
@@ -73,6 +64,13 @@ func (s *CommandServer) handleStatusConn(conn net.Conn) error {
 			return ctx.Err()
 		case <-ticker.C:
 		}
+		status = s.readStatus()
+		upload := status.UplinkTotal - uploadTotal
+		download := status.DownlinkTotal - downloadTotal
+		uploadTotal = status.UplinkTotal
+		downloadTotal = status.DownlinkTotal
+		status.Uplink = upload
+		status.Downlink = download
 	}
 }
 
