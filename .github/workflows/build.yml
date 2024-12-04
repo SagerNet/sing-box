@@ -1,0 +1,358 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag version you want to build"
+  push:
+    branches:
+      - dev-next
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  calculate_tag:
+    name: Calculate version
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.calculate.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Calculate version
+        id: calculate
+        run: |-
+          go install -v ./cmd/internal/read_tag # TODO: remove
+          git checkout dev
+          TAG=$(read_tag --nightly)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_tag
+    strategy:
+      matrix:
+        include:
+          - name: linux_386
+            goos: linux
+            goarch: 386
+          - name: linux_amd64
+            goos: linux
+            goarch: amd64
+          - name: linux_arm64
+            goos: linux
+            goarch: arm64
+          - name: linux_arm
+            goos: linux
+            goarch: arm
+            goarm: 6
+          - name: linux_arm_v7
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - name: linux_s390x
+            goos: linux
+            goarch: s390x
+          - name: linux_riscv64
+            goos: linux
+            goarch: riscv64
+          - name: linux_mips64le
+            goos: linux
+            goarch: mips64le
+          - name: windows_amd64
+            goos: windows
+            goarch: amd64
+            require_legacy_go: true
+          - name: windows_386
+            goos: windows
+            goarch: 386
+            require_legacy_go: true
+          - name: windows_arm64
+            goos: windows
+            goarch: arm64
+          - name: darwin_arm64
+            goos: darwin
+            goarch: arm64
+          - name: darwin_amd64
+            goos: darwin
+            goarch: amd64
+            require_legacy_go: true
+          - name: android_arm64
+            goos: android
+            goarch: arm64
+          - name: android_arm
+            goos: android
+            goarch: arm
+            goarm: 7
+          - name: android_amd64
+            goos: android
+            goarch: amd64
+          - name: android_386
+            goos: android
+            goarch: 386
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Cache legacy Go
+        if: matrix.require_legacy_go
+        id: cache-legacy-go
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/go1.20.14
+          key: go120
+      - name: Setup legacy Go
+        if: matrix.require_legacy_go == 'true' && steps.cache-legacy-go.outputs.cache-hit != 'true'
+        run: |-
+          wget https://dl.google.com/go/go1.20.14.linux-amd64.tar.gz
+          tar -xzf go1.20.14.linux-amd64.tar.gz
+          mv go $HOME/go/go1.20.14
+      - name: Setup Android NDK
+        if: matrix.goos == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28-beta2
+          local-cache: true
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+      - name: Extract signing key
+        run: |-
+          mkdir -p $HOME/.gnupg
+          cat > $HOME/.gnupg/sagernet.key <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          echo "HOME=$HOME" >> "$GITHUB_ENV"
+      - name: Set tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          git tag ${{ github.event.inputs.tag }}
+      - name: Set nightly tag
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          git tag ${{ needs.calculate_tag.outputs.tag }}
+      - name: Build
+        if: matrix.goos != 'android'
+        run: |-
+          goreleaser release --clean --split
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOPATH: ${{ env.HOME }}/go
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
+          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Build Android
+        if: matrix.goos == 'android'
+        run: |-
+          go install -v ./cmd/internal/build
+          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build goreleaser release --clean --split
+        env:
+          BUILD_GOOS: ${{ matrix.goos }}
+          BUILD_GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
+          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.name }}
+          path: 'dist'
+  build_android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28-beta2
+      - name: Setup OpenJDK
+        run: |-
+          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
+          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Set tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          git tag ${{ github.event.inputs.tag }}
+            echo "TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
+      - name: Set nightly tag
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          git tag ${{ needs.calculate_tag.outputs.tag }}
+          echo "TAG=${{ needs.calculate_tag.outputs.tag }}" >> "$GITHUB_ENV"
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_android
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/dev-next'
+        run: |-
+          cd clients/android
+          git checkout dev
+          mkdir app/libs
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+      - name: Build Android
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+          mv libbox.aar clients/android/app/libs
+          pushd clients/android
+          ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
+          popd
+          mkdir -p dist/release
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-android
+          path: 'dist'
+  build_ios:
+    if: false
+    name: Build iOS
+    runs-on: macos-latest
+    needs:
+      - calculate_tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 16.2-beta
+      - name: Set tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          git tag ${{ github.event.inputs.tag }}
+            echo "TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
+      - name: Set nightly tag
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          git tag ${{ needs.calculate_tag.outputs.tag }}
+          echo "TAG=${{ needs.calculate_tag.outputs.tag }}" >> "$GITHUB_ENV"
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_ios
+  upload:
+    name: Upload builds
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_tag
+      - build
+      - build_android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+      - name: Cache ghr
+        uses: actions/cache@v4
+        id: cache-ghr
+        with:
+          path: |
+            ~/go/bin/ghr
+          key: ghr
+      - name: Setup ghr
+        if: steps.cache-ghr.outputs.cache-hit != 'true'
+        run: |-
+          cd $HOME
+          git clone https://github.com/nekohasekai/ghr ghr
+          cd ghr
+          go install -v .
+      - name: Set tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          git tag ${{ github.event.inputs.tag }}
+          echo "TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
+      - name: Set nightly tag
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          git tag ${{ needs.calculate_tag.outputs.tag }}
+          echo "TAG=${{ needs.calculate_tag.outputs.tag }}" >> "$GITHUB_ENV"
+      - name: Download builds
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Merge builds
+        run: |-
+          goreleaser continue --merge --skip publish
+          mkdir -p dist/release
+          mv dist/*/*.tar.gz \
+          	dist/*/*.zip \
+          	dist/*/*.deb \
+          	dist/*/*.rpm \
+          	dist/*/*_amd64.pkg.tar.zst \
+          	dist/*/*_arm64.pkg.tar.zst \
+          	dist/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Upload builds
+        run: |-
+          export PATH="$PATH:$HOME/go/bin"
+          ghr --replace --draft --prerelease -p 5 "$TAG" dist/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

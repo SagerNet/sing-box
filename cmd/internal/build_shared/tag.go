@@ -20,6 +20,17 @@ func ReadTag() (string, error) {
 	return version.String() + "-" + shortCommit, nil
 }
 
+func ReadTagNightly() (string, error) {
+	currentTagRev := common.Must1(shell.Exec("git", "describe", "--tags", "--abbrev=0").ReadOutput())
+	version := badversion.Parse(currentTagRev[1:])
+	if version.PreReleaseIdentifier != "" {
+		return version.VersionString() + "-nightly", nil
+	} else {
+		version.Patch++
+		return version.VersionString() + "-nightly", nil
+	}
+}
+
 func ReadTagVersion() (badversion.Version, error) {
 	currentTag := common.Must1(shell.Exec("git", "describe", "--tags").ReadOutput())
 	currentTagRev := common.Must1(shell.Exec("git", "describe", "--tags", "--abbrev=0").ReadOutput())

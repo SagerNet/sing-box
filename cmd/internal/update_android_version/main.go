@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,9 +13,22 @@ import (
 	"github.com/sagernet/sing/common"
 )
 
+var flagRunInCI bool
+
+func init() {
+	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+}
+
 func main() {
+	flag.Parse()
 	newVersion := common.Must1(build_shared.ReadTagVersion())
-	androidPath, err := filepath.Abs("../sing-box-for-android")
+	var androidPath string
+	if flagRunInCI {
+		androidPath = "clients/android"
+	} else {
+		androidPath = "../sing-box-for-android"
+	}
+	androidPath, err := filepath.Abs(androidPath)
 	if err != nil {
 		log.Fatal(err)
 	}
