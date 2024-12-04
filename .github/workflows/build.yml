@@ -1,0 +1,613 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name"
+        required: true
+        type: string
+      prerelease:
+        description: "Is prerelease"
+        required: true
+        type: boolean
+        default: true
+      build:
+        description: "Build type"
+        required: true
+        type: choice
+        default: "All"
+        options:
+          - All
+          - Binary
+          - Android
+          - Apple
+          - app-store
+          - iOS
+          - macOS
+          - tvOS
+          - macOS-standalone
+          - publish-android
+      macos_project_version:
+        description: "macOS project version"
+        required: false
+        type: string
+  push:
+    branches:
+      - main-next
+      - dev-next
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build }}
+  cancel-in-progress: true
+
+jobs:
+  calculate_version:
+    name: Calculate version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.outputs.outputs.version }}
+      prerelease: ${{ steps.outputs.outputs.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Check input version
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          echo "version=${{ inputs.version }}" 
+          echo "prerelease=${{ inputs.prerelease }}"
+          echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
+          echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_ENV"
+      - name: Calculate version
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/read_tag --nightly
+      - name: Set outputs
+        id: outputs
+        run: |-
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+  build:
+    name: Build binary
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    strategy:
+      matrix:
+        include:
+          - name: linux_386
+            goos: linux
+            goarch: 386
+          - name: linux_amd64
+            goos: linux
+            goarch: amd64
+          - name: linux_arm64
+            goos: linux
+            goarch: arm64
+          - name: linux_arm
+            goos: linux
+            goarch: arm
+            goarm: 6
+          - name: linux_arm_v7
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - name: linux_s390x
+            goos: linux
+            goarch: s390x
+          - name: linux_riscv64
+            goos: linux
+            goarch: riscv64
+          - name: linux_mips64le
+            goos: linux
+            goarch: mips64le
+          - name: windows_amd64
+            goos: windows
+            goarch: amd64
+            require_legacy_go: true
+          - name: windows_386
+            goos: windows
+            goarch: 386
+            require_legacy_go: true
+          - name: windows_arm64
+            goos: windows
+            goarch: arm64
+          - name: darwin_arm64
+            goos: darwin
+            goarch: arm64
+          - name: darwin_amd64
+            goos: darwin
+            goarch: amd64
+            require_legacy_go: true
+          - name: android_arm64
+            goos: android
+            goarch: arm64
+          - name: android_arm
+            goos: android
+            goarch: arm
+            goarm: 7
+          - name: android_amd64
+            goos: android
+            goarch: amd64
+          - name: android_386
+            goos: android
+            goarch: 386
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Cache legacy Go
+        if: matrix.require_legacy_go
+        id: cache-legacy-go
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/go1.20.14
+          key: go120
+      - name: Setup legacy Go
+        if: matrix.require_legacy_go == 'true' && steps.cache-legacy-go.outputs.cache-hit != 'true'
+        run: |-
+          wget https://dl.google.com/go/go1.20.14.linux-amd64.tar.gz
+          tar -xzf go1.20.14.linux-amd64.tar.gz
+          mv go $HOME/go/go1.20.14
+      - name: Setup Android NDK
+        if: matrix.goos == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28-beta2
+          local-cache: true
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+      - name: Extract signing key
+        run: |-
+          mkdir -p $HOME/.gnupg
+          cat > $HOME/.gnupg/sagernet.key <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          echo "HOME=$HOME" >> "$GITHUB_ENV"
+      - name: Set tag
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+      - name: Build
+        if: matrix.goos != 'android'
+        run: |-
+          goreleaser release --clean --split
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOPATH: ${{ env.HOME }}/go
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
+          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Build Android
+        if: matrix.goos == 'android'
+        run: |-
+          go install -v ./cmd/internal/build
+          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build goreleaser release --clean --split
+        env:
+          BUILD_GOOS: ${{ matrix.goos }}
+          BUILD_GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
+          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.name }}
+          path: 'dist'
+  build_android:
+    name: Build Android
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28-beta2
+      - name: Setup OpenJDK
+        run: |-
+          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
+          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Set tag
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_android
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Checkout main branch
+        if: needs.calculate_version.outputs.prerelease == 'false'
+        run: |-
+          cd clients/android
+          git checkout main
+      - name: Checkout dev branch
+        if: needs.calculate_version.outputs.prerelease == 'true'
+        run: |-
+          cd clients/android
+          git checkout dev
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+      - name: Build
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+          mkdir clients/android/app/libs
+          cp libbox.aar clients/android/app/libs
+          cd clients/android
+          ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      - name: Prepare upload
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          mkdir -p dist/release
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-android-apks
+          path: 'dist'
+  publish_android:
+    name: Publish Android
+    if: github.event_name == 'workflow_dispatch' && inputs.build == 'publish-android'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28-beta2
+      - name: Setup OpenJDK
+        run: |-
+          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
+          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Set tag
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_android
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Checkout main branch
+        if: needs.calculate_version.outputs.prerelease == 'false'
+        run: |-
+          cd clients/android
+          git checkout main
+      - name: Checkout dev branch
+        if: needs.calculate_version.outputs.prerelease == 'true'
+        run: |-
+          cd clients/android
+          git checkout dev
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+      - name: Build
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+          mkdir clients/android/app/libs
+          cp libbox.aar clients/android/app/libs
+          cd clients/android
+          ./gradlew :app:publishPlayReleaseBundle
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+  build_apple_library:
+    name: Build Apple library
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone'
+    runs-on: macos-15
+    needs:
+      - calculate_version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Xcode
+        run: |-
+          sudo xcode-select -s /Applications/Xcode_16.2_beta_3.app
+      - name: Set tag
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_ios
+      - name: Upload library
+        uses: actions/upload-artifact@v4
+        with:
+          name: library-apple
+          path: 'Libbox.xcframework'
+  build_apple:
+    name: Build Apple clients
+    runs-on: macos-15
+    needs:
+      - calculate_version
+      - build_apple_library
+    strategy:
+      matrix:
+        include:
+          - name: iOS
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'iOS' }}
+            scheme: SFI
+            destination: 'generic/platform=iOS'
+            archive: build/SFI.xcarchive
+            upload: SFI/Upload.plist
+          - name: macOS
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'macOS' }}
+            scheme: SFM
+            destination: 'generic/platform=macOS'
+            archive: build/SFM.xcarchive
+            upload: SFI/Upload.plist
+          - name: tvOS
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'tvOS' }}
+            scheme: SFT
+            destination: 'generic/platform=tvOS'
+            archive: build/SFT.xcarchive
+            upload: SFI/Upload.plist
+          - name: macOS-standalone
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' }}
+            scheme: SFM.System
+            destination: 'generic/platform=macOS'
+            archive: build/SFM.System.xcarchive
+            export: SFM.System/Export.plist
+            export_path: build/SFM.System
+    steps:
+      - name: Checkout
+        if: matrix.if
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        if: matrix.if
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+      - name: Setup Xcode
+        if: matrix.if
+        run: |-
+          sudo xcode-select -s /Applications/Xcode_16.2_beta_3.app
+      - name: Set tag
+        if: matrix.if
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+          echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
+      - name: Checkout main branch
+        if: matrix.if && needs.calculate_version.outputs.prerelease == 'false'
+        run: |-
+          cd clients/apple
+          git checkout main
+      - name: Checkout dev branch
+        if: matrix.if && needs.calculate_version.outputs.prerelease == 'true'
+        run: |-
+          cd clients/apple
+          git checkout dev
+      - name: Setup certificates
+        if: matrix.if
+        run: |-
+          CERTIFICATE_PATH=$RUNNER_TEMP/Certificates.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/certificates.keychain-db
+          echo -n "$CERTIFICATES_P12" | base64 --decode -o $CERTIFICATE_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          PROFILES_ZIP_PATH=$RUNNER_TEMP/Profiles.zip
+          echo -n "$PROVISIONING_PROFILES" | base64 --decode -o $PROFILES_ZIP_PATH
+          
+          PROFILES_PATH="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_PATH"
+          unzip $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
+          
+          ASC_KEY_PATH=$RUNNER_TEMP/Key.p12
+          echo -n "$ASC_KEY" | base64 --decode -o $ASC_KEY_PATH
+          
+          xcrun notarytool store-credentials "notarytool-password" \
+            --key $ASC_KEY_PATH \
+            --key-id $ASC_KEY_ID \
+            --issuer $ASC_KEY_ISSUER_ID
+        env:
+          CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROVISIONING_PROFILES: ${{ secrets.PROVISIONING_PROFILES }}
+          ASC_KEY: ${{ secrets.ASC_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
+      - name: Download library
+        if: matrix.if
+        uses: actions/download-artifact@v4
+        with:
+          name: library-apple
+          path: clients/apple/Libbox.xcframework
+      - name: Build
+        if: matrix.if
+        run: |-
+          go run -v ./cmd/internal/update_apple_version --ci
+          cd clients/apple
+          xcodebuild archive \
+            -scheme "${{ matrix.scheme }}" \
+            -configuration Release \
+            -destination "${{ matrix.destination }}" \
+            -archivePath "${{ matrix.archive }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath $RUNNER_TEMP/Key.p12 \
+            -authenticationKeyID $ASC_KEY_ID \
+            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+        env:
+          MACOS_PROJECT_VERSION: ${{ inputs.macos_project_version }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
+      - name: Upload to App Store Connect
+        if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
+        run: |-
+          cd clients/apple
+          xcodebuild -exportArchive \
+            -archivePath "${{ matrix.archive }}" \
+            -exportOptionsPlist ${{ matrix.upload }} \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath $RUNNER_TEMP/Key.p12 \
+            -authenticationKeyID $ASC_KEY_ID \
+            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
+      - name: Build image
+        if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
+        run: |-
+          pushd clients/apple
+          xcodebuild -exportArchive \
+          	-archivePath "${{ matrix.archive }}" \
+          	-exportOptionsPlist ${{ matrix.export }} \
+          	-exportPath "${{ matrix.export_path }}"
+          brew install create-dmg
+          create-dmg \
+          	--volname "sing-box" \
+          	--volicon "${{ matrix.export_path }}/SFM.app/Contents/Resources/AppIcon.icns" \
+          	--icon "SFM.app" 0 0 \
+          		--hide-extension "SFM.app" \
+          		--app-drop-link 0 0 \
+          		--skip-jenkins \
+          	SFM.dmg "${{ matrix.export_path }}/SFM.app"
+          xcrun notarytool submit "SFM.dmg" --wait --keychain-profile "notarytool-password"          
+          cd "${{ matrix.archive }}"
+          zip -r SFM.dSYMs.zip dSYMs
+          popd
+          
+          mkdir -p dist/release
+          cp clients/apple/SFM.dmg "dist/release/SFM-${VERSION}-universal.dmg"
+          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/release/SFM-${VERSION}-universal.dSYMs.zip"
+      - name: Upload image
+        if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-macos-dmg
+          path: 'dist'
+  upload:
+    name: Upload builds
+    if: always() && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+      - build
+      - build_android
+      - build_apple
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+      - name: Cache ghr
+        uses: actions/cache@v4
+        id: cache-ghr
+        with:
+          path: |
+            ~/go/bin/ghr
+          key: ghr
+      - name: Setup ghr
+        if: steps.cache-ghr.outputs.cache-hit != 'true'
+        run: |-
+          cd $HOME
+          git clone https://github.com/nekohasekai/ghr ghr
+          cd ghr
+          go install -v .
+      - name: Set tag
+        run: |-
+          git tag v${{ needs.calculate_version.outputs.version }}
+          echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
+      - name: Download builds
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Merge builds
+        if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
+        run: |-
+          goreleaser continue --merge --skip publish
+          mkdir -p dist/release
+          mv dist/*/sing-box*{tar.gz,zip,deb,rpm,_amd64.pkg.tar.zst,_arm64.pkg.tar.zst} dist/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Upload builds
+        run: |-
+          export PATH="$PATH:$HOME/go/bin"
+          ghr --replace --draft --prerelease -p 5 "v${VERSION}" dist/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

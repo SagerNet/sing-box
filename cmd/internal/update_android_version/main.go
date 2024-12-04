@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,9 +13,22 @@ import (
 	"github.com/sagernet/sing/common"
 )
 
+var flagRunInCI bool
+
+func init() {
+	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+}
+
 func main() {
-	newVersion := common.Must1(build_shared.ReadTagVersion())
-	androidPath, err := filepath.Abs("../sing-box-for-android")
+	flag.Parse()
+	newVersion := common.Must1(build_shared.ReadTag())
+	var androidPath string
+	if flagRunInCI {
+		androidPath = "clients/android"
+	} else {
+		androidPath = "../sing-box-for-android"
+	}
+	androidPath, err := filepath.Abs(androidPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,10 +45,10 @@ func main() {
 	for _, propPair := range propsList {
 		switch propPair[0] {
 		case "VERSION_NAME":
-			if propPair[1] != newVersion.String() {
+			if propPair[1] != newVersion {
 				versionUpdated = true
-				propPair[1] = newVersion.String()
-				log.Info("updated version to ", newVersion.String())
+				propPair[1] = newVersion
+				log.Info("updated version to ", newVersion)
 			}
 		case "GO_VERSION":
 			if propPair[1] != runtime.Version() {
