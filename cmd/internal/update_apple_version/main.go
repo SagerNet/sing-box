@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,9 +14,22 @@ import (
 	"howett.net/plist"
 )
 
+var flagRunInCI bool
+
+func init() {
+	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+}
+
 func main() {
+	flag.Parse()
 	newVersion := common.Must1(build_shared.ReadTagVersion())
-	applePath, err := filepath.Abs("../sing-box-for-apple")
+	var applePath string
+	if flagRunInCI {
+		applePath = "clients/apple"
+	} else {
+		applePath = "../sing-box-for-apple"
+	}
+	applePath, err := filepath.Abs(applePath)
 	if err != nil {
 		log.Fatal(err)
 	}
