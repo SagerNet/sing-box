@@ -152,6 +152,13 @@ func (w *WireGuard) start() error {
 		}
 		bind = wireguard.NewClientBind(w.ctx, w, w.listener, isConnect, connectAddr, reserved)
 	}
+	if w.useStdNetBind || len(w.peers) > 1 {
+		for _, peer := range w.peers {
+			if peer.Reserved != [3]uint8{} {
+				bind.SetReservedForEndpoint(peer.Endpoint, peer.Reserved)
+			}
+		}
+	}
 	err = w.tunDevice.Start()
 	if err != nil {
 		return err
