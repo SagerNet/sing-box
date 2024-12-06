@@ -43,6 +43,7 @@ type Server struct {
 	ctx             context.Context
 	router          adapter.Router
 	outboundManager adapter.OutboundManager
+	endpointManager adapter.EndpointManager
 	logger          log.Logger
 	httpServer      *http.Server
 	trafficManager  *trafficontrol.Manager
@@ -64,6 +65,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		ctx:             ctx,
 		router:          service.FromContext[adapter.Router](ctx),
 		outboundManager: service.FromContext[adapter.OutboundManager](ctx),
+		endpointManager: service.FromContext[adapter.EndpointManager](ctx),
 		logger:          logFactory.NewLogger("clash-api"),
 		httpServer: &http.Server{
 			Addr:    options.ExternalController,

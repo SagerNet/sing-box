@@ -83,14 +83,35 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	return &info
 }
 
+func endpointInfo(server *Server, endpoint adapter.Endpoint) *badjson.JSONObject {
+	var info badjson.JSONObject
+
+	info.Put("type", C.ProxyDisplayName(endpoint.Type()))
+	info.Put("name", endpoint.Tag())
+	info.Put("udp", common.Contains(endpoint.Network(), N.NetworkUDP))
+	delayHistory := server.urlTestHistory.LoadURLTestHistory(adapter.OutboundTag(endpoint))
+
+	if delayHistory != nil {
+		info.Put("history", []*urltest.History{delayHistory})
+	} else {
+		info.Put("history", []*urltest.History{})
+	}
+
+	return &info
+}
+
+
 func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var proxyMap badjson.JSONObject
 		outbounds := common.Filter(server.outboundManager.Outbounds(), func(detour adapter.Outbound) bool {
 			return detour.Tag() != ""
 		})
+		endpoints := common.Filter(server.endpointManager.Endpoints(), func(detour adapter.Endpoint) bool {
+			return detour.Tag() != ""
+		})
 
-		allProxies := make([]string, 0, len(outbounds))
+		allProxies := make([]string, 0, len(outbounds) + len(endpoints))
 
 		for _, detour := range outbounds {
 			switch detour.Type() {
@@ -98,6 +119,10 @@ func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			allProxies = append(allProxies, detour.Tag())
+		}
+
+		for _, endpoint := range endpoints {
+			allProxies = append(allProxies, endpoint.Tag())
 		}
 
 		defaultTag := server.outboundManager.Default().Tag()
@@ -125,6 +150,17 @@ func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 			}
 			proxyMap.Put(tag, proxyInfo(server, detour))
 		}
+
+		for i, endpoint := range endpoints {
+			var tag string
+			if endpoint.Tag() == "" {
+				tag = F.ToString(i)
+			} else {
+				tag = endpoint.Tag()
+			}
+			proxyMap.Put(tag, endpointInfo(server, endpoint))
+		}
+
 		var responseMap badjson.JSONObject
 		responseMap.Put("proxies", &proxyMap)
 		response, err := responseMap.MarshalJSON()
