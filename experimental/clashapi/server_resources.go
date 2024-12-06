@@ -44,13 +44,13 @@ func (s *Server) downloadExternalUI() error {
 	s.logger.Info("downloading external ui")
 	var detour adapter.Outbound
 	if s.externalUIDownloadDetour != "" {
-		outbound, loaded := s.outboundManager.Outbound(s.externalUIDownloadDetour)
+		outbound, loaded := s.outbound.Outbound(s.externalUIDownloadDetour)
 		if !loaded {
 			return E.New("detour outbound not found: ", s.externalUIDownloadDetour)
 		}
 		detour = outbound
 	} else {
-		outbound := s.outboundManager.Default()
+		outbound := s.outbound.Default()
 		detour = outbound
 	}
 	httpClient := &http.Client{
