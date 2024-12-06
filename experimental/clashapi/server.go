@@ -40,16 +40,17 @@ func init() {
 var _ adapter.ClashServer = (*Server)(nil)
 
 type Server struct {
-	ctx             context.Context
-	router          adapter.Router
-	outboundManager adapter.OutboundManager
-	logger          log.Logger
-	httpServer      *http.Server
-	trafficManager  *trafficontrol.Manager
-	urlTestHistory  *urltest.HistoryStorage
-	mode            string
-	modeList        []string
-	modeUpdateHook  chan<- struct{}
+	ctx            context.Context
+	router         adapter.Router
+	outbound       adapter.OutboundManager
+	endpoint       adapter.EndpointManager
+	logger         log.Logger
+	httpServer     *http.Server
+	trafficManager *trafficontrol.Manager
+	urlTestHistory *urltest.HistoryStorage
+	mode           string
+	modeList       []string
+	modeUpdateHook chan<- struct{}
 
 	externalController       bool
 	externalUI               string
@@ -61,10 +62,11 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	s := &Server{
-		ctx:             ctx,
-		router:          service.FromContext[adapter.Router](ctx),
-		outboundManager: service.FromContext[adapter.OutboundManager](ctx),
-		logger:          logFactory.NewLogger("clash-api"),
+		ctx:      ctx,
+		router:   service.FromContext[adapter.Router](ctx),
+		outbound: service.FromContext[adapter.OutboundManager](ctx),
+		endpoint: service.FromContext[adapter.EndpointManager](ctx),
+		logger:   logFactory.NewLogger("clash-api"),
 		httpServer: &http.Server{
 			Addr:    options.ExternalController,
 			Handler: chiRouter,
@@ -242,11 +244,11 @@ func (s *Server) TrafficManager() *trafficontrol.Manager {
 }
 
 func (s *Server) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
-	return trafficontrol.NewTCPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule, matchOutbound)
+	return trafficontrol.NewTCPTracker(conn, s.trafficManager, metadata, s.outbound, matchedRule, matchOutbound)
 }
 
 func (s *Server) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) N.PacketConn {
-	return trafficontrol.NewUDPTracker(conn, s.trafficManager, metadata, s.outboundManager, matchedRule, matchOutbound)
+	return trafficontrol.NewUDPTracker(conn, s.trafficManager, metadata, s.outbound, matchedRule, matchOutbound)
 }
 
 func authentication(serverSecret string) func(next http.Handler) http.Handler {
