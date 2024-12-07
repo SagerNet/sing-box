@@ -4,7 +4,7 @@ icon: material/delete-clock
 
 !!! failure "已在 sing-box 1.11.0 废弃"
 
-    WireGuard 出站已被启用，且将在 sing-box 1.13.0 中被移除，参阅 [迁移指南](/migration/#migrate-wireguard-outbound-to-endpoint)。
+    WireGuard 出站已被弃用，且将在 sing-box 1.13.0 中被移除，参阅 [迁移指南](/migration/#migrate-wireguard-outbound-to-endpoint)。
 
 !!! quote "sing-box 1.11.0 中的更改"
 
