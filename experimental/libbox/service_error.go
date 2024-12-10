@@ -13,12 +13,12 @@ func ClearServiceError() {
 	os.Remove(serviceErrorPath())
 }
 
-func ReadServiceError() (string, error) {
+func ReadServiceError() (*StringBox, error) {
 	data, err := os.ReadFile(serviceErrorPath())
 	if err == nil {
 		os.Remove(serviceErrorPath())
 	}
-	return string(data), err
+	return wrapString(string(data)), err
 }
 
 func WriteServiceError(message string) error {

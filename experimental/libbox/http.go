@@ -50,8 +50,7 @@ type HTTPRequest interface {
 }
 
 type HTTPResponse interface {
-	GetContent() ([]byte, error)
-	GetContentString() (string, error)
+	GetContent() (*StringBox, error)
 	WriteTo(path string) error
 }
 
@@ -210,27 +209,22 @@ type httpResponse struct {
 }
 
 func (h *httpResponse) errorString() string {
-	content, err := h.GetContentString()
+	content, err := h.GetContent()
 	if err != nil {
 		return fmt.Sprint("HTTP ", h.Status)
 	}
 	return fmt.Sprint("HTTP ", h.Status, ": ", content)
 }
 
-func (h *httpResponse) GetContent() ([]byte, error) {
+func (h *httpResponse) GetContent() (*StringBox, error) {
 	h.getContentOnce.Do(func() {
 		defer h.Body.Close()
 		h.content, h.contentError = io.ReadAll(h.Body)
 	})
-	return h.content, h.contentError
-}
-
-func (h *httpResponse) GetContentString() (string, error) {
-	content, err := h.GetContent()
-	if err != nil {
-		return "", err
+	if h.contentError != nil {
+		return nil, h.contentError
 	}
-	return string(content), nil
+	return wrapString(string(h.content)), nil
 }
 
 func (h *httpResponse) WriteTo(path string) error {
