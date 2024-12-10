@@ -85,9 +85,9 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	}
 	switch headerBytes[0] {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, metadata.Destination, onClose)
+		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
 	default:
-		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
 	}
 }
 
@@ -110,11 +110,19 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
 	metadata.InboundType = h.Type()
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
-		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		if !metadata.Destination.IsValid() {
+			h.logger.InfoContext(ctx, "inbound packet connection")
+		} else {
+			h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		}
 		h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 		return
 	}
 	metadata.User = user
-	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	if !metadata.Destination.IsValid() {
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection")
+	} else {
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
