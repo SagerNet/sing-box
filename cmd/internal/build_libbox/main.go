@@ -130,10 +130,17 @@ func buildAndroid() {
 }
 
 func buildiOS() {
+	var bindTarget string
+	if debugEnabled {
+		bindTarget = "ios"
+	} else {
+		bindTarget = "ios,iossimulator,tvos,tvossimulator,macos"
+	}
+
 	args := []string{
 		"bind",
 		"-v",
-		"-target", "ios,iossimulator,tvos,tvossimulator,macos",
+		"-target", bindTarget,
 		"-libname=box",
 	}
 	if !debugEnabled {
