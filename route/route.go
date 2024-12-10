@@ -276,6 +276,44 @@ func (r *Router) matchRule(
 	selectedRule adapter.Rule, selectedRuleIndex int,
 	buffers []*buf.Buffer, packetBuffers []*N.PacketBuffer, fatalErr error,
 ) {
+	if metadata.InboundType == C.TypeSOCKS || metadata.InboundType == C.TypeMixed && !preMatch &&
+		metadata.Destination.Addr.IsUnspecified() && inputPacketConn != nil {
+		buffer := buf.NewPacket()
+		defer buffer.Release()
+		done := make(chan struct{})
+		var (
+			destination M.Socksaddr
+			err         error
+		)
+		go func() {
+			destination, err = inputPacketConn.ReadPacket(buffer)
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-ctx.Done():
+			inputPacketConn.Close()
+			fatalErr = ctx.Err()
+			return
+		}
+		if err != nil {
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				fatalErr = err
+				return
+			}
+		} else {
+			inputPacketConn = bufio.NewCachedPacketConn(inputPacketConn, buffer, destination)
+			packetBuffer := N.NewPacketBuffer()
+			*packetBuffer = N.PacketBuffer{
+				Buffer:      buffer,
+				Destination: destination,
+			}
+			packetBuffers = append(packetBuffers, packetBuffer)
+			metadata.Destination = destination
+			r.logger.InfoContext(ctx, "inbound packet connection to ", destination)
+		}
+	}
+
 	if r.processSearcher != nil && metadata.ProcessInfo == nil {
 		var originDestination netip.AddrPort
 		if metadata.OriginDestination.IsValid() {
@@ -461,18 +499,6 @@ match:
 			break match
 		}
 	}
-	if !preMatch && metadata.Destination.Addr.IsUnspecified() {
-		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{}, inputConn, inputPacketConn)
-		if newErr != nil {
-			fatalErr = newErr
-			return
-		}
-		if newBuffer != nil {
-			buffers = append(buffers, newBuffer)
-		} else if len(newPacketBuffers) > 0 {
-			packetBuffers = append(packetBuffers, newPacketBuffers...)
-		}
-	}
 	return
 }
 
@@ -558,10 +584,6 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				// TODO: maybe always override destination
-				if metadata.Destination.Addr.IsUnspecified() {
-					metadata.Destination = destination
-				}
 				if len(packetBuffers) > 0 {
 					err = sniff.PeekPacket(
 						ctx,
