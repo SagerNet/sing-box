@@ -461,8 +461,12 @@ match:
 			break match
 		}
 	}
-	if !preMatch && metadata.Destination.Addr.IsUnspecified() {
-		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{}, inputConn, inputPacketConn)
+	if !preMatch && inputPacketConn != nil && !metadata.Destination.IsFqdn() && !metadata.Destination.Addr.IsGlobalUnicast() {
+		var timeout time.Duration
+		if metadata.InboundType == C.TypeSOCKS {
+			timeout = C.TCPTimeout
+		}
+		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{Timeout: timeout}, inputConn, inputPacketConn)
 		if newErr != nil {
 			fatalErr = newErr
 			return
@@ -558,8 +562,7 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				// TODO: maybe always override destination
-				if metadata.Destination.Addr.IsUnspecified() {
+				if !metadata.Destination.Addr.IsGlobalUnicast() {
 					metadata.Destination = destination
 				}
 				if len(packetBuffers) > 0 {
