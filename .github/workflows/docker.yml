@@ -10,7 +10,7 @@ on:
         description: "The tag version you want to build"
 
 env:
-  REGISTRY_IMAGE: ghcr.io/sagernet/sing-box
+  REGISTRY_IMAGE: ghcr.io/tools4net/singbox
 
 jobs:
   build:
@@ -23,10 +23,6 @@ jobs:
           - linux/arm/v6
           - linux/arm/v7
           - linux/arm64
-          - linux/386
-          - linux/ppc64le
-          - linux/riscv64
-          - linux/s390x
     steps:
       - name: Get commit to build
         id: ref

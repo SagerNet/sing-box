@@ -82,9 +82,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: linux_386
-            goos: linux
-            goarch: 386
           - name: linux_amd64
             goos: linux
             goarch: amd64
@@ -99,46 +96,9 @@ jobs:
             goos: linux
             goarch: arm
             goarm: 7
-          - name: linux_s390x
-            goos: linux
-            goarch: s390x
-          - name: linux_riscv64
-            goos: linux
-            goarch: riscv64
-          - name: linux_mips64le
-            goos: linux
-            goarch: mips64le
-          - name: windows_amd64
-            goos: windows
-            goarch: amd64
-            require_legacy_go: true
-          - name: windows_386
-            goos: windows
-            goarch: 386
-            require_legacy_go: true
-          - name: windows_arm64
-            goos: windows
-            goarch: arm64
           - name: darwin_arm64
             goos: darwin
             goarch: arm64
-          - name: darwin_amd64
-            goos: darwin
-            goarch: amd64
-            require_legacy_go: true
-          - name: android_arm64
-            goos: android
-            goarch: arm64
-          - name: android_arm
-            goos: android
-            goarch: arm
-            goarm: 7
-          - name: android_amd64
-            goos: android
-            goarch: amd64
-          - name: android_386
-            goos: android
-            goarch: 386
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4

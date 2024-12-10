@@ -75,6 +75,7 @@ type DialerOptions struct {
 	ConnectTimeout       badoption.Duration                `json:"connect_timeout,omitempty"`
 	TCPFastOpen          bool                              `json:"tcp_fast_open,omitempty"`
 	TCPMultiPath         bool                              `json:"tcp_multi_path,omitempty"`
+	TLSFragment          TLSFragmentOptions                `json:"tls_fragment,omitempty"`
 	UDPFragment          *bool                             `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault   bool                              `json:"-"`
 	DomainStrategy       DomainStrategy                    `json:"domain_strategy,omitempty"`

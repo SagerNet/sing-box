@@ -4,14 +4,12 @@ package dialer
 
 import (
 	"net"
-
-	"github.com/metacubex/tfo-go"
 )
 
-type tcpDialer = tfo.Dialer
+type tcpDialer = ExtendedTCPDialer
 
-func newTCPDialer(dialer net.Dialer, tfoEnabled bool) (tcpDialer, error) {
-	return tfo.Dialer{Dialer: dialer, DisableTFO: !tfoEnabled}, nil
+func newTCPDialer(dialer net.Dialer, tfoEnabled bool, tlsFragment TLSFragment) (tcpDialer, error) {
+	return tcpDialer{Dialer: dialer, DisableTFO: !tfoEnabled, TLSFragment: tlsFragment}, nil
 }
 
 func dialerFromTCPDialer(dialer tcpDialer) net.Dialer {

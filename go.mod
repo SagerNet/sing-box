@@ -17,6 +17,7 @@ require (
 	github.com/mholt/acmez v1.2.0
 	github.com/miekg/dns v1.1.62
 	github.com/oschwald/maxminddb-golang v1.12.0
+	github.com/redpilllabs/wireguard-go v0.0.7
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1
 	github.com/sagernet/cors v1.2.1

@@ -1,9 +1,10 @@
 package dialer
 
 import (
+	"github.com/sagernet/sing/common/control"
 	"net"
 
-	"github.com/sagernet/sing/common/control"
+	_ "github.com/redpilllabs/wireguard-go/conn"
 )
 
 type WireGuardListener interface {

@@ -129,6 +129,34 @@ func NewDefault(networkManager adapter.NetworkManager, options option.DialerOpti
 	// TODO: Add an option to customize the keep alive period
 	dialer.KeepAlive = C.TCPKeepAliveInitial
 	dialer.Control = control.Append(dialer.Control, control.SetKeepAlivePeriod(C.TCPKeepAliveInitial, C.TCPKeepAliveInterval))
+	if options.TLSFragment.Enabled && options.TCPFastOpen {
+		return nil, E.New("TLS Fragmentation is not compatible with TCP Fast Open, set `tcp_fast_open` to `false` in your outbound if you intend to enable TLS fragmentation.")
+	}
+	var tlsFragment TLSFragment
+	if options.TLSFragment.Enabled {
+		tlsFragment.Enabled = true
+
+		sleep, err := option.ParseIntRange(options.TLSFragment.Sleep)
+		if err != nil {
+			return nil, E.Cause(err, "missing or invalid value supplied as TLS fragment `sleep` option")
+		}
+		if sleep[1] > 1000 {
+			return nil, E.New("invalid range supplied as TLS fragment `sleep` option! set to '0' to disable sleeps or set to range [0,1000]")
+		}
+		tlsFragment.Sleep.Min = sleep[0]
+		tlsFragment.Sleep.Max = sleep[1]
+
+		size, err := option.ParseIntRange(options.TLSFragment.Size)
+		if err != nil {
+			return nil, E.Cause(err, "missing or invalid value supplied as TLS fragment `size` option")
+		}
+		if size[0] <= 0 || size[1] > 256 {
+			return nil, E.New("invalid range supplied as TLS fragment `size` option! valid range: [1,256]")
+		}
+		tlsFragment.Size.Min = size[0]
+		tlsFragment.Size.Max = size[1]
+
+	}
 	var udpFragment bool
 	if options.UDPFragment != nil {
 		udpFragment = *options.UDPFragment
@@ -175,11 +203,11 @@ func NewDefault(networkManager adapter.NetworkManager, options option.DialerOpti
 	if networkStrategy != C.NetworkStrategyDefault && options.TCPFastOpen {
 		return nil, E.New("`tcp_fast_open` is conflict with `network_strategy` or `route.default_network_strategy`")
 	}
-	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen)
+	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen, tlsFragment)
 	if err != nil {
 		return nil, err
 	}
-	tcpDialer6, err := newTCPDialer(dialer6, options.TCPFastOpen)
+	tcpDialer6, err := newTCPDialer(dialer6, options.TCPFastOpen, tlsFragment)
 	if err != nil {
 		return nil, err
 	}
@@ -214,9 +242,9 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 			}
 		}
 		if !address.IsIPv6() {
-			return trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
+			return trackConn(d.dialer4.DialContext(ctx, network, address))
 		} else {
-			return trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
+			return trackConn(d.dialer6.DialContext(ctx, network, address))
 		}
 	} else {
 		return d.DialParallelInterface(ctx, network, address, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
