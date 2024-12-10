@@ -139,17 +139,17 @@ func (s *platformInterfaceStub) SendNotification(notification *platform.Notifica
 	return nil
 }
 
-func FormatConfig(configContent string) (string, error) {
+func FormatConfig(configContent string) (*StringBox, error) {
 	options, err := parseConfig(configContent)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(options)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return buffer.String(), nil
+	return wrapString(buffer.String()), nil
 }

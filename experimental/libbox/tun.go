@@ -13,7 +13,7 @@ import (
 type TunOptions interface {
 	GetInet4Address() RoutePrefixIterator
 	GetInet6Address() RoutePrefixIterator
-	GetDNSServerAddress() (string, error)
+	GetDNSServerAddress() (*StringBox, error)
 	GetMTU() int32
 	GetAutoRoute() bool
 	GetStrictRoute() bool
@@ -89,11 +89,11 @@ func (o *tunOptions) GetInet6Address() RoutePrefixIterator {
 	return mapRoutePrefix(o.Inet6Address)
 }
 
-func (o *tunOptions) GetDNSServerAddress() (string, error) {
+func (o *tunOptions) GetDNSServerAddress() (*StringBox, error) {
 	if len(o.Inet4Address) == 0 || o.Inet4Address[0].Bits() == 32 {
-		return "", E.New("need one more IPv4 address for DNS hijacking")
+		return nil, E.New("need one more IPv4 address for DNS hijacking")
 	}
-	return o.Inet4Address[0].Addr().Next().String(), nil
+	return wrapString(o.Inet4Address[0].Addr().Next().String()), nil
 }
 
 func (o *tunOptions) GetMTU() int32 {
