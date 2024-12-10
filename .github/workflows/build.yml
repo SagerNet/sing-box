@@ -347,11 +347,13 @@ jobs:
           mkdir clients/android/app/libs
           cp libbox.aar clients/android/app/libs
           cd clients/android
+          echo -n "$SERVICE_ACCOUNT_CREDENTIALS" | base64 --decode -o "service-account-credentials.json"
           ./gradlew :app:publishPlayReleaseBundle
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
   build_apple_library:
     name: Build Apple library
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone'
