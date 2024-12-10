@@ -80,9 +80,17 @@ func buildAndroid() {
 		log.Fatal("java version should be openjdk 17")
 	}
 
+	var bindTarget string
+	if debugEnabled {
+		bindTarget = "android/arm64"
+	} else {
+		bindTarget = "android"
+	}
+
 	args := []string{
 		"bind",
 		"-v",
+		"-target", bindTarget,
 		"-androidapi", "21",
 		"-javapkg=io.nekohasekai",
 		"-libname=box",

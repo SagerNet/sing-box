@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"sync"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -97,6 +98,14 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 }
 
 func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName string, interfaceIndex32 int32) {
+	if C.FixAndroidStack {
+		go m.updateDefaultInterface(interfaceName, interfaceIndex32)
+	} else {
+		m.updateDefaultInterface(interfaceName, interfaceIndex32)
+	}
+}
+
+func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName string, interfaceIndex32 int32) {
 	if interfaceName == "" || interfaceIndex32 == -1 {
 		m.defaultInterfaceName = ""
 		m.defaultInterfaceIndex = -1

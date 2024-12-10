@@ -73,23 +73,36 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 }
 
 func (s *BoxService) Start() error {
-	return s.instance.Start()
+	if C.FixAndroidStack {
+		var err error
+		done := make(chan struct{})
+		go func() {
+			err = s.instance.Start()
+			close(done)
+		}()
+		<-done
+		return err
+	} else {
+		return s.instance.Start()
+	}
 }
 
 func (s *BoxService) Close() error {
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-done:
-			return
-		case <-time.After(C.FatalStopTimeout):
-			os.Exit(1)
-		}
-	}()
 	s.cancel()
 	s.urlTestHistoryStorage.Close()
-	return s.instance.Close()
+	var err error
+	done := make(chan struct{})
+	go func() {
+		err = s.instance.Close()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return err
+	case <-time.After(C.FatalStopTimeout):
+		os.Exit(1)
+		return nil
+	}
 }
 
 func (s *BoxService) NeedWIFIState() bool {
