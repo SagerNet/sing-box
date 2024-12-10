@@ -201,8 +201,14 @@ test_stdio:
 lib_android:
 	go run ./cmd/internal/build_libbox -target android
 
+lib_android_debug:
+	go run ./cmd/internal/build_libbox -target android -debug
+
 lib_ios:
 	go run ./cmd/internal/build_libbox -target ios
+
+lib_ios_debug:
+	go run ./cmd/internal/build_libbox -target ios -debug
 
 lib:
 	go run ./cmd/internal/build_libbox -target android

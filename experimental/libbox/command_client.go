@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -113,11 +114,24 @@ func (c *CommandClient) Connect() error {
 		if err != nil {
 			return err
 		}
-		c.handler.Connected()
-		c.handler.InitializeClashMode(newIterator(modeList), currentMode)
+		if C.FixAndroidStack {
+			go func() {
+				c.handler.Connected()
+				c.handler.InitializeClashMode(newIterator(modeList), currentMode)
+				if len(modeList) == 0 {
+					conn.Close()
+					c.handler.Disconnected(os.ErrInvalid.Error())
+				}
+			}()
+		} else {
+			c.handler.Connected()
+			c.handler.InitializeClashMode(newIterator(modeList), currentMode)
+			if len(modeList) == 0 {
+				conn.Close()
+				c.handler.Disconnected(os.ErrInvalid.Error())
+			}
+		}
 		if len(modeList) == 0 {
-			conn.Close()
-			c.handler.Disconnected(os.ErrInvalid.Error())
 			return nil
 		}
 		go c.handleModeConn(conn)
