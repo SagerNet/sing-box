@@ -62,7 +62,7 @@ func (h *Inbound) Close() error {
 }
 
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	err := socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, nil, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, metadata.Destination, onClose)
+	err := socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, adapter.NewUpstreamHandlerEx(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
 		if E.IsClosedOrCanceled(err) {
@@ -92,11 +92,19 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
 	metadata.InboundType = h.Type()
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
-		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		if !metadata.Destination.IsValid() {
+			h.logger.InfoContext(ctx, "inbound packet connection")
+		} else {
+			h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
+		}
 		h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 		return
 	}
 	metadata.User = user
-	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	if !metadata.Destination.IsValid() {
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection")
+	} else {
+		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
