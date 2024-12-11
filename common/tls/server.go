@@ -17,12 +17,13 @@ func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLS
 		return nil, nil
 	}
 	if options.ECH != nil && options.ECH.Enabled {
-		return NewECHServer(ctx, logger, options)
+		if options.ECH.PQSignatureSchemesEnabled || options.ECH.DynamicRecordSizingDisabled {
+			return NewECHServer(ctx, logger, options)
+		}
 	} else if options.Reality != nil && options.Reality.Enabled {
 		return NewRealityServer(ctx, logger, options)
-	} else {
-		return NewSTDServer(ctx, logger, options)
 	}
+	return NewSTDServer(ctx, logger, options)
 }
 
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {

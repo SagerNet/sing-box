@@ -30,14 +30,15 @@ func NewClient(ctx context.Context, serverAddress string, options option.Outboun
 		return nil, nil
 	}
 	if options.ECH != nil && options.ECH.Enabled {
-		return NewECHClient(ctx, serverAddress, options)
+		if options.ECH.PQSignatureSchemesEnabled || options.ECH.DynamicRecordSizingDisabled {
+			return NewECHClient(ctx, serverAddress, options)
+		}
 	} else if options.Reality != nil && options.Reality.Enabled {
 		return NewRealityClient(ctx, serverAddress, options)
 	} else if options.UTLS != nil && options.UTLS.Enabled {
 		return NewUTLSClient(ctx, serverAddress, options)
-	} else {
-		return NewSTDClient(ctx, serverAddress, options)
 	}
+	return NewSTDClient(ctx, serverAddress, options)
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {

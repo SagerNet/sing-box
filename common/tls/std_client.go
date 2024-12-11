@@ -4,15 +4,24 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"net"
 	"net/netip"
 	"os"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
+	aTLS "github.com/sagernet/sing/common/tls"
+	"github.com/sagernet/sing/service"
+
+	mDNS "github.com/miekg/dns"
 )
+
+var _ ConfigCompat = (*STDClientConfig)(nil)
 
 type STDClientConfig struct {
 	config *tls.Config
@@ -44,6 +53,63 @@ func (s *STDClientConfig) Client(conn net.Conn) (Conn, error) {
 
 func (s *STDClientConfig) Clone() Config {
 	return &STDClientConfig{s.config.Clone()}
+}
+
+type STDECHClientConfig struct {
+	STDClientConfig
+}
+
+func (s *STDClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
+	if len(s.config.EncryptedClientHelloConfigList) == 0 {
+		message := &mDNS.Msg{
+			MsgHdr: mDNS.MsgHdr{
+				RecursionDesired: true,
+			},
+			Question: []mDNS.Question{
+				{
+					Name:   mDNS.Fqdn(s.config.ServerName),
+					Qtype:  mDNS.TypeHTTPS,
+					Qclass: mDNS.ClassINET,
+				},
+			},
+		}
+		dnsRouter := service.FromContext[adapter.Router](ctx)
+		response, err := dnsRouter.Exchange(ctx, message)
+		if err != nil {
+			return nil, E.Cause(err, "fetch ECH config list")
+		}
+		if response.Rcode != mDNS.RcodeSuccess {
+			return nil, E.Cause(dns.RCodeError(response.Rcode), "fetch ECH config list")
+		}
+		for _, rr := range response.Answer {
+			switch resource := rr.(type) {
+			case *mDNS.HTTPS:
+				for _, value := range resource.Value {
+					if value.Key().String() == "ech" {
+						echConfigList, err := base64.StdEncoding.DecodeString(value.String())
+						if err != nil {
+							return nil, E.Cause(err, "decode ECH config")
+						}
+						s.config.EncryptedClientHelloConfigList = echConfigList
+					}
+				}
+			}
+		}
+		return nil, E.New("no ECH config found in DNS records")
+	}
+	tlsConn, err := s.Client(conn)
+	if err != nil {
+		return nil, err
+	}
+	err = tlsConn.HandshakeContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tlsConn, nil
+}
+
+func (s *STDECHClientConfig) Clone() Config {
+	return &STDECHClientConfig{STDClientConfig{s.config.Clone()}}
 }
 
 func NewSTDClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
@@ -127,6 +193,22 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 			return nil, E.New("failed to parse certificate:\n\n", certificate)
 		}
 		tlsConfig.RootCAs = certPool
+	}
+	if options.ECH != nil && options.ECH.Enabled {
+		var echConfig []byte
+		if len(options.ECH.Config) > 0 {
+			echConfig = []byte(strings.Join(options.ECH.Config, "\n"))
+		} else if options.ECH.ConfigPath != "" {
+			content, err := os.ReadFile(options.ECH.ConfigPath)
+			if err != nil {
+				return nil, E.Cause(err, "read ECH config")
+			}
+			echConfig = content
+		}
+		if echConfig != nil {
+			tlsConfig.EncryptedClientHelloConfigList = echConfig
+		}
+		return &STDECHClientConfig{STDClientConfig{&tlsConfig}}, nil
 	}
 	return &STDClientConfig{&tlsConfig}, nil
 }

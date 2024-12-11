@@ -3,6 +3,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"encoding/pem"
 	"net"
 	"os"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var errInsecureUnused = E.New("tls: insecure unused")
@@ -238,6 +241,31 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
 	}
+	if options.ECH != nil && options.ECH.Enabled {
+		var echKey []byte
+		if len(options.ECH.Key) > 0 {
+			echKey = []byte(strings.Join(options.ECH.Key, "\n"))
+		} else if options.ECH.KeyPath != "" {
+			content, err := os.ReadFile(options.ECH.KeyPath)
+			if err != nil {
+				return nil, E.Cause(err, "read ECH key")
+			}
+			echKey = content
+		} else {
+			return nil, E.New("missing ECH key")
+		}
+
+		block, rest := pem.Decode(echKey)
+		if block == nil || block.Type != "ECH KEYS" || len(rest) > 0 {
+			return nil, E.New("invalid ECH keys pem")
+		}
+
+		echKeys, err := UnmarshalECHKeys(block.Bytes)
+		if err != nil {
+			return nil, E.Cause(err, "parse ECH keys")
+		}
+		tlsConfig.EncryptedClientHelloKeys = echKeys
+	}
 	return &STDServerConfig{
 		config:          tlsConfig,
 		logger:          logger,
@@ -247,4 +275,23 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		certificatePath: options.CertificatePath,
 		keyPath:         options.KeyPath,
 	}, nil
+}
+
+func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {
+	var keys []tls.EncryptedClientHelloKey
+	rawString := cryptobyte.String(raw)
+	for !rawString.Empty() {
+		var key tls.EncryptedClientHelloKey
+		if !rawString.ReadUint16LengthPrefixed((*cryptobyte.String)(&key.PrivateKey)) {
+			return nil, E.New("error parsing private key")
+		}
+		if !rawString.ReadUint16LengthPrefixed((*cryptobyte.String)(&key.Config)) {
+			return nil, E.New("error parsing config")
+		}
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		return nil, E.New("empty ECH keys")
+	}
+	return keys, nil
 }

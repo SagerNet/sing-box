@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"encoding/pem"
 
-	cftls "github.com/sagernet/cloudflare-tls"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/cloudflare/circl/hpke"
@@ -59,7 +58,6 @@ func ECHKeygenDefault(serverName string, pqSignatureSchemesEnabled bool) (config
 
 type echKeyConfigPair struct {
 	id      uint8
-	key     cftls.EXP_ECHKey
 	rawKey  []byte
 	conf    myECHKeyConfig
 	rawConf []byte
@@ -153,14 +151,13 @@ func echKeygen(version uint16, serverName string, conf []myECHKeyConfig, suite [
 		sk = be.AppendUint16(sk, uint16(len(b)))
 		sk = append(sk, b...)
 
-		cfECHKeys, err := cftls.EXP_UnmarshalECHKeys(sk)
+		cfECHKeys, err := UnmarshalECHKeys(sk)
 		if err != nil {
 			return nil, E.Cause(err, "bug: can't parse generated ECH server key")
 		}
 		if len(cfECHKeys) != 1 {
 			return nil, E.New("bug: unexpected server key count")
 		}
-		pair.key = cfECHKeys[0]
 		pair.rawKey = sk
 
 		pairs = append(pairs, pair)
