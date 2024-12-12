@@ -390,8 +390,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.23
-      - name: Setup Xcode
-        if: matrix.if
+      - name: Setup Xcode stable
+        if: matrix.if && github.ref == 'refs/heads/main-next'
+        run: |-
+          sudo xcode-select -s /Applications/Xcode_16.1.app
+      - name: Setup Xcode beta
+        if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
           sudo xcode-select -s /Applications/Xcode_16.2.app
       - name: Set tag
