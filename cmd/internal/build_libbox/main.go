@@ -18,11 +18,13 @@ import (
 var (
 	debugEnabled bool
 	target       string
+	platform     string
 )
 
 func init() {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable debug")
 	flag.StringVar(&target, "target", "android", "target platform")
+	flag.StringVar(&platform, "platform", "", "specify platform")
 }
 
 func main() {
@@ -33,8 +35,8 @@ func main() {
 	switch target {
 	case "android":
 		buildAndroid()
-	case "ios":
-		buildiOS()
+	case "apple":
+		buildApple()
 	}
 }
 
@@ -81,7 +83,9 @@ func buildAndroid() {
 	}
 
 	var bindTarget string
-	if debugEnabled {
+	if platform != "" {
+		bindTarget = platform
+	} else if debugEnabled {
 		bindTarget = "android/arm64"
 	} else {
 		bindTarget = "android"
@@ -129,12 +133,14 @@ func buildAndroid() {
 	}
 }
 
-func buildiOS() {
+func buildApple() {
 	var bindTarget string
-	if debugEnabled {
+	if platform != "" {
+		bindTarget = platform
+	} else if debugEnabled {
 		bindTarget = "ios"
 	} else {
-		bindTarget = "ios,iossimulator,tvos,tvossimulator,macos"
+		bindTarget = "ios,tvos,macos"
 	}
 
 	args := []string{

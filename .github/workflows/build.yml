@@ -28,10 +28,6 @@ on:
           - tvOS
           - macOS-standalone
           - publish-android
-      macos_project_version:
-        description: "macOS project version"
-        required: false
-        type: string
   push:
     branches:
       - main-next
@@ -354,67 +350,38 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
-  build_apple_library:
-    name: Build Apple library
-    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone'
-    runs-on: macos-15
-    needs:
-      - calculate_version
-    steps:
-      - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
-        with:
-          fetch-depth: 0
-          submodules: 'recursive'
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ^1.23
-      - name: Setup Xcode
-        run: |-
-          sudo xcode-select -s /Applications/Xcode_16.2_beta_3.app
-      - name: Set tag
-        run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
-      - name: Build library
-        run: |-
-          make lib_install
-          export PATH="$PATH:$(go env GOPATH)/bin"
-          make lib_ios
-      - name: Upload library
-        uses: actions/upload-artifact@v4
-        with:
-          name: library-apple
-          path: 'Libbox.xcframework'
   build_apple:
     name: Build Apple clients
     runs-on: macos-15
     needs:
       - calculate_version
-      - build_apple_library
     strategy:
       matrix:
         include:
           - name: iOS
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'iOS' }}
+            platform: ios
             scheme: SFI
             destination: 'generic/platform=iOS'
             archive: build/SFI.xcarchive
             upload: SFI/Upload.plist
           - name: macOS
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'macOS' }}
+            platform: macos
             scheme: SFM
             destination: 'generic/platform=macOS'
             archive: build/SFM.xcarchive
             upload: SFI/Upload.plist
           - name: tvOS
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'tvOS' }}
+            platform: tvos
             scheme: SFT
             destination: 'generic/platform=tvOS'
             archive: build/SFT.xcarchive
             upload: SFI/Upload.plist
           - name: macOS-standalone
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' }}
+            platform: macos
             scheme: SFM.System
             destination: 'generic/platform=macOS'
             archive: build/SFM.System.xcarchive
@@ -435,7 +402,7 @@ jobs:
       - name: Setup Xcode
         if: matrix.if
         run: |-
-          sudo xcode-select -s /Applications/Xcode_16.2_beta_3.app
+          sudo xcode-select -s /Applications/Xcode_16.2.app
       - name: Set tag
         if: matrix.if
         run: |-
@@ -478,6 +445,10 @@ jobs:
             --key $ASC_KEY_PATH \
             --key-id $ASC_KEY_ID \
             --issuer $ASC_KEY_ISSUER_ID
+          
+          echo "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ISSUER_ID=$ASC_KEY_ISSUER_ID" >> "$GITHUB_ENV"
         env:
           CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -486,12 +457,19 @@ jobs:
           ASC_KEY: ${{ secrets.ASC_KEY }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
-      - name: Download library
+      - name: Build library
         if: matrix.if
-        uses: actions/download-artifact@v4
-        with:
-          name: library-apple
-          path: clients/apple/Libbox.xcframework
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          go run ./cmd/internal/build_libbox -target apple -platform ${{ matrix.platform }}
+          mv Libbox.xcframework clients/apple
+      - name: Update macOS version
+        if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch'
+        run: |-
+          MACOS_PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_macos_project_version)
+          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION"
+          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION" >> "$GITHUB_ENV"
       - name: Build
         if: matrix.if
         run: |-
@@ -503,13 +481,9 @@ jobs:
             -destination "${{ matrix.destination }}" \
             -archivePath "${{ matrix.archive }}" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath $RUNNER_TEMP/Key.p12 \
+            -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
-        env:
-          MACOS_PROJECT_VERSION: ${{ inputs.macos_project_version }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
       - name: Upload to App Store Connect
         if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
@@ -518,12 +492,9 @@ jobs:
             -archivePath "${{ matrix.archive }}" \
             -exportOptionsPlist ${{ matrix.upload }} \
             -allowProvisioningUpdates \
-            -authenticationKeyPath $RUNNER_TEMP/Key.p12 \
+            -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
       - name: Build image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
