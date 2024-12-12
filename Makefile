@@ -192,6 +192,12 @@ release_apple_beta: update_apple_version release_ios release_macos release_tvos
 publish_testflight:
 	go run -v ./cmd/internal/app_store_connect publish_testflight
 
+prepare_app_store:
+	go run -v ./cmd/internal/app_store_connect prepare_app_store
+
+publish_app_store:
+	go run -v ./cmd/internal/app_store_connect publish_app_store
+
 test:
 	@go test -v ./... && \
 	cd test && \
