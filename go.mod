@@ -35,7 +35,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.7
 	github.com/sagernet/sing-shadowsocks2 v0.2.0
 	github.com/sagernet/sing-shadowtls v0.1.5
-	github.com/sagernet/sing-tun v0.4.2
+	github.com/sagernet/sing-tun v0.4.5
 	github.com/sagernet/sing-vmess v0.1.12
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/utls v1.6.7
