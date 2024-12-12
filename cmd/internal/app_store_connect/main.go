@@ -54,7 +54,7 @@ const (
 	groupID = "5c5f3b78-b7a0-40c0-bcad-e6ef87bbefda"
 )
 
-func createClient() *asc.Client {
+func createClient() *Client {
 	privateKey, err := os.ReadFile(os.Getenv("ASC_KEY_PATH"))
 	if err != nil {
 		log.Fatal(err)
@@ -63,7 +63,7 @@ func createClient() *asc.Client {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return asc.NewClient(tokenConfig.Client())
+	return &Client{asc.NewClient(tokenConfig.Client())}
 }
 
 func fetchMacOSVersion(ctx context.Context) error {
@@ -242,9 +242,13 @@ func prepareAppStore(ctx context.Context) error {
 					log.Fatal(string(platform), " ", tag, " unknown state ", string(*version.Attributes.AppStoreState))
 				}
 				log.Info(string(platform), " ", tag, " update build")
-				_, _, err = client.Apps.UpdateBuildForAppStoreVersion(ctx, version.ID, buildID)
+				response, err = client.UpdateBuildForAppStoreVersion(ctx, version.ID, buildID)
 				if err != nil {
 					return err
+				}
+				if response.StatusCode != http.StatusNoContent {
+					response.Write(os.Stderr)
+					log.Fatal(string(platform), " ", tag, " unexpected response: ", response.Status)
 				}
 			} else {
 				switch *version.Attributes.AppStoreState {
