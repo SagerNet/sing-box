@@ -7,11 +7,6 @@ on:
         description: "Version name"
         required: true
         type: string
-      prerelease:
-        description: "Is prerelease"
-        required: true
-        type: boolean
-        default: true
       build:
         description: "Build type"
         required: true
@@ -43,7 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.outputs.outputs.version }}
-      prerelease: ${{ steps.outputs.outputs.prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
@@ -57,9 +51,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |-
           echo "version=${{ inputs.version }}" 
-          echo "prerelease=${{ inputs.prerelease }}"
           echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
-          echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_ENV"
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
@@ -68,7 +60,6 @@ jobs:
         id: outputs
         run: |-
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
   build:
     name: Build binary
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
@@ -249,12 +240,12 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Checkout main branch
-        if: needs.calculate_version.outputs.prerelease == 'false'
+        if: github.ref == 'refs/heads/main-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: needs.calculate_version.outputs.prerelease == 'true'
+        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/android
           git checkout dev
@@ -323,12 +314,12 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Checkout main branch
-        if: needs.calculate_version.outputs.prerelease == 'false'
+        if: github.ref == 'refs/heads/main-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: needs.calculate_version.outputs.prerelease == 'true'
+        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/android
           git checkout dev
@@ -409,12 +400,12 @@ jobs:
           git tag v${{ needs.calculate_version.outputs.version }}
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Checkout main branch
-        if: matrix.if && needs.calculate_version.outputs.prerelease == 'false'
+        if: matrix.if && github.ref == 'refs/heads/main-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/apple
           git checkout main
       - name: Checkout dev branch
-        if: matrix.if && needs.calculate_version.outputs.prerelease == 'true'
+        if: matrix.if && github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
         run: |-
           cd clients/apple
           git checkout dev

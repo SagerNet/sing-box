@@ -36,11 +36,3 @@ func ReadTagVersion() (badversion.Version, error) {
 	}
 	return version, nil
 }
-
-func IsDevBranch() bool {
-	branch, err := shell.Exec("git", "branch", "--show-current").ReadOutput()
-	if err != nil {
-		return false
-	}
-	return branch == "dev-next"
-}
