@@ -478,6 +478,7 @@ jobs:
       - name: Upload to App Store Connect
         if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
+          go run -v ./cmd/internal/app_store_connect cancel_app_store ${{ matrix.platform }}
           cd clients/apple
           xcodebuild -exportArchive \
             -archivePath "${{ matrix.archive }}" \
