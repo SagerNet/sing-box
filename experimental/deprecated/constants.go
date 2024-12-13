@@ -1,8 +1,11 @@
 package deprecated
 
 import (
+	"fmt"
+
 	"github.com/sagernet/sing-box/common/badversion"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/locale"
 	F "github.com/sagernet/sing/common/format"
 
 	"golang.org/x/mod/semver"
@@ -33,10 +36,11 @@ func (n Note) Impending() bool {
 }
 
 func (n Note) Message() string {
-	return F.ToString(
-		n.Description, " is deprecated in sing-box ", n.DeprecatedVersion,
-		" and will be removed in sing-box ", n.ScheduledVersion, ", please checkout documentation for migration.",
-	)
+	if n.MigrationLink != "" {
+		return fmt.Sprintf(locale.Current().DeprecatedMessage, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
+	} else {
+		return fmt.Sprintf(locale.Current().DeprecatedMessageNoLink, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
+	}
 }
 
 func (n Note) MessageWithLink() string {
