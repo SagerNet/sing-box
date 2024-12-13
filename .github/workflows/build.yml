@@ -245,7 +245,7 @@ jobs:
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/android
           git checkout dev
@@ -319,7 +319,7 @@ jobs:
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/android
           git checkout dev
@@ -397,7 +397,8 @@ jobs:
       - name: Setup Xcode beta
         if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
-          sudo xcode-select -s /Applications/Xcode_16.2.app
+          sudo xcode-select -s /Applications/Xcode_16.2_Release_Candidate.app || \
+            sudo xcode-select -s /Applications/Xcode_16.1.app # TODO: remove after hosted runners update
       - name: Set tag
         if: matrix.if
         run: |-
@@ -409,7 +410,7 @@ jobs:
           cd clients/apple
           git checkout main
       - name: Checkout dev branch
-        if: matrix.if && github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/apple
           git checkout dev
