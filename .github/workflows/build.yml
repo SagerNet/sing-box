@@ -245,7 +245,7 @@ jobs:
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/android
           git checkout dev
@@ -319,7 +319,7 @@ jobs:
           cd clients/android
           git checkout main
       - name: Checkout dev branch
-        if: github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/android
           git checkout dev
@@ -409,7 +409,7 @@ jobs:
           cd clients/apple
           git checkout main
       - name: Checkout dev branch
-        if: matrix.if && github.ref == 'refs/heads/dev-next' && github.event_name != 'workflow_dispatch'
+        if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
           cd clients/apple
           git checkout dev
@@ -524,7 +524,7 @@ jobs:
           path: 'dist'
   upload:
     name: Upload builds
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.build != 'publish-android'
+    if: always() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')
     runs-on: ubuntu-latest
     needs:
       - calculate_version
