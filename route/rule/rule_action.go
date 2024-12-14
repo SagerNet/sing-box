@@ -33,7 +33,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			RuleActionRouteOptions: RuleActionRouteOptions{
 				OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptions.OverrideAddress, 0),
 				OverridePort:              action.RouteOptions.OverridePort,
-				NetworkStrategy:           C.NetworkStrategy(action.RouteOptions.NetworkStrategy),
+				NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptions.NetworkStrategy),
 				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
 				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
 				UDPConnect:                action.RouteOptions.UDPConnect,
@@ -43,7 +43,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return &RuleActionRouteOptions{
 			OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptionsOptions.OverrideAddress, 0),
 			OverridePort:              action.RouteOptionsOptions.OverridePort,
-			NetworkStrategy:           C.NetworkStrategy(action.RouteOptionsOptions.NetworkStrategy),
+			NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptionsOptions.NetworkStrategy),
 			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
@@ -147,7 +147,7 @@ func (r *RuleActionRoute) String() string {
 type RuleActionRouteOptions struct {
 	OverrideAddress           M.Socksaddr
 	OverridePort              uint16
-	NetworkStrategy           C.NetworkStrategy
+	NetworkStrategy           *C.NetworkStrategy
 	NetworkType               []C.InterfaceType
 	FallbackNetworkType       []C.InterfaceType
 	FallbackDelay             time.Duration
