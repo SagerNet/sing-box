@@ -28,7 +28,7 @@ type NetworkManager interface {
 }
 
 type NetworkOptions struct {
-	NetworkStrategy     C.NetworkStrategy
+	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType
 	FallbackNetworkType []C.InterfaceType
 	FallbackDelay       time.Duration

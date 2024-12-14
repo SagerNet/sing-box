@@ -20,7 +20,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service"
 )
 
 func RegisterEndpoint(registry *endpoint.Registry) {
@@ -70,7 +69,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		UDPTimeout: udpTimeout,
 		Dialer:     outboundDialer,
 		CreateDialer: func(interfaceName string) N.Dialer {
-			return common.Must1(dialer.NewDefault(service.FromContext[adapter.NetworkManager](ctx), option.DialerOptions{
+			return common.Must1(dialer.NewDefault(ctx, option.DialerOptions{
 				BindInterface: interfaceName,
 			}))
 		},
