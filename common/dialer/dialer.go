@@ -17,16 +17,15 @@ import (
 )
 
 func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
-	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if options.IsWireGuardListener {
-		return NewDefault(networkManager, options)
+		return NewDefault(ctx, options)
 	}
 	var (
 		dialer N.Dialer
 		err    error
 	)
 	if options.Detour == "" {
-		dialer, err = NewDefault(networkManager, options)
+		dialer, err = NewDefault(ctx, options)
 		if err != nil {
 			return nil, err
 		}
@@ -36,9 +35,6 @@ func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
 			return nil, E.New("missing outbound manager")
 		}
 		dialer = NewDetour(outboundManager, options.Detour)
-	}
-	if networkManager == nil {
-		return NewDefault(networkManager, options)
 	}
 	if options.Detour == "" {
 		router := service.FromContext[adapter.Router](ctx)
@@ -58,11 +54,10 @@ func NewDirect(ctx context.Context, options option.DialerOptions) (ParallelInter
 	if options.Detour != "" {
 		return nil, E.New("`detour` is not supported in direct context")
 	}
-	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if options.IsWireGuardListener {
-		return NewDefault(networkManager, options)
+		return NewDefault(ctx, options)
 	}
-	dialer, err := NewDefault(networkManager, options)
+	dialer, err := NewDefault(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +72,11 @@ func NewDirect(ctx context.Context, options option.DialerOptions) (ParallelInter
 
 type ParallelInterfaceDialer interface {
 	N.Dialer
-	DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error)
-	ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error)
+	DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error)
+	ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error)
 }
 
 type ParallelNetworkDialer interface {
-	DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error)
-	ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error)
+	DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error)
+	ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error)
 }
