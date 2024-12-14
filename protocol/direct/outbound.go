@@ -32,16 +32,12 @@ var (
 
 type Outbound struct {
 	outbound.Adapter
-	logger               logger.ContextLogger
-	dialer               dialer.ParallelInterfaceDialer
-	domainStrategy       dns.DomainStrategy
-	fallbackDelay        time.Duration
-	networkStrategy      C.NetworkStrategy
-	networkType          []C.InterfaceType
-	fallbackNetworkType  []C.InterfaceType
-	networkFallbackDelay time.Duration
-	overrideOption       int
-	overrideDestination  M.Socksaddr
+	logger              logger.ContextLogger
+	dialer              dialer.ParallelInterfaceDialer
+	domainStrategy      dns.DomainStrategy
+	fallbackDelay       time.Duration
+	overrideOption      int
+	overrideDestination M.Socksaddr
 	// loopBack *loopBackDetector
 }
 
@@ -52,15 +48,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter:              outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
-		logger:               logger,
-		domainStrategy:       dns.DomainStrategy(options.DomainStrategy),
-		fallbackDelay:        time.Duration(options.FallbackDelay),
-		networkStrategy:      C.NetworkStrategy(options.NetworkStrategy),
-		networkType:          common.Map(options.NetworkType, option.InterfaceType.Build),
-		fallbackNetworkType:  common.Map(options.FallbackNetworkType, option.InterfaceType.Build),
-		networkFallbackDelay: time.Duration(options.NetworkFallbackDelay),
-		dialer:               outboundDialer,
+		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		logger:         logger,
+		domainStrategy: dns.DomainStrategy(options.DomainStrategy),
+		fallbackDelay:  time.Duration(options.FallbackDelay),
+		dialer:         outboundDialer,
 		// loopBack:       newLoopBackDetector(router),
 	}
 	//nolint:staticcheck
@@ -178,10 +170,10 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 			return nil, E.New("no IPv6 address available for ", destination)
 		}
 	}
-	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, h.networkStrategy, h.networkType, h.fallbackNetworkType, h.fallbackDelay)
+	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, nil, nil, nil, h.fallbackDelay)
 }
 
-func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
@@ -221,7 +213,7 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == dns.DomainStrategyPreferIPv6, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 }
 
-func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
+func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
