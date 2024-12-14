@@ -110,13 +110,13 @@ icon: material/new-box
     0
   ],
   "include_uid_range": [
-    "1000-99999"
+    "1000:99999"
   ],
   "exclude_uid": [
     1000
   ],
   "exclude_uid_range": [
-    "1000-99999"
+    "1000:99999"
   ],
   "include_android_user": [
     0,
