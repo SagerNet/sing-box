@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/taskmonitor"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
@@ -149,6 +150,14 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
+
+	ntpOptions := common.PtrValueOrDefault(options.NTP)
+	var timeService *tls.TimeServiceWrapper
+	if ntpOptions.Enabled {
+		timeService = new(tls.TimeServiceWrapper)
+		service.MustRegister[ntp.TimeService](ctx, timeService)
+	}
+
 	for i, endpointOptions := range options.Endpoints {
 		var tag string
 		if endpointOptions.Tag != "" {
@@ -254,13 +263,12 @@ func New(options Options) (*Box, error) {
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}
 	}
-	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	if ntpOptions.Enabled {
 		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions)
 		if err != nil {
 			return nil, E.Cause(err, "create NTP service")
 		}
-		timeService := ntp.NewService(ntp.Options{
+		ntpService := ntp.NewService(ntp.Options{
 			Context:       ctx,
 			Dialer:        ntpDialer,
 			Logger:        logFactory.NewLogger("ntp"),
@@ -268,8 +276,8 @@ func New(options Options) (*Box, error) {
 			Interval:      time.Duration(ntpOptions.Interval),
 			WriteToSystem: ntpOptions.WriteToSystem,
 		})
-		service.MustRegister[ntp.TimeService](ctx, timeService)
-		services = append(services, adapter.NewLifecycleService(timeService, "ntp service"))
+		timeService.TimeService = ntpService
+		services = append(services, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
 	return &Box{
 		network:    networkManager,
