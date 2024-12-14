@@ -40,7 +40,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 			}
 		} else {
 			select {
-			case results <- dialResult{Conn: conn}:
+			case results <- dialResult{Conn: conn, primary: primary}:
 			case <-returned:
 				conn.Close()
 			}
@@ -112,7 +112,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 			}
 		} else {
 			select {
-			case results <- dialResult{Conn: conn}:
+			case results <- dialResult{Conn: conn, primary: primary}:
 			case <-returned:
 				if primary && time.Since(startAt) <= fallbackDelay {
 					resetFastFallback(time.Time{})
@@ -180,21 +180,19 @@ func selectInterfaces(networkManager adapter.NetworkManager, strategy C.NetworkS
 			for _, iif := range interfaces {
 				if iif.Index == defaultIf.Index {
 					primaryInterfaces = append(primaryInterfaces, iif)
-				} else {
-					fallbackInterfaces = append(fallbackInterfaces, iif)
 				}
 			}
 		} else {
-			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
-				return common.Contains(interfaceType, iif.Type)
+			primaryInterfaces = common.Filter(interfaces, func(it adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, it.Type)
 			})
 		}
 	case C.NetworkStrategyHybrid:
 		if len(interfaceType) == 0 {
 			primaryInterfaces = interfaces
 		} else {
-			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
-				return common.Contains(interfaceType, iif.Type)
+			primaryInterfaces = common.Filter(interfaces, func(it adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, it.Type)
 			})
 		}
 	case C.NetworkStrategyFallback:
@@ -203,18 +201,25 @@ func selectInterfaces(networkManager adapter.NetworkManager, strategy C.NetworkS
 			for _, iif := range interfaces {
 				if iif.Index == defaultIf.Index {
 					primaryInterfaces = append(primaryInterfaces, iif)
-				} else {
-					fallbackInterfaces = append(fallbackInterfaces, iif)
+					break
 				}
 			}
 		} else {
-			primaryInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
-				return common.Contains(interfaceType, iif.Type)
+			primaryInterfaces = common.Filter(interfaces, func(it adapter.NetworkInterface) bool {
+				return common.Contains(interfaceType, it.Type)
 			})
 		}
-		fallbackInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
-			return common.Contains(fallbackInterfaceType, iif.Type)
-		})
+		if len(fallbackInterfaceType) == 0 {
+			fallbackInterfaces = common.Filter(interfaces, func(it adapter.NetworkInterface) bool {
+				return !common.Any(primaryInterfaces, func(iif adapter.NetworkInterface) bool {
+					return it.Index == iif.Index
+				})
+			})
+		} else {
+			fallbackInterfaces = common.Filter(interfaces, func(iif adapter.NetworkInterface) bool {
+				return common.Contains(fallbackInterfaceType, iif.Type)
+			})
+		}
 	}
 	return primaryInterfaces, fallbackInterfaces
 }
