@@ -253,7 +253,7 @@ func (t *Transport) recreateServers(iface *control.Interface, serverAddrs []neti
 			return it.String()
 		}), ","), "]")
 	}
-	serverDialer := common.Must1(dialer.NewDefault(t.networkManager, option.DialerOptions{
+	serverDialer := common.Must1(dialer.NewDefault(t.options.Context, option.DialerOptions{
 		BindInterface:      iface.Name,
 		UDPFragmentDefault: true,
 	}))

@@ -72,7 +72,7 @@ type InboundContext struct {
 	UDPConnect                bool
 	UDPTimeout                time.Duration
 
-	NetworkStrategy     C.NetworkStrategy
+	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType
 	FallbackNetworkType []C.InterfaceType
 	FallbackDelay       time.Duration

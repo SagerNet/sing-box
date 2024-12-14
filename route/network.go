@@ -62,7 +62,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		defaultOptions: adapter.NetworkOptions{
 			BindInterface:       routeOptions.DefaultInterface,
 			RoutingMark:         uint32(routeOptions.DefaultMark),
-			NetworkStrategy:     C.NetworkStrategy(routeOptions.DefaultNetworkStrategy),
+			NetworkStrategy:     (*C.NetworkStrategy)(routeOptions.DefaultNetworkStrategy),
 			NetworkType:         common.Map(routeOptions.DefaultNetworkType, option.InterfaceType.Build),
 			FallbackNetworkType: common.Map(routeOptions.DefaultFallbackNetworkType, option.InterfaceType.Build),
 			FallbackDelay:       time.Duration(routeOptions.DefaultFallbackDelay),
@@ -73,7 +73,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
 	}
-	if C.NetworkStrategy(routeOptions.DefaultNetworkStrategy) != C.NetworkStrategyDefault {
+	if routeOptions.DefaultNetworkStrategy != nil {
 		if routeOptions.DefaultInterface != "" {
 			return nil, E.New("`default_network_strategy` is conflict with `default_interface`")
 		}

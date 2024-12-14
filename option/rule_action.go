@@ -145,8 +145,8 @@ type RawRouteOptionsActionOptions struct {
 	OverrideAddress string `json:"override_address,omitempty"`
 	OverridePort    uint16 `json:"override_port,omitempty"`
 
-	NetworkStrategy NetworkStrategy `json:"network_strategy,omitempty"`
-	FallbackDelay   uint32          `json:"fallback_delay,omitempty"`
+	NetworkStrategy *NetworkStrategy `json:"network_strategy,omitempty"`
+	FallbackDelay   uint32           `json:"fallback_delay,omitempty"`
 
 	UDPDisableDomainUnmapping bool               `json:"udp_disable_domain_unmapping,omitempty"`
 	UDPConnect                bool               `json:"udp_connect,omitempty"`
