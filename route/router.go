@@ -262,7 +262,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 				Context: ctx,
 				Name:    "local",
 				Address: "local",
-				Dialer:  common.Must1(dialer.NewDefault(router.network, option.DialerOptions{})),
+				Dialer:  common.Must1(dialer.NewDefault(ctx, option.DialerOptions{})),
 			})))
 		}
 		defaultTransport = transports[0]
