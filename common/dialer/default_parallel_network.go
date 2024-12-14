@@ -13,7 +13,13 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func DialSerialNetwork(ctx context.Context, dialer N.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+func DialSerialNetwork(ctx context.Context, dialer N.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+	if len(destinationAddresses) == 0 {
+		if !destination.IsIP() {
+			panic("invalid usage")
+		}
+		destinationAddresses = []netip.Addr{destination.Addr}
+	}
 	if parallelDialer, isParallel := dialer.(ParallelNetworkDialer); isParallel {
 		return parallelDialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	}
@@ -38,7 +44,14 @@ func DialSerialNetwork(ctx context.Context, dialer N.Dialer, network string, des
 	return nil, E.Errors(errors...)
 }
 
-func DialParallelNetwork(ctx context.Context, dialer ParallelInterfaceDialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, preferIPv6 bool, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+func DialParallelNetwork(ctx context.Context, dialer ParallelInterfaceDialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, preferIPv6 bool, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+	if len(destinationAddresses) == 0 {
+		if !destination.IsIP() {
+			panic("invalid usage")
+		}
+		destinationAddresses = []netip.Addr{destination.Addr}
+	}
+
 	if fallbackDelay == 0 {
 		fallbackDelay = N.DefaultFallbackDelay
 	}
@@ -116,7 +129,13 @@ func DialParallelNetwork(ctx context.Context, dialer ParallelInterfaceDialer, ne
 	}
 }
 
-func ListenSerialNetworkPacket(ctx context.Context, dialer N.Dialer, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
+func ListenSerialNetworkPacket(ctx context.Context, dialer N.Dialer, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
+	if len(destinationAddresses) == 0 {
+		if !destination.IsIP() {
+			panic("invalid usage")
+		}
+		destinationAddresses = []netip.Addr{destination.Addr}
+	}
 	if parallelDialer, isParallel := dialer.(ParallelNetworkDialer); isParallel {
 		return parallelDialer.ListenSerialNetworkPacket(ctx, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
 	}

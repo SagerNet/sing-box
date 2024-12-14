@@ -415,8 +415,18 @@ match:
 					Fqdn: metadata.Destination.Fqdn,
 				}
 			}
-			metadata.NetworkStrategy = routeOptions.NetworkStrategy
-			metadata.FallbackDelay = routeOptions.FallbackDelay
+			if routeOptions.NetworkStrategy != nil {
+				metadata.NetworkStrategy = routeOptions.NetworkStrategy
+			}
+			if len(routeOptions.NetworkType) > 0 {
+				metadata.NetworkType = routeOptions.NetworkType
+			}
+			if len(routeOptions.FallbackNetworkType) > 0 {
+				metadata.FallbackNetworkType = routeOptions.FallbackNetworkType
+			}
+			if routeOptions.FallbackDelay != 0 {
+				metadata.FallbackDelay = routeOptions.FallbackDelay
+			}
 			if routeOptions.UDPDisableDomainUnmapping {
 				metadata.UDPDisableDomainUnmapping = true
 			}
