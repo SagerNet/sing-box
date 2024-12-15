@@ -491,6 +491,10 @@ jobs:
             -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+      - name: Publish to TestFlight
+        if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/app_store_connect publish_testflight ${{ matrix.platform }}
       - name: Build image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
