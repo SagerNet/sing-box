@@ -45,69 +45,64 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 		panic("no context")
 	}
 	var options dns.QueryOptions
-	if ruleIndex < len(r.dnsRules) {
-		dnsRules := r.dnsRules
-		if ruleIndex != -1 {
-			dnsRules = dnsRules[ruleIndex+1:]
+	var currentRuleIndex int
+	if ruleIndex != -1 {
+		currentRuleIndex = ruleIndex + 1
+	}
+	for ; currentRuleIndex < len(r.dnsRules); currentRuleIndex++ {
+		currentRule := r.dnsRules[currentRuleIndex]
+		if currentRule.WithAddressLimit() && !isAddressQuery {
+			continue
 		}
-		for currentRuleIndex, currentRule := range dnsRules {
-			if currentRule.WithAddressLimit() && !isAddressQuery {
-				continue
+		metadata.ResetRuleCache()
+		if currentRule.Match(metadata) {
+			ruleDescription := currentRule.String()
+			if ruleDescription != "" {
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+			} else {
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
 			}
-			metadata.ResetRuleCache()
-			if currentRule.Match(metadata) {
-				displayRuleIndex := currentRuleIndex
-				if displayRuleIndex != -1 {
-					displayRuleIndex += displayRuleIndex + 1
+			switch action := currentRule.Action().(type) {
+			case *R.RuleActionDNSRoute:
+				transport, loaded := r.transportMap[action.Server]
+				if !loaded {
+					r.dnsLogger.ErrorContext(ctx, "transport not found: ", action.Server)
+					continue
 				}
-				ruleDescription := currentRule.String()
-				if ruleDescription != "" {
-					r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+				_, isFakeIP := transport.(adapter.FakeIPTransport)
+				if isFakeIP && !allowFakeIP {
+					continue
+				}
+				if isFakeIP || action.DisableCache {
+					options.DisableCache = true
+				}
+				if action.RewriteTTL != nil {
+					options.RewriteTTL = action.RewriteTTL
+				}
+				if action.ClientSubnet.IsValid() {
+					options.ClientSubnet = action.ClientSubnet
+				}
+				if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
+					options.Strategy = domainStrategy
 				} else {
-					r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
+					options.Strategy = r.defaultDomainStrategy
 				}
-				switch action := currentRule.Action().(type) {
-				case *R.RuleActionDNSRoute:
-					transport, loaded := r.transportMap[action.Server]
-					if !loaded {
-						r.dnsLogger.ErrorContext(ctx, "transport not found: ", action.Server)
-						continue
-					}
-					_, isFakeIP := transport.(adapter.FakeIPTransport)
-					if isFakeIP && !allowFakeIP {
-						continue
-					}
-					if isFakeIP || action.DisableCache {
-						options.DisableCache = true
-					}
-					if action.RewriteTTL != nil {
-						options.RewriteTTL = action.RewriteTTL
-					}
-					if action.ClientSubnet.IsValid() {
-						options.ClientSubnet = action.ClientSubnet
-					}
-					if domainStrategy, dsLoaded := r.transportDomainStrategy[transport]; dsLoaded {
-						options.Strategy = domainStrategy
-					} else {
-						options.Strategy = r.defaultDomainStrategy
-					}
-					r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
-					return transport, options, currentRule, currentRuleIndex
-				case *R.RuleActionDNSRouteOptions:
-					if action.DisableCache {
-						options.DisableCache = true
-					}
-					if action.RewriteTTL != nil {
-						options.RewriteTTL = action.RewriteTTL
-					}
-					if action.ClientSubnet.IsValid() {
-						options.ClientSubnet = action.ClientSubnet
-					}
-					r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
-				case *R.RuleActionReject:
-					r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
-					return nil, options, currentRule, currentRuleIndex
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
+				return transport, options, currentRule, currentRuleIndex
+			case *R.RuleActionDNSRouteOptions:
+				if action.DisableCache {
+					options.DisableCache = true
 				}
+				if action.RewriteTTL != nil {
+					options.RewriteTTL = action.RewriteTTL
+				}
+				if action.ClientSubnet.IsValid() {
+					options.ClientSubnet = action.ClientSubnet
+				}
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
+			case *R.RuleActionReject:
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
+				return nil, options, currentRule, currentRuleIndex
 			}
 		}
 	}
@@ -132,7 +127,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 		}
 		return &responseMessage, nil
 	}
-	r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()))
 	var (
 		response  *mDNS.Msg
 		cached    bool
@@ -173,14 +167,11 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 					}
 				}
 			}
+			r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()), " via ", transport.Name())
 			if rule != nil && rule.WithAddressLimit() {
 				addressLimit = true
-				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, options, func(response *mDNS.Msg) bool {
-					addresses, addrErr := dns.MessageToAddresses(response)
-					if addrErr != nil {
-						return false
-					}
-					metadata.DestinationAddresses = addresses
+				response, err = r.dnsClient.ExchangeWithResponseCheck(dnsCtx, transport, message, options, func(responseAddrs []netip.Addr) bool {
+					metadata.DestinationAddresses = responseAddrs
 					return rule.MatchAddressLimit(metadata)
 				})
 			} else {
