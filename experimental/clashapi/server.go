@@ -124,11 +124,8 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 	if options.ExternalUI != "" {
 		server.externalUI = filemanager.BasePath(ctx, os.ExpandEnv(options.ExternalUI))
 		chiRouter.Group(func(r chi.Router) {
-			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(server.externalUI)))
-			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
-			r.Get("/ui/*", func(w http.ResponseWriter, r *http.Request) {
-				fs.ServeHTTP(w, r)
-			})
+			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusMovedPermanently).ServeHTTP)
+			r.Handle("/ui/*", http.StripPrefix("/ui/", http.FileServer(http.Dir(server.externalUI))))
 		})
 	}
 	return server, nil
