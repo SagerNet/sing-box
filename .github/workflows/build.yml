@@ -393,7 +393,7 @@ jobs:
       - name: Setup Xcode stable
         if: matrix.if && github.ref == 'refs/heads/main-next'
         run: |-
-          sudo xcode-select -s /Applications/Xcode_16.1.app
+          sudo xcode-select -s /Applications/Xcode_16.2.app
       - name: Setup Xcode beta
         if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
@@ -491,6 +491,10 @@ jobs:
             -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+      - name: Publish to TestFlight
+        if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch' && github.ref =='refs/heads/dev-next'
+        run: |-
+          go run -v ./cmd/internal/app_store_connect publish_testflight ${{ matrix.platform }}
       - name: Build image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
