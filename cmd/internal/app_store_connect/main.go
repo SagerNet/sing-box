@@ -7,13 +7,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sagernet/asc-go/asc"
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
-
-	"github.com/cidertool/asc-go/asc"
 )
 
 func main() {
@@ -54,20 +53,20 @@ const (
 	groupID = "5c5f3b78-b7a0-40c0-bcad-e6ef87bbefda"
 )
 
-func createClient() *Client {
+func createClient(expireDuration time.Duration) *asc.Client {
 	privateKey, err := os.ReadFile(os.Getenv("ASC_KEY_PATH"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	tokenConfig, err := asc.NewTokenConfig(os.Getenv("ASC_KEY_ID"), os.Getenv("ASC_KEY_ISSUER_ID"), time.Minute, privateKey)
+	tokenConfig, err := asc.NewTokenConfig(os.Getenv("ASC_KEY_ID"), os.Getenv("ASC_KEY_ISSUER_ID"), expireDuration, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &Client{asc.NewClient(tokenConfig.Client())}
+	return asc.NewClient(tokenConfig.Client())
 }
 
 func fetchMacOSVersion(ctx context.Context) error {
-	client := createClient()
+	client := createClient(time.Minute)
 	versions, _, err := client.Apps.ListAppStoreVersionsForApp(ctx, appID, &asc.ListAppStoreVersionsQuery{
 		FilterPlatform: []string{"MAC_OS"},
 	})
@@ -105,71 +104,101 @@ func publishTestflight(ctx context.Context) error {
 		return err
 	}
 	tag := tagVersion.VersionString()
-	client := createClient()
+	client := createClient(10 * time.Minute)
 
+	log.Info(tag, " list build IDs")
 	buildIDsResponse, _, err := client.TestFlight.ListBuildIDsForBetaGroup(ctx, groupID, nil)
 	if err != nil {
 		return err
 	}
-	buildIDS := common.Map(buildIDsResponse.Data, func(it asc.RelationshipData) string {
+	buildIDs := common.Map(buildIDsResponse.Data, func(it asc.RelationshipData) string {
 		return it.ID
 	})
-	for _, platform := range []asc.Platform{
-		asc.PlatformIOS,
-		asc.PlatformMACOS,
-		asc.PlatformTVOS,
-	} {
+	var platforms []asc.Platform
+	if len(os.Args) == 3 {
+		switch os.Args[2] {
+		case "ios":
+			platforms = []asc.Platform{asc.PlatformIOS}
+		case "macos":
+			platforms = []asc.Platform{asc.PlatformMACOS}
+		case "tvos":
+			platforms = []asc.Platform{asc.PlatformTVOS}
+		default:
+			return E.New("unknown platform: ", os.Args[2])
+		}
+	} else {
+		platforms = []asc.Platform{
+			asc.PlatformIOS,
+			asc.PlatformMACOS,
+			asc.PlatformTVOS,
+		}
+	}
+	for _, platform := range platforms {
 		log.Info(string(platform), " list builds")
-		builds, _, err := client.Builds.ListBuilds(ctx, &asc.ListBuildsQuery{
-			FilterApp:                       []string{appID},
-			FilterPreReleaseVersionPlatform: []string{string(platform)},
-		})
-		if err != nil {
-			return err
-		}
-		log.Info(string(platform), " ", tag, " list localizations")
-		localizations, _, err := client.TestFlight.ListBetaBuildLocalizationsForBuild(ctx, builds.Data[0].ID, nil)
-		if err != nil {
-			return err
-		}
-		localization := common.Find(localizations.Data, func(it asc.BetaBuildLocalization) bool {
-			return *it.Attributes.Locale == "en-US"
-		})
-		if localization.ID == "" {
-			log.Fatal(string(platform), " ", tag, " no en-US localization found")
-		}
-		if localization.Attributes == nil || localization.Attributes.WhatsNew == nil || *localization.Attributes.WhatsNew == "" {
-			log.Info(string(platform), " ", tag, " update localization")
-			_, _, err = client.TestFlight.UpdateBetaBuildLocalization(ctx, localization.ID, common.Ptr(
-				F.ToString("sing-box ", tag),
-			))
+		for {
+			builds, _, err := client.Builds.ListBuilds(ctx, &asc.ListBuildsQuery{
+				FilterApp:                       []string{appID},
+				FilterPreReleaseVersionPlatform: []string{string(platform)},
+			})
 			if err != nil {
 				return err
 			}
-		}
-		if !common.Contains(buildIDS, builds.Data[0].ID) {
+			build := builds.Data[0]
+			if common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 5*time.Minute {
+				log.Info(string(platform), " ", tag, " waiting for process")
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			if *build.Attributes.ProcessingState != "VALID" {
+				log.Info(string(platform), " ", tag, " waiting for process: ", *build.Attributes.ProcessingState)
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			log.Info(string(platform), " ", tag, " list localizations")
+			localizations, _, err := client.TestFlight.ListBetaBuildLocalizationsForBuild(ctx, build.ID, nil)
+			if err != nil {
+				return err
+			}
+			localization := common.Find(localizations.Data, func(it asc.BetaBuildLocalization) bool {
+				return *it.Attributes.Locale == "en-US"
+			})
+			if localization.ID == "" {
+				log.Fatal(string(platform), " ", tag, " no en-US localization found")
+			}
+			if localization.Attributes == nil || localization.Attributes.WhatsNew == nil || *localization.Attributes.WhatsNew == "" {
+				log.Info(string(platform), " ", tag, " update localization")
+				_, _, err = client.TestFlight.UpdateBetaBuildLocalization(ctx, localization.ID, common.Ptr(
+					F.ToString("sing-box ", tagVersion.String()),
+				))
+				if err != nil {
+					return err
+				}
+			}
 			log.Info(string(platform), " ", tag, " publish")
-			_, err = client.TestFlight.AddBuildsToBetaGroup(ctx, groupID, []string{builds.Data[0].ID})
+			response, err := client.TestFlight.AddBuildsToBetaGroup(ctx, groupID, []string{build.ID})
+			if response != nil && response.StatusCode == http.StatusUnprocessableEntity {
+				log.Info("waiting for process")
+				time.Sleep(15 * time.Second)
+				continue
+			} else if err != nil {
+				return err
+			}
+			log.Info(string(platform), " ", tag, " list submissions")
+			betaSubmissions, _, err := client.TestFlight.ListBetaAppReviewSubmissions(ctx, &asc.ListBetaAppReviewSubmissionsQuery{
+				FilterBuild: []string{build.ID},
+			})
 			if err != nil {
 				return err
 			}
-		}
-		log.Info(string(platform), " ", tag, " list submissions")
-		betaSubmissions, _, err := client.TestFlight.ListBetaAppReviewSubmissions(ctx, &asc.ListBetaAppReviewSubmissionsQuery{
-			FilterBuild: []string{builds.Data[0].ID},
-		})
-		if err != nil {
-			return err
-		}
-		if len(betaSubmissions.Data) == 0 {
-			log.Info(string(platform), " ", tag, " create submission")
-			_, _, err = client.TestFlight.CreateBetaAppReviewSubmission(ctx, builds.Data[0].ID)
-			if err != nil {
-				return err
+			if len(betaSubmissions.Data) == 0 {
+				log.Info(string(platform), " ", tag, " create submission")
+				_, _, err = client.TestFlight.CreateBetaAppReviewSubmission(ctx, build.ID)
+				if err != nil {
+					return err
+				}
 			}
-			continue
+			break
 		}
-
 	}
 	return nil
 }
@@ -187,34 +216,40 @@ func cancelAppStore(ctx context.Context, platform string) error {
 	if err != nil {
 		return err
 	}
-	client := createClient()
-	log.Info(platform, " list versions")
-	versions, _, err := client.Apps.ListAppStoreVersionsForApp(ctx, appID, &asc.ListAppStoreVersionsQuery{
-		FilterPlatform: []string{string(platform)},
-	})
-	if err != nil {
-		return err
-	}
-	version := common.Find(versions.Data, func(it asc.AppStoreVersion) bool {
-		return *it.Attributes.VersionString == tag
-	})
-	if version.ID == "" {
+	client := createClient(time.Minute)
+	for {
+		log.Info(platform, " list versions")
+		versions, response, err := client.Apps.ListAppStoreVersionsForApp(ctx, appID, &asc.ListAppStoreVersionsQuery{
+			FilterPlatform: []string{string(platform)},
+		})
+		if isRetryable(response) {
+			continue
+		} else if err != nil {
+			return err
+		}
+		version := common.Find(versions.Data, func(it asc.AppStoreVersion) bool {
+			return *it.Attributes.VersionString == tag
+		})
+		if version.ID == "" {
+			return nil
+		}
+		log.Info(platform, " ", tag, " get submission")
+		submission, response, err := client.Submission.GetAppStoreVersionSubmissionForAppStoreVersion(ctx, version.ID, nil)
+		if response != nil && response.StatusCode == http.StatusNotFound {
+			return nil
+		}
+		if isRetryable(response) {
+			continue
+		} else if err != nil {
+			return err
+		}
+		log.Info(platform, " ", tag, " delete submission")
+		_, err = client.Submission.DeleteSubmission(ctx, submission.Data.ID)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
-	log.Info(string(platform), " ", tag, " get submission")
-	submission, response, err := client.Submission.GetAppStoreVersionSubmissionForAppStoreVersion(ctx, version.ID, nil)
-	if response != nil && response.StatusCode == http.StatusNotFound {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	log.Info(platform, " ", tag, " delete submission")
-	_, err = client.Submission.DeleteSubmission(ctx, submission.Data.ID)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func prepareAppStore(ctx context.Context) error {
@@ -222,7 +257,7 @@ func prepareAppStore(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	client := createClient()
+	client := createClient(time.Minute)
 	for _, platform := range []asc.Platform{
 		asc.PlatformIOS,
 		asc.PlatformMACOS,
@@ -291,7 +326,7 @@ func prepareAppStore(ctx context.Context) error {
 					log.Fatal(string(platform), " ", tag, " unknown state ", string(*version.Attributes.AppStoreState))
 				}
 				log.Info(string(platform), " ", tag, " update build")
-				response, err = client.UpdateBuildForAppStoreVersion(ctx, version.ID, buildID)
+				response, err = client.Apps.UpdateBuildForAppStoreVersion(ctx, version.ID, buildID)
 				if err != nil {
 					return err
 				}
@@ -364,7 +399,7 @@ func publishAppStore(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	client := createClient()
+	client := createClient(time.Minute)
 	for _, platform := range []asc.Platform{
 		asc.PlatformIOS,
 		asc.PlatformMACOS,
@@ -397,4 +432,16 @@ func publishAppStore(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func isRetryable(response *asc.Response) bool {
+	if response == nil {
+		return false
+	}
+	switch response.StatusCode {
+	case http.StatusInternalServerError, http.StatusUnprocessableEntity:
+		return true
+	default:
+		return false
+	}
 }
