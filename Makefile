@@ -28,7 +28,7 @@ ci_build:
 	go build $(MAIN_PARAMS) $(MAIN)
 
 generate_completions:
-	go run -v --tags generate,generate_completions $(MAIN)
+	go run -v --tags $(TAGS),generate,generate_completions $(MAIN)
 
 install:
 	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
