@@ -194,8 +194,9 @@ func (r LogicalHeadlessRule) IsValid() bool {
 }
 
 type _PlainRuleSetCompat struct {
-	Version uint8        `json:"version"`
-	Options PlainRuleSet `json:"-"`
+	Version    uint8           `json:"version"`
+	Options    PlainRuleSet    `json:"-"`
+	RawMessage json.RawMessage `json:"-"`
 }
 
 type PlainRuleSetCompat _PlainRuleSetCompat
@@ -229,6 +230,7 @@ func (r *PlainRuleSetCompat) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
+	r.RawMessage = bytes
 	return nil
 }
 

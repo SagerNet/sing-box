@@ -18,7 +18,7 @@ import (
 )
 
 var commandMerge = &cobra.Command{
-	Use:   "merge <output>",
+	Use:   "merge <output-path>",
 	Short: "Merge configurations",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := merge(args[0])
