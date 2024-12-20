@@ -170,7 +170,8 @@ jobs:
           echo "HOME=$HOME" >> "$GITHUB_ENV"
       - name: Set tag
         run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=true" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Build
         if: matrix.goos != 'android'
         run: |-
@@ -230,7 +231,8 @@ jobs:
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
       - name: Set tag
         run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=true" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Build library
         run: |-
           make lib_install
@@ -304,7 +306,8 @@ jobs:
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
       - name: Set tag
         run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=true" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Build library
         run: |-
           make lib_install
@@ -401,7 +404,8 @@ jobs:
       - name: Set tag
         if: matrix.if
         run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=true" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Checkout main branch
         if: matrix.if && github.ref == 'refs/heads/main-next' && github.event_name != 'workflow_dispatch'
@@ -562,7 +566,8 @@ jobs:
           go install -v .
       - name: Set tag
         run: |-
-          git tag v${{ needs.calculate_version.outputs.version }}
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=true" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Download builds
         uses: actions/download-artifact@v4
@@ -579,8 +584,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Upload builds
+        if: ${{ env.PUBLISHED != 'true' }}
         run: |-
           export PATH="$PATH:$HOME/go/bin"
           ghr --replace --draft --prerelease -p 5 "v${VERSION}" dist/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Replace builds
+        if: ${{ env.PUBLISHED == 'true' }}
+        run: |-
+          export PATH="$PATH:$HOME/go/bin"
+          ghr --replace -p 5 "v${VERSION}" dist/release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
