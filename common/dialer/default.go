@@ -2,8 +2,10 @@ package dialer
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -26,20 +28,21 @@ var (
 )
 
 type DefaultDialer struct {
-	dialer4              tcpDialer
-	dialer6              tcpDialer
-	udpDialer4           net.Dialer
-	udpDialer6           net.Dialer
-	udpListener          net.ListenConfig
-	udpAddr4             string
-	udpAddr6             string
-	isWireGuardListener  bool
-	networkManager       adapter.NetworkManager
-	networkStrategy      *C.NetworkStrategy
-	networkType          []C.InterfaceType
-	fallbackNetworkType  []C.InterfaceType
-	networkFallbackDelay time.Duration
-	networkLastFallback  atomic.TypedValue[time.Time]
+	dialer4                tcpDialer
+	dialer6                tcpDialer
+	udpDialer4             net.Dialer
+	udpDialer6             net.Dialer
+	udpListener            net.ListenConfig
+	udpAddr4               string
+	udpAddr6               string
+	isWireGuardListener    bool
+	networkManager         adapter.NetworkManager
+	networkStrategy        *C.NetworkStrategy
+	defaultNetworkStrategy bool
+	networkType            []C.InterfaceType
+	fallbackNetworkType    []C.InterfaceType
+	networkFallbackDelay   time.Duration
+	networkLastFallback    atomic.TypedValue[time.Time]
 }
 
 func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDialer, error) {
@@ -47,13 +50,14 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	platformInterface := service.FromContext[platform.Interface](ctx)
 
 	var (
-		dialer               net.Dialer
-		listener             net.ListenConfig
-		interfaceFinder      control.InterfaceFinder
-		networkStrategy      *C.NetworkStrategy
-		networkType          []C.InterfaceType
-		fallbackNetworkType  []C.InterfaceType
-		networkFallbackDelay time.Duration
+		dialer                 net.Dialer
+		listener               net.ListenConfig
+		interfaceFinder        control.InterfaceFinder
+		networkStrategy        *C.NetworkStrategy
+		defaultNetworkStrategy bool
+		networkType            []C.InterfaceType
+		fallbackNetworkType    []C.InterfaceType
+		networkFallbackDelay   time.Duration
 	)
 	if networkManager != nil {
 		interfaceFinder = networkManager.InterfaceFinder()
@@ -98,6 +102,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 					networkStrategy = (*C.NetworkStrategy)(options.NetworkStrategy)
 					if networkStrategy == nil {
 						networkStrategy = common.Ptr(C.NetworkStrategyDefault)
+						defaultNetworkStrategy = true
 					}
 					networkType = common.Map(options.NetworkType, option.InterfaceType.Build)
 					fallbackNetworkType = common.Map(options.FallbackNetworkType, option.InterfaceType.Build)
@@ -192,19 +197,20 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		return nil, err
 	}
 	return &DefaultDialer{
-		dialer4:              tcpDialer4,
-		dialer6:              tcpDialer6,
-		udpDialer4:           udpDialer4,
-		udpDialer6:           udpDialer6,
-		udpListener:          listener,
-		udpAddr4:             udpAddr4,
-		udpAddr6:             udpAddr6,
-		isWireGuardListener:  options.IsWireGuardListener,
-		networkManager:       networkManager,
-		networkStrategy:      networkStrategy,
-		networkType:          networkType,
-		fallbackNetworkType:  fallbackNetworkType,
-		networkFallbackDelay: networkFallbackDelay,
+		dialer4:                tcpDialer4,
+		dialer6:                tcpDialer6,
+		udpDialer4:             udpDialer4,
+		udpDialer6:             udpDialer6,
+		udpListener:            listener,
+		udpAddr4:               udpAddr4,
+		udpAddr6:               udpAddr6,
+		isWireGuardListener:    options.IsWireGuardListener,
+		networkManager:         networkManager,
+		networkStrategy:        networkStrategy,
+		defaultNetworkStrategy: defaultNetworkStrategy,
+		networkType:            networkType,
+		fallbackNetworkType:    fallbackNetworkType,
+		networkFallbackDelay:   networkFallbackDelay,
 	}, nil
 }
 
@@ -265,7 +271,13 @@ func (d *DefaultDialer) DialParallelInterface(ctx context.Context, network strin
 		conn, isPrimary, err = d.dialParallelInterfaceFastFallback(ctx, dialer, network, address.String(), *strategy, interfaceType, fallbackInterfaceType, fallbackDelay, d.networkLastFallback.Store)
 	}
 	if err != nil {
-		return nil, err
+		// bind interface failed on legacy xiaomi systems
+		if d.defaultNetworkStrategy && errors.Is(err, syscall.EPERM) {
+			d.networkStrategy = nil
+			return d.DialContext(ctx, network, address)
+		} else {
+			return nil, err
+		}
 	}
 	if !fastFallback && !isPrimary {
 		d.networkLastFallback.Store(time.Now())
@@ -307,7 +319,17 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 	if destination.IsIPv4() && !destination.Addr.IsUnspecified() {
 		network += "4"
 	}
-	return trackPacketConn(d.listenSerialInterfacePacket(ctx, d.udpListener, network, "", *strategy, interfaceType, fallbackInterfaceType, fallbackDelay))
+	packetConn, err := d.listenSerialInterfacePacket(ctx, d.udpListener, network, "", *strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+	if err != nil {
+		// bind interface failed on legacy xiaomi systems
+		if d.defaultNetworkStrategy && errors.Is(err, syscall.EPERM) {
+			d.networkStrategy = nil
+			return d.ListenPacket(ctx, destination)
+		} else {
+			return nil, err
+		}
+	}
+	return trackPacketConn(packetConn, nil)
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
