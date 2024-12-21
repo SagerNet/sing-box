@@ -163,7 +163,7 @@ func (w *WireGuard) start() error {
 	if err != nil {
 		return err
 	}
-	wgDevice := device.NewDevice(w.tunDevice, bind, &device.Logger{
+	wgDevice := device.NewDevice(w.ctx, w.tunDevice, bind, &device.Logger{
 		Verbosef: func(format string, args ...interface{}) {
 			w.logger.Debug(fmt.Sprintf(strings.ToLower(format), args...))
 		},
