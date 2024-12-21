@@ -35,7 +35,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 		conn, err := perNetDialer.DialContext(ctx, network, addr)
 		if err != nil {
 			select {
-			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Name, ")"), primary: primary}:
+			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")"), primary: primary}:
 			case <-returned:
 			}
 		} else {
@@ -107,7 +107,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		conn, err := perNetDialer.DialContext(ctx, network, addr)
 		if err != nil {
 			select {
-			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Name, ")"), primary: primary}:
+			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")"), primary: primary}:
 			case <-returned:
 			}
 		} else {
@@ -157,7 +157,7 @@ func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listene
 		if err == nil {
 			return conn, nil
 		}
-		errors = append(errors, E.Cause(err, "listen ", primaryInterface.Name, " (", primaryInterface.Name, ")"))
+		errors = append(errors, E.Cause(err, "listen ", primaryInterface.Name, " (", primaryInterface.Index, ")"))
 	}
 	for _, fallbackInterface := range fallbackInterfaces {
 		perNetListener := listener
@@ -166,7 +166,7 @@ func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listene
 		if err == nil {
 			return conn, nil
 		}
-		errors = append(errors, E.Cause(err, "listen ", fallbackInterface.Name, " (", fallbackInterface.Name, ")"))
+		errors = append(errors, E.Cause(err, "listen ", fallbackInterface.Name, " (", fallbackInterface.Index, ")"))
 	}
 	return nil, E.Errors(errors...)
 }
