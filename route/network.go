@@ -240,6 +240,9 @@ func (r *NetworkManager) UpdateInterfaces() error {
 		newInterfaces := common.Filter(interfaces, func(it adapter.NetworkInterface) bool {
 			return it.Flags&net.FlagUp != 0
 		})
+		for _, networkInterface := range newInterfaces {
+			networkInterface.RawNetwork = nil
+		}
 		r.networkInterfaces.Store(newInterfaces)
 		if len(newInterfaces) > 0 && !slices.EqualFunc(oldInterfaces, newInterfaces, func(oldInterface adapter.NetworkInterface, newInterface adapter.NetworkInterface) bool {
 			return oldInterface.Interface.Index == newInterface.Interface.Index &&
@@ -260,6 +263,15 @@ func (r *NetworkManager) UpdateInterfaces() error {
 				}
 				return F.ToString(it.Name, " (", strings.Join(options, ", "), ")")
 			}), ", "))
+			if C.IsAndroid {
+				err = r.platformInterface.SetUnderlyingNetworks(newInterfaces)
+				if err != nil {
+					r.logger.Error("set underlying networks: ", err)
+				}
+			}
+		}
+		for _, networkInterface := range interfaces {
+			networkInterface.RawNetwork = nil
 		}
 		return nil
 	}

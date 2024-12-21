@@ -15,6 +15,7 @@ type Interface interface {
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
 	Interfaces() ([]adapter.NetworkInterface, error)
+	SetUnderlyingNetworks(networks []adapter.NetworkInterface) error
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ClearDNSCache()
