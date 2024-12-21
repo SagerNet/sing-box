@@ -256,7 +256,8 @@ jobs:
         with:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle') }}
-      - name: Build
+      - name: Build release
+        if: github.event_name == 'workflow_dispatch'
         run: |-
           go run -v ./cmd/internal/update_android_version --ci
           mkdir clients/android/app/libs
@@ -267,18 +268,47 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      - name: Prepare upload
+      - name: Build debug
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+          mkdir clients/android/app/libs
+          cp libbox.aar clients/android/app/libs
+          cd clients/android
+          ./gradlew :app:assemblePlayRelease
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      - name: Prepare release upload
         if: github.event_name == 'workflow_dispatch'
         run: |-
           mkdir -p dist/release
           cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
           cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+      - name: Prepare debug upload
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          mkdir -p dist/release
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: binary-android-apks
           path: 'dist'
+      - name: Upload debug apk (arm64-v8a)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: "SFA-${{ needs.calculate_version.outputs.version }}-arm64-v8a.apk"
+          path: 'dist/release/*-arm64-v8a.apk'
+      - name: Upload debug apk (universal)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: "SFA-${{ needs.calculate_version.outputs.version }}-universal.apk"
+          path: 'dist/release/*-universal.apk'
   publish_android:
     name: Publish Android
     if: github.event_name == 'workflow_dispatch' && inputs.build == 'publish-android'
