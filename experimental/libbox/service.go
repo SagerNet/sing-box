@@ -206,9 +206,16 @@ func (w *platformInterfaceWrapper) Interfaces() ([]adapter.NetworkInterface, err
 			DNSServers:  iteratorToArray[string](netInterface.DNSServer),
 			Expensive:   netInterface.Metered || isDefault && w.isExpensive,
 			Constrained: isDefault && w.isConstrained,
+			RawNetwork:  netInterface.RawNetwork,
 		})
 	}
 	return interfaces, nil
+}
+
+func (w *platformInterfaceWrapper) SetUnderlyingNetworks(networks []adapter.NetworkInterface) error {
+	return w.iif.SetUnderlyingNetworks(newIterator(common.Map(networks, func(it adapter.NetworkInterface) RawNetwork {
+		return it.RawNetwork.(RawNetwork)
+	})))
 }
 
 func (w *platformInterfaceWrapper) UnderNetworkExtension() bool {

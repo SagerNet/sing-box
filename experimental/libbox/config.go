@@ -78,6 +78,10 @@ func (s *platformInterfaceStub) Interfaces() ([]adapter.NetworkInterface, error)
 	return nil, os.ErrInvalid
 }
 
+func (s *platformInterfaceStub) SetUnderlyingNetworks(networks []adapter.NetworkInterface) error {
+	return os.ErrInvalid
+}
+
 func (s *platformInterfaceStub) UnderNetworkExtension() bool {
 	return false
 }

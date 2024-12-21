@@ -17,6 +17,7 @@ type PlatformInterface interface {
 	StartDefaultInterfaceMonitor(listener InterfaceUpdateListener) error
 	CloseDefaultInterfaceMonitor(listener InterfaceUpdateListener) error
 	GetInterfaces() (NetworkInterfaceIterator, error)
+	SetUnderlyingNetworks(networks RawNetworkIterator) error
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ReadWIFIState() *WIFIState
@@ -50,6 +51,8 @@ type NetworkInterface struct {
 	Type      int32
 	DNSServer StringIterator
 	Metered   bool
+
+	RawNetwork RawNetwork
 }
 
 type WIFIState struct {
@@ -63,6 +66,11 @@ func NewWIFIState(wifiSSID string, wifiBSSID string) *WIFIState {
 
 type NetworkInterfaceIterator interface {
 	Next() *NetworkInterface
+	HasNext() bool
+}
+
+type RawNetworkIterator interface {
+	Next() RawNetwork
 	HasNext() bool
 }
 
