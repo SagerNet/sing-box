@@ -359,7 +359,7 @@ func prepareAppStore(ctx context.Context) error {
 		if localization.ID == "" {
 			log.Info(string(platform), " ", tag, " no en-US localization found")
 		}
-		if localization.Attributes.WhatsNew == nil && *localization.Attributes.WhatsNew == "" {
+		if localization.Attributes == nil || localization.Attributes.WhatsNew == nil || *localization.Attributes.WhatsNew == "" {
 			log.Info(string(platform), " ", tag, " update localization")
 			_, _, err = client.Apps.UpdateAppStoreVersionLocalization(ctx, localization.ID, &asc.AppStoreVersionLocalizationUpdateRequestAttributes{
 				PromotionalText: common.Ptr("Yet another distribution for sing-box, the universal proxy platform."),
@@ -378,16 +378,14 @@ func prepareAppStore(ctx context.Context) error {
 				case http.StatusInternalServerError:
 					continue
 				default:
-					response.Write(os.Stderr)
-					log.Info(string(platform), " ", tag, " unexpected response: ", response.Status)
+					return err
 				}
 			}
 			switch response.StatusCode {
 			case http.StatusCreated:
 				break fixSubmit
 			default:
-				response.Write(os.Stderr)
-				log.Info(string(platform), " ", tag, " unexpected response: ", response.Status)
+				return err
 			}
 		}
 	}
