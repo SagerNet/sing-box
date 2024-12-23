@@ -13,6 +13,7 @@ type Interface interface {
 	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int) error
 	OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
+	UpdateRouteOptions(options *tun.Options, platformOptions option.TunPlatformOptions) error
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
 	Interfaces() ([]adapter.NetworkInterface, error)
 	SetUnderlyingNetworks(networks []adapter.NetworkInterface) error

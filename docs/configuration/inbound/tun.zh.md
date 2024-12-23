@@ -4,7 +4,9 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.11.0 中的更改"
 
-    :material-delete-alert: [gso](#gso)
+    :material-delete-alert: [gso](#gso)  
+    :material-alert-decagram: [route_address_set](#stack)  
+    :material-alert-decagram: [route_exclude_address_set](#stack)
 
 !!! quote "sing-box 1.10.0 中的更改"
 
@@ -329,29 +331,53 @@ tun 接口的 IPv6 前缀。
 
 #### route_address_set
 
-!!! question "自 sing-box 1.10.0 起"
+=== "`auto_redirect` 已启用"
 
-!!! quote ""
+    !!! question "自 sing-box 1.10.0 起"
+    
+    !!! quote ""
+    
+        仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。 
+    
+    将指定规则集中的目标 IP CIDR 规则添加到防火墙。
+    不匹配的流量将绕过 sing-box 路由。
+    
+    与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
-    仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。 
+=== "`auto_redirect` 未启用"
 
-将指定规则集中的目标 IP CIDR 规则添加到防火墙。
-不匹配的流量将绕过 sing-box 路由。
+    !!! question "自 sing-box 1.11.0 起"
 
-与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
+    将指定规则集中的目标 IP CIDR 规则添加到路由，相当于添加到 `route_address`。
+    不匹配的流量将绕过 sing-box 路由。
+
+    请注意，由于 Android VpnService 无法处理大量路由（DeadSystemException），
+    因此它**在 Android 图形客户端上不起作用**，但除此之外，它在所有命令行客户端和 Apple 平台上都可以正常工作。
 
 #### route_exclude_address_set
 
-!!! question "自 sing-box 1.10.0 起"
+=== "`auto_redirect` 已启用"
 
-!!! quote ""
+    !!! question "自 sing-box 1.10.0 起"
+    
+    !!! quote ""
+    
+        仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。 
 
-    仅支持 Linux，且需要 nftables，`auto_route` 和 `auto_redirect` 已启用。
+    将指定规则集中的目标 IP CIDR 规则添加到防火墙。
+    匹配的流量将绕过 sing-box 路由。
 
-将指定规则集中的目标 IP CIDR 规则添加到防火墙。
-匹配的流量将绕过 sing-box 路由。
+    与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
-与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
+=== "`auto_redirect` 未启用"
+
+    !!! question "自 sing-box 1.11.0 起"
+
+    将指定规则集中的目标 IP CIDR 规则添加到路由，相当于添加到 `route_exclude_address`。
+    匹配的流量将绕过 sing-box 路由。
+
+    请注意，由于 Android VpnService 无法处理大量路由（DeadSystemException），
+    因此它**在 Android 图形客户端上不起作用**，但除此之外，它在所有命令行客户端和 Apple 平台上都可以正常工作。
 
 #### endpoint_independent_nat
 
