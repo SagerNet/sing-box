@@ -148,10 +148,10 @@ func (w *platformInterfaceWrapper) AutoDetectInterfaceControl(fd int) error {
 
 func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
-		return nil, E.New("android: unsupported uid options")
+		return nil, E.New("platform: unsupported uid options")
 	}
 	if len(options.IncludeAndroidUser) > 0 {
-		return nil, E.New("android: unsupported android_user option")
+		return nil, E.New("platform: unsupported android_user option")
 	}
 	routeRanges, err := options.BuildAutoRouteRanges(true)
 	if err != nil {
@@ -172,6 +172,20 @@ func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions
 	options.FileDescriptor = dupFd
 	w.myTunName = options.Name
 	return tun.New(*options)
+}
+
+func (w *platformInterfaceWrapper) UpdateRouteOptions(options *tun.Options, platformOptions option.TunPlatformOptions) error {
+	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
+		return E.New("android: unsupported uid options")
+	}
+	if len(options.IncludeAndroidUser) > 0 {
+		return E.New("android: unsupported android_user option")
+	}
+	routeRanges, err := options.BuildAutoRouteRanges(true)
+	if err != nil {
+		return err
+	}
+	return w.iif.UpdateRouteOptions(&tunOptions{options, routeRanges, platformOptions})
 }
 
 func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor {
