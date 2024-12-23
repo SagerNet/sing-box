@@ -363,7 +363,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 				return E.Cause(err, "initialize DNS server[", i, "]")
 			}
 		}
-	case adapter.StartStatePostStart:
 		var cacheContext *adapter.HTTPStartContext
 		if len(r.ruleSets) > 0 {
 			monitor.Start("initialize rule-set")
@@ -419,6 +418,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 				}
 			}
 		}
+	case adapter.StartStatePostStart:
 		for i, rule := range r.rules {
 			monitor.Start("initialize rule[", i, "]")
 			err := rule.Start()
