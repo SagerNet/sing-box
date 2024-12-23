@@ -4,7 +4,9 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.11.0"
 
-    :material-delete-alert: [gso](#gso)
+    :material-delete-alert: [gso](#gso)  
+    :material-alert-decagram: [route_address_set](#stack)  
+    :material-alert-decagram: [route_exclude_address_set](#stack)
 
 !!! quote "Changes in sing-box 1.10.0"
 
@@ -248,7 +250,7 @@ use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
 
 !!! question "Since sing-box 1.10.0"
 
-Connection input mark used by `route_address_set` and `route_exclude_address_set`.
+Connection input mark used by `route[_exclude]_address_set` with `auto_redirect`.
 
 `0x2023` is used by default.
 
@@ -256,7 +258,7 @@ Connection input mark used by `route_address_set` and `route_exclude_address_set
 
 !!! question "Since sing-box 1.10.0"
 
-Connection output mark used by `route_address_set` and `route_exclude_address_set`.
+Connection input mark used by `route[_exclude]_address_set` with `auto_redirect`.
 
 `0x2024` is used by default.
 
@@ -329,29 +331,55 @@ Exclude custom routes when `auto_route` is enabled.
 
 #### route_address_set
 
-!!! question "Since sing-box 1.10.0"
+=== "With `auto_redirect` enabled"
 
-!!! quote ""
+    !!! question "Since sing-box 1.10.0"
 
-    Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+    !!! quote ""
+    
+        Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+    
+    Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+    Unmatched traffic will bypass the sing-box routes.
+    
+    Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
 
-Add the destination IP CIDR rules in the specified rule-sets to the firewall.
-Unmatched traffic will bypass the sing-box routes.
+=== "Without `auto_redirect` enabled"
 
-Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
+    !!! question "Since sing-box 1.11.0"
+    
+    Add the destination IP CIDR rules in the specified rule-sets to routes, equivalent to adding to `route_address`.
+    Unmatched traffic will bypass the sing-box routes.
+
+    Note that it **doesn't work on the Android graphical client** due to
+    the Android VpnService not being able to handle a large number of routes (DeadSystemException),
+    but otherwise it works fine on all command line clients and Apple platforms.
 
 #### route_exclude_address_set
 
-!!! question "Since sing-box 1.10.0"
+=== "With `auto_redirect` enabled"
 
-!!! quote ""
+    !!! question "Since sing-box 1.10.0"
+
+    !!! quote ""
 
     Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
 
-Add the destination IP CIDR rules in the specified rule-sets to the firewall.
-Matched traffic will bypass the sing-box routes.
+    Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+    Matched traffic will bypass the sing-box routes.
+    
+    Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
 
-Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
+=== "Without `auto_redirect` enabled"
+
+    !!! question "Since sing-box 1.11.0"
+    
+    Add the destination IP CIDR rules in the specified rule-sets to routes, equivalent to adding to `route_exclude_address`.
+    Matched traffic will bypass the sing-box routes.
+
+    Note that it **doesn't work on the Android graphical client** due to
+    the Android VpnService not being able to handle a large number of routes (DeadSystemException),
+    but otherwise it works fine on all command line clients and Apple platforms.
 
 #### endpoint_independent_nat
 
