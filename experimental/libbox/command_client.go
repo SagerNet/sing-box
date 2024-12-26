@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -114,7 +113,7 @@ func (c *CommandClient) Connect() error {
 		if err != nil {
 			return err
 		}
-		if C.FixAndroidStack {
+		if sFixAndroidStack {
 			go func() {
 				c.handler.Connected()
 				c.handler.InitializeClashMode(newIterator(modeList), currentMode)

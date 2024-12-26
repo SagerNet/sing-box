@@ -81,7 +81,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 }
 
 func (s *BoxService) Start() error {
-	if C.FixAndroidStack {
+	if sFixAndroidStack {
 		var err error
 		done := make(chan struct{})
 		go func() {
