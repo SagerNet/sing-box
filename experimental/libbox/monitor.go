@@ -1,7 +1,6 @@
 package libbox
 
 import (
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -56,7 +55,7 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 }
 
 func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName string, interfaceIndex32 int32, isExpensive bool, isConstrained bool) {
-	if C.FixAndroidStack {
+	if sFixAndroidStack {
 		go m.updateDefaultInterface(interfaceName, interfaceIndex32, isExpensive, isConstrained)
 	} else {
 		m.updateDefaultInterface(interfaceName, interfaceIndex32, isExpensive, isConstrained)
