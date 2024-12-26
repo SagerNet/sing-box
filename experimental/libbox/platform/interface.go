@@ -16,7 +16,6 @@ type Interface interface {
 	UpdateRouteOptions(options *tun.Options, platformOptions option.TunPlatformOptions) error
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor
 	Interfaces() ([]adapter.NetworkInterface, error)
-	SetUnderlyingNetworks(networks []adapter.NetworkInterface) error
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ClearDNSCache()
