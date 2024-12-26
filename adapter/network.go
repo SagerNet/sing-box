@@ -51,5 +51,4 @@ type NetworkInterface struct {
 	DNSServers  []string
 	Expensive   bool
 	Constrained bool
-	RawNetwork  any
 }
