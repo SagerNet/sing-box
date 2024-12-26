@@ -2,6 +2,7 @@ package inbound
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 
@@ -45,6 +46,11 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	m.stage = stage
 	for _, inbound := range m.inbounds {
 		err := adapter.LegacyStart(inbound, stage)
+		if err != nil && errors.Is(err, os.ErrPermission) {
+			m.Remove(inbound.Tag())
+			m.logger.Warn("inbound/", inbound.Type(), "[", inbound.Tag(), "]: ", err)
+			continue
+		}
 		if err != nil {
 			return E.Cause(err, stage, " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
 		}
