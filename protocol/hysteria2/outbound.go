@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -70,6 +71,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		Logger:             logger,
 		BrutalDebug:        options.BrutalDebug,
 		ServerAddress:      options.ServerOptions.Build(),
+		ServerPorts:        options.ServerPorts,
+		HopInterval:        time.Duration(options.HopInterval),
 		SendBPS:            uint64(options.UpMbps * hysteria.MbpsToBps),
 		ReceiveBPS:         uint64(options.DownMbps * hysteria.MbpsToBps),
 		SalamanderPassword: salamanderPassword,
