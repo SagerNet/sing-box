@@ -3,24 +3,36 @@ package main
 import (
 	"net/netip"
 	"testing"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic/hysteria2"
 	"github.com/sagernet/sing/common"
+	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
 func TestHysteria2Self(t *testing.T) {
 	t.Run("self", func(t *testing.T) {
-		testHysteria2Self(t, "")
+		testHysteria2Self(t, "", false)
 	})
 	t.Run("self-salamander", func(t *testing.T) {
-		testHysteria2Self(t, "password")
+		testHysteria2Self(t, "password", false)
+	})
+	t.Run("self-hop", func(t *testing.T) {
+		testHysteria2Self(t, "", true)
+	})
+	t.Run("self-hop-salamander", func(t *testing.T) {
+		testHysteria2Self(t, "password", true)
 	})
 }
 
-func testHysteria2Self(t *testing.T, salamanderPassword string) {
+func TestHysteria2Hop(t *testing.T) {
+	testHysteria2Self(t, "password", true)
+}
+
+func testHysteria2Self(t *testing.T, salamanderPassword string, portHop bool) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	var obfs *option.Hysteria2Obfs
 	if salamanderPassword != "" {
@@ -28,6 +40,14 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 			Type:     hysteria2.ObfsTypeSalamander,
 			Password: salamanderPassword,
 		}
+	}
+	var (
+		serverPorts []string
+		hopInterval time.Duration
+	)
+	if portHop {
+		serverPorts = []string{F.ToString(serverPort, ":", serverPort)}
+		hopInterval = 5 * time.Second
 	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
@@ -77,10 +97,12 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
 					},
-					UpMbps:   100,
-					DownMbps: 100,
-					Obfs:     obfs,
-					Password: "password",
+					ServerPorts: serverPorts,
+					HopInterval: badoption.Duration(hopInterval),
+					UpMbps:      100,
+					DownMbps:    100,
+					Obfs:        obfs,
+					Password:    "password",
 					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 						TLS: &option.OutboundTLSOptions{
 							Enabled:         true,
@@ -112,6 +134,10 @@ func testHysteria2Self(t *testing.T, salamanderPassword string) {
 		},
 	})
 	testSuitLargeUDP(t, clientPort, testPort)
+	if portHop {
+		time.Sleep(5 * time.Second)
+		testSuitLargeUDP(t, clientPort, testPort)
+	}
 }
 
 func TestHysteria2Inbound(t *testing.T) {
