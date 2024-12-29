@@ -4,7 +4,8 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.11.0"
 
-    :material-alert: [masquerade](#masquerade)
+    :material-alert: [masquerade](#masquerade)  
+    :material-alert: [ignore_client_bandwidth](#ignore_client_bandwidth)
 
 ### Structure
 
@@ -75,9 +76,13 @@ Authentication password
 
 #### ignore_client_bandwidth
 
-Commands the client to use the BBR flow control algorithm instead of Hysteria CC.
+*When `up_mbps` and `down_mbps` are not set*:
 
-Conflict with `up_mbps` and `down_mbps`.
+Commands clients to use the BBR CC instead of Hysteria CC.
+
+*When `up_mbps` and `down_mbps` are set*:
+
+Deny clients to use the BBR CC.
 
 #### tls
 
