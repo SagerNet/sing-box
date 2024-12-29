@@ -4,7 +4,8 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.11.0 中的更改"
 
-    :material-alert: [masquerade](#masquerade)
+    :material-alert: [masquerade](#masquerade)  
+    :material-alert: [ignore_client_bandwidth](#ignore_client_bandwidth)
 
 ### 结构
 
@@ -72,9 +73,13 @@ Hysteria 用户
 
 #### ignore_client_bandwidth
 
+*当 `up_mbps` 和 `down_mbps` 未设定时*:
+
 命令客户端使用 BBR 拥塞控制算法而不是 Hysteria CC。
 
-与 `up_mbps` 和 `down_mbps` 冲突。
+*当 `up_mbps` 和 `down_mbps` 已设定时*:
+
+禁止客户端使用 BBR 拥塞控制算法。
 
 #### tls
 
