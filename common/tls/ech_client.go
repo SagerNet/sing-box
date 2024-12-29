@@ -63,6 +63,7 @@ type echConnWrapper struct {
 
 func (c *echConnWrapper) ConnectionState() tls.ConnectionState {
 	state := c.Conn.ConnectionState()
+	//nolint:staticcheck
 	return tls.ConnectionState{
 		Version:                     state.Version,
 		HandshakeComplete:           state.HandshakeComplete,

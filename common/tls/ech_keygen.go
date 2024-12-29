@@ -147,6 +147,9 @@ func echKeygen(version uint16, serverName string, conf []myECHKeyConfig, suite [
 		pair.rawConf = b
 
 		secBuf, err := sec.MarshalBinary()
+		if err != nil {
+			return nil, E.Cause(err, "serialize ECH private key")
+		}
 		sk := []byte{}
 		sk = be.AppendUint16(sk, uint16(len(secBuf)))
 		sk = append(sk, secBuf...)
