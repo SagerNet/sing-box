@@ -28,7 +28,7 @@ func (c *echClientConfig) DialEarly(ctx context.Context, conn net.PacketConn, ad
 }
 
 func (c *echClientConfig) CreateTransport(conn net.PacketConn, quicConnPtr *quic.EarlyConnection, serverAddr M.Socksaddr, quicConfig *quic.Config) http.RoundTripper {
-	return &http3.RoundTripper{
+	return &http3.Transport{
 		TLSClientConfig: c.config,
 		QUICConfig:      quicConfig,
 		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {

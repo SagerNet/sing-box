@@ -21,7 +21,7 @@ func initializeHTTP3Client(instance *box.Box) error {
 		return err
 	}
 	http3Client = &http.Client{
-		Transport: &http3.RoundTripper{
+		Transport: &http3.Transport{
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 				destination := M.ParseSocksaddr(addr)
 				udpConn, dErr := dialer.DialContext(ctx, N.NetworkUDP, destination)

@@ -22,6 +22,16 @@ linters-settings:
 
 run:
   go: "1.23"
+  build-tags:
+    - with_gvisor
+    - with_quic
+    - with_dhcp
+    - with_wireguard
+    - with_ech
+    - with_utls
+    - with_reality_server
+    - with_acme
+    - with_clash_api
 
 issues:
   exclude-dirs:
