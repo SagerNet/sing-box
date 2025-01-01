@@ -345,9 +345,6 @@ func NewRouter(
 				return nil, err
 			}
 			router.networkMonitor = networkMonitor
-			networkMonitor.RegisterCallback(func() {
-				_ = router.interfaceFinder.Update()
-			})
 			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(router.networkMonitor, router.logger, tun.DefaultInterfaceMonitorOptions{
 				InterfaceFinder:       router.interfaceFinder,
 				OverrideAndroidVPN:    options.OverrideAndroidVPN,
