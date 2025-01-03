@@ -35,6 +35,7 @@ var _ adapter.NetworkManager = (*NetworkManager)(nil)
 
 type NetworkManager struct {
 	logger            logger.ContextLogger
+	tracker           conntrack.Tracker
 	interfaceFinder   *control.DefaultInterfaceFinder
 	networkInterfaces atomic.TypedValue[[]adapter.NetworkInterface]
 
@@ -57,6 +58,7 @@ type NetworkManager struct {
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
 	nm := &NetworkManager{
 		logger:              logger,
+		tracker:             service.FromContext[conntrack.Tracker](ctx),
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
 		autoDetectInterface: routeOptions.AutoDetectInterface,
 		defaultOptions: adapter.NetworkOptions{
@@ -355,7 +357,7 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 }
 
 func (r *NetworkManager) ResetNetwork() {
-	conntrack.Close()
+	r.tracker.Close()
 
 	for _, endpoint := range r.endpoint.Endpoints() {
 		listener, isListener := endpoint.(adapter.InterfaceUpdateListener)

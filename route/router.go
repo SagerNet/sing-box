@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/geoip"
 	"github.com/sagernet/sing-box/common/geosite"
@@ -38,6 +39,7 @@ type Router struct {
 	ctx                     context.Context
 	logger                  log.ContextLogger
 	dnsLogger               log.ContextLogger
+	connTracker             conntrack.Tracker
 	inbound                 adapter.InboundManager
 	outbound                adapter.OutboundManager
 	connection              adapter.ConnectionManager
@@ -75,6 +77,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
 		dnsLogger:             logFactory.NewLogger("dns"),
+		connTracker:           service.FromContext[conntrack.Tracker](ctx),
 		inbound:               service.FromContext[adapter.InboundManager](ctx),
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
 		connection:            service.FromContext[adapter.ConnectionManager](ctx),

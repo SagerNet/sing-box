@@ -23,6 +23,7 @@ const (
 	TypeVLESS        = "vless"
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
+	TypeNDIS         = "ndis"
 )
 
 const (
@@ -80,6 +81,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Selector"
 	case TypeURLTest:
 		return "URLTest"
+	case TypeNDIS:
+		return "NDIS"
 	default:
 		return "Unknown"
 	}

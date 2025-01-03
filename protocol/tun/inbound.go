@@ -306,7 +306,6 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			t.tunOptions.Name = tun.CalculateInterfaceName("")
 		}
 		if t.platformInterface == nil || runtime.GOOS != "android" {
-			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
@@ -316,11 +315,10 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				routeRuleSet.DecRef()
 				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
 			}
-			t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
 				ipSets := routeExcludeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
-					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
+					t.logger.Warn("route_exclude_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
 				}
 				t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
 				routeExcludeRuleSet.DecRef()

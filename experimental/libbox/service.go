@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
@@ -60,6 +61,7 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 		useProcFS: platformInterface.UseProcFS(),
 	}
 	service.MustRegister[platform.Interface](ctx, platformWrapper)
+	service.MustRegister[conntrack.Tracker](ctx, tracker)
 	instance, err := box.New(box.Options{
 		Context:           ctx,
 		Options:           options,

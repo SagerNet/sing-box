@@ -5,8 +5,6 @@ import (
 	"net"
 	runtimeDebug "runtime/debug"
 	"time"
-
-	"github.com/sagernet/sing-box/common/conntrack"
 )
 
 func (c *CommandClient) CloseConnections() error {
@@ -19,7 +17,7 @@ func (c *CommandClient) CloseConnections() error {
 }
 
 func (s *CommandServer) handleCloseConnections(conn net.Conn) error {
-	conntrack.Close()
+	tracker.Close()
 	go func() {
 		time.Sleep(time.Second)
 		runtimeDebug.FreeOSMemory()

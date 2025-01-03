@@ -13,7 +13,7 @@ type DebugOptions struct {
 	PanicOnFault *bool       `json:"panic_on_fault,omitempty"`
 	TraceBack    string      `json:"trace_back,omitempty"`
 	MemoryLimit  MemoryBytes `json:"memory_limit,omitempty"`
-	OOMKiller    *bool       `json:"oom_killer,omitempty"`
+	OOMKiller    bool        `json:"oom_killer,omitempty"`
 }
 
 type MemoryBytes uint64

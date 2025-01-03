@@ -28,6 +28,7 @@ var (
 )
 
 type DefaultDialer struct {
+	tracker                conntrack.Tracker
 	dialer4                tcpDialer
 	dialer6                tcpDialer
 	udpDialer4             net.Dialer
@@ -46,6 +47,7 @@ type DefaultDialer struct {
 }
 
 func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDialer, error) {
+	tracker := service.FromContext[conntrack.Tracker](ctx)
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	platformInterface := service.FromContext[platform.Interface](ctx)
 
@@ -197,6 +199,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		return nil, err
 	}
 	return &DefaultDialer{
+		tracker:                tracker,
 		dialer4:                tcpDialer4,
 		dialer6:                tcpDialer6,
 		udpDialer4:             udpDialer4,
@@ -219,18 +222,26 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 		return nil, E.New("invalid address")
 	}
 	if d.networkStrategy == nil {
+		if address.IsFqdn() {
+			return nil, E.New("unexpected domain destination")
+		}
+		// Since pending check is only used by ndis, it is not performed for non-windows connections which are only supported on platform clients
+		if d.tracker != nil {
+			done := d.tracker.AddPendingDestination(address.AddrPort())
+			defer done()
+		}
 		switch N.NetworkName(network) {
 		case N.NetworkUDP:
 			if !address.IsIPv6() {
-				return trackConn(d.udpDialer4.DialContext(ctx, network, address.String()))
+				return d.trackConn(d.udpDialer4.DialContext(ctx, network, address.String()))
 			} else {
-				return trackConn(d.udpDialer6.DialContext(ctx, network, address.String()))
+				return d.trackConn(d.udpDialer6.DialContext(ctx, network, address.String()))
 			}
 		}
 		if !address.IsIPv6() {
-			return trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
+			return d.trackConn(DialSlowContext(&d.dialer4, ctx, network, address))
 		} else {
-			return trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
+			return d.trackConn(DialSlowContext(&d.dialer6, ctx, network, address))
 		}
 	} else {
 		return d.DialParallelInterface(ctx, network, address, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
@@ -282,17 +293,17 @@ func (d *DefaultDialer) DialParallelInterface(ctx context.Context, network strin
 	if !fastFallback && !isPrimary {
 		d.networkLastFallback.Store(time.Now())
 	}
-	return trackConn(conn, nil)
+	return d.trackConn(conn, nil)
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if d.networkStrategy == nil {
 		if destination.IsIPv6() {
-			return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6))
+			return d.trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr6))
 		} else if destination.IsIPv4() && !destination.Addr.IsUnspecified() {
-			return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP+"4", d.udpAddr4))
+			return d.trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP+"4", d.udpAddr4))
 		} else {
-			return trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4))
+			return d.trackPacketConn(d.udpListener.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4))
 		}
 	} else {
 		return d.ListenSerialInterfacePacket(ctx, destination, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
@@ -329,23 +340,23 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 			return nil, err
 		}
 	}
-	return trackPacketConn(packetConn, nil)
+	return d.trackPacketConn(packetConn, nil)
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
 	return d.udpListener.ListenPacket(context.Background(), network, address)
 }
 
-func trackConn(conn net.Conn, err error) (net.Conn, error) {
-	if !conntrack.Enabled || err != nil {
+func (d *DefaultDialer) trackConn(conn net.Conn, err error) (net.Conn, error) {
+	if d.tracker == nil || err != nil {
 		return conn, err
 	}
-	return conntrack.NewConn(conn)
+	return d.tracker.NewConn(conn)
 }
 
-func trackPacketConn(conn net.PacketConn, err error) (net.PacketConn, error) {
-	if !conntrack.Enabled || err != nil {
+func (d *DefaultDialer) trackPacketConn(conn net.PacketConn, err error) (net.PacketConn, error) {
+	if err != nil {
 		return conn, err
 	}
-	return conntrack.NewPacketConn(conn)
+	return d.tracker.NewPacketConn(conn)
 }

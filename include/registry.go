@@ -51,6 +51,7 @@ func InboundRegistry() *inbound.Registry {
 
 	registerQUICInbounds(registry)
 	registerStubForRemovedInbounds(registry)
+	registerNDISInbound(registry)
 
 	return registry
 }
