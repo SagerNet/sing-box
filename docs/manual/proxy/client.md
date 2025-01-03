@@ -113,7 +113,9 @@ flowchart TB
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
+          "address": [
+            "172.19.0.1/30"
+          ],
           "auto_route": true,
           "strict_route": false
         }
@@ -173,8 +175,10 @@ flowchart TB
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
-          "inet6_address": "fdfe:dcba:9876::1/126",
+          "address": [
+            "172.19.0.1/30",
+            "fdfe:dcba:9876::1/126"
+          ],
           "auto_route": true,
           "strict_route": false
         }
@@ -251,8 +255,10 @@ flowchart TB
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
-          "inet6_address": "fdfe:dcba:9876::1/126",
+          "address": [
+            "172.19.0.1/30",
+            "fdfe:dcba:9876::1/126"
+          ],
           "auto_route": true,
           "strict_route": true
         }
