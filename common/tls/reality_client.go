@@ -184,7 +184,7 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 		return nil, E.New("reality verification failed")
 	}
 
-	return &utlsConnWrapper{uConn}, nil
+	return &realityClientConnWrapper{uConn}, nil
 }
 
 func realityClientFallback(uConn net.Conn, serverName string, fingerprint utls.ClientHelloID) {
@@ -248,4 +248,37 @@ func (c *realityVerifier) VerifyPeerCertificate(rawCerts [][]byte, verifiedChain
 		return err
 	}
 	return nil
+}
+
+type realityClientConnWrapper struct {
+	*utls.UConn
+}
+
+func (c *realityClientConnWrapper) ConnectionState() tls.ConnectionState {
+	state := c.Conn.ConnectionState()
+	//nolint:staticcheck
+	return tls.ConnectionState{
+		Version:                     state.Version,
+		HandshakeComplete:           state.HandshakeComplete,
+		DidResume:                   state.DidResume,
+		CipherSuite:                 state.CipherSuite,
+		NegotiatedProtocol:          state.NegotiatedProtocol,
+		NegotiatedProtocolIsMutual:  state.NegotiatedProtocolIsMutual,
+		ServerName:                  state.ServerName,
+		PeerCertificates:            state.PeerCertificates,
+		VerifiedChains:              state.VerifiedChains,
+		SignedCertificateTimestamps: state.SignedCertificateTimestamps,
+		OCSPResponse:                state.OCSPResponse,
+		TLSUnique:                   state.TLSUnique,
+	}
+}
+
+func (c *realityClientConnWrapper) Upstream() any {
+	return c.UConn
+}
+
+// Due to low implementation quality, the reality server intercepted half close and caused memory leaks.
+// We fixed it by calling Close() directly.
+func (c *realityClientConnWrapper) CloseWrite() error {
+	return c.Close()
 }
