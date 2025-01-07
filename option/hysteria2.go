@@ -74,6 +74,7 @@ func (m *Hysteria2Masquerade) UnmarshalJSON(bytes []byte) error {
 		default:
 			return E.New("unknown masquerade URL scheme: ", masqueradeURL.Scheme)
 		}
+		return nil
 	}
 	err = json.Unmarshal(bytes, (*_Hysteria2Masquerade)(m))
 	if err != nil {
