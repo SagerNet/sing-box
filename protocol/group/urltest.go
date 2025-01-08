@@ -182,7 +182,7 @@ type URLTestGroup struct {
 	interval                     time.Duration
 	tolerance                    uint16
 	idleTimeout                  time.Duration
-	history                      *urltest.HistoryStorage
+	history                      adapter.URLTestHistoryStorage
 	checking                     atomic.Bool
 	selectedOutboundTCP          adapter.Outbound
 	selectedOutboundUDP          adapter.Outbound
@@ -208,8 +208,9 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 	if interval > idleTimeout {
 		return nil, E.New("interval must be less or equal than idle_timeout")
 	}
-	var history *urltest.HistoryStorage
-	if history = service.PtrFromContext[urltest.HistoryStorage](ctx); history != nil {
+	var history adapter.URLTestHistoryStorage
+	if historyFromCtx := service.PtrFromContext[urltest.HistoryStorage](ctx); historyFromCtx != nil {
+		history = historyFromCtx
 	} else if clashServer := service.FromContext[adapter.ClashServer](ctx); clashServer != nil {
 		history = clashServer.HistoryStorage()
 	} else {
@@ -376,7 +377,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 				g.history.DeleteURLTestHistory(realTag)
 			} else {
 				g.logger.Debug("outbound ", tag, " available: ", t, "ms")
-				g.history.StoreURLTestHistory(realTag, &urltest.History{
+				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
 					Time:  time.Now(),
 					Delay: t,
 				})
