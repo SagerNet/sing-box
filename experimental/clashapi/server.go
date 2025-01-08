@@ -48,7 +48,7 @@ type Server struct {
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
-	urlTestHistory *urltest.HistoryStorage
+	urlTestHistory adapter.URLTestHistoryStorage
 	mode           string
 	modeList       []string
 	modeUpdateHook chan<- struct{}
@@ -79,7 +79,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
-	s.urlTestHistory = service.PtrFromContext[urltest.HistoryStorage](ctx)
+	s.urlTestHistory = service.FromContext[adapter.URLTestHistoryStorage](ctx)
 	if s.urlTestHistory == nil {
 		s.urlTestHistory = urltest.NewHistoryStorage()
 	}
@@ -234,7 +234,7 @@ func (s *Server) SetMode(newMode string) {
 	s.logger.Info("updated mode: ", newMode)
 }
 
-func (s *Server) HistoryStorage() *urltest.HistoryStorage {
+func (s *Server) HistoryStorage() adapter.URLTestHistoryStorage {
 	return s.urlTestHistory
 }
 
