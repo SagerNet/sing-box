@@ -100,6 +100,7 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 
 	var tlsConfig cftls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
+	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {
