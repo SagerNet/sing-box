@@ -3,6 +3,7 @@ package rule
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -237,6 +239,10 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, startContext *adapter.HTTPSta
 				TLSHandshakeTimeout: C.TCPTimeout,
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				},
+				TLSClientConfig: &tls.Config{
+					Time:    ntp.TimeFuncFromContext(s.ctx),
+					RootCAs: adapter.RootPoolFromContext(s.ctx),
 				},
 			},
 		}
