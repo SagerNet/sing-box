@@ -21,6 +21,7 @@ type PlatformInterface interface {
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ReadWIFIState() *WIFIState
+	SystemCertificates() StringIterator
 	ClearDNSCache()
 	SendNotification(notification *Notification) error
 }
