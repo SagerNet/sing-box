@@ -90,7 +90,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		var cacheContext *adapter.HTTPStartContext
 		if len(r.ruleSets) > 0 {
 			monitor.Start("initialize rule-set")
-			cacheContext = adapter.NewHTTPStartContext()
+			cacheContext = adapter.NewHTTPStartContext(r.ctx)
 			var ruleSetStartGroup task.Group
 			for i, ruleSet := range r.ruleSets {
 				ruleSetInPlace := ruleSet
