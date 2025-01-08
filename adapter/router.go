@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/x/list"
 
 	"go4.org/netipx"
@@ -66,12 +68,14 @@ type RuleSetMetadata struct {
 	ContainsIPCIDRRule  bool
 }
 type HTTPStartContext struct {
+	ctx             context.Context
 	access          sync.Mutex
 	httpClientCache map[string]*http.Client
 }
 
-func NewHTTPStartContext() *HTTPStartContext {
+func NewHTTPStartContext(ctx context.Context) *HTTPStartContext {
 	return &HTTPStartContext{
+		ctx:             ctx,
 		httpClientCache: make(map[string]*http.Client),
 	}
 }
@@ -88,6 +92,10 @@ func (c *HTTPStartContext) HTTPClient(detour string, dialer N.Dialer) *http.Clie
 			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSClientConfig: &tls.Config{
+				Time:    ntp.TimeFuncFromContext(c.ctx),
+				RootCAs: RootPoolFromContext(c.ctx),
 			},
 		},
 	}
