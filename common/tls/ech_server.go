@@ -90,7 +90,7 @@ func (c *echServerConfig) startWatcher() error {
 		Callback: func(path string) {
 			err := c.credentialsUpdated(path)
 			if err != nil {
-				c.logger.Error(E.Cause(err, "reload credentials from ", path))
+				c.logger.Error(E.Cause(err, "reload credentials"))
 			}
 		},
 	})
