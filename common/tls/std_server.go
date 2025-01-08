@@ -100,7 +100,7 @@ func (c *STDServerConfig) startWatcher() error {
 		Callback: func(path string) {
 			err := c.certificateUpdated(path)
 			if err != nil {
-				c.logger.Error(err)
+				c.logger.Error(E.Cause(err, "reload certificate"))
 			}
 		},
 	})
