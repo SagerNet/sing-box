@@ -64,6 +64,9 @@ proto_install:
 update_public_suffix:
 	go generate common/tlsfragment/public_suffix.go
 
+update_certificates:
+	go run ./cmd/internal/update_certificates
+
 release:
 	go run ./cmd/internal/build goreleaser release --clean --skip publish
 	mkdir dist/release
