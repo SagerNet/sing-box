@@ -6,7 +6,7 @@ require (
 	github.com/caddyserver/certmagic v0.20.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.3.0
 	github.com/insomniacslk/dhcp v0.0.0-20231206064809-8c70d406f6d2
