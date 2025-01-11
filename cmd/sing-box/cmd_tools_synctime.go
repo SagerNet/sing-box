@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/sagernet/sing-box/common/settings"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -58,7 +57,7 @@ func syncTime() error {
 		return err
 	}
 	if commandSyncTimeWrite {
-		err = settings.SetSystemTime(response.Time)
+		err = ntp.SetSystemTime(response.Time)
 		if err != nil {
 			return E.Cause(err, "write time to system")
 		}
