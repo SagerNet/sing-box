@@ -47,7 +47,7 @@ require (
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/mod v0.20.0
 	golang.org/x/net v0.31.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/sys v0.29.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
