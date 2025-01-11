@@ -157,6 +157,9 @@ func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 }
 
 func RealTag(detour adapter.Outbound) string {
+	if s, ok := detour.(*Selector); ok {
+		return RealTag(s.selected)
+	}
 	if group, isGroup := detour.(adapter.OutboundGroup); isGroup {
 		return group.Now()
 	}

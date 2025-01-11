@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/outbound"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/cache"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -127,6 +129,26 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 				dnsCtx       context.Context
 				addressLimit bool
 			)
+			mOutbound := r.defaultOutboundForConnection
+			for i, rule := range r.rules {
+				metadata.ResetRuleCache()
+				if rule.Match(metadata) {
+					detour := rule.Outbound()
+					r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
+					if matchOutbound, loaded := r.Outbound(detour); loaded {
+						if matchOutbound.Type() != constant.TypeDNS {
+							mOutbound = matchOutbound
+							break
+						} else {
+							r.logger.DebugContext(ctx, "skip the dns outbound ", detour, matchOutbound.Type(), matchOutbound.Tag(), rule.String())
+							continue
+						}
+					}
+					r.logger.ErrorContext(ctx, "outbound not found: ", detour)
+				}
+			}
+			tag := outbound.RealTag(mOutbound)
+			metadata.Outbound = tag
 			dnsCtx, transport, strategy, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message))
 			dnsCtx = adapter.OverrideContext(dnsCtx)
 			if rule != nil && rule.WithAddressLimit() {
