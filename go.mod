@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/caddyserver/certmagic v0.20.0
-	github.com/cloudflare/circl v1.3.7
+	github.com/cloudflare/circl v1.5.0
 	github.com/cretz/bine v0.2.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-chi/render v1.0.3
