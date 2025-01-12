@@ -161,6 +161,20 @@ var OptionLegacyDNSFakeIPOptions = Note{
 	ScheduledVersion:  "1.14.0",
 }
 
+var OptionOutboundDNSRuleItem = Note{
+	Name:              "outbound-dns-rule-item",
+	Description:       "outbound DNS rule item",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+}
+
+var OptionMissingDomainResolver = Note{
+	Name:              "missing-domain-resolver",
+	Description:       "missing `route.default_domain_resolver` or `domain_resolver` in dial fields",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
@@ -172,4 +186,8 @@ var Options = []Note{
 	OptionWireGuardOutbound,
 	OptionWireGuardGSO,
 	OptionTUNGSO,
+	OptionLegacyDNSTransport,
+	OptionLegacyDNSFakeIPOptions,
+	OptionOutboundDNSRuleItem,
+	OptionMissingDomainResolver,
 }
