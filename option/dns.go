@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/netip"
 	"net/url"
-	"os"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -121,11 +120,6 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 	if o.Type != C.DNSTypeLegacy {
 		return nil
 	}
-	defer func() {
-		encoder := json.NewEncoder(os.Stderr)
-		encoder.SetIndent("", "  ")
-		encoder.Encode(o)
-	}()
 	options := o.Options.(*LegacyDNSServerOptions)
 	serverURL, _ := url.Parse(options.Address)
 	var serverType string
@@ -139,18 +133,34 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 			serverType = C.DNSTypeUDP
 		}
 	}
-	remoteOptions := RemoteDNSServerOptions{
-		LocalDNSServerOptions: LocalDNSServerOptions{
-			DialerOptions: DialerOptions{
-				Detour: options.Detour,
+	var remoteOptions RemoteDNSServerOptions
+	if options.Detour == "" {
+		remoteOptions = RemoteDNSServerOptions{
+			LocalDNSServerOptions: LocalDNSServerOptions{
+				LegacyStrategy:      options.Strategy,
+				LegacyDefaultDialer: options.Detour == "",
+				LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
 			},
-			LegacyStrategy:      options.Strategy,
-			LegacyDefaultDialer: options.Detour == "",
-			LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
-		},
-		AddressResolver:      options.AddressResolver,
-		AddressStrategy:      options.AddressStrategy,
-		AddressFallbackDelay: options.AddressFallbackDelay,
+			LegacyAddressResolver:      options.AddressResolver,
+			LegacyAddressStrategy:      options.AddressStrategy,
+			LegacyAddressFallbackDelay: options.AddressFallbackDelay,
+		}
+	} else {
+		remoteOptions = RemoteDNSServerOptions{
+			LocalDNSServerOptions: LocalDNSServerOptions{
+				DialerOptions: DialerOptions{
+					Detour: options.Detour,
+					DomainResolver: &DomainResolveOptions{
+						Server:   options.AddressResolver,
+						Strategy: options.AddressStrategy,
+					},
+					FallbackDelay: options.AddressFallbackDelay,
+				},
+				LegacyStrategy:      options.Strategy,
+				LegacyDefaultDialer: options.Detour == "",
+				LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
+			},
+		}
 	}
 	switch serverType {
 	case C.DNSTypeLocal:
@@ -291,9 +301,9 @@ type LocalDNSServerOptions struct {
 type RemoteDNSServerOptions struct {
 	LocalDNSServerOptions
 	ServerOptions
-	AddressResolver      string             `json:"address_resolver,omitempty"`
-	AddressStrategy      DomainStrategy     `json:"address_strategy,omitempty"`
-	AddressFallbackDelay badoption.Duration `json:"address_fallback_delay,omitempty"`
+	LegacyAddressResolver      string             `json:"-"`
+	LegacyAddressStrategy      DomainStrategy     `json:"-"`
+	LegacyAddressFallbackDelay badoption.Duration `json:"-"`
 }
 
 type RemoteTLSDNSServerOptions struct {
