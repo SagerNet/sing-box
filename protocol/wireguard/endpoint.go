@@ -53,7 +53,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.Detour == "" {
 		options.IsWireGuardListener = true
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions, false)
 	if err != nil {
 		return nil, err
 	}

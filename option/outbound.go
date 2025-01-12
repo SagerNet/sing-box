@@ -77,6 +77,7 @@ type DialerOptions struct {
 	TCPMultiPath        bool                              `json:"tcp_multi_path,omitempty"`
 	UDPFragment         *bool                             `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault  bool                              `json:"-"`
+	DomainResolver      string                            `json:"domain_resolver,omitempty"`
 	DomainStrategy      DomainStrategy                    `json:"domain_strategy,omitempty"`
 	NetworkStrategy     *NetworkStrategy                  `json:"network_strategy,omitempty"`
 	NetworkType         badoption.Listable[InterfaceType] `json:"network_type,omitempty"`
@@ -105,6 +106,10 @@ type ServerOptions struct {
 
 func (o ServerOptions) Build() M.Socksaddr {
 	return M.ParseSocksaddrHostPort(o.Server, o.ServerPort)
+}
+
+func (o ServerOptions) ServerIsDomain() bool {
+	return M.IsDomainName(o.Server)
 }
 
 func (o *ServerOptions) TakeServerOptions() ServerOptions {

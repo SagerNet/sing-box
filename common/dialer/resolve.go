@@ -22,15 +22,17 @@ type resolveDialer struct {
 	dialer        N.Dialer
 	parallel      bool
 	router        adapter.DNSRouter
+	transport     adapter.DNSTransport
 	strategy      C.DomainStrategy
 	fallbackDelay time.Duration
 }
 
-func NewResolveDialer(router adapter.DNSRouter, dialer N.Dialer, parallel bool, strategy C.DomainStrategy, fallbackDelay time.Duration) N.Dialer {
+func NewResolveDialer(router adapter.DNSRouter, dialer N.Dialer, parallel bool, transport adapter.DNSTransport, strategy C.DomainStrategy, fallbackDelay time.Duration) N.Dialer {
 	return &resolveDialer{
 		dialer,
 		parallel,
 		router,
+		transport,
 		strategy,
 		fallbackDelay,
 	}
@@ -41,12 +43,13 @@ type resolveParallelNetworkDialer struct {
 	dialer ParallelInterfaceDialer
 }
 
-func NewResolveParallelInterfaceDialer(router adapter.DNSRouter, dialer ParallelInterfaceDialer, parallel bool, strategy C.DomainStrategy, fallbackDelay time.Duration) ParallelInterfaceDialer {
+func NewResolveParallelInterfaceDialer(router adapter.DNSRouter, dialer ParallelInterfaceDialer, parallel bool, transport adapter.DNSTransport, strategy C.DomainStrategy, fallbackDelay time.Duration) ParallelInterfaceDialer {
 	return &resolveParallelNetworkDialer{
 		resolveDialer{
 			dialer,
 			parallel,
 			router,
+			transport,
 			strategy,
 			fallbackDelay,
 		},
@@ -59,7 +62,7 @@ func (d *resolveDialer) DialContext(ctx context.Context, network string, destina
 		return d.dialer.DialContext(ctx, network, destination)
 	}
 	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
-	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Strategy: d.strategy})
+	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Transport: d.transport, Strategy: d.strategy})
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func (d *resolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 		return d.dialer.ListenPacket(ctx, destination)
 	}
 	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
-	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Strategy: d.strategy})
+	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Transport: d.transport, Strategy: d.strategy})
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +94,7 @@ func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context
 		return d.dialer.DialContext(ctx, network, destination)
 	}
 	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
-	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{
-		Strategy: d.strategy,
-	})
+	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Transport: d.transport, Strategy: d.strategy})
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func (d *resolveParallelNetworkDialer) ListenSerialInterfacePacket(ctx context.C
 		return d.dialer.ListenPacket(ctx, destination)
 	}
 	ctx = log.ContextWithOverrideLevel(ctx, log.LevelDebug)
-	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Strategy: d.strategy})
+	addresses, err := d.router.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{Transport: d.transport, Strategy: d.strategy})
 	if err != nil {
 		return nil, err
 	}

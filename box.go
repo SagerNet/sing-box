@@ -309,7 +309,7 @@ func New(options Options) (*Box, error) {
 		}
 	}
 	if ntpOptions.Enabled {
-		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions)
+		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions, ntpOptions.ServerIsDomain())
 		if err != nil {
 			return nil, E.Cause(err, "create NTP service")
 		}
