@@ -19,12 +19,20 @@ func NewLocalDialer(ctx context.Context, options option.LocalDNSServerOptions) (
 	if options.LegacyDefaultDialer {
 		return dialer.NewDefaultOutbound(ctx), nil
 	} else {
-		return dialer.New(ctx, options.DialerOptions)
+		return dialer.New(ctx, options.DialerOptions, false)
 	}
 }
 
 func NewRemoteDialer(ctx context.Context, options option.RemoteDNSServerOptions) (N.Dialer, error) {
-	transportDialer, err := NewLocalDialer(ctx, options.LocalDNSServerOptions)
+	var (
+		transportDialer N.Dialer
+		err             error
+	)
+	if options.LegacyDefaultDialer {
+		transportDialer = dialer.NewDefaultOutbound(ctx)
+	} else {
+		transportDialer, err = dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +43,7 @@ func NewRemoteDialer(ctx context.Context, options option.RemoteDNSServerOptions)
 			return nil, E.New("address resolver not found: ", options.AddressResolver)
 		}
 		transportDialer = NewTransportDialer(transportDialer, service.FromContext[adapter.DNSRouter](ctx), resolverTransport, C.DomainStrategy(options.AddressStrategy), time.Duration(options.AddressFallbackDelay))
-	} else if M.IsDomainName(options.Server) {
+	} else if options.ServerIsDomain() {
 		return nil, E.New("missing address resolver for server: ", options.Server)
 	}
 	return transportDialer, nil
