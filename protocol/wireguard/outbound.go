@@ -56,7 +56,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else if options.GSO {
 		return nil, E.New("gso is conflict with detour")
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
 	if err != nil {
 		return nil, err
 	}

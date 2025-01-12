@@ -8,6 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -15,7 +16,7 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
+func New(ctx context.Context, options option.DialerOptions, remoteIsDomain bool) (N.Dialer, error) {
 	if options.IsWireGuardListener {
 		return NewDefault(ctx, options)
 	}
@@ -35,13 +36,25 @@ func New(ctx context.Context, options option.DialerOptions) (N.Dialer, error) {
 		}
 		dialer = NewDetour(outboundManager, options.Detour)
 	}
-	if options.Detour == "" {
+	if remoteIsDomain && options.Detour == "" && options.DomainResolver == "" {
+		deprecated.Report(ctx, deprecated.OptionMissingDomainResolverInDialOptions)
+	}
+	if (options.Detour == "" && remoteIsDomain) || options.DomainResolver != "" {
 		router := service.FromContext[adapter.DNSRouter](ctx)
 		if router != nil {
+			var resolveTransport adapter.DNSTransport
+			if options.DomainResolver != "" {
+				transport, loaded := service.FromContext[adapter.DNSTransportManager](ctx).Transport(options.DomainResolver)
+				if !loaded {
+					return nil, E.New("DNS server not found: " + options.DomainResolver)
+				}
+				resolveTransport = transport
+			}
 			dialer = NewResolveDialer(
 				router,
 				dialer,
 				options.Detour == "" && !options.TCPFastOpen,
+				resolveTransport,
 				C.DomainStrategy(options.DomainStrategy),
 				time.Duration(options.FallbackDelay))
 		}
@@ -60,10 +73,19 @@ func NewDirect(ctx context.Context, options option.DialerOptions) (ParallelInter
 	if err != nil {
 		return nil, err
 	}
+	var resolveTransport adapter.DNSTransport
+	if options.DomainResolver != "" {
+		transport, loaded := service.FromContext[adapter.DNSTransportManager](ctx).Transport(options.DomainResolver)
+		if !loaded {
+			return nil, E.New("DNS server not found: " + options.DomainResolver)
+		}
+		resolveTransport = transport
+	}
 	return NewResolveParallelInterfaceDialer(
 		service.FromContext[adapter.DNSRouter](ctx),
 		dialer,
 		true,
+		resolveTransport,
 		C.DomainStrategy(options.DomainStrategy),
 		time.Duration(options.FallbackDelay),
 	), nil
