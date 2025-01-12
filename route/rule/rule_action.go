@@ -49,7 +49,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
 		}, nil
 	case C.RuleActionTypeDirect:
-		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions))
+		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
 		if err != nil {
 			return nil, err
 		}

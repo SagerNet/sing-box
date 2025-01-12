@@ -35,7 +35,6 @@ type DefaultDialer struct {
 	udpListener            net.ListenConfig
 	udpAddr4               string
 	udpAddr6               string
-	isWireGuardListener    bool
 	networkManager         adapter.NetworkManager
 	networkStrategy        *C.NetworkStrategy
 	defaultNetworkStrategy bool
@@ -183,11 +182,6 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		}
 		setMultiPathTCP(&dialer4)
 	}
-	if options.IsWireGuardListener {
-		for _, controlFn := range WgControlFns {
-			listener.Control = control.Append(listener.Control, controlFn)
-		}
-	}
 	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen)
 	if err != nil {
 		return nil, err
@@ -204,7 +198,6 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		udpListener:            listener,
 		udpAddr4:               udpAddr4,
 		udpAddr6:               udpAddr6,
-		isWireGuardListener:    options.IsWireGuardListener,
 		networkManager:         networkManager,
 		networkStrategy:        networkStrategy,
 		defaultNetworkStrategy: defaultNetworkStrategy,

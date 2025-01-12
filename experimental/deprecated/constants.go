@@ -148,10 +148,11 @@ var OptionTUNGSO = Note{
 
 var OptionLegacyDNSTransport = Note{
 	Name:              "legacy-dns-transport",
-	Description:       "legacy DNS transport",
+	Description:       "legacy DNS servers",
 	DeprecatedVersion: "1.12.0",
 	ScheduledVersion:  "1.14.0",
-	EnvName:           "LEGACY_DNS_TRANSPORT",
+	EnvName:           "LEGACY_DNS_SERVERS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-to-new-dns-server-formats",
 }
 
 var OptionLegacyDNSFakeIPOptions = Note{
@@ -159,6 +160,23 @@ var OptionLegacyDNSFakeIPOptions = Note{
 	Description:       "legacy DNS fakeip options",
 	DeprecatedVersion: "1.12.0",
 	ScheduledVersion:  "1.14.0",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-to-new-dns-server-formats",
+}
+
+var OptionOutboundDNSRuleItem = Note{
+	Name:              "outbound-dns-rule-item",
+	Description:       "outbound DNS rule item",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-outbound-dns-rule-items-to-domain-resolver",
+}
+
+var OptionMissingDomainResolver = Note{
+	Name:              "missing-domain-resolver",
+	Description:       "missing `route.default_domain_resolver` or `domain_resolver` in dial fields",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-outbound-dns-rule-items-to-domain-resolver",
 }
 
 var Options = []Note{
@@ -172,4 +190,8 @@ var Options = []Note{
 	OptionWireGuardOutbound,
 	OptionWireGuardGSO,
 	OptionTUNGSO,
+	OptionLegacyDNSTransport,
+	OptionLegacyDNSFakeIPOptions,
+	OptionOutboundDNSRuleItem,
+	OptionMissingDomainResolver,
 }

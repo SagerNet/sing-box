@@ -47,7 +47,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if options.Version > 1 {
 		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
 		for serverName, serverOptions := range options.HandshakeForServerName {
-			handshakeDialer, err := dialer.New(ctx, serverOptions.DialerOptions)
+			handshakeDialer, err := dialer.New(ctx, serverOptions.DialerOptions, serverOptions.ServerIsDomain())
 			if err != nil {
 				return nil, err
 			}
@@ -57,7 +57,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			}
 		}
 	}
-	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions, options.Handshake.ServerIsDomain())
 	if err != nil {
 		return nil, err
 	}
