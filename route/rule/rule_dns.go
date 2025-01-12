@@ -210,7 +210,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Outbound) > 0 {
-		item := NewOutboundRule(options.Outbound)
+		item := NewOutboundRule(ctx, options.Outbound)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}

@@ -42,16 +42,20 @@ type Outbound struct {
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (adapter.Outbound, error) {
 	options.UDPFragmentDefault = true
-	outboundDialer, err := dialer.NewDirect(ctx, options.DialerOptions)
+	if options.Detour != "" {
+		return nil, E.New("`detour` is not supported in direct context")
+	}
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions, false)
 	if err != nil {
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
-		logger:         logger,
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		logger:  logger,
+		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),
-		dialer:         outboundDialer,
+		dialer:         outboundDialer.(dialer.ParallelInterfaceDialer),
 		// loopBack:       newLoopBackDetector(router),
 	}
 	//nolint:staticcheck
