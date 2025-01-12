@@ -27,9 +27,14 @@ func NewTransportAdapter(transportType string, transportTag string, dependencies
 }
 
 func NewTransportAdapterWithLocalOptions(transportType string, transportTag string, localOptions option.LocalDNSServerOptions) TransportAdapter {
+	var dependencies []string
+	if localOptions.DomainResolver != nil && localOptions.DomainResolver.Server != "" {
+		dependencies = append(dependencies, localOptions.DomainResolver.Server)
+	}
 	return TransportAdapter{
 		transportType: transportType,
 		transportTag:  transportTag,
+		dependencies:  dependencies,
 		strategy:      C.DomainStrategy(localOptions.LegacyStrategy),
 		clientSubnet:  localOptions.LegacyClientSubnet,
 	}
@@ -37,8 +42,11 @@ func NewTransportAdapterWithLocalOptions(transportType string, transportTag stri
 
 func NewTransportAdapterWithRemoteOptions(transportType string, transportTag string, remoteOptions option.RemoteDNSServerOptions) TransportAdapter {
 	var dependencies []string
-	if remoteOptions.AddressResolver != "" {
-		dependencies = []string{remoteOptions.AddressResolver}
+	if remoteOptions.DomainResolver != nil && remoteOptions.DomainResolver.Server != "" {
+		dependencies = append(dependencies, remoteOptions.DomainResolver.Server)
+	}
+	if remoteOptions.LegacyAddressResolver != "" {
+		dependencies = append(dependencies, remoteOptions.LegacyAddressResolver)
 	}
 	return TransportAdapter{
 		transportType: transportType,
