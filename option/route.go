@@ -13,6 +13,7 @@ type RouteOptions struct {
 	OverrideAndroidVPN         bool                              `json:"override_android_vpn,omitempty"`
 	DefaultInterface           string                            `json:"default_interface,omitempty"`
 	DefaultMark                FwMark                            `json:"default_mark,omitempty"`
+	DefaultDomainResolver      *DomainResolveOptions             `json:"default_domain_resolver,omitempty"`
 	DefaultNetworkStrategy     *NetworkStrategy                  `json:"default_network_strategy,omitempty"`
 	DefaultNetworkType         badoption.Listable[InterfaceType] `json:"default_network_type,omitempty"`
 	DefaultFallbackNetworkType badoption.Listable[InterfaceType] `json:"default_fallback_network_type,omitempty"`

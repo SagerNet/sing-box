@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"os"
 	"runtime"
 	"strings"
@@ -55,13 +56,21 @@ type NetworkManager struct {
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
+	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
 	nm := &NetworkManager{
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
 		autoDetectInterface: routeOptions.AutoDetectInterface,
 		defaultOptions: adapter.NetworkOptions{
-			BindInterface:       routeOptions.DefaultInterface,
-			RoutingMark:         uint32(routeOptions.DefaultMark),
+			BindInterface:  routeOptions.DefaultInterface,
+			RoutingMark:    uint32(routeOptions.DefaultMark),
+			DomainResolver: defaultDomainResolver.Server,
+			DomainResolveOptions: adapter.DNSQueryOptions{
+				Strategy:     C.DomainStrategy(defaultDomainResolver.Strategy),
+				DisableCache: defaultDomainResolver.DisableCache,
+				RewriteTTL:   defaultDomainResolver.RewriteTTL,
+				ClientSubnet: defaultDomainResolver.ClientSubnet.Build(netip.Prefix{}),
+			},
 			NetworkStrategy:     (*C.NetworkStrategy)(routeOptions.DefaultNetworkStrategy),
 			NetworkType:         common.Map(routeOptions.DefaultNetworkType, option.InterfaceType.Build),
 			FallbackNetworkType: common.Map(routeOptions.DefaultFallbackNetworkType, option.InterfaceType.Build),
