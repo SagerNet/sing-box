@@ -101,7 +101,7 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 		tlsConfig.ShortIds[shortID] = true
 	}
 
-	handshakeDialer, err := dialer.New(ctx, options.Reality.Handshake.DialerOptions)
+	handshakeDialer, err := dialer.New(ctx, options.Reality.Handshake.DialerOptions, options.Reality.Handshake.ServerIsDomain())
 	if err != nil {
 		return nil, err
 	}

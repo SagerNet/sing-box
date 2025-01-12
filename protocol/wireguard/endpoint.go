@@ -53,7 +53,14 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.Detour == "" {
 		options.IsWireGuardListener = true
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
+	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context: ctx,
+		Options: options.DialerOptions,
+		RemoteIsDomain: common.Any(options.Peers, func(it option.WireGuardPeer) bool {
+			return !M.ParseAddr(it.Address).IsValid()
+		}),
+		ResolverOnDetour: true,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +88,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		PrivateKey: options.PrivateKey,
 		ListenPort: options.ListenPort,
 		ResolvePeer: func(domain string) (netip.Addr, error) {
-			endpointAddresses, lookupErr := ep.dnsRouter.Lookup(ctx, domain, adapter.DNSQueryOptions{
-				Strategy: C.DomainStrategy(options.DomainStrategy),
-			})
+			endpointAddresses, lookupErr := ep.dnsRouter.Lookup(ctx, domain, outboundDialer.(dialer.ResolveDialer).QueryOptions())
 			if lookupErr != nil {
 				return netip.Addr{}, lookupErr
 			}
