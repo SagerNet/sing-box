@@ -13,8 +13,9 @@
     "server": "time.apple.com",
     "server_port": 123,
     "interval": "30m",
-    
-    ... // 拨号字段
+    "write_to_system": false
+
+    ... // Dial Fields
   }
 }
 
@@ -43,6 +44,12 @@ NTP 服务器端口。
 时间同步间隔。
 
 默认使用 30 分钟。
+
+#### write_to_system
+
+写入系统时间。
+
+默认不写入。
 
 ### 拨号字段
 
