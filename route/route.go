@@ -33,7 +33,18 @@ import (
 
 // Deprecated: use RouteConnectionEx instead.
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	return r.routeConnection(ctx, conn, metadata, nil)
+	done := make(chan interface{})
+	err := r.routeConnection(ctx, conn, metadata, N.OnceClose(func(it error) {
+		close(done)
+	}))
+	if err != nil {
+		return err
+	}
+	select {
+	case <-done:
+	case <-r.ctx.Done():
+	}
+	return nil
 }
 
 func (r *Router) RouteConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -141,7 +152,10 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	err := r.routePacketConnection(ctx, conn, metadata, nil)
+	done := make(chan interface{})
+	err := r.routePacketConnection(ctx, conn, metadata, N.OnceClose(func(it error) {
+		close(done)
+	}))
 	if err != nil {
 		conn.Close()
 		if E.IsClosedOrCanceled(err) {
@@ -149,6 +163,10 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		} else {
 			r.logger.ErrorContext(ctx, err)
 		}
+	}
+	select {
+	case <-done:
+	case <-r.ctx.Done():
 	}
 	return nil
 }
