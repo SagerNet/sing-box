@@ -1,5 +1,5 @@
 ---
-icon: material/delete-clock
+status: deprecated
 ---
 
 !!! failure "Deprecated in sing-box 1.11.0"
@@ -8,7 +8,7 @@ icon: material/delete-clock
 
 ### Structure
 
-```json F
+```json
 {
   "type": "block",
   "tag": "block"

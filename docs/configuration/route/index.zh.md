@@ -1,5 +1,5 @@
 ---
-icon: material/new-box
+status: new
 ---
 
 # 路由

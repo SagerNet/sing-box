@@ -1,5 +1,5 @@
 ---
-icon: material/alert-decagram
+status: changed
 ---
 
 !!! quote "Changes in sing-box 1.10.0"

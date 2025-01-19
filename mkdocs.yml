@@ -188,6 +188,8 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/SagerNet/sing-box
   generator: false
+extra_css:
+  - stylesheets/extra.css
 plugins:
   - search
   - i18n:
