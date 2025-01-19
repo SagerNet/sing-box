@@ -14,7 +14,8 @@ synchronization is not possible.
     "server": "time.apple.com",
     "server_port": 123,
     "interval": "30m",
-    
+    "write_to_system": false
+
     ... // Dial Fields
   }
 }
@@ -44,6 +45,12 @@ NTP server port.
 Time synchronization interval.
 
 30 minutes is used by default.
+
+#### write_to_system
+
+Write time to system.
+
+false is used by default.
 
 ### Dial Fields
 
