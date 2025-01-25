@@ -1,3 +1,11 @@
+---
+icon: material/delete-clock
+---
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    旧的 DNS 服务器配置已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/migration/#migrate-to-new-dns-servers)。
+
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [client_subnet](#client_subnet)
