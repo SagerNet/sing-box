@@ -48,8 +48,6 @@ icon: material/new-box
 
 可选值: `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
-如果设置了 `server.strategy`，则不生效。
-
 #### disable_cache
 
 禁用 DNS 缓存。
