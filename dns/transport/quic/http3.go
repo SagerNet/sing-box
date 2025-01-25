@@ -60,9 +60,20 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	if err != nil {
 		return nil, err
 	}
+	headers := options.Headers.Build()
+	host := headers.Get("Host")
+	if host != "" {
+		headers.Del("Host")
+	} else {
+		if tlsConfig.ServerName() != "" {
+			host = tlsConfig.ServerName()
+		} else {
+			host = options.Server
+		}
+	}
 	destinationURL := url.URL{
 		Scheme: "HTTP3",
-		Host:   options.Host,
+		Host:   host,
 	}
 	if destinationURL.Host == "" {
 		destinationURL.Host = options.Server
@@ -87,7 +98,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		logger:           logger,
 		dialer:           transportDialer,
 		destination:      &destinationURL,
-		headers:          options.Headers.Build(),
+		headers:          headers,
 		transport: &http3.Transport{
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
 				destinationAddr := M.ParseSocksaddr(addr)

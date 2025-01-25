@@ -62,9 +62,20 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 	if !common.Contains(tlsConfig.NextProtos(), "http/1.1") {
 		tlsConfig.SetNextProtos(append(tlsConfig.NextProtos(), "http/1.1"))
 	}
+	headers := options.Headers.Build()
+	host := headers.Get("Host")
+	if host != "" {
+		headers.Del("Host")
+	} else {
+		if tlsConfig.ServerName() != "" {
+			host = tlsConfig.ServerName()
+		} else {
+			host = options.Server
+		}
+	}
 	destinationURL := url.URL{
 		Scheme: "https",
-		Host:   options.Host,
+		Host:   host,
 	}
 	if destinationURL.Host == "" {
 		destinationURL.Host = options.Server
@@ -89,7 +100,7 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 		logger,
 		transportDialer,
 		&destinationURL,
-		options.Headers.Build(),
+		headers,
 		serverAddr,
 		tlsConfig,
 	), nil

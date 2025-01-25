@@ -281,7 +281,6 @@ type RemoteTLSDNSServerOptions struct {
 
 type RemoteHTTPSDNSServerOptions struct {
 	RemoteTLSDNSServerOptions
-	Host    string               `json:"host,omitempty"`
 	Path    string               `json:"path,omitempty"`
 	Method  string               `json:"method,omitempty"`
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
