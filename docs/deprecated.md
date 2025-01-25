@@ -4,6 +4,15 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.12.0
+
+#### Legacy DNS server formats
+
+DNS servers are refactored,
+check [Migration](../migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
 ## 1.11.0
 
 #### Legacy special outbounds
