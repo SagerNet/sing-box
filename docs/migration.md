@@ -2,6 +2,515 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.12.0
+
+### Migrate to new DNS server formats
+
+DNS servers are refactored.
+
+!!! info "References"
+
+    [DNS Server](/configuration/dns/server/) /
+    [Legacy DNS Server](/configuration/dns/server/legacy/)
+
+=== "Local"
+
+    === ":material-card-remove: Deprecated"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "local"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "local"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "TCP"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "tcp://1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "tcp",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "UDP"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "udp",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "TLS"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "tls://1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "tls",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "HTTPS"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "https://1.1.1.1/dns-query"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "https",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "QUIC"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "quic://1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "quic",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "HTTP3"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "h3://1.1.1.1/dns-query"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "h3",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "DHCP"
+
+    === ":material-card-remove: Deprecated"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "dhcp://auto"
+              },
+              {
+                "address": "dhcp://en0"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "dhcp",
+              },
+              {
+                "type": "dhcp",
+                "interface": "en0"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "FakeIP"
+
+    === ":material-card-remove: Deprecated"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "1.1.1.1"
+              },
+              {
+                "address": "fakeip",
+                "tag": "fakeip"
+              }
+            ],
+            "rules": [
+              {
+                "query_type": [
+                  "A",
+                  "AAAA"
+                ],
+                "server": "fakeip"
+              }
+            ],
+            "fakeip": {
+              "enable": true,
+              "inet4_range": "198.18.0.0/15",
+              "inet6_range": "fc00::/18"
+            }
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "udp",
+                "server": "1.1.1.1"
+              },
+              {
+                "type": "fakeip",
+                "tag": "fakeip",
+                "inet4_range": "198.18.0.0/15",
+                "inet6_range": "fc00::/18"
+              }
+            ],
+            "rules": [
+              {
+                "query_type": [
+                  "A",
+                  "AAAA"
+                ],
+                "server": "fakeip"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "RCode"
+
+    === ":material-card-remove: Deprecated"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "rcode://refused"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "predefined",
+                "responses": [
+                  {
+                    "rcode": "REFUSED"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+        ```
+
+=== "Servers with domain address"
+
+    === ":material-card-remove: Deprecated"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "https://dns.google/dns-query",
+                "address_resolver": "google"
+              },
+              {
+                "tag": "google",
+                "address": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "https",
+                "server": "dns.google",
+                "domain_resolver": "google"
+              },
+              {
+                "type": "udp",
+                "tag": "google",
+                "server": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
+=== "Servers with strategy"
+
+    === ":material-card-remove: Deprecated"
+            
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "1.1.1.1",
+                "strategy": "ipv4_only"
+              },
+              {
+                "tag": "google",
+                "address": "8.8.8.8",
+                "strategy": "prefer_ipv6"
+              }
+            ],
+            "rules": [
+              {
+                "domain": "google.com",
+                "server": "google"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "udp",
+                "server": "1.1.1.1"
+              },
+              {
+                "type": "udp",
+                "tag": "google",
+                "server": "8.8.8.8"
+              }
+            ],
+            "rules": [
+              {
+                "domain": "google.com",
+                "server": "google",
+                "strategy": "prefer_ipv6"
+              }
+            ],
+            "strategy": "ipv4_only"
+          }
+        }
+        ```
+
+=== "Servers with client subnet"
+
+    === ":material-card-remove: Deprecated"
+        
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "address": "1.1.1.1"
+              },
+              {
+                "tag": "google",
+                "address": "8.8.8.8",
+                "client_subnet": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+    
+    === ":material-card-multiple: New"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "udp",
+                "server": "1.1.1.1"
+              },
+              {
+                "type": "udp",
+                "tag": "google",
+                "server": "8.8.8.8"
+              }
+            ],
+            "rules": [
+              {
+                "domain": "google.com",
+                "server": "google",
+                "client_subnet": "1.1.1.1"
+              }
+            ]
+          }
+        }
+        ```
+
 ## 1.11.0
 
 ### Migrate legacy special outbounds to rule actions
