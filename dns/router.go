@@ -154,6 +154,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 				if isFakeIP && !allowFakeIP {
 					continue
 				}
+				if action.Strategy != C.DomainStrategyAsIS {
+					options.Strategy = action.Strategy
+				}
 				if isFakeIP || action.DisableCache {
 					options.DisableCache = true
 				}
@@ -174,6 +177,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
 				return transport, currentRule, currentRuleIndex
 			case *R.RuleActionDNSRouteOptions:
+				if action.Strategy != C.DomainStrategyAsIS {
+					options.Strategy = action.Strategy
+				}
 				if action.DisableCache {
 					options.DisableCache = true
 				}
