@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [strategy](#strategy)
+
 !!! question "Since sing-box 1.11.0"
 
 ### route
@@ -10,6 +14,7 @@ icon: material/new-box
 {
   "action": "route",  // default
   "server": "",
+  "strategy": "",
   "disable_cache": false,
   "rewrite_ttl": 0,
   "client_subnet": null
@@ -23,6 +28,12 @@ icon: material/new-box
 ==Required==
 
 Tag of target server.
+
+#### strategy
+
+Set domain strategy for this query.
+
+One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
 #### disable_cache
 

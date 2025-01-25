@@ -4,6 +4,13 @@ icon: material/delete-alert
 
 # 废弃功能列表
 
+#### 旧的 DNS 服务器格式
+
+DNS 服务器已重构，
+参阅 [迁移指南](/migration/#migrate-to-new-dns-servers).
+
+对旧格式的兼容性将在 sing-box 1.14.0 中被移除。
+
 ## 1.11.0
 
 #### 旧的特殊出站
