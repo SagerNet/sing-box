@@ -145,6 +145,11 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.IPAcceptAny {
+		item := NewIPAcceptAnyItem()
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
 		rule.sourcePortItems = append(rule.sourcePortItems, item)
