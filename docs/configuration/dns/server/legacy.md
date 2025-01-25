@@ -1,3 +1,11 @@
+---
+icon: material/delete-clock
+---
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    Legacy DNS servers is deprecated and will be removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-servers).
+
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [client_subnet](#client_subnet)
