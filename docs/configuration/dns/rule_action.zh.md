@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [strategy](#strategy)
+
 !!! question "自 sing-box 1.11.0 起"
 
 ### route
@@ -10,8 +14,8 @@ icon: material/new-box
 {
   "action": "route",  // 默认
   "server": "",
-  
-  // 兼容性
+
+  "strategy": "",
   "disable_cache": false,
   "rewrite_ttl": 0,
   "client_subnet": null
@@ -25,6 +29,12 @@ icon: material/new-box
 ==必填==
 
 目标 DNS 服务器的标签。
+
+#### strategy
+
+为此查询设置域名策略。
+
+可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 #### disable_cache
 
