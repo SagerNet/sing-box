@@ -22,6 +22,7 @@ const (
 	DNSTypeHTTPS      = "https"
 	DNSTypeQUIC       = "quic"
 	DNSTypeHTTP3      = "h3"
+	DNSTypeHosts      = "hosts"
 	DNSTypeLocal      = "local"
 	DNSTypePreDefined = "predefined"
 	DNSTypeFakeIP     = "fakeip"

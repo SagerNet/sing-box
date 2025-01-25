@@ -7,9 +7,9 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/dns/transport/hosts"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -26,6 +26,7 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
+	hosts  *hosts.File
 	dialer N.Dialer
 }
 
@@ -35,7 +36,8 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		return nil, err
 	}
 	return &Transport{
-		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeTCP, tag, options),
+		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
+		hosts:            hosts.NewFile(hosts.DefaultPath),
 		dialer:           transportDialer,
 	}, nil
 }
@@ -47,9 +49,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	question := message.Question[0]
 	domain := dns.FqdnToDomain(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
-		addressStrings, _ := lookupStaticHost(domain)
-		if len(addressStrings) > 0 {
-			return dns.FixedResponse(message.Id, question, common.Map(addressStrings, M.ParseAddr), C.DefaultDNSTTL), nil
+		addresses := t.hosts.Lookup(domain)
+		if len(addresses) > 0 {
+			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 		}
 	}
 	systemConfig := getSystemDNSConfig()
@@ -62,7 +64,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 
 func (t *Transport) exchangeSingleRequest(ctx context.Context, systemConfig *dnsConfig, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
 	var lastErr error
-	for _, fqdn := range nameList(systemConfig, domain) {
+	for _, fqdn := range systemConfig.nameList(domain) {
 		response, err := t.tryOneName(ctx, systemConfig, fqdn, message)
 		if err != nil {
 			lastErr = err
@@ -90,7 +92,7 @@ func (t *Transport) exchangeParallel(ctx context.Context, systemConfig *dnsConfi
 	}
 	queryCtx, queryCancel := context.WithCancel(ctx)
 	defer queryCancel()
-	for _, fqdn := range nameList(systemConfig, domain) {
+	for _, fqdn := range systemConfig.nameList(domain) {
 		go startRacer(queryCtx, fqdn)
 	}
 	select {

@@ -259,6 +259,11 @@ type LegacyDNSServerOptions struct {
 	ClientSubnet         *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
+type HostsDNSServerOptions struct {
+	Path       badoption.Listable[string]                               `json:"path,omitempty"`
+	Predefined badjson.TypedMap[string, badoption.Listable[netip.Addr]] `json:"predefined,omitempty"`
+}
+
 type LocalDNSServerOptions struct {
 	DialerOptions
 	LegacyStrategy      DomainStrategy `json:"-"`
