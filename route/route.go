@@ -447,6 +447,10 @@ match:
 			if routeOptions.UDPTimeout > 0 {
 				metadata.UDPTimeout = routeOptions.UDPTimeout
 			}
+			if routeOptions.TLSFragment {
+				metadata.TLSFragment = true
+				metadata.TLSFragmentFallbackDelay = routeOptions.TLSFragmentFallbackDelay
+			}
 		}
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:
