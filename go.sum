@@ -119,8 +119,8 @@ github.com/sagernet/quic-go v0.49.0-beta.1/go.mod h1:uesWD1Ihrldq1M3XtjuEvIUqi8W
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
 github.com/sagernet/sing v0.6.9/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
-github.com/sagernet/sing v0.6.10 h1:Jey1tePgH9bjFuK1fQI3D9T+bPOQ4SdHMjuS4sYjDv4=
-github.com/sagernet/sing v0.6.10/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
+github.com/sagernet/sing v0.6.11-0.20250521033217-30d675ea099b h1:ZjTCYPb5f7aHdf1UpUvE22dVmf7BL8eQ/zLZhjgh7Wo=
+github.com/sagernet/sing v0.6.11-0.20250521033217-30d675ea099b/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
 github.com/sagernet/sing-mux v0.3.2 h1:meZVFiiStvHThb/trcpAkCrmtJOuItG5Dzl1RRP5/NE=
 github.com/sagernet/sing-mux v0.3.2/go.mod h1:pht8iFY4c9Xltj7rhVd208npkNaeCxzyXCgulDPLUDA=
 github.com/sagernet/sing-quic v0.4.3 h1:OZ/kGvSzjtYg+t0DY3F606hlT5LeiQQXDxfBopcRryQ=
