@@ -113,6 +113,10 @@ func (to *TLSObfs) write(b []byte) (int, error) {
 	return len(b), err
 }
 
+func (to *TLSObfs) Upstream() any {
+	return to.Conn
+}
+
 // NewTLSObfs return a SimpleObfs
 func NewTLSObfs(conn net.Conn, server string) net.Conn {
 	return &TLSObfs{
