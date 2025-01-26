@@ -36,6 +36,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
 				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
 				UDPConnect:                action.RouteOptions.UDPConnect,
+				TLSFragment:               action.RouteOptions.TLSFragment,
+				TLSFragmentFallbackDelay:  time.Duration(action.RouteOptions.TLSFragmentFallbackDelay),
 			},
 		}, nil
 	case C.RuleActionTypeRouteOptions:
@@ -47,6 +49,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
 			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
+			TLSFragment:               action.RouteOptionsOptions.TLSFragment,
+			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
 		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
@@ -142,6 +146,9 @@ func (r *RuleActionRoute) String() string {
 	if r.UDPConnect {
 		descriptions = append(descriptions, "udp-connect")
 	}
+	if r.TLSFragment {
+		descriptions = append(descriptions, "tls-fragment")
+	}
 	return F.ToString("route(", strings.Join(descriptions, ","), ")")
 }
 
@@ -155,6 +162,8 @@ type RuleActionRouteOptions struct {
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
 	UDPTimeout                time.Duration
+	TLSFragment               bool
+	TLSFragmentFallbackDelay  time.Duration
 }
 
 func (r *RuleActionRouteOptions) Type() string {
@@ -186,6 +195,9 @@ func (r *RuleActionRouteOptions) String() string {
 	}
 	if r.UDPConnect {
 		descriptions = append(descriptions, "udp-connect")
+	}
+	if r.UDPTimeout > 0 {
+		descriptions = append(descriptions, "udp-timeout")
 	}
 	return F.ToString("route-options(", strings.Join(descriptions, ","), ")")
 }
