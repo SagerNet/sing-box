@@ -11,6 +11,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/tlsfragment"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -74,6 +75,21 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		m.logger.ErrorContext(ctx, err)
 		return
+	}
+	if metadata.TLSFragment {
+		fallbackDelay := metadata.TLSFragmentFallbackDelay
+		if fallbackDelay == 0 {
+			fallbackDelay = C.TLSFragmentFallbackDelay
+		}
+		var newConn *tf.Conn
+		newConn, err = tf.NewConn(remoteConn, ctx, fallbackDelay)
+		if err != nil {
+			conn.Close()
+			remoteConn.Close()
+			m.logger.ErrorContext(ctx, err)
+			return
+		}
+		remoteConn = newConn
 	}
 	m.access.Lock()
 	element := m.connections.PushBack(conn)
