@@ -150,6 +150,9 @@ type RawRouteOptionsActionOptions struct {
 	UDPDisableDomainUnmapping bool               `json:"udp_disable_domain_unmapping,omitempty"`
 	UDPConnect                bool               `json:"udp_connect,omitempty"`
 	UDPTimeout                badoption.Duration `json:"udp_timeout,omitempty"`
+
+	TLSFragment              bool               `json:"tls_fragment,omitempty"`
+	TLSFragmentFallbackDelay badoption.Duration `json:"tls_fragment_fallback_delay,omitempty"`
 }
 
 type RouteOptionsActionOptions RawRouteOptionsActionOptions
