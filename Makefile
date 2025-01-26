@@ -61,6 +61,9 @@ proto_install:
 	go install -v google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
+update_public_suffix:
+	go generate common/tlsfragment/public_suffix.go
+
 release:
 	go run ./cmd/internal/build goreleaser release --clean --skip publish
 	mkdir dist/release
