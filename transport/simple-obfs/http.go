@@ -82,6 +82,10 @@ func (ho *HTTPObfs) Write(b []byte) (int, error) {
 	return ho.Conn.Write(b)
 }
 
+func (ho *HTTPObfs) Upstream() any {
+	return ho.Conn
+}
+
 // NewHTTPObfs return a HTTPObfs
 func NewHTTPObfs(conn net.Conn, host string, port string) net.Conn {
 	return &HTTPObfs{
