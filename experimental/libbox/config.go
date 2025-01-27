@@ -66,10 +66,6 @@ func (s *platformInterfaceStub) OpenTun(options *tun.Options, platformOptions op
 	return nil, os.ErrInvalid
 }
 
-func (s *platformInterfaceStub) UpdateRouteOptions(options *tun.Options, platformInterface option.TunPlatformOptions) error {
-	return os.ErrInvalid
-}
-
 func (s *platformInterfaceStub) UsePlatformDefaultInterfaceMonitor() bool {
 	return true
 }

@@ -9,7 +9,6 @@ type PlatformInterface interface {
 	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int32) error
 	OpenTun(options TunOptions) (int32, error)
-	UpdateRouteOptions(options TunOptions) error
 	WriteLog(message string)
 	UseProcFS() bool
 	FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (int32, error)
