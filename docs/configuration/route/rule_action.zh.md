@@ -27,6 +27,45 @@ icon: material/new-box
 
 参阅下方的 `route-options` 字段。
 
+### reject
+
+```json
+{
+  "action": "reject",
+  "method": "default",  // 默认
+  "no_drop": false
+}
+```
+
+`reject` 拒绝连接。
+
+如果尚未执行 `sniff` 操作，则将使用指定方法拒绝 tun 连接。
+
+对于非 tun 连接和已建立的连接，将直接关闭。
+
+#### method
+
+- `default`: 对于 TCP 连接回复 RST，对于 UDP 包回复 ICMP 端口不可达。
+- `drop`: 丢弃数据包。
+
+#### no_drop
+
+如果未启用，则 30 秒内触发 50 次后，`method` 将被暂时覆盖为 `drop`。
+
+当 `method` 设为 `drop` 时不可用。
+
+### hijack-dns
+
+```json
+{
+  "action": "hijack-dns"
+}
+```
+
+`hijack-dns` 劫持 DNS 请求至 sing-box DNS 模块。
+
+## 非最终动作
+
 ### route-options
 
 ```json
@@ -106,45 +145,6 @@ UDP 连接超时时间。
 | 123  | `ntp`  |
 | 443  | `quic` |
 | 3478 | `stun` |
-
-### reject
-
-```json
-{
-  "action": "reject",
-  "method": "default",  // 默认
-  "no_drop": false
-}
-```
-
-`reject` 拒绝连接。
-
-如果尚未执行 `sniff` 操作，则将使用指定方法拒绝 tun 连接。
-
-对于非 tun 连接和已建立的连接，将直接关闭。
-
-#### method
-
-- `default`: 对于 TCP 连接回复 RST，对于 UDP 包回复 ICMP 端口不可达。
-- `drop`: 丢弃数据包。
-
-#### no_drop
-
-如果未启用，则 30 秒内触发 50 次后，`method` 将被暂时覆盖为 `drop`。
-
-当 `method` 设为 `drop` 时不可用。
-
-### hijack-dns
-
-```json
-{
-  "action": "hijack-dns"
-}
-```
-
-`hijack-dns` 劫持 DNS 请求至 sing-box DNS 模块。
-
-## 非最终动作
 
 ### sniff
 

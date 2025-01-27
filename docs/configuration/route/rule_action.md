@@ -31,6 +31,45 @@ Tag of target outbound.
 
 See `route-options` fields below.
 
+### reject
+
+```json
+{
+  "action": "reject",
+  "method": "default", // default
+  "no_drop": false
+}
+```
+
+`reject` reject connections
+
+The specified method is used for reject tun connections if `sniff` action has not been performed yet.
+
+For non-tun connections and already established connections, will just be closed.
+
+#### method
+
+- `default`: Reply with TCP RST for TCP connections, and ICMP port unreachable for UDP packets.
+- `drop`: Drop packets.
+
+#### no_drop
+
+If not enabled, `method` will be temporarily overwritten to `drop` after 50 triggers in 30s.
+
+Not available when `method` is set to drop.
+
+### hijack-dns
+
+```json
+{
+  "action": "hijack-dns"
+}
+```
+
+`hijack-dns` hijack DNS requests to the sing-box DNS module.
+
+## Non-final actions
+
 ### route-options
 
 ```json
@@ -108,45 +147,6 @@ If no protocol is sniffed, the following ports will be recognized as protocols b
 | 123  | `ntp`    |
 | 443  | `quic`   |
 | 3478 | `stun`   |
-
-### reject
-
-```json
-{
-  "action": "reject",
-  "method": "default", // default
-  "no_drop": false
-}
-```
-
-`reject` reject connections
-
-The specified method is used for reject tun connections if `sniff` action has not been performed yet.
-
-For non-tun connections and already established connections, will just be closed.
-
-#### method
-
-- `default`: Reply with TCP RST for TCP connections, and ICMP port unreachable for UDP packets.
-- `drop`: Drop packets.
-
-#### no_drop
-
-If not enabled, `method` will be temporarily overwritten to `drop` after 50 triggers in 30s.
-
-Not available when `method` is set to drop.
-
-### hijack-dns
-
-```json
-{
-  "action": "hijack-dns"
-}
-```
-
-`hijack-dns` hijack DNS requests to the sing-box DNS module.
-
-## Non-final actions
 
 ### sniff
 
