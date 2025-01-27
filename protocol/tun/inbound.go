@@ -305,7 +305,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if t.tunOptions.Name == "" {
 			t.tunOptions.Name = tun.CalculateInterfaceName("")
 		}
-		if t.platformInterface == nil || runtime.GOOS != "android" {
+		if t.platformInterface == nil {
 			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
@@ -421,41 +421,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 	t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
-	if t.autoRedirect != nil {
-		t.autoRedirect.UpdateRouteAddressSet()
-	} else {
-		tunOptions := t.tunOptions
-		for _, ipSet := range t.routeAddressSet {
-			for _, prefix := range ipSet.Prefixes() {
-				if prefix.Addr().Is4() {
-					tunOptions.Inet4RouteAddress = append(tunOptions.Inet4RouteAddress, prefix)
-				} else {
-					tunOptions.Inet6RouteAddress = append(tunOptions.Inet6RouteAddress, prefix)
-				}
-			}
-		}
-		for _, ipSet := range t.routeExcludeAddressSet {
-			for _, prefix := range ipSet.Prefixes() {
-				if prefix.Addr().Is4() {
-					tunOptions.Inet4RouteExcludeAddress = append(tunOptions.Inet4RouteExcludeAddress, prefix)
-				} else {
-					tunOptions.Inet6RouteExcludeAddress = append(tunOptions.Inet6RouteExcludeAddress, prefix)
-				}
-			}
-		}
-		if t.platformInterface != nil {
-			err := t.platformInterface.UpdateRouteOptions(&tunOptions, t.platformOptions)
-			if err != nil {
-				t.logger.Error("update route addresses: ", err)
-			}
-		} else {
-			err := t.tunIf.UpdateRouteOptions(tunOptions)
-			if err != nil {
-				t.logger.Error("update route addresses: ", err)
-			}
-		}
-		t.logger.Info("updated route addresses")
-	}
+	t.autoRedirect.UpdateRouteAddressSet()
 	t.routeAddressSet = nil
 	t.routeExcludeAddressSet = nil
 }
