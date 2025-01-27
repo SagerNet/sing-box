@@ -144,7 +144,7 @@ jobs:
             ~/go/go1.20.14
           key: go120
       - name: Setup legacy Go
-        if: matrix.require_legacy_go == 'true' && steps.cache-legacy-go.outputs.cache-hit != 'true'
+        if: matrix.require_legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
         run: |-
           wget https://dl.google.com/go/go1.20.14.linux-amd64.tar.gz
           tar -xzf go1.20.14.linux-amd64.tar.gz
@@ -159,7 +159,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: latest
+          version: 2.5.1
           install-only: true
       - name: Extract signing key
         run: |-
@@ -224,7 +224,7 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r28-beta2
+          ndk-version: r28-beta3
       - name: Setup OpenJDK
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
@@ -299,7 +299,7 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r28-beta2
+          ndk-version: r28-beta3
       - name: Setup OpenJDK
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
@@ -548,7 +548,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: latest
+          version: 2.5.1
           install-only: true
       - name: Cache ghr
         uses: actions/cache@v4
