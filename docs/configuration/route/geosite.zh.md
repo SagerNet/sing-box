@@ -1,10 +1,10 @@
 ---
-icon: material/delete-clock
+icon: material/note-remove
 ---
 
-!!! failure "已在 sing-box 1.8.0 废弃"
+!!! failure "已在 sing-box 1.12.0 中被移除"
 
-    Geosite 已废弃且将在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geosite)。
+    Geosite 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geosite)。
 
 ### 结构
 
