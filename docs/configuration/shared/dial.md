@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [domain_resolver](#domain_resolver)  
+    :material-delete-clock: [domain_strategy](#domain_strategy)
+
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [network_strategy](#network_strategy)  
@@ -23,11 +28,14 @@ icon: material/new-box
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "domain_strategy": "prefer_ipv6",
+  "domain_resolver": "", // or {}
   "network_strategy": "default",
   "network_type": [],
   "fallback_network_type": [],
-  "fallback_delay": "300ms"
+  "fallback_delay": "300ms",
+
+  // Deprecated
+  "domain_strategy": "prefer_ipv6"
 }
 ```
 
@@ -92,16 +100,22 @@ decimal numbers, each with optional fraction and a unit suffix,
 such as "300ms", "-1.5h" or "2h45m".
 Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
-#### domain_strategy
+#### domain_resolver
 
-Available values: `prefer_ipv4`, `prefer_ipv6`, `ipv4_only`, `ipv6_only`.
+!!! warning ""
 
-If set, the requested domain name will be resolved to IP before connect.
+    `outbound` DNS rule items are deprecated and will be removed in sing-box 1.14.0, so this item will be required for outbound/endpoints using domain name in server address since sing-box 1.14.0.
 
-| Outbound | Effected domains         | Fallback Value                            |
-|----------|--------------------------|-------------------------------------------|
-| `direct` | Domain in request        | Take `inbound.domain_strategy` if not set | 
-| others   | Domain in server address | /                                         |
+Set domain resolver to use for resolving domain names.
+
+This option uses the same format as the [route DNS rule action](/configuration/dns/rule_action/#route) without the `action` field.
+
+Setting this option directly to a string is equivalent to setting `server` of this options.
+
+| Outbound/Endpoints | Effected domains         |
+|--------------------|--------------------------|
+| `direct`           | Domain in request        | 
+| others             | Domain in server address |
 
 #### network_strategy
 
@@ -171,3 +185,19 @@ back to other interfaces.
 Only take effect when `domain_strategy` or `network_strategy` is set.
 
 `300ms` is used by default.
+
+#### domain_strategy
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    `domain_strategy` is merged to [domain_resolver](#domain_resolver) in sing-box 1.12.0.
+
+Available values: `prefer_ipv4`, `prefer_ipv6`, `ipv4_only`, `ipv6_only`.
+
+If set, the requested domain name will be resolved to IP before connect.
+
+| Outbound | Effected domains         | Fallback Value                            |
+|----------|--------------------------|-------------------------------------------|
+| `direct` | Domain in request        | Take `inbound.domain_strategy` if not set | 
+| others   | Domain in server address | /                                         |
+

@@ -511,6 +511,73 @@ DNS 服务器已经重构。
         }
         ```
 
+### 迁移 outbound DNS 规则项到域解析选项
+
+旧的 `outbound` DNS 规则已废弃，且可新的域解析选项代替。
+
+!!! info "参考"
+
+    [DNS 规则](/configuration/dns/rule/#outbound) /
+    [拨号字段](/configuration/shared/dial/#domain_resolver) /
+    [路由](/configuration/route/#default_domain_resolver)
+
+=== ":material-card-remove: 废弃的"
+
+    ```json
+    {
+      "dns": {
+        "servers": [
+          {
+            "address": "local",
+            "tag": "local"
+          }
+        ],
+        "rules": [
+          {
+            "outbound": "any",
+            "server": "local"
+          }
+        ]
+      },
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "dns": {
+        "servers": [
+          {
+            "type": "local"
+          }
+        ]
+      },
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080,
+          "domain_resolver": "local",
+        }
+      ],
+      "route": {
+        "default_domain_resolver": {
+          "server": "local",
+          "rewrite_tll": 60,
+          "client_subnet": "1.1.1.1"
+        }
+      }
+    }
+    ```
+
 ## 1.11.0
 
 ### 迁移旧的特殊出站到规则动作
