@@ -13,6 +13,12 @@ check [Migration](../migration/#migrate-to-new-dns-servers).
 
 Compatibility for old formats will be removed in sing-box 1.14.0.
 
+#### `outbound` DNS rule item
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by dial fields,
+check [Migration](../migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
 ## 1.11.0
 
 #### Legacy special outbounds
