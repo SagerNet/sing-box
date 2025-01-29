@@ -1,6 +1,10 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-delete-clock: [outbound](#outbound)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -394,6 +398,10 @@ Make `ip_cidr` rule items in rule-sets match the source IP.
 Invert match result.
 
 #### outbound
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    `outbound` rule items are deprecated and will be removed in sing-box 1.14.0, check [Migration](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver). 
 
 Match outbound.
 
