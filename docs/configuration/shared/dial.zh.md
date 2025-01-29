@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [domain_resolver](#domain_resolver)  
+    :material-delete-clock: [domain_strategy](#domain_strategy)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [network_strategy](#network_strategy)  
@@ -23,11 +28,15 @@ icon: material/new-box
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "domain_strategy": "prefer_ipv6",
+  "domain_resolver": "", // 或 {}
   "network_strategy": "",
   "network_type": [],
   "fallback_network_type": [],
-  "fallback_delay": "300ms"
+  "fallback_delay": "300ms",
+  
+  // 废弃的
+
+  "domain_strategy": "prefer_ipv6"
 }
 ```
 
@@ -90,16 +99,22 @@ icon: material/new-box
 持续时间字符串是一个可能有符号的序列十进制数，每个都有可选的分数和单位后缀， 例如 "300ms"、"-1.5h" 或 "2h45m"。
 有效时间单位为 "ns"、"us"（或 "µs"）、"ms"、"s"、"m"、"h"。
 
-#### domain_strategy
+#### domain_resolver
 
-可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
+!!! warning ""
 
-如果设置，域名将在请求发出之前解析为 IP。
+    `outbound` DNS 规则项已弃用，且将在 sing-box 1.14.0 中被移除。因此，从 sing-box 1.14.0 版本开始，所有在服务器地址中使用域名的出站/端点均需配置此项。
 
-| 出站       | 受影响的域名    | 默认回退值                     |
-|----------|-----------|---------------------------|
-| `direct` | 请求中的域名    | `inbound.domain_strategy` | 
-| others   | 服务器地址中的域名 | /                         |
+用于设置解析域名的域名解析器。
+
+此选项的格式与 [路由 DNS 规则动作](/configuration/dns/rule_action/#route) 相同，但不包含 `action` 字段。  
+
+若直接将此选项设置为字符串，则等同于设置该选项的 `server` 字段。
+
+| 出站/端点       | 受影响的域名                |
+|----------------|---------------------------|
+| `direct`       | 请求中的域名                | 
+| 其他类型        | 服务器地址中的域名           |
 
 #### network_strategy
 
@@ -160,3 +175,14 @@ icon: material/new-box
 仅当 `domain_strategy` 或 `network_strategy` 已设置时生效。
 
 默认使用 `300ms`。
+
+#### domain_strategy
+
+可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
+
+如果设置，域名将在请求发出之前解析为 IP。
+
+| 出站       | 受影响的域名    | 默认回退值                     |
+|----------|-----------|---------------------------|
+| `direct` | 请求中的域名    | `inbound.domain_strategy` | 
+| others   | 服务器地址中的域名 | /                         |
