@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
