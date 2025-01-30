@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! question "自 sing-box 1.10.0 起"
 
 sing-box 支持其他项目的一些规则集格式，这些格式无法完全转换为 sing-box，
