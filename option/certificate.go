@@ -24,7 +24,8 @@ func (o CertificateOptions) MarshalJSON() ([]byte, error) {
 }
 
 func (o *CertificateOptions) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, (*_CertificateOptions)(o)); err != nil {
+	err := json.Unmarshal(data, (*_CertificateOptions)(o))
+	if err != nil {
 		return err
 	}
 	switch o.Store {
