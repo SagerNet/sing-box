@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [tls_fragment](#tls_fragment)  
+    :material-plus: [tls_fragment_fallback_delay](#tls_fragment_fallback_delay)
+
 ## Final actions
 
 ### route
@@ -81,7 +86,9 @@ Not available when `method` is set to drop.
   "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false,
-  "udp_timeout": ""
+  "udp_timeout": "",
+  "tls_fragment": false,
+  "tls_fragment_fallback_delay": ""
 }
 ```
 
@@ -147,6 +154,28 @@ If no protocol is sniffed, the following ports will be recognized as protocols b
 | 123  | `ntp`    |
 | 443  | `quic`   |
 | 3478 | `stun`   |
+
+#### tls_fragment
+
+!!! question "Since sing-box 1.12.0"
+
+Fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**, and should not be used to circumvent real censorship.
+
+Since it is not designed for performance, it should not be applied to all connections, but only to server names that are known to be blocked.
+
+On Linux, Apple platforms, (administrator privileges required) Windows, the wait time can be automatically detected, otherwise it will fall back to waiting for a fixed time specified by `tls_fragment_fallback_delay`.
+
+In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time, because the target is considered to be local or behind a transparent proxy.
+
+#### tls_fragment_fallback_delay
+
+!!! question "Since sing-box 1.12.0"
+
+The fallback value used when TLS segmentation cannot automatically determine the wait time.
+
+`500ms` is used by default.
 
 ### sniff
 
