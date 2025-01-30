@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! quote "sing-box 1.10.0 中的更改"
 
     :material-plus: `type: inline`
