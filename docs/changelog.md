@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.0-alpha.5
+
+* Fixes and improvements
+
 ### 1.11.2
 
 * Fixes and improvements
@@ -9,6 +13,61 @@ icon: material/alert-decagram
 ### 1.11.1
 
 * Fixes and improvements
+
+#### 1.12.0-alpha.2
+
+* Update quic-go to v0.49.0
+* Fixes and improvements
+
+#### 1.12.0-alpha.1
+
+* Refactor DNS servers **1**
+* Add domain resolver options**2**
+* Add TLS fragment route options **3**
+* Add certificate options **4**
+
+**1**:
+
+DNS servers are refactored for better performance and scalability.
+
+See [DNS server](/configuration/dns/server/).
+
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+**2**:
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by the new `domain_resolver` option.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver) and
+[Route](/configuration/route/#default_domain_resolver).
+
+For migration,
+see [Migrate outbound DNS rule items to domain resolver](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+**3**:
+
+The new TLS fragment route options allow you to fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**, and should not be used
+to circumvent real censorship.
+
+Since it is not designed for performance, it should not be applied to all connections, but only to server names that are
+known to be blocked.
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment).
+
+**4**:
+
+New certificate options allow you to manage the default list of trusted X509 CA certificates.
+
+For the system certificate list, fixed Go not reading Android trusted certificates correctly.
+
+You can also use the Mozilla Included List instead, or add trusted certificates yourself.
+
+See [Certificate](/configuration/certificate/).
 
 ### 1.11.0
 
