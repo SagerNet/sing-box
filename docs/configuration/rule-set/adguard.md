@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! question "Since sing-box 1.10.0"
 
 sing-box supports some rule-set formats from other projects which cannot be fully translated to sing-box,
