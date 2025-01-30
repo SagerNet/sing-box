@@ -32,7 +32,7 @@ type Store struct {
 func NewStore(ctx context.Context, logger logger.Logger, options option.CertificateOptions) (*Store, error) {
 	var systemPool *x509.CertPool
 	switch options.Store {
-	case C.CertificateStoreSystem:
+	case C.CertificateStoreSystem, "":
 		platformInterface := service.FromContext[platform.Interface](ctx)
 		systemCertificates := platformInterface.SystemCertificates()
 		if len(systemCertificates) > 0 {
