@@ -2,11 +2,11 @@ package process
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/netip"
+	"syscall"
 
 	E "github.com/sagernet/sing/common/exceptions"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/winiphlpapi"
 
 	"golang.org/x/sys/windows"
@@ -29,26 +29,15 @@ func initWin32API() error {
 }
 
 func (s *windowsSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
-	var info *Info
-	if N.NetworkName(network) == N.NetworkTCP {
-		pid, err := winiphlpapi.FindTCPPid(source, destination)
-		if err != nil {
-			return nil, err
-		}
-		info = &Info{ProcessID: pid}
-	} else {
-		pid, err := winiphlpapi.FindUDPPid(source)
-		if err != nil {
-			return nil, err
-		}
-		info = &Info{ProcessID: pid}
+	pid, err := winiphlpapi.FindPid(network, source)
+	if err != nil {
+		return nil, err
 	}
-	if info == nil {
-		return nil, ErrNotFound
+	path, err := getProcessPath(pid)
+	if err != nil {
+		return &Info{ProcessID: pid, UserId: -1}, err
 	}
-	var err error
-	info.ProcessPath, err = getProcessPath(info.ProcessID)
-	return info, err
+	return &Info{ProcessID: pid, ProcessPath: path, UserId: -1}, nil
 }
 
 func getProcessPath(pid uint32) (string, error) {
@@ -63,15 +52,11 @@ func getProcessPath(pid uint32) (string, error) {
 		return "", err
 	}
 	defer windows.CloseHandle(handle)
-	var size uint32
-	err = windows.QueryFullProcessImageName(handle, 0, nil, &size)
-	if !errors.Is(err, windows.ERROR_INSUFFICIENT_BUFFER) {
-		return "", err
-	}
-	buf := make([]uint16, size)
+	size := uint32(syscall.MAX_LONG_PATH)
+	buf := make([]uint16, syscall.MAX_LONG_PATH)
 	err = windows.QueryFullProcessImageName(handle, 0, &buf[0], &size)
 	if err != nil {
 		return "", err
 	}
-	return windows.UTF16ToString(buf), nil
+	return windows.UTF16ToString(buf[:size]), nil
 }
