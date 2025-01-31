@@ -1,5 +1,5 @@
 ---
-icon: material/note-remove
+status: removed
 ---
 
 !!! failure "Removed in sing-box 1.12.0"

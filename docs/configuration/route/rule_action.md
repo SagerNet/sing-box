@@ -1,5 +1,5 @@
 ---
-icon: material/new-box
+status: new
 ---
 
 !!! quote "Changes in sing-box 1.12.0"

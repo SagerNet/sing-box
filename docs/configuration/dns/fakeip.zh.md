@@ -1,5 +1,5 @@
 ---
-icon: material/delete-clock
+status: deprecated
 ---
 
 !!! failure "已在 sing-box 1.12.0 废弃"

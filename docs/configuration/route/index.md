@@ -1,5 +1,5 @@
 ---
-icon: material/alert-decagram
+status: alert
 ---
 
 # Route
