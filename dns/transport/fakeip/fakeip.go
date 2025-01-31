@@ -36,6 +36,14 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	}, nil
 }
 
+func (t *Transport) Start() error {
+	return t.store.Start()
+}
+
+func (t *Transport) Close() error {
+	return t.store.Close()
+}
+
 func (t *Transport) Reset() {
 }
 
