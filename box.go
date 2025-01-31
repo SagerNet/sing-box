@@ -202,7 +202,7 @@ func New(options Options) (*Box, error) {
 			transportOptions.Options,
 		)
 		if err != nil {
-			return nil, E.Cause(err, "initialize inbound[", i, "]")
+			return nil, E.Cause(err, "initialize DNS server[", i, "]")
 		}
 	}
 	err = dnsRouter.Initialize(dnsOptions.Rules)
@@ -225,7 +225,7 @@ func New(options Options) (*Box, error) {
 			endpointOptions.Options,
 		)
 		if err != nil {
-			return nil, E.Cause(err, "initialize inbound[", i, "]")
+			return nil, E.Cause(err, "initialize endpoint[", i, "]")
 		}
 	}
 	for i, inboundOptions := range options.Inbounds {

@@ -19,37 +19,30 @@ func NewLocalDialer(ctx context.Context, options option.LocalDNSServerOptions) (
 	if options.LegacyDefaultDialer {
 		return dialer.NewDefaultOutbound(ctx), nil
 	} else {
-		return dialer.New(ctx, options.DialerOptions, false)
+		return dialer.NewDNS(ctx, options.DialerOptions, false)
 	}
 }
 
 func NewRemoteDialer(ctx context.Context, options option.RemoteDNSServerOptions) (N.Dialer, error) {
-	var (
-		transportDialer N.Dialer
-		err             error
-	)
 	if options.LegacyDefaultDialer {
-		transportDialer = dialer.NewDefaultOutbound(ctx)
-	} else {
-		transportDialer, err = dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
-	}
-	if err != nil {
-		return nil, err
-	}
-	if options.AddressResolver != "" {
-		transport := service.FromContext[adapter.DNSTransportManager](ctx)
-		resolverTransport, loaded := transport.Transport(options.AddressResolver)
-		if !loaded {
-			return nil, E.New("address resolver not found: ", options.AddressResolver)
+		transportDialer := dialer.NewDefaultOutbound(ctx)
+		if options.LegacyAddressResolver != "" {
+			transport := service.FromContext[adapter.DNSTransportManager](ctx)
+			resolverTransport, loaded := transport.Transport(options.LegacyAddressResolver)
+			if !loaded {
+				return nil, E.New("address resolver not found: ", options.LegacyAddressResolver)
+			}
+			transportDialer = newTransportDialer(transportDialer, service.FromContext[adapter.DNSRouter](ctx), resolverTransport, C.DomainStrategy(options.LegacyAddressStrategy), time.Duration(options.LegacyAddressFallbackDelay))
+		} else if options.ServerIsDomain() {
+			return nil, E.New("missing address resolver for server: ", options.Server)
 		}
-		transportDialer = NewTransportDialer(transportDialer, service.FromContext[adapter.DNSRouter](ctx), resolverTransport, C.DomainStrategy(options.AddressStrategy), time.Duration(options.AddressFallbackDelay))
-	} else if options.ServerIsDomain() {
-		return nil, E.New("missing address resolver for server: ", options.Server)
+		return transportDialer, nil
+	} else {
+		return dialer.NewDNS(ctx, options.DialerOptions, options.ServerIsDomain())
 	}
-	return transportDialer, nil
 }
 
-type TransportDialer struct {
+type legacyTransportDialer struct {
 	dialer        N.Dialer
 	dnsRouter     adapter.DNSRouter
 	transport     adapter.DNSTransport
@@ -57,8 +50,8 @@ type TransportDialer struct {
 	fallbackDelay time.Duration
 }
 
-func NewTransportDialer(dialer N.Dialer, dnsRouter adapter.DNSRouter, transport adapter.DNSTransport, strategy C.DomainStrategy, fallbackDelay time.Duration) *TransportDialer {
-	return &TransportDialer{
+func newTransportDialer(dialer N.Dialer, dnsRouter adapter.DNSRouter, transport adapter.DNSTransport, strategy C.DomainStrategy, fallbackDelay time.Duration) *legacyTransportDialer {
+	return &legacyTransportDialer{
 		dialer,
 		dnsRouter,
 		transport,
@@ -67,7 +60,7 @@ func NewTransportDialer(dialer N.Dialer, dnsRouter adapter.DNSRouter, transport 
 	}
 }
 
-func (d *TransportDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (d *legacyTransportDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if destination.IsIP() {
 		return d.dialer.DialContext(ctx, network, destination)
 	}
@@ -81,7 +74,7 @@ func (d *TransportDialer) DialContext(ctx context.Context, network string, desti
 	return N.DialParallel(ctx, d.dialer, network, destination, addresses, d.strategy == C.DomainStrategyPreferIPv6, d.fallbackDelay)
 }
 
-func (d *TransportDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (d *legacyTransportDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if destination.IsIP() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
@@ -96,6 +89,6 @@ func (d *TransportDialer) ListenPacket(ctx context.Context, destination M.Socksa
 	return conn, err
 }
 
-func (d *TransportDialer) Upstream() any {
+func (d *legacyTransportDialer) Upstream() any {
 	return d.dialer
 }
