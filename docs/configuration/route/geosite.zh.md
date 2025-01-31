@@ -1,5 +1,5 @@
 ---
-icon: material/note-remove
+status: removed
 ---
 
 !!! failure "已在 sing-box 1.12.0 中被移除"

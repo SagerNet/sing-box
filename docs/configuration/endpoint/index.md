@@ -1,5 +1,5 @@
 ---
-icon: material/new-box
+status: new
 ---
 
 !!! question "Since sing-box 1.11.0"
