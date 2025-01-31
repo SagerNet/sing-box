@@ -56,7 +56,7 @@ type NetworkManager struct {
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
-	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DomainResolver)
+	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
 	nm := &NetworkManager{
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
