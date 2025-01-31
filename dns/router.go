@@ -252,7 +252,8 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 			ruleIndex = -1
 			for {
 				dnsCtx := adapter.OverrideContext(ctx)
-				transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &options)
+				dnsOptions := options
+				transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &dnsOptions)
 				if rule != nil {
 					switch action := rule.Action().(type) {
 					case *R.RuleActionReject:
@@ -271,10 +272,10 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 						return rule.MatchAddressLimit(metadata)
 					}
 				}
-				if options.Strategy == C.DomainStrategyAsIS {
-					options.Strategy = r.defaultDomainStrategy
+				if dnsOptions.Strategy == C.DomainStrategyAsIS {
+					dnsOptions.Strategy = r.defaultDomainStrategy
 				}
-				response, err = r.client.Exchange(dnsCtx, transport, message, options, responseCheck)
+				response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
 				var rejected bool
 				if err != nil {
 					if errors.Is(err, ErrResponseRejectedCached) {
