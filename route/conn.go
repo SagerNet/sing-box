@@ -225,6 +225,17 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source io.Reader
 		}
 		break
 	}
+	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](destination); isEarlyConn && earlyConn.NeedHandshake() {
+		_, err := destination.Write(nil)
+		if err != nil {
+			if !direction {
+				m.logger.ErrorContext(ctx, "connection upload handshake: ", err)
+			} else {
+				m.logger.ErrorContext(ctx, "connection download handshake: ", err)
+			}
+			return
+		}
+	}
 	_, err := bufio.CopyWithCounters(destination, source, originSource, readCounters, writeCounters)
 	if err != nil {
 		common.Close(originDestination)
