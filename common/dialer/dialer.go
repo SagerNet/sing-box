@@ -84,6 +84,60 @@ func New(ctx context.Context, options option.DialerOptions, remoteIsDomain bool)
 			ctx,
 			dialer,
 			options.Detour == "" && !options.TCPFastOpen,
+			"",
+			dnsQueryOptions,
+			resolveFallbackDelay,
+		)
+	}
+	return dialer, nil
+}
+
+func NewDNS(ctx context.Context, options option.DialerOptions, remoteIsDomain bool) (N.Dialer, error) {
+	var (
+		dialer N.Dialer
+		err    error
+	)
+	if options.Detour != "" {
+		outboundManager := service.FromContext[adapter.OutboundManager](ctx)
+		if outboundManager == nil {
+			return nil, E.New("missing outbound manager")
+		}
+		dialer = NewDetour(outboundManager, options.Detour)
+	} else {
+		dialer, err = NewDefault(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if remoteIsDomain {
+		var (
+			dnsQueryOptions      adapter.DNSQueryOptions
+			resolveFallbackDelay time.Duration
+		)
+		if options.DomainResolver == nil || options.DomainResolver.Server == "" {
+			return nil, E.New("missing domain resolver for domain server address")
+		}
+		var strategy C.DomainStrategy
+		if options.DomainResolver.Strategy != option.DomainStrategy(C.DomainStrategyAsIS) {
+			strategy = C.DomainStrategy(options.DomainResolver.Strategy)
+		} else if
+		//nolint:staticcheck
+		options.DomainStrategy != option.DomainStrategy(C.DomainStrategyAsIS) {
+			//nolint:staticcheck
+			strategy = C.DomainStrategy(options.DomainStrategy)
+		}
+		dnsQueryOptions = adapter.DNSQueryOptions{
+			Strategy:     strategy,
+			DisableCache: options.DomainResolver.DisableCache,
+			RewriteTTL:   options.DomainResolver.RewriteTTL,
+			ClientSubnet: options.DomainResolver.ClientSubnet.Build(netip.Prefix{}),
+		}
+		resolveFallbackDelay = time.Duration(options.FallbackDelay)
+		dialer = NewResolveDialer(
+			ctx,
+			dialer,
+			options.Detour == "" && !options.TCPFastOpen,
+			options.DomainResolver.Server,
 			dnsQueryOptions,
 			resolveFallbackDelay,
 		)
