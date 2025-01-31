@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! question "Since sing-box 1.12.0"
 
-# TCP
+# UDP
 
 ### Structure
 
