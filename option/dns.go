@@ -128,18 +128,34 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 	} else {
 		serverType = C.DNSTypeUDP
 	}
-	remoteOptions := RemoteDNSServerOptions{
-		LocalDNSServerOptions: LocalDNSServerOptions{
-			DialerOptions: DialerOptions{
-				Detour: options.Detour,
+	var remoteOptions RemoteDNSServerOptions
+	if options.Detour == "" {
+		remoteOptions = RemoteDNSServerOptions{
+			LocalDNSServerOptions: LocalDNSServerOptions{
+				LegacyStrategy:      options.Strategy,
+				LegacyDefaultDialer: options.Detour == "",
+				LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
 			},
-			LegacyStrategy:      options.Strategy,
-			LegacyDefaultDialer: options.Detour == "",
-			LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
-		},
-		AddressResolver:      options.AddressResolver,
-		AddressStrategy:      options.AddressStrategy,
-		AddressFallbackDelay: options.AddressFallbackDelay,
+			LegacyAddressResolver:      options.AddressResolver,
+			LegacyAddressStrategy:      options.AddressStrategy,
+			LegacyAddressFallbackDelay: options.AddressFallbackDelay,
+		}
+	} else {
+		remoteOptions = RemoteDNSServerOptions{
+			LocalDNSServerOptions: LocalDNSServerOptions{
+				DialerOptions: DialerOptions{
+					Detour: options.Detour,
+					DomainResolver: &DomainResolveOptions{
+						Server:   options.AddressResolver,
+						Strategy: options.AddressStrategy,
+					},
+					FallbackDelay: options.AddressFallbackDelay,
+				},
+				LegacyStrategy:      options.Strategy,
+				LegacyDefaultDialer: options.Detour == "",
+				LegacyClientSubnet:  options.ClientSubnet.Build(netip.Prefix{}),
+			},
+		}
 	}
 	switch serverType {
 	case C.DNSTypeUDP:
@@ -274,9 +290,9 @@ type LocalDNSServerOptions struct {
 type RemoteDNSServerOptions struct {
 	LocalDNSServerOptions
 	ServerOptions
-	AddressResolver      string             `json:"address_resolver,omitempty"`
-	AddressStrategy      DomainStrategy     `json:"address_strategy,omitempty"`
-	AddressFallbackDelay badoption.Duration `json:"address_fallback_delay,omitempty"`
+	LegacyAddressResolver      string             `json:"-"`
+	LegacyAddressStrategy      DomainStrategy     `json:"-"`
+	LegacyAddressFallbackDelay badoption.Duration `json:"-"`
 }
 
 type RemoteTLSDNSServerOptions struct {

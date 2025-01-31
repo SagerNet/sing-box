@@ -3,12 +3,14 @@ package dialer
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -30,20 +32,26 @@ type ParallelInterfaceResolveDialer interface {
 }
 
 type resolveDialer struct {
+	transport     adapter.DNSTransportManager
 	router        adapter.DNSRouter
 	dialer        N.Dialer
 	parallel      bool
+	server        string
+	initOnce      sync.Once
+	initErr       error
 	queryOptions  adapter.DNSQueryOptions
 	fallbackDelay time.Duration
 }
 
-func NewResolveDialer(ctx context.Context, dialer N.Dialer, parallel bool, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ResolveDialer {
+func NewResolveDialer(ctx context.Context, dialer N.Dialer, parallel bool, server string, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ResolveDialer {
 	return &resolveDialer{
-		service.FromContext[adapter.DNSRouter](ctx),
-		dialer,
-		parallel,
-		queryOptions,
-		fallbackDelay,
+		transport:     service.FromContext[adapter.DNSTransportManager](ctx),
+		router:        service.FromContext[adapter.DNSRouter](ctx),
+		dialer:        dialer,
+		parallel:      parallel,
+		server:        server,
+		queryOptions:  queryOptions,
+		fallbackDelay: fallbackDelay,
 	}
 }
 
@@ -52,20 +60,43 @@ type resolveParallelNetworkDialer struct {
 	dialer ParallelInterfaceDialer
 }
 
-func NewResolveParallelInterfaceDialer(ctx context.Context, dialer ParallelInterfaceDialer, parallel bool, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ParallelInterfaceResolveDialer {
+func NewResolveParallelInterfaceDialer(ctx context.Context, dialer ParallelInterfaceDialer, parallel bool, server string, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ParallelInterfaceResolveDialer {
 	return &resolveParallelNetworkDialer{
 		resolveDialer{
-			service.FromContext[adapter.DNSRouter](ctx),
-			dialer,
-			parallel,
-			queryOptions,
-			fallbackDelay,
+			transport:     service.FromContext[adapter.DNSTransportManager](ctx),
+			router:        service.FromContext[adapter.DNSRouter](ctx),
+			dialer:        dialer,
+			parallel:      parallel,
+			server:        server,
+			queryOptions:  queryOptions,
+			fallbackDelay: fallbackDelay,
 		},
 		dialer,
 	}
 }
 
+func (d *resolveDialer) initialize() error {
+	d.initOnce.Do(d.initServer)
+	return d.initErr
+}
+
+func (d *resolveDialer) initServer() {
+	if d.server == "" {
+		return
+	}
+	transport, loaded := d.transport.Transport(d.server)
+	if !loaded {
+		d.initErr = E.New("domain resolver not found: " + d.server)
+		return
+	}
+	d.queryOptions.Transport = transport
+}
+
 func (d *resolveDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	err := d.initialize()
+	if err != nil {
+		return nil, err
+	}
 	if !destination.IsFqdn() {
 		return d.dialer.DialContext(ctx, network, destination)
 	}
@@ -82,6 +113,10 @@ func (d *resolveDialer) DialContext(ctx context.Context, network string, destina
 }
 
 func (d *resolveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	err := d.initialize()
+	if err != nil {
+		return nil, err
+	}
 	if !destination.IsFqdn() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
@@ -106,6 +141,10 @@ func (d *resolveDialer) Upstream() any {
 }
 
 func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
+	err := d.initialize()
+	if err != nil {
+		return nil, err
+	}
 	if !destination.IsFqdn() {
 		return d.dialer.DialContext(ctx, network, destination)
 	}
@@ -125,6 +164,10 @@ func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context
 }
 
 func (d *resolveParallelNetworkDialer) ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {
+	err := d.initialize()
+	if err != nil {
+		return nil, err
+	}
 	if !destination.IsFqdn() {
 		return d.dialer.ListenPacket(ctx, destination)
 	}
