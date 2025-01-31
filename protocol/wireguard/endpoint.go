@@ -53,7 +53,14 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.Detour == "" {
 		options.IsWireGuardListener = true
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions, false)
+	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context: ctx,
+		Options: options.DialerOptions,
+		RemoteIsDomain: common.Any(options.Peers, func(it option.WireGuardPeer) bool {
+			return !M.ParseAddr(it.Address).IsValid()
+		}),
+		ResolverOnDetour: true,
+	})
 	if err != nil {
 		return nil, err
 	}
