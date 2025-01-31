@@ -284,7 +284,10 @@ DNS 服务器已经重构。
             ],
             "rules": [
               {
-                "query_type": ["A", "AAAA"],
+                "query_type": [
+                  "A",
+                  "AAAA"
+                ],
                 "server": "fakeip"
               }
             ],
@@ -301,24 +304,29 @@ DNS 服务器已经重构。
     
         ```json
         {
-          "dns": [
-            {
-              "type": "udp",
-              "server": "1.1.1.1"
-            },
-            {
-              "type": "fakeip",
-              "tag": "fakeip",
-              "inet4_range": "198.18.0.0/15",
-              "inet6_range": "fc00::/18"
-            }
-          ],
-          "rules": [
-            {
-              "query_type": ["A", "AAAA"],
-              "server": "fakeip"
-            }
-          ]
+          "dns": {
+            "servers": [
+              {
+                "type": "udp",
+                "server": "1.1.1.1"
+              },
+              {
+                "type": "fakeip",
+                "tag": "fakeip",
+                "inet4_range": "198.18.0.0/15",
+                "inet6_range": "fc00::/18"
+              }
+            ],
+            "rules": [
+              {
+                "query_type": [
+                  "A",
+                  "AAAA"
+                ],
+                "server": "fakeip"
+              }
+            ]
+          }
         }
         ```
 
