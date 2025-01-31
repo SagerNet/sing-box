@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sagernet/asc-go/asc"
@@ -194,6 +195,10 @@ func publishTestflight(ctx context.Context) error {
 				log.Info(string(platform), " ", tag, " create submission")
 				_, _, err = client.TestFlight.CreateBetaAppReviewSubmission(ctx, build.ID)
 				if err != nil {
+					if strings.Contains(err.Error(), "ANOTHER_BUILD_IN_REVIEW") {
+						log.Error(err)
+						break
+					}
 					return err
 				}
 			}
