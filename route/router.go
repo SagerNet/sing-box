@@ -484,6 +484,13 @@ func (r *Router) Close() error {
 		})
 		monitor.Finish()
 	}
+	for i, ruleSet := range r.ruleSets {
+		monitor.Start("close rule-set[", i, "]")
+		err = E.Append(err, ruleSet.Close(), func(err error) error {
+			return E.Cause(err, "close rule-set[", i, "]")
+		})
+		monitor.Finish()
+	}
 	return err
 }
 
