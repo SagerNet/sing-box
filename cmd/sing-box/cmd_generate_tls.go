@@ -30,7 +30,7 @@ func init() {
 }
 
 func generateTLSKeyPair(serverName string) error {
-	privateKeyPem, publicKeyPem, err := tls.GenerateKeyPair(time.Now, serverName, time.Now().AddDate(0, flagGenerateTLSKeyPairMonths, 0))
+	privateKeyPem, publicKeyPem, err := tls.GenerateCertificate(nil, nil, time.Now, serverName, time.Now().AddDate(0, flagGenerateTLSKeyPairMonths, 0))
 	if err != nil {
 		return err
 	}
