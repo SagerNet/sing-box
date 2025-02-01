@@ -39,17 +39,17 @@ type CacheFile interface {
 	StoreSelected(group string, selected string) error
 	LoadGroupExpand(group string) (isExpand bool, loaded bool)
 	StoreGroupExpand(group string, expand bool) error
-	LoadRuleSet(tag string) *SavedRuleSet
-	SaveRuleSet(tag string, set *SavedRuleSet) error
+	LoadRuleSet(tag string) *SavedBinary
+	SaveRuleSet(tag string, set *SavedBinary) error
 }
 
-type SavedRuleSet struct {
+type SavedBinary struct {
 	Content     []byte
 	LastUpdated time.Time
 	LastEtag    string
 }
 
-func (s *SavedRuleSet) MarshalBinary() ([]byte, error) {
+func (s *SavedBinary) MarshalBinary() ([]byte, error) {
 	var buffer bytes.Buffer
 	err := binary.Write(&buffer, binary.BigEndian, uint8(1))
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *SavedRuleSet) MarshalBinary() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *SavedRuleSet) UnmarshalBinary(data []byte) error {
+func (s *SavedBinary) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
 	var version uint8
 	err := binary.Read(reader, binary.BigEndian, &version)

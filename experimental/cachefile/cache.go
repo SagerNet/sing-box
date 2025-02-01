@@ -284,8 +284,8 @@ func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
 	})
 }
 
-func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedRuleSet {
-	var savedSet adapter.SavedRuleSet
+func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedBinary {
+	var savedSet adapter.SavedBinary
 	err := c.DB.View(func(t *bbolt.Tx) error {
 		bucket := c.bucket(t, bucketRuleSet)
 		if bucket == nil {
@@ -303,7 +303,7 @@ func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedRuleSet {
 	return &savedSet
 }
 
-func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedRuleSet) error {
+func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedBinary) error {
 	return c.DB.Batch(func(t *bbolt.Tx) error {
 		bucket, err := c.createBucket(t, bucketRuleSet)
 		if err != nil {
