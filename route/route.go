@@ -586,7 +586,7 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				if (metadata.InboundType == C.TypeSOCKS || metadata.InboundType == C.TypeMixed) && !metadata.Destination.IsFqdn() && !metadata.Destination.Addr.IsGlobalUnicast() {
+				if (metadata.InboundType == C.TypeSOCKS || metadata.InboundType == C.TypeMixed) && !metadata.Destination.IsFqdn() && !metadata.Destination.Addr.IsGlobalUnicast() && !metadata.RouteOriginalDestination.IsValid() {
 					metadata.Destination = destination
 				}
 				if len(packetBuffers) > 0 {

@@ -162,6 +162,24 @@ func (r *RuleActionRouteOptions) Type() string {
 
 func (r *RuleActionRouteOptions) String() string {
 	var descriptions []string
+	if r.OverrideAddress.IsValid() {
+		descriptions = append(descriptions, F.ToString("override-address=", r.OverrideAddress.AddrString()))
+	}
+	if r.OverridePort > 0 {
+		descriptions = append(descriptions, F.ToString("override-port=", r.OverridePort))
+	}
+	if r.NetworkStrategy != nil {
+		descriptions = append(descriptions, F.ToString("network-strategy=", r.NetworkStrategy))
+	}
+	if r.NetworkType != nil {
+		descriptions = append(descriptions, F.ToString("network-type=", strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackNetworkType != nil {
+		descriptions = append(descriptions, F.ToString("fallback-network-type="+strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackDelay > 0 {
+		descriptions = append(descriptions, F.ToString("fallback-delay=", r.FallbackDelay.String()))
+	}
 	if r.UDPDisableDomainUnmapping {
 		descriptions = append(descriptions, "udp-disable-domain-unmapping")
 	}
