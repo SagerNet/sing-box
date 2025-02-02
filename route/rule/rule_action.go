@@ -168,7 +168,7 @@ func (r *RuleActionRouteOptions) Type() string {
 func (r *RuleActionRouteOptions) Descriptions() []string {
 	var descriptions []string
 	if r.OverrideAddress.IsValid() {
-		descriptions = append(descriptions, F.ToString("override-address=", r.OverrideAddress.String()))
+		descriptions = append(descriptions, F.ToString("override-address=", r.OverrideAddress.AddrString()))
 	}
 	if r.OverridePort > 0 {
 		descriptions = append(descriptions, F.ToString("override-port=", r.OverridePort))

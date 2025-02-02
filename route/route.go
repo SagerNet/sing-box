@@ -597,7 +597,7 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				if !metadata.Destination.Addr.IsGlobalUnicast() {
+				if !metadata.Destination.Addr.IsGlobalUnicast() && !metadata.RouteOriginalDestination.IsValid() {
 					metadata.Destination = destination
 				}
 				if len(packetBuffers) > 0 {

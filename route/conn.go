@@ -191,6 +191,12 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		if natConn, loaded := common.Cast[bufio.NATPacketConn](conn); loaded {
 			natConn.UpdateDestination(destinationAddress)
 		}
+	} else if metadata.RouteOriginalDestination.IsValid() && metadata.RouteOriginalDestination != metadata.Destination {
+		if metadata.UDPDisableDomainUnmapping {
+			remotePacketConn = bufio.NewUnidirectionalNATPacketConn(bufio.NewPacketConn(remotePacketConn), metadata.Destination, metadata.RouteOriginalDestination)
+		} else {
+			remotePacketConn = bufio.NewNATPacketConn(bufio.NewPacketConn(remotePacketConn), metadata.Destination, metadata.RouteOriginalDestination)
+		}
 	}
 	var udpTimeout time.Duration
 	if metadata.UDPTimeout > 0 {
