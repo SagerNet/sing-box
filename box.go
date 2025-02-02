@@ -348,7 +348,7 @@ func New(options Options) (*Box, error) {
 		services = append(services, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
 	mitmOptions := common.PtrValueOrDefault(options.MITM)
-	var mitmEngine *mitm.Engine
+	var mitmEngine adapter.MITMEngine
 	if mitmOptions.Enabled {
 		engine, err := mitm.NewEngine(ctx, logFactory.NewLogger("mitm"), mitmOptions)
 		if err != nil {

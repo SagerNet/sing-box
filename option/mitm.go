@@ -5,8 +5,8 @@ import (
 )
 
 type MITMOptions struct {
-	Enabled bool `json:"enabled,omitempty"`
-	// HTTP2Enabled         bool                  `json:"http2_enabled,omitempty"`
+	Enabled              bool                  `json:"enabled,omitempty"`
+	HTTP2Enabled         bool                  `json:"http2_enabled,omitempty"`
 	TLSDecryptionOptions *TLSDecryptionOptions `json:"tls_decryption,omitempty"`
 }
 
