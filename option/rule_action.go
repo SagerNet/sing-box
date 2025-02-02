@@ -153,6 +153,8 @@ type RawRouteOptionsActionOptions struct {
 
 	TLSFragment              bool               `json:"tls_fragment,omitempty"`
 	TLSFragmentFallbackDelay badoption.Duration `json:"tls_fragment_fallback_delay,omitempty"`
+
+	MITM *MITMRouteOptions `json:"mitm,omitempty"`
 }
 
 type RouteOptionsActionOptions RawRouteOptionsActionOptions

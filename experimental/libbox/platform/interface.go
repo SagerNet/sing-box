@@ -32,4 +32,9 @@ type Notification struct {
 	Subtitle   string
 	Body       string
 	OpenURL    string
+	Clipboard  string
+	MediaURL   string
+	MediaData  []byte
+	MediaType  string
+	Timeout    int
 }

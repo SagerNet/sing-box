@@ -2,6 +2,8 @@ package adapter
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"net/netip"
 	"time"
 
@@ -57,6 +59,8 @@ type InboundContext struct {
 	Domain       string
 	Client       string
 	SniffContext any
+	HTTPRequest  *http.Request
+	ClientHello  *tls.ClientHelloInfo
 
 	// cache
 
@@ -73,6 +77,7 @@ type InboundContext struct {
 	UDPTimeout                time.Duration
 	TLSFragment               bool
 	TLSFragmentFallbackDelay  time.Duration
+	MITM                      *option.MITMRouteOptions
 
 	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType

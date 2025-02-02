@@ -3,9 +3,11 @@ module github.com/sagernet/sing-box
 go 1.20
 
 require (
+	github.com/adhocore/gronx v1.19.5
 	github.com/caddyserver/certmagic v0.20.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
+	github.com/dop251/goja v0.0.0-20250125213203-5ef83b82af17
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/uuid/v5 v5.3.0
@@ -61,15 +63,17 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1 // indirect
+	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/pprof v0.0.0-20231101202521-4ca4178f5c7a // indirect
+	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
@@ -78,7 +82,6 @@ require (
 	github.com/libdns/libdns v0.2.2 // indirect
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
-	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/onsi/ginkgo/v2 v2.9.7 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -97,7 +100,6 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )

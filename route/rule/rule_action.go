@@ -38,6 +38,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 				UDPConnect:                action.RouteOptions.UDPConnect,
 				TLSFragment:               action.RouteOptions.TLSFragment,
 				TLSFragmentFallbackDelay:  time.Duration(action.RouteOptions.TLSFragmentFallbackDelay),
+				MITM:                      action.RouteOptions.MITM,
 			},
 		}, nil
 	case C.RuleActionTypeRouteOptions:
@@ -51,6 +52,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
 			TLSFragment:               action.RouteOptionsOptions.TLSFragment,
 			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
+			MITM:                      action.RouteOptionsOptions.MITM,
 		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
@@ -140,15 +142,7 @@ func (r *RuleActionRoute) Type() string {
 func (r *RuleActionRoute) String() string {
 	var descriptions []string
 	descriptions = append(descriptions, r.Outbound)
-	if r.UDPDisableDomainUnmapping {
-		descriptions = append(descriptions, "udp-disable-domain-unmapping")
-	}
-	if r.UDPConnect {
-		descriptions = append(descriptions, "udp-connect")
-	}
-	if r.TLSFragment {
-		descriptions = append(descriptions, "tls-fragment")
-	}
+	descriptions = append(descriptions, r.Descriptions()...)
 	return F.ToString("route(", strings.Join(descriptions, ","), ")")
 }
 
@@ -164,14 +158,33 @@ type RuleActionRouteOptions struct {
 	UDPTimeout                time.Duration
 	TLSFragment               bool
 	TLSFragmentFallbackDelay  time.Duration
+	MITM                      *option.MITMRouteOptions
 }
 
 func (r *RuleActionRouteOptions) Type() string {
 	return C.RuleActionTypeRouteOptions
 }
 
-func (r *RuleActionRouteOptions) String() string {
+func (r *RuleActionRouteOptions) Descriptions() []string {
 	var descriptions []string
+	if r.OverrideAddress.IsValid() {
+		descriptions = append(descriptions, F.ToString("override-address=", r.OverrideAddress.String()))
+	}
+	if r.OverridePort > 0 {
+		descriptions = append(descriptions, F.ToString("override-port=", r.OverridePort))
+	}
+	if r.NetworkStrategy != nil {
+		descriptions = append(descriptions, F.ToString("network-strategy=", r.NetworkStrategy))
+	}
+	if r.NetworkType != nil {
+		descriptions = append(descriptions, F.ToString("network-type=", strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackNetworkType != nil {
+		descriptions = append(descriptions, F.ToString("fallback-network-type="+strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackDelay > 0 {
+		descriptions = append(descriptions, F.ToString("fallback-delay=", r.FallbackDelay.String()))
+	}
 	if r.UDPDisableDomainUnmapping {
 		descriptions = append(descriptions, "udp-disable-domain-unmapping")
 	}
@@ -179,9 +192,22 @@ func (r *RuleActionRouteOptions) String() string {
 		descriptions = append(descriptions, "udp-connect")
 	}
 	if r.UDPTimeout > 0 {
-		descriptions = append(descriptions, "udp-timeout")
+		descriptions = append(descriptions, F.ToString("udp-timeout=", r.UDPTimeout))
 	}
-	return F.ToString("route-options(", strings.Join(descriptions, ","), ")")
+	if r.TLSFragment {
+		descriptions = append(descriptions, "tls-fragment")
+		if r.TLSFragmentFallbackDelay > 0 {
+			descriptions = append(descriptions, F.ToString("tls-fragment-fallbac-delay=", r.TLSFragmentFallbackDelay.String()))
+		}
+	}
+	if r.MITM != nil && r.MITM.Enabled {
+		descriptions = append(descriptions, "mitm")
+	}
+	return descriptions
+}
+
+func (r *RuleActionRouteOptions) String() string {
+	return F.ToString("route-options(", strings.Join(r.Descriptions(), ","), ")")
 }
 
 type RuleActionDNSRoute struct {

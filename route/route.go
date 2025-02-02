@@ -458,6 +458,9 @@ match:
 				metadata.TLSFragment = true
 				metadata.TLSFragmentFallbackDelay = routeOptions.TLSFragmentFallbackDelay
 			}
+			if routeOptions.MITM != nil && routeOptions.MITM.Enabled {
+				metadata.MITM = routeOptions.MITM
+			}
 		}
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:

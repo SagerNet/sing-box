@@ -19,10 +19,12 @@ import (
 )
 
 var (
-	bucketSelected = []byte("selected")
-	bucketExpand   = []byte("group_expand")
-	bucketMode     = []byte("clash_mode")
-	bucketRuleSet  = []byte("rule_set")
+	bucketSelected          = []byte("selected")
+	bucketExpand            = []byte("group_expand")
+	bucketMode              = []byte("clash_mode")
+	bucketRuleSet           = []byte("rule_set")
+	bucketScript            = []byte("script")
+	bucketSgPersistentStore = []byte("sg_persistent_store")
 
 	bucketNameList = []string{
 		string(bucketSelected),
@@ -314,5 +316,64 @@ func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedBinary) error {
 			return err
 		}
 		return bucket.Put([]byte(tag), setBinary)
+	})
+}
+
+func (c *CacheFile) LoadScript(tag string) *adapter.SavedBinary {
+	var savedSet adapter.SavedBinary
+	err := c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketScript)
+		if bucket == nil {
+			return os.ErrNotExist
+		}
+		scriptBinary := bucket.Get([]byte(tag))
+		if len(scriptBinary) == 0 {
+			return os.ErrInvalid
+		}
+		return savedSet.UnmarshalBinary(scriptBinary)
+	})
+	if err != nil {
+		return nil
+	}
+	return &savedSet
+}
+
+func (c *CacheFile) SaveScript(tag string, set *adapter.SavedBinary) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketScript)
+		if err != nil {
+			return err
+		}
+		scriptBinary, err := set.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(tag), scriptBinary)
+	})
+}
+
+func (c *CacheFile) SurgePersistentStoreRead(key string) string {
+	var value string
+	_ = c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketSgPersistentStore)
+		if bucket == nil {
+			return nil
+		}
+		valueBinary := bucket.Get([]byte(key))
+		if len(valueBinary) > 0 {
+			value = string(valueBinary)
+		}
+		return nil
+	})
+	return value
+}
+
+func (c *CacheFile) SurgePersistentStoreWrite(key string, value string) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketSgPersistentStore)
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(key), []byte(value))
 	})
 }
