@@ -18,6 +18,7 @@ type TLSDecryptionOptions struct {
 
 type MITMRouteOptions struct {
 	Enabled            bool                                       `json:"enabled,omitempty"`
+	Print              bool                                       `json:"print,omitempty"`
 	Script             badoption.Listable[string]                 `json:"script,omitempty"`
 	SurgeURLRewrite    badoption.Listable[SurgeURLRewriteLine]    `json:"sg_url_rewrite,omitempty"`
 	SurgeHeaderRewrite badoption.Listable[SurgeHeaderRewriteLine] `json:"sg_header_rewrite,omitempty"`
