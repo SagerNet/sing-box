@@ -91,6 +91,10 @@ func (e *Engine) Close() error {
 	return nil
 }
 
+func (e *Engine) ExportCertificate() *x509.Certificate {
+	return e.tlsCertificate
+}
+
 func (e *Engine) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	if e.tlsDecryptionEnabled && metadata.ClientHello != nil {
 		err := e.newTLS(ctx, this, conn, metadata, onClose)
