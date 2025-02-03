@@ -33,7 +33,7 @@ icon: material/new-box
 
 | 键        | 格式                      |
 |----------|-------------------------|
-| `server` | 一组 [DNS 服务器](./server/) |
+| `servers` | 一组 [DNS 服务器](./server/) |
 | `rules`  | 一组 [DNS 规则](./rule/)    |
 
 #### final

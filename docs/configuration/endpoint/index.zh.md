@@ -25,7 +25,7 @@ icon: material/new-box
 
 | 类型          | 格式                        | 
 |-------------|---------------------------|
-| `wireguard` | [WireGuard](./wiregaurd/) | 
+| `wireguard` | [WireGuard](./wireguard/) | 
 
 #### tag
 
