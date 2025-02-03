@@ -40,7 +40,7 @@ func getMobileConfig(ctx context.Context) http.HandlerFunc {
 		mobileConfig := map[string]interface{}{
 			"PayloadContent": []interface{}{
 				map[string]interface{}{
-					"PayloadCertificateFileName": "Certificate.cer",
+					"PayloadCertificateFileName": "Certificates.cer",
 					"PayloadContent":             certificate.Raw,
 					"PayloadDescription":         "Adds a root certificate",
 					"PayloadDisplayName":         certificate.Subject.CommonName,
