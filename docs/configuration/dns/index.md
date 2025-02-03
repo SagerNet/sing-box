@@ -33,7 +33,7 @@ icon: material/new-box
 
 | Key      | Format                          |
 |----------|---------------------------------|
-| `server` | List of [DNS Server](./server/) |
+| `servers` | List of [DNS Server](./server/) |
 | `rules`  | List of [DNS Rule](./rule/)     |
 | `fakeip` | [FakeIP](./fakeip/)             |
 
