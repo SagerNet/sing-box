@@ -21,9 +21,9 @@ type Source interface {
 
 func NewSource(ctx context.Context, logger logger.Logger, options option.Script) (Source, error) {
 	switch options.Source {
-	case C.ScriptSourceLocal:
+	case C.ScriptSourceTypeLocal:
 		return NewLocalSource(ctx, logger, options)
-	case C.ScriptSourceRemote:
+	case C.ScriptSourceTypeRemote:
 		return NewRemoteSource(ctx, logger, options)
 	default:
 		return nil, E.New("unknown source type: ", options.Source)

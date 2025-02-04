@@ -17,17 +17,18 @@ import (
 var _ adapter.ScriptManager = (*Manager)(nil)
 
 type Manager struct {
-	ctx     context.Context
-	logger  logger.ContextLogger
-	scripts []adapter.Script
-	// scriptByName map[string]adapter.Script
+	ctx          context.Context
+	logger       logger.ContextLogger
+	scripts      []adapter.Script
+	scriptByName map[string]adapter.Script
+	surgeCache   *adapter.SurgeInMemoryCache
 }
 
 func NewManager(ctx context.Context, logFactory log.Factory, scripts []option.Script) (*Manager, error) {
 	manager := &Manager{
-		ctx:    ctx,
-		logger: logFactory.NewLogger("script"),
-		// scriptByName: make(map[string]adapter.Script),
+		ctx:          ctx,
+		logger:       logFactory.NewLogger("script"),
+		scriptByName: make(map[string]adapter.Script),
 	}
 	for _, scriptOptions := range scripts {
 		script, err := NewScript(ctx, logFactory.NewLogger(F.ToString("script/", scriptOptions.Type, "[", scriptOptions.Tag, "]")), scriptOptions)
@@ -35,7 +36,7 @@ func NewManager(ctx context.Context, logFactory log.Factory, scripts []option.Sc
 			return nil, E.Cause(err, "initialize script: ", scriptOptions.Tag)
 		}
 		manager.scripts = append(manager.scripts, script)
-		// manager.scriptByName[scriptOptions.Tag] = script
+		manager.scriptByName[scriptOptions.Tag] = script
 	}
 	return manager, nil
 }
@@ -100,8 +101,16 @@ func (m *Manager) Scripts() []adapter.Script {
 	return m.scripts
 }
 
-/*
 func (m *Manager) Script(name string) (adapter.Script, bool) {
 	script, loaded := m.scriptByName[name]
 	return script, loaded
-}*/
+}
+
+func (m *Manager) SurgeCache() *adapter.SurgeInMemoryCache {
+	if m.surgeCache == nil {
+		m.surgeCache = &adapter.SurgeInMemoryCache{
+			Data: make(map[string]string),
+		}
+	}
+	return m.surgeCache
+}

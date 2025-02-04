@@ -29,9 +29,9 @@ type ScriptSourceOptions _ScriptSourceOptions
 func (o ScriptSourceOptions) MarshalJSON() ([]byte, error) {
 	var source any
 	switch o.Source {
-	case C.ScriptSourceLocal:
+	case C.ScriptSourceTypeLocal:
 		source = o.LocalOptions
-	case C.ScriptSourceRemote:
+	case C.ScriptSourceTypeRemote:
 		source = o.RemoteOptions
 	default:
 		return nil, E.New("unknown script source: ", o.Source)
@@ -46,9 +46,9 @@ func (o *ScriptSourceOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	var source any
 	switch o.Source {
-	case C.ScriptSourceLocal:
+	case C.ScriptSourceTypeLocal:
 		source = &o.LocalOptions
-	case C.ScriptSourceRemote:
+	case C.ScriptSourceTypeRemote:
 		source = &o.RemoteOptions
 	default:
 		return E.New("unknown script source: ", o.Source)
@@ -75,12 +75,9 @@ func (s *Script) UnmarshalJSON(bytes []byte) error {
 }
 
 type _ScriptOptions struct {
-	Type        string             `json:"type"`
-	Tag         string             `json:"tag"`
-	Timeout     badoption.Duration `json:"timeout,omitempty"`
-	Arguments   []any              `json:"arguments,omitempty"`
-	HTTPOptions HTTPScriptOptions  `json:"-"`
-	CronOptions CronScriptOptions  `json:"-"`
+	Type         string             `json:"type"`
+	Tag          string             `json:"tag"`
+	SurgeOptions SurgeScriptOptions `json:"-"`
 }
 
 type ScriptOptions _ScriptOptions
@@ -88,12 +85,8 @@ type ScriptOptions _ScriptOptions
 func (o ScriptOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.Type {
-	case C.ScriptTypeSurgeGeneric:
-		v = nil
-	case C.ScriptTypeSurgeHTTPRequest, C.ScriptTypeSurgeHTTPResponse:
-		v = o.HTTPOptions
-	case C.ScriptTypeSurgeCron:
-		v = o.CronOptions
+	case C.ScriptTypeSurge:
+		v = &o.SurgeOptions
 	default:
 		return nil, E.New("unknown script type: ", o.Type)
 	}
@@ -110,12 +103,10 @@ func (o *ScriptOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch o.Type {
-	case C.ScriptTypeSurgeGeneric:
-		v = nil
-	case C.ScriptTypeSurgeHTTPRequest, C.ScriptTypeSurgeHTTPResponse:
-		v = &o.HTTPOptions
-	case C.ScriptTypeSurgeCron:
-		v = &o.CronOptions
+	case C.ScriptTypeSurge:
+		v = &o.SurgeOptions
+	case "":
+		return E.New("missing script type")
 	default:
 		return E.New("unknown script type: ", o.Type)
 	}
@@ -126,13 +117,12 @@ func (o *ScriptOptions) UnmarshalJSON(bytes []byte) error {
 	return badjson.UnmarshallExcluded(bytes, (*_ScriptOptions)(o), v)
 }
 
-type HTTPScriptOptions struct {
-	Pattern        string `json:"pattern"`
-	RequiresBody   bool   `json:"requires_body,omitempty"`
-	MaxSize        int64  `json:"max_size,omitempty"`
-	BinaryBodyMode bool   `json:"binary_body_mode,omitempty"`
+type SurgeScriptOptions struct {
+	CronOptions *CronScriptOptions `json:"cron,omitempty"`
 }
 
 type CronScriptOptions struct {
-	Expression string `json:"expression"`
+	Expression string             `json:"expression"`
+	Arguments  []string           `json:"arguments,omitempty"`
+	Timeout    badoption.Duration `json:"timeout,omitempty"`
 }

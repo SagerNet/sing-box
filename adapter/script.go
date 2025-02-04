@@ -3,12 +3,20 @@ package adapter
 import (
 	"context"
 	"net/http"
+	"sync"
+	"time"
 )
 
 type ScriptManager interface {
 	Lifecycle
 	Scripts() []Script
-	// Script(name string) (Script, bool)
+	Script(name string) (Script, bool)
+	SurgeCache() *SurgeInMemoryCache
+}
+
+type SurgeInMemoryCache struct {
+	sync.RWMutex
+	Data map[string]string
 }
 
 type Script interface {
@@ -19,21 +27,11 @@ type Script interface {
 	Close() error
 }
 
-type GenericScript interface {
+type SurgeScript interface {
 	Script
-	Run(ctx context.Context) error
-}
-
-type HTTPScript interface {
-	Script
-	Match(requestURL string) bool
-	RequiresBody() bool
-	MaxSize() int64
-}
-
-type HTTPRequestScript interface {
-	HTTPScript
-	Run(ctx context.Context, request *http.Request, body []byte) (*HTTPRequestScriptResult, error)
+	ExecuteGeneric(ctx context.Context, scriptType string, timeout time.Duration, arguments []string) error
+	ExecuteHTTPRequest(ctx context.Context, timeout time.Duration, request *http.Request, body []byte, binaryBody bool, arguments []string) (*HTTPRequestScriptResult, error)
+	ExecuteHTTPResponse(ctx context.Context, timeout time.Duration, request *http.Request, response *http.Response, body []byte, binaryBody bool, arguments []string) (*HTTPResponseScriptResult, error)
 }
 
 type HTTPRequestScriptResult struct {
@@ -47,11 +45,6 @@ type HTTPRequestScriptResponse struct {
 	Status  int
 	Headers http.Header
 	Body    []byte
-}
-
-type HTTPResponseScript interface {
-	HTTPScript
-	Run(ctx context.Context, request *http.Request, response *http.Response, body []byte) (*HTTPResponseScriptResult, error)
 }
 
 type HTTPResponseScriptResult struct {

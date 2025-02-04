@@ -105,6 +105,9 @@ func AssertStringBinary(vm *goja.Runtime, value goja.Value, name string, nilable
 }
 
 func AssertFunction(vm *goja.Runtime, value goja.Value, name string) goja.Callable {
+	if IsNil(value) {
+		panic(vm.NewTypeError(F.ToString("invalid argument: missing ", name)))
+	}
 	functionValue, isFunction := goja.AssertFunction(value)
 	if !isFunction {
 		panic(vm.NewTypeError(F.ToString("invalid argument: ", name, ": expected function, but got ", value)))

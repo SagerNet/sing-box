@@ -12,14 +12,8 @@ import (
 
 func NewScript(ctx context.Context, logger logger.ContextLogger, options option.Script) (adapter.Script, error) {
 	switch options.Type {
-	case C.ScriptTypeSurgeGeneric:
-		return NewSurgeGenericScript(ctx, logger, options)
-	case C.ScriptTypeSurgeHTTPRequest:
-		return NewSurgeHTTPRequestScript(ctx, logger, options)
-	case C.ScriptTypeSurgeHTTPResponse:
-		return NewSurgeHTTPResponseScript(ctx, logger, options)
-	case C.ScriptTypeSurgeCron:
-		return NewSurgeCronScript(ctx, logger, options)
+	case C.ScriptTypeSurge:
+		return NewSurgeScript(ctx, logger, options)
 	default:
 		return nil, E.New("unknown script type: ", options.Type)
 	}

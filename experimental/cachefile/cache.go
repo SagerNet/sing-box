@@ -370,10 +370,18 @@ func (c *CacheFile) SurgePersistentStoreRead(key string) string {
 
 func (c *CacheFile) SurgePersistentStoreWrite(key string, value string) error {
 	return c.DB.Batch(func(t *bbolt.Tx) error {
-		bucket, err := c.createBucket(t, bucketSgPersistentStore)
-		if err != nil {
-			return err
+		if value != "" {
+			bucket, err := c.createBucket(t, bucketSgPersistentStore)
+			if err != nil {
+				return err
+			}
+			return bucket.Put([]byte(key), []byte(value))
+		} else {
+			bucket := c.bucket(t, bucketSgPersistentStore)
+			if bucket == nil {
+				return nil
+			}
+			return bucket.Delete([]byte(key))
 		}
-		return bucket.Put([]byte(key), []byte(value))
 	})
 }

@@ -195,28 +195,31 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 	requestURL := rawRequestURL.String()
 	request.RequestURI = ""
 	var (
-		requestMatch  bool
-		requestScript adapter.HTTPRequestScript
+		requestMatch         bool
+		requestScript        adapter.SurgeScript
+		requestScriptOptions option.MITMRouteSurgeScriptOptions
 	)
-	for _, script := range e.script.Scripts() {
-		if !common.Contains(options.Script, script.Tag()) {
+match:
+	for _, scriptOptions := range options.Script {
+		script, loaded := e.script.Script(scriptOptions.Tag)
+		if !loaded {
+			e.logger.WarnContext(ctx, "script not found: ", scriptOptions.Tag)
 			continue
 		}
-		httpScript, isHTTP := script.(adapter.HTTPRequestScript)
-		if !isHTTP {
-			_, isHTTP = script.(adapter.HTTPScript)
-			if !isHTTP {
-				e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a HTTP request/response script")
+		surgeScript, isSurge := script.(adapter.SurgeScript)
+		if !isSurge {
+			e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a Surge script")
+			continue
+		}
+		for _, pattern := range scriptOptions.Pattern {
+			if pattern.Build().MatchString(requestURL) {
+				e.logger.DebugContext(ctx, "match script/", surgeScript.Type(), "[", surgeScript.Tag(), "]")
+				requestScript = surgeScript
+				requestScriptOptions = scriptOptions
+				requestMatch = true
+				break match
 			}
-			continue
 		}
-		if !httpScript.Match(requestURL) {
-			continue
-		}
-		e.logger.DebugContext(ctx, "match script/", httpScript.Type(), "[", httpScript.Tag(), "]")
-		requestScript = httpScript
-		requestMatch = true
-		break
 	}
 	var body []byte
 	if options.Print && request.ContentLength > 0 && request.ContentLength <= 131072 {
@@ -230,7 +233,7 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 		e.printRequest(ctx, request, body)
 	}
 	if requestScript != nil {
-		if body == nil && requestScript.RequiresBody() && request.ContentLength > 0 && (requestScript.MaxSize() == 0 && request.ContentLength <= 131072 || request.ContentLength <= requestScript.MaxSize()) {
+		if body == nil && requestScriptOptions.RequiresBody && request.ContentLength > 0 && (requestScriptOptions.MaxSize == 0 && request.ContentLength <= 131072 || request.ContentLength <= requestScriptOptions.MaxSize) {
 			body, err = io.ReadAll(request.Body)
 			if err != nil {
 				return E.Cause(err, "read HTTP request body")
@@ -238,7 +241,7 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 			request.Body = io.NopCloser(bytes.NewReader(body))
 		}
 		var result *adapter.HTTPRequestScriptResult
-		result, err = requestScript.Run(ctx, request, body)
+		result, err = requestScript.ExecuteHTTPRequest(ctx, time.Duration(requestScriptOptions.Timeout), request, body, requestScriptOptions.BinaryBodyMode, requestScriptOptions.Arguments)
 		if err != nil {
 			return E.Cause(err, "execute script/", requestScript.Type(), "[", requestScript.Tag(), "]")
 		}
@@ -455,28 +458,31 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 		return E.Errors(innerErr.Load(), err)
 	}
 	var (
-		responseScript adapter.HTTPResponseScript
-		responseMatch  bool
+		responseScript        adapter.SurgeScript
+		responseMatch         bool
+		responseScriptOptions option.MITMRouteSurgeScriptOptions
 	)
-	for _, script := range e.script.Scripts() {
-		if !common.Contains(options.Script, script.Tag()) {
+matchResponse:
+	for _, scriptOptions := range options.Script {
+		script, loaded := e.script.Script(scriptOptions.Tag)
+		if !loaded {
+			e.logger.WarnContext(ctx, "script not found: ", scriptOptions.Tag)
 			continue
 		}
-		httpScript, isHTTP := script.(adapter.HTTPResponseScript)
-		if !isHTTP {
-			_, isHTTP = script.(adapter.HTTPScript)
-			if !isHTTP {
-				e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a HTTP request/response script")
+		surgeScript, isSurge := script.(adapter.SurgeScript)
+		if !isSurge {
+			e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a Surge script")
+			continue
+		}
+		for _, pattern := range scriptOptions.Pattern {
+			if pattern.Build().MatchString(requestURL) {
+				e.logger.DebugContext(ctx, "match script/", surgeScript.Type(), "[", surgeScript.Tag(), "]")
+				responseScript = surgeScript
+				responseScriptOptions = scriptOptions
+				responseMatch = true
+				break matchResponse
 			}
-			continue
 		}
-		if !httpScript.Match(requestURL) {
-			continue
-		}
-		e.logger.DebugContext(ctx, "match script/", httpScript.Type(), "[", httpScript.Tag(), "]")
-		responseScript = httpScript
-		responseMatch = true
-		break
 	}
 	var responseBody []byte
 	if options.Print && response.ContentLength > 0 && response.ContentLength <= 131072 {
@@ -490,7 +496,7 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 		e.printResponse(ctx, request, response, responseBody)
 	}
 	if responseScript != nil {
-		if responseBody == nil && responseScript.RequiresBody() && response.ContentLength > 0 && (responseScript.MaxSize() == 0 && response.ContentLength <= 131072 || response.ContentLength <= responseScript.MaxSize()) {
+		if responseBody == nil && responseScriptOptions.RequiresBody && response.ContentLength > 0 && (responseScriptOptions.MaxSize == 0 && response.ContentLength <= 131072 || response.ContentLength <= responseScriptOptions.MaxSize) {
 			responseBody, err = io.ReadAll(response.Body)
 			if err != nil {
 				return E.Cause(err, "read HTTP response body")
@@ -498,7 +504,7 @@ func (e *Engine) newHTTP1(ctx context.Context, this N.Dialer, conn net.Conn, tls
 			response.Body = io.NopCloser(bytes.NewReader(responseBody))
 		}
 		var result *adapter.HTTPResponseScriptResult
-		result, err = responseScript.Run(ctx, request, response, responseBody)
+		result, err = responseScript.ExecuteHTTPResponse(ctx, time.Duration(responseScriptOptions.Timeout), request, response, responseBody, responseScriptOptions.BinaryBodyMode, responseScriptOptions.Arguments)
 		if err != nil {
 			return E.Cause(err, "execute script/", responseScript.Type(), "[", responseScript.Tag(), "]")
 		}
@@ -654,28 +660,31 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 	requestURL := rawRequestURL.String()
 	request.RequestURI = ""
 	var (
-		requestMatch  bool
-		requestScript adapter.HTTPRequestScript
+		requestMatch         bool
+		requestScript        adapter.SurgeScript
+		requestScriptOptions option.MITMRouteSurgeScriptOptions
 	)
-	for _, script := range e.script.Scripts() {
-		if !common.Contains(options.Script, script.Tag()) {
+match:
+	for _, scriptOptions := range options.Script {
+		script, loaded := e.script.Script(scriptOptions.Tag)
+		if !loaded {
+			e.logger.WarnContext(ctx, "script not found: ", scriptOptions.Tag)
 			continue
 		}
-		httpScript, isHTTP := script.(adapter.HTTPRequestScript)
-		if !isHTTP {
-			_, isHTTP = script.(adapter.HTTPScript)
-			if !isHTTP {
-				e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a HTTP request/response script")
+		surgeScript, isSurge := script.(adapter.SurgeScript)
+		if !isSurge {
+			e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a Surge script")
+			continue
+		}
+		for _, pattern := range scriptOptions.Pattern {
+			if pattern.Build().MatchString(requestURL) {
+				e.logger.DebugContext(ctx, "match script/", surgeScript.Type(), "[", surgeScript.Tag(), "]")
+				requestScript = surgeScript
+				requestScriptOptions = scriptOptions
+				requestMatch = true
+				break match
 			}
-			continue
 		}
-		if !httpScript.Match(requestURL) {
-			continue
-		}
-		e.logger.DebugContext(ctx, "match script/", httpScript.Type(), "[", httpScript.Tag(), "]")
-		requestScript = httpScript
-		requestMatch = true
-		break
 	}
 	var (
 		body []byte
@@ -693,7 +702,7 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 		e.printRequest(ctx, request, body)
 	}
 	if requestScript != nil {
-		if body == nil && requestScript.RequiresBody() && request.ContentLength > 0 && (requestScript.MaxSize() == 0 && request.ContentLength <= 131072 || request.ContentLength <= requestScript.MaxSize()) {
+		if body == nil && requestScriptOptions.RequiresBody && request.ContentLength > 0 && (requestScriptOptions.MaxSize == 0 && request.ContentLength <= 131072 || request.ContentLength <= requestScriptOptions.MaxSize) {
 			body, err = io.ReadAll(request.Body)
 			if err != nil {
 				return E.Cause(err, "read HTTP request body")
@@ -701,7 +710,7 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 			request.Body.Close()
 			request.Body = io.NopCloser(bytes.NewReader(body))
 		}
-		result, err := requestScript.Run(ctx, request, body)
+		result, err := requestScript.ExecuteHTTPRequest(ctx, time.Duration(requestScriptOptions.Timeout), request, body, requestScriptOptions.BinaryBodyMode, requestScriptOptions.Arguments)
 		if err != nil {
 			return E.Cause(err, "execute script/", requestScript.Type(), "[", requestScript.Tag(), "]")
 		}
@@ -888,28 +897,31 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 		return E.Cause(err, "exchange request")
 	}
 	var (
-		responseScript adapter.HTTPResponseScript
-		responseMatch  bool
+		responseScript        adapter.SurgeScript
+		responseMatch         bool
+		responseScriptOptions option.MITMRouteSurgeScriptOptions
 	)
-	for _, script := range e.script.Scripts() {
-		if !common.Contains(options.Script, script.Tag()) {
+matchResponse:
+	for _, scriptOptions := range options.Script {
+		script, loaded := e.script.Script(scriptOptions.Tag)
+		if !loaded {
+			e.logger.WarnContext(ctx, "script not found: ", scriptOptions.Tag)
 			continue
 		}
-		httpScript, isHTTP := script.(adapter.HTTPResponseScript)
-		if !isHTTP {
-			_, isHTTP = script.(adapter.HTTPScript)
-			if !isHTTP {
-				e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a HTTP request/response script")
+		surgeScript, isSurge := script.(adapter.SurgeScript)
+		if !isSurge {
+			e.logger.WarnContext(ctx, "specified script/", script.Type(), "[", script.Tag(), "] is not a Surge script")
+			continue
+		}
+		for _, pattern := range scriptOptions.Pattern {
+			if pattern.Build().MatchString(requestURL) {
+				e.logger.DebugContext(ctx, "match script/", surgeScript.Type(), "[", surgeScript.Tag(), "]")
+				responseScript = surgeScript
+				responseScriptOptions = scriptOptions
+				responseMatch = true
+				break matchResponse
 			}
-			continue
 		}
-		if !httpScript.Match(requestURL) {
-			continue
-		}
-		e.logger.DebugContext(ctx, "match script/", httpScript.Type(), "[", httpScript.Tag(), "]")
-		responseScript = httpScript
-		responseMatch = true
-		break
 	}
 	var responseBody []byte
 	if options.Print && response.ContentLength > 0 && response.ContentLength <= 131072 {
@@ -924,7 +936,7 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 		e.printResponse(ctx, request, response, responseBody)
 	}
 	if responseScript != nil {
-		if responseBody == nil && responseScript.RequiresBody() && response.ContentLength > 0 && (responseScript.MaxSize() == 0 && response.ContentLength <= 131072 || response.ContentLength <= responseScript.MaxSize()) {
+		if responseBody == nil && responseScriptOptions.RequiresBody && response.ContentLength > 0 && (responseScriptOptions.MaxSize == 0 && response.ContentLength <= 131072 || response.ContentLength <= responseScriptOptions.MaxSize) {
 			responseBody, err = io.ReadAll(response.Body)
 			if err != nil {
 				return E.Cause(err, "read HTTP response body")
@@ -933,7 +945,7 @@ func (e *engineHandler) serveHTTP(ctx context.Context, writer http.ResponseWrite
 			response.Body = io.NopCloser(bytes.NewReader(responseBody))
 		}
 		var result *adapter.HTTPResponseScriptResult
-		result, err = responseScript.Run(ctx, request, response, responseBody)
+		result, err = responseScript.ExecuteHTTPResponse(ctx, time.Duration(responseScriptOptions.Timeout), request, response, responseBody, responseScriptOptions.BinaryBodyMode, responseScriptOptions.Arguments)
 		if err != nil {
 			return E.Cause(err, "execute script/", responseScript.Type(), "[", responseScript.Tag(), "]")
 		}
