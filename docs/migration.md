@@ -692,7 +692,7 @@ Inbound fields are deprecated and can be replaced by rule actions.
 
 !!! info "References"
 
-    [Listen Fields](/configuration/inbound/listen/) /
+    [Listen Fields](/configuration/shared/listen/) /
     [Rule](/configuration/route/rule/) / 
     [Rule Action](/configuration/route/rule_action/) / 
     [DNS Rule](/configuration/dns/rule/) / 
