@@ -28,7 +28,7 @@
 
 #### url
 
-用于测试的链接。默认使用 `https://www.gstatic.com/generate_204`。
+用于测试的链接。默认使用 `http://cp.cloudflare.com/generate_204`。
 
 #### interval
 
