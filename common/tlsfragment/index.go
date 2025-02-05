@@ -23,9 +23,9 @@ const (
 )
 
 type myServerName struct {
-	Index  int
-	Length int
-	sex    []byte
+	Index      int
+	Length     int
+	ServerName string
 }
 
 func indexTLSServerName(payload []byte) *myServerName {
@@ -119,9 +119,9 @@ func indexTLSServerNameFromExtensions(exs []byte) *myServerName {
 			sniLen := uint16(sex[3])<<8 | uint16(sex[4])
 			sex = sex[sniExtensionHeaderLen:]
 			return &myServerName{
-				Index:  currentIndex + extensionHeaderLen + sniExtensionHeaderLen,
-				Length: int(sniLen),
-				sex:    sex,
+				Index:      currentIndex + extensionHeaderLen + sniExtensionHeaderLen,
+				Length:     int(sniLen),
+				ServerName: string(sex),
 			}
 		}
 		exs = exs[4+exLen:]
