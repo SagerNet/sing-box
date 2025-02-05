@@ -144,6 +144,13 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 func (t *UDPTransport) open(ctx context.Context) (*dnsConnection, error) {
 	t.access.Lock()
 	defer t.access.Unlock()
+	if t.conn != nil {
+		select {
+		case <-t.conn.done:
+		default:
+			return t.conn, nil
+		}
+	}
 	conn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 	if err != nil {
 		return nil, err
@@ -154,6 +161,7 @@ func (t *UDPTransport) open(ctx context.Context) (*dnsConnection, error) {
 		callbacks: make(map[uint16]*dnsCallback),
 	}
 	go t.recvLoop(dnsConn)
+	t.conn = dnsConn
 	return dnsConn, nil
 }
 
@@ -201,8 +209,6 @@ type dnsConnection struct {
 }
 
 func (c *dnsConnection) Close(err error) {
-	c.access.Lock()
-	defer c.access.Unlock()
 	c.closeOnce.Do(func() {
 		close(c.done)
 		c.err = err
