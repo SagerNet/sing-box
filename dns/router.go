@@ -301,7 +301,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		return nil, err
 	}
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
-		if transport.Type() != C.DNSTypeFakeIP {
+		if transport == nil || transport.Type() != C.DNSTypeFakeIP {
 			for _, answer := range response.Answer {
 				switch record := answer.(type) {
 				case *mDNS.A:
