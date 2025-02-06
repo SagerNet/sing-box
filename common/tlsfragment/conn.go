@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing/common"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 type Conn struct {
@@ -42,30 +43,12 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 					return
 				}
 			}
-			splits := strings.Split(string(b[serverName.Index:serverName.Index+serverName.Length]), ".")
+			splits := strings.Split(serverName.ServerName, ".")
 			currentIndex := serverName.Index
-			var striped bool
-			if len(splits) > 3 {
-				suffix := splits[len(splits)-3] + "." + splits[len(splits)-2] + "." + splits[len(splits)-1]
-				if publicSuffixMatcher().Match(suffix) {
-					splits = splits[:len(splits)-3]
-				}
-				striped = true
+			if publicSuffix := publicsuffix.List.PublicSuffix(serverName.ServerName); publicSuffix != "" {
+				splits = splits[:len(splits)-strings.Count(serverName.ServerName, ".")]
 			}
-			if !striped && len(splits) > 2 {
-				suffix := splits[len(splits)-2] + "." + splits[len(splits)-1]
-				if publicSuffixMatcher().Match(suffix) {
-					splits = splits[:len(splits)-2]
-				}
-				striped = true
-			}
-			if !striped && len(splits) > 1 {
-				suffix := splits[len(splits)-1]
-				if publicSuffixMatcher().Match(suffix) {
-					splits = splits[:len(splits)-1]
-				}
-			}
-			if len(splits) > 1 && common.Contains(publicPrefix, splits[0]) {
+			if len(splits) > 1 && splits[0] == "..." {
 				currentIndex += len(splits[0]) + 1
 				splits = splits[1:]
 			}

@@ -307,8 +307,10 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 
 func (s *RemoteRuleSet) Close() error {
 	s.rules = nil
-	s.updateTicker.Stop()
 	s.cancel()
+	if s.updateTicker != nil {
+		s.updateTicker.Stop()
+	}
 	return nil
 }
 
