@@ -11,17 +11,19 @@ icon: material/new-box
 ```json
 {
   "dns": {
-    "servers": {
-      "type": "quic",
-      "tag": "",
-      
-      "server": "",
-      "server_port": 853,
-      
-      "tls": {},
-      
-      // Dial Fields
-    }
+    "servers": [
+      {
+        "type": "quic",
+        "tag": "",
+        
+        "server": "",
+        "server_port": 853,
+        
+        "tls": {},
+        
+        // Dial Fields
+      }
+    ]
   }
 }
 ```
