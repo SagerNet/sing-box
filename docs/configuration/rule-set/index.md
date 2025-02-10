@@ -70,7 +70,7 @@ Tag of rule-set.
 
 ==Required==
 
-List of [Headless Rule](../headless-rule/).
+List of [Headless Rule](./headless-rule/).
 
 ### Local or Remote Fields
 
