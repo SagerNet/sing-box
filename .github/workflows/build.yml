@@ -153,7 +153,7 @@ jobs:
         if: matrix.goos == 'android'
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r28-beta2
+          ndk-version: r28
           local-cache: true
       - name: Setup Goreleaser
         uses: goreleaser/goreleaser-action@v6
@@ -224,7 +224,7 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r28-beta3
+          ndk-version: r28
       - name: Setup OpenJDK
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
@@ -299,7 +299,7 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r28-beta3
+          ndk-version: r28
       - name: Setup OpenJDK
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
