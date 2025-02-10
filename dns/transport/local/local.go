@@ -86,9 +86,11 @@ func (t *Transport) exchangeParallel(ctx context.Context, systemConfig *dnsConfi
 	results := make(chan queryResult)
 	startRacer := func(ctx context.Context, fqdn string) {
 		response, err := t.tryOneName(ctx, systemConfig, fqdn, message)
-		addresses, _ := dns.MessageToAddresses(response)
-		if len(addresses) == 0 {
-			err = E.New(fqdn, ": empty result")
+		if err == nil {
+			addresses, _ := dns.MessageToAddresses(response)
+			if len(addresses) == 0 {
+				err = E.New(fqdn, ": empty result")
+			}
 		}
 		select {
 		case results <- queryResult{response, err}:
