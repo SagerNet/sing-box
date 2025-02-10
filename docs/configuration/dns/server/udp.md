@@ -11,15 +11,17 @@ icon: material/new-box
 ```json
 {
   "dns": {
-    "servers": {
-      "type": "udp",
-      "tag": "",
-      
-      "server": "",
-      "server_port": 53,
-      
-      // Dial Fields
-    }
+    "servers": [
+      {
+        "type": "udp",
+        "tag": "",
+        
+        "server": "",
+        "server_port": 53,
+        
+        // Dial Fields
+      }
+    ]
   }
 }
 ```
