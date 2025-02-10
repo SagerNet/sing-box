@@ -345,7 +345,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 	r.logger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
-	metadata.Domain = domain
+	metadata.Domain = FqdnToDomain(domain)
 	if options.Transport != nil {
 		transport := options.Transport
 		if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
