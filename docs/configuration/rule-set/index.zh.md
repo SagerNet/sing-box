@@ -74,7 +74,7 @@ icon: material/new-box
 
 ==必填==
 
-一组 [无头规则](../headless-rule/).
+一组 [无头规则](./headless-rule/).
 
 ### 本地或远程字段
 
