@@ -11,20 +11,22 @@ icon: material/new-box
 ```json
 {
   "dns": {
-    "servers": {
-      "type": "https",
-      "tag": "",
-      
-      "server": "",
-      "server_port": 443,
-      
-      "path": "",
-      "headers": {},
-      
-      "tls": {},
-      
-      // Dial Fields
-    }
+    "servers": [
+      {
+        "type": "https",
+        "tag": "",
+        
+        "server": "",
+        "server_port": 443,
+        
+        "path": "",
+        "headers": {},
+        
+        "tls": {},
+        
+        // Dial Fields
+      }
+    ]
   }
 }
 ```
