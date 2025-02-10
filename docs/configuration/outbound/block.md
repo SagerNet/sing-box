@@ -8,7 +8,7 @@ icon: material/delete-clock
 
 ### Structure
 
-```json F
+```json
 {
   "type": "block",
   "tag": "block"
