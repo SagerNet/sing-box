@@ -46,21 +46,23 @@ func main() {
 		switch propPair[0] {
 		case "VERSION_NAME":
 			if propPair[1] != newVersion {
+				log.Info("updated version from ", propPair[1], " to ", newVersion)
 				versionUpdated = true
 				propPair[1] = newVersion
-				log.Info("updated version to ", newVersion)
 			}
 		case "GO_VERSION":
 			if propPair[1] != runtime.Version() {
+				log.Info("updated Go version from ", propPair[1], " to ", runtime.Version())
 				goVersionUpdated = true
 				propPair[1] = runtime.Version()
-				log.Info("updated Go version to ", runtime.Version())
 			}
 		}
 	}
 	if !(versionUpdated || goVersionUpdated) {
 		log.Info("version not changed")
 		return
+	} else if flagRunInCI {
+		log.Fatal("version changed, commit changes first.")
 	}
 	for _, propPair := range propsList {
 		switch propPair[0] {
