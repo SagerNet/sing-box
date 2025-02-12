@@ -51,12 +51,11 @@ builds:
       - with_clash_api
     env:
       - CGO_ENABLED=0
-      - GOROOT={{ .Env.GOPATH }}/go1.20.14
-    tool: "{{ .Env.GOPATH }}/go1.20.14/bin/go"
+      - GOROOT={{ .Env.GOPATH }}/go_legacy
+    tool: "{{ .Env.GOPATH }}/go_legacy/bin/go"
     targets:
       - windows_amd64_v1
       - windows_386
-      - darwin_amd64_v1
   - id: android
     <<: *template
     env:
