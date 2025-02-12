@@ -112,7 +112,6 @@ jobs:
           - name: darwin_amd64
             goos: darwin
             goarch: amd64
-            require_legacy_go: true
           - name: android_arm64
             goos: android
             goarch: arm64
@@ -141,14 +140,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/go/go1.20.14
-          key: go120
+            ~/go/go_legacy
+          key: go_legacy_1236
       - name: Setup legacy Go
         if: matrix.require_legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
-        run: |-
-          wget https://dl.google.com/go/go1.20.14.linux-amd64.tar.gz
-          tar -xzf go1.20.14.linux-amd64.tar.gz
-          mv go $HOME/go/go1.20.14
+        run: bash .github/setup_legacy_go.sh
       - name: Setup Android NDK
         if: matrix.goos == 'android'
         uses: nttld/setup-ndk@v1
