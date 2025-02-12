@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"net/url"
+	"os"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -120,13 +121,23 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 	if o.Type != C.DNSTypeLegacy {
 		return nil
 	}
+	defer func() {
+		encoder := json.NewEncoder(os.Stderr)
+		encoder.SetIndent("", "  ")
+		encoder.Encode(o)
+	}()
 	options := o.Options.(*LegacyDNSServerOptions)
 	serverURL, _ := url.Parse(options.Address)
 	var serverType string
 	if serverURL.Scheme != "" {
 		serverType = serverURL.Scheme
 	} else {
-		serverType = C.DNSTypeUDP
+		switch options.Address {
+		case "local", "fakeip":
+			serverType = options.Address
+		default:
+			serverType = C.DNSTypeUDP
+		}
 	}
 	var remoteOptions RemoteDNSServerOptions
 	if options.Detour == "" {
@@ -158,6 +169,9 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		}
 	}
 	switch serverType {
+	case C.DNSTypeLocal:
+		o.Type = C.DNSTypeLocal
+		o.Options = &remoteOptions.LocalDNSServerOptions
 	case C.DNSTypeUDP:
 		o.Type = C.DNSTypeUDP
 		o.Options = &remoteOptions
@@ -174,6 +188,8 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		if serverAddr.Port != 0 && serverAddr.Port != 53 {
 			remoteOptions.ServerPort = serverAddr.Port
 		}
+		remoteOptions.Server = serverAddr.AddrString()
+		remoteOptions.ServerPort = serverAddr.Port
 	case C.DNSTypeTCP:
 		o.Type = C.DNSTypeTCP
 		o.Options = &remoteOptions
@@ -185,19 +201,20 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		if serverAddr.Port != 0 && serverAddr.Port != 53 {
 			remoteOptions.ServerPort = serverAddr.Port
 		}
+		remoteOptions.Server = serverAddr.AddrString()
+		remoteOptions.ServerPort = serverAddr.Port
 	case C.DNSTypeTLS, C.DNSTypeQUIC:
 		o.Type = serverType
-		tlsOptions := RemoteTLSDNSServerOptions{
-			RemoteDNSServerOptions: remoteOptions,
-		}
-		o.Options = &tlsOptions
 		serverAddr := M.ParseSocksaddr(serverURL.Host)
 		if !serverAddr.IsValid() {
 			return E.New("invalid server address")
 		}
-		tlsOptions.Server = serverAddr.Addr.String()
+		remoteOptions.Server = serverAddr.Addr.String()
 		if serverAddr.Port != 0 && serverAddr.Port != 853 {
-			tlsOptions.ServerPort = serverAddr.Port
+			remoteOptions.ServerPort = serverAddr.Port
+		}
+		o.Options = &RemoteTLSDNSServerOptions{
+			RemoteDNSServerOptions: remoteOptions,
 		}
 	case C.DNSTypeHTTPS, C.DNSTypeHTTP3:
 		o.Type = serverType
@@ -244,14 +261,14 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 				},
 			},
 		}
-	case "dhcp":
+	case C.DNSTypeDHCP:
 		o.Type = C.DNSTypeDHCP
 		dhcpOptions := DHCPDNSServerOptions{}
 		if serverURL.Host != "" && serverURL.Host != "auto" {
 			dhcpOptions.Interface = serverURL.Host
 		}
 		o.Options = &dhcpOptions
-	case "fakeip":
+	case C.DNSTypeFakeIP:
 		o.Type = C.DNSTypeFakeIP
 		fakeipOptions := FakeIPDNSServerOptions{}
 		if legacyOptions, loaded := ctx.Value((*LegacyDNSFakeIPOptions)(nil)).(*LegacyDNSFakeIPOptions); loaded {
