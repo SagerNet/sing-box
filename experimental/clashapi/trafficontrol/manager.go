@@ -16,6 +16,9 @@ import (
 )
 
 type Manager struct {
+	uploadMap   map[string]*atomic.Int64
+	downloadMap map[string]*atomic.Int64
+
 	uploadTotal   atomic.Int64
 	downloadTotal atomic.Int64
 
@@ -26,8 +29,20 @@ type Manager struct {
 	memory uint64
 }
 
-func NewManager() *Manager {
-	return &Manager{}
+func NewManager(outbounds []string, endpoints []string) *Manager {
+	m := &Manager{
+		uploadMap:   make(map[string]*atomic.Int64),
+		downloadMap: make(map[string]*atomic.Int64),
+	}
+	for _, out := range outbounds {
+		m.uploadMap[out] = new(atomic.Int64)
+		m.downloadMap[out] = new(atomic.Int64)
+	}
+	for _, end := range endpoints {
+		m.uploadMap[end] = new(atomic.Int64)
+		m.downloadMap[end] = new(atomic.Int64)
+	}
+	return m
 }
 
 func (m *Manager) Join(c Tracker) {
@@ -48,12 +63,21 @@ func (m *Manager) Leave(c Tracker) {
 	}
 }
 
-func (m *Manager) PushUploaded(size int64) {
+func (m *Manager) PushUploaded(size int64, outbound string) {
+	m.uploadMap[outbound].Add(size)
 	m.uploadTotal.Add(size)
 }
 
-func (m *Manager) PushDownloaded(size int64) {
+func (m *Manager) PushDownloaded(size int64, outbound string) {
+	m.downloadMap[outbound].Add(size)
 	m.downloadTotal.Add(size)
+}
+
+func (m *Manager) TotalOutbound(outbound string) (up int64, down int64) {
+	if _, ok := m.uploadMap[outbound]; !ok {
+		return
+	}
+	return m.uploadMap[outbound].Swap(0), m.downloadMap[outbound].Swap(0)
 }
 
 func (m *Manager) Total() (up int64, down int64) {
