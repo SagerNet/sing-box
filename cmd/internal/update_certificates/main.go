@@ -60,7 +60,10 @@ func init() {
 		generated.WriteString(record[nameIndex])
 		generated.WriteString("\n")
 		generated.WriteString("	mozillaIncluded.AppendCertsFromPEM([]byte(`")
-		generated.WriteString(record[certIndex])
+		cert := record[certIndex]
+		// Remove single quotes
+		cert = cert[1 : len(cert)-1]
+		generated.WriteString(cert)
 		generated.WriteString("`))\n")
 	}
 	generated.WriteString("}\n")
