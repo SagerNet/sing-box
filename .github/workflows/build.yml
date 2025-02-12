@@ -86,7 +86,6 @@ jobs:
 
           - { os: windows, arch: "386", legacy_go: true }
           - { os: windows, arch: amd64, legacy_go: true }
-          - { os: darwin, arch: amd64, legacy_go: true }
 
           - { os: android, arch: "386", ndk: "i686-linux-android21" }
           - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
@@ -100,15 +99,27 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: matrix.legacy_go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ~1.20
-      - name: Setup Go
         if: ${{ ! matrix.legacy_go }}
         uses: actions/setup-go@v5
         with:
           go-version: ^1.24
+      - name: Cache Legacy Go
+        if: matrix.require_legacy_go
+        id: cache-legacy-go
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/go_legacy
+          key: go_legacy_1236
+      - name: Setup Legacy Go
+        if: matrix.legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
+        run: |-
+          .github/setup_legacy_go.sh
+      - name: Setup Legacy Go 2
+        if: matrix.legacy_go
+        run: |-
+          echo "PATH=$HOME/go/go_legacy/bin:$PATH" >> $GITHUB_ENV
+          echo "GOROOT=$HOME/go/go_legacy" >> $GITHUB_ENV
       - name: Setup Android NDK
         if: matrix.os == 'android'
         uses: nttld/setup-ndk@v1
@@ -122,10 +133,7 @@ jobs:
       - name: Set build tags
         run: |
           set -xeuo pipefail
-          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_reality_server,with_acme,with_clash_api'
-          if [ ! '${{ matrix.legacy_go }}' = 'true' ]; then
-            TAGS="${TAGS},with_ech"
-          fi
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_reality_server,with_acme,with_clash_api,with_tailscale'
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
       - name: Build
         if: matrix.os != 'android'
