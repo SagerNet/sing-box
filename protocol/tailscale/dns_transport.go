@@ -81,10 +81,10 @@ func (t *DNSTransport) Start(stage adapter.StartStage) error {
 	}
 	ep, isTailscale := rawOutbound.(*Endpoint)
 	if !isTailscale {
-		return E.New("endpoint is not tailscale: ", t.endpointTag)
+		return E.New("endpoint is not Tailscale: ", t.endpointTag)
 	}
 	if ep.onReconfig != nil {
-		return E.New("only one tailscale DNS server is allowed for single endpoint")
+		return E.New("only one Tailscale DNS server is allowed for single endpoint")
 	}
 	ep.onReconfig = t.onReconfig
 	t.endpoint = ep
@@ -133,14 +133,12 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	}
 	var defaultResolvers []adapter.DNSTransport
 	for _, resolver := range dnsConfig.DefaultResolvers {
-		t.logger.Warn("create default resolver: ", resolver.Addr)
 		myResolver, err := t.createResolver(directDialerOnce, resolver)
 		if err != nil {
 			return err
 		}
 		defaultResolvers = append(defaultResolvers, myResolver)
 	}
-	t.logger.Error("create ", len(dnsConfig.DefaultResolvers), " default resolvers")
 	t.routes = routes
 	t.hosts = hosts
 	t.defaultResolvers = defaultResolvers
