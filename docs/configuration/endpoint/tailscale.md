@@ -18,6 +18,7 @@ icon: material/new-box
   "exit_node": "",
   "exit_node_allow_lan_access": false,
   "advertise_routes": [],
+  "advertise_exit_node": false,
   "udp_timeout": "5m",
   
   ... // Dial Fields
@@ -74,6 +75,10 @@ Indicates whether locally accessible subnets should be routed directly or via th
 CIDR prefixes to advertise into the Tailscale network as reachable through the current node.
 
 Example: `["192.168.1.1/24"]`
+
+#### advertise_exit_node
+
+Indicates whether the node should advertise itself as an exit node.
 
 #### udp_timeout
 
