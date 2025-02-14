@@ -13,10 +13,14 @@ import (
 	"github.com/sagernet/sing/common"
 )
 
-var flagRunInCI bool
+var (
+	flagRunInCI    bool
+	flagRunNightly bool
+)
 
 func init() {
 	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+	flag.BoolVar(&flagRunNightly, "nightly", false, "Run nightly")
 }
 
 func main() {
@@ -61,7 +65,7 @@ func main() {
 	if !(versionUpdated || goVersionUpdated) {
 		log.Info("version not changed")
 		return
-	} else if flagRunInCI {
+	} else if flagRunInCI && !flagRunNightly {
 		log.Fatal("version changed, commit changes first.")
 	}
 	for _, propPair := range propsList {
