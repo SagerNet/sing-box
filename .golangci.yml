@@ -21,7 +21,7 @@ linters-settings:
       - -SA1003
 
 run:
-  go: "1.23"
+  go: "1.24"
   build-tags:
     - with_gvisor
     - with_quic
