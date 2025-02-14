@@ -312,9 +312,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeRuleSet.Name())
 				}
-				t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
 				routeRuleSet.DecRef()
 				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
+				if t.autoRedirect != nil {
+					t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				}
 			}
 			t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
@@ -322,9 +324,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
 				}
-				t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
 				routeExcludeRuleSet.DecRef()
 				t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
+				if t.autoRedirect != nil {
+					t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				}
 			}
 		}
 		var (
