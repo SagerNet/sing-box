@@ -119,10 +119,11 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		remoteIsDomain = true
 	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context:        ctx,
-		Options:        options.DialerOptions,
-		RemoteIsDomain: remoteIsDomain,
-		NewDialer:      true,
+		Context:          ctx,
+		Options:          options.DialerOptions,
+		RemoteIsDomain:   remoteIsDomain,
+		ResolverOnDetour: true,
+		NewDialer:        true,
 	})
 	if err != nil {
 		return nil, err
