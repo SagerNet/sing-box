@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.0-alpha.8
+
+* Fixes and improvements
+
 #### 1.12.0-alpha.7
 
 * Add Tailscale DNS server **1**
