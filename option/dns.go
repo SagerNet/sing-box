@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/netip"
 	"net/url"
-	"os"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -121,11 +120,6 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 	if o.Type != C.DNSTypeLegacy {
 		return nil
 	}
-	defer func() {
-		encoder := json.NewEncoder(os.Stderr)
-		encoder.SetIndent("", "  ")
-		encoder.Encode(o)
-	}()
 	options := o.Options.(*LegacyDNSServerOptions)
 	serverURL, _ := url.Parse(options.Address)
 	var serverType string
