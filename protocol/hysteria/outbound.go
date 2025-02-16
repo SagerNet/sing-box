@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -76,17 +77,18 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		receiveBps = uint64(options.DownMbps) * hysteria.MbpsToBps
 	}
 	client, err := hysteria.NewClient(hysteria.ClientOptions{
-		Context:       ctx,
-		Dialer:        outboundDialer,
-		Logger:        logger,
-		ServerAddress: options.ServerOptions.Build(),
-		SendBPS:       sendBps,
-		ReceiveBPS:    receiveBps,
-		XPlusPassword: options.Obfs,
-		Password:      password,
-		TLSConfig:     tlsConfig,
-		UDPDisabled:   !common.Contains(networkList, N.NetworkUDP),
-
+		Context:             ctx,
+		Dialer:              outboundDialer,
+		Logger:              logger,
+		ServerAddress:       options.ServerOptions.Build(),
+		ServerPorts:         options.ServerPorts,
+		HopInterval:         time.Duration(options.HopInterval),
+		SendBPS:             sendBps,
+		ReceiveBPS:          receiveBps,
+		XPlusPassword:       options.Obfs,
+		Password:            password,
+		TLSConfig:           tlsConfig,
+		UDPDisabled:         !common.Contains(networkList, N.NetworkUDP),
 		ConnReceiveWindow:   options.ReceiveWindowConn,
 		StreamReceiveWindow: options.ReceiveWindow,
 		DisableMTUDiscovery: options.DisableMTUDiscovery,
