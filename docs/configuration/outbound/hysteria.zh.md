@@ -1,3 +1,12 @@
+---
+icon: material/new-box
+---
+
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [server_ports](#server_ports)  
+    :material-plus: [hop_interval](#hop_interval)
+
 ### 结构
 
 ```json
@@ -7,6 +16,10 @@
   
   "server": "127.0.0.1",
   "server_port": 1080,
+  "server_ports": [
+    "2080:3000"
+  ],
+  "hop_interval": "",
   "up": "100 Mbps",
   "up_mbps": 100,
   "down": "100 Mbps",
@@ -37,6 +50,22 @@
 ==必填==
 
 服务器端口。
+
+#### server_ports
+
+!!! question "自 sing-box 1.12.0 起"
+
+服务器端口范围列表。
+
+与 `server_port` 冲突。
+
+#### hop_interval
+
+!!! question "自 sing-box 1.12.0 起"
+
+端口跳跃间隔。
+
+默认使用 `30s`。
 
 #### up, down
 
