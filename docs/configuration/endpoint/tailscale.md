@@ -37,6 +37,10 @@ Example: `$HOME/.tailscale`
 
 #### auth_key
 
+!!! note
+    
+    Auth key is not required. By default, sing-box will log the login URL (or popup a notification on graphical clients).
+
 The auth key to create the node. If the node is already created (from state previously stored), then this field is not
 used.
 
