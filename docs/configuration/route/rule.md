@@ -7,7 +7,8 @@ icon: material/new-box
     :material-plus: [interface_address](#interface_address)  
     :material-plus: [network_interface_address](#network_interface_address)  
     :material-plus: [default_interface_address](#default_interface_address)  
-    :material-plus: [preferred_by](#preferred_by)
+    :material-plus: [preferred_by](#preferred_by)  
+    :material-alert: [network](#network)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -226,7 +227,15 @@ Sniffed client type, see [Protocol Sniff](/configuration/route/sniff/) for detai
 
 #### network
 
-`tcp` or `udp`.
+!!! quote "Changes in sing-box 1.13.0"
+
+    Since sing-box 1.13.0, you can match ICMP echo (ping) requests via the new `icmp` network.
+    
+    Such traffic originates from `TUN`, `WireGuard`, and `Tailscale` inbounds and can be routed to `Direct`, `WireGuard`, and `Tailscale` outbounds.
+
+Match network type.
+
+`tcp`, `udp` or `icmp`.
 
 #### domain
 
