@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -42,7 +44,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
 	}
 	outbound := &Outbound{
-		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, options.DialerOptions),
 		ctx:            ctx,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		logger:         logger,
@@ -167,4 +169,8 @@ func (o *Outbound) PreferredDomain(domain string) bool {
 
 func (o *Outbound) PreferredAddress(address netip.Addr) bool {
 	return o.endpoint.Lookup(address) != nil
+}
+
+func (o *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	return o.endpoint.NewDirectRouteConnection(metadata, routeContext, timeout)
 }
