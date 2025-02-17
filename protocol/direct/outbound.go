@@ -13,6 +13,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/ping"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -28,10 +31,12 @@ var (
 	_ N.ParallelDialer             = (*Outbound)(nil)
 	_ dialer.ParallelNetworkDialer = (*Outbound)(nil)
 	_ dialer.DirectDialer          = (*Outbound)(nil)
+	_ adapter.DirectRouteOutbound  = (*Outbound)(nil)
 )
 
 type Outbound struct {
 	outbound.Adapter
+	ctx                 context.Context
 	logger              logger.ContextLogger
 	dialer              dialer.ParallelInterfaceDialer
 	domainStrategy      C.DomainStrategy
@@ -57,7 +62,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, options.DialerOptions),
+		ctx:     ctx,
 		logger:  logger,
 		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
@@ -143,6 +149,16 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		conn = bufio.NewNATPacketConn(bufio.NewPacketConn(conn), destination, originDestination)
 	}
 	return conn, nil
+}
+
+func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	ctx := log.ContextWithNewID(h.ctx)
+	destination, err := ping.ConnectDestination(ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPDestination(metadata.Destination.Addr).Control, metadata.Destination.Addr, routeContext, timeout)
+	if err != nil {
+		return nil, err
+	}
+	h.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
+	return destination, nil
 }
 
 func (h *Outbound) DialParallel(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr) (net.Conn, error) {
