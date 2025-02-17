@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -438,15 +439,21 @@ func (t *Inbound) Close() error {
 	)
 }
 
-func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
-	return t.router.PreMatch(adapter.InboundContext{
+func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	routeDestination, err := t.router.PreMatch(adapter.InboundContext{
 		Inbound:        t.tag,
 		InboundType:    C.TypeTun,
 		Network:        network,
 		Source:         source,
 		Destination:    destination,
 		InboundOptions: t.inboundOptions,
-	})
+	}, routeContext)
+	if err != nil {
+		if !E.IsMulti(err, tun.ErrDrop, syscall.ECONNREFUSED) {
+			t.logger.Warn(err)
+		}
+	}
+	return routeDestination, err
 }
 
 func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {

@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.4
-	github.com/sagernet/gvisor v0.0.0-20241123041152-536d05261cff
+	github.com/sagernet/gvisor v0.0.0-20250217052116-ed66b6946f72
 	github.com/sagernet/quic-go v0.49.0-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.6.2-0.20250210105917-3464ed3babc0
@@ -34,7 +34,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.7
 	github.com/sagernet/sing-shadowsocks2 v0.2.0
 	github.com/sagernet/sing-shadowtls v0.2.0
-	github.com/sagernet/sing-tun v0.6.1
+	github.com/sagernet/sing-tun v0.6.2-0.20250217135654-784bb584392f
 	github.com/sagernet/sing-vmess v0.2.0
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
 	github.com/sagernet/tailscale v1.79.0-mod.1

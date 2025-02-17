@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/adapters/gonet"
 	"github.com/sagernet/gvisor/pkg/tcpip/header"
 	"github.com/sagernet/gvisor/pkg/tcpip/stack"
+	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
@@ -205,8 +206,10 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 
 	ipStack := t.server.ExportNetstack().ExportIPStack()
 	ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(t.ctx, ipStack, t).HandlePacket)
-	udpForwarder := tun.NewUDPForwarder(t.ctx, ipStack, t, t.udpTimeout)
-	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, udpForwarder.HandlePacket)
+	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(t.ctx, ipStack, t, t.udpTimeout).HandlePacket)
+	icmpForwarder := tun.NewICMPForwarder(t.ctx, ipStack, t, t.udpTimeout)
+	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
+	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	t.stack = ipStack
 
 	localBackend := t.server.ExportLocalBackend()
@@ -377,7 +380,7 @@ func (t *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return udpConn, nil
 }
 
-func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
+func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
 	tsFilter := t.filter.Load()
 	if tsFilter != nil {
 		var ipProto ipproto.Proto
@@ -390,9 +393,9 @@ func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 		response := tsFilter.Check(source.Addr, destination.Addr, destination.Port, ipProto)
 		switch response {
 		case filter.Drop:
-			return syscall.ECONNRESET
+			return nil, syscall.ECONNREFUSED
 		case filter.DropSilently:
-			return tun.ErrDrop
+			return nil, tun.ErrDrop
 		}
 	}
 	return t.router.PreMatch(adapter.InboundContext{
@@ -401,7 +404,7 @@ func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 		Network:     network,
 		Source:      source,
 		Destination: destination,
-	})
+	}, routeContext)
 }
 
 func (t *Endpoint) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {

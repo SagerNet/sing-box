@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -29,6 +31,7 @@ type Endpoint struct {
 	ipcConf        string
 	allowedAddress []netip.Prefix
 	tunDevice      Device
+	natDevice      NatDevice
 	device         *device.Device
 	pauseManager   pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
@@ -111,12 +114,17 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 	if err != nil {
 		return nil, E.Cause(err, "create WireGuard device")
 	}
+	natDevice, isNatDevice := tunDevice.(NatDevice)
+	if !isNatDevice {
+		natDevice = NewNATDevice(tunDevice, true)
+	}
 	return &Endpoint{
 		options:        options,
 		peers:          peers,
 		ipcConf:        ipcConf,
 		allowedAddress: allowedAddresses,
 		tunDevice:      tunDevice,
+		natDevice:      natDevice,
 	}, nil
 }
 
@@ -176,7 +184,13 @@ func (e *Endpoint) Start(resolve bool) error {
 			e.options.Logger.Error(fmt.Sprintf(strings.ToLower(format), args...))
 		},
 	}
-	wgDevice := device.NewDevice(e.options.Context, e.tunDevice, bind, logger, e.options.Workers)
+	var deviceInput Device
+	if e.natDevice != nil {
+		deviceInput = e.natDevice
+	} else {
+		deviceInput = e.tunDevice
+	}
+	wgDevice := device.NewDevice(e.options.Context, deviceInput, bind, logger, e.options.Workers)
 	e.tunDevice.SetDevice(wgDevice)
 	ipcConf := e.ipcConf
 	for _, peer := range e.peers {
@@ -194,6 +208,20 @@ func (e *Endpoint) Start(resolve bool) error {
 	return nil
 }
 
+func (e *Endpoint) Close() error {
+	if e.device != nil {
+		e.device.Close()
+	}
+	if e.pauseCallback != nil {
+		e.pauseManager.UnregisterCallback(e.pauseCallback)
+	}
+	return nil
+}
+
+func (e *Endpoint) BindUpdate() error {
+	return e.device.BindUpdate()
+}
+
 func (e *Endpoint) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if !destination.Addr.IsValid() {
 		return nil, E.Cause(os.ErrInvalid, "invalid non-IP destination")
@@ -208,18 +236,11 @@ func (e *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return e.tunDevice.ListenPacket(ctx, destination)
 }
 
-func (e *Endpoint) BindUpdate() error {
-	return e.device.BindUpdate()
-}
-
-func (e *Endpoint) Close() error {
-	if e.device != nil {
-		e.device.Close()
+func (e *Endpoint) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	if e.natDevice == nil {
+		return nil, os.ErrInvalid
 	}
-	if e.pauseCallback != nil {
-		e.pauseManager.UnregisterCallback(e.pauseCallback)
-	}
-	return nil
+	return e.natDevice.CreateDestination(metadata, routeContext)
 }
 
 func (e *Endpoint) onPauseUpdated(event int) {
