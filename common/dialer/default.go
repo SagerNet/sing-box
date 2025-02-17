@@ -315,6 +315,14 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	}
 }
 
+func (d *DefaultDialer) DialerForICMPDestination(destination netip.Addr) net.Dialer {
+	if !destination.Is6() {
+		return dialerFromTCPDialer(d.dialer6)
+	} else {
+		return dialerFromTCPDialer(d.dialer4)
+	}
+}
+
 func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {
 	if strategy == nil {
 		strategy = d.networkStrategy
