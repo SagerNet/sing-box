@@ -40,4 +40,5 @@ const (
 const (
 	RuleActionRejectMethodDefault = "default"
 	RuleActionRejectMethodDrop    = "drop"
+	RuleActionRejectMethodReply   = "reply"
 )
