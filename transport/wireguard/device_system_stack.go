@@ -3,16 +3,26 @@
 package wireguard
 
 import (
+	"context"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/gvisor/pkg/buffer"
 	"github.com/sagernet/gvisor/pkg/tcpip"
 	"github.com/sagernet/gvisor/pkg/tcpip/header"
+	"github.com/sagernet/gvisor/pkg/tcpip/network/ipv4"
+	"github.com/sagernet/gvisor/pkg/tcpip/network/ipv6"
 	"github.com/sagernet/gvisor/pkg/tcpip/stack"
+	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/wireguard-go/device"
 )
 
@@ -20,6 +30,8 @@ var _ Device = (*systemStackDevice)(nil)
 
 type systemStackDevice struct {
 	*systemDevice
+	ctx       context.Context
+	logger    logger.ContextLogger
 	stack     *stack.Stack
 	endpoint  *deviceEndpoint
 	writeBufs [][]byte
@@ -34,13 +46,45 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 		mtu:  options.MTU,
 		done: make(chan struct{}),
 	}
-	ipStack, err := tun.NewGVisorStack(endpoint)
+	ipStack, err := tun.NewGVisorStackWithOptions(endpoint, stack.NICOptions{}, true)
 	if err != nil {
 		return nil, err
 	}
-	ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
-	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
+	var (
+		inet4Address netip.Addr
+		inet6Address netip.Addr
+	)
+	for _, prefix := range options.Address {
+		addr := tun.AddressFromAddr(prefix.Addr())
+		protoAddr := tcpip.ProtocolAddress{
+			AddressWithPrefix: tcpip.AddressWithPrefix{
+				Address:   addr,
+				PrefixLen: prefix.Bits(),
+			},
+		}
+		if prefix.Addr().Is4() {
+			inet4Address = prefix.Addr()
+			protoAddr.Protocol = ipv4.ProtocolNumber
+		} else {
+			inet6Address = prefix.Addr()
+			protoAddr.Protocol = ipv6.ProtocolNumber
+		}
+		gErr := ipStack.AddProtocolAddress(tun.DefaultNIC, protoAddr, stack.AddressProperties{})
+		if gErr != nil {
+			return nil, E.New("parse local address ", protoAddr.AddressWithPrefix, ": ", gErr.String())
+		}
+	}
+	if options.Handler != nil {
+		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
+		icmpForwarder := tun.NewICMPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout)
+		icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
+		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
+	}
 	return &systemStackDevice{
+		ctx:          options.Context,
+		logger:       options.Logger,
 		systemDevice: system,
 		stack:        ipStack,
 		endpoint:     endpoint,
@@ -114,6 +158,23 @@ func (w *systemStackDevice) writeStack(packet []byte) bool {
 	w.endpoint.dispatcher.DeliverNetworkPacket(networkProtocol, packetBuffer)
 	packetBuffer.DecRef()
 	return true
+}
+
+func (w *systemStackDevice) CreateDestination(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	ctx := log.ContextWithNewID(w.ctx)
+	destination, err := ping.ConnectGVisor(
+		ctx, w.logger,
+		metadata.Source.Addr, metadata.Destination.Addr,
+		routeContext,
+		w.stack,
+		w.inet4Address, w.inet6Address,
+		timeout,
+	)
+	if err != nil {
+		return nil, err
+	}
+	w.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
+	return destination, nil
 }
 
 type deviceEndpoint struct {
