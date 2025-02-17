@@ -22,22 +22,42 @@ import (
 var _ Device = (*systemDevice)(nil)
 
 type systemDevice struct {
-	options     DeviceOptions
-	dialer      N.Dialer
-	device      tun.Tun
-	batchDevice tun.LinuxTUN
-	events      chan wgTun.Event
-	closeOnce   sync.Once
+	options      DeviceOptions
+	dialer       N.Dialer
+	device       tun.Tun
+	batchDevice  tun.LinuxTUN
+	events       chan wgTun.Event
+	closeOnce    sync.Once
+	inet4Address netip.Addr
+	inet6Address netip.Addr
 }
 
 func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 	if options.Name == "" {
 		options.Name = tun.CalculateInterfaceName("wg")
 	}
+	var inet4Address netip.Addr
+	var inet6Address netip.Addr
+	if len(options.Address) > 0 {
+		if prefix := common.Find(options.Address, func(it netip.Prefix) bool {
+			return it.Addr().Is4()
+		}); prefix.IsValid() {
+			inet4Address = prefix.Addr()
+		}
+	}
+	if len(options.Address) > 0 {
+		if prefix := common.Find(options.Address, func(it netip.Prefix) bool {
+			return it.Addr().Is6()
+		}); prefix.IsValid() {
+			inet6Address = prefix.Addr()
+		}
+	}
 	return &systemDevice{
-		options: options,
-		dialer:  options.CreateDialer(options.Name),
-		events:  make(chan wgTun.Event, 1),
+		options:      options,
+		dialer:       options.CreateDialer(options.Name),
+		events:       make(chan wgTun.Event, 1),
+		inet4Address: inet4Address,
+		inet6Address: inet6Address,
 	}, nil
 }
 
@@ -47,6 +67,14 @@ func (w *systemDevice) DialContext(ctx context.Context, network string, destinat
 
 func (w *systemDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return w.dialer.ListenPacket(ctx, destination)
+}
+
+func (w *systemDevice) Inet4Address() netip.Addr {
+	return w.inet4Address
+}
+
+func (w *systemDevice) Inet6Address() netip.Addr {
+	return w.inet6Address
 }
 
 func (w *systemDevice) SetDevice(device *device.Device) {
