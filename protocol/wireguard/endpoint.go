@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -40,7 +41,7 @@ type Endpoint struct {
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WireGuardEndpointOptions) (adapter.Endpoint, error) {
 	ep := &Endpoint{
-		Adapter:        endpoint.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter:        endpoint.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMPv4, N.NetworkICMPv6}, options.DialerOptions),
 		ctx:            ctx,
 		router:         router,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
@@ -124,14 +125,14 @@ func (w *Endpoint) Close() error {
 	return w.endpoint.Close()
 }
 
-func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
+func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, context tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
 	return w.router.PreMatch(adapter.InboundContext{
 		Inbound:     w.Tag(),
 		InboundType: w.Type(),
 		Network:     network,
 		Source:      source,
 		Destination: destination,
-	})
+	}, context)
 }
 
 func (w *Endpoint) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
@@ -219,4 +220,13 @@ func (w *Endpoint) PreferredDomain(domain string) bool {
 
 func (w *Endpoint) PreferredAddress(address netip.Addr) bool {
 	return w.endpoint.Lookup(address) != nil
+}
+
+func (w *Endpoint) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	destination, err := w.endpoint.NewDirectRouteConnection(metadata, routeContext)
+	if err != nil {
+		return nil, err
+	}
+	w.logger.Info("linked ", metadata.Network, " connection to ", metadata.Destination.AddrString())
+	return destination, nil
 }

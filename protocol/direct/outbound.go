@@ -13,6 +13,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -29,10 +30,12 @@ var (
 	_ N.ParallelDialer             = (*Outbound)(nil)
 	_ dialer.ParallelNetworkDialer = (*Outbound)(nil)
 	_ dialer.DirectDialer          = (*Outbound)(nil)
+	_ adapter.DirectRouteOutbound  = (*Outbound)(nil)
 )
 
 type Outbound struct {
 	outbound.Adapter
+	ctx                 context.Context
 	logger              logger.ContextLogger
 	dialer              dialer.ParallelInterfaceDialer
 	domainStrategy      C.DomainStrategy
@@ -58,7 +61,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMPv4, N.NetworkICMPv6}, options.DialerOptions),
+		ctx:     ctx,
 		logger:  logger,
 		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
@@ -144,6 +148,11 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		conn = bufio.NewNATPacketConn(bufio.NewPacketConn(conn), destination, originDestination)
 	}
 	return conn, nil
+}
+
+func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	h.logger.Info("linked ", metadata.Network, " connection to ", metadata.Destination.AddrString())
+	return tun.NewICMPDestination(h.ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPNetwork(metadata.Network), metadata.Network, metadata.Destination.Addr, routeContext)
 }
 
 func (h *Outbound) DialParallel(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr) (net.Conn, error) {
