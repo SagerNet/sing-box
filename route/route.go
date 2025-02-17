@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-mux"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -258,19 +259,37 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return nil
 }
 
-func (r *Router) PreMatch(metadata adapter.InboundContext) error {
+func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
 	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if selectedRule == nil {
-		return nil
+	if selectedRule != nil {
+		switch action := selectedRule.Action().(type) {
+		case *R.RuleActionReject:
+			return nil, action.Error(context.Background())
+		case *R.RuleActionRoute:
+			if routeContext == nil {
+				return nil, nil
+			}
+			outbound, loaded := r.outbound.Outbound(action.Outbound)
+			if !loaded {
+				return nil, E.New("outbound not found: ", action.Outbound)
+			}
+			if !common.Contains(outbound.Network(), metadata.Network) {
+				return nil, E.New(metadata.Network, " is not supported by outbound: ", action.Outbound)
+			}
+			return outbound.(adapter.DirectRouteOutbound).NewDirectRouteConnection(metadata, routeContext, timeout)
+		}
 	}
-	rejectAction, isReject := selectedRule.Action().(*R.RuleActionReject)
-	if !isReject {
-		return nil
+	if selectedRule != nil || metadata.Network != N.NetworkICMP {
+		return nil, nil
 	}
-	return rejectAction.Error(context.Background())
+	defaultOutbound := r.outbound.Default()
+	if !common.Contains(defaultOutbound.Network(), metadata.Network) {
+		return nil, E.New(metadata.Network, " is not supported by default outbound: ", defaultOutbound.Tag())
+	}
+	return defaultOutbound.(adapter.DirectRouteOutbound).NewDirectRouteConnection(metadata, routeContext, timeout)
 }
 
 func (r *Router) matchRule(
@@ -463,7 +482,7 @@ match:
 				} else if len(newPacketBuffers) > 0 {
 					packetBuffers = append(packetBuffers, newPacketBuffers...)
 				}
-			} else {
+			} else if metadata.Network != N.NetworkICMP {
 				selectedRule = currentRule
 				selectedRuleIndex = currentRuleIndex
 				break match
@@ -477,8 +496,7 @@ match:
 		actionType := currentRule.Action().Type()
 		if actionType == C.RuleActionTypeRoute ||
 			actionType == C.RuleActionTypeReject ||
-			actionType == C.RuleActionTypeHijackDNS ||
-			(actionType == C.RuleActionTypeSniff && preMatch) {
+			actionType == C.RuleActionTypeHijackDNS {
 			selectedRule = currentRule
 			selectedRuleIndex = currentRuleIndex
 			break match
