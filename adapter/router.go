@@ -6,8 +6,10 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-tun"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
@@ -19,7 +21,7 @@ import (
 type Router interface {
 	Lifecycle
 	ConnectionRouter
-	PreMatch(metadata InboundContext) error
+	PreMatch(metadata InboundContext, context tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error)
 	ConnectionRouterEx
 	RuleSet(tag string) (RuleSet, bool)
 	NeedWIFIState() bool

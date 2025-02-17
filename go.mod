@@ -1,6 +1,6 @@
 module github.com/sagernet/sing-box
 
-go 1.23.1
+go 1.24.0
 
 require (
 	github.com/anytls/sing-anytls v0.0.11
@@ -25,30 +25,30 @@ require (
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.8
-	github.com/sagernet/gvisor v0.0.0-20250325023245-7a9c0f5725fb
-	github.com/sagernet/quic-go v0.52.0-sing-box-mod.2
-	github.com/sagernet/sing v0.7.12
+	github.com/sagernet/gvisor v0.0.0-20250909151924-850a370d8506
+	github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
+	github.com/sagernet/sing v0.8.0-beta.5
 	github.com/sagernet/sing-mux v0.3.3
-	github.com/sagernet/sing-quic v0.5.2-0.20250909083218-00a55617c0fb
+	github.com/sagernet/sing-quic v0.6.0-beta.3
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
-	github.com/sagernet/sing-tun v0.7.2
+	github.com/sagernet/sing-tun v0.8.0-beta.8
 	github.com/sagernet/sing-vmess v0.2.7
 	github.com/sagernet/smux v1.5.34-mod.2
-	github.com/sagernet/tailscale v1.80.3-sing-box-1.12-mod.1
+	github.com/sagernet/tailscale v1.80.3-sing-box-1.13-mod.1
 	github.com/sagernet/wireguard-go v0.0.1-beta.7
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netns v0.0.5
 	go.uber.org/zap v1.27.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.41.0
-	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
-	golang.org/x/mod v0.27.0
-	golang.org/x/net v0.43.0
-	golang.org/x/sys v0.35.0
+	golang.org/x/crypto v0.42.0
+	golang.org/x/exp v0.0.0-20250911091902-df9299821621
+	golang.org/x/mod v0.28.0
+	golang.org/x/net v0.44.0
+	golang.org/x/sys v0.36.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
@@ -122,11 +122,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
