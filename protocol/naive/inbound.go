@@ -57,7 +57,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			Listen:  options.ListenOptions,
 		}),
 		networkIsDefault: options.Network == "",
-		network:          options.Network.Build(),
+		network:          options.Network.Build(option.DefaultIPNetworks),
 		authenticator:    auth.NewAuthenticator(options.Users),
 	}
 	if common.Contains(inbound.network, N.NetworkUDP) {

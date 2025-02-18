@@ -12,6 +12,11 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
+var (
+	DefaultNetworks   = []string{N.NetworkTCP, N.NetworkUDP}
+	DefaultIPNetworks = []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMPv4, N.NetworkICMPv6}
+)
+
 type NetworkList string
 
 func (v *NetworkList) UnmarshalJSON(content []byte) error {
@@ -37,9 +42,9 @@ func (v *NetworkList) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
-func (v NetworkList) Build() []string {
+func (v NetworkList) Build(defaultNetworks []string) []string {
 	if v == "" {
-		return []string{N.NetworkTCP, N.NetworkUDP}
+		return defaultNetworks
 	}
 	return strings.Split(string(v), "\n")
 }

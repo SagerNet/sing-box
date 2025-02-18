@@ -77,7 +77,7 @@ func newRelayInbound(ctx context.Context, router adapter.Router, logger log.Cont
 	inbound.listener = listener.New(listener.Options{
 		Context:                  ctx,
 		Logger:                   logger,
-		Network:                  options.Network.Build(),
+		Network:                  options.Network.Build(option.DefaultIPNetworks),
 		Listen:                   options.ListenOptions,
 		ConnectionHandler:        inbound,
 		PacketHandler:            inbound,

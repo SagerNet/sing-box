@@ -45,7 +45,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
 	}
 	outbound := &Outbound{
-		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, option.DefaultNetworks, options.DialerOptions),
 		ctx:            ctx,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		logger:         logger,

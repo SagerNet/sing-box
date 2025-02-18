@@ -2,6 +2,7 @@ package direct
 
 import (
 	"context"
+	"github.com/sagernet/sing-tun"
 	"net"
 	"net/netip"
 	"time"
@@ -27,6 +28,7 @@ func RegisterOutbound(registry *outbound.Registry) {
 var (
 	_ N.ParallelDialer             = (*Outbound)(nil)
 	_ dialer.ParallelNetworkDialer = (*Outbound)(nil)
+	_ adapter.DirectRouteOutbound  = (*Outbound)(nil)
 )
 
 type Outbound struct {
@@ -50,7 +52,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeDirect, tag, option.DefaultIPNetworks, options.DialerOptions),
 		logger:  logger,
 		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
@@ -240,6 +242,10 @@ func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.
 		return nil, netip.Addr{}, err
 	}
 	return conn, newDestination, nil
+}
+
+func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	
 }
 
 /*func (h *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {

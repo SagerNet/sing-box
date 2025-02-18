@@ -53,7 +53,7 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 	tproxy.listener = listener.New(listener.Options{
 		Context:           ctx,
 		Logger:            logger,
-		Network:           options.Network.Build(),
+		Network:           options.Network.Build(option.DefaultIPNetworks),
 		Listen:            options.ListenOptions,
 		ConnectionHandler: tproxy,
 		OOBPacketHandler:  tproxy,

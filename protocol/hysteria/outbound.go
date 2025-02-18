@@ -52,7 +52,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	networkList := options.Network.Build()
+	networkList := options.Network.Build(option.DefaultIPNetworks)
 	var password string
 	if options.AuthString != "" {
 		password = options.AuthString
