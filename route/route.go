@@ -622,7 +622,7 @@ func (r *Router) actionSniff(
 					Destination: destination,
 				}
 				packetBuffers = append(packetBuffers, packetBuffer)
-				if E.IsMulti(err, sniff.ErrClientHelloFragmented) && len(packetBuffers) == 0 {
+				if E.IsMulti(err, sniff.ErrClientHelloFragmented) {
 					r.logger.DebugContext(ctx, "attempt to sniff fragmented QUIC client hello")
 					continue
 				}
