@@ -2,8 +2,6 @@ module github.com/sagernet/sing-box
 
 go 1.23.1
 
-toolchain go1.24.0
-
 require (
 	github.com/caddyserver/certmagic v0.21.7
 	github.com/cloudflare/circl v1.6.0
