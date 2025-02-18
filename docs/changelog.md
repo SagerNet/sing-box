@@ -2,7 +2,7 @@
 icon: material/alert-decagram
 ---
 
-#### 1.12.0-alpha.8
+#### 1.12.0-alpha.9
 
 * Fixes and improvements
 
