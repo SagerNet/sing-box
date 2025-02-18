@@ -24,6 +24,7 @@ builds:
       - with_tailscale
     env:
       - CGO_ENABLED=0
+      - GOTOOLCHAIN=local
     targets:
       - linux_386
       - linux_amd64_v1
@@ -62,6 +63,7 @@ builds:
     <<: *template
     env:
       - CGO_ENABLED=1
+      - GOTOOLCHAIN=local
     overrides:
       - goos: android
         goarch: arm
