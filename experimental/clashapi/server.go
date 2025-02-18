@@ -129,7 +129,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		s.externalUI = filemanager.BasePath(ctx, os.ExpandEnv(options.ExternalUI))
 		chiRouter.Group(func(r chi.Router) {
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusMovedPermanently).ServeHTTP)
-			r.Handle("/ui/*", http.StripPrefix("/ui/", http.FileServer(http.Dir(s.externalUI))))
+			r.Handle("/ui/*", http.StripPrefix("/ui/", http.FileServer(Dir(s.externalUI))))
 		})
 	}
 	return s, nil
