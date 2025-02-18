@@ -72,7 +72,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		}
 	}
 	destinationURL := url.URL{
-		Scheme: "HTTP3",
+		Scheme: "https",
 		Host:   host,
 	}
 	if destinationURL.Host == "" {
