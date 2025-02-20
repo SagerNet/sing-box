@@ -2,9 +2,14 @@
 icon: material/alert-decagram
 ---
 
-#### 1.12.0-alpha.9
+#### 1.12.0-alpha.10
 
+* Improve `resolve` route action **1**
 * Fixes and improvements
+
+**1**:
+
+`resolve` route action now accepts `disable_cache` and other options like in DNS route actions, see [Route Action](/configuration/route/rule_action).
 
 #### 1.12.0-alpha.7
 
