@@ -221,7 +221,7 @@ func fetchECHClientConfig(ctx context.Context) func(_ context.Context, serverNam
 			return nil, err
 		}
 		if response.Rcode != mDNS.RcodeSuccess {
-			return nil, dns.RCodeError(response.Rcode)
+			return nil, dns.RcodeError(response.Rcode)
 		}
 		for _, rr := range response.Answer {
 			switch resource := rr.(type) {

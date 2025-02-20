@@ -26,7 +26,7 @@ func HandleStreamDNSRequest(ctx context.Context, router adapter.DNSRouter, conn 
 		return err
 	}
 	if queryLength == 0 {
-		return dns.RCodeFormatError
+		return dns.RcodeFormatError
 	}
 	buffer := buf.NewSize(int(queryLength))
 	defer buffer.Release()
