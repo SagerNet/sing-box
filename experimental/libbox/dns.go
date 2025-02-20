@@ -134,7 +134,7 @@ func (c *ExchangeContext) RawSuccess(result []byte) {
 }
 
 func (c *ExchangeContext) ErrorCode(code int32) {
-	c.error = dns.RCodeError(code)
+	c.error = dns.RcodeError(code)
 }
 
 func (c *ExchangeContext) ErrnoCode(code int32) {
