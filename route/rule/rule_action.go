@@ -88,8 +88,11 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
-			Strategy: C.DomainStrategy(action.ResolveOptions.Strategy),
-			Server:   action.ResolveOptions.Server,
+			Server:       action.ResolveOptions.Server,
+			Strategy:     C.DomainStrategy(action.ResolveOptions.Strategy),
+			DisableCache: action.ResolveOptions.DisableCache,
+			RewriteTTL:   action.ResolveOptions.RewriteTTL,
+			ClientSubnet: action.ResolveOptions.ClientSubnet.Build(netip.Prefix{}),
 		}, nil
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -379,8 +382,11 @@ func (r *RuleActionSniff) String() string {
 }
 
 type RuleActionResolve struct {
-	Strategy C.DomainStrategy
-	Server   string
+	Server       string
+	Strategy     C.DomainStrategy
+	DisableCache bool
+	RewriteTTL   *uint32
+	ClientSubnet netip.Prefix
 }
 
 func (r *RuleActionResolve) Type() string {
@@ -388,13 +394,25 @@ func (r *RuleActionResolve) Type() string {
 }
 
 func (r *RuleActionResolve) String() string {
-	if r.Strategy == C.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve")
-	} else if r.Strategy != C.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ")")
-	} else if r.Strategy == C.DomainStrategyAsIS && r.Server != "" {
-		return F.ToString("resolve(", r.Server, ")")
+	var options []string
+	if r.Server != "" {
+		options = append(options, r.Server)
+	}
+	if r.Strategy != C.DomainStrategyAsIS {
+		options = append(options, F.ToString(option.DomainStrategy(r.Strategy)))
+	}
+	if r.DisableCache {
+		options = append(options, "disable_cache")
+	}
+	if r.RewriteTTL != nil {
+		options = append(options, F.ToString("rewrite_ttl=", *r.RewriteTTL))
+	}
+	if r.ClientSubnet.IsValid() {
+		options = append(options, F.ToString("client_subnet=", r.ClientSubnet))
+	}
+	if len(options) == 0 {
+		return "resolve"
 	} else {
-		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ",", r.Server, ")")
+		return F.ToString("resolve(", strings.Join(options, ","), ")")
 	}
 }
