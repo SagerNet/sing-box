@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"net"
 
-	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/varbin"
 )
 
@@ -18,19 +17,7 @@ func (c *CommandClient) ServiceReload() error {
 	if err != nil {
 		return err
 	}
-	var hasError bool
-	err = binary.Read(conn, binary.BigEndian, &hasError)
-	if err != nil {
-		return err
-	}
-	if hasError {
-		errorMessage, err := varbin.ReadValue[string](conn, binary.BigEndian)
-		if err != nil {
-			return err
-		}
-		return E.New(errorMessage)
-	}
-	return nil
+	return readError(conn)
 }
 
 func (s *CommandServer) handleServiceReload(conn net.Conn) error {
@@ -55,19 +42,7 @@ func (c *CommandClient) ServiceClose() error {
 	if err != nil {
 		return err
 	}
-	var hasError bool
-	err = binary.Read(conn, binary.BigEndian, &hasError)
-	if err != nil {
-		return nil
-	}
-	if hasError {
-		errorMessage, err := varbin.ReadValue[string](conn, binary.BigEndian)
-		if err != nil {
-			return nil
-		}
-		return E.New(errorMessage)
-	}
-	return nil
+	return readError(conn)
 }
 
 func (s *CommandServer) handleServiceClose(conn net.Conn) error {
