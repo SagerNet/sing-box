@@ -5,8 +5,6 @@ import (
 	"net"
 	"strings"
 
-	anytls "github.com/anytls/sing-anytls"
-	"github.com/anytls/sing-anytls/padding"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/listener"
@@ -21,6 +19,9 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	anytls "github.com/anytls/sing-anytls"
+	"github.com/anytls/sing-anytls/padding"
 )
 
 func RegisterInbound(registry *inbound.Registry) {
