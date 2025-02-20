@@ -35,7 +35,7 @@ type Outbound struct {
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.AnyTLSOutboundOptions) (adapter.Outbound, error) {
 	outbound := &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeAnyTLS, tag, []string{N.NetworkTCP}, options.DialerOptions),
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeAnyTLS, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
 		server:  options.ServerOptions.Build(),
 		logger:  logger,
 	}
@@ -71,10 +71,20 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	outbound.client = client
 
 	outbound.uotClient = &uot.Client{
-		Dialer:  outbound,
+		Dialer:  (anytlsDialer)(client.CreateProxy),
 		Version: uot.Version,
 	}
 	return outbound, nil
+}
+
+type anytlsDialer func(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
+
+func (d anytlsDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	return d(ctx, destination)
+}
+
+func (d anytlsDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, os.ErrInvalid
 }
 
 func (h *Outbound) dialOut(ctx context.Context) (net.Conn, error) {
