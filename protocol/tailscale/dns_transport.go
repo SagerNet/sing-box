@@ -287,7 +287,7 @@ func (t *DNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			return nil, E.New("missing default resolvers")
 		}
 	}
-	return nil, dns.RCodeNameError
+	return nil, dns.RcodeNameError
 }
 
 type DNSDialer struct {

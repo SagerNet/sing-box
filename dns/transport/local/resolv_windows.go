@@ -69,9 +69,6 @@ func dnsReadConfig(_ string) *dnsConfig {
 	return conf
 }
 
-//go:linkname defaultNS net.defaultNS
-var defaultNS []string
-
 func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
 	var b []byte
 	l := uint32(15000) // recommended initial size
