@@ -27,6 +27,7 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
+	ctx    context.Context
 	hosts  *hosts.File
 	dialer N.Dialer
 }
