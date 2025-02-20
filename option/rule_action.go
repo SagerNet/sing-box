@@ -288,6 +288,9 @@ type RouteActionSniff struct {
 }
 
 type RouteActionResolve struct {
-	Strategy DomainStrategy `json:"strategy,omitempty"`
-	Server   string         `json:"server,omitempty"`
+	Server       string                `json:"server,omitempty"`
+	Strategy     DomainStrategy        `json:"strategy,omitempty"`
+	DisableCache bool                  `json:"disable_cache,omitempty"`
+	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
+	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
