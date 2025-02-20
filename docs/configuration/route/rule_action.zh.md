@@ -206,12 +206,19 @@ UDP 连接超时时间。
 ```json
 {
   "action": "resolve",
+  "server": "",
   "strategy": "",
-  "server": ""
+  "disable_cache": false,
+  "rewrite_ttl": null,
+  "client_subnet": null
 }
 ```
 
 `resolve` 将请求的目标从域名解析为 IP 地址。
+
+#### server
+
+指定要使用的 DNS 服务器的标签，而不是通过 DNS 路由进行选择。
 
 #### strategy
 
@@ -219,6 +226,24 @@ DNS 解析策略，可用值有：`prefer_ipv4`、`prefer_ipv6`、`ipv4_only`、
 
 默认使用 `dns.strategy`。
 
-#### server
+#### disable_cache
 
-指定要使用的 DNS 服务器的标签，而不是通过 DNS 路由进行选择。
+!!! question "自 sing-box 1.12.0 起"
+
+在此查询中禁用缓存。
+
+#### rewrite_ttl
+
+!!! question "自 sing-box 1.12.0 起"
+
+重写 DNS 回应中的 TTL。
+
+#### client_subnet
+
+!!! question "自 sing-box 1.12.0 起"
+
+默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
+
+将覆盖 `dns.client_subnet`.

@@ -16,7 +16,7 @@ icon: material/new-box
   "server": "",
   "strategy": "",
   "disable_cache": false,
-  "rewrite_ttl": 0,
+  "rewrite_ttl": null,
   "client_subnet": null
 }
 ```
@@ -49,7 +49,7 @@ Append a `edns0-subnet` OPT extra record with the specified IP prefix to every q
 
 If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
-Will overrides `dns.client_subnet` and `servers.[].client_subnet`.
+Will overrides `dns.client_subnet`.
 
 ### route-options
 
