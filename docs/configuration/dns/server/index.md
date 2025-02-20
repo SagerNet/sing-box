@@ -27,19 +27,19 @@ icon: material/alert-decagram
 
 The type of the DNS server.
 
-| Type            | Format                                              |
-|-----------------|-----------------------------------------------------|
-| empty (default) | [Legacy](/configuration/dns/server/legacy/)         |
-| `tcp`           | [TCP](/configuration/dns/server/tcp/)               |
-| `udp`           | [UDP](/configuration/dns/server/udp/)               |
-| `tls`           | [TLS](/configuration/dns/server/tls/)               |
-| `https`         | [HTTPS](/configuration/dns/server/https/)           |
-| `quic`          | [QUIC](/configuration/dns/server/quic/)             |
-| `h3`            | [HTTP/3](/configuration/dns/server/http3/)          |
-| `predefined`    | [Predefined](/configuration/dns/server/predefined/) |
-| `dhcp`          | [DHCP](/configuration/dns/server/dhcp/)             |
-| `fakeip`        | [Fake IP](/configuration/dns/server/fakeip/)        |
-
+| Type            | Format                      |
+|-----------------|-----------------------------|
+| empty (default) | [Legacy](./legacy/)         |
+| `tcp`           | [TCP](./tcp/)               |
+| `udp`           | [UDP](./udp/)               |
+| `tls`           | [TLS](./tls/)               |
+| `https`         | [HTTPS](./https/)           |
+| `quic`          | [QUIC](./quic/)             |
+| `h3`            | [HTTP/3](./http3/)          |
+| `predefined`    | [Predefined](./predefined/) |
+| `dhcp`          | [DHCP](./dhcp/)             |
+| `fakeip`        | [Fake IP](./fakeip/)        |
+| `tailscale`     | [Tailscale](./tailscale/)   |
 
 #### tag
 
