@@ -79,5 +79,5 @@ func (t *PredefinedTransport) Exchange(ctx context.Context, message *mDNS.Msg) (
 			}
 		}
 	}
-	return nil, dns.RCodeNameError
+	return nil, dns.RcodeNameError
 }
