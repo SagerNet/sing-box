@@ -361,6 +361,9 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if t.platformInterface != nil {
 			tunInterface, err = t.platformInterface.OpenTun(&tunOptions, t.platformOptions)
 		} else {
+			if HookBeforeCreatePlatformInterface != nil {
+				HookBeforeCreatePlatformInterface()
+			}
 			tunInterface, err = tun.New(tunOptions)
 		}
 		monitor.Finish()
