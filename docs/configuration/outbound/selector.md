@@ -25,11 +25,11 @@
 
 ==Required==
 
-List of outbound/endpoint tags to select.
+List of outbound tags to select.
 
 #### default
 
-The default outbound/endpoint tag. The first outbound will be used if empty.
+The default outbound tag. The first outbound will be used if empty.
 
 #### interrupt_exist_connections
 

@@ -24,7 +24,7 @@
 
 ==Required==
 
-List of outbound/endpoint tags to test.
+List of outbound tags to test.
 
 #### url
 

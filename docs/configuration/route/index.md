@@ -67,7 +67,7 @@ List of [rule-set](/configuration/rule-set/)
 
 #### final
 
-Default outbound/endpoint tag. the first outbound will be used if empty.
+Default outbound tag. the first outbound will be used if empty.
 
 #### auto_detect_interface
 
