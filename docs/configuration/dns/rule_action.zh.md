@@ -17,7 +17,7 @@ icon: material/new-box
 
   "strategy": "",
   "disable_cache": false,
-  "rewrite_ttl": 0,
+  "rewrite_ttl": null,
   "client_subnet": null
 }
 ```
@@ -50,7 +50,7 @@ icon: material/new-box
 
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
-将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
+将覆盖 `dns.client_subnet`.
 
 ### route-options
 
