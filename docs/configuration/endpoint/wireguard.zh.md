@@ -41,7 +41,7 @@ icon: material/new-box
 
 ### 字段
 
-#### system_interface
+#### system
 
 使用系统设备。
 

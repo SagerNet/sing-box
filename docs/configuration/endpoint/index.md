@@ -26,6 +26,7 @@ Endpoint is protocols that has both inbound and outbound behavior.
 | Type        | Format                    |
 |-------------|---------------------------|
 | `wireguard` | [WireGuard](./wireguard/) |
+| `tailscale` | [Tailscale](./tailscale/) |
 
 #### tag
 
