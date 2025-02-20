@@ -66,7 +66,7 @@ icon: material/alert-decagram
 
 #### final
 
-默认出站标签。如果为空，将使用第一个可用于对应协议的出站。
+默认出站/端点标签。如果为空，将使用第一个可用于对应协议的出站。
 
 #### auto_detect_interface
 
