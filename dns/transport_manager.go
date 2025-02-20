@@ -56,12 +56,12 @@ func (m *TransportManager) Start(stage adapter.StartStage) error {
 	}
 	m.started = true
 	m.stage = stage
-	outbounds := m.transports
+	transports := m.transports
 	m.access.Unlock()
 	if stage == adapter.StartStateStart {
 		return m.startTransports(m.transports)
 	} else {
-		for _, outbound := range outbounds {
+		for _, outbound := range transports {
 			err := adapter.LegacyStart(outbound, stage)
 			if err != nil {
 				return E.Cause(err, stage, " dns/", outbound.Type(), "[", outbound.Tag(), "]")
