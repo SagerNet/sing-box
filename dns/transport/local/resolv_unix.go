@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !(darwin && cgo)
 
 package local
 
@@ -9,7 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
-	_ "unsafe"
+
+	"github.com/miekg/dns"
 )
 
 func dnsReadConfig(name string) *dnsConfig {
@@ -69,13 +70,13 @@ func dnsReadConfig(name string) *dnsConfig {
 			}
 		case "domain":
 			if len(f) > 1 {
-				conf.search = []string{ensureRooted(f[1])}
+				conf.search = []string{dns.Fqdn(f[1])}
 			}
 
 		case "search":
 			conf.search = make([]string, 0, len(f)-1)
 			for i := 1; i < len(f); i++ {
-				name := ensureRooted(f[i])
+				name := dns.Fqdn(f[i])
 				if name == "." {
 					continue
 				}
@@ -135,27 +136,6 @@ func dnsReadConfig(name string) *dnsConfig {
 		conf.search = dnsDefaultSearch()
 	}
 	return conf
-}
-
-//go:linkname defaultNS net.defaultNS
-var defaultNS []string
-
-func dnsDefaultSearch() []string {
-	hn, err := os.Hostname()
-	if err != nil {
-		return nil
-	}
-	if i := strings.IndexRune(hn, '.'); i >= 0 && i < len(hn)-1 {
-		return []string{ensureRooted(hn[i+1:])}
-	}
-	return nil
-}
-
-func ensureRooted(s string) string {
-	if len(s) > 0 && s[len(s)-1] == '.' {
-		return s
-	}
-	return s + "."
 }
 
 const big = 0xFFFFFF
