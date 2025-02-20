@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing/contrab/freelru"
 	"github.com/sagernet/sing/contrab/maphash"
 
-	"github.com/miekg/dns"
+	dns "github.com/miekg/dns"
 )
 
 var (
@@ -484,7 +484,7 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 
 func MessageToAddresses(response *dns.Msg) ([]netip.Addr, error) {
 	if response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError {
-		return nil, RCodeError(response.Rcode)
+		return nil, RcodeError(response.Rcode)
 	}
 	addresses := make([]netip.Addr, 0, len(response.Answer))
 	for _, rawAnswer := range response.Answer {
@@ -508,10 +508,10 @@ func wrapError(err error) error {
 	switch dnsErr := err.(type) {
 	case *net.DNSError:
 		if dnsErr.IsNotFound {
-			return RCodeNameError
+			return RcodeNameError
 		}
 	case *net.AddrError:
-		return RCodeNameError
+		return RcodeNameError
 	}
 	return err
 }
@@ -558,6 +558,76 @@ func FixedResponse(id uint16, question dns.Question, addresses []netip.Addr, tim
 				AAAA: address.AsSlice(),
 			})
 		}
+	}
+	return &response
+}
+
+func FixedResponseCNAME(id uint16, question dns.Question, record string, timeToLive uint32) *dns.Msg {
+	response := dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Id:       id,
+			Rcode:    dns.RcodeSuccess,
+			Response: true,
+		},
+		Question: []dns.Question{question},
+		Answer: []dns.RR{
+			&dns.CNAME{
+				Hdr: dns.RR_Header{
+					Name:   question.Name,
+					Rrtype: dns.TypeCNAME,
+					Class:  dns.ClassINET,
+					Ttl:    timeToLive,
+				},
+				Target: record,
+			},
+		},
+	}
+	return &response
+}
+
+func FixedResponseTXT(id uint16, question dns.Question, records []string, timeToLive uint32) *dns.Msg {
+	response := dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Id:       id,
+			Rcode:    dns.RcodeSuccess,
+			Response: true,
+		},
+		Question: []dns.Question{question},
+		Answer: []dns.RR{
+			&dns.TXT{
+				Hdr: dns.RR_Header{
+					Name:   question.Name,
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    timeToLive,
+				},
+				Txt: records,
+			},
+		},
+	}
+	return &response
+}
+
+func FixedResponseMX(id uint16, question dns.Question, records []*net.MX, timeToLive uint32) *dns.Msg {
+	response := dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Id:       id,
+			Rcode:    dns.RcodeSuccess,
+			Response: true,
+		},
+		Question: []dns.Question{question},
+	}
+	for _, record := range records {
+		response.Answer = append(response.Answer, &dns.MX{
+			Hdr: dns.RR_Header{
+				Name:   question.Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    timeToLive,
+			},
+			Preference: record.Pref,
+			Mx:         record.Host,
+		})
 	}
 	return &response
 }
