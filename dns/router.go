@@ -329,13 +329,13 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			}
 		} else if len(responseAddrs) == 0 {
 			r.logger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
-			err = RCodeNameError
+			err = RcodeNameError
 		}
 	}
 	responseAddrs, cached = r.client.LookupCache(domain, options.Strategy)
 	if cached {
 		if len(responseAddrs) == 0 {
-			return nil, RCodeNameError
+			return nil, RcodeNameError
 		}
 		return responseAddrs, nil
 	}
