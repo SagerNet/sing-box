@@ -363,6 +363,18 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 	return r.wifiState
 }
 
+func (r *NetworkManager) UpdateWIFIState() {
+	if r.platformInterface != nil {
+		state := r.platformInterface.ReadWIFIState()
+		if state != r.wifiState {
+			r.wifiState = state
+			if state.SSID != "" {
+				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+			}
+		}
+	}
+}
+
 func (r *NetworkManager) ResetNetwork() {
 	conntrack.Close()
 
@@ -423,15 +435,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 		}
 	}
 	r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
-	if r.platformInterface != nil {
-		state := r.platformInterface.ReadWIFIState()
-		if state != r.wifiState {
-			r.wifiState = state
-			if state.SSID != "" {
-				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
-			}
-		}
-	}
+	r.UpdateWIFIState()
 
 	if !r.started {
 		return

@@ -25,6 +25,7 @@ type NetworkManager interface {
 	PackageManager() tun.PackageManager
 	WIFIState() WIFIState
 	ResetNetwork()
+	UpdateWIFIState()
 }
 
 type NetworkOptions struct {
