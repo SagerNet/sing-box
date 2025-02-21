@@ -95,8 +95,11 @@ func (o DNSResponseOptions) Build() ([]dns.Question, *dns.Msg, error) {
 	}
 	return questions, &dns.Msg{
 		MsgHdr: dns.MsgHdr{
-			Response: true,
-			Rcode:    o.RCode.Build(),
+			Response:           true,
+			Rcode:              o.RCode.Build(),
+			Authoritative:      true,
+			RecursionDesired:   true,
+			RecursionAvailable: true,
 		},
 		Answer: common.Map(o.Answer, DNSRecordOptions.build),
 		Ns:     common.Map(o.Ns, DNSRecordOptions.build),

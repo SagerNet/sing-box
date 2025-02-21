@@ -74,6 +74,7 @@ func (t *PredefinedTransport) Exchange(ctx context.Context, message *mDNS.Msg) (
 			}() {
 				copyAnswer := *response.answer
 				copyAnswer.Id = message.Id
+				copyAnswer.Question = message.Question
 				return &copyAnswer, nil
 			}
 		}
