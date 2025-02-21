@@ -261,9 +261,10 @@ jobs:
         run: |-
           go run -v ./cmd/internal/update_android_version --ci --nightly
       - name: Export libbox.aar file
-        run: |-
-          mkdir -p dist/aar
-          cp libbox.aar dist/aar
+          if: github.event_name == 'workflow_dispatch'
+          run: |-
+            mkdir -p dist/release
+            cp libbox.aar dist/release
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
