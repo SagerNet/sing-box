@@ -144,6 +144,7 @@ var OptionTUNGSO = Note{
 	DeprecatedVersion: "1.11.0",
 	ScheduledVersion:  "1.12.0",
 	EnvName:           "TUN_GSO",
+	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#gso-option-in-tun",
 }
 
 var OptionLegacyDNSTransport = Note{
@@ -179,6 +180,14 @@ var OptionMissingDomainResolver = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-outbound-dns-rule-items-to-domain-resolver",
 }
 
+var OptionLegacyECHOptions = Note{
+	Name:              "legacy-ech-options",
+	Description:       "legacy ECH options",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.13.0",
+	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#legacy-ech-fields",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
@@ -194,4 +203,5 @@ var Options = []Note{
 	OptionLegacyDNSFakeIPOptions,
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
+	OptionLegacyECHOptions,
 }
