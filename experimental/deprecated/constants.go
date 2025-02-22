@@ -144,6 +144,7 @@ var OptionTUNGSO = Note{
 	DeprecatedVersion: "1.11.0",
 	ScheduledVersion:  "1.12.0",
 	EnvName:           "TUN_GSO",
+	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#gso-option-in-tun",
 }
 
 var OptionLegacyDNSTransport = Note{
@@ -184,6 +185,7 @@ var OptionLegacyECHOptions = Note{
 	Description:       "legacy ECH options",
 	DeprecatedVersion: "1.12.0",
 	ScheduledVersion:  "1.13.0",
+	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#legacy-ech-fields",
 }
 
 var Options = []Note{
