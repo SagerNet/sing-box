@@ -1,3 +1,9 @@
+---
+icon: material/new-box
+---
+
+!!! question "Since sing-box 1.12.0"
+
 ### Structure
 
 ```json
@@ -33,6 +39,20 @@ AnyTLS users.
 #### padding_scheme
 
 AnyTLS padding scheme line array.
+
+Default padding scheme:
+
+```
+stop=8
+0=34-120
+1=100-400
+2=400-500,c,500-1000,c,400-500,c,500-1000,c,500-1000,c,400-500
+3=500-1000
+4=500-1000
+5=500-1000
+6=500-1000
+7=500-1000
+```
 
 #### tls
 

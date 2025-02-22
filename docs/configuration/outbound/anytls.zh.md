@@ -1,3 +1,9 @@
+---
+icon: material/new-box
+---
+
+!!! question "自 sing-box 1.12.0 起"
+
 ### 结构
 
 ```json
