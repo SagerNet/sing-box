@@ -1,3 +1,12 @@
+---
+icon: material/alert-decagram
+---
+
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)  
+    :material-delete-clock: [ech.dynamic_record_sizing_disabled](#dynamic_record_sizing_disabled)
+
 !!! quote "sing-box 1.10.0 中的更改"
 
     :material-alert-decagram: [utls](#utls)  
@@ -34,18 +43,21 @@
   },
   "ech": {
     "enabled": false,
-    "pq_signature_schemes_enabled": false,
-    "dynamic_record_sizing_disabled": false,
     "key": [],
-    "key_path": ""
+    "key_path": "",
+
+    // 废弃的
+    
+    "pq_signature_schemes_enabled": false,
+    "dynamic_record_sizing_disabled": false
   },
   "reality": {
     "enabled": false,
     "handshake": {
       "server": "google.com",
       "server_port": 443,
-      ...
-      // 拨号字段
+      
+      ... // 拨号字段
     },
     "private_key": "UuMBgl7MXTPx9inmQp2UC7Jcnwc6XYbwDNebonM-FCc",
     "short_id": [
@@ -240,19 +252,6 @@ ECH (Encrypted Client Hello) 是一个 TLS 扩展，它允许客户端加密其 
 
 ECH 配置和密钥可以通过 `sing-box generate ech-keypair [--pq-signature-schemes-enabled]` 生成。
 
-#### pq_signature_schemes_enabled
-
-启用对后量子对等证书签名方案的支持。
-
-建议匹配 `sing-box generate ech-keypair` 的参数。
-
-#### dynamic_record_sizing_disabled
-
-禁用 TLS 记录的自适应大小调整。
-
-如果为 true，则始终使用最大可能的 TLS 记录大小。
-如果为 false，则可能会调整 TLS 记录的大小以尝试改善延迟。
-
 #### key
 
 ==仅服务器==
@@ -284,6 +283,27 @@ ECH PEM 配置行数组
 ECH PEM 配置路径
 
 如果为空，将尝试从 DNS 加载。
+
+#### pq_signature_schemes_enabled
+
+!!! failure "已在 sing-box 1.12.0 废弃"
+
+    ECH 支持已在 sing-box 1.12.0 迁移至使用标准库，但标准库不支持后量子对等证书签名方案，因此 `pq_signature_schemes_enabled` 已被弃用且不再工作。
+
+启用对后量子对等证书签名方案的支持。
+
+建议匹配 `sing-box generate ech-keypair` 的参数。
+
+#### dynamic_record_sizing_disabled
+
+!!! failure "已在 sing-box 1.12.0 废弃"
+
+    `dynamic_record_sizing_disabled` 与 ECH 无关，是错误添加的，现已弃用且不再工作。
+
+禁用 TLS 记录的自适应大小调整。
+
+如果为 true，则始终使用最大可能的 TLS 记录大小。
+如果为 false，则可能会调整 TLS 记录的大小以尝试改善延迟。
 
 ### ACME 字段
 
