@@ -212,8 +212,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
-          repository: 'jxw7453/sing-box-for-android' # 指定要克隆的 GitHub 仓库，格式为：用户名/仓库名
-          #token: ${{ secrets.OTHER_REPO_ACCESS_TOKEN }} # 如果仓库是私有仓库，需要提供访问令牌
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
