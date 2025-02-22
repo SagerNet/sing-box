@@ -15,7 +15,7 @@ import (
 
 func TestECH(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -108,7 +108,7 @@ func TestECH(t *testing.T) {
 
 func TestECHQUIC(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -198,7 +198,7 @@ func TestECHQUIC(t *testing.T) {
 
 func TestECHHysteria2(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
