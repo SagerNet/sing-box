@@ -163,8 +163,6 @@ github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1 h1:qi+ijeREa0yfAaO
 github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1/go.mod h1:JULDuzTMn2gyZFcjpTVZP4/UuwAdbHJ0bum2RdjXojU=
 github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a h1:+NkI2670SQpQWvkkD2QgdTuzQG263YZ+2emfpeyGqW0=
 github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a/go.mod h1:63s7jpZqcDAIpj8oI/1v4Izok+npJOHACFCU6+huCkM=
-github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1 h1:YbmpqPQEMdlk9oFSKYWRqVuu9qzNiOayIonKmv1gCXY=
-github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1/go.mod h1:J2yAxTFPDjrDPhuAi9aWFz2L3ox9it4qAluBBbN0H5k=
 github.com/sagernet/cors v1.2.1 h1:Cv5Z8y9YSD6Gm+qSpNrL3LO4lD3eQVvbFYJSG7JCMHQ=
 github.com/sagernet/cors v1.2.1/go.mod h1:O64VyOjjhrkLmQIjF4KGRrJO/5dVXFdpEmCW/eISRAI=
 github.com/sagernet/fswatch v0.1.1 h1:YqID+93B7VRfqIH3PArW/XpJv5H4OLEVWDfProGoRQs=
