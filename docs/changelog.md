@@ -4,12 +4,26 @@ icon: material/alert-decagram
 
 #### 1.12.0-alpha.10
 
-* Improve `resolve` route action **1**
+* Add AnyTLS protocol **1**
+* Improve `resolve` route action **2**
+* Migrate to stdlib ECH implementation **3**
 * Fixes and improvements
 
 **1**:
 
+The new AnyTLS protocol claims to mitigate TLS proxy traffic characteristics and comes with a new multiplexing scheme.
+
+See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/configuration/outbound/anytls/).
+
+**2**:
+
 `resolve` route action now accepts `disable_cache` and other options like in DNS route actions, see [Route Action](/configuration/route/rule_action).
+
+**3**:
+
+See [TLS](/configuration/shared/tls).
+
+The build tag `with_ech` is no longer needed and has been removed.
 
 #### 1.12.0-alpha.7
 
