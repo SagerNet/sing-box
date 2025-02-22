@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 var globalCtx context.Context
 
 func init() {
-	globalCtx = box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	globalCtx = box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), include.DNSTransportRegistry())
 }
 
 func startInstance(t *testing.T, options option.Options) *box.Box {
