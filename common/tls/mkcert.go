@@ -12,6 +12,9 @@ import (
 )
 
 func GenerateKeyPair(parent *x509.Certificate, parentKey any, timeFunc func() time.Time, serverName string) (*tls.Certificate, error) {
+	if timeFunc == nil {
+		timeFunc = time.Now
+	}
 	privateKeyPem, publicKeyPem, err := GenerateCertificate(parent, parentKey, timeFunc, serverName, timeFunc().Add(time.Hour))
 	if err != nil {
 		return nil, err
@@ -24,9 +27,6 @@ func GenerateKeyPair(parent *x509.Certificate, parentKey any, timeFunc func() ti
 }
 
 func GenerateCertificate(parent *x509.Certificate, parentKey any, timeFunc func() time.Time, serverName string, expire time.Time) (privateKeyPem []byte, publicKeyPem []byte, err error) {
-	if timeFunc == nil {
-		timeFunc = time.Now
-	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return
