@@ -127,5 +127,8 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 		}
 		tlsConfig.RootCAs = certPool
 	}
+	if options.ECH != nil && options.ECH.Enabled {
+		return parseECHClientConfig(ctx, options, &tlsConfig)
+	}
 	return &STDClientConfig{&tlsConfig}, nil
 }
