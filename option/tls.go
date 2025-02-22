@@ -83,19 +83,25 @@ type InboundRealityHandshakeOptions struct {
 }
 
 type InboundECHOptions struct {
-	Enabled                     bool                       `json:"enabled,omitempty"`
-	PQSignatureSchemesEnabled   bool                       `json:"pq_signature_schemes_enabled,omitempty"`
-	DynamicRecordSizingDisabled bool                       `json:"dynamic_record_sizing_disabled,omitempty"`
-	Key                         badoption.Listable[string] `json:"key,omitempty"`
-	KeyPath                     string                     `json:"key_path,omitempty"`
+	Enabled bool                       `json:"enabled,omitempty"`
+	Key     badoption.Listable[string] `json:"key,omitempty"`
+	KeyPath string                     `json:"key_path,omitempty"`
+
+	// Deprecated: not supported by stdlib
+	PQSignatureSchemesEnabled bool `json:"pq_signature_schemes_enabled,omitempty"`
+	// Deprecated: added by fault
+	DynamicRecordSizingDisabled bool `json:"dynamic_record_sizing_disabled,omitempty"`
 }
 
 type OutboundECHOptions struct {
-	Enabled                     bool                       `json:"enabled,omitempty"`
-	PQSignatureSchemesEnabled   bool                       `json:"pq_signature_schemes_enabled,omitempty"`
-	DynamicRecordSizingDisabled bool                       `json:"dynamic_record_sizing_disabled,omitempty"`
-	Config                      badoption.Listable[string] `json:"config,omitempty"`
-	ConfigPath                  string                     `json:"config_path,omitempty"`
+	Enabled    bool                       `json:"enabled,omitempty"`
+	Config     badoption.Listable[string] `json:"config,omitempty"`
+	ConfigPath string                     `json:"config_path,omitempty"`
+
+	// Deprecated: not supported by stdlib
+	PQSignatureSchemesEnabled bool `json:"pq_signature_schemes_enabled,omitempty"`
+	// Deprecated: added by fault
+	DynamicRecordSizingDisabled bool `json:"dynamic_record_sizing_disabled,omitempty"`
 }
 
 type OutboundUTLSOptions struct {
