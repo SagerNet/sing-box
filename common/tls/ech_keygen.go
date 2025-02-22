@@ -1,5 +1,3 @@
-//go:build with_ech
-
 package tls
 
 import (
@@ -7,14 +5,13 @@ import (
 	"encoding/binary"
 	"encoding/pem"
 
-	cftls "github.com/sagernet/cloudflare-tls"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/cloudflare/circl/hpke"
 	"github.com/cloudflare/circl/kem"
 )
 
-func ECHKeygenDefault(serverName string, pqSignatureSchemesEnabled bool) (configPem string, keyPem string, err error) {
+func ECHKeygenDefault(serverName string) (configPem string, keyPem string, err error) {
 	cipherSuites := []echCipherSuite{
 		{
 			kdf:  hpke.KDF_HKDF_SHA256,
@@ -24,12 +21,8 @@ func ECHKeygenDefault(serverName string, pqSignatureSchemesEnabled bool) (config
 			aead: hpke.AEAD_ChaCha20Poly1305,
 		},
 	}
-
 	keyConfig := []myECHKeyConfig{
 		{id: 0, kem: hpke.KEM_X25519_HKDF_SHA256},
-	}
-	if pqSignatureSchemesEnabled {
-		keyConfig = append(keyConfig, myECHKeyConfig{id: 1, kem: hpke.KEM_X25519_KYBER768_DRAFT00})
 	}
 
 	keyPairs, err := echKeygen(0xfe0d, serverName, keyConfig, cipherSuites)
@@ -59,7 +52,6 @@ func ECHKeygenDefault(serverName string, pqSignatureSchemesEnabled bool) (config
 
 type echKeyConfigPair struct {
 	id      uint8
-	key     cftls.EXP_ECHKey
 	rawKey  []byte
 	conf    myECHKeyConfig
 	rawConf []byte
@@ -155,15 +147,6 @@ func echKeygen(version uint16, serverName string, conf []myECHKeyConfig, suite [
 		sk = append(sk, secBuf...)
 		sk = be.AppendUint16(sk, uint16(len(b)))
 		sk = append(sk, b...)
-
-		cfECHKeys, err := cftls.EXP_UnmarshalECHKeys(sk)
-		if err != nil {
-			return nil, E.Cause(err, "bug: can't parse generated ECH server key")
-		}
-		if len(cfECHKeys) != 1 {
-			return nil, E.New("bug: unexpected server key count")
-		}
-		pair.key = cfECHKeys[0]
 		pair.rawKey = sk
 
 		pairs = append(pairs, pair)
