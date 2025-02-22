@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.0-alpha.11
+
+* Fixes and improvements
+
 #### 1.12.0-alpha.10
 
 * Add AnyTLS protocol **1**
