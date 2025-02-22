@@ -46,7 +46,7 @@ func parseECHClientConfig(ctx context.Context, options option.OutboundTLSOptions
 		tlsConfig.EncryptedClientHelloConfigList = block.Bytes
 		return &STDClientConfig{tlsConfig}, nil
 	} else {
-		return &STDECHClientConfig{STDClientConfig{tlsConfig}}, nil
+		return &STDECHClientConfig{STDClientConfig{tlsConfig}, service.FromContext[adapter.DNSRouter](ctx)}, nil
 	}
 }
 
@@ -99,9 +99,10 @@ func reloadECHKeys(echKeyPath string, tlsConfig *tls.Config) error {
 
 type STDECHClientConfig struct {
 	STDClientConfig
+	dnsRouter adapter.DNSRouter
 }
 
-func (s *STDClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
+func (s *STDECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
 	if len(s.config.EncryptedClientHelloConfigList) == 0 {
 		message := &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{
@@ -115,8 +116,7 @@ func (s *STDClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (a
 				},
 			},
 		}
-		dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
-		response, err := dnsRouter.Exchange(ctx, message, adapter.DNSQueryOptions{})
+		response, err := s.dnsRouter.Exchange(ctx, message, adapter.DNSQueryOptions{})
 		if err != nil {
 			return nil, E.Cause(err, "fetch ECH config list")
 		}
@@ -151,7 +151,7 @@ func (s *STDClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (a
 }
 
 func (s *STDECHClientConfig) Clone() Config {
-	return &STDECHClientConfig{STDClientConfig{s.config.Clone()}}
+	return &STDECHClientConfig{STDClientConfig{s.config.Clone()}, s.dnsRouter}
 }
 
 func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {
