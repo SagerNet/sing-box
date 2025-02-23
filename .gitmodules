@@ -3,4 +3,4 @@
 	url = https://github.com/SagerNet/sing-box-for-apple.git
 [submodule "clients/android"]
 	path = clients/android
-	url = https://github.com/SagerNet/sing-box-for-android.git
+	url = https://github.com/jxw7453/sing-box-for-android.git
