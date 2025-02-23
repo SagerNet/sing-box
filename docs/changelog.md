@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+### 1.11.4
+
+* Fixes and improvements
+
 ### 1.11.3
 
 * Fixes and improvements
