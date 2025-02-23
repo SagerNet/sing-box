@@ -246,8 +246,6 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	if err != nil {
 		return err
 	}
-	m.access.Lock()
-	defer m.access.Unlock()
 	if m.started {
 		for _, stage := range adapter.ListStartStages {
 			err = adapter.LegacyStart(outbound, stage)
@@ -256,6 +254,8 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 			}
 		}
 	}
+	m.access.Lock()
+	defer m.access.Unlock()
 	if existsOutbound, loaded := m.outboundByTag[tag]; loaded {
 		if m.started {
 			err = common.Close(existsOutbound)
