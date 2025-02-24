@@ -16,13 +16,14 @@ builds:
       - with_quic
       - with_dhcp
       - with_wireguard
-      - with_ech
       - with_utls
       - with_reality_server
       - with_acme
       - with_clash_api
+      - with_tailscale
     env:
       - CGO_ENABLED=0
+      - GOTOOLCHAIN=local
     targets:
       - linux_386
       - linux_amd64_v1
@@ -49,18 +50,19 @@ builds:
       - with_reality_server
       - with_acme
       - with_clash_api
+      - with_tailscale
     env:
       - CGO_ENABLED=0
-      - GOROOT={{ .Env.GOPATH }}/go1.20.14
-    gobinary: "{{ .Env.GOPATH }}/go1.20.14/bin/go"
+      - GOROOT={{ .Env.GOPATH }}/go_legacy
+    tool: "{{ .Env.GOPATH }}/go_legacy/bin/go"
     targets:
       - windows_amd64_v1
       - windows_386
-      - darwin_amd64_v1
   - id: android
     <<: *template
     env:
       - CGO_ENABLED=1
+      - GOTOOLCHAIN=local
     overrides:
       - goos: android
         goarch: arm
@@ -122,8 +124,8 @@ nfpms:
       - deb
       - rpm
       - archlinux
-#      - apk
-#      - ipk
+    #      - apk
+    #      - ipk
     priority: extra
     contents:
       - src: release/config/config.json

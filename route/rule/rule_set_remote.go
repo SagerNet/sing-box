@@ -3,6 +3,7 @@ package rule
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -33,23 +35,23 @@ import (
 var _ adapter.RuleSet = (*RemoteRuleSet)(nil)
 
 type RemoteRuleSet struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	outboundManager adapter.OutboundManager
-	logger          logger.ContextLogger
-	options         option.RuleSet
-	metadata        adapter.RuleSetMetadata
-	updateInterval  time.Duration
-	dialer          N.Dialer
-	rules           []adapter.HeadlessRule
-	lastUpdated     time.Time
-	lastEtag        string
-	updateTicker    *time.Ticker
-	cacheFile       adapter.CacheFile
-	pauseManager    pause.Manager
-	callbackAccess  sync.Mutex
-	callbacks       list.List[adapter.RuleSetUpdateCallback]
-	refs            atomic.Int32
+	ctx            context.Context
+	cancel         context.CancelFunc
+	logger         logger.ContextLogger
+	outbound       adapter.OutboundManager
+	options        option.RuleSet
+	metadata       adapter.RuleSetMetadata
+	updateInterval time.Duration
+	dialer         N.Dialer
+	rules          []adapter.HeadlessRule
+	lastUpdated    time.Time
+	lastEtag       string
+	updateTicker   *time.Ticker
+	cacheFile      adapter.CacheFile
+	pauseManager   pause.Manager
+	callbackAccess sync.Mutex
+	callbacks      list.List[adapter.RuleSetUpdateCallback]
+	refs           atomic.Int32
 }
 
 func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -61,13 +63,13 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, options 
 		updateInterval = 24 * time.Hour
 	}
 	return &RemoteRuleSet{
-		ctx:             ctx,
-		cancel:          cancel,
-		outboundManager: service.FromContext[adapter.OutboundManager](ctx),
-		logger:          logger,
-		options:         options,
-		updateInterval:  updateInterval,
-		pauseManager:    service.FromContext[pause.Manager](ctx),
+		ctx:            ctx,
+		cancel:         cancel,
+		outbound:       service.FromContext[adapter.OutboundManager](ctx),
+		logger:         logger,
+		options:        options,
+		updateInterval: updateInterval,
+		pauseManager:   service.FromContext[pause.Manager](ctx),
 	}
 }
 
@@ -83,13 +85,13 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	var dialer N.Dialer
 	if s.options.RemoteOptions.DownloadDetour != "" {
-		outbound, loaded := s.outboundManager.Outbound(s.options.RemoteOptions.DownloadDetour)
+		outbound, loaded := s.outbound.Outbound(s.options.RemoteOptions.DownloadDetour)
 		if !loaded {
-			return E.New("download_detour not found: ", s.options.RemoteOptions.DownloadDetour)
+			return E.New("download detour not found: ", s.options.RemoteOptions.DownloadDetour)
 		}
 		dialer = outbound
 	} else {
-		dialer = s.outboundManager.Default()
+		dialer = s.outbound.Default()
 	}
 	s.dialer = dialer
 	if s.cacheFile != nil {
@@ -235,6 +237,10 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 				},
+				TLSClientConfig: &tls.Config{
+					Time:    ntp.TimeFuncFromContext(s.ctx),
+					RootCAs: adapter.RootPoolFromContext(s.ctx),
+				},
 			},
 		}
 	}
@@ -286,7 +292,7 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 	}
 	s.lastUpdated = time.Now()
 	if s.cacheFile != nil {
-		err = s.cacheFile.SaveRuleSet(s.options.Tag, &adapter.SavedRuleSet{
+		err = s.cacheFile.SaveRuleSet(s.options.Tag, &adapter.SavedBinary{
 			LastUpdated: s.lastUpdated,
 			Content:     content,
 			LastEtag:    s.lastEtag,
@@ -301,8 +307,10 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 
 func (s *RemoteRuleSet) Close() error {
 	s.rules = nil
-	s.updateTicker.Stop()
 	s.cancel()
+	if s.updateTicker != nil {
+		s.updateTicker.Stop()
+	}
 	return nil
 }
 

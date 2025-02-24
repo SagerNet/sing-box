@@ -5,10 +5,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net"
-	"net/netip"
 	"os"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
@@ -51,9 +51,7 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 	if options.ServerName != "" {
 		serverName = options.ServerName
 	} else if serverAddress != "" {
-		if _, err := netip.ParseAddr(serverName); err != nil {
-			serverName = serverAddress
-		}
+		serverName = serverAddress
 	}
 	if serverName == "" && !options.Insecure {
 		return nil, E.New("missing server_name or insecure=true")
@@ -61,6 +59,7 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 
 	var tlsConfig tls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
+	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
 	if options.DisableSNI {
 		tlsConfig.ServerName = "127.0.0.1"
 	} else {
@@ -127,6 +126,9 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 			return nil, E.New("failed to parse certificate:\n\n", certificate)
 		}
 		tlsConfig.RootCAs = certPool
+	}
+	if options.ECH != nil && options.ECH.Enabled {
+		return parseECHClientConfig(ctx, options, &tlsConfig)
 	}
 	return &STDClientConfig{&tlsConfig}, nil
 }

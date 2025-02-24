@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
@@ -26,14 +27,16 @@ import (
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
 
 type LocalRuleSet struct {
-	ctx        context.Context
-	logger     logger.Logger
-	tag        string
-	rules      []adapter.HeadlessRule
-	metadata   adapter.RuleSetMetadata
-	fileFormat string
-	watcher    *fswatch.Watcher
-	refs       atomic.Int32
+	ctx            context.Context
+	logger         logger.Logger
+	tag            string
+	rules          []adapter.HeadlessRule
+	metadata       adapter.RuleSetMetadata
+	fileFormat     string
+	watcher        *fswatch.Watcher
+	callbackAccess sync.Mutex
+	callbacks      list.List[adapter.RuleSetUpdateCallback]
+	refs           atomic.Int32
 }
 
 func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.RuleSet) (*LocalRuleSet, error) {
@@ -52,13 +55,12 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.R
 			return nil, err
 		}
 	} else {
-		err := ruleSet.reloadFile(filemanager.BasePath(ctx, options.LocalOptions.Path))
+		filePath := filemanager.BasePath(ctx, options.LocalOptions.Path)
+		filePath, _ = filepath.Abs(filePath)
+		err := ruleSet.reloadFile(filePath)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if options.Type == C.RuleSetTypeLocal {
-		filePath, _ := filepath.Abs(options.LocalOptions.Path)
 		watcher, err := fswatch.NewWatcher(fswatch.Options{
 			Path: []string{filePath},
 			Callback: func(path string) {
@@ -141,6 +143,12 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	metadata.ContainsIPCIDRRule = hasHeadlessRule(headlessRules, isIPCIDRHeadlessRule)
 	s.rules = rules
 	s.metadata = metadata
+	s.callbackAccess.Lock()
+	callbacks := s.callbacks.Array()
+	s.callbackAccess.Unlock()
+	for _, callback := range callbacks {
+		callback(s)
+	}
 	return nil
 }
 
@@ -173,10 +181,15 @@ func (s *LocalRuleSet) Cleanup() {
 }
 
 func (s *LocalRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
-	return nil
+	s.callbackAccess.Lock()
+	defer s.callbackAccess.Unlock()
+	return s.callbacks.PushBack(callback)
 }
 
 func (s *LocalRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
+	s.callbackAccess.Lock()
+	defer s.callbackAccess.Unlock()
+	s.callbacks.Remove(element)
 }
 
 func (s *LocalRuleSet) Close() error {

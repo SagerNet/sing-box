@@ -3,6 +3,7 @@ package clashapi
 import (
 	"archive/zip"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service/filemanager"
 )
 
@@ -41,7 +43,6 @@ func (s *Server) downloadExternalUI() error {
 	} else {
 		downloadURL = "https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip"
 	}
-	s.logger.Info("downloading external ui")
 	var detour adapter.Outbound
 	if s.externalUIDownloadDetour != "" {
 		outbound, loaded := s.outbound.Outbound(s.externalUIDownloadDetour)
@@ -53,12 +54,17 @@ func (s *Server) downloadExternalUI() error {
 		outbound := s.outbound.Default()
 		detour = outbound
 	}
+	s.logger.Info("downloading external ui using outbound/", detour.Type(), "[", detour.Tag(), "]")
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
 			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSClientConfig: &tls.Config{
+				Time:    ntp.TimeFuncFromContext(s.ctx),
+				RootCAs: adapter.RootPoolFromContext(s.ctx),
 			},
 		},
 	}

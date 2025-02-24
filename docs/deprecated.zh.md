@@ -4,6 +4,28 @@ icon: material/delete-alert
 
 # 废弃功能列表
 
+#### 旧的 DNS 服务器格式
+
+DNS 服务器已重构，
+参阅 [迁移指南](/migration/#migrate-to-new-dns-servers).
+
+对旧格式的兼容性将在 sing-box 1.14.0 中被移除。
+
+#### `outbound` DNS 规则项
+
+旧的 `outbound` DNS 规则已废弃，
+且可被拨号字段代替，
+参阅 [迁移指南](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+#### 旧的 ECH 字段
+
+ECH 支持已在 sing-box 1.12.0 迁移至使用标准库，但标准库不支持后量子对等证书签名方案，
+因此 `pq_signature_schemes_enabled` 已被弃用且不再工作。
+
+另外，`dynamic_record_sizing_disabled` 与 ECH 无关，是错误添加的，现已弃用且不再工作。
+
+相关字段将在 sing-box 1.13.0 中被移除。
+
 ## 1.11.0
 
 #### 旧的特殊出站
@@ -20,7 +42,7 @@ icon: material/delete-alert
 
 旧字段将在 sing-box 1.13.0 中被移除。
 
-####  direct 出站中的目标地址覆盖字段
+#### direct 出站中的目标地址覆盖字段
 
 direct 出站中的目标地址覆盖字段（`override_address` / `override_port`）已废弃且可以通过规则动作替代，
 参阅 [迁移指南](/migration/#migrate-destination-override-fields-to-route-options)。

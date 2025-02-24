@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [tls_fragment](#tls_fragment)  
+    :material-plus: [tls_fragment_fallback_delay](#tls_fragment_fallback_delay)
+
 ## 最终动作
 
 ### route
@@ -26,6 +31,45 @@ icon: material/new-box
 #### route-options 字段
 
 参阅下方的 `route-options` 字段。
+
+### reject
+
+```json
+{
+  "action": "reject",
+  "method": "default",  // 默认
+  "no_drop": false
+}
+```
+
+`reject` 拒绝连接。
+
+如果尚未执行 `sniff` 操作，则将使用指定方法拒绝 tun 连接。
+
+对于非 tun 连接和已建立的连接，将直接关闭。
+
+#### method
+
+- `default`: 对于 TCP 连接回复 RST，对于 UDP 包回复 ICMP 端口不可达。
+- `drop`: 丢弃数据包。
+
+#### no_drop
+
+如果未启用，则 30 秒内触发 50 次后，`method` 将被暂时覆盖为 `drop`。
+
+当 `method` 设为 `drop` 时不可用。
+
+### hijack-dns
+
+```json
+{
+  "action": "hijack-dns"
+}
+```
+
+`hijack-dns` 劫持 DNS 请求至 sing-box DNS 模块。
+
+## 非最终动作
 
 ### route-options
 
@@ -107,44 +151,27 @@ UDP 连接超时时间。
 | 443  | `quic` |
 | 3478 | `stun` |
 
-### reject
+#### tls_fragment
 
-```json
-{
-  "action": "reject",
-  "method": "default",  // 默认
-  "no_drop": false
-}
-```
+!!! question "自 sing-box 1.12.0 起"
 
-`reject` 拒绝连接。
+通过分段 TLS 握手数据包来绕过防火墙检测。
 
-如果尚未执行 `sniff` 操作，则将使用指定方法拒绝 tun 连接。
+此功能旨在规避基于**明文数据包匹配**的简单防火墙，不应该用于规避真的审查。
 
-对于非 tun 连接和已建立的连接，将直接关闭。
+由于它不是为性能设计的，不应被应用于所有连接，而仅应用于已知被阻止的服务器名称。
 
-#### method
+在 Linux、Apple 平台和需要管理员权限的 Windows 系统上，可自动检测等待时间。若无法自动检测，将回退使用 `tls_fragment_fallback_delay` 指定的固定等待时间。
 
-- `default`: 对于 TCP 连接回复 RST，对于 UDP 包回复 ICMP 端口不可达。
-- `drop`: 丢弃数据包。
+此外，若实际等待时间小于 20 毫秒，同样会回退至固定等待时间模式，因为此时判定目标处于本地或透明代理之后。
 
-#### no_drop
+#### tls_fragment_fallback_delay
 
-如果未启用，则 30 秒内触发 50 次后，`method` 将被暂时覆盖为 `drop`。
+!!! question "自 sing-box 1.12.0 起"
 
-当 `method` 设为 `drop` 时不可用。
+当 TLS 分片功能无法自动判定等待时间时使用的回退值。
 
-### hijack-dns
-
-```json
-{
-  "action": "hijack-dns"
-}
-```
-
-`hijack-dns` 劫持 DNS 请求至 sing-box DNS 模块。
-
-## 非最终动作
+默认使用 `500ms`。
 
 ### sniff
 
@@ -179,12 +206,19 @@ UDP 连接超时时间。
 ```json
 {
   "action": "resolve",
+  "server": "",
   "strategy": "",
-  "server": ""
+  "disable_cache": false,
+  "rewrite_ttl": null,
+  "client_subnet": null
 }
 ```
 
 `resolve` 将请求的目标从域名解析为 IP 地址。
+
+#### server
+
+指定要使用的 DNS 服务器的标签，而不是通过 DNS 路由进行选择。
 
 #### strategy
 
@@ -192,6 +226,24 @@ DNS 解析策略，可用值有：`prefer_ipv4`、`prefer_ipv6`、`ipv4_only`、
 
 默认使用 `dns.strategy`。
 
-#### server
+#### disable_cache
 
-指定要使用的 DNS 服务器的标签，而不是通过 DNS 路由进行选择。
+!!! question "自 sing-box 1.12.0 起"
+
+在此查询中禁用缓存。
+
+#### rewrite_ttl
+
+!!! question "自 sing-box 1.12.0 起"
+
+重写 DNS 回应中的 TTL。
+
+#### client_subnet
+
+!!! question "自 sing-box 1.12.0 起"
+
+默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
+
+将覆盖 `dns.client_subnet`.

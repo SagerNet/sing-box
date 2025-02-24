@@ -305,16 +305,18 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if t.tunOptions.Name == "" {
 			t.tunOptions.Name = tun.CalculateInterfaceName("")
 		}
-		if t.platformInterface == nil || runtime.GOOS != "android" {
+		if t.platformInterface == nil {
 			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeRuleSet.Name())
 				}
-				t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
 				routeRuleSet.DecRef()
 				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
+				if t.autoRedirect != nil {
+					t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				}
 			}
 			t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
@@ -322,9 +324,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
 				}
-				t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
 				routeExcludeRuleSet.DecRef()
 				t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
+				if t.autoRedirect != nil {
+					t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+				}
 			}
 		}
 		var (
@@ -357,6 +361,9 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if t.platformInterface != nil {
 			tunInterface, err = t.platformInterface.OpenTun(&tunOptions, t.platformOptions)
 		} else {
+			if HookBeforeCreatePlatformInterface != nil {
+				HookBeforeCreatePlatformInterface()
+			}
 			tunInterface, err = tun.New(tunOptions)
 		}
 		monitor.Finish()
@@ -421,41 +428,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 	t.routeExcludeAddressSet = common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
-	if t.autoRedirect != nil {
-		t.autoRedirect.UpdateRouteAddressSet()
-	} else {
-		tunOptions := t.tunOptions
-		for _, ipSet := range t.routeAddressSet {
-			for _, prefix := range ipSet.Prefixes() {
-				if prefix.Addr().Is4() {
-					tunOptions.Inet4RouteAddress = append(tunOptions.Inet4RouteAddress, prefix)
-				} else {
-					tunOptions.Inet6RouteAddress = append(tunOptions.Inet6RouteAddress, prefix)
-				}
-			}
-		}
-		for _, ipSet := range t.routeExcludeAddressSet {
-			for _, prefix := range ipSet.Prefixes() {
-				if prefix.Addr().Is4() {
-					tunOptions.Inet4RouteExcludeAddress = append(tunOptions.Inet4RouteExcludeAddress, prefix)
-				} else {
-					tunOptions.Inet6RouteExcludeAddress = append(tunOptions.Inet6RouteExcludeAddress, prefix)
-				}
-			}
-		}
-		if t.platformInterface != nil {
-			err := t.platformInterface.UpdateRouteOptions(&tunOptions, t.platformOptions)
-			if err != nil {
-				t.logger.Error("update route addresses: ", err)
-			}
-		} else {
-			err := t.tunIf.UpdateRouteOptions(tunOptions)
-			if err != nil {
-				t.logger.Error("update route addresses: ", err)
-			}
-		}
-		t.logger.Info("updated route addresses")
-	}
+	t.autoRedirect.UpdateRouteAddressSet()
 	t.routeAddressSet = nil
 	t.routeExcludeAddressSet = nil
 }

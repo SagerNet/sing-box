@@ -2,44 +2,29 @@ package adapter
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
-	"net/netip"
 	"sync"
 
-	"github.com/sagernet/sing-box/common/geoip"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/x/list"
 
-	mdns "github.com/miekg/dns"
 	"go4.org/netipx"
 )
 
 type Router interface {
 	Lifecycle
-
-	FakeIPStore() FakeIPStore
-
 	ConnectionRouter
 	PreMatch(metadata InboundContext) error
 	ConnectionRouterEx
-
-	GeoIPReader() *geoip.Reader
-	LoadGeosite(code string) (Rule, error)
 	RuleSet(tag string) (RuleSet, bool)
 	NeedWIFIState() bool
-
-	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
-	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
-	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
-	ClearDNSCache()
 	Rules() []Rule
-
 	SetTracker(tracker ConnectionTracker)
-
 	ResetNetwork()
 }
 
@@ -83,12 +68,14 @@ type RuleSetMetadata struct {
 	ContainsIPCIDRRule  bool
 }
 type HTTPStartContext struct {
+	ctx             context.Context
 	access          sync.Mutex
 	httpClientCache map[string]*http.Client
 }
 
-func NewHTTPStartContext() *HTTPStartContext {
+func NewHTTPStartContext(ctx context.Context) *HTTPStartContext {
 	return &HTTPStartContext{
+		ctx:             ctx,
 		httpClientCache: make(map[string]*http.Client),
 	}
 }
@@ -105,6 +92,10 @@ func (c *HTTPStartContext) HTTPClient(detour string, dialer N.Dialer) *http.Clie
 			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSClientConfig: &tls.Config{
+				Time:    ntp.TimeFuncFromContext(c.ctx),
+				RootCAs: RootPoolFromContext(c.ctx),
 			},
 		},
 	}

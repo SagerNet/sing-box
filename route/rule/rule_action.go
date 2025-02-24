@@ -13,7 +13,6 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -37,6 +36,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
 				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
 				UDPConnect:                action.RouteOptions.UDPConnect,
+				TLSFragment:               action.RouteOptions.TLSFragment,
+				TLSFragmentFallbackDelay:  time.Duration(action.RouteOptions.TLSFragmentFallbackDelay),
 			},
 		}, nil
 	case C.RuleActionTypeRouteOptions:
@@ -48,9 +49,11 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
 			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
 			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
+			TLSFragment:               action.RouteOptionsOptions.TLSFragment,
+			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
 		}, nil
 	case C.RuleActionTypeDirect:
-		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions))
+		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
 		if err != nil {
 			return nil, err
 		}
@@ -85,8 +88,11 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
-			Strategy: dns.DomainStrategy(action.ResolveOptions.Strategy),
-			Server:   action.ResolveOptions.Server,
+			Server:       action.ResolveOptions.Server,
+			Strategy:     C.DomainStrategy(action.ResolveOptions.Strategy),
+			DisableCache: action.ResolveOptions.DisableCache,
+			RewriteTTL:   action.ResolveOptions.RewriteTTL,
+			ClientSubnet: action.ResolveOptions.ClientSubnet.Build(netip.Prefix{}),
 		}, nil
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -101,6 +107,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		return &RuleActionDNSRoute{
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
+				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
 				DisableCache: action.RouteOptions.DisableCache,
 				RewriteTTL:   action.RouteOptions.RewriteTTL,
 				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
@@ -108,6 +115,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		}
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
+			Strategy:     C.DomainStrategy(action.RouteOptionsOptions.Strategy),
 			DisableCache: action.RouteOptionsOptions.DisableCache,
 			RewriteTTL:   action.RouteOptionsOptions.RewriteTTL,
 			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
@@ -141,6 +149,9 @@ func (r *RuleActionRoute) String() string {
 	if r.UDPConnect {
 		descriptions = append(descriptions, "udp-connect")
 	}
+	if r.TLSFragment {
+		descriptions = append(descriptions, "tls-fragment")
+	}
 	return F.ToString("route(", strings.Join(descriptions, ","), ")")
 }
 
@@ -154,6 +165,8 @@ type RuleActionRouteOptions struct {
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
 	UDPTimeout                time.Duration
+	TLSFragment               bool
+	TLSFragmentFallbackDelay  time.Duration
 }
 
 func (r *RuleActionRouteOptions) Type() string {
@@ -162,11 +175,32 @@ func (r *RuleActionRouteOptions) Type() string {
 
 func (r *RuleActionRouteOptions) String() string {
 	var descriptions []string
+	if r.OverrideAddress.IsValid() {
+		descriptions = append(descriptions, F.ToString("override-address=", r.OverrideAddress.AddrString()))
+	}
+	if r.OverridePort > 0 {
+		descriptions = append(descriptions, F.ToString("override-port=", r.OverridePort))
+	}
+	if r.NetworkStrategy != nil {
+		descriptions = append(descriptions, F.ToString("network-strategy=", r.NetworkStrategy))
+	}
+	if r.NetworkType != nil {
+		descriptions = append(descriptions, F.ToString("network-type=", strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackNetworkType != nil {
+		descriptions = append(descriptions, F.ToString("fallback-network-type="+strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+	}
+	if r.FallbackDelay > 0 {
+		descriptions = append(descriptions, F.ToString("fallback-delay=", r.FallbackDelay.String()))
+	}
 	if r.UDPDisableDomainUnmapping {
 		descriptions = append(descriptions, "udp-disable-domain-unmapping")
 	}
 	if r.UDPConnect {
 		descriptions = append(descriptions, "udp-connect")
+	}
+	if r.UDPTimeout > 0 {
+		descriptions = append(descriptions, "udp-timeout")
 	}
 	return F.ToString("route-options(", strings.Join(descriptions, ","), ")")
 }
@@ -196,6 +230,7 @@ func (r *RuleActionDNSRoute) String() string {
 }
 
 type RuleActionDNSRouteOptions struct {
+	Strategy     C.DomainStrategy
 	DisableCache bool
 	RewriteTTL   *uint32
 	ClientSubnet netip.Prefix
@@ -344,8 +379,11 @@ func (r *RuleActionSniff) String() string {
 }
 
 type RuleActionResolve struct {
-	Strategy dns.DomainStrategy
-	Server   string
+	Server       string
+	Strategy     C.DomainStrategy
+	DisableCache bool
+	RewriteTTL   *uint32
+	ClientSubnet netip.Prefix
 }
 
 func (r *RuleActionResolve) Type() string {
@@ -353,13 +391,25 @@ func (r *RuleActionResolve) Type() string {
 }
 
 func (r *RuleActionResolve) String() string {
-	if r.Strategy == dns.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve")
-	} else if r.Strategy != dns.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ")")
-	} else if r.Strategy == dns.DomainStrategyAsIS && r.Server != "" {
-		return F.ToString("resolve(", r.Server, ")")
+	var options []string
+	if r.Server != "" {
+		options = append(options, r.Server)
+	}
+	if r.Strategy != C.DomainStrategyAsIS {
+		options = append(options, F.ToString(option.DomainStrategy(r.Strategy)))
+	}
+	if r.DisableCache {
+		options = append(options, "disable_cache")
+	}
+	if r.RewriteTTL != nil {
+		options = append(options, F.ToString("rewrite_ttl=", *r.RewriteTTL))
+	}
+	if r.ClientSubnet.IsValid() {
+		options = append(options, F.ToString("client_subnet=", r.ClientSubnet))
+	}
+	if len(options) == 0 {
+		return "resolve"
 	} else {
-		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ",", r.Server, ")")
+		return F.ToString("resolve(", strings.Join(options, ","), ")")
 	}
 }

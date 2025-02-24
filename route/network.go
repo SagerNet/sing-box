@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"os"
 	"runtime"
 	"strings"
@@ -55,13 +56,21 @@ type NetworkManager struct {
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
+	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
 	nm := &NetworkManager{
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
 		autoDetectInterface: routeOptions.AutoDetectInterface,
 		defaultOptions: adapter.NetworkOptions{
-			BindInterface:       routeOptions.DefaultInterface,
-			RoutingMark:         uint32(routeOptions.DefaultMark),
+			BindInterface:  routeOptions.DefaultInterface,
+			RoutingMark:    uint32(routeOptions.DefaultMark),
+			DomainResolver: defaultDomainResolver.Server,
+			DomainResolveOptions: adapter.DNSQueryOptions{
+				Strategy:     C.DomainStrategy(defaultDomainResolver.Strategy),
+				DisableCache: defaultDomainResolver.DisableCache,
+				RewriteTTL:   defaultDomainResolver.RewriteTTL,
+				ClientSubnet: defaultDomainResolver.ClientSubnet.Build(netip.Prefix{}),
+			},
 			NetworkStrategy:     (*C.NetworkStrategy)(routeOptions.DefaultNetworkStrategy),
 			NetworkType:         common.Map(routeOptions.DefaultNetworkType, option.InterfaceType.Build),
 			FallbackNetworkType: common.Map(routeOptions.DefaultFallbackNetworkType, option.InterfaceType.Build),
@@ -354,6 +363,18 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 	return r.wifiState
 }
 
+func (r *NetworkManager) UpdateWIFIState() {
+	if r.platformInterface != nil {
+		state := r.platformInterface.ReadWIFIState()
+		if state != r.wifiState {
+			r.wifiState = state
+			if state.SSID != "" {
+				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+			}
+		}
+	}
+}
+
 func (r *NetworkManager) ResetNetwork() {
 	conntrack.Close()
 
@@ -414,15 +435,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 		}
 	}
 	r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
-	if r.platformInterface != nil {
-		state := r.platformInterface.ReadWIFIState()
-		if state != r.wifiState {
-			r.wifiState = state
-			if state.SSID != "" {
-				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
-			}
-		}
-	}
+	r.UpdateWIFIState()
 
 	if !r.started {
 		return

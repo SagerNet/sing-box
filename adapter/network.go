@@ -25,15 +25,18 @@ type NetworkManager interface {
 	PackageManager() tun.PackageManager
 	WIFIState() WIFIState
 	ResetNetwork()
+	UpdateWIFIState()
 }
 
 type NetworkOptions struct {
-	NetworkStrategy     *C.NetworkStrategy
-	NetworkType         []C.InterfaceType
-	FallbackNetworkType []C.InterfaceType
-	FallbackDelay       time.Duration
-	BindInterface       string
-	RoutingMark         uint32
+	BindInterface        string
+	RoutingMark          uint32
+	DomainResolver       string
+	DomainResolveOptions DNSQueryOptions
+	NetworkStrategy      *C.NetworkStrategy
+	NetworkType          []C.InterfaceType
+	FallbackNetworkType  []C.InterfaceType
+	FallbackDelay        time.Duration
 }
 
 type InterfaceUpdateListener interface {

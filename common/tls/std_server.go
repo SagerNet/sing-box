@@ -26,6 +26,7 @@ type STDServerConfig struct {
 	key             []byte
 	certificatePath string
 	keyPath         string
+	echKeyPath      string
 	watcher         *fswatch.Watcher
 }
 
@@ -94,12 +95,15 @@ func (c *STDServerConfig) startWatcher() error {
 	if c.keyPath != "" {
 		watchPath = append(watchPath, c.keyPath)
 	}
+	if c.echKeyPath != "" {
+		watchPath = append(watchPath, c.echKeyPath)
+	}
 	watcher, err := fswatch.NewWatcher(fswatch.Options{
 		Path: watchPath,
 		Callback: func(path string) {
 			err := c.certificateUpdated(path)
 			if err != nil {
-				c.logger.Error(err)
+				c.logger.Error(E.Cause(err, "reload certificate"))
 			}
 		},
 	})
@@ -115,25 +119,33 @@ func (c *STDServerConfig) startWatcher() error {
 }
 
 func (c *STDServerConfig) certificateUpdated(path string) error {
-	if path == c.certificatePath {
-		certificate, err := os.ReadFile(c.certificatePath)
-		if err != nil {
-			return E.Cause(err, "reload certificate from ", c.certificatePath)
+	if path == c.certificatePath || path == c.keyPath {
+		if path == c.certificatePath {
+			certificate, err := os.ReadFile(c.certificatePath)
+			if err != nil {
+				return E.Cause(err, "reload certificate from ", c.certificatePath)
+			}
+			c.certificate = certificate
+		} else if path == c.keyPath {
+			key, err := os.ReadFile(c.keyPath)
+			if err != nil {
+				return E.Cause(err, "reload key from ", c.keyPath)
+			}
+			c.key = key
 		}
-		c.certificate = certificate
-	} else if path == c.keyPath {
-		key, err := os.ReadFile(c.keyPath)
+		keyPair, err := tls.X509KeyPair(c.certificate, c.key)
 		if err != nil {
-			return E.Cause(err, "reload key from ", c.keyPath)
+			return E.Cause(err, "reload key pair")
 		}
-		c.key = key
+		c.config.Certificates = []tls.Certificate{keyPair}
+		c.logger.Info("reloaded TLS certificate")
+	} else if path == c.echKeyPath {
+		err := reloadECHKeys(c.echKeyPath, c.config)
+		if err != nil {
+			return err
+		}
+		c.logger.Info("reloaded ECH keys")
 	}
-	keyPair, err := tls.X509KeyPair(c.certificate, c.key)
-	if err != nil {
-		return E.Cause(err, "reload key pair")
-	}
-	c.config.Certificates = []tls.Certificate{keyPair}
-	c.logger.Info("reloaded TLS certificate")
 	return nil
 }
 
@@ -222,7 +234,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		}
 		if certificate == nil && key == nil && options.Insecure {
 			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				return GenerateCertificate(ntp.TimeFuncFromContext(ctx), info.ServerName)
+				return GenerateKeyPair(nil, nil, ntp.TimeFuncFromContext(ctx), info.ServerName)
 			}
 		} else {
 			if certificate == nil {
@@ -238,6 +250,13 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
 	}
+	var echKeyPath string
+	if options.ECH != nil && options.ECH.Enabled {
+		err = parseECHServerConfig(ctx, options, tlsConfig, &echKeyPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &STDServerConfig{
 		config:          tlsConfig,
 		logger:          logger,
@@ -246,5 +265,6 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		key:             key,
 		certificatePath: options.CertificatePath,
 		keyPath:         options.KeyPath,
+		echKeyPath:      echKeyPath,
 	}, nil
 }

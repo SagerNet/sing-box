@@ -71,13 +71,13 @@ type InboundContext struct {
 	UDPDisableDomainUnmapping bool
 	UDPConnect                bool
 	UDPTimeout                time.Duration
+	TLSFragment               bool
+	TLSFragmentFallbackDelay  time.Duration
 
 	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType
 	FallbackNetworkType []C.InterfaceType
 	FallbackDelay       time.Duration
-
-	DNSServer string
 
 	DestinationAddresses []netip.Addr
 	SourceGeoIPCode      string
