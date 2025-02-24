@@ -16,6 +16,7 @@ icon: material/new-box
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
+  "min_idle_session": 5,
   "tls": {},
 
   ... // 拨号字段
@@ -49,6 +50,10 @@ AnyTLS 密码。
 #### idle_session_timeout
 
 在检查中，关闭闲置时间超过此值的会话。默认值：30秒。
+
+#### min_idle_session
+
+在检查中，至少前 `n` 个空闲会话保持打开状态。默认值：`n`=0
 
 #### tls
 

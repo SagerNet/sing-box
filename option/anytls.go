@@ -21,4 +21,5 @@ type AnyTLSOutboundOptions struct {
 	Password                 string             `json:"password,omitempty"`
 	IdleSessionCheckInterval badoption.Duration `json:"idle_session_check_interval,omitempty"`
 	IdleSessionTimeout       badoption.Duration `json:"idle_session_timeout,omitempty"`
+	MinIdleSession           int                `json:"min_idle_session,omitempty"`
 }

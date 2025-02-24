@@ -16,6 +16,7 @@ icon: material/new-box
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
+  "min_idle_session": 5,
   "tls": {},
 
   ... // Dial Fields
@@ -49,6 +50,10 @@ Interval checking for idle sessions. Default: 30s.
 #### idle_session_timeout
 
 In the check, close sessions that have been idle for longer than this. Default: 30s.
+
+#### min_idle_session
+
+In the check, at least the first `n` idle sessions are kept open. Default value: `n`=0
 
 #### tls
 
