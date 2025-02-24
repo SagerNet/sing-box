@@ -63,6 +63,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		Password:                 options.Password,
 		IdleSessionCheckInterval: options.IdleSessionCheckInterval.Build(),
 		IdleSessionTimeout:       options.IdleSessionTimeout.Build(),
+		MinIdleSession:           options.MinIdleSession,
 		DialOut:                  outbound.dialOut,
 		Logger:                   logger,
 	})
