@@ -2,6 +2,8 @@ package hosts
 
 import (
 	"context"
+	"github.com/sagernet/sing/service/filemanager"
+	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -29,7 +31,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		files = append(files, NewFile(DefaultPath))
 	} else {
 		for _, path := range options.Path {
-			files = append(files, NewFile(path))
+			files = append(files, NewFile(filemanager.BasePath(ctx, os.ExpandEnv(path))))
 		}
 	}
 	return &Transport{
