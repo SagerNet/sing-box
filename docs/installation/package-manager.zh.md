@@ -51,7 +51,7 @@ icon: material/package
 
 === ":material-linux: Linux"
 
-    | 类型       | 平台            | 链接                           | 命令                                                                                                            |
+    | 类型       | 平台            | 命令                           | 链接                                                                                                            |
     |----------|---------------|------------------------------|---------------------------------------------------------------------------------------------------------------|
     | AUR      | Arch Linux    | `? -S sing-box`              | [![AUR package](https://repology.org/badge/version-for-repo/aur/sing-box.svg)][aur]                           |
     | nixpkgs  | NixOS         | `nix-env -iA nixos.sing-box` | [![nixpkgs unstable package](https://repology.org/badge/version-for-repo/nix_unstable/sing-box.svg)][nixpkgs] |
@@ -61,13 +61,13 @@ icon: material/package
 
 === ":material-apple: macOS"
 
-    | 类型       | 平台    | 链接                      | 命令                                                                                             |
+    | 类型       | 平台    | 命令                      | 链接                                                                                             |
     |----------|-------|-------------------------|------------------------------------------------------------------------------------------------|
     | Homebrew | macOS | `brew install sing-box` | [![Homebrew package](https://repology.org/badge/version-for-repo/homebrew/sing-box.svg)][brew] |
 
 === ":material-microsoft-windows: Windows"
 
-    | 类型         | 平台      | 链接                        | 命令                                                                                                  |
+    | 类型         | 平台      | 命令                        | 链接                                                                                                  |
     |------------|---------|---------------------------|-----------------------------------------------------------------------------------------------------|
     | Scoop      | Windows | `scoop install sing-box`  | [![Scoop package](https://repology.org/badge/version-for-repo/scoop/sing-box.svg)][scoop]           |
     | Chocolatey | Windows | `choco install sing-box`  | [![Chocolatey package](https://repology.org/badge/version-for-repo/chocolatey/sing-box.svg)][choco] |
@@ -75,13 +75,13 @@ icon: material/package
 
 === ":material-android: Android"
 
-    | 类型     | 平台      | 链接                 | 命令                                                                                           |
+    | 类型     | 平台      | 命令                 | 链接                                                                                           |
     |--------|---------|--------------------|----------------------------------------------------------------------------------------------|
     | Termux | Android | `pkg add sing-box` | [![Termux package](https://repology.org/badge/version-for-repo/termux/sing-box.svg)][termux] |
 
 === ":material-freebsd: FreeBSD"
 
-    | 类型         | 平台      | 链接                     | 命令                                                                                         |
+    | 类型         | 平台      | 命令                     | 链接                                                                                         |
     |------------|---------|------------------------|--------------------------------------------------------------------------------------------|
     | FreshPorts | FreeBSD | `pkg install sing-box` | [![FreeBSD port](https://repology.org/badge/version-for-repo/freebsd/sing-box.svg)][ports] |
 
