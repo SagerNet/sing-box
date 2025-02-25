@@ -139,6 +139,9 @@ func (t *Transport) tryOneName(ctx context.Context, config *dnsConfig, fqdn stri
 }
 
 func (t *Transport) exchangeOne(ctx context.Context, server M.Socksaddr, question mDNS.Question, timeout time.Duration, useTCP, ad bool) (*mDNS.Msg, error) {
+	if server.Port == 0 {
+		server.Port = 53
+	}
 	var networks []string
 	if useTCP {
 		networks = []string{N.NetworkTCP}
