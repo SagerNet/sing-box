@@ -87,7 +87,7 @@ func (o *NewDNSServerOptions) UnmarshalJSONContext(ctx context.Context, content 
 	}
 	registry := service.FromContext[DNSTransportOptionsRegistry](ctx)
 	if registry == nil {
-		return E.New("missing outbound options registry in context")
+		return E.New("missing DNS transport options registry in context")
 	}
 	var options any
 	switch o.Type {
@@ -102,7 +102,7 @@ func (o *NewDNSServerOptions) UnmarshalJSONContext(ctx context.Context, content 
 			return E.New("unknown transport type: ", o.Type)
 		}
 	}
-	err = badjson.UnmarshallExcludedContext(ctx, content, (*_Outbound)(o), options)
+	err = badjson.UnmarshallExcludedContext(ctx, content, (*_NewDNSServerOptions)(o), options)
 	if err != nil {
 		return err
 	}
@@ -178,12 +178,10 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		if !serverAddr.IsValid() {
 			return E.New("invalid server address")
 		}
-		remoteOptions.Server = serverAddr.Addr.String()
+		remoteOptions.Server = serverAddr.AddrString()
 		if serverAddr.Port != 0 && serverAddr.Port != 53 {
 			remoteOptions.ServerPort = serverAddr.Port
 		}
-		remoteOptions.Server = serverAddr.AddrString()
-		remoteOptions.ServerPort = serverAddr.Port
 	case C.DNSTypeTCP:
 		o.Type = C.DNSTypeTCP
 		o.Options = &remoteOptions
@@ -191,19 +189,17 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		if !serverAddr.IsValid() {
 			return E.New("invalid server address")
 		}
-		remoteOptions.Server = serverAddr.Addr.String()
+		remoteOptions.Server = serverAddr.AddrString()
 		if serverAddr.Port != 0 && serverAddr.Port != 53 {
 			remoteOptions.ServerPort = serverAddr.Port
 		}
-		remoteOptions.Server = serverAddr.AddrString()
-		remoteOptions.ServerPort = serverAddr.Port
 	case C.DNSTypeTLS, C.DNSTypeQUIC:
 		o.Type = serverType
 		serverAddr := M.ParseSocksaddr(serverURL.Host)
 		if !serverAddr.IsValid() {
 			return E.New("invalid server address")
 		}
-		remoteOptions.Server = serverAddr.Addr.String()
+		remoteOptions.Server = serverAddr.AddrString()
 		if serverAddr.Port != 0 && serverAddr.Port != 853 {
 			remoteOptions.ServerPort = serverAddr.Port
 		}
@@ -222,7 +218,7 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		if !serverAddr.IsValid() {
 			return E.New("invalid server address")
 		}
-		httpsOptions.Server = serverAddr.Addr.String()
+		httpsOptions.Server = serverAddr.AddrString()
 		if serverAddr.Port != 0 && serverAddr.Port != 443 {
 			httpsOptions.ServerPort = serverAddr.Port
 		}
