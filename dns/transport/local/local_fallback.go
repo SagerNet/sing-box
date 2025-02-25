@@ -58,8 +58,12 @@ func (f *FallbackTransport) Start(stage adapter.StartStage) error {
 	return nil
 }
 
+func (f *FallbackTransport) Close() error {
+	return nil
+}
+
 func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	if f.fallback {
+	if !f.fallback {
 		return f.DNSTransport.Exchange(ctx, message)
 	}
 	question := message.Question[0]
