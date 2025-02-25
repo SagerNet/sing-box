@@ -78,6 +78,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "TUIC"
 	case TypeHysteria2:
 		return "Hysteria2"
+	case TypeAnyTLS:
+		return "AnyTLS"
 	case TypeSelector:
 		return "Selector"
 	case TypeURLTest:
