@@ -68,3 +68,29 @@ Example:
   }
 }
 ```
+
+### Examples
+
+=== "Use hosts if available"
+
+    ```json
+    {
+      "dns": {
+        "servers": [
+          {
+            ...
+          },
+          {
+            "type": "hosts",
+            "tag": "hosts"
+          }
+        ],
+        "rules": [
+          {
+            "ip_accept_any": true,
+            "server": "hosts"
+          }
+        ]
+      }
+    }
+    ```
