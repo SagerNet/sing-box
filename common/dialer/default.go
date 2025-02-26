@@ -210,6 +210,8 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
 	if !address.IsValid() {
 		return nil, E.New("invalid address")
+	} else if address.IsFqdn() {
+		return nil, E.New("domain not resolved")
 	}
 	if d.networkStrategy == nil {
 		switch N.NetworkName(network) {
