@@ -46,7 +46,46 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 	}
 	legacyOptions := o.LegacyDNSOptions
 	o.LegacyDNSOptions = LegacyDNSOptions{}
-	return badjson.UnmarshallExcludedContext(ctx, content, legacyOptions, &o.RawDNSOptions)
+	err = badjson.UnmarshallExcludedContext(ctx, content, legacyOptions, &o.RawDNSOptions)
+	if err != nil {
+		return err
+	}
+	rcodeMap := make(map[string]int)
+	o.Servers = common.Filter(o.Servers, func(it NewDNSServerOptions) bool {
+		if it.Type == C.DNSTypeLegacyRcode {
+			rcodeMap[it.Tag] = it.Options.(int)
+			return false
+		}
+		return true
+	})
+	if len(rcodeMap) > 0 {
+		for i := 0; i < len(o.Rules); i++ {
+			rewriteRcode(rcodeMap, &o.Rules[i])
+		}
+	}
+	return nil
+}
+
+func rewriteRcode(rcodeMap map[string]int, rule *DNSRule) {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		rewriteRcodeAction(rcodeMap, &rule.DefaultOptions.DNSRuleAction)
+	case C.RuleTypeLogical:
+		rewriteRcodeAction(rcodeMap, &rule.LogicalOptions.DNSRuleAction)
+	}
+}
+
+func rewriteRcodeAction(rcodeMap map[string]int, ruleAction *DNSRuleAction) {
+	if ruleAction.Action != C.RuleActionTypeRoute {
+		return
+	}
+	rcode, loaded := rcodeMap[ruleAction.RouteOptions.Server]
+	if !loaded {
+		return
+	}
+	ruleAction.Action = C.RuleActionTypePredefined
+	ruleAction.PredefinedOptions.Rcode = common.Ptr(DNSRCode(rcode))
+	return
 }
 
 type DNSClientOptions struct {
@@ -243,14 +282,8 @@ func (o *NewDNSServerOptions) Upgrade(ctx context.Context) error {
 		default:
 			return E.New("unknown rcode: ", serverURL.Host)
 		}
-		o.Type = C.DNSTypePreDefined
-		o.Options = &PredefinedDNSServerOptions{
-			Responses: []DNSResponseOptions{
-				{
-					RCode: common.Ptr(DNSRCode(rcode)),
-				},
-			},
-		}
+		o.Type = C.DNSTypeLegacyRcode
+		o.Options = rcode
 	case C.DNSTypeDHCP:
 		o.Type = C.DNSTypeDHCP
 		dhcpOptions := DHCPDNSServerOptions{}
