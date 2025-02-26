@@ -45,7 +45,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.Detour != "" {
 		return nil, E.New("`detour` is not supported in direct context")
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions, false)
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions, true)
 	if err != nil {
 		return nil, err
 	}
