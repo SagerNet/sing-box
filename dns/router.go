@@ -190,6 +190,8 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 				}
 			case *R.RuleActionReject:
 				return nil, currentRule, currentRuleIndex
+			case *R.RuleActionPredefined:
+				return nil, currentRule, currentRuleIndex
 			}
 		}
 	}
@@ -260,6 +262,21 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 						case C.RuleActionRejectMethodDrop:
 							return nil, tun.ErrDrop
 						}
+					case *R.RuleActionPredefined:
+						return &mDNS.Msg{
+							MsgHdr: mDNS.MsgHdr{
+								Id:                 message.Id,
+								Response:           true,
+								Authoritative:      true,
+								RecursionDesired:   true,
+								RecursionAvailable: true,
+								Rcode:              action.Rcode,
+							},
+							Question: message.Question,
+							Answer:   action.Answer,
+							Ns:       action.Ns,
+							Extra:    action.Extra,
+						}, nil
 					}
 				}
 				var responseCheck func(responseAddrs []netip.Addr) bool
@@ -376,6 +393,20 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 					case C.RuleActionRejectMethodDrop:
 						return nil, tun.ErrDrop
 					}
+				case *R.RuleActionPredefined:
+					if action.Rcode != mDNS.RcodeSuccess {
+						err = RcodeError(action.Rcode)
+					} else {
+						for _, answer := range action.Answer {
+							switch record := answer.(type) {
+							case *mDNS.A:
+								responseAddrs = append(responseAddrs, M.AddrFromIP(record.A))
+							case *mDNS.AAAA:
+								responseAddrs = append(responseAddrs, M.AddrFromIP(record.AAAA))
+							}
+						}
+					}
+					goto response
 				}
 			}
 			var responseCheck func(responseAddrs []netip.Addr) bool
@@ -395,6 +426,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			printResult()
 		}
 	}
+response:
 	printResult()
 	if len(responseAddrs) > 0 {
 		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
