@@ -20,6 +20,8 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"github.com/miekg/dns"
 )
 
 func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
@@ -125,6 +127,13 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Method: action.RejectOptions.Method,
 			NoDrop: action.RejectOptions.NoDrop,
 			logger: logger,
+		}
+	case C.RuleActionTypePredefined:
+		return &RuleActionPredefined{
+			Rcode:  action.PredefinedOptions.Rcode.Build(),
+			Answer: common.Map(action.PredefinedOptions.Answer, option.DNSRecordOptions.Build),
+			Ns:     common.Map(action.PredefinedOptions.Ns, option.DNSRecordOptions.Build),
+			Extra:  common.Map(action.PredefinedOptions.Extra, option.DNSRecordOptions.Build),
 		}
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -415,4 +424,24 @@ func (r *RuleActionResolve) String() string {
 	} else {
 		return F.ToString("resolve(", strings.Join(options, ","), ")")
 	}
+}
+
+type RuleActionPredefined struct {
+	Rcode  int
+	Answer []dns.RR
+	Ns     []dns.RR
+	Extra  []dns.RR
+}
+
+func (r *RuleActionPredefined) Type() string {
+	return C.RuleActionTypePredefined
+}
+
+func (r *RuleActionPredefined) String() string {
+	var options []string
+	options = append(options, dns.RcodeToString[r.Rcode])
+	options = append(options, common.Map(r.Answer, dns.RR.String)...)
+	options = append(options, common.Map(r.Ns, dns.RR.String)...)
+	options = append(options, common.Map(r.Extra, dns.RR.String)...)
+	return F.ToString("predefined(", strings.Join(options, ","), ")")
 }
