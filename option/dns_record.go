@@ -3,29 +3,13 @@ package option
 import (
 	"encoding/base64"
 
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
-	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/miekg/dns"
 )
-
-type PredefinedDNSServerOptions struct {
-	Responses []DNSResponseOptions `json:"responses,omitempty"`
-}
-
-type DNSResponseOptions struct {
-	Query     badoption.Listable[string]       `json:"query,omitempty"`
-	QueryType badoption.Listable[DNSQueryType] `json:"query_type,omitempty"`
-
-	RCode  *DNSRCode                            `json:"rcode,omitempty"`
-	Answer badoption.Listable[DNSRecordOptions] `json:"answer,omitempty"`
-	Ns     badoption.Listable[DNSRecordOptions] `json:"ns,omitempty"`
-	Extra  badoption.Listable[DNSRecordOptions] `json:"extra,omitempty"`
-}
 
 type DNSRCode int
 
@@ -62,49 +46,6 @@ func (r *DNSRCode) Build() int {
 		return dns.RcodeSuccess
 	}
 	return int(*r)
-}
-
-func (o DNSResponseOptions) Build() ([]dns.Question, *dns.Msg, error) {
-	var questions []dns.Question
-	if len(o.Query) == 0 && len(o.QueryType) == 0 {
-		questions = []dns.Question{{Qclass: dns.ClassINET}}
-	} else if len(o.Query) == 0 {
-		for _, queryType := range o.QueryType {
-			questions = append(questions, dns.Question{
-				Qtype:  uint16(queryType),
-				Qclass: dns.ClassINET,
-			})
-		}
-	} else if len(o.QueryType) == 0 {
-		for _, domain := range o.Query {
-			questions = append(questions, dns.Question{
-				Name:   dns.Fqdn(domain),
-				Qclass: dns.ClassINET,
-			})
-		}
-	} else {
-		for _, queryType := range o.QueryType {
-			for _, domain := range o.Query {
-				questions = append(questions, dns.Question{
-					Name:   dns.Fqdn(domain),
-					Qtype:  uint16(queryType),
-					Qclass: dns.ClassINET,
-				})
-			}
-		}
-	}
-	return questions, &dns.Msg{
-		MsgHdr: dns.MsgHdr{
-			Response:           true,
-			Rcode:              o.RCode.Build(),
-			Authoritative:      true,
-			RecursionDesired:   true,
-			RecursionAvailable: true,
-		},
-		Answer: common.Map(o.Answer, DNSRecordOptions.build),
-		Ns:     common.Map(o.Ns, DNSRecordOptions.build),
-		Extra:  common.Map(o.Extra, DNSRecordOptions.build),
-	}, nil
 }
 
 type DNSRecordOptions struct {
@@ -156,6 +97,6 @@ func (o *DNSRecordOptions) unmarshalBase64(binary []byte) error {
 	return nil
 }
 
-func (o DNSRecordOptions) build() dns.RR {
+func (o DNSRecordOptions) Build() dns.RR {
 	return o.RR
 }
