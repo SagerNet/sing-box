@@ -95,10 +95,12 @@ archives:
     builds:
       - main
       - android
-    format: tar.gz
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     wrap_in_directory: true
     files:
       - LICENSE
