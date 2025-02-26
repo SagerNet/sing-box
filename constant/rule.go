@@ -33,6 +33,7 @@ const (
 	RuleActionTypeHijackDNS    = "hijack-dns"
 	RuleActionTypeSniff        = "sniff"
 	RuleActionTypeResolve      = "resolve"
+	RuleActionTypePredefined   = "predefined"
 )
 
 const (
