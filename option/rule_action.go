@@ -92,6 +92,7 @@ type _DNSRuleAction struct {
 	RouteOptions        DNSRouteActionOptions        `json:"-"`
 	RouteOptionsOptions DNSRouteOptionsActionOptions `json:"-"`
 	RejectOptions       RejectActionOptions          `json:"-"`
+	PredefinedOptions   DNSRouteActionPredefined     `json:"-"`
 }
 
 type DNSRuleAction _DNSRuleAction
@@ -109,6 +110,8 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 		v = r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
 		v = r.RejectOptions
+	case C.RuleActionTypePredefined:
+		v = r.PredefinedOptions
 	default:
 		return nil, E.New("unknown DNS rule action: " + r.Action)
 	}
@@ -129,6 +132,8 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 		v = &r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
 		v = &r.RejectOptions
+	case C.RuleActionTypePredefined:
+		v = &r.PredefinedOptions
 	default:
 		return E.New("unknown DNS rule action: " + r.Action)
 	}
@@ -293,4 +298,11 @@ type RouteActionResolve struct {
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
+}
+
+type DNSRouteActionPredefined struct {
+	Rcode  *DNSRCode                            `json:"rcode,omitempty"`
+	Answer badoption.Listable[DNSRecordOptions] `json:"answer,omitempty"`
+	Ns     badoption.Listable[DNSRecordOptions] `json:"ns,omitempty"`
+	Extra  badoption.Listable[DNSRecordOptions] `json:"extra,omitempty"`
 }
