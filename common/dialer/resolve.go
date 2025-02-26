@@ -44,6 +44,20 @@ type resolveDialer struct {
 }
 
 func NewResolveDialer(ctx context.Context, dialer N.Dialer, parallel bool, server string, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ResolveDialer {
+	if parallelDialer, isParallel := dialer.(ParallelInterfaceDialer); isParallel {
+		return &resolveParallelNetworkDialer{
+			resolveDialer{
+				transport:     service.FromContext[adapter.DNSTransportManager](ctx),
+				router:        service.FromContext[adapter.DNSRouter](ctx),
+				dialer:        dialer,
+				parallel:      parallel,
+				server:        server,
+				queryOptions:  queryOptions,
+				fallbackDelay: fallbackDelay,
+			},
+			parallelDialer,
+		}
+	}
 	return &resolveDialer{
 		transport:     service.FromContext[adapter.DNSTransportManager](ctx),
 		router:        service.FromContext[adapter.DNSRouter](ctx),
@@ -58,21 +72,6 @@ func NewResolveDialer(ctx context.Context, dialer N.Dialer, parallel bool, serve
 type resolveParallelNetworkDialer struct {
 	resolveDialer
 	dialer ParallelInterfaceDialer
-}
-
-func NewResolveParallelInterfaceDialer(ctx context.Context, dialer ParallelInterfaceDialer, parallel bool, server string, queryOptions adapter.DNSQueryOptions, fallbackDelay time.Duration) ParallelInterfaceResolveDialer {
-	return &resolveParallelNetworkDialer{
-		resolveDialer{
-			transport:     service.FromContext[adapter.DNSTransportManager](ctx),
-			router:        service.FromContext[adapter.DNSRouter](ctx),
-			dialer:        dialer,
-			parallel:      parallel,
-			server:        server,
-			queryOptions:  queryOptions,
-			fallbackDelay: fallbackDelay,
-		},
-		dialer,
-	}
 }
 
 func (d *resolveDialer) initialize() error {

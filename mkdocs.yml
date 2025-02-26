@@ -91,7 +91,6 @@ nav:
               - QUIC: configuration/dns/server/quic.md
               - HTTPS: configuration/dns/server/https.md
               - HTTP3: configuration/dns/server/http3.md
-              - Predefined: configuration/dns/server/predefined.md
               - DHCP: configuration/dns/server/dhcp.md
               - FakeIP: configuration/dns/server/fakeip.md
               - Tailscale: configuration/dns/server/tailscale.md
