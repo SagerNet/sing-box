@@ -1,6 +1,8 @@
 module github.com/sagernet/sing-box
 
-go 1.23.1
+go 1.23.6
+
+toolchain go1.24.0
 
 require (
 	github.com/anytls/sing-anytls v0.0.5
@@ -123,6 +125,7 @@ require (
 	github.com/tailscale/peercred v0.0.0-20240214030740-b535050b2aa4 // indirect
 	github.com/tailscale/web-client-prebuilt v0.0.0-20240226180453-5db17b287bf1 // indirect
 	github.com/tcnksm/go-httpstat v0.2.0 // indirect
+	github.com/tevino/abool/v2 v2.1.0 // indirect
 	github.com/u-root/uio v0.0.0-20240118234441-a3c409a6018e // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -143,3 +146,6 @@ require (
 )
 
 //replace github.com/sagernet/sing => ../sing
+
+// TODO: if github.com/getlantern/wireguard-go gets merged, remove this line
+replace github.com/sagernet/wireguard-go => github.com/getlantern/wireguard-go v0.0.1-beta.5.0.20250303165430-793006c422ec
