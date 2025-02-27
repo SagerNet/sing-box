@@ -51,8 +51,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	outbound.tlsConfig = tlsConfig
 
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context: ctx,
-		Options: options.DialerOptions,
+		Context:        ctx,
+		Options:        options.DialerOptions,
+		RemoteIsDomain: options.ServerIsDomain(),
 	})
 	if err != nil {
 		return nil, err
