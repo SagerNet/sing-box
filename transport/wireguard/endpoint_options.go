@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"github.com/sagernet/sing-box/option"
 	"net/netip"
 	"time"
 
@@ -27,6 +28,7 @@ type EndpointOptions struct {
 	ResolvePeer  func(domain string) (netip.Addr, error)
 	Peers        []PeerOptions
 	Workers      int
+	option.WireGuardAdvancedSecurityOptions
 }
 
 type PeerOptions struct {
