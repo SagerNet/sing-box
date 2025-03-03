@@ -23,8 +23,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// OutlineOutbound implements the smart dialer outbound
-type OutlineOutbound struct {
+// Outbound implements the smart dialer outbound from outline sdk
+type Outbound struct {
 	outbound.Adapter
 	logger logger.ContextLogger
 	dialer otransport.StreamDialer
@@ -32,14 +32,13 @@ type OutlineOutbound struct {
 
 // RegisterOutbound registers the outline outbound to the registry
 func RegisterOutbound(registry *outbound.Registry) {
-	outbound.Register[option.OutlineOutboundOptions](registry, C.TypeOutline, NewOutlineOutbound)
+	outbound.Register[option.OutboundOutlineOptions](registry, C.TypeOutline, NewOutbound)
 }
 
-// NewOutlineOutbound creates a proxyless outbond that uses the proxyless transport
+// NewOutbound creates a proxyless outbond that uses the proxyless transport
 // for dialing
-func NewOutlineOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OutlineOutboundOptions) (adapter.Outbound, error) {
-	logger.DebugContext(ctx, "creating outline smart dialer outbound")
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions, true)
+func NewOutbound(ctx context.Context, router adapter.Router, log log.ContextLogger, tag string, options option.OutboundOutlineOptions) (adapter.Outbound, error) {
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +50,7 @@ func NewOutlineOutbound(ctx context.Context, router adapter.Router, logger log.C
 
 	outboundStreamDialer := &outboundStreamDialer{
 		dialer: outboundDialer,
-		logger: logger,
+		logger: log,
 	}
 
 	strategyFinder := &smart.StrategyFinder{
@@ -72,16 +71,16 @@ func NewOutlineOutbound(ctx context.Context, router adapter.Router, logger log.C
 		return nil, err
 	}
 
-	return &OutlineOutbound{
+	return &Outbound{
 		Adapter: outbound.NewAdapterWithDialerOptions("outline", tag, []string{network.NetworkTCP}, options.DialerOptions),
-		logger:  logger,
+		logger:  log,
 		dialer:  dialer,
 	}, nil
 }
 
 // DialContext extracts the metadata domain, add the destination to the context
 // and use the proxyless dialer for sending the request
-func (o *OutlineOutbound) DialContext(ctx context.Context, network string, destination metadata.Socksaddr) (net.Conn, error) {
+func (o *Outbound) DialContext(ctx context.Context, network string, destination metadata.Socksaddr) (net.Conn, error) {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = o.Tag()
 	metadata.Destination = destination
@@ -90,7 +89,7 @@ func (o *OutlineOutbound) DialContext(ctx context.Context, network string, desti
 }
 
 // ListenPacket isn't implemented
-func (o *OutlineOutbound) ListenPacket(ctx context.Context, destination metadata.Socksaddr) (net.PacketConn, error) {
+func (o *Outbound) ListenPacket(ctx context.Context, destination metadata.Socksaddr) (net.PacketConn, error) {
 	return nil, os.ErrInvalid
 }
 
@@ -105,7 +104,6 @@ func (s *outboundStreamDialer) DialStream(ctx context.Context, addr string) (otr
 	destination := metadata.ParseSocksaddr(addr)
 	conn, err := s.dialer.DialContext(ctx, network.NetworkTCP, destination)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "error dialing %s: %v", addr, err)
 		return nil, err
 	}
 	return conn.(*net.TCPConn), nil
@@ -115,7 +113,6 @@ func (s *outboundStreamDialer) DialPacket(ctx context.Context, addr string) (net
 	destination := metadata.ParseSocksaddr(addr)
 	conn, err := s.dialer.ListenPacket(ctx, destination)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "error listening packet %s: %v", addr, err)
 		return nil, err
 	}
 	return conn.(*net.UDPConn), nil
