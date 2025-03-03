@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/logger"
@@ -27,6 +28,11 @@ type OutlineOutbound struct {
 	outbound.Adapter
 	logger logger.ContextLogger
 	dialer otransport.StreamDialer
+}
+
+// RegisterOutbound registers the outline outbound to the registry
+func RegisterOutbound(registry *outbound.Registry) {
+	outbound.Register[option.OutlineOutboundOptions](registry, C.TypeOutline, NewOutlineOutbound)
 }
 
 // NewOutlineOutbound creates a proxyless outbond that uses the proxyless transport
