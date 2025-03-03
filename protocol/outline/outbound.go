@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"time"
 
-	otransport "github.com/Jigsaw-Code/outline-sdk/transport"
+	"github.com/Jigsaw-Code/outline-sdk/transport"
 	"github.com/Jigsaw-Code/outline-sdk/x/smart"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -26,8 +27,10 @@ import (
 // Outbound implements the smart dialer outbound from outline sdk
 type Outbound struct {
 	outbound.Adapter
-	logger logger.ContextLogger
-	dialer otransport.StreamDialer
+	logger       logger.ContextLogger
+	dialer       transport.StreamDialer
+	dialerMutex  *sync.Mutex
+	createDialer func() (transport.StreamDialer, error)
 }
 
 // RegisterOutbound registers the outline outbound to the registry
@@ -65,22 +68,37 @@ func NewOutbound(ctx context.Context, router adapter.Router, log log.ContextLogg
 	if err != nil {
 		return nil, err
 	}
-
-	dialer, err := strategyFinder.NewDialer(ctx, options.Domains, yamlOptions)
-	if err != nil {
-		return nil, err
+	outbound := &Outbound{
+		Adapter:     outbound.NewAdapterWithDialerOptions("outline", tag, []string{network.NetworkTCP}, options.DialerOptions),
+		logger:      log,
+		dialerMutex: &sync.Mutex{},
 	}
+	createDialer := sync.OnceValues(func() (transport.StreamDialer, error) {
+		dialer, err := strategyFinder.NewDialer(ctx, options.Domains, yamlOptions)
+		if err != nil {
+			return nil, err
+		}
+		return dialer, nil
+	})
 
-	return &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions("outline", tag, []string{network.NetworkTCP}, options.DialerOptions),
-		logger:  log,
-		dialer:  dialer,
-	}, nil
+	outbound.createDialer = createDialer
+
+	return outbound, nil
 }
 
 // DialContext extracts the metadata domain, add the destination to the context
 // and use the proxyless dialer for sending the request
 func (o *Outbound) DialContext(ctx context.Context, network string, destination metadata.Socksaddr) (net.Conn, error) {
+	o.dialerMutex.Lock()
+	if o.dialer == nil {
+		dialer, err := o.createDialer()
+		if err != nil {
+			return nil, err
+		}
+		o.dialer = dialer
+	}
+	o.dialerMutex.Unlock()
+
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = o.Tag()
 	metadata.Destination = destination
@@ -100,7 +118,7 @@ type outboundStreamDialer struct {
 	logger log.ContextLogger
 }
 
-func (s *outboundStreamDialer) DialStream(ctx context.Context, addr string) (otransport.StreamConn, error) {
+func (s *outboundStreamDialer) DialStream(ctx context.Context, addr string) (transport.StreamConn, error) {
 	destination := metadata.ParseSocksaddr(addr)
 	conn, err := s.dialer.DialContext(ctx, network.NetworkTCP, destination)
 	if err != nil {
