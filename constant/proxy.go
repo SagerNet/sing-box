@@ -23,6 +23,7 @@ const (
 	TypeVLESS        = "vless"
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
+	TypeOutline      = "outline"
 )
 
 const (
