@@ -69,19 +69,21 @@ func NewOutbound(ctx context.Context, router adapter.Router, log log.ContextLogg
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter:     outbound.NewAdapterWithDialerOptions("outline", tag, []string{network.NetworkTCP}, options.DialerOptions),
+		Adapter:     outbound.NewAdapterWithDialerOptions(C.TypeOutline, tag, []string{network.NetworkTCP}, options.DialerOptions),
 		logger:      log,
 		dialerMutex: &sync.Mutex{},
+		// During the dialer creation the strategy finder try to use the stream dialer
+		// for resolving the domains. We can't create the smart dialer during the
+		// outbound initialization because there wouldn't be a tunnel to communicate.
+		// So for fixing this issue, the dialer must be created during the DialContext call.
+		createDialer: sync.OnceValues(func() (transport.StreamDialer, error) {
+			dialer, err := strategyFinder.NewDialer(ctx, options.Domains, yamlOptions)
+			if err != nil {
+				return nil, err
+			}
+			return dialer, nil
+		}),
 	}
-	createDialer := sync.OnceValues(func() (transport.StreamDialer, error) {
-		dialer, err := strategyFinder.NewDialer(ctx, options.Domains, yamlOptions)
-		if err != nil {
-			return nil, err
-		}
-		return dialer, nil
-	})
-
-	outbound.createDialer = createDialer
 
 	return outbound, nil
 }
