@@ -41,7 +41,7 @@ func RegisterOutbound(registry *outbound.Registry) {
 // NewOutbound creates a proxyless outbond that uses the proxyless transport
 // for dialing
 func NewOutbound(ctx context.Context, router adapter.Router, log log.ContextLogger, tag string, options option.OutboundOutlineOptions) (adapter.Outbound, error) {
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions)
+	outboundDialer, err := dialer.New(ctx, options.DialerOptions, true)
 	if err != nil {
 		return nil, err
 	}
