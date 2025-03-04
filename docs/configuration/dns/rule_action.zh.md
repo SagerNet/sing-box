@@ -2,18 +2,23 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [strategy](#strategy)  
+    :material-plus: [predefined](#predefined)
+
 !!! question "自 sing-box 1.11.0 起"
 
 ### route
 
 ```json
 {
-  "action": "route",  // 默认
+  "action": "route",
+  // 默认
   "server": "",
-  
-  // 兼容性
+  "strategy": "",
   "disable_cache": false,
-  "rewrite_ttl": 0,
+  "rewrite_ttl": null,
   "client_subnet": null
 }
 ```
@@ -25,6 +30,14 @@ icon: material/new-box
 ==必填==
 
 目标 DNS 服务器的标签。
+
+#### strategy
+
+!!! question "自 sing-box 1.12.0 起"
+
+为此查询设置域名策略。
+
+可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 #### disable_cache
 
@@ -40,7 +53,7 @@ icon: material/new-box
 
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
-将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
+将覆盖 `dns.client_subnet`.
 
 ### route-options
 
@@ -60,7 +73,7 @@ icon: material/new-box
 ```json
 {
   "action": "reject",
-  "method": "default", // default
+  "method": "",
   "no_drop": false
 }
 ```
@@ -72,8 +85,61 @@ icon: material/new-box
 - `default`: 返回 NXDOMAIN。
 - `drop`: 丢弃请求。
 
+默认使用 `defualt`。
+
 #### no_drop
 
 如果未启用，则 30 秒内触发 50 次后，`method` 将被暂时覆盖为 `drop`。
 
 当 `method` 设为 `drop` 时不可用。
+
+### predefined
+
+!!! question "自 sing-box 1.12.0 起"
+
+```json
+{
+  "action": "predefined",
+  "rcode": "",
+  "answer": [],
+  "ns": [],
+  "extra": []
+}
+```
+
+`predefined` 以预定义的 DNS 记录响应。
+
+#### rcode
+
+响应码。
+
+| 值          | 旧 rcode DNS 服务器中的值 | 描述              |
+|------------|--------------------|-----------------|
+| `NOERROR`  | `success`          | Ok              |
+| `FORMERR`  | `format_error`     | Bad request     |
+| `SERVFAIL` | `server_failure`   | Server failure  |
+| `NXDOMAIN` | `name_error`       | Not found       |
+| `NOTIMP`   | `not_implemented`  | Not implemented |
+| `REFUSED`  | `refused`          | Refused         |
+
+默认使用 `NOERROR`。
+
+#### answer
+
+用于作为回答响应的文本 DNS 记录列表。
+
+例子:
+
+| 记录类型   | 例子                            |
+|--------|-------------------------------|
+| `A`    | `localhost. IN A 127.0.0.1`   |
+| `AAAA` | `localhost. IN AAAA ::1`      |
+| `TXT`  | `localhost. IN TXT \"Hello\"` |
+
+#### ns
+
+用于作为名称服务器响应的文本 DNS 记录列表。
+
+#### extra
+
+用于作为额外记录响应的文本 DNS 记录列表。

@@ -1,8 +1,14 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
 
 # 路由
+
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [default_domain_resolver](#default_domain_resolver)  
+    :material-note-remove: [geoip](#geoip)  
+    :material-note-remove: [geosite](#geosite)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -99,6 +105,14 @@ icon: material/new-box
 默认为出站连接设置路由标记。
 
 如果设置了 `outbound.routing_mark` 设置，则不生效。
+
+#### default_domain_resolver
+
+!!! question "自 sing-box 1.12.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#domain_resolver)。
+
+可以被 `outbound.domain_resolver` 覆盖。
 
 #### network_strategy
 

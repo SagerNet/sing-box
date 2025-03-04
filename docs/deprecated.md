@@ -4,6 +4,32 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.12.0
+
+#### Legacy DNS server formats
+
+DNS servers are refactored,
+check [Migration](../migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+#### `outbound` DNS rule item
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by dial fields,
+check [Migration](../migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+#### Legacy ECH fields
+
+ECH support has been migrated to use stdlib in sing-box 1.12.0,
+which does not come with support for PQ signature schemes,
+so `pq_signature_schemes_enabled` has been deprecated and no longer works.
+
+Also, `dynamic_record_sizing_disabled` has nothing to do with ECH,
+was added by mistake, has been deprecated and no longer works.
+
+These fields will be removed in sing-box 1.13.0.
+
 ## 1.11.0
 
 #### Legacy special outbounds

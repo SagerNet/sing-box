@@ -21,13 +21,12 @@ linters-settings:
       - -SA1003
 
 run:
-  go: "1.23"
+  go: "1.24"
   build-tags:
     - with_gvisor
     - with_quic
     - with_dhcp
     - with_wireguard
-    - with_ech
     - with_utls
     - with_reality_server
     - with_acme
