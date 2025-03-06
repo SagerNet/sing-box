@@ -13,8 +13,7 @@ icon: material/new-box
 
 ```json
 {
-  "action": "route",
-  // 默认
+  "action": "route", // 默认
   "server": "",
   "strategy": "",
   "disable_cache": false,
