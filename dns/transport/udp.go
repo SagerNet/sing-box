@@ -110,13 +110,6 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		conn.access.Lock()
 		delete(conn.callbacks, messageId)
 		conn.access.Unlock()
-		callback.access.Lock()
-		select {
-		case <-callback.done:
-		default:
-			close(callback.done)
-		}
-		callback.access.Unlock()
 	}()
 	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())
 	if err != nil {
