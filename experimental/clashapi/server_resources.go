@@ -71,15 +71,15 @@ func (s *Server) downloadExternalUI() error {
 	if response.StatusCode != http.StatusOK {
 		return E.New("download external ui failed: ", response.Status)
 	}
-	err = s.downloadZIP(filepath.Base(downloadURL), response.Body, s.externalUI)
+	err = s.downloadZIP(response.Body, s.externalUI)
 	if err != nil {
 		removeAllInDirectory(s.externalUI)
 	}
 	return err
 }
 
-func (s *Server) downloadZIP(name string, body io.Reader, output string) error {
-	tempFile, err := filemanager.CreateTemp(s.ctx, name)
+func (s *Server) downloadZIP(body io.Reader, output string) error {
+	tempFile, err := filemanager.CreateTemp(s.ctx, "external-ui.zip")
 	if err != nil {
 		return err
 	}
