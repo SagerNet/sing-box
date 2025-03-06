@@ -4,6 +4,7 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.12.0 中的更改"
 
+    :material-plus: [ip_accept_any](#ip_accept_any)  
     :material-delete-clock: [outbound](#outbound)
 
 !!! quote "sing-box 1.11.0 中的更改"
@@ -77,15 +78,6 @@ icon: material/alert-decagram
         "domain_regex": [
           "^stun\\..+"
         ],
-        "geosite": [
-          "cn"
-        ],
-        "source_geoip": [
-          "private"
-        ],
-        "geoip": [
-          "cn"
-        ],
         "source_ip_cidr": [
           "10.0.0.0/24",
           "192.168.0.1"
@@ -96,6 +88,7 @@ icon: material/alert-decagram
           "192.168.0.1"
         ],
         "ip_is_private": false,
+        "ip_accept_any": false,
         "source_port": [
           12345
         ],
@@ -147,8 +140,6 @@ icon: material/alert-decagram
           "geoip-cn",
           "geosite-cn"
         ],
-        // 已弃用
-        "rule_set_ipcidr_match_source": false,
         "rule_set_ip_cidr_match_source": false,
         "rule_set_ip_cidr_accept_empty": false,
         "invert": false,
@@ -156,7 +147,19 @@ icon: material/alert-decagram
           "direct"
         ],
         "action": "route",
-        "server": "local"
+        "server": "local",
+
+        // 已弃用
+        "rule_set_ipcidr_match_source": false,
+        "geosite": [
+          "cn"
+        ],
+        "source_geoip": [
+          "private"
+        ],
+        "geoip": [
+          "cn"
+        ]
       },
       {
         "type": "logical",
@@ -232,17 +235,17 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### geosite
 
-!!! failure "已在 sing-box 1.8.0 废弃"
+!!! failure "已在 sing-box 1.12.0 中被移除"
 
-    Geosite 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geosite)。
+    GeoSite 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geosite)。
 
 匹配 Geosite。
 
 #### source_geoip
 
-!!! failure "已在 sing-box 1.8.0 废弃"
+!!! failure "已在 sing-box 1.12.0 中被移除"
 
-    GeoIP 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geoip)。
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
 
 匹配源 GeoIP。
 
@@ -451,7 +454,10 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 #### geoip
 
-!!! question "自 sing-box 1.9.0 起"
+!!! failure "已在 sing-box 1.12.0 中被移除"
+
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
+
 
 与查询响应匹配 GeoIP。
 
@@ -466,6 +472,12 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 !!! question "自 sing-box 1.9.0 起"
 
 与查询响应匹配非公开 IP。
+
+#### ip_accept_any
+
+!!! question "自 sing-box 1.12.0 起"
+
+匹配任意 IP。
 
 #### rule_set_ip_cidr_accept_empty
 
