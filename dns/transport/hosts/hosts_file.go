@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/miekg/dns"
 )
 
 const cacheMaxAge = 5 * time.Second
@@ -91,8 +89,9 @@ func (f *File) update() {
 			continue
 		}
 		for index := 1; index < len(fields); index++ {
-			canonicalName := dns.CanonicalName(fields[index])
-			byName[canonicalName] = append(byName[canonicalName], addr)
+			// canonicalName := dns.CanonicalName(fields[index])
+			domain := fields[index]
+			byName[domain] = append(byName[domain], addr)
 		}
 	}
 	f.expire = now.Add(cacheMaxAge)

@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"net/netip"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -9,6 +10,8 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/service/filemanager"
 
 	mDNS "github.com/miekg/dns"
@@ -22,7 +25,8 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
-	files []*File
+	files      []*File
+	predefined badjson.TypedMap[string, badoption.Listable[netip.Addr]]
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.HostsDNSServerOptions) (adapter.DNSTransport, error) {
@@ -37,6 +41,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeHosts, tag, nil),
 		files:            files,
+		predefined:       options.Predefined,
 	}, nil
 }
 
@@ -47,6 +52,10 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	question := message.Question[0]
 	domain := dns.FqdnToDomain(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
+		if addresses, ok := t.predefined.Get(domain); ok {
+			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
+		}
+
 		for _, file := range t.files {
 			addresses := file.Lookup(domain)
 			if len(addresses) > 0 {
