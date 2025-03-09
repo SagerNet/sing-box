@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/udpnat2"
@@ -80,7 +81,7 @@ func (i *Inbound) Close() error {
 }
 
 func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
-	i.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, M.Socksaddr{}, nil)
+	i.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, i.listener.UDPAddr(), nil)
 }
 
 func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -104,7 +105,6 @@ func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 
 func (i *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	i.logger.InfoContext(ctx, "inbound packet connection from ", source)
-	i.logger.InfoContext(ctx, "inbound packet connection to ", destination)
 	var metadata adapter.InboundContext
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
@@ -123,8 +123,11 @@ func (i *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		destination.Port = i.overrideDestination.Port
 	default:
 	}
+	i.logger.InfoContext(ctx, "inbound packet connection to ", destination)
 	metadata.Destination = destination
-	metadata.OriginDestination = i.listener.UDPAddr()
+	if i.overrideOption != 0 {
+		conn = bufio.NewDestinationNATPacketConn(bufio.NewNetPacketConn(conn), i.listener.UDPAddr(), destination)
+	}
 	i.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
