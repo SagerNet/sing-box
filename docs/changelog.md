@@ -2,6 +2,12 @@
 icon: material/alert-decagram
 ---
 
+### 1.11.5
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+
 ### 1.11.4
 
 * Fixes and improvements
