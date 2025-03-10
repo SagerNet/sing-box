@@ -61,7 +61,7 @@ func newInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		logger:  logger,
 	}
 	var err error
-	inbound.router, err = mux.NewRouterWithOptions(router, logger, common.PtrValueOrDefault(options.Multiplex))
+	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
