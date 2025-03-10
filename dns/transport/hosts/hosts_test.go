@@ -11,6 +11,6 @@ import (
 
 func TestHosts(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, []netip.Addr{netip.AddrFrom4([4]byte{127, 0, 0, 1}), netip.IPv6Loopback()}, hosts.NewFile("testdata/hosts").Lookup("localhost."))
-	require.NotEmpty(t, hosts.NewFile(hosts.DefaultPath).Lookup("localhost."))
+	require.Equal(t, []netip.Addr{netip.AddrFrom4([4]byte{127, 0, 0, 1}), netip.IPv6Loopback()}, hosts.NewFile("testdata/hosts").Lookup("localhost"))
+	require.NotEmpty(t, hosts.NewFile(hosts.DefaultPath).Lookup("localhost"))
 }
