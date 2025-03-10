@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/miekg/dns"
 )
 
 const cacheMaxAge = 5 * time.Second
@@ -32,7 +34,7 @@ func (f *File) Lookup(name string) []netip.Addr {
 	f.access.Lock()
 	defer f.access.Unlock()
 	f.update()
-	return f.byName[name]
+	return f.byName[dns.CanonicalName(name)]
 }
 
 func (f *File) update() {
@@ -89,9 +91,8 @@ func (f *File) update() {
 			continue
 		}
 		for index := 1; index < len(fields); index++ {
-			// canonicalName := dns.CanonicalName(fields[index])
-			domain := fields[index]
-			byName[domain] = append(byName[domain], addr)
+			canonicalName := dns.CanonicalName(fields[index])
+			byName[canonicalName] = append(byName[canonicalName], addr)
 		}
 	}
 	f.expire = now.Add(cacheMaxAge)
