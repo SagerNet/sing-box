@@ -104,7 +104,8 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 				Reserved:                    it.Reserved,
 			}
 		}),
-		Workers: options.Workers,
+		Workers:                          options.Workers,
+		WireGuardAdvancedSecurityOptions: options.WireGuardAdvancedSecurityOptions,
 	})
 	if err != nil {
 		return nil, err
