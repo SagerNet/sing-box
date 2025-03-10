@@ -565,13 +565,21 @@ DNS 服务器已经重构。
           "type": "socks",
           "server": "example.org",
           "server_port": 2080,
-          "domain_resolver": "local",
+          "domain_resolver": {
+            "server": "local",
+            "rewrite_ttl": 60,
+            "client_subnet": "1.1.1.1"
+          },
+          // 或 "domain_resolver": "local",
         }
       ],
+
+      // 或
+
       "route": {
         "default_domain_resolver": {
           "server": "local",
-          "rewrite_tll": 60,
+          "rewrite_ttl": 60,
           "client_subnet": "1.1.1.1"
         }
       }
