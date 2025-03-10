@@ -316,8 +316,8 @@ type LegacyDNSServerOptions struct {
 }
 
 type HostsDNSServerOptions struct {
-	Path       badoption.Listable[string]                               `json:"path,omitempty"`
-	Predefined badjson.TypedMap[string, badoption.Listable[netip.Addr]] `json:"predefined,omitempty"`
+	Path       badoption.Listable[string]                                `json:"path,omitempty"`
+	Predefined *badjson.TypedMap[string, badoption.Listable[netip.Addr]] `json:"predefined,omitempty"`
 }
 
 type LocalDNSServerOptions struct {

@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"net/netip"
 	"os"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -22,11 +23,15 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
-	files []*File
+	files      []*File
+	predefined map[string][]netip.Addr
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.HostsDNSServerOptions) (adapter.DNSTransport, error) {
-	var files []*File
+	var (
+		files      []*File
+		predefined = make(map[string][]netip.Addr)
+	)
 	if len(options.Path) == 0 {
 		files = append(files, NewFile(DefaultPath))
 	} else {
@@ -34,9 +39,15 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 			files = append(files, NewFile(filemanager.BasePath(ctx, os.ExpandEnv(path))))
 		}
 	}
+	if options.Predefined != nil {
+		for _, entry := range options.Predefined.Entries() {
+			predefined[mDNS.CanonicalName(entry.Key)] = entry.Value
+		}
+	}
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeHosts, tag, nil),
 		files:            files,
+		predefined:       predefined,
 	}, nil
 }
 
@@ -45,8 +56,11 @@ func (t *Transport) Reset() {
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
-	domain := dns.FqdnToDomain(question.Name)
+	domain := mDNS.CanonicalName(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
+		if addresses, ok := t.predefined[domain]; ok {
+			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
+		}
 		for _, file := range t.files {
 			addresses := file.Lookup(domain)
 			if len(addresses) > 0 {
