@@ -21,6 +21,7 @@ import (
 var _ net.Conn = (*GunConn)(nil)
 
 type GunConn struct {
+	rawReader     io.Reader
 	reader        *std_bufio.Reader
 	writer        io.Writer
 	flusher       http.Flusher
@@ -31,9 +32,10 @@ type GunConn struct {
 
 func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunConn {
 	return &GunConn{
-		reader:  std_bufio.NewReader(reader),
-		writer:  writer,
-		flusher: flusher,
+		rawReader: reader,
+		reader:    std_bufio.NewReader(reader),
+		writer:    writer,
+		flusher:   flusher,
 	}
 }
 
@@ -46,6 +48,7 @@ func newLateGunConn(writer io.Writer) *GunConn {
 
 func (c *GunConn) setup(reader io.Reader, err error) {
 	if reader != nil {
+		c.rawReader = reader
 		c.reader = std_bufio.NewReader(reader)
 	}
 	c.err = err
@@ -138,7 +141,7 @@ func (c *GunConn) FrontHeadroom() int {
 }
 
 func (c *GunConn) Close() error {
-	return common.Close(c.reader, c.writer)
+	return common.Close(c.rawReader, c.writer)
 }
 
 func (c *GunConn) LocalAddr() net.Addr {
