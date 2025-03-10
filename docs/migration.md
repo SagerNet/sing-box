@@ -567,7 +567,7 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
           "server_port": 2080,
           "domain_resolver": {
             "server": "local",
-            "rewrite_tll": 60,
+            "rewrite_ttl": 60,
             "client_subnet": "1.1.1.1"
           },
           // or "domain_resolver": "local",
@@ -579,7 +579,7 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
       "route": {
         "default_domain_resolver": {
           "server": "local",
-          "rewrite_tll": 60,
+          "rewrite_ttl": 60,
           "client_subnet": "1.1.1.1"
         }
       }
