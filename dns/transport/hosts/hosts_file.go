@@ -34,7 +34,7 @@ func (f *File) Lookup(name string) []netip.Addr {
 	f.access.Lock()
 	defer f.access.Unlock()
 	f.update()
-	return f.byName[name]
+	return f.byName[dns.CanonicalName(name)]
 }
 
 func (f *File) update() {
