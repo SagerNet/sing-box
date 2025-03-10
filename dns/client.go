@@ -537,7 +537,7 @@ func FixedResponse(id uint16, question dns.Question, addresses []netip.Addr, tim
 		Question: []dns.Question{question},
 	}
 	for _, address := range addresses {
-		if address.Is4() {
+		if address.Is4() && question.Qtype == dns.TypeA {
 			response.Answer = append(response.Answer, &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   question.Name,
@@ -547,7 +547,7 @@ func FixedResponse(id uint16, question dns.Question, addresses []netip.Addr, tim
 				},
 				A: address.AsSlice(),
 			})
-		} else {
+		} else if address.Is6() && question.Qtype == dns.TypeAAAA {
 			response.Answer = append(response.Answer, &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   question.Name,
