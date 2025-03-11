@@ -56,7 +56,12 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 
 func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName string, interfaceIndex32 int32, isExpensive bool, isConstrained bool) {
 	if sFixAndroidStack {
-		go m.updateDefaultInterface(interfaceName, interfaceIndex32, isExpensive, isConstrained)
+		done := make(chan struct{})
+		go func() {
+			m.updateDefaultInterface(interfaceName, interfaceIndex32, isExpensive, isConstrained)
+			close(done)
+		}()
+		<-done
 	} else {
 		m.updateDefaultInterface(interfaceName, interfaceIndex32, isExpensive, isConstrained)
 	}
