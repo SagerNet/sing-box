@@ -159,7 +159,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: '~> v2'
+          version: nightly
           install-only: true
       - name: Extract signing key
         run: |-
