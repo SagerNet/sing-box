@@ -165,7 +165,15 @@ func New(options Options) (*Box, error) {
 		} else {
 			tag = F.ToString(i)
 		}
-		err = endpointManager.Create(ctx,
+		endpointCtx := ctx
+		if tag != "" {
+			// TODO: remove this
+			endpointCtx = adapter.WithContext(endpointCtx, &adapter.InboundContext{
+				Outbound: tag,
+			})
+		}
+		err = endpointManager.Create(
+			endpointCtx,
 			router,
 			logFactory.NewLogger(F.ToString("endpoint/", endpointOptions.Type, "[", tag, "]")),
 			tag,
@@ -183,7 +191,8 @@ func New(options Options) (*Box, error) {
 		} else {
 			tag = F.ToString(i)
 		}
-		err = inboundManager.Create(ctx,
+		err = inboundManager.Create(
+			ctx,
 			router,
 			logFactory.NewLogger(F.ToString("inbound/", inboundOptions.Type, "[", tag, "]")),
 			tag,
