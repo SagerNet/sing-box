@@ -114,6 +114,7 @@ Takes no effect if `outbound.routing_mark` is set.
 See [Dial Fields](/configuration/shared/dial/#domain_resolver) for details.
 
 Can be overrides by `outbound.domain_resolver`.
+Can be overrides by `ruleset.domain_resolver`.
 
 #### default_network_strategy
 

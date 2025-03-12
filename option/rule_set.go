@@ -85,9 +85,11 @@ type LocalRuleSet struct {
 }
 
 type RemoteRuleSet struct {
+	DialerOptions
 	URL            string             `json:"url"`
-	DownloadDetour string             `json:"download_detour,omitempty"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
+	// keep this filed for compatibility, use Detour field please
+	DownloadDetour string `json:"download_detour,omitempty"`
 }
 
 type _HeadlessRule struct {
