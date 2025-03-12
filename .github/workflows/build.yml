@@ -555,7 +555,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: 2.5.1
+          version: nightly
           install-only: true
       - name: Cache ghr
         uses: actions/cache@v4
