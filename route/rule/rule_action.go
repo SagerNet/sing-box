@@ -13,7 +13,7 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -368,6 +368,8 @@ func (r *RuleActionSniff) build() error {
 			r.StreamSniffers = append(r.StreamSniffers, sniff.SSH)
 		case C.ProtocolRDP:
 			r.StreamSniffers = append(r.StreamSniffers, sniff.RDP)
+		case C.ProtocolNTP:
+			r.PacketSniffers = append(r.PacketSniffers, sniff.NTP)
 		default:
 			return E.New("unknown sniffer: ", name)
 		}
