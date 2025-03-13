@@ -159,7 +159,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: nightly
+          version: '~> v2'
           install-only: true
       - name: Extract signing key
         run: |-
@@ -555,7 +555,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: nightly
+          version: '~> v2'
           install-only: true
       - name: Cache ghr
         uses: actions/cache@v4
