@@ -23,7 +23,6 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	sHTTP "github.com/sagernet/sing/protocol/http"
 
@@ -101,8 +100,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		headers:          headers,
 		transport: &http3.Transport{
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
-				destinationAddr := M.ParseSocksaddr(addr)
-				conn, dialErr := transportDialer.DialContext(ctx, N.NetworkUDP, destinationAddr)
+				conn, dialErr := transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
 				if dialErr != nil {
 					return nil, dialErr
 				}
