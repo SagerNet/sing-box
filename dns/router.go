@@ -390,7 +390,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 		ruleIndex = -1
 		for {
 			dnsCtx := adapter.OverrideContext(ctx)
-			transport, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true, &options)
+			dnsOptions := options
+			transport, rule, ruleIndex = r.matchDNS(ctx, false, ruleIndex, true, &dnsOptions)
 			if rule != nil {
 				switch action := rule.Action().(type) {
 				case *R.RuleActionReject:
@@ -423,10 +424,10 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 					return rule.MatchAddressLimit(metadata)
 				}
 			}
-			if options.Strategy == C.DomainStrategyAsIS {
-				options.Strategy = r.defaultDomainStrategy
+			if dnsOptions.Strategy == C.DomainStrategyAsIS {
+				dnsOptions.Strategy = r.defaultDomainStrategy
 			}
-			responseAddrs, err = r.client.Lookup(dnsCtx, transport, domain, options, responseCheck)
+			responseAddrs, err = r.client.Lookup(dnsCtx, transport, domain, dnsOptions, responseCheck)
 			if responseCheck == nil || err == nil {
 				break
 			}
