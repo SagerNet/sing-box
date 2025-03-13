@@ -113,6 +113,7 @@ icon: material/alert-decagram
 详情参阅 [拨号字段](/configuration/shared/dial/#domain_resolver)。
 
 可以被 `outbound.domain_resolver` 覆盖。
+可以被 `ruleset.domain_resolver` 覆盖。
 
 #### network_strategy
 

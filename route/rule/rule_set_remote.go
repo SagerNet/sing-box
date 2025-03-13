@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/srs"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -83,17 +84,23 @@ func (s *RemoteRuleSet) String() string {
 
 func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
-	var dialer N.Dialer
-	if s.options.RemoteOptions.DownloadDetour != "" {
-		outbound, loaded := s.outbound.Outbound(s.options.RemoteOptions.DownloadDetour)
-		if !loaded {
-			return E.New("download detour not found: ", s.options.RemoteOptions.DownloadDetour)
-		}
-		dialer = outbound
-	} else {
-		dialer = s.outbound.Default()
+
+	detour := s.options.RemoteOptions.Detour
+	if detour == "" && s.options.RemoteOptions.DownloadDetour != "" {
+		detour = s.options.RemoteOptions.DownloadDetour
+		s.options.RemoteOptions.DialerOptions.Detour = detour
 	}
-	s.dialer = dialer
+
+	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:          ctx,
+		Options:          s.options.RemoteOptions.DialerOptions,
+		RemoteIsDomain:   true,
+		ResolverOnDetour: detour != "",
+	})
+	if err != nil {
+		return err
+	}
+	s.dialer = outboundDialer
 	if s.cacheFile != nil {
 		if savedSet := s.cacheFile.LoadRuleSet(s.options.Tag); savedSet != nil {
 			err := s.loadBytes(savedSet.Content)
@@ -228,7 +235,7 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 	s.logger.Debug("updating rule-set ", s.options.Tag, " from URL: ", s.options.RemoteOptions.URL)
 	var httpClient *http.Client
 	if startContext != nil {
-		httpClient = startContext.HTTPClient(s.options.RemoteOptions.DownloadDetour, s.dialer)
+		httpClient = startContext.HTTPClient(s.options.RemoteOptions.Detour, s.dialer)
 	} else {
 		httpClient = &http.Client{
 			Transport: &http.Transport{
