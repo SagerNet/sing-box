@@ -22,6 +22,7 @@ LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 RUN set -ex \
     && apk upgrade \
     && apk add bash tzdata ca-certificates nftables \
+    && apk add wireguard-tools \
     && rm -rf /var/cache/apk/*
 COPY --from=builder /go/bin/sing-box /usr/local/bin/sing-box
 ENTRYPOINT ["sing-box"]
