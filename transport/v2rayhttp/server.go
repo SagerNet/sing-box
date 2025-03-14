@@ -132,7 +132,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		if requestBody != nil {
 			conn = bufio.NewCachedConn(conn, requestBody)
 		}
-		s.handler.NewConnectionEx(request.Context(), conn, source, M.Socksaddr{}, nil)
+		s.handler.NewConnectionEx(DupContext(request.Context()), conn, source, M.Socksaddr{}, nil)
 	} else {
 		writer.WriteHeader(http.StatusOK)
 		done := make(chan struct{})

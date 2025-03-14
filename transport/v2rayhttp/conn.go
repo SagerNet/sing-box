@@ -2,6 +2,7 @@ package v2rayhttp
 
 import (
 	std_bufio "bufio"
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/buf"
@@ -254,4 +256,12 @@ func (w *HTTP2ConnWrapper) Close() error {
 
 func (w *HTTP2ConnWrapper) Upstream() any {
 	return w.ExtendedConn
+}
+
+func DupContext(ctx context.Context) context.Context {
+	id, loaded := log.IDFromContext(ctx)
+	if !loaded {
+		return context.Background()
+	}
+	return log.ContextWithID(context.Background(), id)
 }
