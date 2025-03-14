@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -20,7 +20,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -42,41 +42,49 @@ type BoxService struct {
 	servicePauseFields
 }
 
-func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
-	ctx := BaseContext(platformInterface)
-	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
-	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
-	options, err := parseConfig(ctx, configContent)
+type Option func(*BoxService)
+
+func NewService(configContent string, platformInterface PlatformInterface, opts ...Option) (*BoxService, error) {
+	bs := &BoxService{
+		ctx:                   BaseContext(platformInterface),
+		urlTestHistoryStorage: urltest.NewHistoryStorage(),
+	}
+	for _, opt := range opts {
+		opt(bs)
+	}
+	bs.pauseManager = service.FromContext[pause.Manager](bs.ctx)
+	bs.clashServer = service.FromContext[adapter.ClashServer](bs.ctx)
+	bs.ctx = filemanager.WithDefault(bs.ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
+	service.MustRegister[deprecated.Manager](bs.ctx, new(deprecatedManager))
+	options, err := parseConfig(bs.ctx, configContent)
 	if err != nil {
 		return nil, err
 	}
 	runtimeDebug.FreeOSMemory()
-	ctx, cancel := context.WithCancel(ctx)
-	urlTestHistoryStorage := urltest.NewHistoryStorage()
-	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
+	bs.ctx, bs.cancel = context.WithCancel(bs.ctx)
+	bs.ctx = service.ContextWithPtr(bs.ctx, &bs.urlTestHistoryStorage)
 	platformWrapper := &platformInterfaceWrapper{
 		iif:       platformInterface,
 		useProcFS: platformInterface.UseProcFS(),
 	}
-	service.MustRegister[platform.Interface](ctx, platformWrapper)
-	instance, err := box.New(box.Options{
-		Context:           ctx,
+	service.MustRegister[platform.Interface](bs.ctx, platformWrapper)
+	bs.instance, err = box.New(box.Options{
+		Context:           bs.ctx,
 		Options:           options,
 		PlatformLogWriter: platformWrapper,
 	})
 	if err != nil {
-		cancel()
+		bs.cancel()
 		return nil, E.Cause(err, "create service")
 	}
 	runtimeDebug.FreeOSMemory()
-	return &BoxService{
-		ctx:                   ctx,
-		cancel:                cancel,
-		instance:              instance,
-		urlTestHistoryStorage: urlTestHistoryStorage,
-		pauseManager:          service.FromContext[pause.Manager](ctx),
-		clashServer:           service.FromContext[adapter.ClashServer](ctx),
-	}, nil
+	return bs, nil
+}
+
+func WithContext(ctx context.Context) Option {
+	return func(bs *BoxService) {
+		bs.ctx = ctx
+	}
 }
 
 func (s *BoxService) Start() error {
