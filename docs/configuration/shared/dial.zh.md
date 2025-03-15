@@ -105,6 +105,10 @@ icon: material/new-box
 
     `outbound` DNS 规则项已弃用，且将在 sing-box 1.14.0 中被移除。因此，从 sing-box 1.14.0 版本开始，所有在服务器地址中使用域名的出站/端点均需配置此项。
 
+!!! info ""
+
+    当只有一个 DNS 服务器已配置时，`domain_resolver` 或 `route.default_domain_resolver` 是可选的。 
+
 用于设置解析域名的域名解析器。
 
 此选项的格式与 [路由 DNS 规则动作](/configuration/dns/rule_action/#route) 相同，但不包含 `action` 字段。  
