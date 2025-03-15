@@ -106,6 +106,10 @@ Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
     `outbound` DNS rule items are deprecated and will be removed in sing-box 1.14.0, so this item will be required for outbound/endpoints using domain name in server address since sing-box 1.14.0.
 
+!!! info ""
+
+    `domain_resolver` or `route.default_domain_resolver` is optional when only one DNS server is configured.
+
 Set domain resolver to use for resolving domain names.
 
 This option uses the same format as the [route DNS rule action](/configuration/dns/rule_action/#route) without the `action` field.
