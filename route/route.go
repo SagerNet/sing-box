@@ -600,6 +600,7 @@ func (r *Router) actionSniff(
 							sniff.UTP,
 							sniff.UDPTracker,
 							sniff.DTLSRecord,
+							sniff.NTP,
 						}
 					}
 					err = sniff.PeekPacket(
