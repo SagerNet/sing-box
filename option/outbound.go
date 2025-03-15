@@ -99,7 +99,9 @@ type _DomainResolveOptions struct {
 type DomainResolveOptions _DomainResolveOptions
 
 func (o DomainResolveOptions) MarshalJSON() ([]byte, error) {
-	if o.Strategy == DomainStrategy(C.DomainStrategyAsIS) &&
+	if o.Server == "" {
+		return []byte("{}"), nil
+	} else if o.Strategy == DomainStrategy(C.DomainStrategyAsIS) &&
 		!o.DisableCache &&
 		o.RewriteTTL == nil &&
 		o.ClientSubnet == nil {
