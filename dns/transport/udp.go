@@ -42,7 +42,7 @@ func NewUDP(ctx context.Context, logger log.ContextLogger, tag string, options o
 	if err != nil {
 		return nil, err
 	}
-	serverAddr := options.ServerOptions.Build()
+	serverAddr := options.DNSServerAddressOptions.Build()
 	if serverAddr.Port == 0 {
 		serverAddr.Port = 53
 	}
