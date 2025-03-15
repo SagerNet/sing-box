@@ -54,7 +54,7 @@ func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options 
 	if len(tlsConfig.NextProtos()) == 0 {
 		tlsConfig.SetNextProtos([]string{"doq"})
 	}
-	serverAddr := options.ServerOptions.Build()
+	serverAddr := options.DNSServerAddressOptions.Build()
 	if serverAddr.Port == 0 {
 		serverAddr.Port = 853
 	}
