@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -45,19 +44,19 @@ func (v NetworkList) Build() []string {
 	return strings.Split(string(v), "\n")
 }
 
-type DomainStrategy dns.DomainStrategy
+type DomainStrategy C.DomainStrategy
 
 func (s DomainStrategy) String() string {
-	switch dns.DomainStrategy(s) {
-	case dns.DomainStrategyAsIS:
+	switch C.DomainStrategy(s) {
+	case C.DomainStrategyAsIS:
 		return ""
-	case dns.DomainStrategyPreferIPv4:
+	case C.DomainStrategyPreferIPv4:
 		return "prefer_ipv4"
-	case dns.DomainStrategyPreferIPv6:
+	case C.DomainStrategyPreferIPv6:
 		return "prefer_ipv6"
-	case dns.DomainStrategyUseIPv4:
+	case C.DomainStrategyIPv4Only:
 		return "ipv4_only"
-	case dns.DomainStrategyUseIPv6:
+	case C.DomainStrategyIPv6Only:
 		return "ipv6_only"
 	default:
 		panic(E.New("unknown domain strategy: ", s))
@@ -66,17 +65,17 @@ func (s DomainStrategy) String() string {
 
 func (s DomainStrategy) MarshalJSON() ([]byte, error) {
 	var value string
-	switch dns.DomainStrategy(s) {
-	case dns.DomainStrategyAsIS:
+	switch C.DomainStrategy(s) {
+	case C.DomainStrategyAsIS:
 		value = ""
 		// value = "as_is"
-	case dns.DomainStrategyPreferIPv4:
+	case C.DomainStrategyPreferIPv4:
 		value = "prefer_ipv4"
-	case dns.DomainStrategyPreferIPv6:
+	case C.DomainStrategyPreferIPv6:
 		value = "prefer_ipv6"
-	case dns.DomainStrategyUseIPv4:
+	case C.DomainStrategyIPv4Only:
 		value = "ipv4_only"
-	case dns.DomainStrategyUseIPv6:
+	case C.DomainStrategyIPv6Only:
 		value = "ipv6_only"
 	default:
 		return nil, E.New("unknown domain strategy: ", s)
@@ -92,15 +91,15 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	}
 	switch value {
 	case "", "as_is":
-		*s = DomainStrategy(dns.DomainStrategyAsIS)
+		*s = DomainStrategy(C.DomainStrategyAsIS)
 	case "prefer_ipv4":
-		*s = DomainStrategy(dns.DomainStrategyPreferIPv4)
+		*s = DomainStrategy(C.DomainStrategyPreferIPv4)
 	case "prefer_ipv6":
-		*s = DomainStrategy(dns.DomainStrategyPreferIPv6)
+		*s = DomainStrategy(C.DomainStrategyPreferIPv6)
 	case "ipv4_only":
-		*s = DomainStrategy(dns.DomainStrategyUseIPv4)
+		*s = DomainStrategy(C.DomainStrategyIPv4Only)
 	case "ipv6_only":
-		*s = DomainStrategy(dns.DomainStrategyUseIPv6)
+		*s = DomainStrategy(C.DomainStrategyIPv6Only)
 	default:
 		return E.New("unknown domain strategy: ", value)
 	}

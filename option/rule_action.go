@@ -7,7 +7,6 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -168,12 +167,14 @@ func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 
 type DNSRouteActionOptions struct {
 	Server       string                `json:"server,omitempty"`
+	Strategy     DomainStrategy        `json:"strategy,omitempty"`
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type _DNSRouteOptionsActionOptions struct {
+	Strategy     DomainStrategy        `json:"strategy,omitempty"`
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
@@ -225,7 +226,7 @@ func (d DirectActionOptions) Descriptions() []string {
 	if d.UDPFragment != nil {
 		descriptions = append(descriptions, "udp_fragment="+fmt.Sprint(*d.UDPFragment))
 	}
-	if d.DomainStrategy != DomainStrategy(dns.DomainStrategyAsIS) {
+	if d.DomainStrategy != DomainStrategy(C.DomainStrategyAsIS) {
 		descriptions = append(descriptions, "domain_strategy="+d.DomainStrategy.String())
 	}
 	if d.FallbackDelay != 0 {
@@ -251,6 +252,14 @@ type _RejectActionOptions struct {
 }
 
 type RejectActionOptions _RejectActionOptions
+
+func (r RejectActionOptions) MarshalJSON() ([]byte, error) {
+	switch r.Method {
+	case C.RuleActionRejectMethodDefault:
+		r.Method = ""
+	}
+	return json.Marshal((_RejectActionOptions)(r))
+}
 
 func (r *RejectActionOptions) UnmarshalJSON(bytes []byte) error {
 	err := json.Unmarshal(bytes, (*_RejectActionOptions)(r))
