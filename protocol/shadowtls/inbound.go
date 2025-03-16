@@ -57,7 +57,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			}
 		}
 	}
-	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions, options.Handshake.ServerIsDomain())
+	serverIsDomain := options.Handshake.ServerIsDomain()
+	if options.WildcardSNI != option.ShadowTLSWildcardSNIOff {
+		serverIsDomain = true
+	}
+	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions, serverIsDomain)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +77,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		},
 		HandshakeForServerName: handshakeForServerName,
 		StrictMode:             options.StrictMode,
+		WildcardSNI:            shadowtls.WildcardSNI(options.WildcardSNI),
 		Handler:                (*inboundHandler)(inbound),
 		Logger:                 logger,
 	})
