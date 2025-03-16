@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net"
-	"net/netip"
 	"os"
 	"strings"
 
@@ -51,9 +50,7 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 	if options.ServerName != "" {
 		serverName = options.ServerName
 	} else if serverAddress != "" {
-		if _, err := netip.ParseAddr(serverName); err != nil {
-			serverName = serverAddress
-		}
+		serverName = serverAddress
 	}
 	if serverName == "" && !options.Insecure {
 		return nil, E.New("missing server_name or insecure=true")
