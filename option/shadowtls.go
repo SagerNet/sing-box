@@ -1,5 +1,11 @@
 package option
 
+import (
+	"encoding/json"
+
+	E "github.com/sagernet/sing/common/exceptions"
+)
+
 type ShadowTLSInboundOptions struct {
 	ListenOptions
 	Version                int                                  `json:"version,omitempty"`
@@ -8,6 +14,51 @@ type ShadowTLSInboundOptions struct {
 	Handshake              ShadowTLSHandshakeOptions            `json:"handshake,omitempty"`
 	HandshakeForServerName map[string]ShadowTLSHandshakeOptions `json:"handshake_for_server_name,omitempty"`
 	StrictMode             bool                                 `json:"strict_mode,omitempty"`
+	WildcardSNI            WildcardSNI                          `json:"wildcard_sni,omitempty"`
+}
+
+type WildcardSNI int
+
+const (
+	ShadowTLSWildcardSNIOff WildcardSNI = iota
+	ShadowTLSWildcardSNIAuthed
+	ShadowTLSWildcardSNIAll
+)
+
+func (w WildcardSNI) MarshalJSON() ([]byte, error) {
+	return json.Marshal(w.String())
+}
+
+func (w WildcardSNI) String() string {
+	switch w {
+	case ShadowTLSWildcardSNIOff:
+		return "off"
+	case ShadowTLSWildcardSNIAuthed:
+		return "authed"
+	case ShadowTLSWildcardSNIAll:
+		return "all"
+	default:
+		panic("unknown wildcard SNI value")
+	}
+}
+
+func (w *WildcardSNI) UnmarshalJSON(bytes []byte) error {
+	var valueString string
+	err := json.Unmarshal(bytes, &valueString)
+	if err != nil {
+		return err
+	}
+	switch valueString {
+	case "off", "":
+		*w = ShadowTLSWildcardSNIOff
+	case "authed":
+		*w = ShadowTLSWildcardSNIAuthed
+	case "all":
+		*w = ShadowTLSWildcardSNIAll
+	default:
+		return E.New("unknown wildcard SNI value: ", valueString)
+	}
+	return nil
 }
 
 type ShadowTLSUser struct {

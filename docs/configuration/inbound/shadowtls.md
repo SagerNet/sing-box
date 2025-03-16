@@ -1,3 +1,11 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [wildcard_sni](#wildcard_sni)
+
 ### Structure
 
 ```json
@@ -29,7 +37,8 @@
       ... // Dial Fields
     }
   },
-  "strict_mode": false
+  "strict_mode": false,
+  "wildcard_sni": ""
 }
 ```
 
@@ -55,7 +64,6 @@ ShadowTLS password.
 
 Only available in the ShadowTLS protocol 2.
 
-
 #### users
 
 ShadowTLS users.
@@ -65,6 +73,8 @@ Only available in the ShadowTLS protocol 3.
 #### handshake
 
 ==Required==
+
+When `wildcard_sni` is configured to `all`, the server address is optional.
 
 Handshake server address and [Dial Fields](/configuration/shared/dial/).
 
@@ -77,5 +87,21 @@ Only available in the ShadowTLS protocol 2/3.
 #### strict_mode
 
 ShadowTLS strict mode.
+
+Only available in the ShadowTLS protocol 3.
+
+#### wildcard_sni
+
+!!! question "Since sing-box 1.12.0"
+
+ShadowTLS wildcard SNI mode.
+
+Available values are:
+
+* `off`: (default) Disabled.
+* `authed`: Authenticated connections will have their destination overwritten to `(servername):443`
+* `all`: All connections will have their destination overwritten to `(servername):443`
+
+Additionally, connections matching `handshake_for_server_name` are not affected.
 
 Only available in the ShadowTLS protocol 3.
