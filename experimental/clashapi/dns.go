@@ -13,13 +13,13 @@ import (
 	"github.com/miekg/dns"
 )
 
-func dnsRouter(router adapter.Router) http.Handler {
+func dnsRouter(router adapter.DNSRouter) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/query", queryDNS(router))
 	return r
 }
 
-func queryDNS(router adapter.Router) func(w http.ResponseWriter, r *http.Request) {
+func queryDNS(router adapter.DNSRouter) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Query().Get("name")
 		qTypeStr := r.URL.Query().Get("type")
@@ -39,7 +39,7 @@ func queryDNS(router adapter.Router) func(w http.ResponseWriter, r *http.Request
 
 		msg := dns.Msg{}
 		msg.SetQuestion(dns.Fqdn(name), qType)
-		resp, err := router.Exchange(ctx, &msg)
+		resp, err := router.Exchange(ctx, &msg, adapter.DNSQueryOptions{})
 		if err != nil {
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, newError(err.Error()))
