@@ -146,6 +146,21 @@ var OptionTUNGSO = Note{
 	EnvName:           "TUN_GSO",
 }
 
+var OptionLegacyDNSTransport = Note{
+	Name:              "legacy-dns-transport",
+	Description:       "legacy DNS transport",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+	EnvName:           "LEGACY_DNS_TRANSPORT",
+}
+
+var OptionLegacyDNSFakeIPOptions = Note{
+	Name:              "legacy-dns-fakeip-options",
+	Description:       "legacy DNS fakeip options",
+	DeprecatedVersion: "1.12.0",
+	ScheduledVersion:  "1.14.0",
+}
+
 var Options = []Note{
 	OptionBadMatchSource,
 	OptionGEOIP,
