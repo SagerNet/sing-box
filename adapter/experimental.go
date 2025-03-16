@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/urltest"
-	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/varbin"
 )
 
@@ -31,7 +30,7 @@ type CacheFile interface {
 	FakeIPStorage
 
 	StoreRDRC() bool
-	dns.RDRCStore
+	RDRCStore
 
 	LoadMode() string
 	StoreMode(mode string) error
