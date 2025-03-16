@@ -7,7 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -19,7 +19,7 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-func HandleStreamDNSRequest(ctx context.Context, router adapter.Router, conn net.Conn, metadata adapter.InboundContext) error {
+func HandleStreamDNSRequest(ctx context.Context, router adapter.DNSRouter, conn net.Conn, metadata adapter.InboundContext) error {
 	var queryLength uint16
 	err := binary.Read(conn, binary.BigEndian, &queryLength)
 	if err != nil {
@@ -41,7 +41,7 @@ func HandleStreamDNSRequest(ctx context.Context, router adapter.Router, conn net
 	}
 	metadataInQuery := metadata
 	go func() error {
-		response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+		response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message, adapter.DNSQueryOptions{})
 		if err != nil {
 			conn.Close()
 			return err
@@ -61,7 +61,7 @@ func HandleStreamDNSRequest(ctx context.Context, router adapter.Router, conn net
 	return nil
 }
 
-func NewDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.PacketConn, cachedPackets []*N.PacketBuffer, metadata adapter.InboundContext) error {
+func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, cachedPackets []*N.PacketBuffer, metadata adapter.InboundContext) error {
 	metadata.Destination = M.Socksaddr{}
 	var reader N.PacketReader = conn
 	var counters []N.CountFunc
@@ -123,7 +123,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.P
 			}
 			metadataInQuery := metadata
 			go func() error {
-				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message, adapter.DNSQueryOptions{})
 				if err != nil {
 					cancel(err)
 					return err
@@ -148,7 +148,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.P
 	return group.Run(fastClose)
 }
 
-func newDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
+func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
 	fastClose, cancel := common.ContextWithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
@@ -193,7 +193,7 @@ func newDNSPacketConnection(ctx context.Context, router adapter.Router, conn N.P
 			}
 			metadataInQuery := metadata
 			go func() error {
-				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message)
+				response, err := router.Exchange(adapter.WithContext(ctx, &metadataInQuery), &message, adapter.DNSQueryOptions{})
 				if err != nil {
 					cancel(err)
 					return err
