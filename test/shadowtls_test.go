@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/netip"
@@ -157,7 +158,7 @@ func TestShadowTLSFallback(t *testing.T) {
 					},
 					Handshake: option.ShadowTLSHandshakeOptions{
 						ServerOptions: option.ServerOptions{
-							Server:     "google.com",
+							Server:     "bing.com",
 							ServerPort: 443,
 						},
 					},
@@ -177,10 +178,122 @@ func TestShadowTLSFallback(t *testing.T) {
 			},
 		},
 	}
-	response, err := client.Get("https://google.com")
+	response, err := client.Get("https://bing.com")
 	require.NoError(t, err)
 	require.Equal(t, response.StatusCode, 200)
 	response.Body.Close()
+	client.CloseIdleConnections()
+}
+
+func TestShadowTLSFallbackWildcardAll(t *testing.T) {
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeShadowTLS,
+				Options: &option.ShadowTLSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+						ListenPort: serverPort,
+					},
+					Version: 3,
+					Users: []option.ShadowTLSUser{
+						{Password: "hello"},
+					},
+					WildcardSNI: option.ShadowTLSWildcardSNIAll,
+				},
+			},
+		},
+	})
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, "127.0.0.1:"+F.ToString(serverPort))
+			},
+		},
+	}
+	response, err := client.Get("https://www.bing.com")
+	require.NoError(t, err)
+	require.Equal(t, response.StatusCode, 200)
+	response.Body.Close()
+	client.CloseIdleConnections()
+}
+
+func TestShadowTLSFallbackWildcardAuthedFail(t *testing.T) {
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeShadowTLS,
+				Options: &option.ShadowTLSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+						ListenPort: serverPort,
+					},
+					Handshake: option.ShadowTLSHandshakeOptions{
+						ServerOptions: option.ServerOptions{
+							Server:     "bing.com",
+							ServerPort: 443,
+						},
+					},
+					Version: 3,
+					Users: []option.ShadowTLSUser{
+						{Password: "hello"},
+					},
+					WildcardSNI: option.ShadowTLSWildcardSNIAuthed,
+				},
+			},
+		},
+	})
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, "127.0.0.1:"+F.ToString(serverPort))
+			},
+		},
+	}
+	_, err := client.Get("https://baidu.com")
+	expected := &tls.CertificateVerificationError{}
+	require.ErrorAs(t, err, &expected)
+	client.CloseIdleConnections()
+}
+
+func TestShadowTLSFallbackWildcardOffFail(t *testing.T) {
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeShadowTLS,
+				Options: &option.ShadowTLSInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+						ListenPort: serverPort,
+					},
+					Handshake: option.ShadowTLSHandshakeOptions{
+						ServerOptions: option.ServerOptions{
+							Server:     "bing.com",
+							ServerPort: 443,
+						},
+					},
+					Version: 3,
+					Users: []option.ShadowTLSUser{
+						{Password: "hello"},
+					},
+					WildcardSNI: option.ShadowTLSWildcardSNIOff,
+				},
+			},
+		},
+	})
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, "127.0.0.1:"+F.ToString(serverPort))
+			},
+		},
+	}
+	_, err := client.Get("https://baidu.com")
+	expected := &tls.CertificateVerificationError{}
+	require.ErrorAs(t, err, &expected)
 	client.CloseIdleConnections()
 }
 
