@@ -15,8 +15,8 @@ import (
 
 	cftls "github.com/sagernet/cloudflare-tls"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
@@ -215,7 +215,7 @@ func fetchECHClientConfig(ctx context.Context) func(_ context.Context, serverNam
 				},
 			},
 		}
-		response, err := service.FromContext[adapter.Router](ctx).Exchange(ctx, message)
+		response, err := service.FromContext[adapter.DNSRouter](ctx).Exchange(ctx, message, adapter.DNSQueryOptions{})
 		if err != nil {
 			return nil, err
 		}
