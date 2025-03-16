@@ -14,10 +14,13 @@
       "type": "shadowsocks",
       "listen": "::",
       "listen_port": 8080,
-      "sniff": true,
       "network": "tcp",
       "method": "2022-blake3-aes-128-gcm",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
+      "password": "Gn1JUS14bLUHgv1cWDDp4A==",
+      "multiplex": {
+        "enabled": true,
+        "padding": true
+      }
     }
   ],
   "outbounds": [
@@ -32,7 +35,7 @@
   "route": {
     "rules": [
       {
-        "protocol": "dns",
+        "port": 53,
         "outbound": "dns-out"
       }
     ]

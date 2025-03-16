@@ -4,42 +4,25 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/netip"
 	"sync"
 
-	"github.com/sagernet/sing-box/common/geoip"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-dns"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 
-	mdns "github.com/miekg/dns"
 	"go4.org/netipx"
 )
 
 type Router interface {
 	Lifecycle
-
-	FakeIPStore() FakeIPStore
-
 	ConnectionRouter
 	PreMatch(metadata InboundContext) error
 	ConnectionRouterEx
-
-	GeoIPReader() *geoip.Reader
-	LoadGeosite(code string) (Rule, error)
 	RuleSet(tag string) (RuleSet, bool)
 	NeedWIFIState() bool
-
-	Exchange(ctx context.Context, message *mdns.Msg) (*mdns.Msg, error)
-	Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error)
-	LookupDefault(ctx context.Context, domain string) ([]netip.Addr, error)
-	ClearDNSCache()
 	Rules() []Rule
-
 	AppendTracker(tracker ConnectionTracker)
-
 	ResetNetwork()
 }
 

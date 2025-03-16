@@ -9,8 +9,11 @@ import (
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
@@ -21,6 +24,18 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
+func BaseContext(platformInterface PlatformInterface) context.Context {
+	dnsRegistry := include.DNSTransportRegistry()
+	if platformInterface != nil {
+		if localTransport := platformInterface.LocalDNSTransport(); localTransport != nil {
+			dns.RegisterTransport[option.LocalDNSServerOptions](dnsRegistry, C.DNSTypeLocal, func(ctx context.Context, logger log.ContextLogger, tag string, options option.LocalDNSServerOptions) (adapter.DNSTransport, error) {
+				return newPlatformTransport(localTransport, tag, options), nil
+			})
+		}
+	}
+	return box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), dnsRegistry)
+}
+
 func parseConfig(ctx context.Context, configContent string) (option.Options, error) {
 	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(configContent))
 	if err != nil {
@@ -30,7 +45,7 @@ func parseConfig(ctx context.Context, configContent string) (option.Options, err
 }
 
 func CheckConfig(configContent string) error {
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	ctx := BaseContext(nil)
 	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return err
@@ -131,7 +146,7 @@ func (s *platformInterfaceStub) SendNotification(notification *platform.Notifica
 }
 
 func FormatConfig(configContent string) (*StringBox, error) {
-	options, err := parseConfig(box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry()), configContent)
+	options, err := parseConfig(BaseContext(nil), configContent)
 	if err != nil {
 		return nil, err
 	}

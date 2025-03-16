@@ -18,7 +18,6 @@ import (
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
-	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -44,7 +43,7 @@ type BoxService struct {
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	ctx := BaseContext(platformInterface)
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	options, err := parseConfig(ctx, configContent)
@@ -192,6 +191,9 @@ func (w *platformInterfaceWrapper) Interfaces() ([]adapter.NetworkInterface, err
 			continue
 		}
 		w.defaultInterfaceAccess.Lock()
+		// (GOOS=windows) SA4006: this value of `isDefault` is never used
+		// Why not used?
+		//nolint:staticcheck
 		isDefault := w.defaultInterface != nil && int(netInterface.Index) == w.defaultInterface.Index
 		w.defaultInterfaceAccess.Unlock()
 		interfaces = append(interfaces, adapter.NetworkInterface{
