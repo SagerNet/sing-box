@@ -78,8 +78,6 @@ type InboundContext struct {
 	FallbackNetworkType []C.InterfaceType
 	FallbackDelay       time.Duration
 
-	DNSServer string
-
 	DestinationAddresses []netip.Addr
 	SourceGeoIPCode      string
 	GeoIPCode            string
