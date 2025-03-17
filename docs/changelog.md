@@ -2,6 +2,15 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.0-alpha.18
+
+* Add wildcard SNI support for ShadowTLS inbound **1**
+* Fixes and improvements
+
+**1**:
+
+See [ShadowTLS](/configuration/inbound/shadowtls/#wildcard_sni).
+
 #### 1.12.0-alpha.17
 
 * Add NTP sniffer **1**
