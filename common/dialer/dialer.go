@@ -52,7 +52,7 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 			return nil, err
 		}
 	}
-	if options.RemoteIsDomain && (dialOptions.Detour == "" || options.ResolverOnDetour) {
+	if options.RemoteIsDomain && (dialOptions.Detour == "" || options.ResolverOnDetour || dialOptions.DomainResolver != nil && dialOptions.DomainResolver.Server != "") {
 		networkManager := service.FromContext[adapter.NetworkManager](options.Context)
 		dnsTransport := service.FromContext[adapter.DNSTransportManager](options.Context)
 		var defaultOptions adapter.NetworkOptions
