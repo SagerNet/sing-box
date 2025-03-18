@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,6 +16,8 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"github.com/vishvananda/netns"
 )
 
 type Listener struct {
@@ -134,4 +138,31 @@ func (l *Listener) UDPConn() *net.UDPConn {
 
 func (l *Listener) ListenOptions() option.ListenOptions {
 	return l.listenOptions
+}
+
+func ListenNetworkNamespace[T any](nameOrPath string, block func() (T, error)) (T, error) {
+	if nameOrPath != "" {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		currentNs, err := netns.Get()
+		if err != nil {
+			return common.DefaultValue[T](), E.Cause(err, "get current netns")
+		}
+		defer netns.Set(currentNs)
+		var targetNs netns.NsHandle
+		if strings.HasPrefix(nameOrPath, "/") {
+			targetNs, err = netns.GetFromPath(nameOrPath)
+		} else {
+			targetNs, err = netns.GetFromName(nameOrPath)
+		}
+		if err != nil {
+			return common.DefaultValue[T](), E.Cause(err, "get netns ", nameOrPath)
+		}
+		defer targetNs.Close()
+		err = netns.Set(targetNs)
+		if err != nil {
+			return common.DefaultValue[T](), E.Cause(err, "set netns to ", nameOrPath)
+		}
+	}
+	return block()
 }
