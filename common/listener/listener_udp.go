@@ -1,6 +1,7 @@
 package listener
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"os"
@@ -24,7 +25,9 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 	if !udpFragment {
 		lc.Control = control.Append(lc.Control, control.DisableUDPFragment())
 	}
-	udpConn, err := lc.ListenPacket(l.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
+	udpConn, err := ListenNetworkNamespace[net.PacketConn](l.listenOptions.NetNs, func() (net.PacketConn, error) {
+		return lc.ListenPacket(l.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -32,6 +35,12 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 	l.udpAddr = bindAddr
 	l.logger.Info("udp server started at ", udpConn.LocalAddr())
 	return udpConn, err
+}
+
+func (l *Listener) ListenPacket(listenConfig net.ListenConfig, ctx context.Context, network string, address string) (net.PacketConn, error) {
+	return ListenNetworkNamespace[net.PacketConn](l.listenOptions.NetNs, func() (net.PacketConn, error) {
+		return listenConfig.ListenPacket(ctx, network, address)
+	})
 }
 
 func (l *Listener) UDPAddr() M.Socksaddr {
