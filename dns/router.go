@@ -263,20 +263,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 							return nil, tun.ErrDrop
 						}
 					case *R.RuleActionPredefined:
-						return &mDNS.Msg{
-							MsgHdr: mDNS.MsgHdr{
-								Id:                 message.Id,
-								Response:           true,
-								Authoritative:      true,
-								RecursionDesired:   true,
-								RecursionAvailable: true,
-								Rcode:              action.Rcode,
-							},
-							Question: message.Question,
-							Answer:   action.Answer,
-							Ns:       action.Ns,
-							Extra:    action.Extra,
-						}, nil
+						return action.Response(message), nil
 					}
 				}
 				var responseCheck func(responseAddrs []netip.Addr) bool
