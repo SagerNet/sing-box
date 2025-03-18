@@ -121,41 +121,49 @@ func (t *TProxy) NewPacketEx(buffer *buf.Buffer, oob []byte, source M.Socksaddr)
 	t.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, M.SocksaddrFromNetIP(destination), nil)
 }
 
-type tproxyPacketWriter struct {
-	ctx         context.Context
-	source      netip.AddrPort
-	destination M.Socksaddr
-	conn        *net.UDPConn
-}
-
 func (t *TProxy) preparePacketConnection(source M.Socksaddr, destination M.Socksaddr, userData any) (bool, context.Context, N.PacketWriter, N.CloseHandlerFunc) {
 	ctx := log.ContextWithNewID(t.ctx)
-	writer := &tproxyPacketWriter{ctx: ctx, source: source.AddrPort(), destination: destination}
+	writer := &tproxyPacketWriter{
+		ctx:         ctx,
+		listener:    t.listener,
+		source:      source.AddrPort(),
+		destination: destination,
+	}
 	return true, ctx, writer, func(it error) {
 		common.Close(common.PtrOrNil(writer.conn))
 	}
 }
 
+type tproxyPacketWriter struct {
+	ctx         context.Context
+	listener    *listener.Listener
+	source      netip.AddrPort
+	destination M.Socksaddr
+	conn        *net.UDPConn
+}
+
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	conn := w.conn
-	if w.destination == destination && conn != nil {
-		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
-		if err != nil {
-			w.conn = nil
+	if w.listener.ListenOptions().NetNs == "" {
+		conn := w.conn
+		if w.destination == destination && conn != nil {
+			_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
+			if err != nil {
+				w.conn = nil
+			}
+			return err
 		}
-		return err
 	}
 	var dialer net.Dialer
 	dialer.LocalAddr = destination.UDPAddr()
 	dialer.Control = control.Append(dialer.Control, control.ReuseAddr())
 	dialer.Control = control.Append(dialer.Control, redir.TProxyWriteBack())
-	packetConn, err := dialer.DialContext(w.ctx, "udp", w.source.String())
+	packetConn, err := w.listener.DialContext(dialer, w.ctx, "udp", w.source.String())
 	if err != nil {
 		return err
 	}
 	udpConn := packetConn.(*net.UDPConn)
-	if w.destination == destination {
+	if w.listener.ListenOptions().NetNs == "" && w.destination == destination {
 		w.conn = udpConn
 	} else {
 		defer udpConn.Close()
