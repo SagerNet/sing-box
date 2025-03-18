@@ -68,6 +68,7 @@ type ListenOptions struct {
 	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault   bool               `json:"-"`
 	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
+	NetNs                string             `json:"netns,omitempty"`
 
 	// Deprecated: removed
 	ProxyProtocol bool `json:"proxy_protocol,omitempty"`

@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [domain_resolver](#domain_resolver)  
-    :material-delete-clock: [domain_strategy](#domain_strategy)
+    :material-delete-clock: [domain_strategy](#domain_strategy)  
+    :material-plus: [netns](#netns)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -18,24 +19,25 @@ icon: material/new-box
 
 ```json
 {
-  "detour": "upstream-out",
-  "bind_interface": "en0",
-  "inet4_bind_address": "0.0.0.0",
-  "inet6_bind_address": "::",
-  "routing_mark": 1234,
+  "detour": "",
+  "bind_interface": "",
+  "inet4_bind_address": "",
+  "inet6_bind_address": "",
+  "routing_mark": 0,
   "reuse_addr": false,
-  "connect_timeout": "5s",
+  "connect_timeout": "",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
+  "netns": "",
   "domain_resolver": "", // or {}
-  "network_strategy": "default",
+  "network_strategy": "",
   "network_type": [],
   "fallback_network_type": [],
-  "fallback_delay": "300ms",
+  "fallback_delay": "",
 
   // Deprecated
-  "domain_strategy": "prefer_ipv6"
+  "domain_strategy": ""
 }
 ```
 
@@ -75,6 +77,15 @@ Set netfilter routing mark.
 
 Reuse listener address.
 
+#### connect_timeout
+
+Connect timeout, in golang's Duration format.
+
+A duration string is a possibly signed sequence of
+decimal numbers, each with optional fraction and a unit suffix,
+such as "300ms", "-1.5h" or "2h45m".
+Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+
 #### tcp_fast_open
 
 Enable TCP Fast Open.
@@ -91,14 +102,15 @@ Enable TCP Multi Path.
 
 Enable UDP fragmentation.
 
-#### connect_timeout
+#### netns
 
-Connect timeout, in golang's Duration format.
+!!! question "Since sing-box 1.12.0"
 
-A duration string is a possibly signed sequence of
-decimal numbers, each with optional fraction and a unit suffix,
-such as "300ms", "-1.5h" or "2h45m".
-Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+!!! quote ""
+
+    Only supported on Linux.
+
+Set network namespace, name or path.
 
 #### domain_resolver
 
