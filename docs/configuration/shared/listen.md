@@ -1,6 +1,10 @@
 ---
-icon: material/delete-clock
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [netns](#netns)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -14,17 +18,18 @@ icon: material/delete-clock
 
 ```json
 {
-  "listen": "::",
-  "listen_port": 5353,
+  "listen": "",
+  "listen_port": 0,
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "udp_timeout": "5m",
-  "detour": "another-in",
+  "udp_timeout": "",
+  "netns": "",
+  "detour": "",
   "sniff": false,
   "sniff_override_destination": false,
-  "sniff_timeout": "300ms",
-  "domain_strategy": "prefer_ipv6",
+  "sniff_timeout": "",
+  "domain_strategy": "",
   "udp_disable_domain_unmapping": false
 }
 ```
@@ -71,6 +76,16 @@ Enable UDP fragmentation.
 UDP NAT expiration time.
 
 `5m` will be used by default.
+
+#### netns
+
+!!! question "Since sing-box 1.12.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Set network namespace, name or path.
 
 #### detour
 
