@@ -8,6 +8,12 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
+)
+
+var (
+	errNotClientHello      = E.New("not Client Hello")
+	errPossibleClientHello = E.New("may be Client Hello")
 )
 
 func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
@@ -23,5 +29,8 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 		metadata.Domain = clientHello.ServerName
 		return nil
 	}
-	return err
+	if _, ok := err.(tls.RecordHeaderError); ok {
+		return errNotClientHello
+	}
+	return errPossibleClientHello
 }

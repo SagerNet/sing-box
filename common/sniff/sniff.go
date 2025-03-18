@@ -3,6 +3,7 @@ package sniff
 import (
 	"bytes"
 	"context"
+	goerrors "errors"
 	"io"
 	"net"
 	"time"
@@ -41,7 +42,7 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 	}
 	deadline := time.Now().Add(timeout)
 	var errors []error
-	for i := 0; ; i++ {
+	for {
 		err := conn.SetReadDeadline(deadline)
 		if err != nil {
 			return E.Cause(err, "set read deadline")
@@ -49,9 +50,6 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 		_, err = buffer.ReadOnceFrom(conn)
 		_ = conn.SetReadDeadline(time.Time{})
 		if err != nil {
-			if i > 0 {
-				break
-			}
 			return E.Cause(err, "read payload")
 		}
 		errors = nil
@@ -64,6 +62,9 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 				return nil
 			}
 			errors = append(errors, err)
+		}
+		if !goerrors.Is(E.Errors(errors...), errPossibleClientHello) {
+			break
 		}
 	}
 	return E.Errors(errors...)
