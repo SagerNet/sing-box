@@ -1,6 +1,10 @@
 ---
-icon: material/delete-clock
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [netns](#netns)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -14,17 +18,18 @@ icon: material/delete-clock
 
 ```json
 {
-  "listen": "::",
-  "listen_port": 5353,
+  "listen": "",
+  "listen_port": 0,
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "udp_timeout": "5m",
-  "detour": "another-in",
+  "udp_timeout": "",
+  "netns": "",
+  "detour": "",
   "sniff": false,
   "sniff_override_destination": false,
-  "sniff_timeout": "300ms",
-  "domain_strategy": "prefer_ipv6",
+  "sniff_timeout": "",
+  "domain_strategy": "",
   "udp_disable_domain_unmapping": false
 }
 ```
@@ -72,6 +77,16 @@ icon: material/delete-clock
 UDP NAT 过期时间。
 
 默认使用 `5m`。
+
+#### netns
+
+!!! question "自 sing-box 1.12.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+设置网络命名空间，名称或路径。
 
 #### detour
 
