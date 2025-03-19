@@ -1,4 +1,4 @@
-module github.com/getlantern/sing-box-minimal
+module github.com/sagernet/sing-box
 
 go 1.20
 
