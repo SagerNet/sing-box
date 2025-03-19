@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -21,7 +21,7 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -45,6 +45,9 @@ type BoxService struct {
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
 	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	return NewServiceWithContext(ctx, configContent, platformInterface)
+}
+func NewServiceWithContext(ctx context.Context, configContent string, platformInterface PlatformInterface) (*BoxService, error) {
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	options, err := parseConfig(ctx, configContent)
