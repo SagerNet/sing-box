@@ -10,6 +10,16 @@ import (
 	"syscall"
 	"time"
 
+	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
+	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
+	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
+	"github.com/sagernet/sing/service/pause"
+
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
@@ -21,15 +31,6 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	tun "github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/control"
-	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/logger"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service"
-	"github.com/sagernet/sing/service/filemanager"
-	"github.com/sagernet/sing/service/pause"
 )
 
 type BoxService struct {
@@ -47,6 +48,10 @@ func NewService(configContent string, platformInterface PlatformInterface) (*Box
 	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
 	return NewServiceWithContext(ctx, configContent, platformInterface)
 }
+
+// NewServiceWithContext creates a new BoxService instance with the given context and config content.
+// platformInterface is the interface that the BoxService will use to interact with the platform on
+// Android and iOS. It is ignored on other platforms and should be nil.
 func NewServiceWithContext(ctx context.Context, configContent string, platformInterface PlatformInterface) (*BoxService, error) {
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
@@ -58,16 +63,20 @@ func NewServiceWithContext(ctx context.Context, configContent string, platformIn
 	ctx, cancel := context.WithCancel(ctx)
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
-	platformWrapper := &platformInterfaceWrapper{
-		iif:       platformInterface,
-		useProcFS: platformInterface.UseProcFS(),
+
+	boxOpts := box.Options{
+		Context: ctx,
+		Options: options,
 	}
-	service.MustRegister[platform.Interface](ctx, platformWrapper)
-	instance, err := box.New(box.Options{
-		Context:           ctx,
-		Options:           options,
-		PlatformLogWriter: platformWrapper,
-	})
+	if runtime.GOOS == "android" || runtime.GOOS == "ios" {
+		platformWrapper := &platformInterfaceWrapper{
+			iif:       platformInterface,
+			useProcFS: platformInterface.UseProcFS(),
+		}
+		service.MustRegister[platform.Interface](ctx, platformWrapper)
+		boxOpts.PlatformLogWriter = platformWrapper
+	}
+	instance, err := box.New(boxOpts)
 	if err != nil {
 		cancel()
 		return nil, E.Cause(err, "create service")
