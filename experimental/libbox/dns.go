@@ -38,7 +38,12 @@ func newPlatformTransport(iif LocalDNSTransport, tag string, options option.Loca
 	}
 }
 
-func (p *platformTransport) Reset() {
+func (p *platformTransport) Start(stage adapter.StartStage) error {
+	return nil
+}
+
+func (p *platformTransport) Close() error {
+	return nil
 }
 
 func (p *platformTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
