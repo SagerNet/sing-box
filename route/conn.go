@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -290,7 +291,7 @@ func (m *ConnectionManager) connectionCopyEarly(source net.Conn, destination io.
 		return err
 	}
 	_, err = payload.ReadOnceFrom(source)
-	if err != nil && !E.IsTimeout(err) {
+	if err != nil && !(E.IsTimeout(err) || errors.Is(err, io.EOF)) {
 		return E.Cause(err, "read payload")
 	}
 	_ = source.SetReadDeadline(time.Time{})
