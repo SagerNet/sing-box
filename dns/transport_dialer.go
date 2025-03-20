@@ -20,9 +20,10 @@ func NewLocalDialer(ctx context.Context, options option.LocalDNSServerOptions) (
 		return dialer.NewDefaultOutbound(ctx), nil
 	} else {
 		return dialer.NewWithOptions(dialer.Options{
-			Context:        ctx,
-			Options:        options.DialerOptions,
-			DirectResolver: true,
+			Context:         ctx,
+			Options:         options.DialerOptions,
+			DirectResolver:  true,
+			LegacyDNSDialer: options.Legacy,
 		})
 	}
 }
@@ -43,10 +44,11 @@ func NewRemoteDialer(ctx context.Context, options option.RemoteDNSServerOptions)
 		return transportDialer, nil
 	} else {
 		return dialer.NewWithOptions(dialer.Options{
-			Context:        ctx,
-			Options:        options.DialerOptions,
-			RemoteIsDomain: options.ServerIsDomain(),
-			DirectResolver: true,
+			Context:         ctx,
+			Options:         options.DialerOptions,
+			RemoteIsDomain:  options.ServerIsDomain(),
+			DirectResolver:  true,
+			LegacyDNSDialer: options.Legacy,
 		})
 	}
 }
