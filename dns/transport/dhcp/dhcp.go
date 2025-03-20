@@ -81,18 +81,12 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 
 func (t *Transport) Close() error {
 	for _, transport := range t.transports {
-		transport.Reset()
+		transport.Close()
 	}
 	if t.interfaceCallback != nil {
 		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
 	return nil
-}
-
-func (t *Transport) Reset() {
-	for _, transport := range t.transports {
-		transport.Reset()
-	}
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -252,7 +246,7 @@ func (t *Transport) recreateServers(iface *control.Interface, serverAddrs []M.So
 		transports = append(transports, transport.NewUDPRaw(t.logger, t.TransportAdapter, serverDialer, serverAddr))
 	}
 	for _, transport := range t.transports {
-		transport.Reset()
+		transport.Close()
 	}
 	t.transports = transports
 	return nil

@@ -225,7 +225,7 @@ func (m *TransportManager) Remove(tag string) error {
 		}
 	}
 	if started {
-		transport.Reset()
+		transport.Close()
 	}
 	return nil
 }
