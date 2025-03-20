@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -149,9 +150,17 @@ func NewHTTPSRaw(
 	}
 }
 
-func (t *HTTPSTransport) Reset() {
+func (t *HTTPSTransport) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
+	return dialer.InitializeDetour(t.dialer)
+}
+
+func (t *HTTPSTransport) Close() error {
 	t.transport.CloseIdleConnections()
 	t.transport = t.transport.Clone()
+	return nil
 }
 
 func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
