@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -46,7 +47,15 @@ func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options o
 	}, nil
 }
 
-func (t *TCPTransport) Reset() {
+func (t *TCPTransport) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
+	return dialer.InitializeDetour(t.dialer)
+}
+
+func (t *TCPTransport) Close() error {
+	return nil
 }
 
 func (t *TCPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {

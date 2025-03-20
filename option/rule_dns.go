@@ -132,7 +132,6 @@ func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) 
 func (r DefaultDNSRule) IsValid() bool {
 	var defaultValue DefaultDNSRule
 	defaultValue.Invert = r.Invert
-	defaultValue.DNSRuleAction = r.DNSRuleAction
 	return !reflect.DeepEqual(r, defaultValue)
 }
 

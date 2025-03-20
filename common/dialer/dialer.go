@@ -23,6 +23,7 @@ type Options struct {
 	DirectResolver   bool
 	ResolverOnDetour bool
 	NewDialer        bool
+	LegacyDNSDialer  bool
 }
 
 // TODO: merge with NewWithOptions
@@ -45,7 +46,7 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 		if outboundManager == nil {
 			return nil, E.New("missing outbound manager")
 		}
-		dialer = NewDetour(outboundManager, dialOptions.Detour)
+		dialer = NewDetour(outboundManager, dialOptions.Detour, options.LegacyDNSDialer)
 	} else {
 		dialer, err = NewDefault(options.Context, dialOptions)
 		if err != nil {

@@ -111,8 +111,12 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	}, nil
 }
 
-func (t *HTTP3Transport) Reset() {
-	t.transport.Close()
+func (t *HTTP3Transport) Start(stage adapter.StartStage) error {
+	return nil
+}
+
+func (t *HTTP3Transport) Close() error {
+	return t.transport.Close()
 }
 
 func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
