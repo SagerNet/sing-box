@@ -125,10 +125,9 @@ func (r *DefaultRule) UnmarshalJSON(data []byte) error {
 	return badjson.UnmarshallExcluded(data, &r.RawDefaultRule, &r.RuleAction)
 }
 
-func (r *DefaultRule) IsValid() bool {
+func (r DefaultRule) IsValid() bool {
 	var defaultValue DefaultRule
 	defaultValue.Invert = r.Invert
-	defaultValue.Action = r.Action
 	return !reflect.DeepEqual(r, defaultValue)
 }
 

@@ -68,13 +68,18 @@ func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options 
 	}, nil
 }
 
-func (t *Transport) Reset() {
+func (t *Transport) Start(stage adapter.StartStage) error {
+	return nil
+}
+
+func (t *Transport) Close() error {
 	t.access.Lock()
 	defer t.access.Unlock()
 	connection := t.connection
 	if connection != nil {
 		connection.CloseWithError(0, "")
 	}
+	return nil
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
