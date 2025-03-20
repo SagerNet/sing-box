@@ -52,6 +52,10 @@ type CacheFile interface {
 	StoreGroupExpand(group string, expand bool) error
 	LoadRuleSet(tag string) *SavedBinary
 	SaveRuleSet(tag string, set *SavedBinary) error
+	LoadScript(tag string) *SavedBinary
+	SaveScript(tag string, script *SavedBinary) error
+	SurgePersistentStoreRead(key string) string
+	SurgePersistentStoreWrite(key string, value string) error
 }
 
 type SavedBinary struct {

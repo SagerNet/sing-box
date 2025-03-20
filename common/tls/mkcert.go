@@ -8,7 +8,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"time"
+
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 func GenerateKeyPair(parent *x509.Certificate, parentKey any, timeFunc func() time.Time, serverName string) (*tls.Certificate, error) {
@@ -35,17 +38,30 @@ func GenerateCertificate(parent *x509.Certificate, parentKey any, timeFunc func(
 	if err != nil {
 		return
 	}
-	template := &x509.Certificate{
-		SerialNumber:          serialNumber,
-		NotBefore:             timeFunc().Add(time.Hour * -1),
-		NotAfter:              expire,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		Subject: pkix.Name{
-			CommonName: serverName,
-		},
-		DNSNames: []string{serverName},
+	var template *x509.Certificate
+	if serverAddress := M.ParseAddr(serverName); serverAddress.IsValid() {
+		template = &x509.Certificate{
+			SerialNumber:          serialNumber,
+			IPAddresses:           []net.IP{serverAddress.AsSlice()},
+			NotBefore:             timeFunc().Add(time.Hour * -1),
+			NotAfter:              expire,
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			BasicConstraintsValid: true,
+		}
+	} else {
+		template = &x509.Certificate{
+			SerialNumber:          serialNumber,
+			NotBefore:             timeFunc().Add(time.Hour * -1),
+			NotAfter:              expire,
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			BasicConstraintsValid: true,
+			Subject: pkix.Name{
+				CommonName: serverName,
+			},
+			DNSNames: []string{serverName},
+		}
 	}
 	if parent == nil {
 		parent = template

@@ -31,6 +31,7 @@ run:
     - with_reality_server
     - with_acme
     - with_clash_api
+    - with_script
 
 issues:
   exclude-dirs:

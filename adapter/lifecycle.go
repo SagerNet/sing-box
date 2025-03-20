@@ -1,6 +1,8 @@
 package adapter
 
-import E "github.com/sagernet/sing/common/exceptions"
+import (
+	E "github.com/sagernet/sing/common/exceptions"
+)
 
 type StartStage uint8
 
@@ -45,6 +47,9 @@ type LifecycleService interface {
 
 func Start(stage StartStage, services ...Lifecycle) error {
 	for _, service := range services {
+		if service == nil {
+			continue
+		}
 		err := service.Start(stage)
 		if err != nil {
 			return err

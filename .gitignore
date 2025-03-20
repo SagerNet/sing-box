@@ -1,6 +1,7 @@
 /.idea/
 /vendor/
 /*.json
+/*.js
 /*.srs
 /*.db
 /site/

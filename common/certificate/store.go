@@ -3,6 +3,7 @@ package certificate
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/service"
+
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 var _ adapter.CertificateStore = (*Store)(nil)
@@ -27,6 +30,9 @@ type Store struct {
 	certificatePaths          []string
 	certificateDirectoryPaths []string
 	watcher                   *fswatch.Watcher
+	tlsDecryptionEnabled      bool
+	tlsDecryptionPrivateKey   any
+	tlsDecryptionCertificate  *x509.Certificate
 }
 
 func NewStore(ctx context.Context, logger logger.Logger, options option.CertificateOptions) (*Store, error) {
@@ -89,6 +95,19 @@ func NewStore(ctx context.Context, logger logger.Logger, options option.Certific
 	err := store.update()
 	if err != nil {
 		return nil, E.Cause(err, "initializing certificate store")
+	}
+	if options.TLSDecryption != nil && options.TLSDecryption.Enabled {
+		pfxBytes, err := base64.StdEncoding.DecodeString(options.TLSDecryption.KeyPair)
+		if err != nil {
+			return nil, E.Cause(err, "decode key pair base64 bytes")
+		}
+		privateKey, certificate, err := pkcs12.Decode(pfxBytes, options.TLSDecryption.KeyPairPassword)
+		if err != nil {
+			return nil, E.Cause(err, "decode key pair")
+		}
+		store.tlsDecryptionEnabled = true
+		store.tlsDecryptionPrivateKey = privateKey
+		store.tlsDecryptionCertificate = certificate
 	}
 	return store, nil
 }
@@ -182,4 +201,16 @@ func isSameDirSymlink(f fs.DirEntry, dir string) bool {
 	}
 	target, err := os.Readlink(filepath.Join(dir, f.Name()))
 	return err == nil && !strings.Contains(target, "/")
+}
+
+func (s *Store) TLSDecryptionEnabled() bool {
+	return s.tlsDecryptionEnabled
+}
+
+func (s *Store) TLSDecryptionCertificate() *x509.Certificate {
+	return s.tlsDecryptionCertificate
+}
+
+func (s *Store) TLSDecryptionPrivateKey() any {
+	return s.tlsDecryptionPrivateKey
 }

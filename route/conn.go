@@ -24,23 +24,31 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.ConnectionManager = (*ConnectionManager)(nil)
 
 type ConnectionManager struct {
+	ctx         context.Context
 	logger      logger.ContextLogger
+	mitm        adapter.MITMEngine
 	access      sync.Mutex
 	connections list.List[io.Closer]
 }
 
-func NewConnectionManager(logger logger.ContextLogger) *ConnectionManager {
+func NewConnectionManager(ctx context.Context, logger logger.ContextLogger) *ConnectionManager {
 	return &ConnectionManager{
+		ctx:    ctx,
 		logger: logger,
 	}
 }
 
 func (m *ConnectionManager) Start(stage adapter.StartStage) error {
+	switch stage {
+	case adapter.StartStateInitialize:
+		m.mitm = service.FromContext[adapter.MITMEngine](m.ctx)
+	}
 	return nil
 }
 
@@ -55,6 +63,14 @@ func (m *ConnectionManager) Close() error {
 }
 
 func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	if metadata.MITM != nil && metadata.MITM.Enabled {
+		if m.mitm == nil {
+			m.logger.WarnContext(ctx, "MITM disabled")
+		} else {
+			m.mitm.NewConnection(ctx, this, conn, metadata, onClose)
+			return
+		}
+	}
 	ctx = adapter.WithContext(ctx, &metadata)
 	var (
 		remoteConn net.Conn
