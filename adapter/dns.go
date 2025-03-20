@@ -45,10 +45,10 @@ type RDRCStore interface {
 }
 
 type DNSTransport interface {
+	Lifecycle
 	Type() string
 	Tag() string
 	Dependencies() []string
-	Reset()
 	Exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error)
 }
 

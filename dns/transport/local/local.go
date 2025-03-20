@@ -40,7 +40,12 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	}, nil
 }
 
-func (t *Transport) Reset() {
+func (t *Transport) Start(stage adapter.StartStage) error {
+	return nil
+}
+
+func (t *Transport) Close() error {
+	return nil
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
