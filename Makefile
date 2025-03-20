@@ -1,6 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS ?= with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,with_quic,with_utls,with_tailscale
+TAGS ?= with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,with_quic,with_utls,with_tailscale,with_script
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_utls,with_reality_server
 
 GOHOSTOS = $(shell go env GOHOSTOS)

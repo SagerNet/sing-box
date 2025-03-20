@@ -21,6 +21,7 @@ builds:
       - with_acme
       - with_clash_api
       - with_tailscale
+      - with_script
     env:
       - CGO_ENABLED=0
       - GOTOOLCHAIN=local
@@ -51,6 +52,7 @@ builds:
       - with_acme
       - with_clash_api
       - with_tailscale
+      - with_script
     env:
       - CGO_ENABLED=0
       - GOROOT={{ .Env.GOPATH }}/go_legacy
