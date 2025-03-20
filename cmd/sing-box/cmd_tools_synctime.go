@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
 
 	"github.com/spf13/cobra"
@@ -39,20 +40,11 @@ func init() {
 }
 
 func syncTime() error {
-	instance, err := createPreStartedClient()
-	if err != nil {
-		return err
-	}
-	dialer, err := createDialer(instance, commandToolsFlagOutbound)
-	if err != nil {
-		return err
-	}
-	defer instance.Close()
 	serverAddress := M.ParseSocksaddr(commandSyncTimeFlagServer)
 	if serverAddress.Port == 0 {
 		serverAddress.Port = 123
 	}
-	response, err := ntp.Exchange(context.Background(), dialer, serverAddress)
+	response, err := ntp.Exchange(context.Background(), N.SystemDialer, serverAddress)
 	if err != nil {
 		return err
 	}

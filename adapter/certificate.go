@@ -10,6 +10,9 @@ import (
 type CertificateStore interface {
 	LifecycleService
 	Pool() *x509.CertPool
+	TLSDecryptionEnabled() bool
+	TLSDecryptionCertificate() *x509.Certificate
+	TLSDecryptionPrivateKey() any
 }
 
 func RootPoolFromContext(ctx context.Context) *x509.CertPool {
