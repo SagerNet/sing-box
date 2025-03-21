@@ -135,6 +135,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.24
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: 2.8.1
+          install-only: true
+      - name: Setup MITM
+        run: |-
+          git checkout dev-test-mitm
+          .github/goreleaser/configure.sh
+          git checkout ${{ github.ref }}
       - name: Cache legacy Go
         if: matrix.require_legacy_go
         id: cache-legacy-go
@@ -155,12 +166,6 @@ jobs:
         with:
           ndk-version: r28
           local-cache: true
-      - name: Setup Goreleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-pro
-          version: '~> v2'
-          install-only: true
       - name: Extract signing key
         run: |-
           mkdir -p $HOME/.gnupg
@@ -182,7 +187,7 @@ jobs:
           GOPATH: ${{ env.HOME }}/go
           GOARM: ${{ matrix.goarm }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_KEY: fake-key
           NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
           NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       - name: Build Android
@@ -195,7 +200,7 @@ jobs:
           BUILD_GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_KEY: fake-key
           NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
           NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       - name: Upload artifact
@@ -555,8 +560,13 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: '~> v2'
+          version: 2.8.1
           install-only: true
+      - name: Setup MITM
+        run: |-
+          git checkout dev-test-mitm
+          .github/goreleaser/configure.sh
+          git checkout ${{ github.ref }}
       - name: Cache ghr
         uses: actions/cache@v4
         id: cache-ghr
@@ -589,7 +599,7 @@ jobs:
           mv dist/*/sing-box*{tar.gz,zip,deb,rpm,_amd64.pkg.tar.zst,_arm64.pkg.tar.zst} dist/release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GORELEASER_KEY: fake-key
       - name: Upload builds
         if: ${{ env.PUBLISHED == 'false' }}
         run: |-

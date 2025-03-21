@@ -17,6 +17,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.24
+      - name: Setup Goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: 2.8.1
+          install-only: true
+      - name: Setup MITM
+        run: |-
+          git checkout dev-test-mitm
+          .github/goreleaser/configure.sh
+          git checkout ${{ github.ref }}
       - name: Extract signing key
         run: |-
           mkdir -p $HOME/.gnupg
@@ -25,11 +36,8 @@ jobs:
           EOF
           echo "HOME=$HOME" >> "$GITHUB_ENV"
       - name: Publish release
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-pro
-          version: '~> v2'
-          args: release -f .goreleaser.fury.yaml --clean
+        run: |-
+          goreleaser release -f .goreleaser.fury.yaml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
