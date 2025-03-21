@@ -1,0 +1,87 @@
+{
+  "dns": {
+    "servers": [
+      {
+        "type": "tls",
+        "server": "8.8.8.8"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "auto_redirect": true
+    }
+  ],
+  "certificate": {
+    "tls_decryption": {
+      "enabled": true,
+      "key_pair_p12": "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",
+      "key_pair_p12_password": "D173A3D9"
+    }
+  },
+  "mitm": {
+    "enabled": true,
+    "http2_enabled": true
+  },
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "network": "udp",
+            "port": 53
+          },
+          {
+            "protocol": "dns"
+          }
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "domain": "goreleaser.com",
+        "action": "route-options",
+        "mitm": {
+          "enabled": true,
+          "surge_map_local": [
+            "^https://goreleaser\\.com/static/latest-pro data-type=text data=\"(update check disabled)\""
+          ]
+        }
+      },
+      {
+        "domain": "api.gumroad.com",
+        "action": "route-options",
+        "mitm": {
+          "enabled": true,
+          "surge_map_local": [
+            "^https://api\\.gumroad\\.com/v2/licenses/verify data-type=file data=.github/goreleaser/response.json header=\"Content-Type:application/json\""
+          ]
+        }
+      }
+    ],
+    "auto_detect_interface": true
+  }
+}

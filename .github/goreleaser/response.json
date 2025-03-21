@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "purchase": {
+    "license_key": "fake-key",
+    "subscription_id": "fake-id",
+    "product_id": "7ev6hHL7RZc753daE5bRNw==",
+    "product_permalink": "https:\/\/beckersoft.gumroad.com\/l\/goreleaser",
+    "seller_id": "A2wDalJj66fJdFU_jwy_oA==",
+    "short_product_id": "CadfZ",
+    "permalink": "goreleaser"
+  }
+}
