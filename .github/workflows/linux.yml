@@ -1,13 +1,22 @@
-name: Release to Linux repository
+name: Build Linux Packages
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name"
+        required: true
+        type: string
   release:
     types:
       - published
 
 jobs:
-  build:
+  calculate_version:
+    name: Calculate version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.outputs.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
@@ -17,30 +26,155 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.24
-      - name: Setup Goreleaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Check input version
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          echo "version=${{ inputs.version }}"
+          echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
+      - name: Calculate version
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/read_tag --nightly
+      - name: Set outputs
+        id: outputs
+        run: |-
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    strategy:
+      matrix:
+        include:
+          - { os: linux, arch: amd64, debian: amd64, rpm: x86_64, pacman: x86_64 }
+          - { os: linux, arch: "386", debian: i386, rpm: i386 }
+          - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl }
+          - { os: linux, arch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl }
+          - { os: linux, arch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64 }
+          - { os: linux, arch: mips64le, debian: mips64el, rpm: mips64el }
+          - { os: linux, arch: mipsle, debian: mipsel, rpm: mipsel }
+          - { os: linux, arch: s390x, debian: s390x, rpm: s390x }
+          - { os: linux, arch: ppc64le, debian: ppc64el, rpm: ppc64le }
+          - { os: linux, arch: riscv64, debian: riscv64, rpm: riscv64 }
+          - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
         with:
-          distribution: goreleaser-pro
-          version: 2.8.1
-          install-only: true
-      - name: Setup MITM
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+      - name: Setup Android NDK
+        if: matrix.os == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+          local-cache: true
+      - name: Set tag
         run: |-
-          git checkout dev-test-mitm
-          .github/goreleaser/configure.sh
-          git checkout ${{ github.ref }}
-      - name: Extract signing key
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Set build tags
+        run: |
+          set -xeuo pipefail
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_reality_server,with_acme,with_clash_api'
+          if [ ! '${{ matrix.legacy_go }}' = 'true' ]; then
+            TAGS="${TAGS},with_ech"
+          fi
+          echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
+      - name: Build
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set mtime
         run: |-
-          mkdir -p $HOME/.gnupg
-          cat > $HOME/.gnupg/sagernet.key <<EOF
+          TZ=UTC touch -t '197001010000' dist/sing-box
+      - name: Set name
+        if: ${{ ! contains(needs.calculate_version.outputs.version, '-') }}
+        run: |-
+          echo "NAME=sing-box" >> "$GITHUB_ENV"
+      - name: Set beta name
+        if: contains(needs.calculate_version.outputs.version, '-')
+        run: |-
+          echo "NAME=sing-box-beta" >> "$GITHUB_ENV"
+      - name: Package DEB
+        if: matrix.debian != ''
+        run: |
+          set -xeuo pipefail
+          sudo gem install fpm
+          sudo apt-get install -y debsigs
+          fpm -t deb \
+            -v "${{ needs.calculate_version.outputs.version }}" \
+            -p "dist/${NAME}_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.debian }}.deb" \
+            --architecture ${{ matrix.debian }} \
+            dist/sing-box=/usr/bin/${NAME}
+          curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
+          sudo patch /usr/bin/debsigs < '/tmp/debsigs.diff'
+          rm -rf $HOME/.gnupg
+          gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
           ${{ secrets.GPG_KEY }}
           EOF
-          echo "HOME=$HOME" >> "$GITHUB_ENV"
-      - name: Publish release
+          debsigs --sign=origin -k ${{ secrets.GPG_KEY_ID }} --gpgopts '--pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}"' dist/*.deb
+      - name: Package RPM
+        if: matrix.rpm != ''
         run: |-
-          goreleaser release -f .goreleaser.fury.yaml --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
-          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
-          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          set -xeuo pipefail
+          sudo gem install fpm
+          fpm -t rpm \
+            -v "${{ needs.calculate_version.outputs.version }}" \
+            -p "dist/${NAME}_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.rpm }}.rpm" \
+            --architecture ${{ matrix.rpm }} \
+            dist/sing-box=/usr/bin/${NAME}
+          cat > $HOME/.rpmmacros <<EOF
+          %_gpg_name ${{ secrets.GPG_KEY_ID }}
+          %_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PASSPHRASE }}
+          EOF
+          gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          rpmsign --addsign dist/*.rpm
+      - name: Cleanup
+        run: rm dist/sing-box
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.legacy_go && '-legacy' || '' }}
+          path: "dist"
+  upload:
+    name: Upload builds
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+      - name: Set tag
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+          echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
+      - name: Download builds
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish packages
+        run: |-
+          wget -O fury-cli.deb https://github.com/gemfury/cli/releases/download/v0.23.0/fury-cli_0.23.0_linux_amd64.deb
+          sudo dpkg -i fury-cli.deb
+          fury migrate dist --as=sagernet --api-token ${{ secrets.FURY_TOKEN }}
