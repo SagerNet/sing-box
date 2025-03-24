@@ -1,8 +1,6 @@
 NAME = sing-box
 COMMIT = $(shell git rev-parse --short HEAD)
-TAGS_GO120 = with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,with_quic,with_utls
-TAGS_GO123 = with_tailscale
-TAGS ?= $(TAGS_GO120),$(TAGS_GO123)
+TAGS ?= with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,with_quic,with_utls,with_tailscale
 TAGS_TEST ?= with_gvisor,with_quic,with_wireguard,with_grpc,with_utls,with_reality_server
 
 GOHOSTOS = $(shell go env GOHOSTOS)
@@ -19,11 +17,6 @@ PREFIX ?= $(shell go env GOPATH)
 build:
 	export GOTOOLCHAIN=local && \
 	go build $(MAIN_PARAMS) $(MAIN)
-
-ci_build_go120:
-	export GOTOOLCHAIN=local && \
-	go build $(PARAMS) $(MAIN) && \
-	go build $(PARAMS) -tags "$(TAGS_GO120)" $(MAIN)
 
 ci_build:
 	export GOTOOLCHAIN=local && \
