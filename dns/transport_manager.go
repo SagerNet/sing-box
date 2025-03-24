@@ -59,6 +59,9 @@ func (m *TransportManager) Start(stage adapter.StartStage) error {
 	transports := m.transports
 	m.access.Unlock()
 	if stage == adapter.StartStateStart {
+		if m.defaultTag != "" && m.defaultTransport == nil {
+			return E.New("default DNS server not found: ", m.defaultTag)
+		}
 		return m.startTransports(m.transports)
 	} else {
 		for _, outbound := range transports {
