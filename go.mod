@@ -23,7 +23,7 @@ require (
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.4
-	github.com/sagernet/gvisor v0.0.0-20241123041152-536d05261cff
+	github.com/sagernet/gvisor v0.0.0-20250325023245-7a9c0f5725fb
 	github.com/sagernet/quic-go v0.49.0-beta.1
 	github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691
 	github.com/sagernet/sing v0.6.7-0.20250409030945-77e2a1bb577c
