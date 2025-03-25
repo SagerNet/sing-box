@@ -35,6 +35,14 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |-
           go run -v ./cmd/internal/read_tag --nightly
+      - name: Update version
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/read_tag --nightly
+      - name: Update nightly version
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/read_tag --nightly
       - name: Set outputs
         id: outputs
         run: |-

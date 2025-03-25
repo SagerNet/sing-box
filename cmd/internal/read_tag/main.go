@@ -2,43 +2,55 @@ package main
 
 import (
 	"flag"
+	"github.com/sagernet/sing-box/common/badversion"
 	"os"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
 	"github.com/sagernet/sing-box/log"
 )
 
-var nightly bool
+var (
+	flagRunInCI    bool
+	flagRunNightly bool
+)
 
 func init() {
-	flag.BoolVar(&nightly, "nightly", false, "Print nightly tag")
+	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+	flag.BoolVar(&flagRunNightly, "nightly", false, "Run nightly")
 }
 
 func main() {
 	flag.Parse()
-	if nightly {
-		version, err := build_shared.ReadTagVersionRev()
+	var (
+		versionStr string
+		err        error
+	)
+	if flagRunNightly {
+		var version badversion.Version
+		version, err = build_shared.ReadTagVersionRev()
+		if err == nil {
+			if version.PreReleaseIdentifier == "" {
+				version.Patch++
+			}
+			versionStr = version.String()
+		}
+	} else {
+		versionStr, err = build_shared.ReadTag()
+	}
+	if flagRunInCI {
 		if err != nil {
 			log.Fatal(err)
-		}
-		var versionStr string
-		if version.PreReleaseIdentifier != "" {
-			versionStr = version.VersionString() + "-nightly"
-		} else {
-			version.Patch++
-			versionStr = version.VersionString() + "-nightly"
 		}
 		err = setGitHubEnv("version", versionStr)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		tag, err := build_shared.ReadTag()
 		if err != nil {
 			log.Error(err)
 			os.Stdout.WriteString("unknown\n")
 		} else {
-			os.Stdout.WriteString(tag + "\n")
+			os.Stdout.WriteString(versionStr + "\n")
 		}
 	}
 }
