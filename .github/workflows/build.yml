@@ -55,7 +55,7 @@ jobs:
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
-          go run -v ./cmd/internal/read_tag --nightly
+          go run -v ./cmd/internal/read_tag --ci --nightly
       - name: Set outputs
         id: outputs
         run: |-
@@ -316,9 +316,9 @@ jobs:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Prepare upload
         run: |-
-          mkdir -p dist/release
-          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
-          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+          mkdir -p dist
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -566,9 +566,9 @@ jobs:
           zip -r SFM.dSYMs.zip dSYMs
           popd
 
-          mkdir -p dist/release
-          cp clients/apple/SFM.dmg "dist/release/SFM-${VERSION}-universal.dmg"
-          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/release/SFM-${VERSION}-universal.dSYMs.zip"
+          mkdir -p dist
+          cp clients/apple/SFM.dmg "dist/SFM-${VERSION}-universal.dmg"
+          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
       - name: Upload image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4

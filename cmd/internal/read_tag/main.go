@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/sagernet/sing-box/common/badversion"
 	"os"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
+	"github.com/sagernet/sing-box/common/badversion"
 	"github.com/sagernet/sing-box/log"
 )
 
