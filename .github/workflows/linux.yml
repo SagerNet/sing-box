@@ -34,7 +34,7 @@ jobs:
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
-          go run -v ./cmd/internal/read_tag --nightly
+          go run -v ./cmd/internal/read_tag --ci --nightly
       - name: Set outputs
         id: outputs
         run: |-
@@ -109,6 +109,11 @@ jobs:
         if: contains(needs.calculate_version.outputs.version, '-')
         run: |-
           echo "NAME=sing-box-beta" >> "$GITHUB_ENV"
+      - name: Set version
+        run: |-
+          PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
       - name: Package DEB
         if: matrix.debian != ''
         run: |
@@ -116,10 +121,11 @@ jobs:
           sudo gem install fpm
           sudo apt-get install -y debsigs
           fpm -t deb \
-            -v "${{ needs.calculate_version.outputs.version }}" \
+            --name "${NAME}" \
+            -v "$PKG_VERSION" \
             -p "dist/${NAME}_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.debian }}.deb" \
             --architecture ${{ matrix.debian }} \
-            dist/sing-box=/usr/bin/${NAME}
+            dist/sing-box=/usr/bin/sing-box
           curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
           sudo patch /usr/bin/debsigs < '/tmp/debsigs.diff'
           rm -rf $HOME/.gnupg
@@ -133,10 +139,11 @@ jobs:
           set -xeuo pipefail
           sudo gem install fpm
           fpm -t rpm \
-            -v "${{ needs.calculate_version.outputs.version }}" \
+            --name "${NAME}" \
+            -v "$PKG_VERSION" \
             -p "dist/${NAME}_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.rpm }}.rpm" \
             --architecture ${{ matrix.rpm }} \
-            dist/sing-box=/usr/bin/${NAME}
+            dist/sing-box=/usr/bin/sing-box
           cat > $HOME/.rpmmacros <<EOF
           %_gpg_name ${{ secrets.GPG_KEY_ID }}
           %_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PASSPHRASE }}
@@ -175,6 +182,4 @@ jobs:
           merge-multiple: true
       - name: Publish packages
         run: |-
-          wget -O fury-cli.deb https://github.com/gemfury/cli/releases/download/v0.23.0/fury-cli_0.23.0_linux_amd64.deb
-          sudo dpkg -i fury-cli.deb
-          fury migrate dist --as=sagernet --api-token ${{ secrets.FURY_TOKEN }}
+          ls dist | xargs -I {} curl -F "package=@dist/{}" https://${{ secrets.FURY_TOKEN }}@push.fury.io/sagernet/
