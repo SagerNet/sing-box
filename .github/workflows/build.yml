@@ -55,7 +55,7 @@ jobs:
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
-          go run -v ./cmd/internal/read_tag --nightly
+          go run -v ./cmd/internal/read_tag --ci --nightly
       - name: Set outputs
         id: outputs
         run: |-
@@ -165,6 +165,9 @@ jobs:
           PKG_NAME="sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.arch }}${ARM_VERSION}"
           echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
           echo "PKG_NAME=${PKG_NAME}" >> "${GITHUB_ENV}"
+          PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
       - name: Package DEB
         if: matrix.debian != ''
         run: |
@@ -172,7 +175,7 @@ jobs:
           sudo gem install fpm
           sudo apt-get install -y debsigs
           fpm -t deb \
-            -v "${{ needs.calculate_version.outputs.version }}" \
+            -v "$PKG_VERSION" \
             -p "dist/${PKG_NAME}.deb" \
             --architecture ${{ matrix.debian }} \
             dist/sing-box=/usr/bin/sing-box
@@ -189,7 +192,7 @@ jobs:
           set -xeuo pipefail
           sudo gem install fpm
           fpm -t rpm \
-            -v "${{ needs.calculate_version.outputs.version }}" \
+            -v "$PKG_VERSION" \
             -p "dist/${PKG_NAME}.rpm" \
             --architecture ${{ matrix.rpm }} \
             dist/sing-box=/usr/bin/sing-box
@@ -208,7 +211,7 @@ jobs:
           sudo gem install fpm
           sudo apt-get install -y libarchive-tools
           fpm -t pacman \
-            -v "${{ needs.calculate_version.outputs.version }}" \
+            -v "$PKG_VERSION" \
             -p "dist/${PKG_NAME}.pkg.tar.zst" \
             --architecture ${{ matrix.pacman }} \
             dist/sing-box=/usr/bin/sing-box
@@ -218,8 +221,8 @@ jobs:
           cd dist
           mkdir -p "${DIR_NAME}"
           cp ../LICENSE "${DIR_NAME}"
-          if [ '${{ matrix.os }}' = 'windoes' ]; then
-            cp sing-box.exe "${DIR_NAME}"
+          if [ '${{ matrix.os }}' = 'windows' ]; then
+            cp sing-box "${DIR_NAME}/sing-box.exe"
             zip -r "${DIR_NAME}.zip" "${DIR_NAME}"
           else
             cp sing-box "${DIR_NAME}"
@@ -305,9 +308,9 @@ jobs:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Prepare upload
         run: |-
-          mkdir -p dist/release
-          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
-          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+          mkdir -p dist
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -555,9 +558,9 @@ jobs:
           zip -r SFM.dSYMs.zip dSYMs
           popd
 
-          mkdir -p dist/release
-          cp clients/apple/SFM.dmg "dist/release/SFM-${VERSION}-universal.dmg"
-          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/release/SFM-${VERSION}-universal.dSYMs.zip"
+          mkdir -p dist
+          cp clients/apple/SFM.dmg "dist/SFM-${VERSION}-universal.dmg"
+          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
       - name: Upload image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
