@@ -53,6 +53,7 @@ require (
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 	howett.net/plist v1.0.1
+	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 
 //replace github.com/sagernet/sing => ../sing

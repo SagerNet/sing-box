@@ -10,6 +10,10 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
+const (
+	DefaultTimeFormat = "-0700 2006-01-02 15:04:05"
+)
+
 type Options struct {
 	Context        context.Context
 	Options        option.LogOptions
@@ -47,7 +51,7 @@ func New(options Options) (Factory, error) {
 		DisableColors:    logOptions.DisableColor || logFilePath != "",
 		DisableTimestamp: !logOptions.Timestamp && logFilePath != "",
 		FullTimestamp:    logOptions.Timestamp,
-		TimestampFormat:  "-0700 2006-01-02 15:04:05",
+		TimestampFormat:  DefaultTimeFormat,
 	}
 	factory := NewDefaultFactory(
 		options.Context,

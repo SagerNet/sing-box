@@ -11,6 +11,13 @@ type _CertificateOptions struct {
 	Certificate              badoption.Listable[string] `json:"certificate,omitempty"`
 	CertificatePath          badoption.Listable[string] `json:"certificate_path,omitempty"`
 	CertificateDirectoryPath badoption.Listable[string] `json:"certificate_directory_path,omitempty"`
+	TLSDecryption            *TLSDecryptionOptions      `json:"tls_decryption,omitempty"`
+}
+
+type TLSDecryptionOptions struct {
+	Enabled         bool   `json:"enabled,omitempty"`
+	KeyPair         string `json:"key_pair_p12,omitempty"`
+	KeyPairPassword string `json:"key_pair_p12_password,omitempty"`
 }
 
 type CertificateOptions _CertificateOptions

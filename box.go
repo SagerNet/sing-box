@@ -23,6 +23,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/mitm"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/route"
@@ -48,6 +49,7 @@ type Box struct {
 	dnsRouter    *dns.Router
 	connection   *route.ConnectionManager
 	router       *route.Router
+	mitm         adapter.MITMEngine //*mitm.Engine
 	services     []adapter.LifecycleService
 	done         chan struct{}
 }
@@ -143,18 +145,12 @@ func New(options Options) (*Box, error) {
 	}
 
 	var services []adapter.LifecycleService
-	certificateOptions := common.PtrValueOrDefault(options.Certificate)
-	if C.IsAndroid || certificateOptions.Store != "" && certificateOptions.Store != C.CertificateStoreSystem ||
-		len(certificateOptions.Certificate) > 0 ||
-		len(certificateOptions.CertificatePath) > 0 ||
-		len(certificateOptions.CertificateDirectoryPath) > 0 {
-		certificateStore, err := certificate.NewStore(ctx, logFactory.NewLogger("certificate"), certificateOptions)
-		if err != nil {
-			return nil, err
-		}
-		service.MustRegister[adapter.CertificateStore](ctx, certificateStore)
-		services = append(services, certificateStore)
+	certificateStore, err := certificate.NewStore(ctx, logFactory.NewLogger("certificate"), common.PtrValueOrDefault(options.Certificate))
+	if err != nil {
+		return nil, err
 	}
+	service.MustRegister[adapter.CertificateStore](ctx, certificateStore)
+	services = append(services, certificateStore)
 
 	routeOptions := common.PtrValueOrDefault(options.Route)
 	dnsOptions := common.PtrValueOrDefault(options.DNS)
@@ -173,7 +169,7 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize network manager")
 	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
-	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"))
+	connectionManager := route.NewConnectionManager(ctx, logFactory.NewLogger("connection"))
 	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
 	router := route.NewRouter(ctx, logFactory, routeOptions, dnsOptions)
 	service.MustRegister[adapter.Router](ctx, router)
@@ -181,8 +177,8 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
-	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	var timeService *tls.TimeServiceWrapper
+	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	if ntpOptions.Enabled {
 		timeService = new(tls.TimeServiceWrapper)
 		service.MustRegister[ntp.TimeService](ctx, timeService)
@@ -345,6 +341,16 @@ func New(options Options) (*Box, error) {
 		timeService.TimeService = ntpService
 		services = append(services, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
+	mitmOptions := common.PtrValueOrDefault(options.MITM)
+	var mitmEngine adapter.MITMEngine
+	if mitmOptions.Enabled {
+		engine, err := mitm.NewEngine(ctx, logFactory.NewLogger("mitm"), mitmOptions)
+		if err != nil {
+			return nil, E.Cause(err, "create MITM engine")
+		}
+		service.MustRegister[adapter.MITMEngine](ctx, engine)
+		mitmEngine = engine
+	}
 	return &Box{
 		network:      networkManager,
 		endpoint:     endpointManager,
@@ -354,6 +360,7 @@ func New(options Options) (*Box, error) {
 		dnsRouter:    dnsRouter,
 		connection:   connectionManager,
 		router:       router,
+		mitm:         mitmEngine,
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
@@ -412,11 +419,11 @@ func (s *Box) preStart() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateInitialize, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.outbound, s.inbound, s.endpoint)
+	err = adapter.Start(adapter.StartStateInitialize, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.mitm, s.outbound, s.inbound, s.endpoint)
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateStart, s.outbound, s.dnsTransport, s.dnsRouter, s.network, s.connection, s.router)
+	err = adapter.Start(adapter.StartStateStart, s.outbound, s.dnsTransport, s.dnsRouter, s.network, s.connection, s.router, s.mitm)
 	if err != nil {
 		return err
 	}
@@ -440,7 +447,7 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.inbound, s.endpoint)
+	err = adapter.Start(adapter.StartStatePostStart, s.outbound, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.mitm, s.inbound, s.endpoint)
 	if err != nil {
 		return err
 	}
@@ -448,7 +455,7 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	err = adapter.Start(adapter.StartStateStarted, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.outbound, s.inbound, s.endpoint)
+	err = adapter.Start(adapter.StartStateStarted, s.network, s.dnsTransport, s.dnsRouter, s.connection, s.router, s.mitm, s.outbound, s.inbound, s.endpoint)
 	if err != nil {
 		return err
 	}
@@ -467,7 +474,7 @@ func (s *Box) Close() error {
 		close(s.done)
 	}
 	err := common.Close(
-		s.inbound, s.outbound, s.endpoint, s.router, s.connection, s.dnsRouter, s.dnsTransport, s.network,
+		s.inbound, s.outbound, s.endpoint, s.mitm, s.router, s.connection, s.dnsRouter, s.dnsTransport, s.network,
 	)
 	for _, lifecycleService := range s.services {
 		err = E.Append(err, lifecycleService.Close(), func(err error) error {
