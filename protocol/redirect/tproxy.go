@@ -121,14 +121,6 @@ func (t *TProxy) NewPacketEx(buffer *buf.Buffer, oob []byte, source M.Socksaddr)
 	t.udpNat.NewPacket([][]byte{buffer.Bytes()}, source, M.SocksaddrFromNetIP(destination), nil)
 }
 
-type tproxyPacketWriter struct {
-	ctx         context.Context
-	listener    *listener.Listener
-	source      netip.AddrPort
-	destination M.Socksaddr
-	conn        *net.UDPConn
-}
-
 func (t *TProxy) preparePacketConnection(source M.Socksaddr, destination M.Socksaddr, userData any) (bool, context.Context, N.PacketWriter, N.CloseHandlerFunc) {
 	ctx := log.ContextWithNewID(t.ctx)
 	writer := &tproxyPacketWriter{
@@ -142,15 +134,25 @@ func (t *TProxy) preparePacketConnection(source M.Socksaddr, destination M.Socks
 	}
 }
 
+type tproxyPacketWriter struct {
+	ctx         context.Context
+	listener    *listener.Listener
+	source      netip.AddrPort
+	destination M.Socksaddr
+	conn        *net.UDPConn
+}
+
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	conn := w.conn
-	if w.destination == destination && conn != nil {
-		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
-		if err != nil {
-			w.conn = nil
+	if w.listener.ListenOptions().NetNs == "" {
+		conn := w.conn
+		if w.destination == destination && conn != nil {
+			_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
+			if err != nil {
+				w.conn = nil
+			}
+			return err
 		}
-		return err
 	}
 	var listenConfig net.ListenConfig
 	listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
@@ -160,7 +162,7 @@ func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socks
 		return err
 	}
 	udpConn := packetConn.(*net.UDPConn)
-	if w.destination == destination {
+	if w.listener.ListenOptions().NetNs == "" && w.destination == destination {
 		w.conn = udpConn
 	} else {
 		defer udpConn.Close()
