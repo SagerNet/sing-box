@@ -358,7 +358,7 @@ func (r *Router) matchRule(
 			newBuffer, newPackerBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{
 				OverrideDestination: metadata.InboundOptions.SniffOverrideDestination,
 				Timeout:             time.Duration(metadata.InboundOptions.SniffTimeout),
-			}, inputConn, inputPacketConn)
+			}, inputConn, inputPacketConn, nil)
 			if newErr != nil {
 				fatalErr = newErr
 				return
@@ -458,7 +458,7 @@ match:
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionSniff:
 			if !preMatch {
-				newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, action, inputConn, inputPacketConn)
+				newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, action, inputConn, inputPacketConn, buffers)
 				if newErr != nil {
 					fatalErr = newErr
 					return
@@ -489,28 +489,21 @@ match:
 			break match
 		}
 	}
-	if !preMatch && inputPacketConn != nil && (metadata.InboundType == C.TypeSOCKS || metadata.InboundType == C.TypeMixed) && !metadata.Destination.IsFqdn() && !metadata.Destination.Addr.IsGlobalUnicast() {
-		newBuffer, newPacketBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{Timeout: C.TCPTimeout}, inputConn, inputPacketConn)
-		if newErr != nil {
-			fatalErr = newErr
-			return
-		}
-		if newBuffer != nil {
-			buffers = append(buffers, newBuffer)
-		} else if len(newPacketBuffers) > 0 {
-			packetBuffers = append(packetBuffers, newPacketBuffers...)
-		}
-	}
 	return
 }
 
 func (r *Router) actionSniff(
 	ctx context.Context, metadata *adapter.InboundContext, action *rule.RuleActionSniff,
-	inputConn net.Conn, inputPacketConn N.PacketConn,
+	inputConn net.Conn, inputPacketConn N.PacketConn, inputBuffers []*buf.Buffer,
 ) (buffer *buf.Buffer, packetBuffers []*N.PacketBuffer, fatalErr error) {
 	if sniff.Skip(metadata) {
+		r.logger.DebugContext(ctx, "sniff skipped due to port considered as server-first")
 		return
-	} else if inputConn != nil {
+	} else if metadata.Protocol != "" {
+		r.logger.DebugContext(ctx, "duplicate sniff skipped")
+		return
+	}
+	if inputConn != nil {
 		sniffBuffer := buf.NewPacket()
 		var streamSniffers []sniff.StreamSniffer
 		if len(action.StreamSniffers) > 0 {
@@ -529,6 +522,7 @@ func (r *Router) actionSniff(
 			ctx,
 			metadata,
 			inputConn,
+			inputBuffers,
 			sniffBuffer,
 			action.Timeout,
 			streamSniffers...,
@@ -555,6 +549,10 @@ func (r *Router) actionSniff(
 			sniffBuffer.Release()
 		}
 	} else if inputPacketConn != nil {
+		if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrClientHelloFragmented) {
+			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.PacketSniffError)
+			return
+		}
 		for {
 			var (
 				sniffBuffer = buf.NewPacket()
@@ -586,10 +584,7 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				if (metadata.InboundType == C.TypeSOCKS || metadata.InboundType == C.TypeMixed) && !metadata.Destination.IsFqdn() && !metadata.Destination.Addr.IsGlobalUnicast() && !metadata.RouteOriginalDestination.IsValid() {
-					metadata.Destination = destination
-				}
-				if len(packetBuffers) > 0 {
+				if len(packetBuffers) > 0 || metadata.PacketSniffError != nil {
 					err = sniff.PeekPacket(
 						ctx,
 						metadata,
@@ -622,7 +617,8 @@ func (r *Router) actionSniff(
 					Destination: destination,
 				}
 				packetBuffers = append(packetBuffers, packetBuffer)
-				if E.IsMulti(err, sniff.ErrClientHelloFragmented) {
+				metadata.PacketSniffError = err
+				if errors.Is(err, sniff.ErrClientHelloFragmented) {
 					r.logger.DebugContext(ctx, "attempt to sniff fragmented QUIC client hello")
 					continue
 				}

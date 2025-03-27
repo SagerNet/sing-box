@@ -53,10 +53,11 @@ type InboundContext struct {
 
 	// sniffer
 
-	Protocol     string
-	Domain       string
-	Client       string
-	SniffContext any
+	Protocol         string
+	Domain           string
+	Client           string
+	SniffContext     any
+	PacketSniffError error
 
 	// cache
 

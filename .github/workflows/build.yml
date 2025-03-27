@@ -50,12 +50,12 @@ jobs:
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
-          echo "version=${{ inputs.version }}" 
+          echo "version=${{ inputs.version }}"
           echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
-          go run -v ./cmd/internal/read_tag --nightly
+          go run -v ./cmd/internal/read_tag --ci --nightly
       - name: Set outputs
         id: outputs
         run: |-
@@ -68,142 +68,174 @@ jobs:
       - calculate_version
     strategy:
       matrix:
+        os: [ linux, windows, darwin, android ]
+        arch: [ "386", amd64, arm64 ]
+        legacy_go: [ false ]
         include:
-          - name: linux_386
-            goos: linux
-            goarch: 386
-          - name: linux_amd64
-            goos: linux
-            goarch: amd64
-          - name: linux_arm64
-            goos: linux
-            goarch: arm64
-          - name: linux_arm
-            goos: linux
-            goarch: arm
-            goarm: 6
-          - name: linux_arm_v7
-            goos: linux
-            goarch: arm
-            goarm: 7
-          - name: linux_s390x
-            goos: linux
-            goarch: s390x
-          - name: linux_riscv64
-            goos: linux
-            goarch: riscv64
-          - name: linux_mips64le
-            goos: linux
-            goarch: mips64le
-          - name: windows_amd64
-            goos: windows
-            goarch: amd64
-            require_legacy_go: true
-          - name: windows_386
-            goos: windows
-            goarch: 386
-            require_legacy_go: true
-          - name: windows_arm64
-            goos: windows
-            goarch: arm64
-          - name: darwin_arm64
-            goos: darwin
-            goarch: arm64
-          - name: darwin_amd64
-            goos: darwin
-            goarch: amd64
-            require_legacy_go: true
-          - name: android_arm64
-            goos: android
-            goarch: arm64
-          - name: android_arm
-            goos: android
-            goarch: arm
-            goarm: 7
-          - name: android_amd64
-            goos: android
-            goarch: amd64
-          - name: android_386
-            goos: android
-            goarch: 386
+          - { os: linux, arch: amd64, debian: amd64, rpm: x86_64, pacman: x86_64 }
+          - { os: linux, arch: "386", debian: i386, rpm: i386 }
+          - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl }
+          - { os: linux, arch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl }
+          - { os: linux, arch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64 }
+          - { os: linux, arch: mips64le, debian: mips64el, rpm: mips64el }
+          - { os: linux, arch: mipsle, debian: mipsel, rpm: mipsel }
+          - { os: linux, arch: s390x, debian: s390x, rpm: s390x }
+          - { os: linux, arch: ppc64le, debian: ppc64el, rpm: ppc64le }
+          - { os: linux, arch: riscv64, debian: riscv64, rpm: riscv64 }
+          - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64 }
+
+          - { os: windows, arch: "386", legacy_go: true }
+          - { os: windows, arch: amd64, legacy_go: true }
+          - { os: darwin, arch: amd64, legacy_go: true }
+
+          - { os: android, arch: "386", ndk: "i686-linux-android21" }
+          - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
+          - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
+          - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
+        exclude:
+          - { os: darwin, arch: "386" }
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
         with:
           fetch-depth: 0
       - name: Setup Go
+        if: matrix.legacy_go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.20
+      - name: Setup Go
+        if: ${{ ! matrix.legacy_go }}
         uses: actions/setup-go@v5
         with:
           go-version: ^1.24
-      - name: Cache legacy Go
-        if: matrix.require_legacy_go
-        id: cache-legacy-go
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/go1.20.14
-          key: go120
-      - name: Setup legacy Go
-        if: matrix.require_legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
-        run: |-
-          wget https://dl.google.com/go/go1.20.14.linux-amd64.tar.gz
-          tar -xzf go1.20.14.linux-amd64.tar.gz
-          mv go $HOME/go/go1.20.14
       - name: Setup Android NDK
-        if: matrix.goos == 'android'
+        if: matrix.os == 'android'
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
           local-cache: true
-      - name: Setup Goreleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-pro
-          version: nightly
-          install-only: true
-      - name: Extract signing key
-        run: |-
-          mkdir -p $HOME/.gnupg
-          cat > $HOME/.gnupg/sagernet.key <<EOF
-          ${{ secrets.GPG_KEY }}
-          EOF
-          echo "HOME=$HOME" >> "$GITHUB_ENV"
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
           git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Set build tags
+        run: |
+          set -xeuo pipefail
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_reality_server,with_acme,with_clash_api'
+          if [ ! '${{ matrix.legacy_go }}' = 'true' ]; then
+            TAGS="${TAGS},with_ech"
+          fi
+          echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
       - name: Build
-        if: matrix.goos != 'android'
-        run: |-
-          goreleaser release --clean --split
+        if: matrix.os != 'android'
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          ./cmd/sing-box
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOPATH: ${{ env.HOME }}/go
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
           GOARM: ${{ matrix.goarm }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
-          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       - name: Build Android
-        if: matrix.goos == 'android'
-        run: |-
+        if: matrix.os == 'android'
+        run: |
+          set -xeuo pipefail
           go install -v ./cmd/internal/build
-          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build goreleaser release --clean --split
+          export CC='${{ matrix.ndk }}-clang'
+          export CXX="${CC}++"
+          mkdir -p dist
+          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          ./cmd/sing-box
         env:
-          BUILD_GOOS: ${{ matrix.goos }}
-          BUILD_GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
+          CGO_ENABLED: "1"
+          BUILD_GOOS: ${{ matrix.os }}
+          BUILD_GOARCH: ${{ matrix.arch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
-          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Set name
+        run: |-
+          ARM_VERSION=$([ -n '${{ matrix.goarm}}' ] && echo 'v${{ matrix.goarm}}' || true)
+          LEGACY=$([ '${{ matrix.legacy_go }}' = 'true' ] && echo "-legacy" || true)
+          DIR_NAME="sing-box-${{ needs.calculate_version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}${ARM_VERSION}${LEGACY}"
+          PKG_NAME="sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.arch }}${ARM_VERSION}"
+          echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
+          echo "PKG_NAME=${PKG_NAME}" >> "${GITHUB_ENV}"
+          PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
+      - name: Package DEB
+        if: matrix.debian != ''
+        run: |
+          set -xeuo pipefail
+          sudo gem install fpm
+          sudo apt-get install -y debsigs
+          fpm -t deb \
+            -v "$PKG_VERSION" \
+            -p "dist/${PKG_NAME}.deb" \
+            --architecture ${{ matrix.debian }} \
+            dist/sing-box=/usr/bin/sing-box
+          curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
+          sudo patch /usr/bin/debsigs < '/tmp/debsigs.diff'
+          rm -rf $HOME/.gnupg
+          gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          debsigs --sign=origin -k ${{ secrets.GPG_KEY_ID }} --gpgopts '--pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}"' dist/*.deb
+      - name: Package RPM
+        if: matrix.rpm != ''
+        run: |-
+          set -xeuo pipefail
+          sudo gem install fpm
+          fpm -t rpm \
+            -v "$PKG_VERSION" \
+            -p "dist/${PKG_NAME}.rpm" \
+            --architecture ${{ matrix.rpm }} \
+            dist/sing-box=/usr/bin/sing-box
+          cat > $HOME/.rpmmacros <<EOF
+          %_gpg_name ${{ secrets.GPG_KEY_ID }}
+          %_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PASSPHRASE }}
+          EOF
+          gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          rpmsign --addsign dist/*.rpm
+      - name: Package Pacman
+        if: matrix.pacman != ''
+        run: |-
+          set -xeuo pipefail
+          sudo gem install fpm
+          sudo apt-get install -y libarchive-tools
+          fpm -t pacman \
+            -v "$PKG_VERSION" \
+            -p "dist/${PKG_NAME}.pkg.tar.zst" \
+            --architecture ${{ matrix.pacman }} \
+            dist/sing-box=/usr/bin/sing-box
+      - name: Archive
+        run: |
+          set -xeuo pipefail
+          cd dist
+          mkdir -p "${DIR_NAME}"
+          cp ../LICENSE "${DIR_NAME}"
+          if [ '${{ matrix.os }}' = 'windows' ]; then
+            cp sing-box "${DIR_NAME}/sing-box.exe"
+            zip -r "${DIR_NAME}.zip" "${DIR_NAME}"
+          else
+            cp sing-box "${DIR_NAME}"
+            tar -czvf "${DIR_NAME}.tar.gz" "${DIR_NAME}"
+          fi
+          rm -r "${DIR_NAME}"
+      - name: Cleanup
+        run: rm dist/sing-box
       - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.name }}
-          path: 'dist'
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.legacy_go && '-legacy' || '' }}
+          path: "dist"
   build_android:
     name: Build Android
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android'
@@ -275,13 +307,11 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Prepare upload
-        if: github.event_name == 'workflow_dispatch'
         run: |-
-          mkdir -p dist/release
-          cp clients/android/app/build/outputs/apk/play/release/*.apk dist/release
-          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist/release
+          mkdir -p dist
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
       - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: binary-android-apks
@@ -439,19 +469,19 @@ jobs:
 
           PROFILES_ZIP_PATH=$RUNNER_TEMP/Profiles.zip
           echo -n "$PROVISIONING_PROFILES" | base64 --decode -o $PROFILES_ZIP_PATH
-          
+
           PROFILES_PATH="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_PATH"
           unzip $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
-          
+
           ASC_KEY_PATH=$RUNNER_TEMP/Key.p12
           echo -n "$ASC_KEY" | base64 --decode -o $ASC_KEY_PATH
-          
+
           xcrun notarytool store-credentials "notarytool-password" \
             --key $ASC_KEY_PATH \
             --key-id $ASC_KEY_ID \
             --issuer $ASC_KEY_ISSUER_ID
-          
+
           echo "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
           echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
           echo "ASC_KEY_ISSUER_ID=$ASC_KEY_ISSUER_ID" >> "$GITHUB_ENV"
@@ -527,10 +557,10 @@ jobs:
           cd "${{ matrix.archive }}"
           zip -r SFM.dSYMs.zip dSYMs
           popd
-          
-          mkdir -p dist/release
-          cp clients/apple/SFM.dmg "dist/release/SFM-${VERSION}-universal.dmg"
-          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/release/SFM-${VERSION}-universal.dSYMs.zip"
+
+          mkdir -p dist
+          cp clients/apple/SFM.dmg "dist/SFM-${VERSION}-universal.dmg"
+          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
       - name: Upload image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
@@ -551,12 +581,6 @@ jobs:
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
         with:
           fetch-depth: 0
-      - name: Setup Goreleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser-pro
-          version: 2.5.1
-          install-only: true
       - name: Cache ghr
         uses: actions/cache@v4
         id: cache-ghr
@@ -581,26 +605,17 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Merge builds
-        if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
-        run: |-
-          goreleaser continue --merge --skip publish
-          mkdir -p dist/release
-          mv dist/*/sing-box*{tar.gz,zip,deb,rpm,_amd64.pkg.tar.zst,_arm64.pkg.tar.zst} dist/release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Upload builds
         if: ${{ env.PUBLISHED == 'false' }}
         run: |-
           export PATH="$PATH:$HOME/go/bin"
-          ghr --replace --draft --prerelease -p 5 "v${VERSION}" dist/release
+          ghr --replace --draft --prerelease -p 5 "v${VERSION}" dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Replace builds
         if: ${{ env.PUBLISHED != 'false' }}
         run: |-
           export PATH="$PATH:$HOME/go/bin"
-          ghr --replace -p 5 "v${VERSION}" dist/release
+          ghr --replace -p 5 "v${VERSION}" dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

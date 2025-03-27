@@ -74,6 +74,10 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 			return
 		}
 		if header.OpCode.IsControl() {
+			if header.Length > 128 {
+				err = wsutil.ErrFrameTooLarge
+				return
+			}
 			err = c.controlHandler(header, c.reader)
 			if err != nil {
 				return

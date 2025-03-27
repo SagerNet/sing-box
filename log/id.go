@@ -20,10 +20,14 @@ type ID struct {
 }
 
 func ContextWithNewID(ctx context.Context) context.Context {
-	return context.WithValue(ctx, (*idKey)(nil), ID{
+	return ContextWithID(ctx, ID{
 		ID:        rand.Uint32(),
 		CreatedAt: time.Now(),
 	})
+}
+
+func ContextWithID(ctx context.Context, id ID) context.Context {
+	return context.WithValue(ctx, (*idKey)(nil), id)
 }
 
 func IDFromContext(ctx context.Context) (ID, bool) {
