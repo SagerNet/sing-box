@@ -6,7 +6,7 @@ icon: material/arrange-bring-forward
 
 ### Migrate to new DNS server formats
 
-DNS servers are refactored for better performance and scalability.
+DNS server configurations have been refactored to improve performance and scalability.
 
 !!! info "References"
 
@@ -513,7 +513,7 @@ DNS servers are refactored for better performance and scalability.
 
 ### Migrate outbound DNS rule items to domain resolver
 
-The legacy outbound DNS rules are deprecated and can be replaced by new domain resolver options.
+Legacy outbound DNS rules have been deprecated and should be replaced with domain resolver options.
 
 !!! info "References"
     
@@ -588,9 +588,9 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
 
 ## 1.11.0
 
-### Migrate legacy special outbounds to rule actions
+### Migrate legacy special outbound fields to rule actions
 
-Legacy special outbounds are deprecated and can be replaced by rule actions.
+Legacy special outbound fields have been deprecated and can be replaced with rule actions.
 
 !!! info "References"
 
@@ -686,9 +686,9 @@ Legacy special outbounds are deprecated and can be replaced by rule actions.
         }
         ```
 
-### Migrate legacy inbound fields to rule actions
+### Migrate legacy special inbound fields to rule actions
 
-Inbound fields are deprecated and can be replaced by rule actions.
+Legacy special inbound fields have been deprecated and can be replaced with rule actions.
 
 !!! info "References"
 
@@ -780,7 +780,7 @@ Destination override fields in direct outbound are deprecated and can be replace
 
 ### Migrate WireGuard outbound to endpoint
 
-WireGuard outbound is deprecated and can be replaced by endpoint.
+WireGuard outbound is deprecated and can be replaced with WireGuard endpoint.
 
 !!! info "References"
 
