@@ -25,6 +25,7 @@ const (
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
 	TypeTailscale    = "tailscale"
+	TypeMieru        = "mieru"
 )
 
 const (
@@ -80,6 +81,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Hysteria2"
 	case TypeAnyTLS:
 		return "AnyTLS"
+	case TypeMieru:
+		return "Mieru"
 	case TypeSelector:
 		return "Selector"
 	case TypeURLTest:
