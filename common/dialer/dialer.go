@@ -102,12 +102,12 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 			}
 			dnsQueryOptions.Transport = transport
 			resolveFallbackDelay = time.Duration(dialOptions.FallbackDelay)
-		} else if options.NewDialer {
-			return nil, E.New("missing domain resolver for domain server address")
 		} else {
 			transports := dnsTransport.Transports()
 			if len(transports) < 2 {
 				dnsQueryOptions.Transport = dnsTransport.Default()
+			} else if options.NewDialer {
+				return nil, E.New("missing domain resolver for domain server address")
 			} else {
 				deprecated.Report(options.Context, deprecated.OptionMissingDomainResolver)
 			}

@@ -2,8 +2,10 @@ package tailscale
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"net/netip"
 	"net/url"
 	"os"
@@ -147,6 +149,17 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 			return dnsRouter.Lookup(ctx, host, outboundDialer.(dialer.ResolveDialer).QueryOptions())
 		},
 		DNS: &dnsConfigurtor{},
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+					return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(address))
+				},
+				TLSClientConfig: &tls.Config{
+					RootCAs: adapter.RootPoolFromContext(ctx),
+				},
+			},
+		},
 	}
 	return &Endpoint{
 		Adapter:                endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
@@ -444,6 +457,10 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	t.logger.InfoContext(ctx, "inbound packet connection from ", source)
 	t.logger.InfoContext(ctx, "inbound packet connection to ", destination)
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (t *Endpoint) Server() *tsnet.Server {
+	return t.server
 }
 
 func addressFromAddr(destination netip.Addr) tcpip.Address {
