@@ -196,8 +196,8 @@ github.com/sagernet/sing-vmess v0.2.0 h1:pCMGUXN2k7RpikQV65/rtXtDHzb190foTfF9IGT
 github.com/sagernet/sing-vmess v0.2.0/go.mod h1:jDAZ0A0St1zVRkyvhAPRySOFfhC+4SQtO5VYyeFotgA=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7 h1:DImB4lELfQhplLTxeq2z31Fpv8CQqqrUwTbrIRumZqQ=
 github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7/go.mod h1:FP9X2xjT/Az1EsG/orYYoC+5MojWnuI7hrffz8fGwwo=
-github.com/sagernet/tailscale v1.80.3-mod.0 h1:oHIdivbR/yxoiA9d3a2rRlhYn2shY9XVF35Rr8jW508=
-github.com/sagernet/tailscale v1.80.3-mod.0/go.mod h1:EBxXsWu4OH2ELbQLq32WoBeIubG8KgDrg4/Oaxjs6lI=
+github.com/sagernet/tailscale v1.80.3-mod.2 h1:hT0CI74q727EuCcgQ+T4pvon8V0aoi4vTAxah7GsNMQ=
+github.com/sagernet/tailscale v1.80.3-mod.2/go.mod h1:EBxXsWu4OH2ELbQLq32WoBeIubG8KgDrg4/Oaxjs6lI=
 github.com/sagernet/utls v1.6.7 h1:Ep3+aJ8FUGGta+II2IEVNUc3EDhaRCZINWkj/LloIA8=
 github.com/sagernet/utls v1.6.7/go.mod h1:Uua1TKO/FFuAhLr9rkaVnnrTmmiItzDjv1BUb2+ERwM=
 github.com/sagernet/wireguard-go v0.0.1-beta.5 h1:aBEsxJUMEONwOZqKPIkuAcv4zJV5p6XlzEN04CF0FXc=
