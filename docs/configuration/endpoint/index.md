@@ -6,7 +6,7 @@ icon: material/new-box
 
 # Endpoint
 
-Endpoint is protocols that has both inbound and outbound behavior.
+An endpoint is a protocol with inbound and outbound behavior.
 
 ### Structure
 
