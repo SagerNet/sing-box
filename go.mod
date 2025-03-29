@@ -6,6 +6,7 @@ require (
 	github.com/anytls/sing-anytls v0.0.8
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/cloudflare/circl v1.6.1
+	github.com/coder/websocket v1.8.12
 	github.com/cretz/bine v0.2.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/render v1.0.3
@@ -65,7 +66,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/coder/websocket v1.8.12 // indirect
 	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect

@@ -169,6 +169,9 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Service:
+          - configuration/service/index.md
+          - DERP: configuration/service/derp.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
