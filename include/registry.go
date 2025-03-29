@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/adapter/service"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport"
@@ -120,6 +121,9 @@ func DNSTransportRegistry() *dns.TransportRegistry {
 
 func ServiceRegistry() *service.Registry {
 	registry := service.NewRegistry()
+
+	registerDERPService(registry)
+
 	return registry
 }
 
