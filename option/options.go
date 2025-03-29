@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 )
 
@@ -31,7 +32,7 @@ func (o *Options) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 		return err
 	}
 	o.RawMessage = content
-	return nil
+	return checkOptions(o)
 }
 
 type LogOptions struct {
@@ -43,3 +44,43 @@ type LogOptions struct {
 }
 
 type StubOptions struct{}
+
+func checkOptions(options *Options) error {
+	err := checkInbounds(options.Inbounds)
+	if err != nil {
+		return err
+	}
+	err = checkOutbounds(options.Outbounds, options.Endpoints)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func checkInbounds(inbounds []Inbound) error {
+	seen := make(map[string]bool)
+	for _, inbound := range inbounds {
+		if seen[inbound.Tag] {
+			return E.New("duplicate inbound tag: ", inbound.Tag)
+		}
+		seen[inbound.Tag] = true
+	}
+	return nil
+}
+
+func checkOutbounds(outbounds []Outbound, endpoints []Endpoint) error {
+	seen := make(map[string]bool)
+	for _, outbound := range outbounds {
+		if seen[outbound.Tag] {
+			return E.New("duplicate outbound/endpoint tag: ", outbound.Tag)
+		}
+		seen[outbound.Tag] = true
+	}
+	for _, endpoint := range endpoints {
+		if seen[endpoint.Tag] {
+			return E.New("duplicate outbound/endpoint tag: ", endpoint.Tag)
+		}
+		seen[endpoint.Tag] = true
+	}
+	return nil
+}
