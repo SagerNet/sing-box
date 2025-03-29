@@ -121,7 +121,6 @@ type LegacyDNSFakeIPOptions struct {
 type DNSTransportOptionsRegistry interface {
 	CreateOptions(transportType string) (any, bool)
 }
-
 type _DNSServerOptions struct {
 	Type    string `json:"type,omitempty"`
 	Tag     string `json:"tag,omitempty"`
