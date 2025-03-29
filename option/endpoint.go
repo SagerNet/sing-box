@@ -32,11 +32,11 @@ func (h *Endpoint) UnmarshalJSONContext(ctx context.Context, content []byte) err
 	}
 	registry := service.FromContext[EndpointOptionsRegistry](ctx)
 	if registry == nil {
-		return E.New("missing Endpoint fields registry in context")
+		return E.New("missing endpoint fields registry in context")
 	}
 	options, loaded := registry.CreateOptions(h.Type)
 	if !loaded {
-		return E.New("unknown inbound type: ", h.Type)
+		return E.New("unknown endpoint type: ", h.Type)
 	}
 	err = badjson.UnmarshallExcludedContext(ctx, content, (*_Endpoint)(h), options)
 	if err != nil {
