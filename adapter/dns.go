@@ -7,7 +7,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/service"
 
 	"github.com/miekg/dns"
 )
@@ -36,6 +38,24 @@ type DNSQueryOptions struct {
 	DisableCache bool
 	RewriteTTL   *uint32
 	ClientSubnet netip.Prefix
+}
+
+func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptions) (*DNSQueryOptions, error) {
+	if options == nil {
+		return &DNSQueryOptions{}, nil
+	}
+	transportManager := service.FromContext[DNSTransportManager](ctx)
+	transport, loaded := transportManager.Transport(options.Server)
+	if !loaded {
+		return nil, E.New("domain resolver not found: " + options.Server)
+	}
+	return &DNSQueryOptions{
+		Transport:    transport,
+		Strategy:     C.DomainStrategy(options.Strategy),
+		DisableCache: options.DisableCache,
+		RewriteTTL:   options.RewriteTTL,
+		ClientSubnet: options.ClientSubnet.Build(netip.Prefix{}),
+	}, nil
 }
 
 type RDRCStore interface {
