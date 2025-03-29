@@ -22,7 +22,7 @@ var errInsecureUnused = E.New("tls: insecure unused")
 type STDServerConfig struct {
 	config          *tls.Config
 	logger          log.Logger
-	acmeService     adapter.Service
+	acmeService     adapter.SimpleLifecycle
 	certificate     []byte
 	key             []byte
 	certificatePath string
@@ -165,7 +165,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		return nil, nil
 	}
 	var tlsConfig *tls.Config
-	var acmeService adapter.Service
+	var acmeService adapter.SimpleLifecycle
 	var err error
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
 		//nolint:staticcheck
