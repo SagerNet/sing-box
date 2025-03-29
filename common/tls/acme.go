@@ -37,7 +37,7 @@ func (w *acmeWrapper) Close() error {
 	return nil
 }
 
-func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
+func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Config, adapter.SimpleLifecycle, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":

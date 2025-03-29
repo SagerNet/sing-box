@@ -2,6 +2,11 @@ package adapter
 
 import E "github.com/sagernet/sing/common/exceptions"
 
+type SimpleLifecycle interface {
+	Start() error
+	Close() error
+}
+
 type StartStage uint8
 
 const (

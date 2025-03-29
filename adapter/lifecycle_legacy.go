@@ -28,14 +28,14 @@ func LegacyStart(starter any, stage StartStage) error {
 }
 
 type lifecycleServiceWrapper struct {
-	Service
+	SimpleLifecycle
 	name string
 }
 
-func NewLifecycleService(service Service, name string) LifecycleService {
+func NewLifecycleService(service SimpleLifecycle, name string) LifecycleService {
 	return &lifecycleServiceWrapper{
-		Service: service,
-		name:    name,
+		SimpleLifecycle: service,
+		name:            name,
 	}
 }
 
@@ -44,9 +44,9 @@ func (l *lifecycleServiceWrapper) Name() string {
 }
 
 func (l *lifecycleServiceWrapper) Start(stage StartStage) error {
-	return LegacyStart(l.Service, stage)
+	return LegacyStart(l.SimpleLifecycle, stage)
 }
 
 func (l *lifecycleServiceWrapper) Close() error {
-	return l.Service.Close()
+	return l.SimpleLifecycle.Close()
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type FakeIPStore interface {
-	Service
+	SimpleLifecycle
 	Contains(address netip.Addr) bool
 	Create(domain string, isIPv6 bool) (netip.Addr, error)
 	Lookup(address netip.Addr) (string, bool)
