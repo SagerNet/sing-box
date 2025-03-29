@@ -118,6 +118,11 @@ func DNSTransportRegistry() *dns.TransportRegistry {
 	return registry
 }
 
+func ServiceRegistry() *service.Registry {
+	registry := service.NewRegistry()
+	return registry
+}
+
 func registerStubForRemovedInbounds(registry *inbound.Registry) {
 	inbound.Register[option.ShadowsocksInboundOptions](registry, C.TypeShadowsocksR, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {
 		return nil, E.New("ShadowsocksR is deprecated and removed in sing-box 1.6.0")
