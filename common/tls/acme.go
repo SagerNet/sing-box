@@ -68,7 +68,7 @@ func encoderConfig() zapcore.EncoderConfig {
 	return config
 }
 
-func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
+func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.SimpleLifecycle, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":
