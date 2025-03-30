@@ -41,6 +41,7 @@ DNS 服务器的类型。
 | `dhcp`          | [DHCP](./dhcp/)           |
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
+| `resolved`      | [Resolved](./resolved/)   |
 
 #### tag
 

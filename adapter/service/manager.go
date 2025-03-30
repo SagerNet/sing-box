@@ -35,13 +35,14 @@ func NewManager(logger log.ContextLogger, registry adapter.ServiceRegistry) *Man
 
 func (m *Manager) Start(stage adapter.StartStage) error {
 	m.access.Lock()
-	defer m.access.Unlock()
 	if m.started && m.stage >= stage {
 		panic("already started")
 	}
 	m.started = true
 	m.stage = stage
-	for _, service := range m.services {
+	services := m.services
+	m.access.Unlock()
+	for _, service := range services {
 		err := adapter.LegacyStart(service, stage)
 		if err != nil {
 			return E.Cause(err, stage, " service/", service.Type(), "[", service.Tag(), "]")
