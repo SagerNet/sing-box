@@ -387,3 +387,7 @@ type DHCPDNSServerOptions struct {
 	LocalDNSServerOptions
 	Interface string `json:"interface,omitempty"`
 }
+
+type SplitDNSServerOptions struct {
+	AcceptDefaultResolvers bool `json:"accept_default_resolvers,omitempty"`
+}

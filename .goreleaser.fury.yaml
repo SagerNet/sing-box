@@ -56,6 +56,10 @@ nfpms:
         dst: /usr/lib/systemd/system/sing-box.service
       - src: release/config/sing-box@.service
         dst: /usr/lib/systemd/system/sing-box@.service
+      - src: release/config/sing-box.sysusers
+        dst: /usr/lib/sysusers.d/sing-box.conf
+      - src: release/config/sing-box-split-dns.xml
+        dst: /usr/share/dbus-1/system.d/sing-box-split-dns.conf
 
       - src: release/completions/sing-box.bash
         dst: /usr/share/bash-completion/completions/sing-box.bash

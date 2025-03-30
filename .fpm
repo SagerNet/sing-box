@@ -11,6 +11,8 @@ release/config/config.json=/etc/sing-box/config.json
 
 release/config/sing-box.service=/usr/lib/systemd/system/sing-box.service
 release/config/sing-box@.service=/usr/lib/systemd/system/sing-box@.service
+release/config/sing-box.sysusers=/usr/lib/sysusers.d/sing-box.conf
+release/config/sing-box-split-dns.xml=/usr/share/dbus-1/system.d/sing-box-split-dns.conf
 
 release/completions/sing-box.bash=/usr/share/bash-completion/completions/sing-box.bash
 release/completions/sing-box.fish=/usr/share/fish/vendor_completions.d/sing-box.fish

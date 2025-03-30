@@ -1,0 +1,10 @@
+<!DOCTYPE busconfig PUBLIC
+        "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+        "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+    <policy user="sing-box">
+        <allow own_prefix="org.freedesktop.resolve1"/>
+        <allow send_destination="org.freedesktop.resolve1"/>
+        <allow send_interface="org.freedesktop.resolve1.Manager"/>
+    </policy>
+</busconfig>
