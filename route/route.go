@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"os/user"
 	"strings"
 	"time"
 
@@ -113,14 +112,12 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			}
 		case *rule.RuleActionReject:
 			buf.ReleaseMulti(buffers)
-			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
-			return nil
+			return action.Error(ctx)
 		case *rule.RuleActionHijackDNS:
 			for _, buffer := range buffers {
 				conn = bufio.NewCachedConn(conn, buffer)
 			}
-			r.hijackDNSStream(ctx, conn, metadata)
-			return nil
+			return r.hijackDNSStream(ctx, conn, metadata)
 		}
 	}
 	if selectedRule == nil {
@@ -231,11 +228,10 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			}
 		case *rule.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
-			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
-			return nil
+			return action.Error(ctx)
 		case *rule.RuleActionHijackDNS:
-			r.hijackDNSPacket(ctx, conn, packetBuffers, metadata)
-			return nil
+			return r.hijackDNSPacket(ctx, conn, packetBuffers, metadata)
+
 		}
 	}
 	if selectedRule == nil || selectReturn {
@@ -298,16 +294,16 @@ func (r *Router) matchRule(
 			r.logger.InfoContext(ctx, "failed to search process: ", fErr)
 		} else {
 			if processInfo.ProcessPath != "" {
-				r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath)
+				if processInfo.User != "" {
+					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath, ", user: ", processInfo.User)
+				} else if processInfo.UserId != -1 {
+					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath, ", user id: ", processInfo.UserId)
+				} else {
+					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath)
+				}
 			} else if processInfo.PackageName != "" {
 				r.logger.InfoContext(ctx, "found package name: ", processInfo.PackageName)
 			} else if processInfo.UserId != -1 {
-				if /*needUserName &&*/ true {
-					osUser, _ := user.LookupId(F.ToString(processInfo.UserId))
-					if osUser != nil {
-						processInfo.User = osUser.Username
-					}
-				}
 				if processInfo.User != "" {
 					r.logger.InfoContext(ctx, "found user: ", processInfo.User)
 				} else {
