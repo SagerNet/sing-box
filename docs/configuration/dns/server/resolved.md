@@ -4,19 +4,17 @@ icon: material/new-box
 
 !!! question "Since sing-box 1.12.0"
 
-# Tailscale
-
-### Structure
+# Resolved
 
 ```json
 {
   "dns": {
     "servers": [
       {
-        "type": "tailscale",
+        "type": "resolved",
         "tag": "",
 
-        "endpoint": "ts-ep",
+        "service": "resolved",
         "accept_default_resolvers": false
       }
     ]
@@ -24,23 +22,26 @@ icon: material/new-box
 }
 ```
 
+
 ### Fields
 
-#### endpoint
+#### service
 
 ==Required==
 
-The tag of the [Tailscale Endpoint](/configuration/endpoint/tailscale).
+The tag of the [Resolved Service](/configuration/service/resolved).
 
 #### accept_default_resolvers
 
-Indicates whether default DNS resolvers should be accepted for fallback queries in addition to MagicDNS。
+Indicates whether the default DNS resolvers should be accepted for fallback queries in addition to matching domains.
 
-if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
+Specifically, default DNS resolvers are DNS servers that have `SetLinkDefaultRoute` or `SetLinkDomains ~.` set.
+
+If not enabled, `NXDOMAIN` will be returned for requests that do not match search or match domains.
 
 ### Examples
 
-=== "MagicDNS only"
+=== "Split DNS only"
 
     ```json
     {
@@ -51,15 +52,15 @@ if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
             "tag": "local"
           },
           {
-            "type": "tailscale",
-            "tag": "ts",
-            "endpoint": "ts-ep"
+            "type": "resolved",
+            "tag": "resolved",
+            "service": "resolved"
           }
         ],
         "rules": [
           {
             "ip_accept_any": true,
-            "server": "ts"
+            "server": "resolved"
           }
         ]
       }
@@ -73,8 +74,8 @@ if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
       "dns": {
         "servers": [
           {
-            "type": "tailscale",
-            "endpoint": "ts-ep",
+            "type": "resolved",
+            "service": "resolved",
             "accept_default_resolvers": true
           }
         ]

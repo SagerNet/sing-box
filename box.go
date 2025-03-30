@@ -467,11 +467,7 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
-	err = s.inbound.Start(adapter.StartStateStart)
-	if err != nil {
-		return err
-	}
-	err = adapter.Start(adapter.StartStateStart, s.endpoint)
+	err = adapter.Start(adapter.StartStateStart, s.inbound, s.endpoint, s.service)
 	if err != nil {
 		return err
 	}
