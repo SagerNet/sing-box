@@ -15,4 +15,20 @@
 .DS_Store
 /config.d/
 /venv/
-
+# Go related
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+# Directories like go.work and go.work.sum that are not commonly committed
+go.work
+go.work.sum
+# Log files
+*.log
+# Temporary files
+*.tmp
+*.swp
