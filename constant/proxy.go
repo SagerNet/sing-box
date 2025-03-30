@@ -26,6 +26,7 @@ const (
 	TypeHysteria2    = "hysteria2"
 	TypeTailscale    = "tailscale"
 	TypeDERP         = "derp"
+	TypeResolved     = "resolved"
 )
 
 const (

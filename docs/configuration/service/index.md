@@ -21,9 +21,10 @@ icon: material/new-box
 
 ### Fields
 
-| Type        | Format                   |
-|-------------|--------------------------|
-| `derp`      | [DERP](./derp)           |
+| Type       | Format                 |
+|------------|------------------------|
+| `derp`     | [DERP](./derp)         |
+| `resolved` | [Resolved](./resolved) |
 
 #### tag
 

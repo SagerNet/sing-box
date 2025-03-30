@@ -41,6 +41,7 @@ The type of the DNS server.
 | `dhcp`          | [DHCP](./dhcp/)           |
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
+| `resolved`      | [Resolved](./resolved/)   |
 
 #### tag
 
