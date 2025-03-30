@@ -37,13 +37,14 @@ func NewManager(logger log.ContextLogger, registry adapter.InboundRegistry, endp
 
 func (m *Manager) Start(stage adapter.StartStage) error {
 	m.access.Lock()
-	defer m.access.Unlock()
 	if m.started && m.stage >= stage {
 		panic("already started")
 	}
 	m.started = true
 	m.stage = stage
-	for _, inbound := range m.inbounds {
+	inbounds := m.inbounds
+	m.access.Unlock()
+	for _, inbound := range inbounds {
 		err := adapter.LegacyStart(inbound, stage)
 		if err != nil {
 			return E.Cause(err, stage, " inbound/", inbound.Type(), "[", inbound.Tag(), "]")
