@@ -26,12 +26,16 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
 		err := dnsOutbound.HandleStreamDNSRequest(ctx, r.dns, conn, metadata)
 		if err != nil {
-			return err
+			if !E.IsClosedOrCanceled(err) {
+				return err
+			} else {
+				return nil
+			}
 		}
 	}
 }
 
-func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
 	if natConn, isNatConn := conn.(udpnat.Conn); isNatConn {
 		metadata.Destination = M.Socksaddr{}
 		for _, packet := range packetBuffers {
@@ -48,19 +52,20 @@ func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetB
 			metadata: metadata,
 			onClose:  onClose,
 		})
-		return
+		return nil
 	}
 	err := dnsOutbound.NewDNSPacketConnection(ctx, r.dns, conn, packetBuffers, metadata)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil && !E.IsClosedOrCanceled(err) {
-		r.logger.ErrorContext(ctx, E.Cause(err, "process DNS packet connection"))
+		return E.Cause(err, "process DNS packet")
 	}
+	return nil
 }
 
 func ExchangeDNSPacket(ctx context.Context, router adapter.DNSRouter, logger logger.ContextLogger, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext, destination M.Socksaddr) {
 	err := exchangeDNSPacket(ctx, router, conn, buffer, metadata, destination)
 	if err != nil && !R.IsRejected(err) && !E.IsClosedOrCanceled(err) {
-		logger.ErrorContext(ctx, E.Cause(err, "process DNS packet connection"))
+		logger.ErrorContext(ctx, E.Cause(err, "process DNS packet"))
 	}
 }
 
