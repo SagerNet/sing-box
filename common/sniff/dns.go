@@ -11,7 +11,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
-	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/task"
 
 	mDNS "github.com/miekg/dns"
@@ -46,9 +45,6 @@ func DomainNameQuery(ctx context.Context, metadata *adapter.InboundContext, pack
 	err := msg.Unpack(packet)
 	if err != nil {
 		return err
-	}
-	if len(msg.Question) == 0 || msg.Question[0].Qclass != mDNS.ClassINET || !M.IsDomainName(msg.Question[0].Name) {
-		return os.ErrInvalid
 	}
 	metadata.Protocol = C.ProtocolDNS
 	return nil
