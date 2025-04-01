@@ -24,6 +24,7 @@ type Options struct {
 	ResolverOnDetour bool
 	NewDialer        bool
 	LegacyDNSDialer  bool
+	DirectOutbound   bool
 }
 
 // TODO: merge with NewWithOptions
@@ -108,7 +109,7 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 				dnsQueryOptions.Transport = dnsTransport.Default()
 			} else if options.NewDialer {
 				return nil, E.New("missing domain resolver for domain server address")
-			} else {
+			} else if !options.DirectOutbound {
 				deprecated.Report(options.Context, deprecated.OptionMissingDomainResolver)
 			}
 		}
