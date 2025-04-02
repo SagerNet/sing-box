@@ -215,6 +215,10 @@ tun 接口的 IPv6 前缀。
 
     VPN 默认优先于 tun。要使 tun 经过 VPN，启用 `route.override_android_vpn`。
 
+!!! note "也启用 `auto_redirect`"
+
+  在 Linux 上始终推荐使用 `auto_redirect`，它提供更好的路由， 更高的性能（优于 tproxy）， 并避免与 Docker 桥接网络冲突。
+
 #### iproute2_table_index
 
 !!! question "自 sing-box 1.10.0 起"
@@ -241,19 +245,23 @@ tun 接口的 IPv6 前缀。
 
 自动配置 iptables/nftables 以重定向连接。
 
+在 Linux 上始终推荐使用 auto redirect，它提供更好的路由， 更高的性能（优于 tproxy）， 并避免与 Docker 桥接网络冲突。
+
 *在 Android 中*：
 
 仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
 
 *在 Linux 中*:
 
-带有 `auto_redirect `的 `auto_route` 可以在路由器上按预期工作，**无需干预**。
+带有 `auto_redirect` 的 `auto_route` 在路由器上**无需干预**即可按预期工作。
+
+与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
 #### auto_redirect_input_mark
 
 !!! question "自 sing-box 1.10.0 起"
 
-`route_address_set` 和 `route_exclude_address_set` 使用的连接输入标记。
+`auto_redriect` 使用的连接输入标记。
 
 默认使用 `0x2023`。
 
@@ -261,7 +269,7 @@ tun 接口的 IPv6 前缀。
 
 !!! question "自 sing-box 1.10.0 起"
 
-`route_address_set` 和 `route_exclude_address_set` 使用的连接输出标记。
+`auto_redriect` 使用的连接输出标记。
 
 默认使用 `0x2024`。
 
@@ -341,8 +349,6 @@ tun 接口的 IPv6 前缀。
     
     将指定规则集中的目标 IP CIDR 规则添加到防火墙。
     不匹配的流量将绕过 sing-box 路由。
-    
-    与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
 === "`auto_redirect` 未启用"
 
