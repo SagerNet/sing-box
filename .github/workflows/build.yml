@@ -46,7 +46,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version: ^1.24.2
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -102,7 +102,7 @@ jobs:
         if: ${{ ! matrix.legacy_go }}
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version: ^1.24.2
       - name: Cache Legacy Go
         if: matrix.require_legacy_go
         id: cache-legacy-go
@@ -259,7 +259,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version: ^1.24.2
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -339,7 +339,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version: ^1.24.2
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -437,7 +437,7 @@ jobs:
         if: matrix.if
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version: ^1.24.2
       - name: Setup Xcode stable
         if: matrix.if && github.ref == 'refs/heads/main-next'
         run: |-
