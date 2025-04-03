@@ -38,7 +38,7 @@ type Router interface {
 	ClearDNSCache()
 	Rules() []Rule
 
-	SetTracker(tracker ConnectionTracker)
+	AppendTracker(tracker ConnectionTracker)
 
 	ResetNetwork()
 }
