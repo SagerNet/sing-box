@@ -3,11 +3,13 @@ package sniff
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
@@ -23,5 +25,9 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 		metadata.Domain = clientHello.ServerName
 		return nil
 	}
-	return err
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return E.Cause1(ErrNeedMoreData, err)
+	} else {
+		return err
+	}
 }
