@@ -3,6 +3,7 @@ package sniff
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"time"
@@ -18,6 +19,8 @@ type (
 	StreamSniffer = func(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error
 	PacketSniffer = func(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error
 )
+
+var ErrNeedMoreData = E.New("need more data")
 
 func Skip(metadata *adapter.InboundContext) bool {
 	// skip server first protocols
@@ -40,7 +43,7 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 		timeout = C.ReadPayloadTimeout
 	}
 	deadline := time.Now().Add(timeout)
-	var errors []error
+	var sniffError error
 	for i := 0; ; i++ {
 		err := conn.SetReadDeadline(deadline)
 		if err != nil {
@@ -54,7 +57,7 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 			}
 			return E.Cause(err, "read payload")
 		}
-		errors = nil
+		sniffError = nil
 		for _, sniffer := range sniffers {
 			reader := io.MultiReader(common.Map(append(buffers, buffer), func(it *buf.Buffer) io.Reader {
 				return bytes.NewReader(it.Bytes())
@@ -63,20 +66,23 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 			if err == nil {
 				return nil
 			}
-			errors = append(errors, err)
+			sniffError = E.Errors(sniffError, err)
+		}
+		if !errors.Is(err, ErrNeedMoreData) {
+			break
 		}
 	}
-	return E.Errors(errors...)
+	return sniffError
 }
 
 func PeekPacket(ctx context.Context, metadata *adapter.InboundContext, packet []byte, sniffers ...PacketSniffer) error {
-	var errors []error
+	var sniffError []error
 	for _, sniffer := range sniffers {
 		err := sniffer(ctx, metadata, packet)
 		if err == nil {
 			return nil
 		}
-		errors = append(errors, err)
+		sniffError = append(sniffError, err)
 	}
-	return E.Errors(errors...)
+	return E.Errors(sniffError...)
 }
