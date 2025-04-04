@@ -553,7 +553,7 @@ func (r *Router) actionSniff(
 			sniffBuffer.Release()
 		}
 	} else if inputPacketConn != nil {
-		if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrClientHelloFragmented) {
+		if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrNeedMoreData) {
 			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.PacketSniffError)
 			return
 		}
@@ -623,7 +623,8 @@ func (r *Router) actionSniff(
 				}
 				packetBuffers = append(packetBuffers, packetBuffer)
 				metadata.PacketSniffError = err
-				if errors.Is(err, sniff.ErrClientHelloFragmented) {
+				if errors.Is(err, sniff.ErrNeedMoreData) {
+					// TODO: replace with generic message when there are more multi-packet protocols
 					r.logger.DebugContext(ctx, "attempt to sniff fragmented QUIC client hello")
 					continue
 				}
