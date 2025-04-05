@@ -279,21 +279,24 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	default:
 		panic(F.ToString("unknown reject method: ", r.Method))
 	}
-	r.dropAccess.Lock()
-	defer r.dropAccess.Unlock()
-	timeNow := time.Now()
-	r.dropCounter = common.Filter(r.dropCounter, func(t time.Time) bool {
-		return timeNow.Sub(t) <= 30*time.Second
-	})
-	r.dropCounter = append(r.dropCounter, timeNow)
-	if len(r.dropCounter) > 50 {
-		if ctx != nil {
-			r.logger.DebugContext(ctx, "dropped due to flooding")
+	if !r.NoDrop {
+		r.dropAccess.Lock()
+		defer r.dropAccess.Unlock()
+		timeNow := time.Now()
+		r.dropCounter = common.Filter(r.dropCounter, func(t time.Time) bool {
+			return timeNow.Sub(t) <= 30*time.Second
+		})
+		r.dropCounter = append(r.dropCounter, timeNow)
+		if len(r.dropCounter) > 50 {
+			if ctx != nil {
+				r.logger.DebugContext(ctx, "dropped due to flooding")
+			}
+			return tun.ErrDrop
 		}
-		return tun.ErrDrop
 	}
 	return returnErr
 }
+
 
 type RuleActionHijackDNS struct{}
 
