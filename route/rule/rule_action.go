@@ -297,7 +297,6 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	return returnErr
 }
 
-
 type RuleActionHijackDNS struct{}
 
 func (r *RuleActionHijackDNS) Type() string {
