@@ -21,6 +21,7 @@ builds:
       - with_reality_server
       - with_acme
       - with_clash_api
+      - with_tailscale
     env:
       - CGO_ENABLED=0
     targets:
@@ -49,6 +50,7 @@ builds:
       - with_reality_server
       - with_acme
       - with_clash_api
+      - with_tailscale
     env:
       - CGO_ENABLED=0
       - GOROOT={{ .Env.GOPATH }}/go_legacy
