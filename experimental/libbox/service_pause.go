@@ -1,31 +1,33 @@
 package libbox
 
 import (
-	"sync"
 	"time"
+
+	C "github.com/sagernet/sing-box/constant"
 )
 
-type servicePauseFields struct {
-	pauseAccess sync.Mutex
-	pauseTimer  *time.Timer
+type iOSPauseFields struct {
+	endPauseTimer *time.Timer
 }
 
 func (s *BoxService) Pause() {
-	s.pauseAccess.Lock()
-	defer s.pauseAccess.Unlock()
-	if s.pauseTimer != nil {
-		s.pauseTimer.Stop()
+	s.pauseManager.DevicePause()
+	if !C.IsIos {
+		s.instance.Router().ResetNetwork()
+	} else {
+		if s.endPauseTimer == nil {
+			s.endPauseTimer = time.AfterFunc(time.Minute, s.pauseManager.DeviceWake)
+		} else {
+			s.endPauseTimer.Reset(time.Minute)
+		}
 	}
-	s.pauseTimer = time.AfterFunc(3*time.Second, s.ResetNetwork)
 }
 
 func (s *BoxService) Wake() {
-	s.pauseAccess.Lock()
-	defer s.pauseAccess.Unlock()
-	if s.pauseTimer != nil {
-		s.pauseTimer.Stop()
+	if !C.IsIos {
+		s.pauseManager.DeviceWake()
+		s.instance.Router().ResetNetwork()
 	}
-	s.pauseTimer = time.AfterFunc(3*time.Minute, s.ResetNetwork)
 }
 
 func (s *BoxService) ResetNetwork() {

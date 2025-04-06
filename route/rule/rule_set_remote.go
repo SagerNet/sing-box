@@ -103,7 +103,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 		}
 	}
 	if s.lastUpdated.IsZero() {
-		err := s.fetchOnce(ctx, startContext)
+		err := s.fetch(ctx, startContext)
 		if err != nil {
 			return E.Cause(err, "initial rule-set: ", s.options.Tag)
 		}
@@ -198,7 +198,7 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 
 func (s *RemoteRuleSet) loopUpdate() {
 	if time.Since(s.lastUpdated) > s.updateInterval {
-		err := s.fetchOnce(s.ctx, nil)
+		err := s.fetch(s.ctx, nil)
 		if err != nil {
 			s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
 		} else if s.refs.Load() == 0 {
@@ -211,18 +211,21 @@ func (s *RemoteRuleSet) loopUpdate() {
 		case <-s.ctx.Done():
 			return
 		case <-s.updateTicker.C:
-			s.pauseManager.WaitActive()
-			err := s.fetchOnce(s.ctx, nil)
-			if err != nil {
-				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
-			} else if s.refs.Load() == 0 {
-				s.rules = nil
-			}
+			s.updateOnce()
 		}
 	}
 }
 
-func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTTPStartContext) error {
+func (s *RemoteRuleSet) updateOnce() {
+	err := s.fetch(s.ctx, nil)
+	if err != nil {
+		s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+	} else if s.refs.Load() == 0 {
+		s.rules = nil
+	}
+}
+
+func (s *RemoteRuleSet) fetch(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.logger.Debug("updating rule-set ", s.options.Tag, " from URL: ", s.options.RemoteOptions.URL)
 	var httpClient *http.Client
 	if startContext != nil {
