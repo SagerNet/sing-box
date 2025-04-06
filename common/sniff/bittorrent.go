@@ -68,7 +68,9 @@ func UTP(_ context.Context, metadata *adapter.InboundContext, packet []byte) err
 		if err != nil {
 			return err
 		}
-
+		if extension > 0x04 {
+			return os.ErrInvalid
+		}
 		var length byte
 		err = binary.Read(reader, binary.BigEndian, &length)
 		if err != nil {
