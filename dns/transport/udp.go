@@ -212,8 +212,8 @@ type dnsConnection struct {
 
 func (c *dnsConnection) Close(err error) {
 	c.closeOnce.Do(func() {
-		close(c.done)
 		c.err = err
+		close(c.done)
 	})
 	c.Conn.Close()
 }
