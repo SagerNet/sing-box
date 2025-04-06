@@ -279,6 +279,9 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	default:
 		panic(F.ToString("unknown reject method: ", r.Method))
 	}
+	if r.NoDrop {
+		return returnErr
+	}
 	r.dropAccess.Lock()
 	defer r.dropAccess.Unlock()
 	timeNow := time.Now()
