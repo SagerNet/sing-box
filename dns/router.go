@@ -174,7 +174,6 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 						options.ClientSubnet = legacyTransport.LegacyClientSubnet()
 					}
 				}
-				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
 				return transport, currentRule, currentRuleIndex
 			case *R.RuleActionDNSRouteOptions:
 				if action.Strategy != C.DomainStrategyAsIS {
@@ -189,9 +188,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 				if action.ClientSubnet.IsValid() {
 					options.ClientSubnet = action.ClientSubnet
 				}
-				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
 			case *R.RuleActionReject:
-				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
 				return nil, currentRule, currentRuleIndex
 			}
 		}
