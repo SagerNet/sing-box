@@ -30,7 +30,7 @@ type Endpoint struct {
 	allowedAddress []netip.Prefix
 	tunDevice      Device
 	device         *device.Device
-	pauseManager   pause.Manager
+	pause          pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
 }
 
@@ -187,9 +187,9 @@ func (e *Endpoint) Start(resolve bool) error {
 		return E.Cause(err, "setup wireguard: \n", ipcConf)
 	}
 	e.device = wgDevice
-	e.pauseManager = service.FromContext[pause.Manager](e.options.Context)
-	if e.pauseManager != nil {
-		e.pauseCallback = e.pauseManager.RegisterCallback(e.onPauseUpdated)
+	e.pause = service.FromContext[pause.Manager](e.options.Context)
+	if e.pause != nil {
+		e.pauseCallback = e.pause.RegisterCallback(e.onPauseUpdated)
 	}
 	return nil
 }
@@ -217,16 +217,16 @@ func (e *Endpoint) Close() error {
 		e.device.Close()
 	}
 	if e.pauseCallback != nil {
-		e.pauseManager.UnregisterCallback(e.pauseCallback)
+		e.pause.UnregisterCallback(e.pauseCallback)
 	}
 	return nil
 }
 
 func (e *Endpoint) onPauseUpdated(event int) {
 	switch event {
-	case pause.EventDevicePaused:
+	case pause.EventDevicePaused, pause.EventNetworkPause:
 		e.device.Down()
-	case pause.EventDeviceWake:
+	case pause.EventDeviceWake, pause.EventNetworkWake:
 		e.device.Up()
 	}
 }
