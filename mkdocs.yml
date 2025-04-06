@@ -93,6 +93,7 @@ nav:
               - Predefined: configuration/dns/server/predefined.md
               - DHCP: configuration/dns/server/dhcp.md
               - FakeIP: configuration/dns/server/fakeip.md
+              - Tailscale: configuration/dns/server/tailscale.md
           - DNS Rule: configuration/dns/rule.md
           - DNS Rule Action: configuration/dns/rule_action.md
           - FakeIP: configuration/dns/fakeip.md
@@ -127,6 +128,7 @@ nav:
       - Endpoint:
           - configuration/endpoint/index.md
           - WireGuard: configuration/endpoint/wireguard.md
+          - Tailscale: configuration/endpoint/tailscale.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
