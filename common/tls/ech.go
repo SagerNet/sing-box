@@ -123,6 +123,7 @@ func (s *STDECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn)
 		if response.Rcode != mDNS.RcodeSuccess {
 			return nil, E.Cause(dns.RcodeError(response.Rcode), "fetch ECH config list")
 		}
+	match:
 		for _, rr := range response.Answer {
 			switch resource := rr.(type) {
 			case *mDNS.HTTPS:
@@ -133,11 +134,14 @@ func (s *STDECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn)
 							return nil, E.Cause(err, "decode ECH config")
 						}
 						s.config.EncryptedClientHelloConfigList = echConfigList
+						break match
 					}
 				}
 			}
 		}
-		return nil, E.New("no ECH config found in DNS records")
+		if len(s.config.EncryptedClientHelloConfigList) == 0 {
+			return nil, E.New("no ECH config found in DNS records")
+		}
 	}
 	tlsConn, err := s.Client(conn)
 	if err != nil {
