@@ -132,7 +132,7 @@ nfpms:
     contents:
       - src: release/config/config.json
         dst: /etc/sing-box/config.json
-        type: config
+        type: "config|noreplace"
 
       - src: release/config/sing-box.service
         dst: /usr/lib/systemd/system/sing-box.service
