@@ -124,14 +124,6 @@ func (s *searcher) Search(b []byte, ip netip.Addr, port uint16) (uint32, error) 
 	for i := 0; i < n; i++ {
 		row := b[4+itemSize*i : 4+itemSize*(i+1)]
 
-		if s.tcpState >= 0 {
-			tcpState := readNativeUint32(row[s.tcpState : s.tcpState+4])
-			// MIB_TCP_STATE_ESTAB, only check established connections for TCP
-			if tcpState != 5 {
-				continue
-			}
-		}
-
 		// according to MSDN, only the lower 16 bits of dwLocalPort are used and the port number is in network endian.
 		// this field can be illustrated as follows depends on different machine endianess:
 		//     little endian: [ MSB LSB  0   0  ]   interpret as native uint32 is ((LSB<<8)|MSB)
@@ -144,7 +136,7 @@ func (s *searcher) Search(b []byte, ip netip.Addr, port uint16) (uint32, error) 
 
 		srcIP, _ := netip.AddrFromSlice(row[s.ip : s.ip+s.ipSize])
 		// windows binds an unbound udp socket to 0.0.0.0/[::] while first sendto
-		if ip != srcIP && (!srcIP.IsUnspecified() || s.tcpState != -1) {
+		if ip != srcIP && (!srcIP.IsUnspecified()) {
 			continue
 		}
 
