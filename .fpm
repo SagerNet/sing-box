@@ -6,6 +6,7 @@
 --url "https://sing-box.sagernet.org/"
 --maintainer "nekohasekai <contact-git@sekai.icu>"
 --deb-field "Bug: https://github.com/SagerNet/sing-box/issues"
+--config-files /etc/sing-box/config.json
 
 release/config/config.json=/etc/sing-box/config.json
 
