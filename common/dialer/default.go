@@ -71,18 +71,8 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
 	if options.RoutingMark > 0 {
-		dialer.Control = control.Append(dialer.Control, control.RoutingMark(uint32(options.RoutingMark)))
-		listener.Control = control.Append(listener.Control, control.RoutingMark(uint32(options.RoutingMark)))
-	}
-	if networkManager != nil {
-		autoRedirectOutputMark := networkManager.AutoRedirectOutputMark()
-		if autoRedirectOutputMark > 0 {
-			if options.RoutingMark > 0 {
-				return nil, E.New("`routing_mark` is conflict with `tun.auto_redirect` with `tun.route_[_exclude]_address_set")
-			}
-			dialer.Control = control.Append(dialer.Control, control.RoutingMark(autoRedirectOutputMark))
-			listener.Control = control.Append(listener.Control, control.RoutingMark(autoRedirectOutputMark))
-		}
+		dialer.Control = control.Append(dialer.Control, setMarkWrapper(networkManager, uint32(options.RoutingMark), false))
+		listener.Control = control.Append(listener.Control, setMarkWrapper(networkManager, uint32(options.RoutingMark), false))
 	}
 	disableDefaultBind := options.BindInterface != "" || options.Inet4BindAddress != nil || options.Inet6BindAddress != nil
 	if disableDefaultBind || options.TCPFastOpen {
@@ -127,8 +117,8 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 			}
 		}
 		if options.RoutingMark == 0 && defaultOptions.RoutingMark != 0 {
-			dialer.Control = control.Append(dialer.Control, control.RoutingMark(defaultOptions.RoutingMark))
-			listener.Control = control.Append(listener.Control, control.RoutingMark(defaultOptions.RoutingMark))
+			dialer.Control = control.Append(dialer.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
+			listener.Control = control.Append(listener.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
 		}
 	}
 	if options.ReuseAddr {
@@ -208,6 +198,22 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		fallbackNetworkType:    fallbackNetworkType,
 		networkFallbackDelay:   networkFallbackDelay,
 	}, nil
+}
+
+func setMarkWrapper(networkManager adapter.NetworkManager, mark uint32, isDefault bool) control.Func {
+	if networkManager == nil {
+		return control.RoutingMark(mark)
+	}
+	return func(network, address string, conn syscall.RawConn) error {
+		if networkManager.AutoRedirectOutputMark() != 0 {
+			if isDefault {
+				return E.New("`route.default_mark` is conflict with `tun.auto_redirect`")
+			} else {
+				return E.New("`routing_mark` is conflict with `tun.auto_redirect`")
+			}
+		}
+		return control.RoutingMark(mark)(network, address, conn)
+	}
 }
 
 func (d *DefaultDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
