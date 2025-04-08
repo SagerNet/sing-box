@@ -514,10 +514,13 @@ jobs:
           MACOS_PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_macos_project_version)
           echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION"
           echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION" >> "$GITHUB_ENV"
+      - name: Update version
+        if: matrix.if && matrix.name != 'iOS'
+        run: |-
+          go run -v ./cmd/internal/update_apple_version --ci
       - name: Build
         if: matrix.if
         run: |-
-          go run -v ./cmd/internal/update_apple_version --ci
           cd clients/apple
           xcodebuild archive \
             -scheme "${{ matrix.scheme }}" \
