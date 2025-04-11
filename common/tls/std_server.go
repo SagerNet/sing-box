@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
@@ -221,8 +222,12 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			key = content
 		}
 		if certificate == nil && key == nil && options.Insecure {
+			timeFunc := ntp.TimeFuncFromContext(ctx)
+			if timeFunc == nil {
+				timeFunc = time.Now
+			}
 			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				return GenerateKeyPair(nil, nil, ntp.TimeFuncFromContext(ctx), info.ServerName)
+				return GenerateKeyPair(nil, nil, timeFunc, info.ServerName)
 			}
 		} else {
 			if certificate == nil {
