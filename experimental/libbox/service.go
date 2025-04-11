@@ -92,6 +92,10 @@ func NewServiceWithContext(ctx context.Context, configContent string, platformIn
 	}, nil
 }
 
+func (s *BoxService) LogFactory() log.Factory {
+	return s.instance.LogFactory()
+}
+
 func (s *BoxService) Start() error {
 	if sFixAndroidStack {
 		var err error
