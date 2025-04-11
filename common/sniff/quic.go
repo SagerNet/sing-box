@@ -20,8 +20,6 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-var ErrClientHelloFragmented = E.New("need more packet for chromium QUIC connection")
-
 func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error {
 	reader := bytes.NewReader(packet)
 	typeByte, err := reader.ReadByte()
@@ -308,7 +306,7 @@ find:
 		metadata.Protocol = C.ProtocolQUIC
 		metadata.Client = C.ClientChromium
 		metadata.SniffContext = fragments
-		return ErrClientHelloFragmented
+		return E.Cause1(ErrNeedMoreData, err)
 	}
 	metadata.Domain = fingerprint.ServerName
 	for metadata.Client == "" {

@@ -257,7 +257,7 @@ func New(options Options) (*Box, error) {
 		if err != nil {
 			return nil, E.Cause(err, "create clash-server")
 		}
-		router.SetTracker(clashServer)
+		router.AppendTracker(clashServer)
 		service.MustRegister[adapter.ClashServer](ctx, clashServer)
 		services = append(services, clashServer)
 	}
@@ -267,7 +267,7 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "create v2ray-server")
 		}
 		if v2rayServer.StatsService() != nil {
-			router.SetTracker(v2rayServer.StatsService())
+			router.AppendTracker(v2rayServer.StatsService())
 			services = append(services, v2rayServer)
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}

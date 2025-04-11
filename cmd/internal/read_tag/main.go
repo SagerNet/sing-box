@@ -27,11 +27,8 @@ func main() {
 	)
 	if flagRunNightly {
 		var version badversion.Version
-		version, err = build_shared.ReadTagVersionRev()
+		version, err = build_shared.ReadTagVersion()
 		if err == nil {
-			if version.PreReleaseIdentifier == "" {
-				version.Patch++
-			}
 			versionStr = version.String()
 		}
 	} else {

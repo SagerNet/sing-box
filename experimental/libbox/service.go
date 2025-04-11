@@ -41,7 +41,7 @@ type BoxService struct {
 	clashServer           adapter.ClashServer
 	pauseManager          pause.Manager
 
-	servicePauseFields
+	iOSPauseFields
 }
 
 func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {

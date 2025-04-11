@@ -120,7 +120,6 @@ func (w *Endpoint) Close() error {
 
 func (w *Endpoint) InterfaceUpdated() {
 	w.endpoint.BindUpdate()
-	return
 }
 
 func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
