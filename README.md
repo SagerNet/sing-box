@@ -29,3 +29,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 In addition, no derivative work may use the name or imply association
 with this application without prior consent.
 ```
+
+To sync with the latest sing-box mainline, simply run:
+
+```
+git fetch upstream
+git merge upstream/main
+git push origin lantern-main-next
+```
