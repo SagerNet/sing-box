@@ -8,7 +8,7 @@ GOHOSTARCH = $(shell go env GOHOSTARCH)
 VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run ./cmd/internal/read_tag)
 
 PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
-MAIN_PARAMS = $(PARAMS) -tags $(TAGS)
+MAIN_PARAMS = $(PARAMS) -tags "$(TAGS)"
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
 
@@ -24,7 +24,7 @@ ci_build:
 	go build $(MAIN_PARAMS) $(MAIN)
 
 generate_completions:
-	go run -v --tags $(TAGS),generate,generate_completions $(MAIN)
+	go run -v --tags "$(TAGS),generate,generate_completions" $(MAIN)
 
 install:
 	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
