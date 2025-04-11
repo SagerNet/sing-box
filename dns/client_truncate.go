@@ -10,14 +10,14 @@ func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, headroom int) (*buf
 	maxLen := 512
 	if edns0Option := request.IsEdns0(); edns0Option != nil {
 		if udpSize := int(edns0Option.UDPSize()); udpSize > 512 {
-			maxLen = udpSize
+			dns.Compress = true
 		}
 	}
 	responseLen := response.Len()
-	response.Compress = true
 	if responseLen > maxLen {
 		copyResponse := *response
 		response = &copyResponse
+		dns.Compress = true
 		response.Truncate(maxLen)
 	}
 	buffer := buf.NewSize(headroom*2 + 1 + maxLen)
