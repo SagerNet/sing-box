@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"os"
@@ -8,10 +9,13 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/service"
+
 	"golang.org/x/sys/windows"
 )
 
-func dnsReadConfig(_ string) *dnsConfig {
+func dnsReadConfig(ctx context.Context, _ string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
 		timeout:  5 * time.Second,
@@ -22,35 +26,35 @@ func dnsReadConfig(_ string) *dnsConfig {
 			conf.servers = defaultNS
 		}
 	}()
-	aas, err := adapterAddresses()
+	addresses, err := adapterAddresses()
 	if err != nil {
 		return nil
 	}
-
-	for _, aa := range aas {
-		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
-		if aa.OperStatus != windows.IfOperStatusUp {
+	var dnsAddresses []struct {
+		ifName string
+		netip.Addr
+	}
+	for _, address := range addresses {
+		if address.OperStatus != windows.IfOperStatusUp {
 			continue
 		}
-
-		// Only take interfaces which have at least one gateway
-		if aa.FirstGatewayAddress == nil {
+		if address.IfType == windows.IF_TYPE_TUNNEL {
 			continue
 		}
-
-		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
-			sa, err := dns.Address.Sockaddr.Sockaddr()
+		if address.FirstGatewayAddress == nil {
+			continue
+		}
+		for dnsServerAddress := address.FirstDnsServerAddress; dnsServerAddress != nil; dnsServerAddress = dnsServerAddress.Next {
+			rawSockaddr, err := dnsServerAddress.Address.Sockaddr.Sockaddr()
 			if err != nil {
 				continue
 			}
-			var ip netip.Addr
-			switch sa := sa.(type) {
+			var dnsServerAddr netip.Addr
+			switch sockaddr := rawSockaddr.(type) {
 			case *syscall.SockaddrInet4:
-				ip = netip.AddrFrom4([4]byte{sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3]})
+				dnsServerAddr = netip.AddrFrom4(sockaddr.Addr)
 			case *syscall.SockaddrInet6:
-				var addr16 [16]byte
-				copy(addr16[:], sa.Addr[:])
-				if addr16[0] == 0xfe && addr16[1] == 0xc0 {
+				if sockaddr.Addr[0] == 0xfe && sockaddr.Addr[1] == 0xc0 {
 					// fec0/10 IPv6 addresses are site local anycast DNS
 					// addresses Microsoft sets by default if no other
 					// IPv6 DNS address is set. Site local anycast is
@@ -58,13 +62,26 @@ func dnsReadConfig(_ string) *dnsConfig {
 					// https://datatracker.ietf.org/doc/html/rfc3879
 					continue
 				}
-				ip = netip.AddrFrom16(addr16)
+				dnsServerAddr = netip.AddrFrom16(sockaddr.Addr)
 			default:
 				// Unexpected type.
 				continue
 			}
-			conf.servers = append(conf.servers, net.JoinHostPort(ip.String(), "53"))
+			dnsAddresses = append(dnsAddresses, struct {
+				ifName string
+				netip.Addr
+			}{ifName: windows.UTF16PtrToString(address.FriendlyName), Addr: dnsServerAddr})
 		}
+	}
+	var myInterface string
+	if networkManager := service.FromContext[adapter.NetworkManager](ctx); networkManager != nil {
+		myInterface = networkManager.InterfaceMonitor().MyInterface()
+	}
+	for _, address := range dnsAddresses {
+		if address.ifName == myInterface {
+			continue
+		}
+		conf.servers = append(conf.servers, net.JoinHostPort(address.String(), "53"))
 	}
 	return conf
 }

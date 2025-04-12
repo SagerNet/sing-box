@@ -35,6 +35,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	}
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
+		ctx:              ctx,
 		hosts:            hosts.NewFile(hosts.DefaultPath),
 		dialer:           transportDialer,
 	}, nil
@@ -57,7 +58,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 		}
 	}
-	systemConfig := getSystemDNSConfig()
+	systemConfig := getSystemDNSConfig(t.ctx)
 	if systemConfig.singleRequest || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
 		return t.exchangeSingleRequest(ctx, systemConfig, message, domain)
 	} else {
