@@ -15,9 +15,10 @@ var (
 
 type platformDefaultInterfaceMonitor struct {
 	*platformInterfaceWrapper
-	element   *list.Element[tun.NetworkUpdateCallback]
-	callbacks list.List[tun.DefaultInterfaceUpdateCallback]
-	logger    logger.Logger
+	logger      logger.Logger
+	element     *list.Element[tun.NetworkUpdateCallback]
+	callbacks   list.List[tun.DefaultInterfaceUpdateCallback]
+	myInterface string
 }
 
 func (m *platformDefaultInterfaceMonitor) Start() error {
@@ -101,4 +102,16 @@ func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName s
 	for _, callback := range callbacks {
 		callback(newInterface, 0)
 	}
+}
+
+func (m *platformDefaultInterfaceMonitor) RegisterMyInterface(interfaceName string) {
+	m.defaultInterfaceAccess.Lock()
+	defer m.defaultInterfaceAccess.Unlock()
+	m.myInterface = interfaceName
+}
+
+func (m *platformDefaultInterfaceMonitor) MyInterface() string {
+	m.defaultInterfaceAccess.Lock()
+	defer m.defaultInterfaceAccess.Unlock()
+	return m.myInterface
 }
