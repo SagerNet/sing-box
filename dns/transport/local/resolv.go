@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	"os"
 	"runtime"
 	"strings"
@@ -23,19 +24,21 @@ type resolverConfig struct {
 
 var resolvConf resolverConfig
 
-func getSystemDNSConfig() *dnsConfig {
-	resolvConf.tryUpdate("/etc/resolv.conf")
+func getSystemDNSConfig(ctx context.Context) *dnsConfig {
+	resolvConf.tryUpdate(ctx, "/etc/resolv.conf")
 	return resolvConf.dnsConfig.Load()
 }
 
-func (conf *resolverConfig) init() {
-	conf.dnsConfig.Store(dnsReadConfig("/etc/resolv.conf"))
+func (conf *resolverConfig) init(ctx context.Context) {
+	conf.dnsConfig.Store(dnsReadConfig(ctx, "/etc/resolv.conf"))
 	conf.lastChecked = time.Now()
 	conf.ch = make(chan struct{}, 1)
 }
 
-func (conf *resolverConfig) tryUpdate(name string) {
-	conf.initOnce.Do(conf.init)
+func (conf *resolverConfig) tryUpdate(ctx context.Context, name string) {
+	conf.initOnce.Do(func() {
+		conf.init(ctx)
+	})
 
 	if conf.dnsConfig.Load().noReload {
 		return
@@ -59,7 +62,7 @@ func (conf *resolverConfig) tryUpdate(name string) {
 			return
 		}
 	}
-	dnsConf := dnsReadConfig(name)
+	dnsConf := dnsReadConfig(ctx, name)
 	conf.dnsConfig.Store(dnsConf)
 }
 

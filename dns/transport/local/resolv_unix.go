@@ -4,6 +4,7 @@ package local
 
 import (
 	"bufio"
+	"context"
 	"net"
 	"net/netip"
 	"os"
@@ -13,7 +14,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func dnsReadConfig(name string) *dnsConfig {
+func dnsReadConfig(_ context.Context, name string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
 		timeout:  5 * time.Second,
