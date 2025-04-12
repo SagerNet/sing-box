@@ -11,6 +11,7 @@ package local
 import "C"
 
 import (
+	"context"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -18,7 +19,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func dnsReadConfig(_ string) *dnsConfig {
+func dnsReadConfig(_ context.Context, _ string) *dnsConfig {
 	if C.res_init() != 0 {
 		return &dnsConfig{
 			servers:  defaultNS,
