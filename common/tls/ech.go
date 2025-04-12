@@ -45,8 +45,10 @@ func parseECHClientConfig(ctx context.Context, options option.OutboundTLSOptions
 		}
 		tlsConfig.EncryptedClientHelloConfigList = block.Bytes
 		return &STDClientConfig{tlsConfig}, nil
+	} else if options.ECH.Domain != "" {
+		return &STDECHClientConfig{STDClientConfig{tlsConfig}, options.ECH.Domain, service.FromContext[adapter.DNSRouter](ctx)}, nil
 	} else {
-		return &STDECHClientConfig{STDClientConfig{tlsConfig}, service.FromContext[adapter.DNSRouter](ctx)}, nil
+		return &STDECHClientConfig{STDClientConfig{tlsConfig}, tlsConfig.ServerName, service.FromContext[adapter.DNSRouter](ctx)}, nil
 	}
 }
 
@@ -99,6 +101,7 @@ func reloadECHKeys(echKeyPath string, tlsConfig *tls.Config) error {
 
 type STDECHClientConfig struct {
 	STDClientConfig
+	domain    string
 	dnsRouter adapter.DNSRouter
 }
 
@@ -110,7 +113,7 @@ func (s *STDECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn)
 			},
 			Question: []mDNS.Question{
 				{
-					Name:   mDNS.Fqdn(s.config.ServerName),
+					Name:   mDNS.Fqdn(s.domain),
 					Qtype:  mDNS.TypeHTTPS,
 					Qclass: mDNS.ClassINET,
 				},
@@ -155,7 +158,7 @@ func (s *STDECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn)
 }
 
 func (s *STDECHClientConfig) Clone() Config {
-	return &STDECHClientConfig{STDClientConfig{s.config.Clone()}, s.dnsRouter}
+	return &STDECHClientConfig{STDClientConfig{s.config.Clone()}, s.domain, s.dnsRouter}
 }
 
 func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {
