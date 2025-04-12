@@ -116,6 +116,10 @@ func (s *platformInterfaceStub) FindProcessInfo(ctx context.Context, network str
 	return nil, os.ErrInvalid
 }
 
+func (s *platformInterfaceStub) SendNotification(notification *platform.Notification) error {
+	return nil
+}
+
 type interfaceMonitorStub struct{}
 
 func (s *interfaceMonitorStub) Start() error {
@@ -145,8 +149,11 @@ func (s *interfaceMonitorStub) RegisterCallback(callback tun.DefaultInterfaceUpd
 func (s *interfaceMonitorStub) UnregisterCallback(element *list.Element[tun.DefaultInterfaceUpdateCallback]) {
 }
 
-func (s *platformInterfaceStub) SendNotification(notification *platform.Notification) error {
-	return nil
+func (s *interfaceMonitorStub) RegisterMyInterface(interfaceName string) {
+}
+
+func (s *interfaceMonitorStub) MyInterface() string {
+	return ""
 }
 
 func FormatConfig(configContent string) (*StringBox, error) {
