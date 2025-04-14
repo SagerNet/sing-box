@@ -32,8 +32,10 @@ func RegisterInbound(registry *inbound.Registry) {
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (adapter.Inbound, error) {
 	if len(options.Users) > 0 && len(options.Destinations) > 0 {
 		return nil, E.New("users and destinations options must not be combined")
+	} else if options.Managed && (len(options.Users) > 0 || len(options.Destinations) > 0) {
+		return nil, E.New("users and destinations options are not supported in managed servers")
 	}
-	if len(options.Users) > 0 {
+	if len(options.Users) > 0 || options.Managed {
 		return newMultiInbound(ctx, router, logger, tag, options)
 	} else if len(options.Destinations) > 0 {
 		return newRelayInbound(ctx, router, logger, tag, options)
