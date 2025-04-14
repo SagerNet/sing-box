@@ -1,11 +1,12 @@
 -s dir
 --name sing-box
 --category net
---license GPLv3-or-later
+--license GPL-3.0-or-later
 --description "The universal proxy platform."
 --url "https://sing-box.sagernet.org/"
 --maintainer "nekohasekai <contact-git@sekai.icu>"
 --deb-field "Bug: https://github.com/SagerNet/sing-box/issues"
+--no-deb-generate-changes
 --config-files /etc/sing-box/config.json
 
 release/config/config.json=/etc/sing-box/config.json
