@@ -35,6 +35,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/vless"
 	"github.com/sagernet/sing-box/protocol/vmess"
 	"github.com/sagernet/sing-box/service/resolved"
+	"github.com/sagernet/sing-box/service/ssmapi"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -125,6 +126,7 @@ func ServiceRegistry() *service.Registry {
 	registry := service.NewRegistry()
 
 	resolved.RegisterService(registry)
+	ssmapi.RegisterService(registry)
 
 	registerDERPService(registry)
 

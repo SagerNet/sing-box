@@ -27,6 +27,7 @@ const (
 	TypeTailscale    = "tailscale"
 	TypeDERP         = "derp"
 	TypeResolved     = "resolved"
+	TypeSSMAPI       = "ssm-api"
 )
 
 const (
