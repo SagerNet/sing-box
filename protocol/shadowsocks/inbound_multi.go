@@ -28,7 +28,10 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 )
 
-var _ adapter.TCPInjectableInbound = (*MultiInbound)(nil)
+var (
+	_ adapter.TCPInjectableInbound = (*MultiInbound)(nil)
+	_ adapter.ManagedSSMServer     = (*MultiInbound)(nil)
+)
 
 type MultiInbound struct {
 	inbound.Adapter
@@ -38,6 +41,7 @@ type MultiInbound struct {
 	listener *listener.Listener
 	service  shadowsocks.MultiService[int]
 	users    []option.ShadowsocksUser
+	tracker  adapter.SSMTracker
 }
 
 func newMultiInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*MultiInbound, error) {
@@ -79,13 +83,15 @@ func newMultiInbound(ctx context.Context, router adapter.Router, logger log.Cont
 	if err != nil {
 		return nil, err
 	}
-	err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
-		return index
-	}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
-		return user.Password
-	}))
-	if err != nil {
-		return nil, err
+	if len(options.Users) > 0 {
+		err = service.UpdateUsersWithPasswords(common.MapIndexed(options.Users, func(index int, user option.ShadowsocksUser) int {
+			return index
+		}), common.Map(options.Users, func(user option.ShadowsocksUser) string {
+			return user.Password
+		}))
+		if err != nil {
+			return nil, err
+		}
 	}
 	inbound.service = service
 	inbound.users = options.Users
@@ -110,6 +116,25 @@ func (h *MultiInbound) Start(stage adapter.StartStage) error {
 
 func (h *MultiInbound) Close() error {
 	return h.listener.Close()
+}
+
+func (h *MultiInbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *MultiInbound) UpdateUsers(users []string, uPSKs []string) error {
+	err := h.service.UpdateUsersWithPasswords(common.MapIndexed(users, func(index int, user string) int {
+		return index
+	}), uPSKs)
+	if err != nil {
+		return err
+	}
+	h.users = common.Map(users, func(user string) option.ShadowsocksUser {
+		return option.ShadowsocksUser{
+			Name: user,
+		}
+	})
+	return nil
 }
 
 //nolint:staticcheck
@@ -151,6 +176,9 @@ func (h *MultiInbound) newConnection(ctx context.Context, conn net.Conn, metadat
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
 	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	if h.tracker != nil {
+		conn = h.tracker.TrackConnection(conn, metadata)
+	}
 	return h.router.RouteConnection(ctx, conn, metadata)
 }
 
@@ -174,6 +202,9 @@ func (h *MultiInbound) newPacketConnection(ctx context.Context, conn N.PacketCon
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
 	//nolint:staticcheck
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
+	if h.tracker != nil {
+		conn = h.tracker.TrackPacketConnection(conn, metadata)
+	}
 	return h.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
