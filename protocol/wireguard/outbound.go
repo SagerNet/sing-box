@@ -25,11 +25,6 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.LegacyWireGuardOutboundOptions](registry, C.TypeWireGuard, NewOutbound)
 }
 
-var (
-	_ adapter.Endpoint                = (*Endpoint)(nil)
-	_ adapter.InterfaceUpdateListener = (*Endpoint)(nil)
-)
-
 type Outbound struct {
 	outbound.Adapter
 	ctx            context.Context
@@ -122,10 +117,6 @@ func (o *Outbound) Start(stage adapter.StartStage) error {
 
 func (o *Outbound) Close() error {
 	return o.endpoint.Close()
-}
-
-func (o *Outbound) InterfaceUpdated() {
-	o.endpoint.BindUpdate()
 }
 
 func (o *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

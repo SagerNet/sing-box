@@ -26,11 +26,6 @@ func RegisterEndpoint(registry *endpoint.Registry) {
 	endpoint.Register[option.WireGuardEndpointOptions](registry, C.TypeWireGuard, NewEndpoint)
 }
 
-var (
-	_ adapter.Endpoint                = (*Endpoint)(nil)
-	_ adapter.InterfaceUpdateListener = (*Endpoint)(nil)
-)
-
 type Endpoint struct {
 	endpoint.Adapter
 	ctx            context.Context
@@ -116,10 +111,6 @@ func (w *Endpoint) Start(stage adapter.StartStage) error {
 
 func (w *Endpoint) Close() error {
 	return w.endpoint.Close()
-}
-
-func (w *Endpoint) InterfaceUpdated() {
-	w.endpoint.BindUpdate()
 }
 
 func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
