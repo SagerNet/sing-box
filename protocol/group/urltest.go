@@ -395,12 +395,16 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 func (g *URLTestGroup) performUpdateCheck() {
 	var updated bool
 	if outbound, exists := g.Select(N.NetworkTCP); outbound != nil && (g.selectedOutboundTCP == nil || (exists && outbound != g.selectedOutboundTCP)) {
+		if g.selectedOutboundTCP != nil {
+			updated = true
+		}
 		g.selectedOutboundTCP = outbound
-		updated = true
 	}
 	if outbound, exists := g.Select(N.NetworkUDP); outbound != nil && (g.selectedOutboundUDP == nil || (exists && outbound != g.selectedOutboundUDP)) {
+		if g.selectedOutboundUDP != nil {
+			updated = true
+		}
 		g.selectedOutboundUDP = outbound
-		updated = true
 	}
 	if updated {
 		g.interruptGroup.Interrupt(g.interruptExternalConnections)
