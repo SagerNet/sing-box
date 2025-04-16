@@ -94,7 +94,7 @@ func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	case 2:
 		destination.Addr = i.overrideDestination.Addr
 	case 3:
-		destination.Port = metadata.Destination.Port
+		destination.Port = i.overrideDestination.Port
 	}
 	metadata.Destination = destination
 	if i.overrideOption != 0 {
