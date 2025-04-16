@@ -150,7 +150,7 @@ func (e *Endpoint) Start(resolve bool) error {
 			connectAddr netip.AddrPort
 			reserved    [3]uint8
 		)
-		if len(e.peers) == 1 {
+		if len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
 			isConnect = true
 			connectAddr = e.peers[0].endpoint
 			reserved = e.peers[0].reserved
@@ -206,10 +206,6 @@ func (e *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, E.Cause(os.ErrInvalid, "invalid non-IP destination")
 	}
 	return e.tunDevice.ListenPacket(ctx, destination)
-}
-
-func (e *Endpoint) BindUpdate() error {
-	return e.device.BindUpdate()
 }
 
 func (e *Endpoint) Close() error {
