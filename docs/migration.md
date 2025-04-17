@@ -516,13 +516,13 @@ DNS servers are refactored for better performance and scalability.
 The legacy outbound DNS rules are deprecated and can be replaced by new domain resolver options.
 
 !!! info "References"
-    
+
     [DNS rule](/configuration/dns/rule/#outbound) /
     [Dial Fields](/configuration/shared/dial/#domain_resolver) /
     [Route](/configuration/route/#domain_resolver)
 
 === ":material-card-remove: Deprecated"
-    
+
     ```json
     {
       "dns": {
@@ -583,6 +583,57 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
           "client_subnet": "1.1.1.1"
         }
       }
+    }
+    ```
+
+### Migrate outbound domain strategy option to domain resolver
+
+!!! info "References"
+
+    [Dial Fields](/configuration/shared/dial/#domain_strategy)
+
+The `domain_strategy` option in Dial Fields has been deprecated and can be replaced with the new domain resolver option.
+
+Note that due to the use of Dial Fields by some of the new DNS servers introduced in sing-box 1.12,
+some people mistakenly believe that `domain_strategy` is the same feature as in the legacy DNS servers.
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080,
+          "domain_strategy": "prefer_ipv4",
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+     {
+      "dns": {
+        "servers": [
+          {
+            "type": "local"
+          }
+        ]
+      },
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080,
+          "domain_resolver": {
+            "server": "local",
+            "strategy": "prefer_ipv4"
+          }
+        }
+      ]
     }
     ```
 
