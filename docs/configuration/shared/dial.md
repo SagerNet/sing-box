@@ -206,7 +206,7 @@ Only take effect when `domain_strategy` or `network_strategy` is set.
 
 !!! failure "Deprecated in sing-box 1.12.0"
 
-    `domain_strategy` is merged to [domain_resolver](#domain_resolver) in sing-box 1.12.0.
+    `domain_strategy` is deprecated and will be removed in sing-box 1.14.0, check [Migration](/migration/#migrate-outbound-domain-strategy-option-to-domain-resolver).
 
 Available values: `prefer_ipv4`, `prefer_ipv6`, `ipv4_only`, `ipv6_only`.
 
