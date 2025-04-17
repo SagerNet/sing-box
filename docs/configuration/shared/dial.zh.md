@@ -194,6 +194,10 @@ icon: material/new-box
 
 #### domain_strategy
 
+!!! failure "已在 sing-box 1.12.0 废弃"
+
+    `domain_strategy` 已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/migration/#migrate-outbound-domain-strategy-option-to-domain-resolver)。
+
 可选值：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
 如果设置，域名将在请求发出之前解析为 IP。

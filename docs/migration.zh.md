@@ -16,7 +16,7 @@ DNS 服务器已经重构。
 === "Local"
 
     === ":material-card-remove: 弃用的"
-        
+
         ```json
         {
           "dns": {
@@ -28,9 +28,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -46,7 +46,7 @@ DNS 服务器已经重构。
 === "TCP"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -58,9 +58,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -77,7 +77,7 @@ DNS 服务器已经重构。
 === "UDP"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -89,9 +89,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -108,7 +108,7 @@ DNS 服务器已经重构。
 === "TLS"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -120,9 +120,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -139,7 +139,7 @@ DNS 服务器已经重构。
 === "HTTPS"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -151,9 +151,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -170,7 +170,7 @@ DNS 服务器已经重构。
 === "QUIC"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -182,9 +182,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -201,7 +201,7 @@ DNS 服务器已经重构。
 === "HTTP3"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -213,9 +213,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -232,7 +232,7 @@ DNS 服务器已经重构。
 === "DHCP"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "dns": {
@@ -247,9 +247,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -269,7 +269,7 @@ DNS 服务器已经重构。
 === "FakeIP"
 
     === ":material-card-remove: 弃用的"
-        
+
         ```json
         {
           "dns": {
@@ -299,9 +299,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -333,7 +333,7 @@ DNS 服务器已经重构。
 === "RCode"
 
     === ":material-card-remove: 弃用的"
-        
+
         ```json
         {
           "dns": {
@@ -345,9 +345,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-        
+
         ```json
         {
           "dns": {
@@ -368,7 +368,7 @@ DNS 服务器已经重构。
 === "带有域名地址的服务器"
 
     === ":material-card-remove: 弃用的"
-        
+
         ```json
         {
           "dns": {
@@ -385,9 +385,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -410,7 +410,7 @@ DNS 服务器已经重构。
 === "带有域策略的服务器"
 
     === ":material-card-remove: 弃用的"
-            
+
         ```json
         {
           "dns": {
@@ -434,9 +434,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -466,7 +466,7 @@ DNS 服务器已经重构。
 === "带有客户端子网的服务器"
 
     === ":material-card-remove: 弃用的"
-        
+
         ```json
         {
           "dns": {
@@ -483,9 +483,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "dns": {
@@ -586,6 +586,56 @@ DNS 服务器已经重构。
     }
     ```
 
+### 迁移出站域名策略选项到域名解析器
+
+拨号字段中的 `domain_strategy` 选项已被弃用，可以用新的域名解析器选项替代。
+
+请注意，由于 sing-box 1.12 中引入的一些新 DNS 服务器使用了拨号字段，一些人错误地认为 `domain_strategy` 与旧 DNS 服务器中的功能相同。
+
+!!! info "参考"
+
+    [拨号字段](/configuration/shared/dial/#domain_strategy)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080,
+          "domain_strategy": "prefer_ipv4",
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+     {
+      "dns": {
+        "servers": [
+          {
+            "type": "local"
+          }
+        ]
+      },
+      "outbounds": [
+        {
+          "type": "socks",
+          "server": "example.org",
+          "server_port": 2080,
+          "domain_resolver": {
+            "server": "local",
+            "strategy": "prefer_ipv4"
+          }
+        }
+      ]
+    }
+    ```
+
 ## 1.11.0
 
 ### 迁移旧的特殊出站到规则动作
@@ -601,7 +651,7 @@ DNS 服务器已经重构。
 === "Block"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "outbounds": [
@@ -614,7 +664,7 @@ DNS 服务器已经重构。
             "rules": [
               {
                 ...,
-                
+
                 "outbound": "block"
               }
             ]
@@ -623,14 +673,14 @@ DNS 服务器已经重构。
         ```
 
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "route": {
             "rules": [
               {
                 ...,
-                
+
                 "action": "reject"
               }
             ]
@@ -641,13 +691,13 @@ DNS 服务器已经重构。
 === "DNS"
 
     === ":material-card-remove: 弃用的"
-    
+
         ```json
         {
           "inbound": [
             {
               ...,
-              
+
               "sniff": true
             }
           ],
@@ -667,9 +717,9 @@ DNS 服务器已经重构。
           }
         }
         ```
-    
+
     === ":material-card-multiple: 新的"
-    
+
         ```json
         {
           "route": {
