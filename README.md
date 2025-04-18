@@ -79,8 +79,8 @@ TAGS ?= with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,
   },
   "experimental": {
     "dynamic_api": {
-      "listen": "127.0.0.1:9091",
-      "secret": "your_secret_key111111"
+      "listen": "127.0.0.1:9090",
+      "secret": "your_secret_key"
     }
   }
 }
