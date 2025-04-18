@@ -116,6 +116,7 @@ func New(options Options) (*Box, error) {
 	var needCacheFile bool
 	var needClashAPI bool
 	var needV2RayAPI bool
+	var needDynamicAPI bool
 	if experimentalOptions.CacheFile != nil && experimentalOptions.CacheFile.Enabled || options.PlatformLogWriter != nil {
 		needCacheFile = true
 	}
@@ -124,6 +125,9 @@ func New(options Options) (*Box, error) {
 	}
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
 		needV2RayAPI = true
+	}
+	if experimentalOptions.DynamicAPI != nil && experimentalOptions.DynamicAPI.Listen != "" {
+		needDynamicAPI = true
 	}
 	platformInterface := service.FromContext[platform.Interface](ctx)
 	var defaultLogWriter io.Writer
@@ -328,6 +332,14 @@ func New(options Options) (*Box, error) {
 			services = append(services, v2rayServer)
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}
+	}
+	if needDynamicAPI {
+		dynamicAPIOptions := common.PtrValueOrDefault(experimentalOptions.DynamicAPI)
+		dynamicServer, err := experimental.NewDynamicManager(ctx, logFactory.NewLogger("dynamic-api"), dynamicAPIOptions)
+		if err != nil {
+			return nil, E.Cause(err, "create dynamic-api server")
+		}
+		services = append(services, dynamicServer)
 	}
 	if ntpOptions.Enabled {
 		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions, ntpOptions.ServerIsDomain())
