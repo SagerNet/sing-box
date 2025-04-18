@@ -32,10 +32,55 @@ TAGS ?= with_gvisor,with_dhcp,with_wireguard,with_reality_server,with_clash_api,
 
 ```json
 {
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "inbounds": [
+    {
+      "type": "http",
+      "tag": "http-in",
+      "listen_port": 20808,
+      "listen": "127.0.0.1"
+    },
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "sing-box",
+      "inet4_address": "172.19.0.1/30",
+      "auto_route": true,
+      "stack": "system",
+      "sniff": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      }
+    ],
+    "find_process": true,
+    "final": "direct"
+  },
   "experimental": {
     "dynamic_api": {
-      "listen": "127.0.0.1:9090",
-      "secret": "your_api_secret"
+      "listen": "127.0.0.1:9091",
+      "secret": "your_secret_key111111"
     }
   }
 }
