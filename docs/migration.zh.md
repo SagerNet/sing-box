@@ -292,7 +292,7 @@ DNS 服务器已经重构。
               }
             ],
             "fakeip": {
-              "enable": true,
+              "enabled": true,
               "inet4_range": "198.18.0.0/15",
               "inet6_range": "fc00::/18"
             }
@@ -556,7 +556,8 @@ DNS 服务器已经重构。
       "dns": {
         "servers": [
           {
-            "type": "local"
+            "type": "local",
+            "tag": "local"
           }
         ]
       },
@@ -618,7 +619,8 @@ DNS 服务器已经重构。
       "dns": {
         "servers": [
           {
-            "type": "local"
+            "type": "local",
+            "tag": "local"
           }
         ]
       },
