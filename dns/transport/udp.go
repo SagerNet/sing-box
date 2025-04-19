@@ -117,7 +117,7 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 	conn.access.Unlock()
 	defer func() {
 		conn.access.Lock()
-		delete(conn.callbacks, messageId)
+		delete(conn.callbacks, exMessage.Id)
 		conn.access.Unlock()
 	}()
 	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())
