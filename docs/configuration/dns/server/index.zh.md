@@ -27,19 +27,20 @@ icon: material/alert-decagram
 
 DNS 服务器的类型。
 
-| 类型              | 格式                          |
-|-----------------|-----------------------------|
-| empty (default) | [Legacy](./legacy/)         |
-| `tcp`           | [TCP](./tcp/)               |
-| `udp`           | [UDP](./udp/)               |
-| `tls`           | [TLS](./tls/)               |
-| `https`         | [HTTPS](./https/)           |
-| `quic`          | [QUIC](./quic/)             |
-| `h3`            | [HTTP/3](./http3/)          |
-| `predefined`    | [Predefined](./predefined/) |
-| `dhcp`          | [DHCP](./dhcp/)             |
-| `fakeip`        | [Fake IP](./fakeip/)        |
-| `tailscale`     | [Tailscale](./tailscale/)   |
+| 类型              | 格式                        |
+|-----------------|---------------------------|
+| empty (default) | [Legacy](./legacy/)       |
+| `local`         | [Local](./local/)         |
+| `hosts`         | [Hosts](./hosts/)         |
+| `tcp`           | [TCP](./tcp/)             |
+| `udp`           | [UDP](./udp/)             |
+| `tls`           | [TLS](./tls/)             |
+| `quic`          | [QUIC](./quic/)           |
+| `https`         | [HTTPS](./https/)         |
+| `h3`            | [HTTP/3](./http3/)        |
+| `dhcp`          | [DHCP](./dhcp/)           |
+| `fakeip`        | [Fake IP](./fakeip/)      |
+| `tailscale`     | [Tailscale](./tailscale/) |
 
 #### tag
 
