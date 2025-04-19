@@ -8,56 +8,57 @@ icon: material/package
 
 === ":material-debian: Debian / APT"
 
-   ```bash
-   sudo mkdir -p /etc/apt/keyrings &&
-      sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc &&
-      sudo chmod a+r /etc/apt/keyrings/sagernet.asc &&
-      echo '
-   Types: deb
-   URIs: https://deb.sagernet.org/
-   Suites: *
-   Components: *
-   Enabled: yes
-   Signed-By: /etc/apt/keyrings/sagernet.asc
-   ' | sudo tee /etc/apt/sources.list.d/sagernet.sources &&
-      sudo apt-get update &&
-      sudo apt-get install sing-box # or sing-box-beta
-   ```
+    ```bash
+    sudo mkdir -p /etc/apt/keyrings &&
+       sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc &&
+       sudo chmod a+r /etc/apt/keyrings/sagernet.asc &&
+       echo '
+    Types: deb
+    URIs: https://deb.sagernet.org/
+    Suites: *
+    Components: *
+    Enabled: yes
+    Signed-By: /etc/apt/keyrings/sagernet.asc
+    ' | sudo tee /etc/apt/sources.list.d/sagernet.sources &&
+       sudo apt-get update &&
+       sudo apt-get install sing-box # or sing-box-beta
+    ```
 
 === ":material-redhat: Redhat / DNF 5"
 
-   ```bash
-   sudo dnf config-manager addrepo --from-repofile=https://sing-box.app/sing-box.repo &&
-   sudo dnf install sing-box # or sing-box-beta
-   ```
+    ```bash
+    sudo dnf config-manager addrepo --from-repofile=https://sing-box.app/sing-box.repo &&
+    sudo dnf install sing-box # or sing-box-beta
+    ```
 
 === ":material-redhat: Redhat / DNF 4"
 
-   ```bash
-   sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo &&
-   sudo dnf -y install dnf-plugins-core &&
-   sudo dnf install sing-box # or sing-box-beta
-   ```
+    ```bash
+    sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo &&
+    sudo dnf -y install dnf-plugins-core &&
+    sudo dnf install sing-box # or sing-box-beta
+    ```
 
 ## :material-download-box: Manual Installation
 
-   The script download and install the latest package from GitHub releases for deb or rpm based Linux distributions, ArchLinux and OpenWrt.
-   
-   ```shell
-   curl -fsSL https://sing-box.app/install.sh | sh
-   ```
-   
-   or latest beta:
-   
-   ```shell
-   curl -fsSL https://sing-box.app/install.sh | sh -s -- --beta
-   ```
-   
-   or specific version:
-   
-   ```shell
-   curl -fsSL https://sing-box.app/install.sh | sh -s -- --version <version>
-   ```
+The script download and install the latest package from GitHub releases
+for deb or rpm based Linux distributions, ArchLinux and OpenWrt.
+
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh
+```
+
+or latest beta:
+
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --beta
+```
+
+or specific version:
+
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --version <version>
+```
 
 ## :material-book-lock-open: Managed Installation
 
