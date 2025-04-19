@@ -292,7 +292,7 @@ DNS servers are refactored for better performance and scalability.
               }
             ],
             "fakeip": {
-              "enable": true,
+              "enabled": true,
               "inet4_range": "198.18.0.0/15",
               "inet6_range": "fc00::/18"
             }
@@ -556,7 +556,8 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
       "dns": {
         "servers": [
           {
-            "type": "local"
+            "type": "local",
+            "tag": "local"
           }
         ]
       },
@@ -619,7 +620,8 @@ some people mistakenly believe that `domain_strategy` is the same feature as in 
       "dns": {
         "servers": [
           {
-            "type": "local"
+            "type": "local",
+            "tag": "local"
           }
         ]
       },
