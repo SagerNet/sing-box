@@ -181,7 +181,7 @@ jobs:
           fi
           echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
           PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
-          PKG_VERSION="${PKG_VERSION//-/\~}-1"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
           echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
       - name: Package DEB
         if: matrix.debian != ''
