@@ -15,10 +15,11 @@ func SSH(_ context.Context, metadata *adapter.InboundContext, reader io.Reader) 
 	const sshPrefix = "SSH-2.0-"
 	bReader := bufio.NewReader(reader)
 	prefix, err := bReader.Peek(len(sshPrefix))
+	if string(prefix[:]) != sshPrefix[:len(prefix)] {
+		return os.ErrInvalid
+	}
 	if err != nil {
 		return E.Cause1(ErrNeedMoreData, err)
-	} else if string(prefix) != sshPrefix {
-		return os.ErrInvalid
 	}
 	fistLine, _, err := bReader.ReadLine()
 	if err != nil {
