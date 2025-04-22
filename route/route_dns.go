@@ -232,8 +232,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 				r.dnsLogger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 			}
 		} else if len(responseAddrs) == 0 {
-			r.dnsLogger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
-			err = dns.RCodeNameError
+			panic("unexpected empty result")
 		}
 	}
 	responseAddrs, cached = r.dnsClient.LookupCache(ctx, domain, strategy)
