@@ -332,8 +332,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 				r.logger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 			}
 		} else if len(responseAddrs) == 0 {
-			r.logger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
-			err = RcodeNameError
+			panic("unexpected empty result")
 		}
 	}
 	responseAddrs, cached = r.client.LookupCache(domain, options.Strategy)
