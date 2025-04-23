@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
@@ -41,6 +42,19 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 	} else {
 		domain = t.Metadata.Destination.Fqdn
 	}
+	var sniffURL string
+	if t.Metadata.Protocol != "" {
+		sniffURL = t.Metadata.Protocol
+		if t.Metadata.Client != "" {
+			sniffURL += ":" + t.Metadata.Client
+		}
+		if t.Metadata.Domain != "" {
+			switch t.Metadata.Protocol {
+			case C.ProtocolHTTP, C.ProtocolQUIC, C.ProtocolTLS:
+				sniffURL += "://" + t.Metadata.Domain
+			}
+		}
+	}
 	var processPath string
 	if t.Metadata.ProcessInfo != nil {
 		if t.Metadata.ProcessInfo.ProcessPath != "" {
@@ -74,6 +88,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 			"sourcePort":      F.ToString(t.Metadata.Source.Port),
 			"destinationPort": F.ToString(t.Metadata.Destination.Port),
 			"host":            domain,
+			"sniffHost":       sniffURL,
 			"dnsMode":         "normal",
 			"processPath":     processPath,
 		},
