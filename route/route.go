@@ -526,6 +526,9 @@ func (r *Router) actionSniff(
 			streamSniffers...,
 		)
 		if err == nil {
+			if metadata.SniffDomain != "" {
+				metadata.Domain = metadata.SniffDomain
+			}
 			//goland:noinspection GoDeprecation
 			if action.OverrideDestination && M.IsDomainName(metadata.Domain) {
 				metadata.Destination = M.Socksaddr{
@@ -533,10 +536,10 @@ func (r *Router) actionSniff(
 					Port: metadata.Destination.Port,
 				}
 			}
-			if metadata.Domain != "" && metadata.Client != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
-			} else if metadata.Domain != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			if metadata.SniffDomain != "" && metadata.Client != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain, ", client: ", metadata.Client)
+			} else if metadata.SniffDomain != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
 			}
@@ -623,6 +626,9 @@ func (r *Router) actionSniff(
 					continue
 				}
 				if metadata.Protocol != "" {
+					if metadata.SniffDomain != "" {
+						metadata.Domain = metadata.SniffDomain
+					}
 					//goland:noinspection GoDeprecation
 					if action.OverrideDestination && M.IsDomainName(metadata.Domain) {
 						metadata.Destination = M.Socksaddr{
@@ -630,10 +636,10 @@ func (r *Router) actionSniff(
 							Port: metadata.Destination.Port,
 						}
 					}
-					if metadata.Domain != "" && metadata.Client != "" {
-						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
-					} else if metadata.Domain != "" {
-						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+					if metadata.SniffDomain != "" && metadata.Client != "" {
+						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain, ", client: ", metadata.Client)
+					} else if metadata.SniffDomain != "" {
+						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain)
 					} else if metadata.Client != "" {
 						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", client: ", metadata.Client)
 					} else {

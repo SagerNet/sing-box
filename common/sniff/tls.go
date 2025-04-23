@@ -22,7 +22,7 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 	}).HandshakeContext(ctx)
 	if clientHello != nil {
 		metadata.Protocol = C.ProtocolTLS
-		metadata.Domain = clientHello.ServerName
+		metadata.SniffDomain = clientHello.ServerName
 		return nil
 	}
 	if errors.Is(err, io.ErrUnexpectedEOF) {

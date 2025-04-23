@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
@@ -48,11 +47,8 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 		if t.Metadata.Client != "" {
 			sniffURL += ":" + t.Metadata.Client
 		}
-		if t.Metadata.Domain != "" {
-			switch t.Metadata.Protocol {
-			case C.ProtocolHTTP, C.ProtocolQUIC, C.ProtocolTLS:
-				sniffURL += "://" + t.Metadata.Domain
-			}
+		if t.Metadata.SniffDomain != "" {
+			sniffURL += "://" + t.Metadata.SniffDomain
 		}
 	}
 	var processPath string

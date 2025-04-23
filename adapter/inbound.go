@@ -55,6 +55,7 @@ type InboundContext struct {
 
 	Protocol         string
 	Domain           string
+	SniffDomain      string
 	Client           string
 	SniffContext     any
 	PacketSniffError error
