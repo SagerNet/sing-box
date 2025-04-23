@@ -215,6 +215,10 @@ tun 接口的 IPv6 前缀。
 
     VPN 默认优先于 tun。要使 tun 经过 VPN，启用 `route.override_android_vpn`。
 
+!!! note "也启用 `auto_redirect`"
+
+  在 Linux 上始终推荐使用 `auto_redirect`，它提供更好的路由， 更高的性能（优于 tproxy）， 并避免 TUN 与 Docker 桥接网络冲突。
+
 #### iproute2_table_index
 
 !!! question "自 sing-box 1.10.0 起"
@@ -237,23 +241,24 @@ tun 接口的 IPv6 前缀。
 
 !!! quote ""
 
-    仅支持 Linux，且需要 `auto_route` 已启用。 
+    仅支持 Linux，且需要 `auto_route` 已启用。
 
-自动配置 iptables/nftables 以重定向连接。
+通过使用 nftables 改善 TUN 路由和性能。
 
-*在 Android 中*：
+在 Linux 上始终推荐使用 `auto_redirect`，它提供更好的路由、更高的性能（优于 tproxy），并避免了 TUN 和 Docker 桥接网络之间的冲突。
 
-仅转发本地 IPv4 连接。 要通过热点或中继共享您的 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
+请注意，`auto_redirect` 也适用于 Android，但由于缺少 `nftables` 和 `ip6tables`，仅执行简单的 IPv4 TCP 转发。  
+若要在 Android 上通过热点或中继器共享 VPN 连接，请使用 [VPNHotspot](https://github.com/Mygod/VPNHotspot)。
 
-*在 Linux 中*:
+`auto_redirect` 还会自动将兼容性规则插入 OpenWrt 的 fw4 表中，即无需额外配置即可在路由器上工作。
 
-带有 `auto_redirect `的 `auto_route` 可以在路由器上按预期工作，**无需干预**。
+与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
 #### auto_redirect_input_mark
 
 !!! question "自 sing-box 1.10.0 起"
 
-`route_address_set` 和 `route_exclude_address_set` 使用的连接输入标记。
+`auto_redirect` 使用的连接输入标记。
 
 默认使用 `0x2023`。
 
@@ -261,29 +266,25 @@ tun 接口的 IPv6 前缀。
 
 !!! question "自 sing-box 1.10.0 起"
 
-`route_address_set` 和 `route_exclude_address_set` 使用的连接输出标记。
+`auto_redirect` 使用的连接输出标记。
 
 默认使用 `0x2024`。
 
 #### strict_route
 
-启用 `auto_route` 时执行严格的路由规则。
+当启用 `auto_route` 时，强制执行严格的路由规则：
 
-*在 Linux 中*:
+*在 Linux 中*：
 
-* 让不支持的网络无法到达
-* 使 ICMP 流量路由到 tun 而不是上游接口
-* 将所有连接路由到 tun
+* 使不支持的网络不可达。
+* 出于历史遗留原因，当未启用 `strict_route` 或 `auto_redirect` 时，所有 ICMP 流量将不会通过 TUN。
 
-它可以防止 IP 地址泄漏，并使 DNS 劫持在 Android 上工作。
+*在 Windows 中*：
 
-*在 Windows 中*:
+* 使不支持的网络不可达。
+* 阻止 Windows 的 [普通多宿主 DNS 解析行为](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29) 造成的 DNS 泄露
 
-* 添加防火墙规则以阻止 Windows
-  的 [普通多宿主 DNS 解析行为](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd197552%28v%3Dws.10%29)
-  造成的 DNS 泄露
-
-它可能会使某些应用程序（如 VirtualBox）在某些情况下无法正常工作。
+它可能会使某些 Windows 应用程序（如 VirtualBox）在某些情况下无法正常工作。
 
 #### route_address
 
@@ -341,8 +342,6 @@ tun 接口的 IPv6 前缀。
     
     将指定规则集中的目标 IP CIDR 规则添加到防火墙。
     不匹配的流量将绕过 sing-box 路由。
-    
-    与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
 
 === "`auto_redirect` 未启用"
 

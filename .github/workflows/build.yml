@@ -68,32 +68,39 @@ jobs:
       - calculate_version
     strategy:
       matrix:
-        os: [ linux, windows, darwin, android ]
-        arch: [ "386", amd64, arm64 ]
-        legacy_go: [ false ]
         include:
-          - { os: linux, arch: amd64, debian: amd64, rpm: x86_64, pacman: x86_64 }
-          - { os: linux, arch: "386", debian: i386, rpm: i386 }
-          - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl }
-          - { os: linux, arch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl }
-          - { os: linux, arch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64 }
-          - { os: linux, arch: mips64le, debian: mips64el, rpm: mips64el }
-          - { os: linux, arch: mipsle, debian: mipsel, rpm: mipsel }
+          - { os: linux, arch: amd64, debian: amd64, rpm: x86_64, pacman: x86_64, openwrt: "x86_64" }
+          - { os: linux, arch: "386", go386: sse2, debian: i386, rpm: i386, openwrt: "i386_pentium4" }
+          - { os: linux, arch: "386", go386: softfloat, openwrt: "i386_pentium-mmx" }
+          - { os: linux, arch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
+          - { os: linux, arch: arm, goarm: "5", openwrt: "arm_arm926ej-s arm_cortex-a7 arm_cortex-a9 arm_fa526 arm_xscale" }
+          - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl, openwrt: "arm_arm1176jzf-s_vfp" }
+          - { os: linux, arch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl, openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
+          - { os: linux, arch: mips, gomips: softfloat, openwrt: "mips_24kc mips_4kec mips_mips32" }
+          - { os: linux, arch: mipsle, gomips: hardfloat, debian: mipsel, rpm: mipsel, openwrt: "mipsel_24kc_24kf" }
+          - { os: linux, arch: mipsle, gomips: softfloat, openwrt: "mipsel_24kc mipsel_74kc mipsel_mips32" }
+          - { os: linux, arch: mips64, gomips: softfloat, openwrt: "mips64_mips64r2 mips64_octeonplus" }
+          - { os: linux, arch: mips64le, gomips: hardfloat, debian: mips64el, rpm: mips64el }
+          - { os: linux, arch: mips64le, gomips: softfloat, openwrt: "mips64el_mips64r2" }
           - { os: linux, arch: s390x, debian: s390x, rpm: s390x }
           - { os: linux, arch: ppc64le, debian: ppc64el, rpm: ppc64le }
-          - { os: linux, arch: riscv64, debian: riscv64, rpm: riscv64 }
-          - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64 }
+          - { os: linux, arch: riscv64, debian: riscv64, rpm: riscv64, openwrt: "riscv64_generic" }
+          - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
 
-          - { os: windows, arch: "386", legacy_go: true }
+          - { os: windows, arch: amd64 }
           - { os: windows, arch: amd64, legacy_go: true }
-          - { os: darwin, arch: amd64, legacy_go: true }
+          - { os: windows, arch: "386" }
+          - { os: windows, arch: "386", legacy_go: true }
+          - { os: windows, arch: arm64 }
 
-          - { os: android, arch: "386", ndk: "i686-linux-android21" }
-          - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
+          - { os: darwin, arch: amd64 }
+          - { os: darwin, arch: amd64, legacy_go: true }
+          - { os: darwin, arch: arm64 }
+
           - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
           - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
-        exclude:
-          - { os: darwin, arch: "386" }
+          - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
+          - { os: android, arch: "386", ndk: "i686-linux-android21" }
     steps:
       - name: Checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
@@ -139,7 +146,10 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
           GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Android
         if: matrix.os == 'android'
@@ -159,14 +169,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set name
         run: |-
-          ARM_VERSION=$([ -n '${{ matrix.goarm}}' ] && echo 'v${{ matrix.goarm}}' || true)
-          LEGACY=$([ '${{ matrix.legacy_go }}' = 'true' ] && echo "-legacy" || true)
-          DIR_NAME="sing-box-${{ needs.calculate_version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}${ARM_VERSION}${LEGACY}"
-          PKG_NAME="sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.arch }}${ARM_VERSION}"
+          DIR_NAME="sing-box-${{ needs.calculate_version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}"
+          if [[ -n "${{ matrix.goarm }}" ]]; then
+            DIR_NAME="${DIR_NAME}v${{ matrix.goarm }}"
+          elif [[ -n "${{ matrix.go386 }}" && "${{ matrix.go386 }}" != 'sse2' ]]; then
+            DIR_NAME="${DIR_NAME}-${{ matrix.go386 }}"
+          elif [[ -n "${{ matrix.gomips }}" && "${{ matrix.gomips }}" != 'hardfloat' ]]; then
+            DIR_NAME="${DIR_NAME}-${{ matrix.gomips }}"
+          elif [[ "${{ matrix.legacy_go }}" == 'true' ]]; then
+            DIR_NAME="${DIR_NAME}-legacy"
+          fi
           echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
-          echo "PKG_NAME=${PKG_NAME}" >> "${GITHUB_ENV}"
           PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
-          PKG_VERSION="${PKG_VERSION//-/\~}"
+          PKG_VERSION="${PKG_VERSION//-/\~}-1"
           echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
       - name: Package DEB
         if: matrix.debian != ''
@@ -174,9 +189,10 @@ jobs:
           set -xeuo pipefail
           sudo gem install fpm
           sudo apt-get install -y debsigs
+          cp .fpm_systemd .fpm
           fpm -t deb \
             -v "$PKG_VERSION" \
-            -p "dist/${PKG_NAME}.deb" \
+            -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.debian }}.deb" \
             --architecture ${{ matrix.debian }} \
             dist/sing-box=/usr/bin/sing-box
           curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
@@ -191,9 +207,10 @@ jobs:
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
+          cp .fpm_systemd .fpm
           fpm -t rpm \
             -v "$PKG_VERSION" \
-            -p "dist/${PKG_NAME}.rpm" \
+            -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.rpm }}.rpm" \
             --architecture ${{ matrix.rpm }} \
             dist/sing-box=/usr/bin/sing-box
           cat > $HOME/.rpmmacros <<EOF
@@ -210,11 +227,27 @@ jobs:
           set -xeuo pipefail
           sudo gem install fpm
           sudo apt-get install -y libarchive-tools
+          cp .fpm_systemd .fpm
           fpm -t pacman \
             -v "$PKG_VERSION" \
-            -p "dist/${PKG_NAME}.pkg.tar.zst" \
+            -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.pacman }}.pkg.tar.zst" \
             --architecture ${{ matrix.pacman }} \
             dist/sing-box=/usr/bin/sing-box
+      - name: Package OpenWrt
+        if: matrix.openwrt != ''
+        run: |-
+          set -xeuo pipefail
+          sudo gem install fpm
+          cp .fpm_openwrt .fpm
+          fpm -t deb \
+            -v "$PKG_VERSION" \
+            -p "dist/openwrt.deb" \
+            --architecture all \
+            dist/sing-box=/usr/bin/sing-box
+          for architecture in ${{ matrix.openwrt }}; do
+            .github/deb2ipk.sh "$architecture" "dist/openwrt.deb" "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}.ipk"
+          done
+          rm "dist/openwrt.deb"
       - name: Archive
         run: |
           set -xeuo pipefail
@@ -234,7 +267,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.legacy_go && '-legacy' || '' }}
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_go && '-legacy' || '' }}
           path: "dist"
   build_android:
     name: Build Android

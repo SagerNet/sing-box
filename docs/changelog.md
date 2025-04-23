@@ -2,6 +2,18 @@
 icon: material/alert-decagram
 ---
 
+### 1.11.8
+
+* Improve `auto_redirect` **1**
+* Fixes and improvements
+
+**1**:
+
+Now `auto_redirect` fixes compatibility issues between TUN and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+
 ### 1.11.7
 
 * Fixes and improvements
