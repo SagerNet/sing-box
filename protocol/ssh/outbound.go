@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -191,9 +192,29 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 	if err != nil {
 		return nil, err
 	}
-	return client.Dial(network, destination.String())
+	conn, err := client.Dial(network, destination.String())
+	if err != nil {
+		return nil, err
+	}
+	return &chanConnWrapper{Conn: conn}, nil
 }
 
 func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, os.ErrInvalid
+}
+
+type chanConnWrapper struct {
+	net.Conn
+}
+
+func (c *chanConnWrapper) SetDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *chanConnWrapper) SetReadDeadline(t time.Time) error {
+	return os.ErrInvalid
+}
+
+func (c *chanConnWrapper) SetWriteDeadline(t time.Time) error {
+	return os.ErrInvalid
 }
