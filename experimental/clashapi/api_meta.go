@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
@@ -20,6 +21,7 @@ import (
 func (s *Server) setupMetaAPI(r chi.Router) {
 	r.Get("/memory", memory(s.trafficManager))
 	r.Mount("/group", groupRouter(s))
+	r.Post("/upgrade/ui", updateExternalUI(s))
 }
 
 type Memory struct {
@@ -75,5 +77,27 @@ func memory(trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r
 				break
 			}
 		}
+	}
+}
+
+func updateExternalUI(server *Server) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if server.externalUI == "" {
+			render.Status(r, http.StatusNotImplemented)
+			render.JSON(w, r, newError("not set external UI"))
+			return
+		}
+		err := server.downloadExternalUI()
+		if err != nil {
+			server.logger.Error(E.Cause(err, "download external ui"))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, newError(err.Error()))
+			return
+		}
+		render.JSON(w, r, render.M{"status": "ok"})
+		if flusher, isFlusher := w.(http.Flusher); isFlusher {
+			flusher.Flush()
+		}
+		server.logger.Info("updated external UI")
 	}
 }

@@ -37,6 +37,8 @@ func (s *Server) checkAndDownloadExternalUI() {
 }
 
 func (s *Server) downloadExternalUI() error {
+	s.externalUIAccess.Lock()
+	defer s.externalUIAccess.Unlock()
 	var downloadURL string
 	if s.externalUIDownloadURL != "" {
 		downloadURL = s.externalUIDownloadURL
