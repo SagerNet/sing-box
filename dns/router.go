@@ -323,6 +323,9 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 		err           error
 	)
 	printResult := func() {
+		if err == nil && len(responseAddrs) == 0 {
+			err = E.New("empty result")
+		}
 		if err != nil {
 			if errors.Is(err, ErrResponseRejectedCached) {
 				r.logger.DebugContext(ctx, "response rejected for ", domain, " (cached)")
@@ -331,15 +334,15 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			} else {
 				r.logger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 			}
-		} else if len(responseAddrs) == 0 {
-			r.logger.ErrorContext(ctx, "lookup failed for ", domain, ": empty result")
-			err = RcodeNameError
+		}
+		if err != nil {
+			err = E.Cause(err, "lookup ", domain)
 		}
 	}
 	responseAddrs, cached = r.client.LookupCache(domain, options.Strategy)
 	if cached {
 		if len(responseAddrs) == 0 {
-			return nil, RcodeNameError
+			return nil, E.New("lookup ", domain, ": empty result (cached)")
 		}
 		return responseAddrs, nil
 	}
