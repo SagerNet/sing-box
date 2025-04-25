@@ -483,7 +483,7 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 }
 
 func MessageToAddresses(response *dns.Msg) ([]netip.Addr, error) {
-	if response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError {
+	if response.Rcode != dns.RcodeSuccess {
 		return nil, RcodeError(response.Rcode)
 	}
 	addresses := make([]netip.Addr, 0, len(response.Answer))

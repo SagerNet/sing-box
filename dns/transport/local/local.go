@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"math/rand"
+	"net/netip"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -90,8 +91,9 @@ func (t *Transport) exchangeParallel(ctx context.Context, systemConfig *dnsConfi
 	startRacer := func(ctx context.Context, fqdn string) {
 		response, err := t.tryOneName(ctx, systemConfig, fqdn, message)
 		if err == nil {
-			addresses, _ := dns.MessageToAddresses(response)
-			if len(addresses) == 0 {
+			var addresses []netip.Addr
+			addresses, err = dns.MessageToAddresses(response)
+			if err == nil && len(addresses) == 0 {
 				err = E.New(fqdn, ": empty result")
 			}
 		}
