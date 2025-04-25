@@ -188,6 +188,7 @@ jobs:
         run: |
           set -xeuo pipefail
           sudo gem install fpm
+          sudo apt-get update
           sudo apt-get install -y debsigs
           cp .fpm_systemd .fpm
           fpm -t deb \
@@ -226,6 +227,7 @@ jobs:
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
+          sudo apt-get update
           sudo apt-get install -y libarchive-tools
           cp .fpm_systemd .fpm
           fpm -t pacman \
