@@ -16,6 +16,7 @@ import (
 	sQUIC "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -55,7 +56,9 @@ func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options 
 		tlsConfig.SetNextProtos([]string{"doq"})
 	}
 	serverAddr := options.DNSServerAddressOptions.Build()
-	if serverAddr.Port == 0 {
+	if !serverAddr.Addr.IsValid() {
+		return nil, E.New("invalid server address: ", serverAddr)
+	} else if serverAddr.Port == 0 {
 		serverAddr.Port = 853
 	}
 	return &Transport{
