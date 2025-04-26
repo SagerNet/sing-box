@@ -92,6 +92,9 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	if serverAddr.Port == 0 {
 		serverAddr.Port = 443
 	}
+	if !serverAddr.IsValid() {
+		return nil, E.New("invalid server address: ", serverAddr)
+	}
 	return &HTTP3Transport{
 		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeHTTP3, tag, options.RemoteDNSServerOptions),
 		logger:           logger,
