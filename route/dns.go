@@ -22,7 +22,9 @@ import (
 )
 
 func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	metadata.Destination = M.Socksaddr{}
+	metadata.Destination = M.Socksaddr{
+		Port: metadata.Destination.Port,
+	}
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
 		err := dnsOutbound.HandleStreamDNSRequest(ctx, r.dns, conn, metadata)
@@ -34,7 +36,9 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext) {
 	if natConn, isNatConn := conn.(udpnat.Conn); isNatConn {
-		metadata.Destination = M.Socksaddr{}
+		metadata.Destination = M.Socksaddr{
+			Port: metadata.Destination.Port,
+		}
 		for _, packet := range packetBuffers {
 			buffer := packet.Buffer
 			destination := packet.Destination

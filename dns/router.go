@@ -220,7 +220,9 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	if !cached {
 		var metadata *adapter.InboundContext
 		ctx, metadata = adapter.ExtendContext(ctx)
-		metadata.Destination = M.Socksaddr{}
+		metadata.Destination = M.Socksaddr{
+			Port: metadata.Destination.Port,
+		}
 		metadata.QueryType = message.Question[0].Qtype
 		switch metadata.QueryType {
 		case mDNS.TypeA:
