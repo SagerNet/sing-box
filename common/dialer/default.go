@@ -341,6 +341,16 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
+	udpListener := d.udpListener
+	udpListener.Control = control.Append(udpListener.Control, func(network, address string, conn syscall.RawConn) error {
+		for _, wgControlFn := range WgControlFns {
+			err := wgControlFn(network, address, conn)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	return d.udpListener.ListenPacket(context.Background(), network, address)
 }
 
