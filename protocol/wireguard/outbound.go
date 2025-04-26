@@ -46,9 +46,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:         logger,
 		localAddresses: options.LocalAddress,
 	}
-	if options.Detour == "" {
-		options.IsWireGuardListener = true
-	} else if options.GSO {
+	if options.Detour != "" && options.GSO {
 		return nil, E.New("gso is conflict with detour")
 	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{

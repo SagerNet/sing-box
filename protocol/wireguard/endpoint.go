@@ -45,8 +45,8 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:         logger,
 		localAddresses: options.Address,
 	}
-	if options.Detour == "" {
-		options.IsWireGuardListener = true
+	if options.Detour != "" && options.ListenPort != 0 {
+		return nil, E.New("`listen_port` is conflict with `detour`")
 	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context: ctx,
