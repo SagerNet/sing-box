@@ -83,7 +83,6 @@ type DialerOptions struct {
 	NetworkType         badoption.Listable[InterfaceType] `json:"network_type,omitempty"`
 	FallbackNetworkType badoption.Listable[InterfaceType] `json:"fallback_network_type,omitempty"`
 	FallbackDelay       badoption.Duration                `json:"fallback_delay,omitempty"`
-	IsWireGuardListener bool                              `json:"-"`
 
 	// Deprecated: migrated to domain resolver
 	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`
