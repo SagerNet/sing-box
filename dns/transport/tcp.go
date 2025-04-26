@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -39,6 +40,9 @@ func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options o
 	serverAddr := options.DNSServerAddressOptions.Build()
 	if serverAddr.Port == 0 {
 		serverAddr.Port = 53
+	}
+	if !serverAddr.IsValid() {
+		return nil, E.New("invalid server address: ", serverAddr)
 	}
 	return &TCPTransport{
 		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTCP, tag, options),
