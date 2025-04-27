@@ -141,7 +141,7 @@ func (e *Endpoint) Start(resolve bool) error {
 		return nil
 	}
 	var bind conn.Bind
-	wgListener, isWgListener := e.options.Dialer.(conn.Listener)
+	wgListener, isWgListener := common.Cast[conn.Listener](e.options.Dialer)
 	if isWgListener {
 		bind = conn.NewStdNetBind(wgListener)
 	} else {

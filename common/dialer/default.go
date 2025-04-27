@@ -333,7 +333,17 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 }
 
 func (d *DefaultDialer) ListenPacketCompat(network, address string) (net.PacketConn, error) {
-	return d.udpListener.ListenPacket(context.Background(), network, address)
+	udpListener := d.udpListener
+	udpListener.Control = control.Append(udpListener.Control, func(network, address string, conn syscall.RawConn) error {
+		for _, wgControlFn := range WgControlFns {
+			err := wgControlFn(network, address, conn)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return udpListener.ListenPacket(context.Background(), network, address)
 }
 
 func trackConn(conn net.Conn, err error) (net.Conn, error) {
