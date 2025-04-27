@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -44,7 +45,9 @@ func NewUDP(ctx context.Context, logger log.ContextLogger, tag string, options o
 		return nil, err
 	}
 	serverAddr := options.DNSServerAddressOptions.Build()
-	if serverAddr.Port == 0 {
+	if !serverAddr.Addr.IsValid() {
+		return nil, E.New("invalid server address: ", serverAddr)
+	} else if serverAddr.Port == 0 {
 		serverAddr.Port = 53
 	}
 	return NewUDPRaw(logger, dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeUDP, tag, options), transportDialer, serverAddr), nil
