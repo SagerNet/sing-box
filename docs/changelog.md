@@ -2,12 +2,172 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.0
+
+* Refactor DNS servers **1**
+* Add domain resolver options**2**
+* Add TLS fragment/record fragment support to route options and outbound TLS options **3**
+* Add certificate options **4**
+* Add Tailscale endpoint and DNS server **5**
+* Drop support for go1.22 **6**
+* Add AnyTLS protocol **7**
+* Migrate to stdlib ECH implementation **8**
+* Add NTP sniffer **9**
+* Add wildcard SNI support for ShadowTLS inbound **10**
+* Improve `auto_redirect` **11**
+* Add control options for listeners **12**
+* Add DERP service **13**
+* Add Resolved service and DNS server **14**
+* Add SSM API service **15**
+* Add loopback address support for tun **16**
+* Improve tun performance on Apple platforms **17**
+* Update quic-go to v0.52.0
+* Update gVisor to 20250319.0
+* Update the status of graphical clients in stores **18**
+
+**1**:
+
+DNS servers are refactored for better performance and scalability.
+
+See [DNS server](/configuration/dns/server/).
+
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+**2**:
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by the new `domain_resolver` option.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver) and
+[Route](/configuration/route/#default_domain_resolver).
+
+For migration,
+see [Migrate outbound DNS rule items to domain resolver](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+**3**:
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment) and [TLS](/configuration/shared/tls/).
+
+**4**:
+
+New certificate options allow you to manage the default list of trusted X509 CA certificates.
+
+For the system certificate list, fixed Go not reading Android trusted certificates correctly.
+
+You can also use the Mozilla Included List instead, or add trusted certificates yourself.
+
+See [Certificate](/configuration/certificate/).
+
+**5**:
+
+See [Tailscale](/configuration/endpoint/tailscale/).
+
+**6**:
+
+Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
+
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches from [MetaCubeX/go](https://github.com/MetaCubeX/go).
+
+**7**:
+
+The new AnyTLS protocol claims to mitigate TLS proxy traffic characteristics and comes with a new multiplexing scheme.
+
+See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/configuration/outbound/anytls/).
+
+**8**:
+
+See [TLS](/configuration/shared/tls).
+
+The build tag `with_ech` is no longer needed and has been removed.
+
+**9**:
+
+See [Protocol Sniff](/configuration/route/sniff/).
+
+**10**:
+
+See [ShadowTLS](/configuration/inbound/shadowtls/#wildcard_sni).
+
+**11**:
+
+Now `auto_redirect` fixes compatibility issues between tun and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
+
+**12**:
+
+You can now set `bind_interface`, `routing_mark` and `reuse_addr` in Listen Fields.
+
+See [Listen Fields](/configuration/shared/listen/).
+
+**13**:
+
+DERP service is a Tailscale DERP server, similar to [derper](https://pkg.go.dev/tailscale.com/cmd/derper).
+
+See [DERP Service](/configuration/service/derp/).
+
+**14**:
+
+Resolved service is a fake systemd-resolved DBUS service to receive DNS settings from other programs
+(e.g. NetworkManager) and provide DNS resolution.
+
+See [Resolved Service](/configuration/service/resolved/) and [Resolved DNS Server](/configuration/dns/server/resolved/).
+
+**15**:
+
+SSM API service is a RESTful API server for managing Shadowsocks servers.
+
+See [SSM API Service](/configuration/service/ssm-api/).
+
+**16**:
+
+TUN now implements SideStore's StosVPN.
+
+See [Tun](/configuration/inbound/tun/#loopback_address).
+
+**17**:
+
+We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
+
+The following data was tested using [tun_bench](https://github.com/SagerNet/sing-box/blob/dev-next/cmd/internal/tun_bench/main.go) on M4 MacBook pro.
+
+| Version     | Stack  | MTU   | Upload | Download |
+|-------------|--------|-------|--------|----------|
+| 1.11.15     | gvisor | 1500  | 852M   | 2.57G    |
+| 1.12.0-rc.4 | gvisor | 1500  | 2.90G  | 4.68G    |
+| 1.11.15     | gvisor | 4064  | 2.31G  | 6.34G    |
+| 1.12.0-rc.4 | gvisor | 4064  | 7.54G  | 12.2G    |
+| 1.11.15     | gvisor | 65535 | 27.6G  | 18.1G    |
+| 1.12.0-rc.4 | gvisor | 65535 | 39.8G  | 34.7G    |
+| 1.11.15     | system | 1500  | 664M   | 706M     |
+| 1.12.0-rc.4 | system | 1500  | 2.44G  | 2.51G    |
+| 1.11.15     | system | 4064  | 1.88G  | 1.94G    |
+| 1.12.0-rc.4 | system | 4064  | 6.45G  | 6.27G    |
+| 1.11.15     | system | 65535 | 26.2G  | 17.4G    |
+| 1.12.0-rc.4 | system | 65535 | 17.6G  | 21.0G    |
+
+**18**:
+
+We continue to experience issues updating our sing-box apps on the App Store and Play Store. 
+Until we rewrite and resubmit the apps, they are considered irrecoverable. 
+Therefore, after this release, we will not be repeating this notice unless there is new information.
+
 ### 1.11.15
 
 * Fixes and improvements
 
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.32
+
+* Improve tun performance on Apple platforms **1**
+* Fixes and improvements
+
+**1**:
+
+We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
 
 ### 1.11.14
 
@@ -16,6 +176,49 @@ violated the rules (TestFlight users are not affected)._
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-beta.24
+
+* Allow `tls_fragment` and `tls_record_fragment` to be enabled together **1**
+* Also add fragment options for TLS client configuration **2**
+* Fixes and improvements
+
+**1**:
+
+For debugging only, it is recommended to disable if record fragmentation works.
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment).
+
+**2**:
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.12.0-beta.23
+
+* Add loopback address support for tun **1**
+* Add cache support for ssm-api **2**
+* Fixes and improvements
+
+**1**:
+
+TUN now implements SideStore's StosVPN.
+
+See [Tun](/configuration/inbound/tun/#loopback_address).
+
+**2**:
+
+See [SSM API Service](/configuration/service/ssm-api/#cache_path).
+
+#### 1.12.0-beta.21
+
+* Fix missing `home` option for DERP service **1**
+* Fixes and improvements
+
+**1**:
+
+You can now choose what the DERP home page shows, just like with derper's `-home` flag.
+
+See [DERP](/configuration/service/derp/#home).
+
 ### 1.11.13
 
 * Fixes and improvements
@@ -23,12 +226,68 @@ violated the rules (TestFlight users are not affected)._
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-beta.17
+
+* Update quic-go to v0.52.0
+* Fixes and improvements
+
+#### 1.12.0-beta.15
+
+* Add DERP service **1**
+* Add Resolved service and DNS server **2**
+* Add SSM API service **3**
+* Fixes and improvements
+
+**1**:
+
+DERP service is a Tailscale DERP server, similar to [derper](https://pkg.go.dev/tailscale.com/cmd/derper).
+
+See [DERP Service](/configuration/service/derp/).
+
+**2**:
+
+Resolved service is a fake systemd-resolved DBUS service to receive DNS settings from other programs
+(e.g. NetworkManager) and provide DNS resolution.
+
+See [Resolved Service](/configuration/service/resolved/) and [Resolved DNS Server](/configuration/dns/server/resolved/).
+
+**3**:
+
+SSM API service is a RESTful API server for managing Shadowsocks servers.
+
+See [SSM API Service](/configuration/service/ssm-api/).
+
 ### 1.11.11
 
 * Fixes and improvements
 
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.13
+
+* Add TLS record fragment route options **1**
+* Add missing `accept_routes` option for Tailscale **2**
+* Fixes and improvements
+
+**1**:
+
+See [Route Action](/configuration/route/rule_action/#tls_record_fragment).
+
+**2**:
+
+See [Tailscale](/configuration/endpoint/tailscale/#accept_routes).
+
+#### 1.12.0-beta.10
+
+* Add control options for listeners **1**
+* Fixes and improvements
+
+**1**:
+
+You can now set `bind_interface`, `routing_mark` and `reuse_addr` in Listen Fields.
+
+See [Listen Fields](/configuration/shared/listen/).
 
 ### 1.11.10
 
@@ -43,12 +302,21 @@ we decided to temporarily undeprecate the `block` outbound until a replacement i
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-beta.9
+
+* Update quic-go to v0.51.0
+* Fixes and improvements
+
 ### 1.11.9
 
 * Fixes and improvements
 
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.5
+
+* Fixes and improvements
 
 ### 1.11.8
 
@@ -63,12 +331,25 @@ see [Tun](/configuration/inbound/tun/#auto_redirect).
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-beta.3
+
+* Fixes and improvements
+
 ### 1.11.7
 
 * Fixes and improvements
 
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.1
+
+* Fixes and improvements
+
+**1**:
+
+Now `auto_redirect` fixes compatibility issues between tun and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
 
 ### 1.11.6
 
@@ -77,6 +358,40 @@ violated the rules (TestFlight users are not affected)._
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-alpha.19
+
+* Update gVisor to 20250319.0
+* Fixes and improvements
+
+#### 1.12.0-alpha.18
+
+* Add wildcard SNI support for ShadowTLS inbound **1**
+* Fixes and improvements
+
+**1**:
+
+See [ShadowTLS](/configuration/inbound/shadowtls/#wildcard_sni).
+
+#### 1.12.0-alpha.17
+
+* Add NTP sniffer **1**
+* Fixes and improvements
+
+**1**:
+
+See [Protocol Sniff](/configuration/route/sniff/).
+
+#### 1.12.0-alpha.16
+
+* Update `domain_resolver` behavior **1**
+* Fixes and improvements
+
+**1**:
+
+`route.default_domain_resolver` or `outbound.domain_resolver` is now optional when only one DNS server is configured.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver).
+
 ### 1.11.5
 
 * Fixes and improvements
@@ -84,9 +399,70 @@ violated the rules (TestFlight users are not affected)._
 _We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
 violated the rules (TestFlight users are not affected)._
 
+#### 1.12.0-alpha.13
+
+* Move `predefined` DNS server to DNS rule action **1**
+* Fixes and improvements
+
+**1**:
+
+See [DNS Rule Action](/configuration/dns/rule_action/#predefined).
+
 ### 1.11.4
 
 * Fixes and improvements
+
+#### 1.12.0-alpha.11
+
+* Fixes and improvements
+
+#### 1.12.0-alpha.10
+
+* Add AnyTLS protocol **1**
+* Improve `resolve` route action **2**
+* Migrate to stdlib ECH implementation **3**
+* Fixes and improvements
+
+**1**:
+
+The new AnyTLS protocol claims to mitigate TLS proxy traffic characteristics and comes with a new multiplexing scheme.
+
+See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/configuration/outbound/anytls/).
+
+**2**:
+
+`resolve` route action now accepts `disable_cache` and other options like in DNS route actions, see [Route Action](/configuration/route/rule_action).
+
+**3**:
+
+See [TLS](/configuration/shared/tls).
+
+The build tag `with_ech` is no longer needed and has been removed.
+
+#### 1.12.0-alpha.7
+
+* Add Tailscale DNS server **1**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale](/configuration/dns/server/tailscale/).
+
+#### 1.12.0-alpha.6
+
+* Add Tailscale endpoint **1**
+* Drop support for go1.22 **2**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale](/configuration/endpoint/tailscale/).
+
+**2**:
+
+Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
+
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches from [MetaCubeX/go](https://github.com/MetaCubeX/go).
 
 ### 1.11.3
 
@@ -95,9 +471,68 @@ violated the rules (TestFlight users are not affected)._
 _This version overwrites 1.11.2, as incorrect binaries were released due to a bug in the continuous integration
 process._
 
+#### 1.12.0-alpha.5
+
+* Fixes and improvements
+
 ### 1.11.1
 
 * Fixes and improvements
+
+#### 1.12.0-alpha.2
+
+* Update quic-go to v0.49.0
+* Fixes and improvements
+
+#### 1.12.0-alpha.1
+
+* Refactor DNS servers **1**
+* Add domain resolver options**2**
+* Add TLS fragment route options **3**
+* Add certificate options **4**
+
+**1**:
+
+DNS servers are refactored for better performance and scalability.
+
+See [DNS server](/configuration/dns/server/).
+
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+**2**:
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by the new `domain_resolver` option.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver) and
+[Route](/configuration/route/#default_domain_resolver).
+
+For migration,
+see [Migrate outbound DNS rule items to domain resolver](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+**3**:
+
+The new TLS fragment route options allow you to fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**, and should not be used
+to circumvent real censorship.
+
+Since it is not designed for performance, it should not be applied to all connections, but only to server names that are
+known to be blocked.
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment).
+
+**4**:
+
+New certificate options allow you to manage the default list of trusted X509 CA certificates.
+
+For the system certificate list, fixed Go not reading Android trusted certificates correctly.
+
+You can also use the Mozilla Included List instead, or add trusted certificates yourself.
+
+See [Certificate](/configuration/certificate/).
 
 ### 1.11.0
 
