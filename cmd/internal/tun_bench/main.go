@@ -46,7 +46,7 @@ func main0() error {
 
 func runTests() ([]TestResult, error) {
 	boxPaths := []string{
-		//"/Users/sekai/Downloads/sing-box-1.11.15-darwin-arm64/sing-box",
+		os.ExpandEnv("$HOME/Downloads/sing-box-1.11.15-darwin-arm64/sing-box"),
 		//"/Users/sekai/Downloads/sing-box-1.11.15-linux-arm64/sing-box",
 		"./sing-box",
 	}
@@ -55,11 +55,11 @@ func runTests() ([]TestResult, error) {
 		"system",
 	}
 	mtus := []int{
-		// 1500,
-		// 4064,
+		1500,
+		4064,
 		// 16384,
-		32768,
-		49152,
+		// 32768,
+		// 49152,
 		65535,
 	}
 	flagList := [][]string{
@@ -182,7 +182,7 @@ func testOnce(boxPath string, stackName string, mtu int, multiThread bool, flags
 
 	time.Sleep(time.Second)
 
-	args := []string{"-c", testAddress.String(), "-t", "5"}
+	args := []string{"-c", testAddress.String()}
 	if multiThread {
 		args = append(args, "-P", "10")
 	}
