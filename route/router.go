@@ -203,6 +203,23 @@ func (r *Router) Rules() []adapter.Rule {
 	return r.rules
 }
 
+// AddRule 添加新的路由规则
+func (r *Router) AddRule(rule adapter.Rule) int {
+	r.rules = append(r.rules, rule)
+	return len(r.rules) - 1
+}
+
+// RemoveRule 根据索引移除路由规则
+func (r *Router) RemoveRule(index int) error {
+	if index < 0 || index >= len(r.rules) {
+		return E.New("规则索引超出范围")
+	}
+
+	// 移除指定索引的规则
+	r.rules = append(r.rules[:index], r.rules[index+1:]...)
+	return nil
+}
+
 func (r *Router) AppendTracker(tracker adapter.ConnectionTracker) {
 	r.trackers = append(r.trackers, tracker)
 }

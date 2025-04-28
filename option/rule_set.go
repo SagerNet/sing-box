@@ -161,6 +161,7 @@ type DefaultHeadlessRule struct {
 	ProcessName          badoption.Listable[string]        `json:"process_name,omitempty"`
 	ProcessPath          badoption.Listable[string]        `json:"process_path,omitempty"`
 	ProcessPathRegex     badoption.Listable[string]        `json:"process_path_regex,omitempty"`
+	ProcessPID           badoption.Listable[uint32]        `json:"process_pid,omitempty"`
 	PackageName          badoption.Listable[string]        `json:"package_name,omitempty"`
 	NetworkType          badoption.Listable[InterfaceType] `json:"network_type,omitempty"`
 	NetworkIsExpensive   bool                              `json:"network_is_expensive,omitempty"`

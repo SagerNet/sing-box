@@ -8,6 +8,7 @@ The universal proxy platform.
 
 https://sing-box.sagernet.org
 
+
 ## License
 
 ```
@@ -28,4 +29,3 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 In addition, no derivative work may use the name or imply association
 with this application without prior consent.
-```

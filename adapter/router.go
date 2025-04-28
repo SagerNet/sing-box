@@ -24,6 +24,8 @@ type Router interface {
 	RuleSet(tag string) (RuleSet, bool)
 	NeedWIFIState() bool
 	Rules() []Rule
+	AddRule(rule Rule) int
+	RemoveRule(index int) error
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
 }
