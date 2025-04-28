@@ -24,9 +24,9 @@ func applyDebugOptions(options option.DebugOptions) {
 	if options.TraceBack != "" {
 		debug.SetTraceback(options.TraceBack)
 	}
-	if options.MemoryLimit != 0 {
-		debug.SetMemoryLimit(int64(float64(options.MemoryLimit) / 1.5))
-		conntrack.MemoryLimit = uint64(options.MemoryLimit)
+	if options.MemoryLimit.Value() != 0 {
+		debug.SetMemoryLimit(int64(float64(options.MemoryLimit.Value()) / 1.5))
+		conntrack.MemoryLimit = options.MemoryLimit.Value()
 	}
 	if options.OOMKiller != nil {
 		conntrack.KillerEnabled = *options.OOMKiller

@@ -8,7 +8,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-box/common/humanize"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -59,19 +58,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		password = string(options.Auth)
 	}
 	var sendBps, receiveBps uint64
-	if len(options.Up) > 0 {
-		sendBps, err = humanize.ParseBytes(options.Up)
-		if err != nil {
-			return nil, E.Cause(err, "invalid up speed format: ", options.Up)
-		}
+	if options.Up.Value() > 0 {
+		sendBps = options.Up.Value()
 	} else {
 		sendBps = uint64(options.UpMbps) * hysteria.MbpsToBps
 	}
-	if len(options.Down) > 0 {
-		receiveBps, err = humanize.ParseBytes(options.Down)
-		if err != nil {
-			return nil, E.Cause(err, "invalid down speed format: ", options.Down)
-		}
+	if options.Down.Value() > 0 {
+		receiveBps = options.Down.Value()
 	} else {
 		receiveBps = uint64(options.DownMbps) * hysteria.MbpsToBps
 	}

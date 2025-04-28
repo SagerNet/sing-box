@@ -7,9 +7,9 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/sagernet/sing-box/common/humanize"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -38,9 +38,9 @@ func applyDebugListenOption(options option.DebugOptions) {
 			runtime.ReadMemStats(&memStats)
 
 			var memObject badjson.JSONObject
-			memObject.Put("heap", humanize.MemoryBytes(memStats.HeapInuse))
-			memObject.Put("stack", humanize.MemoryBytes(memStats.StackInuse))
-			memObject.Put("idle", humanize.MemoryBytes(memStats.HeapIdle-memStats.HeapReleased))
+			memObject.Put("heap", byteformats.FormatMemoryBytes(memStats.HeapInuse))
+			memObject.Put("stack", byteformats.FormatMemoryBytes(memStats.StackInuse))
+			memObject.Put("idle", byteformats.FormatMemoryBytes(memStats.HeapIdle-memStats.HeapReleased))
 			memObject.Put("goroutines", runtime.NumGoroutine())
 			memObject.Put("rss", rusageMaxRSS())
 
