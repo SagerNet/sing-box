@@ -26,39 +26,38 @@ icon: material/package
 
 === ":material-redhat: Redhat / DNF 5"
 
-   ```bash
-   sudo dnf config-manager addrepo --from-repofile=https://sing-box.app/sing-box.repo &&
-   sudo dnf install sing-box # or sing-box-beta
-   ```
+    ```bash
+    sudo dnf config-manager addrepo --from-repofile=https://sing-box.app/sing-box.repo &&
+    sudo dnf install sing-box # or sing-box-beta
+    ```
 
 === ":material-redhat: Redhat / DNF 4"
 
-   ```bash
-   sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo &&
-   sudo dnf -y install dnf-plugins-core &&
-   sudo dnf install sing-box # or sing-box-beta
-   ```
+    ```bash
+    sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo &&
+    sudo dnf -y install dnf-plugins-core &&
+    sudo dnf install sing-box # or sing-box-beta
+    ```
 
 ## :material-download-box: 手动安装
 
-=== ":material-debian: Debian / DEB"
+该脚本从 GitHub 发布中下载并安装最新的软件包，适用于基于 deb 或 rpm 的 Linux 发行版、ArchLinux 和 OpenWrt。
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/deb-install.sh)
-    ```
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh
+```
 
-=== ":material-redhat: Redhat / RPM"
+或最新测试版：
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/rpm-install.sh)
-    ```
-    （这适用于任何使用 `rpm` 和 `systemd` 的发行版。由于 `rpm` 定义依赖关系的方式，如果安装成功，就多半能用。）
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --beta
+```
 
-=== ":simple-archlinux: Archlinux / PKG"
+或指定版本：
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/arch-install.sh)
-    ```
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --version <version>
+```
 
 ## :material-book-lock-open: 托管安装
 

@@ -68,7 +68,7 @@ func PeekStream(ctx context.Context, metadata *adapter.InboundContext, conn net.
 			}
 			sniffError = E.Errors(sniffError, err)
 		}
-		if !errors.Is(err, ErrNeedMoreData) {
+		if !errors.Is(sniffError, ErrNeedMoreData) {
 			break
 		}
 	}

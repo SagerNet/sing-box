@@ -102,7 +102,10 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
-		item := NewDomainItem(options.Domain, options.DomainSuffix)
+		item, err := NewDomainItem(options.Domain, options.DomainSuffix)
+		if err != nil {
+			return nil, err
+		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
