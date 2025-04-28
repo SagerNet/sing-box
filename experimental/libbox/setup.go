@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sagernet/sing-box/common/humanize"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common/byteformats"
 )
 
 var (
@@ -75,11 +75,11 @@ func Version() string {
 }
 
 func FormatBytes(length int64) string {
-	return humanize.Bytes(uint64(length))
+	return byteformats.FormatBytes(uint64(length))
 }
 
 func FormatMemoryBytes(length int64) string {
-	return humanize.MemoryBytes(uint64(length))
+	return byteformats.FormatMemoryBytes(uint64(length))
 }
 
 func FormatDuration(duration int64) string {
