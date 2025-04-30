@@ -232,9 +232,19 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			record.Header().Ttl = timeToLive
 		}
 	}
-	response.Id = messageId
 	if !disableCache {
 		c.storeCache(transport, question, response, timeToLive)
+	}
+	response.Id = messageId
+	requestEDNSOpt := message.IsEdns0()
+	responseEDNSOpt := response.IsEdns0()
+	if responseEDNSOpt != nil && (requestEDNSOpt == nil || requestEDNSOpt.Version() < responseEDNSOpt.Version()) {
+		response.Extra = common.Filter(response.Extra, func(it dns.RR) bool {
+			return it.Header().Rrtype != dns.TypeOPT
+		})
+		if requestEDNSOpt != nil {
+			response.SetEdns0(responseEDNSOpt.UDPSize(), responseEDNSOpt.Do())
+		}
 	}
 	logExchangedResponse(c.logger, ctx, response, timeToLive)
 	return response, err
