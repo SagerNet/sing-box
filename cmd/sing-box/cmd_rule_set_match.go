@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/srs"
@@ -55,6 +56,14 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	content, err := io.ReadAll(reader)
 	if err != nil {
 		return E.Cause(err, "read rule-set")
+	}
+	if flagRuleSetMatchFormat == "" {
+		switch filepath.Ext(sourcePath) {
+		case ".json":
+			flagRuleSetMatchFormat = C.RuleSetFormatSource
+		case ".srs":
+			flagRuleSetMatchFormat = C.RuleSetFormatBinary
+		}
 	}
 	var ruleSet option.PlainRuleSetCompat
 	switch flagRuleSetMatchFormat {
