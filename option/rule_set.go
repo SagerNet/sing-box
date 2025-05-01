@@ -1,6 +1,8 @@
 package option
 
 import (
+	"net/url"
+	"path/filepath"
 	"reflect"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -27,6 +29,18 @@ type _RuleSet struct {
 type RuleSet _RuleSet
 
 func (r RuleSet) MarshalJSON() ([]byte, error) {
+	if r.Type != C.RuleSetTypeInline {
+		var defaultFormat string
+		switch r.Type {
+		case C.RuleSetTypeLocal:
+			defaultFormat = ruleSetDefaultFormat(r.LocalOptions.Path)
+		case C.RuleSetTypeRemote:
+			defaultFormat = ruleSetDefaultFormat(r.RemoteOptions.URL)
+		}
+		if r.Format == defaultFormat {
+			r.Format = ""
+		}
+	}
 	var v any
 	switch r.Type {
 	case "", C.RuleSetTypeInline:
@@ -62,7 +76,19 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown rule-set type: " + r.Type)
 	}
+	err = badjson.UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
+	if err != nil {
+		return err
+	}
 	if r.Type != C.RuleSetTypeInline {
+		if r.Format == "" {
+			switch r.Type {
+			case C.RuleSetTypeLocal:
+				r.Format = ruleSetDefaultFormat(r.LocalOptions.Path)
+			case C.RuleSetTypeRemote:
+				r.Format = ruleSetDefaultFormat(r.RemoteOptions.URL)
+			}
+		}
 		switch r.Format {
 		case "":
 			return E.New("missing format")
@@ -73,11 +99,21 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	} else {
 		r.Format = ""
 	}
-	err = badjson.UnmarshallExcluded(bytes, (*_RuleSet)(r), v)
-	if err != nil {
-		return err
-	}
 	return nil
+}
+
+func ruleSetDefaultFormat(path string) string {
+	if pathURL, err := url.Parse(path); err == nil {
+		path = pathURL.Path
+	}
+	switch filepath.Ext(path) {
+	case ".json":
+		return C.RuleSetFormatSource
+	case ".srs":
+		return C.RuleSetFormatBinary
+	default:
+		return ""
+	}
 }
 
 type LocalRuleSet struct {

@@ -84,6 +84,8 @@ List of [Headless Rule](./headless-rule/).
 
 Format of rule-set file, `source` or `binary`.
 
+Optional when `path` or `url` uses `json` or `srs` as extension.
+
 ### Local Fields
 
 #### path
