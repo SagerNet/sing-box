@@ -33,8 +33,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
 	aTLS "github.com/sagernet/sing/common/tls"
-	utls "github.com/sagernet/utls"
 
+	utls "github.com/metacubex/utls"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/net/http2"
 )
@@ -148,9 +148,13 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	if err != nil {
 		return nil, err
 	}
-	ecdheKey := uConn.HandshakeState.State13.EcdheKey
+	keyShareKeys := uConn.HandshakeState.State13.KeyShareKeys
+	if keyShareKeys == nil {
+		return nil, E.New("nil KeyShareKeys")
+	}
+	ecdheKey := keyShareKeys.Ecdhe
 	if ecdheKey == nil {
-		return nil, E.New("nil ecdhe_key")
+		return nil, E.New("nil ecdheKey")
 	}
 	authKey, err := ecdheKey.ECDH(publicKey)
 	if err != nil {
@@ -212,10 +216,6 @@ func realityClientFallback(ctx context.Context, uConn net.Conn, serverName strin
 	}
 	_, _ = io.Copy(io.Discard, response.Body)
 	response.Body.Close()
-}
-
-func (e *RealityClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
-	e.uClient.config.SessionIDGenerator = generator
 }
 
 func (e *RealityClientConfig) Clone() Config {
