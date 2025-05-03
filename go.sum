@@ -137,6 +137,8 @@ github.com/sagernet/sing-tun v0.6.5 h1:nGfD6GNq/r0tEjdZHOV3BS6fydSmd4kBAokU5rffs
 github.com/sagernet/sing-tun v0.6.5/go.mod h1:fisFCbC4Vfb6HqQNcwPJi2CDK2bf0Xapyz3j3t4cnHE=
 github.com/sagernet/sing-vmess v0.2.1 h1:6izHC2+B68aQCxTagki6eZZc+g5eh4dYwxOV5a2Lhug=
 github.com/sagernet/sing-vmess v0.2.1/go.mod h1:jDAZ0A0St1zVRkyvhAPRySOFfhC+4SQtO5VYyeFotgA=
+github.com/sagernet/sing-vmess v0.2.3 h1:z6Ym8dnZG7k1fP3+54vz8G0tvRVJeOoTFFeUPwXTD44=
+github.com/sagernet/sing-vmess v0.2.3/go.mod h1:jDAZ0A0St1zVRkyvhAPRySOFfhC+4SQtO5VYyeFotgA=
 github.com/sagernet/smux v1.5.34-mod.2 h1:gkmBjIjlJ2zQKpLigOkFur5kBKdV6bNRoFu2WkltRQ4=
 github.com/sagernet/smux v1.5.34-mod.2/go.mod h1:0KW0+R+ycvA2INW4gbsd7BNyg+HEfLIAxa5N02/28Zc=
 github.com/sagernet/utls v1.6.7 h1:Ep3+aJ8FUGGta+II2IEVNUc3EDhaRCZINWkj/LloIA8=
