@@ -18,6 +18,7 @@ type (
 	STDConfig       = tls.Config
 	STDConn         = tls.Conn
 	ConnectionState = tls.ConnectionState
+	CurveID         = tls.CurveID
 )
 
 func ParseTLSVersion(version string) (uint16, error) {
