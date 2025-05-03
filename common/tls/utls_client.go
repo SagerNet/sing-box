@@ -16,8 +16,8 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
-	utls "github.com/sagernet/utls"
 
+	utls "github.com/metacubex/utls"
 	"golang.org/x/net/http2"
 )
 
