@@ -7,7 +7,8 @@ import (
 	_ "unsafe"
 
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/utls"
+
+	"github.com/metacubex/utls"
 )
 
 func init() {
@@ -24,8 +25,8 @@ func init() {
 	})
 }
 
-//go:linkname utlsReadRecord github.com/sagernet/utls.(*Conn).readRecord
+//go:linkname utlsReadRecord github.com/metacubex/utls.(*Conn).readRecord
 func utlsReadRecord(c *tls.Conn) error
 
-//go:linkname utlsHandlePostHandshakeMessage github.com/sagernet/utls.(*Conn).handlePostHandshakeMessage
+//go:linkname utlsHandlePostHandshakeMessage github.com/metacubex/utls.(*Conn).handlePostHandshakeMessage
 func utlsHandlePostHandshakeMessage(c *tls.Conn) error
