@@ -39,7 +39,7 @@ func (h *Outbound) UnmarshalJSONContext(ctx context.Context, content []byte) err
 		return E.New("missing outbound options registry in context")
 	}
 	switch h.Type {
-	case C.TypeBlock, C.TypeDNS:
+	case C.TypeDNS:
 		deprecated.Report(ctx, deprecated.OptionSpecialOutbounds)
 	}
 	options, loaded := registry.CreateOptions(h.Type)
