@@ -2,11 +2,25 @@
 icon: material/alert-decagram
 ---
 
+### 1.11.10
+
+* Undeprecate the `block` outbound **1**
+* Fixes and improvements
+
+**1**:
+
+Since we don’t have a replacement for using the `block` outbound in selectors yet,
+we decided to temporarily undeprecate the `block` outbound until a replacement is available in the future.
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
 ### 1.11.9
 
 * Fixes and improvements
 
-_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
 
 ### 1.11.8
 
@@ -18,25 +32,29 @@ _We are temporarily unable to update sing-box apps on the App Store because the 
 Now `auto_redirect` fixes compatibility issues between TUN and Docker bridge networks,
 see [Tun](/configuration/inbound/tun/#auto_redirect).
 
-_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
 
 ### 1.11.7
 
 * Fixes and improvements
 
-_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
 
 ### 1.11.6
 
 * Fixes and improvements
 
-_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
 
 ### 1.11.5
 
 * Fixes and improvements
 
-_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected)._
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
 
 ### 1.11.4
 
@@ -46,7 +64,8 @@ _We are temporarily unable to update sing-box apps on the App Store because the 
 
 * Fixes and improvements
 
-_This version overwrites 1.11.2, as incorrect binaries were released due to a bug in the continuous integration process._
+_This version overwrites 1.11.2, as incorrect binaries were released due to a bug in the continuous integration
+process._
 
 ### 1.11.1
 
