@@ -18,6 +18,7 @@ type GRPCConn struct {
 }
 
 func NewGRPCConn(service GunService) *GRPCConn {
+	//nolint:staticcheck
 	if client, isClient := service.(GunService_TunClient); isClient {
 		service = &clientConnWrapper{client}
 	}
