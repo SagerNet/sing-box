@@ -62,6 +62,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	dialOptions = append(dialOptions, grpc.WithContextDialer(func(ctx context.Context, server string) (net.Conn, error) {
 		return dialer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr(server))
 	}))
+	//nolint:staticcheck
 	dialOptions = append(dialOptions, grpc.WithReturnConnectionError())
 	return &Client{
 		ctx:         ctx,
@@ -84,7 +85,6 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 		return conn, nil
 	}
 	//nolint:staticcheck
-	//goland:noinspection GoDeprecation
 	conn, err := grpc.DialContext(c.ctx, c.serverAddr, c.dialOptions...)
 	if err != nil {
 		return nil, err
