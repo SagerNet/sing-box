@@ -16,7 +16,7 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/libdns/alidns"
 	"github.com/libdns/cloudflare"
-	"github.com/mholt/acmez/acme"
+	"github.com/mholt/acmez/v3/acme"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
