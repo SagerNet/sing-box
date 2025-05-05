@@ -20,6 +20,7 @@ icon: material/new-box
         "server_port": 443,
         
         "path": "",
+        "method": "",
         "headers": {},
         
         "tls": {},
@@ -57,6 +58,14 @@ The port of the DNS server.
 The path of the DNS server.
 
 `/dns-query` will be used by default.
+
+#### method
+
+The method of the DNS server.
+
+Only `GET` and `POST` are supported.
+
+`POST` will be used by default.
 
 #### headers
 

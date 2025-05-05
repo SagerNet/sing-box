@@ -3,6 +3,7 @@ package quic
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"net"
 	"net/http"
@@ -40,6 +41,7 @@ type HTTP3Transport struct {
 	logger      logger.ContextLogger
 	dialer      N.Dialer
 	destination *url.URL
+	method      string
 	headers     http.Header
 	transport   *http3.Transport
 }
@@ -100,6 +102,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		logger:           logger,
 		dialer:           transportDialer,
 		destination:      &destinationURL,
+		method:           options.Method,
 		headers:          headers,
 		transport: &http3.Transport{
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
@@ -132,13 +135,26 @@ func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 		requestBuffer.Release()
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.destination.String(), bytes.NewReader(rawMessage))
+	destination := *t.destination
+	var request *http.Request
+	var body io.Reader
+	switch t.method {
+	case http.MethodGet:
+		query := url.Values{}
+		query.Set("dns", base64.RawURLEncoding.EncodeToString(rawMessage))
+		destination.RawQuery = query.Encode()
+	case http.MethodPost:
+		body = bytes.NewReader(rawMessage)
+	}
+	request, err = http.NewRequestWithContext(ctx, t.method, destination.String(), body)
 	if err != nil {
 		requestBuffer.Release()
 		return nil, err
 	}
 	request.Header = t.headers.Clone()
-	request.Header.Set("Content-Type", transport.MimeType)
+	if t.method == http.MethodPost {
+		request.Header.Set("Content-Type", transport.MimeType)
+	}
 	request.Header.Set("Accept", transport.MimeType)
 	response, err := t.transport.RoundTrip(request)
 	requestBuffer.Release()
