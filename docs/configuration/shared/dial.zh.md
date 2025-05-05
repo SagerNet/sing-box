@@ -25,11 +25,11 @@ icon: material/new-box
   "inet6_bind_address": "",
   "routing_mark": 0,
   "reuse_addr": false,
+  "netns": "",
   "connect_timeout": "",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "netns": "",
   "domain_resolver": "", // 或 {}
   "network_strategy": "",
   "network_type": [],
@@ -74,9 +74,21 @@ icon: material/new-box
 
 设置 netfilter 路由标记。
 
+支持数字 (如 `1234`) 和十六进制字符串 (如 `"0x1234"`)。
+
 #### reuse_addr
 
 重用监听地址。
+
+#### netns
+
+!!! question "自 sing-box 1.12.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+设置网络命名空间，名称或路径。
 
 #### connect_timeout
 
@@ -100,16 +112,6 @@ icon: material/new-box
 #### udp_fragment
 
 启用 UDP 分段。
-
-#### netns
-
-!!! question "自 sing-box 1.12.0 起"
-
-!!! quote ""
-
-    仅支持 Linux。
-
-设置网络命名空间，名称或路径。
 
 #### domain_resolver
 
