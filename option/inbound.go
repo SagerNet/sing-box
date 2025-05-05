@@ -61,6 +61,10 @@ type InboundOptions struct {
 type ListenOptions struct {
 	Listen               *badoption.Addr    `json:"listen,omitempty"`
 	ListenPort           uint16             `json:"listen_port,omitempty"`
+	BindInterface        string             `json:"bind_interface,omitempty"`
+	RoutingMark          FwMark             `json:"routing_mark,omitempty"`
+	ReuseAddr            bool               `json:"reuse_addr,omitempty"`
+	NetNs                string             `json:"netns,omitempty"`
 	TCPKeepAlive         badoption.Duration `json:"tcp_keep_alive,omitempty"`
 	TCPKeepAliveInterval badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
 	TCPFastOpen          bool               `json:"tcp_fast_open,omitempty"`
@@ -68,7 +72,6 @@ type ListenOptions struct {
 	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault   bool               `json:"-"`
 	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
-	NetNs                string             `json:"netns,omitempty"`
 
 	// Deprecated: removed
 	ProxyProtocol bool `json:"proxy_protocol,omitempty"`
