@@ -25,11 +25,12 @@ icon: material/new-box
   "inet6_bind_address": "",
   "routing_mark": 0,
   "reuse_addr": false,
+  "netns": "",
   "connect_timeout": "",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  "netns": "",
+  
   "domain_resolver": "", // or {}
   "network_strategy": "",
   "network_type": [],
@@ -37,6 +38,7 @@ icon: material/new-box
   "fallback_delay": "",
 
   // Deprecated
+  
   "domain_strategy": ""
 }
 ```
@@ -73,9 +75,21 @@ The IPv6 address to bind to.
 
 Set netfilter routing mark.
 
+Integers (e.g. `1234`) and string hexadecimals (e.g. `"0x1234"`) are supported.
+
 #### reuse_addr
 
 Reuse listener address.
+
+#### netns
+
+!!! question "Since sing-box 1.12.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Set network namespace, name or path.
 
 #### connect_timeout
 
@@ -101,16 +115,6 @@ Enable TCP Multi Path.
 #### udp_fragment
 
 Enable UDP fragmentation.
-
-#### netns
-
-!!! question "Since sing-box 1.12.0"
-
-!!! quote ""
-
-    Only supported on Linux.
-
-Set network namespace, name or path.
 
 #### domain_resolver
 
