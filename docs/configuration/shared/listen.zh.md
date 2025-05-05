@@ -4,7 +4,10 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.12.0"
 
-    :material-plus: [netns](#netns)
+    :material-plus: [netns](#netns)  
+    :material-plus: [bind_interface](#bind_interface)  
+    :material-plus: [routing_mark](#routing_mark)  
+    :material-plus: [reuse_addr](#reuse_addr)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -20,12 +23,18 @@ icon: material/new-box
 {
   "listen": "",
   "listen_port": 0,
+  "bind_interface": "",
+  "routing_mark": 0,
+  "reuse_addr": false,
+  "netns": "",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
   "udp_timeout": "",
-  "netns": "",
   "detour": "",
+
+  // 废弃的
+  
   "sniff": false,
   "sniff_override_destination": false,
   "sniff_timeout": "",
@@ -33,16 +42,6 @@ icon: material/new-box
   "udp_disable_domain_unmapping": false
 }
 ```
-
-
-| 字段               | 可用上下文           |
-|------------------|-----------------|
-| `listen`         | 需要监听 TCP 或 UDP。 |
-| `listen_port`    | 需要监听 TCP 或 UDP。 |
-| `tcp_fast_open`  | 需要监听 TCP。       |
-| `tcp_multi_path` | 需要监听 TCP。       |
-| `udp_timeout`    | 需要组装 UDP 连接。    |
-| 
 
 ### 字段
 
@@ -55,6 +54,40 @@ icon: material/new-box
 #### listen_port
 
 监听端口。
+
+#### bind_interface
+
+!!! question "自 sing-box 1.12.0 起"
+
+要绑定到的网络接口。
+
+#### routing_mark
+
+!!! question "自 sing-box 1.12.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+设置 netfilter 路由标记。
+
+支持数字 (如 `1234`) 和十六进制字符串 (如 `"0x1234"`)。
+
+#### reuse_addr
+
+!!! question "自 sing-box 1.12.0 起"
+
+重用监听地址。
+
+#### netns
+
+!!! question "自 sing-box 1.12.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+设置网络命名空间，名称或路径。
 
 #### tcp_fast_open
 
@@ -77,16 +110,6 @@ icon: material/new-box
 UDP NAT 过期时间。
 
 默认使用 `5m`。
-
-#### netns
-
-!!! question "自 sing-box 1.12.0 起"
-
-!!! quote ""
-
-    仅支持 Linux。
-
-设置网络命名空间，名称或路径。
 
 #### detour
 
