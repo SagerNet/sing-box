@@ -118,9 +118,8 @@ github.com/sagernet/quic-go v0.49.0-beta.1 h1:3LdoCzVVfYRibZns1tYWSIoB65fpTmrwy+
 github.com/sagernet/quic-go v0.49.0-beta.1/go.mod h1:uesWD1Ihrldq1M3XtjuEvIUqi8WHNsRs71b3Lt1+p/U=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691 h1:5Th31OC6yj8byLGkEnIYp6grlXfo1QYUfiYFGjewIdc=
 github.com/sagernet/reality v0.0.0-20230406110435-ee17307e7691/go.mod h1:B8lp4WkQ1PwNnrVMM6KyuFR20pU8jYBD+A4EhJovEXU=
-github.com/sagernet/sing v0.6.7/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
-github.com/sagernet/sing v0.6.8 h1:rpi0MozOxq2xD2/sAqXJDaoxLOvGU+foBs1a6HsYErg=
-github.com/sagernet/sing v0.6.8/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
+github.com/sagernet/sing v0.6.9 h1:y/XJH17oyBd6hxgQtKnIdLXu7TsOHxO5i1JeVfVmjXw=
+github.com/sagernet/sing v0.6.9/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
 github.com/sagernet/sing-dns v0.4.2 h1:cWe2XPUBFLep2j9kJV4Epg3bctGhMvrrl/sWi9Wszfg=
 github.com/sagernet/sing-dns v0.4.2/go.mod h1:dweQs54ng2YGzoJfz+F9dGuDNdP5pJ3PLeggnK5VWc8=
 github.com/sagernet/sing-mux v0.3.2 h1:meZVFiiStvHThb/trcpAkCrmtJOuItG5Dzl1RRP5/NE=
@@ -137,8 +136,8 @@ github.com/sagernet/sing-tun v0.6.5 h1:nGfD6GNq/r0tEjdZHOV3BS6fydSmd4kBAokU5rffs
 github.com/sagernet/sing-tun v0.6.5/go.mod h1:fisFCbC4Vfb6HqQNcwPJi2CDK2bf0Xapyz3j3t4cnHE=
 github.com/sagernet/sing-vmess v0.2.1 h1:6izHC2+B68aQCxTagki6eZZc+g5eh4dYwxOV5a2Lhug=
 github.com/sagernet/sing-vmess v0.2.1/go.mod h1:jDAZ0A0St1zVRkyvhAPRySOFfhC+4SQtO5VYyeFotgA=
-github.com/sagernet/smux v1.5.34-mod.1 h1:xZljMK3fVOX4HC+ND1N7eOiweqEa9bxRTKlliqe9DJE=
-github.com/sagernet/smux v1.5.34-mod.1/go.mod h1:qI3fpNiLZmwrh83DmbJHX7sAsc2R/gbqdWw0/WzciU0=
+github.com/sagernet/smux v1.5.34-mod.2 h1:gkmBjIjlJ2zQKpLigOkFur5kBKdV6bNRoFu2WkltRQ4=
+github.com/sagernet/smux v1.5.34-mod.2/go.mod h1:0KW0+R+ycvA2INW4gbsd7BNyg+HEfLIAxa5N02/28Zc=
 github.com/sagernet/utls v1.6.7 h1:Ep3+aJ8FUGGta+II2IEVNUc3EDhaRCZINWkj/LloIA8=
 github.com/sagernet/utls v1.6.7/go.mod h1:Uua1TKO/FFuAhLr9rkaVnnrTmmiItzDjv1BUb2+ERwM=
 github.com/sagernet/wireguard-go v0.0.1-beta.7 h1:ltgBwYHfr+9Wz1eG59NiWnHrYEkDKHG7otNZvu85DXI=
