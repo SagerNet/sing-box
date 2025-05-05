@@ -28,13 +28,13 @@ require (
 	github.com/sagernet/gomobile v0.1.7
 	github.com/sagernet/gvisor v0.0.0-20250325023245-7a9c0f5725fb
 	github.com/sagernet/quic-go v0.52.0-beta.1
-	github.com/sagernet/sing v0.6.12-0.20250704043954-da981379f151
+	github.com/sagernet/sing v0.6.12-0.20250710134112-2f96887176ff
 	github.com/sagernet/sing-mux v0.3.2
 	github.com/sagernet/sing-quic v0.5.0-beta.3
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
-	github.com/sagernet/sing-tun v0.6.10-0.20250703121732-a0881ada3251
+	github.com/sagernet/sing-tun v0.6.10-0.20250710134146-6aeee7bc7db4
 	github.com/sagernet/sing-vmess v0.2.4-0.20250605032146-38cc72672c88
 	github.com/sagernet/smux v1.5.34-mod.2
 	github.com/sagernet/tailscale v1.80.3-mod.5
