@@ -16,3 +16,13 @@ type URLTestOutboundOptions struct {
 	IdleTimeout               badoption.Duration `json:"idle_timeout,omitempty"`
 	InterruptExistConnections bool               `json:"interrupt_exist_connections,omitempty"`
 }
+
+type BalancerOutboundOptions struct {
+	Outbounds     []string           `json:"outbounds"`
+	URL           string             `json:"url,omitempty"`
+	Interval      badoption.Duration `json:"interval,omitempty"`
+	HistoryTTL    badoption.Duration `json:"history_ttl,omitempty"`
+	ForceRandom   bool               `json:"force_random,omitempty"`
+	RetryCount    int                `json:"retry_count,omitempty"`
+	RetryInterval badoption.Duration `json:"retry_interval,omitempty"`
+}
