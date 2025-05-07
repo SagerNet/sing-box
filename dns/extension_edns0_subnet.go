@@ -6,7 +6,11 @@ import (
 	"github.com/miekg/dns"
 )
 
-func SetClientSubnet(message *dns.Msg, clientSubnet netip.Prefix, override bool) *dns.Msg {
+func SetClientSubnet(message *dns.Msg, clientSubnet netip.Prefix) *dns.Msg {
+	return setClientSubnet(message, clientSubnet, true)
+}
+
+func setClientSubnet(message *dns.Msg, clientSubnet netip.Prefix, clone bool) *dns.Msg {
 	var (
 		optRecord    *dns.OPT
 		subnetOption *dns.EDNS0_SUBNET
@@ -19,9 +23,6 @@ findExists:
 				var isEDNS0Subnet bool
 				subnetOption, isEDNS0Subnet = option.(*dns.EDNS0_SUBNET)
 				if isEDNS0Subnet {
-					if !override {
-						return message
-					}
 					break findExists
 				}
 			}
@@ -37,14 +38,14 @@ findExists:
 			},
 		}
 		message.Extra = append(message.Extra, optRecord)
-	} else {
-		message = message.Copy()
+	} else if clone {
+		return setClientSubnet(message.Copy(), clientSubnet, false)
 	}
 	if subnetOption == nil {
 		subnetOption = new(dns.EDNS0_SUBNET)
+		subnetOption.Code = dns.EDNS0SUBNET
 		optRecord.Option = append(optRecord.Option, subnetOption)
 	}
-	subnetOption.Code = dns.EDNS0SUBNET
 	if clientSubnet.Addr().Is4() {
 		subnetOption.Family = 1
 	} else {
