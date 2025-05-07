@@ -105,7 +105,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	}
 	question := message.Question[0]
 	if options.ClientSubnet.IsValid() {
-		message = SetClientSubnet(message, options.ClientSubnet, true)
+		message = SetClientSubnet(message, options.ClientSubnet)
 	}
 	isSimpleRequest := len(message.Question) == 1 &&
 		len(message.Ns) == 0 &&
