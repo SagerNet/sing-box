@@ -17,4 +17,5 @@ const (
 	CommandConnections
 	CommandCloseConnection
 	CommandGetDeprecatedNotes
+	CommandGroupInfoOnly//hiddify
 )
