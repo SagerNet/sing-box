@@ -72,6 +72,7 @@ type Endpoint struct {
 	filter            *atomic.Pointer[filter.Filter]
 	onReconfig        wgengine.ReconfigListener
 
+	acceptRoutes           bool
 	exitNode               string
 	exitNodeAllowLANAccess bool
 	advertiseRoutes        []netip.Prefix
@@ -170,6 +171,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		network:                service.FromContext[adapter.NetworkManager](ctx),
 		platformInterface:      service.FromContext[platform.Interface](ctx),
 		server:                 server,
+		acceptRoutes:           options.AcceptRoutes,
 		exitNode:               options.ExitNode,
 		exitNodeAllowLANAccess: options.ExitNodeAllowLANAccess,
 		advertiseRoutes:        options.AdvertiseRoutes,
@@ -226,6 +228,10 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 
 	localBackend := t.server.ExportLocalBackend()
 	perfs := &ipn.MaskedPrefs{
+		Prefs: ipn.Prefs{
+			RouteAll: t.acceptRoutes,
+		},
+		RouteAllSet:        true,
 		ExitNodeIPSet:      true,
 		AdvertiseRoutesSet: true,
 	}
