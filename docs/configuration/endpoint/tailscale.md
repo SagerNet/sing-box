@@ -15,6 +15,7 @@ icon: material/new-box
   "control_url": "",
   "ephemeral": false,
   "hostname": "",
+  "accept_routes": false,
   "exit_node": "",
   "exit_node_allow_lan_access": false,
   "advertise_routes": [],
@@ -61,6 +62,10 @@ The hostname of the node.
 System hostname is used by default.
 
 Example: `localhost`
+
+#### accept_routes
+
+Indicates whether the node should accept routes advertised by other nodes.
 
 #### exit_node
 
