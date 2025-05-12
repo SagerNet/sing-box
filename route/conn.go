@@ -95,15 +95,9 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		if fallbackDelay == 0 {
 			fallbackDelay = C.TLSFragmentFallbackDelay
 		}
-		var newConn *tf.Conn
-		newConn, err = tf.NewConn(remoteConn, ctx, fallbackDelay)
-		if err != nil {
-			conn.Close()
-			remoteConn.Close()
-			m.logger.ErrorContext(ctx, err)
-			return
-		}
-		remoteConn = newConn
+		remoteConn = tf.NewConn(remoteConn, ctx, false, fallbackDelay)
+	} else if metadata.TLSRecordFragment {
+		remoteConn = tf.NewConn(remoteConn, ctx, true, 0)
 	}
 	m.access.Lock()
 	element := m.connections.PushBack(conn)

@@ -6,6 +6,7 @@ icon: material/new-box
 
     :material-plus: [tls_fragment](#tls_fragment)  
     :material-plus: [tls_fragment_fallback_delay](#tls_fragment_fallback_delay)  
+    :material-plus: [tls_record_fragment](#tls_record_fragment)  
     :material-plus: [resolve.disable_cache](#disable_cache)  
     :material-plus: [resolve.rewrite_ttl](#rewrite_ttl)  
     :material-plus: [resolve.client_subnet](#client_subnet)
@@ -91,7 +92,8 @@ Not available when `method` is set to drop.
   "udp_connect": false,
   "udp_timeout": "",
   "tls_fragment": false,
-  "tls_fragment_fallback_delay": ""
+  "tls_fragment_fallback_delay": "",
+  "tls_record_fragment": ""
 }
 ```
 
@@ -164,13 +166,19 @@ If no protocol is sniffed, the following ports will be recognized as protocols b
 
 Fragment TLS handshakes to bypass firewalls.
 
-This feature is intended to circumvent simple firewalls based on **plaintext packet matching**, and should not be used to circumvent real censorship.
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**,
+and should not be used to circumvent real censorship.
 
-Since it is not designed for performance, it should not be applied to all connections, but only to server names that are known to be blocked.
+Due to poor performance, try `tls_record_fragment` first, and only apply to server names known to be blocked.
 
-On Linux, Apple platforms, (administrator privileges required) Windows, the wait time can be automatically detected, otherwise it will fall back to waiting for a fixed time specified by `tls_fragment_fallback_delay`.
+On Linux, Apple platforms, (administrator privileges required) Windows,
+the wait time can be automatically detected, otherwise it will fall back to
+waiting for a fixed time specified by `tls_fragment_fallback_delay`.
 
-In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time, because the target is considered to be local or behind a transparent proxy.
+In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time,
+because the target is considered to be local or behind a transparent proxy.
+
+Conflict with `tls_record_fragment`.
 
 #### tls_fragment_fallback_delay
 
@@ -179,6 +187,17 @@ In addition, if the actual wait time is less than 20ms, it will also fall back t
 The fallback value used when TLS segmentation cannot automatically determine the wait time.
 
 `500ms` is used by default.
+
+#### tls_record_fragment
+
+!!! question "Since sing-box 1.12.0"
+
+Fragment TLS handshake into multiple TLS records to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**,
+and should not be used to circumvent real censorship.
+
+Conflict with `tls_fragment`.
 
 ### sniff
 
