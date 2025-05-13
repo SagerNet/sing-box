@@ -450,6 +450,9 @@ match:
 				metadata.TLSFragment = true
 				metadata.TLSFragmentFallbackDelay = routeOptions.TLSFragmentFallbackDelay
 			}
+			if routeOptions.TLSRecordFragment {
+				metadata.TLSRecordFragment = true
+			}
 		}
 		switch action := currentRule.Action().(type) {
 		case *R.RuleActionSniff:
