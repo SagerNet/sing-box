@@ -120,6 +120,7 @@ jobs:
           set -xeuo pipefail
           sudo gem install fpm
           sudo apt-get install -y debsigs
+          cp .fpm_systemd .fpm
           fpm -t deb \
             --name "${NAME}" \
             -v "$PKG_VERSION" \
@@ -138,6 +139,7 @@ jobs:
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
+          cp .fpm_systemd .fpm
           fpm -t rpm \
             --name "${NAME}" \
             -v "$PKG_VERSION" \

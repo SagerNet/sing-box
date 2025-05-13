@@ -24,3 +24,24 @@ func TestSniffSSH(t *testing.T) {
 	require.Equal(t, C.ProtocolSSH, metadata.Protocol)
 	require.Equal(t, "dropbear", metadata.Client)
 }
+
+func TestSniffIncompleteSSH(t *testing.T) {
+	t.Parallel()
+
+	pkt, err := hex.DecodeString("5353482d322e30")
+	require.NoError(t, err)
+	var metadata adapter.InboundContext
+	err = sniff.SSH(context.TODO(), &metadata, bytes.NewReader(pkt))
+	require.ErrorIs(t, err, sniff.ErrNeedMoreData)
+}
+
+func TestSniffNotSSH(t *testing.T) {
+	t.Parallel()
+
+	pkt, err := hex.DecodeString("5353482d322e31")
+	require.NoError(t, err)
+	var metadata adapter.InboundContext
+	err = sniff.SSH(context.TODO(), &metadata, bytes.NewReader(pkt))
+	require.NotEmpty(t, err)
+	require.NotErrorIs(t, err, sniff.ErrNeedMoreData)
+}

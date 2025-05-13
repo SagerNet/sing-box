@@ -252,6 +252,14 @@ type _RejectActionOptions struct {
 
 type RejectActionOptions _RejectActionOptions
 
+func (r RejectActionOptions) MarshalJSON() ([]byte, error) {
+	switch r.Method {
+	case C.RuleActionRejectMethodDefault:
+		r.Method = ""
+	}
+	return json.Marshal((_RejectActionOptions)(r))
+}
+
 func (r *RejectActionOptions) UnmarshalJSON(bytes []byte) error {
 	err := json.Unmarshal(bytes, (*_RejectActionOptions)(r))
 	if err != nil {

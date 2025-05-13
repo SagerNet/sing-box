@@ -32,6 +32,27 @@ func TestSniffBittorrent(t *testing.T) {
 	}
 }
 
+func TestSniffIncompleteBittorrent(t *testing.T) {
+	t.Parallel()
+
+	pkt, err := hex.DecodeString("13426974546f7272656e74")
+	require.NoError(t, err)
+	var metadata adapter.InboundContext
+	err = sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(pkt))
+	require.ErrorIs(t, err, sniff.ErrNeedMoreData)
+}
+
+func TestSniffNotBittorrent(t *testing.T) {
+	t.Parallel()
+
+	pkt, err := hex.DecodeString("13426974546f7272656e75")
+	require.NoError(t, err)
+	var metadata adapter.InboundContext
+	err = sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(pkt))
+	require.NotEmpty(t, err)
+	require.NotErrorIs(t, err, sniff.ErrNeedMoreData)
+}
+
 func TestSniffUTP(t *testing.T) {
 	t.Parallel()
 
