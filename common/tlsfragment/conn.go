@@ -98,7 +98,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 				}
 			}
 			if c.splitRecord {
-				_, err = c.tcpConn.Write(buffer.Bytes())
+				_, err = c.Conn.Write(buffer.Bytes())
 				if err != nil {
 					return
 				}
