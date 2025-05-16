@@ -395,6 +395,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 				resultAccess.Lock()
 				result[tag] = t
 				resultAccess.Unlock()
+				g.performUpdateCheck()
 			}
 			return nil, nil
 		})
@@ -405,6 +406,8 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 }
 
 func (g *URLTestGroup) performUpdateCheck() {
+	g.access.Lock()
+	defer g.access.Unlock()
 	var updated bool
 	if outbound, exists := g.Select(N.NetworkTCP); outbound != nil && (g.selectedOutboundTCP == nil || (exists && outbound != g.selectedOutboundTCP)) {
 		if g.selectedOutboundTCP != nil {
