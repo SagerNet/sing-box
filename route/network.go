@@ -57,6 +57,15 @@ type NetworkManager struct {
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
 	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
+	if routeOptions.AutoDetectInterface && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
+		return nil, E.New("`auto_detect_interface` is only supported on Linux, Windows and macOS")
+	} else if routeOptions.OverrideAndroidVPN && !C.IsAndroid {
+		return nil, E.New("`override_android_vpn` is only supported on Android")
+	} else if routeOptions.DefaultInterface != "" && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
+		return nil, E.New("`default_interface` is only supported on Linux, Windows and macOS")
+	} else if routeOptions.DefaultMark != 0 && !C.IsLinux {
+		return nil, E.New("`default_mark` is only supported on linux")
+	}
 	nm := &NetworkManager{
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
