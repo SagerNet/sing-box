@@ -81,7 +81,7 @@ icon: material/new-box
 
 #### method
 
-- `default`: 返回 NXDOMAIN。
+- `default`: 返回 REFUSED。
 - `drop`: 丢弃请求。
 
 默认使用 `defualt`。
