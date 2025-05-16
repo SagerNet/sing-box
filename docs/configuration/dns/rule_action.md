@@ -81,7 +81,7 @@ Will overrides `dns.client_subnet`.
 
 #### method
 
-- `default`: Reply with NXDOMAIN.
+- `default`: Reply with REFUSED.
 - `drop`: Drop the request.
 
 `default` will be used by default.
