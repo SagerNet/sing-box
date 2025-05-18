@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -17,7 +16,6 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/udpnat2"
@@ -57,6 +55,7 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 		Listen:            options.ListenOptions,
 		ConnectionHandler: tproxy,
 		OOBPacketHandler:  tproxy,
+		TProxy:            true,
 	})
 	return tproxy, nil
 }
@@ -65,27 +64,7 @@ func (t *TProxy) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	err := t.listener.Start()
-	if err != nil {
-		return err
-	}
-	if listener := t.listener.TCPListener(); listener != nil {
-		err = control.Conn(common.MustCast[syscall.Conn](listener), func(fd uintptr) error {
-			return redir.TProxy(fd, M.SocksaddrFromNet(listener.Addr()).Addr.Is6())
-		})
-		if err != nil {
-			return E.Cause(err, "configure tproxy TCP listener")
-		}
-	}
-	if conn := t.listener.UDPConn(); conn != nil {
-		err = control.Conn(conn, func(fd uintptr) error {
-			return redir.TProxy(fd, M.SocksaddrFromNet(conn.LocalAddr()).Addr.Is6())
-		})
-		if err != nil {
-			return E.Cause(err, "configure tproxy UDP listener")
-		}
-	}
-	return nil
+	return t.listener.Start()
 }
 
 func (t *TProxy) Close() error {
@@ -154,10 +133,10 @@ func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socks
 			return err
 		}
 	}
-	var listener net.ListenConfig
-	listener.Control = control.Append(listener.Control, control.ReuseAddr())
-	listener.Control = control.Append(listener.Control, redir.TProxyWriteBack())
-	packetConn, err := w.listener.ListenPacket(listener, w.ctx, "udp", destination.String())
+	var listenConfig net.ListenConfig
+	listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
+	listenConfig.Control = control.Append(listenConfig.Control, redir.TProxyWriteBack())
+	packetConn, err := w.listener.ListenPacket(listenConfig, w.ctx, "udp", destination.String())
 	if err != nil {
 		return err
 	}

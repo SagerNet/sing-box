@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TProxy(fd uintptr, isIPv6 bool) error {
+func TProxy(fd uintptr, isIPv6 bool, isUDP bool) error {
 	err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 	if err == nil {
 		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_TRANSPARENT, 1)
@@ -20,11 +20,13 @@ func TProxy(fd uintptr, isIPv6 bool) error {
 	if err == nil && isIPv6 {
 		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
 	}
-	if err == nil {
-		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_RECVORIGDSTADDR, 1)
-	}
-	if err == nil && isIPv6 {
-		err = syscall.SetsockoptInt(int(fd), syscall.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
+	if isUDP {
+		if err == nil {
+			err = syscall.SetsockoptInt(int(fd), syscall.SOL_IP, syscall.IP_RECVORIGDSTADDR, 1)
+		}
+		if err == nil && isIPv6 {
+			err = syscall.SetsockoptInt(int(fd), syscall.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
+		}
 	}
 	return err
 }

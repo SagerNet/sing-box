@@ -5,8 +5,10 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/redir"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -35,6 +37,13 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 	}
 	if !udpFragment {
 		listenConfig.Control = control.Append(listenConfig.Control, control.DisableUDPFragment())
+	}
+	if l.tproxy {
+		listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
+			return control.Raw(conn, func(fd uintptr) error {
+				return redir.TProxy(fd, M.ParseSocksaddr(address).IsIPv6(), true)
+			})
+		})
 	}
 	udpConn, err := ListenNetworkNamespace[net.PacketConn](l.listenOptions.NetNs, func() (net.PacketConn, error) {
 		return listenConfig.ListenPacket(l.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
