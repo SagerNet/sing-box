@@ -9,7 +9,7 @@ import (
 	"github.com/sagernet/sing/common/control"
 )
 
-func TProxy(fd uintptr, isIPv6 bool) error {
+func TProxy(fd uintptr, isIPv6 bool, isUDP bool) error {
 	return os.ErrInvalid
 }
 
