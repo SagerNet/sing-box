@@ -32,6 +32,7 @@ type Listener struct {
 	disablePacketOutput      bool
 	setSystemProxy           bool
 	systemProxySOCKS         bool
+	tproxy                   bool
 
 	tcpListener          net.Listener
 	systemProxy          settings.SystemProxy
@@ -54,6 +55,7 @@ type Options struct {
 	DisablePacketOutput      bool
 	SetSystemProxy           bool
 	SystemProxySOCKS         bool
+	TProxy                   bool
 }
 
 func New(
@@ -71,6 +73,7 @@ func New(
 		disablePacketOutput:      options.DisablePacketOutput,
 		setSystemProxy:           options.SetSystemProxy,
 		systemProxySOCKS:         options.SystemProxySOCKS,
+		tproxy:                   options.TProxy,
 	}
 }
 
