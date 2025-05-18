@@ -3,9 +3,11 @@ package listener
 import (
 	"net"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/redir"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/control"
@@ -50,6 +52,13 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 			return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
 		}
 		setMultiPathTCP(&listenConfig)
+	}
+	if l.tproxy {
+		listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
+			return control.Raw(conn, func(fd uintptr) error {
+				return redir.TProxy(fd, M.ParseSocksaddr(address).IsIPv6(), false)
+			})
+		})
 	}
 	tcpListener, err := ListenNetworkNamespace[net.Listener](l.listenOptions.NetNs, func() (net.Listener, error) {
 		if l.listenOptions.TCPFastOpen {
