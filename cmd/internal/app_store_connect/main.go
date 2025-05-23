@@ -105,7 +105,7 @@ func publishTestflight(ctx context.Context) error {
 		return err
 	}
 	tag := tagVersion.VersionString()
-	client := createClient(10 * time.Minute)
+	client := createClient(20 * time.Minute)
 
 	log.Info(tag, " list build IDs")
 	buildIDsResponse, _, err := client.TestFlight.ListBuildIDsForBetaGroup(ctx, groupID, nil)
@@ -145,7 +145,7 @@ func publishTestflight(ctx context.Context) error {
 				return err
 			}
 			build := builds.Data[0]
-			if common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 5*time.Minute {
+			if common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute {
 				log.Info(string(platform), " ", tag, " waiting for process")
 				time.Sleep(15 * time.Second)
 				continue
