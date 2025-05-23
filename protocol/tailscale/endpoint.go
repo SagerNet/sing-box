@@ -221,6 +221,14 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 	}
 
 	ipStack := t.server.ExportNetstack().ExportIPStack()
+	gErr := ipStack.SetSpoofing(tun.DefaultNIC, true)
+	if gErr != nil {
+		return gonet.TranslateNetstackError(gErr)
+	}
+	gErr = ipStack.SetPromiscuousMode(tun.DefaultNIC, true)
+	if gErr != nil {
+		return gonet.TranslateNetstackError(gErr)
+	}
 	ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(t.ctx, ipStack, t).HandlePacket)
 	udpForwarder := tun.NewUDPForwarder(t.ctx, ipStack, t, t.udpTimeout)
 	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, udpForwarder.HandlePacket)
