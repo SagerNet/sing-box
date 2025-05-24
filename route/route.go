@@ -176,8 +176,6 @@ func (r *Router) RoutePacketConnectionEx(ctx context.Context, conn N.PacketConn,
 		} else {
 			r.logger.ErrorContext(ctx, err)
 		}
-	} else if onClose != nil {
-		onClose(nil)
 	}
 }
 
