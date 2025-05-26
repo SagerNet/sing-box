@@ -497,21 +497,28 @@ func (r *Router) actionSniff(
 		r.logger.DebugContext(ctx, "duplicate sniff skipped")
 		return
 	}
-	if inputConn != nil {
-		sniffBuffer := buf.NewPacket()
-		var streamSniffers []sniff.StreamSniffer
-		if len(action.StreamSniffers) > 0 {
-			streamSniffers = action.StreamSniffers
-		} else {
-			streamSniffers = []sniff.StreamSniffer{
-				sniff.TLSClientHello,
-				sniff.HTTPHost,
-				sniff.StreamDomainNameQuery,
-				sniff.BitTorrent,
-				sniff.SSH,
-				sniff.RDP,
-			}
+	streamSniffers := action.StreamSniffers
+	packetSniffers := action.PacketSniffers
+	if len(streamSniffers) == 0 && len(packetSniffers) == 0 {
+		streamSniffers = []sniff.StreamSniffer{
+			sniff.TLSClientHello,
+			sniff.HTTPHost,
+			sniff.StreamDomainNameQuery,
+			sniff.BitTorrent,
+			sniff.SSH,
+			sniff.RDP,
 		}
+		packetSniffers = []sniff.PacketSniffer{
+			sniff.DomainNameQuery,
+			sniff.QUICClientHello,
+			sniff.STUNMessage,
+			sniff.UTP,
+			sniff.UDPTracker,
+			sniff.DTLSRecord,
+		}
+	}
+	if inputConn != nil && len(streamSniffers) > 0 {
+		sniffBuffer := buf.NewPacket()
 		err := sniff.PeekStream(
 			ctx,
 			metadata,
@@ -542,7 +549,7 @@ func (r *Router) actionSniff(
 		} else {
 			sniffBuffer.Release()
 		}
-	} else if inputPacketConn != nil {
+	} else if inputPacketConn != nil && len(packetSniffers) > 0 {
 		if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrNeedMoreData) {
 			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.PacketSniffError)
 			return
@@ -586,19 +593,6 @@ func (r *Router) actionSniff(
 						sniff.QUICClientHello,
 					)
 				} else {
-					var packetSniffers []sniff.PacketSniffer
-					if len(action.PacketSniffers) > 0 {
-						packetSniffers = action.PacketSniffers
-					} else {
-						packetSniffers = []sniff.PacketSniffer{
-							sniff.DomainNameQuery,
-							sniff.QUICClientHello,
-							sniff.STUNMessage,
-							sniff.UTP,
-							sniff.UDPTracker,
-							sniff.DTLSRecord,
-						}
-					}
 					err = sniff.PeekPacket(
 						ctx, metadata,
 						sniffBuffer.Bytes(),
