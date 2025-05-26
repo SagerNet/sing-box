@@ -496,7 +496,9 @@ func (r *Router) actionSniff(
 		return
 	}
 	if inputConn != nil {
-		sniffBuffer := buf.NewPacket()
+		if len(action.StreamSniffers) == 0 && len(action.PacketSniffers) > 0 {
+			return
+		}
 		var streamSniffers []sniff.StreamSniffer
 		if len(action.StreamSniffers) > 0 {
 			streamSniffers = action.StreamSniffers
@@ -510,6 +512,7 @@ func (r *Router) actionSniff(
 				sniff.RDP,
 			}
 		}
+		sniffBuffer := buf.NewPacket()
 		err := sniff.PeekStream(
 			ctx,
 			metadata,
@@ -541,9 +544,24 @@ func (r *Router) actionSniff(
 			sniffBuffer.Release()
 		}
 	} else if inputPacketConn != nil {
-		if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrNeedMoreData) {
+		if len(action.PacketSniffers) == 0 && len(action.StreamSniffers) > 0 {
+			return
+		} else if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrNeedMoreData) {
 			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.PacketSniffError)
 			return
+		}
+		var packetSniffers []sniff.PacketSniffer
+		if len(action.PacketSniffers) > 0 {
+			packetSniffers = action.PacketSniffers
+		} else {
+			packetSniffers = []sniff.PacketSniffer{
+				sniff.DomainNameQuery,
+				sniff.QUICClientHello,
+				sniff.STUNMessage,
+				sniff.UTP,
+				sniff.UDPTracker,
+				sniff.DTLSRecord,
+			}
 		}
 		for {
 			var (
@@ -584,19 +602,6 @@ func (r *Router) actionSniff(
 						sniff.QUICClientHello,
 					)
 				} else {
-					var packetSniffers []sniff.PacketSniffer
-					if len(action.PacketSniffers) > 0 {
-						packetSniffers = action.PacketSniffers
-					} else {
-						packetSniffers = []sniff.PacketSniffer{
-							sniff.DomainNameQuery,
-							sniff.QUICClientHello,
-							sniff.STUNMessage,
-							sniff.UTP,
-							sniff.UDPTracker,
-							sniff.DTLSRecord,
-						}
-					}
 					err = sniff.PeekPacket(
 						ctx, metadata,
 						sniffBuffer.Bytes(),
