@@ -68,7 +68,7 @@ func NewServiceWithContext(ctx context.Context, configContent string, platformIn
 		Context: ctx,
 		Options: options,
 	}
-	if runtime.GOOS == "android" || runtime.GOOS == "ios" {
+	if platformInterface != nil {
 		platformWrapper := &platformInterfaceWrapper{
 			iif:       platformInterface,
 			useProcFS: platformInterface.UseProcFS(),
