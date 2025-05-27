@@ -37,3 +37,9 @@ git fetch upstream
 git merge upstream/main
 git push origin lantern-main-next
 ```
+
+To make updating other repos easier, you can then do, for example:
+
+```
+git tag -a v1.11.11-lantern -m "tagging latest"
+```
