@@ -164,6 +164,10 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if ruleIndex == 0 {
 		ruleIndex = tun.DefaultIPRoute2RuleIndex
 	}
+	fibIndex := options.FIBIndex
+	if fibIndex == 0 {
+		fibIndex = tun.DefaultFIBIndex
+	}
 	inputMark := uint32(options.AutoRedirectInputMark)
 	if inputMark == 0 {
 		inputMark = tun.DefaultAutoRedirectInputMark
@@ -188,6 +192,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			AutoRoute:                options.AutoRoute,
 			IPRoute2TableIndex:       tableIndex,
 			IPRoute2RuleIndex:        ruleIndex,
+			FIBIndex:                 fibIndex,
 			AutoRedirectInputMark:    inputMark,
 			AutoRedirectOutputMark:   outputMark,
 			StrictRoute:              options.StrictRoute,
