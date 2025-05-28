@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [fib_index](#fib_index)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-delete-alert: [gso](#gso)  
@@ -39,7 +43,7 @@ icon: material/alert-decagram
 
 !!! quote ""
 
-    仅支持 Linux、Windows 和 macOS。
+    仅支持 Linux、Windows、macOS和 FreeBSD。
 
 ### 结构
 
@@ -56,6 +60,7 @@ icon: material/alert-decagram
   "auto_route": true,
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
+  "fib_index": 2022,
   "auto_redirect": false,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
@@ -234,6 +239,14 @@ tun 接口的 IPv6 前缀。
 `auto_route` 生成的 iproute2 规则起始索引。
 
 默认使用 `9000`。
+
+#### fib_index
+
+!!! question "自 sing-box 1.12.0 起"
+
+`auto_route` 生成的 fib 路由表索引。
+
+默认使用 `2022`。
 
 #### auto_redirect
 
