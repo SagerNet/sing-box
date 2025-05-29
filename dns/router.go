@@ -55,6 +55,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		DisableExpire:    options.DNSClientOptions.DisableExpire,
 		IndependentCache: options.DNSClientOptions.IndependentCache,
 		CacheCapacity:    options.DNSClientOptions.CacheCapacity,
+		ClientSubnet:     options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
 		RDRC: func() adapter.RDRCStore {
 			cacheFile := service.FromContext[adapter.CacheFile](ctx)
 			if cacheFile == nil {
