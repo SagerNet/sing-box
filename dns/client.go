@@ -34,6 +34,7 @@ type Client struct {
 	disableCache     bool
 	disableExpire    bool
 	independentCache bool
+	clientSubnet     netip.Prefix
 	rdrc             adapter.RDRCStore
 	initRDRCFunc     func() adapter.RDRCStore
 	logger           logger.ContextLogger
@@ -47,6 +48,7 @@ type ClientOptions struct {
 	DisableExpire    bool
 	IndependentCache bool
 	CacheCapacity    uint32
+	ClientSubnet     netip.Prefix
 	RDRC             func() adapter.RDRCStore
 	Logger           logger.ContextLogger
 }
@@ -57,6 +59,7 @@ func NewClient(options ClientOptions) *Client {
 		disableCache:     options.DisableCache,
 		disableExpire:    options.DisableExpire,
 		independentCache: options.IndependentCache,
+		clientSubnet:     options.ClientSubnet,
 		initRDRCFunc:     options.RDRC,
 		logger:           options.Logger,
 	}
@@ -104,8 +107,12 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 		return &responseMessage, nil
 	}
 	question := message.Question[0]
-	if options.ClientSubnet.IsValid() {
-		message = SetClientSubnet(message, options.ClientSubnet)
+	clientSubnet := options.ClientSubnet
+	if !clientSubnet.IsValid() {
+		clientSubnet = c.clientSubnet
+	}
+	if clientSubnet.IsValid() {
+		message = SetClientSubnet(message, clientSubnet)
 	}
 	isSimpleRequest := len(message.Question) == 1 &&
 		len(message.Ns) == 0 &&
