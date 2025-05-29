@@ -1,6 +1,10 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-decagram: [servers](#servers)
 
 !!! quote "Changes in sing-box 1.11.0"
 
