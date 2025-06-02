@@ -10,7 +10,7 @@ icon: material/new-box
 
 ```json
 {
-  "endpoints": [
+  "services": [
     {
       "type": "",
       "tag": ""
