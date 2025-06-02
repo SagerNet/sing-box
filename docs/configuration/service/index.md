@@ -25,6 +25,7 @@ icon: material/new-box
 |------------|------------------------|
 | `derp`     | [DERP](./derp)         |
 | `resolved` | [Resolved](./resolved) |
+| `ssm-api`  | [SSM API](./ssm-api)   |
 
 #### tag
 
