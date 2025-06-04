@@ -124,6 +124,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		configPath:           configPath,
 		verifyClientEndpoint: options.VerifyClientEndpoint,
 		verifyClientURL:      options.VerifyClientURL,
+		home:                 options.Home,
 		meshKey:              options.MeshPSK,
 		meshKeyPath:          options.MeshPSKFile,
 		meshWith:             options.MeshWith,
