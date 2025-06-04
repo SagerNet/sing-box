@@ -47,6 +47,7 @@ func NewServer(ctx context.Context, logger logger.ContextLogger, options option.
 	server := &Server{
 		ctx:       ctx,
 		tlsConfig: tlsConfig,
+		logger:    logger,
 		handler:   handler,
 		h2Server: &http2.Server{
 			IdleTimeout: time.Duration(options.IdleTimeout),
