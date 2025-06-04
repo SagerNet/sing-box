@@ -20,6 +20,7 @@ DERP service is a Tailscale DERP server, similar to [derper](https://pkg.go.dev/
   "config_path": "",
   "verify_client_endpoint": [],
   "verify_client_url": [],
+  "home": "",
   "mesh_with": [],
   "mesh_psk": "",
   "mesh_psk_file": "",
@@ -68,6 +69,10 @@ Setting Array value to a string `__URL__` is equivalent to configuring:
 ```json
 { "url": __URL__ }
 ```
+
+#### home
+
+What to serve at the root path. It may be left empty (the default, for a default homepage), `blank` for a blank page, or a URL to redirect to
 
 #### mesh_with
 
