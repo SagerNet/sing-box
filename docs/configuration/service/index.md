@@ -10,7 +10,7 @@ icon: material/new-box
 
 ```json
 {
-  "endpoints": [
+  "services": [
     {
       "type": "",
       "tag": ""
@@ -25,6 +25,7 @@ icon: material/new-box
 |------------|------------------------|
 | `derp`     | [DERP](./derp)         |
 | `resolved` | [Resolved](./resolved) |
+| `ssm-api`  | [SSM API](./ssm-api)   |
 
 #### tag
 
