@@ -66,7 +66,7 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 		ws.Cipher(data, *(*[4]byte)(header[1+payloadBitLength:]), 0)
 	}
 
-	return w.writer.WriteBuffer(buffer)
+	return wrapWsError(w.writer.WriteBuffer(buffer))
 }
 
 func (w *Writer) FrontHeadroom() int {

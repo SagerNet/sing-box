@@ -62,15 +62,16 @@ func (c *WebsocketConn) Close() error {
 func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 	var header ws.Header
 	for {
-		n, err = wrapWsError0(c.reader.Read(b))
+		n, err = c.reader.Read(b)
 		if n > 0 {
 			err = nil
 			return
 		}
 		if !E.IsMulti(err, io.EOF, wsutil.ErrNoFrameAdvance) {
+			err = wrapWsError(err)
 			return
 		}
-		header, err = c.reader.NextFrame()
+		header, err = wrapWsError0(c.reader.NextFrame())
 		if err != nil {
 			return
 		}
@@ -79,14 +80,14 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 				err = wsutil.ErrFrameTooLarge
 				return
 			}
-			err = c.controlHandler(header, c.reader)
+			err = wrapWsError(c.controlHandler(header, c.reader))
 			if err != nil {
 				return
 			}
 			continue
 		}
 		if header.OpCode&ws.OpBinary == 0 {
-			err = c.reader.Discard()
+			err = wrapWsError(c.reader.Discard())
 			if err != nil {
 				return
 			}
@@ -178,12 +179,12 @@ func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
 		conn, err = c.dialContext(c.ctx, &c.requestURL, c.headers)
 	}
 	if err != nil {
-		return wrapWsError(err)
+		return err
 	}
 	if len(lateData) > 0 {
 		_, err = conn.Write(lateData)
 		if err != nil {
-			return wrapWsError(err)
+			return err
 		}
 	}
 	c.conn = conn
@@ -202,7 +203,7 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if c.conn != nil {
 		return wrapWsError0(c.conn.Write(b))
 	}
-	err = wrapWsError(c.writeRequest(b))
+	err = c.writeRequest(b)
 	c.err = err
 	close(c.create)
 	if err != nil {
@@ -223,7 +224,7 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	if c.err != nil {
 		return c.err
 	}
-	err := wrapWsError(c.writeRequest(buffer.Bytes()))
+	err := c.writeRequest(buffer.Bytes())
 	c.err = err
 	close(c.create)
 	return err
@@ -278,7 +279,7 @@ func wrapWsError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var closedErr *wsutil.ClosedError
+	var closedErr wsutil.ClosedError
 	if errors.As(err, &closedErr) {
 		if closedErr.Code == ws.StatusNormalClosure {
 			err = io.EOF
@@ -291,5 +292,5 @@ func wrapWsError0[T any](value T, err error) (T, error) {
 	if err == nil {
 		return value, nil
 	}
-	return common.DefaultValue[T](), wrapWsError(err)
+	return value, wrapWsError(err)
 }
