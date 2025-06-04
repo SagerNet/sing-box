@@ -398,11 +398,11 @@ UDP NAT 过期时间。
 
 TCP/IP 栈。
 
-| 栈      | 描述                                                               |
-|--------|------------------------------------------------------------------|
-| system | 基于系统网络栈执行 L3 到 L4 转换                                             |
-| gVisor | 基于 [gVisor](https://github.com/google/gvisor) 虚拟网络栈执行 L3 到 L4 转换 |
-| mixed  | 混合 `system` TCP 栈与 `gvisor` UDP 栈                                |
+| 栈       | 描述                                                                                                  | 
+|----------|-------------------------------------------------------------------------------------------------------|
+| `system` | 基于系统网络栈执行 L3 到 L4 转换                                                                        |
+| `gvisor` | 基于 [gVisor](https://github.com/google/gvisor) 虚拟网络栈执行 L3 到 L4 转换                            |
+| `mixed`  | 混合 `system` TCP 栈与 `gvisor` UDP 栈                                                                 |
 
 默认使用 `mixed` 栈如果 gVisor 构建标记已启用，否则默认使用 `system` 栈。
 
