@@ -8,6 +8,7 @@
 --deb-field "Bug: https://github.com/SagerNet/sing-box/issues"
 --no-deb-generate-changes
 --config-files /etc/sing-box/config.json
+--after-install release/config/sing-box.postinst
 
 release/config/config.json=/etc/sing-box/config.json
 
