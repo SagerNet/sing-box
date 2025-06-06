@@ -120,7 +120,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			for _, buffer := range buffers {
 				conn = bufio.NewCachedConn(conn, buffer)
 			}
-			r.hijackDNSStream(ctx, conn, metadata)
+			N.CloseOnHandshakeFailure(conn, onClose, r.hijackDNSStream(ctx, conn, metadata))
 			return nil
 		}
 	}
@@ -233,7 +233,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			N.CloseOnHandshakeFailure(conn, onClose, action.Error(ctx))
 			return nil
 		case *rule.RuleActionHijackDNS:
-			r.hijackDNSPacket(ctx, conn, packetBuffers, metadata)
+			r.hijackDNSPacket(ctx, conn, packetBuffers, metadata, onClose)
 			return nil
 		}
 	}
