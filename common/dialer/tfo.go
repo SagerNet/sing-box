@@ -12,7 +12,6 @@ import (
 
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
-	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
@@ -76,10 +75,11 @@ func (c *slowOpenConn) Write(b []byte) (n int, err error) {
 		return c.conn.Write(b)
 	default:
 	}
-	c.conn, err = c.dialer.DialContext(c.ctx, c.network, c.destination.String(), b)
+	conn, err := c.dialer.DialContext(c.ctx, c.network, c.destination.String(), b)
 	if err != nil {
-		c.conn = nil
-		c.err = E.Cause(err, "dial tcp fast open")
+		c.err = err
+	} else {
+		c.conn = conn
 	}
 	n = len(b)
 	close(c.create)
