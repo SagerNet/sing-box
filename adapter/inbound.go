@@ -126,10 +126,10 @@ func ContextFrom(ctx context.Context) *InboundContext {
 }
 
 func ExtendContext(ctx context.Context) (context.Context, *InboundContext) {
-	var newMetadata InboundContext
 	if metadata := ContextFrom(ctx); metadata != nil {
-		newMetadata = *metadata
+		return ctx, metadata
 	}
+	var newMetadata InboundContext
 	return WithContext(ctx, &newMetadata), &newMetadata
 }
 
