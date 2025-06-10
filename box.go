@@ -498,7 +498,7 @@ func (s *Box) Close() error {
 		close(s.done)
 	}
 	err := common.Close(
-		s.inbound, s.outbound, s.endpoint, s.router, s.connection, s.dnsRouter, s.dnsTransport, s.network,
+		s.service, s.endpoint, s.inbound, s.outbound, s.router, s.connection, s.dnsRouter, s.dnsTransport, s.network,
 	)
 	for _, lifecycleService := range s.internalService {
 		err = E.Append(err, lifecycleService.Close(), func(err error) error {
