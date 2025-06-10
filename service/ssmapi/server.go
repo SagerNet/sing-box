@@ -33,6 +33,9 @@ type Service struct {
 	listener   *listener.Listener
 	tlsConfig  tls.ServerConfig
 	httpServer *http.Server
+	traffics   map[string]*TrafficManager
+	users      map[string]*UserManager
+	cachePath  string
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.SSMAPIServiceOptions) (adapter.Service, error) {
@@ -50,6 +53,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		httpServer: &http.Server{
 			Handler: chiRouter,
 		},
+		traffics:  make(map[string]*TrafficManager),
+		users:     make(map[string]*UserManager),
+		cachePath: options.CachePath,
 	}
 	inboundManager := service.FromContext[adapter.InboundManager](ctx)
 	if options.Servers.Size() == 0 {
@@ -68,6 +74,8 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		managedServer.SetTracker(traffic)
 		user := NewUserManager(managedServer, traffic)
 		chiRouter.Route(entry.Key, NewAPIServer(logger, traffic, user).Route)
+		s.traffics[entry.Key] = traffic
+		s.users[entry.Key] = user
 	}
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
@@ -83,8 +91,12 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	err := s.loadCache()
+	if err != nil {
+		s.logger.Error(E.Cause(err, "load cache"))
+	}
 	if s.tlsConfig != nil {
-		err := s.tlsConfig.Start()
+		err = s.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
@@ -109,6 +121,10 @@ func (s *Service) Start(stage adapter.StartStage) error {
 }
 
 func (s *Service) Close() error {
+	err := s.saveCache()
+	if err != nil {
+		s.logger.Error(E.Cause(err, "save cache"))
+	}
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
 		common.PtrOrNil(s.listener),

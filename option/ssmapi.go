@@ -6,6 +6,7 @@ import (
 
 type SSMAPIServiceOptions struct {
 	ListenOptions
-	Servers *badjson.TypedMap[string, string] `json:"servers"`
+	Servers   *badjson.TypedMap[string, string] `json:"servers"`
+	CachePath string                            `json:"cache_path,omitempty"`
 	InboundTLSOptionsContainer
 }
