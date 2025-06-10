@@ -2,9 +2,21 @@
 icon: material/alert-decagram
 ---
 
-#### 1.12.0-beta.22
+#### 1.12.0-beta.23
 
+* Add loopback address support for tun **1**
+* Add cache support for ssm-api **2**
 * Fixes and improvements
+
+**1**:
+
+TUN now implements SideStore's StosVPN.
+
+See [Tun](/configuration/inbound/tun/#loopback_address).
+
+**2**:
+
+See [SSM API Service](/configuration/service/ssm-api/#cache_path).
 
 #### 1.12.0-beta.21
 
