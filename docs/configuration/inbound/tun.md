@@ -1,6 +1,10 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [loopback_address](#loopback_address)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -56,9 +60,12 @@ icon: material/alert-decagram
   "auto_route": true,
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
-  "auto_redirect": false,
+  "auto_redirect": true,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
+  "loopback_address": [
+    "10.0.7.1"
+  ],
   "strict_route": true,
   "route_address": [
     "0.0.0.0/1",
@@ -66,7 +73,6 @@ icon: material/alert-decagram
     "::/1",
     "8000::/1"
   ],
-  
   "route_exclude_address": [
     "192.168.0.0/16",
     "fc00::/7"
@@ -117,7 +123,6 @@ icon: material/alert-decagram
       "match_domain": []
     }
   },
-
   // Deprecated
   "gso": false,
   "inet4_address": [
@@ -140,8 +145,8 @@ icon: material/alert-decagram
   "inet6_route_exclude_address": [
     "fc00::/7"
   ],
-  
-  ... // Listen Fields
+  ...
+  // Listen Fields
 }
 ```
 
@@ -272,6 +277,16 @@ Connection input mark used by `auto_redirect`.
 Connection output mark used by `auto_redirect`.
 
 `0x2024` is used by default.
+
+#### loopback_address
+
+!!! question "Since sing-box 1.12.0"
+
+Loopback addresses make TCP connections to the specified address connect to the source address.
+
+Setting option value to `10.0.7.1` achieves the same behavior as SideStore/StosVPN.
+
+When `auto_redirect` is enabled, the same behavior can be achieved for LAN devices (not just local) as a gateway.
 
 #### strict_route
 
