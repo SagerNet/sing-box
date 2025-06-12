@@ -11,8 +11,10 @@ import (
 	"net/netip"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
@@ -22,8 +24,12 @@ import (
 )
 
 type UTLSClientConfig struct {
-	config *utls.Config
-	id     utls.ClientHelloID
+	ctx                   context.Context
+	config                *utls.Config
+	id                    utls.ClientHelloID
+	fragment              bool
+	fragmentFallbackDelay time.Duration
+	recordFragment        bool
 }
 
 func (e *UTLSClientConfig) ServerName() string {
@@ -50,6 +56,9 @@ func (e *UTLSClientConfig) Config() (*STDConfig, error) {
 }
 
 func (e *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
+	if e.recordFragment {
+		conn = tf.NewConn(conn, e.ctx, e.fragment, e.recordFragment, e.fragmentFallbackDelay)
+	}
 	return &utlsALPNWrapper{utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, e.config.NextProtos}, nil
 }
 
@@ -59,8 +68,7 @@ func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []by
 
 func (e *UTLSClientConfig) Clone() Config {
 	return &UTLSClientConfig{
-		config: e.config.Clone(),
-		id:     e.id,
+		e.ctx, e.config.Clone(), e.id, e.fragment, e.fragmentFallbackDelay, e.recordFragment,
 	}
 }
 
@@ -192,7 +200,7 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	if err != nil {
 		return nil, err
 	}
-	return &UTLSClientConfig{&tlsConfig, id}, nil
+	return &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}, nil
 }
 
 var (

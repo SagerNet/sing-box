@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	C "github.com/sagernet/sing-box/constant"
 	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/net/publicsuffix"
@@ -19,16 +20,21 @@ type Conn struct {
 	tcpConn            *net.TCPConn
 	ctx                context.Context
 	firstPacketWritten bool
+	splitPacket        bool
 	splitRecord        bool
 	fallbackDelay      time.Duration
 }
 
-func NewConn(conn net.Conn, ctx context.Context, splitRecord bool, fallbackDelay time.Duration) *Conn {
+func NewConn(conn net.Conn, ctx context.Context, splitPacket bool, splitRecord bool, fallbackDelay time.Duration) *Conn {
+	if fallbackDelay == 0 {
+		fallbackDelay = C.TLSFragmentFallbackDelay
+	}
 	tcpConn, _ := N.UnwrapReader(conn).(*net.TCPConn)
 	return &Conn{
 		Conn:          conn,
 		tcpConn:       tcpConn,
 		ctx:           ctx,
+		splitPacket:   splitPacket,
 		splitRecord:   splitRecord,
 		fallbackDelay: fallbackDelay,
 	}
@@ -41,7 +47,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 		}()
 		serverName := indexTLSServerName(b)
 		if serverName != nil {
-			if !c.splitRecord {
+			if c.splitPacket {
 				if c.tcpConn != nil {
 					err = c.tcpConn.SetNoDelay(true)
 					if err != nil {
@@ -81,33 +87,41 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 					payload = b[splitIndexes[i-1]:splitIndexes[i]]
 				}
 				if c.splitRecord {
+					if c.splitPacket {
+						buffer.Reset()
+					}
 					payloadLen := uint16(len(payload))
 					buffer.Write(b[:3])
 					binary.Write(&buffer, binary.BigEndian, payloadLen)
 					buffer.Write(payload)
-				} else if c.tcpConn != nil && i != len(splitIndexes) {
-					err = writeAndWaitAck(c.ctx, c.tcpConn, payload, c.fallbackDelay)
-					if err != nil {
-						return
+					if c.splitPacket {
+						payload = buffer.Bytes()
 					}
-				} else {
-					_, err = c.Conn.Write(payload)
-					if err != nil {
-						return
+				}
+				if c.splitPacket {
+					if c.tcpConn != nil && i != len(splitIndexes) {
+						err = writeAndWaitAck(c.ctx, c.tcpConn, payload, c.fallbackDelay)
+						if err != nil {
+							return
+						}
+					} else {
+						_, err = c.Conn.Write(payload)
+						if err != nil {
+							return
+						}
 					}
 				}
 			}
-			if c.splitRecord {
+			if c.splitRecord && !c.splitPacket {
 				_, err = c.Conn.Write(buffer.Bytes())
 				if err != nil {
 					return
 				}
-			} else {
-				if c.tcpConn != nil {
-					err = c.tcpConn.SetNoDelay(false)
-					if err != nil {
-						return
-					}
+			}
+			if c.tcpConn != nil {
+				err = c.tcpConn.SetNoDelay(false)
+				if err != nil {
+					return
 				}
 			}
 			return len(b), nil

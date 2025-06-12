@@ -170,8 +170,6 @@ UDP 连接超时时间。
 
 此外，若实际等待时间小于 20 毫秒，同样会回退至固定等待时间模式，因为此时判定目标处于本地或透明代理之后。
 
-与 `tls_record_fragment` 冲突。
-
 #### tls_fragment_fallback_delay
 
 !!! question "自 sing-box 1.12.0 起"
@@ -185,10 +183,6 @@ UDP 连接超时时间。
 !!! question "自 sing-box 1.12.0 起"
 
 通过分段 TLS 握手数据包到多个 TLS 记录来绕过防火墙检测。
-
-此功能旨在规避基于**明文数据包匹配**的简单防火墙，不应该用于规避真的审查。
-
-与 `tls_fragment` 冲突。
 
 ### sniff
 

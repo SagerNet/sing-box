@@ -4,6 +4,9 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.12.0"
 
+    :material-plus: [fragment](#fragment)  
+    :material-plus: [fragment_fallback_delay](#fragment_fallback_delay)  
+    :material-plus: [record_fragment](#record_fragment)  
     :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)  
     :material-delete-clock: [ech.dynamic_record_sizing_disabled](#dynamic_record_sizing_disabled)
 
@@ -82,6 +85,9 @@ icon: material/alert-decagram
   "cipher_suites": [],
   "certificate": "",
   "certificate_path": "",
+  "fragment": false,
+  "fragment_fallback_delay": "",
+  "record_fragment": false,
   "ech": {
     "enabled": false,
     "config": [],
@@ -312,6 +318,44 @@ If empty, load from DNS will be attempted.
 The path to ECH configuration, in PEM format.
 
 If empty, load from DNS will be attempted.
+
+#### fragment
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+Fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**,
+and should not be used to circumvent real censorship.
+
+Due to poor performance, try `record_fragment` first, and only apply to server names known to be blocked.
+
+On Linux, Apple platforms, (administrator privileges required) Windows,
+the wait time can be automatically detected. Otherwise, it will fall back to
+waiting for a fixed time specified by `fragment_fallback_delay`.
+
+In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time,
+because the target is considered to be local or behind a transparent proxy.
+
+#### fragment_fallback_delay
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+The fallback value used when TLS segmentation cannot automatically determine the wait time.
+
+`500ms` is used by default.
+
+#### record_fragment
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+Fragment TLS handshake into multiple TLS records to bypass firewalls.
 
 ### ACME Fields
 

@@ -4,6 +4,9 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.12.0 中的更改"
 
+    :material-plus: [tls_fragment](#tls_fragment)  
+    :material-plus: [tls_fragment_fallback_delay](#tls_fragment_fallback_delay)  
+    :material-plus: [tls_record_fragment](#tls_record_fragment)  
     :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)  
     :material-delete-clock: [ech.dynamic_record_sizing_disabled](#dynamic_record_sizing_disabled)
 
@@ -82,6 +85,9 @@ icon: material/alert-decagram
   "cipher_suites": [],
   "certificate": [],
   "certificate_path": "",
+  "fragment": false,
+  "fragment_fallback_delay": "",
+  "record_fragment": false,
   "ech": {
     "enabled": false,
     "pq_signature_schemes_enabled": false,
@@ -304,6 +310,41 @@ ECH PEM 配置路径
 
 如果为 true，则始终使用最大可能的 TLS 记录大小。
 如果为 false，则可能会调整 TLS 记录的大小以尝试改善延迟。
+
+#### tls_fragment
+
+!!! question "自 sing-box 1.12.0 起"
+
+==仅客户端==
+
+通过分段 TLS 握手数据包来绕过防火墙检测。
+
+此功能旨在规避基于**明文数据包匹配**的简单防火墙，不应该用于规避真的审查。
+
+由于性能不佳，请首先尝试 `tls_record_fragment`，且仅应用于已知被阻止的服务器名称。
+
+在 Linux、Apple 平台和需要管理员权限的 Windows 系统上，可自动检测等待时间。
+若无法自动检测，将回退使用 `tls_fragment_fallback_delay` 指定的固定等待时间。
+
+此外，若实际等待时间小于 20 毫秒，同样会回退至固定等待时间模式，因为此时判定目标处于本地或透明代理之后。
+
+#### tls_fragment_fallback_delay
+
+!!! question "自 sing-box 1.12.0 起"
+
+==仅客户端==
+
+当 TLS 分片功能无法自动判定等待时间时使用的回退值。
+
+默认使用 `500ms`。
+
+#### tls_record_fragment
+
+==仅客户端==
+
+!!! question "自 sing-box 1.12.0 起"
+
+通过分段 TLS 握手数据包到多个 TLS 记录来绕过防火墙检测。
 
 ### ACME 字段
 
