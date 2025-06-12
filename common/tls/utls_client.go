@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"math/rand"
 	"net"
-	"net/netip"
 	"os"
 	"strings"
 	"time"
@@ -32,44 +31,52 @@ type UTLSClientConfig struct {
 	recordFragment        bool
 }
 
-func (e *UTLSClientConfig) ServerName() string {
-	return e.config.ServerName
+func (c *UTLSClientConfig) ServerName() string {
+	return c.config.ServerName
 }
 
-func (e *UTLSClientConfig) SetServerName(serverName string) {
-	e.config.ServerName = serverName
+func (c *UTLSClientConfig) SetServerName(serverName string) {
+	c.config.ServerName = serverName
 }
 
-func (e *UTLSClientConfig) NextProtos() []string {
-	return e.config.NextProtos
+func (c *UTLSClientConfig) NextProtos() []string {
+	return c.config.NextProtos
 }
 
-func (e *UTLSClientConfig) SetNextProtos(nextProto []string) {
+func (c *UTLSClientConfig) SetNextProtos(nextProto []string) {
 	if len(nextProto) == 1 && nextProto[0] == http2.NextProtoTLS {
 		nextProto = append(nextProto, "http/1.1")
 	}
-	e.config.NextProtos = nextProto
+	c.config.NextProtos = nextProto
 }
 
-func (e *UTLSClientConfig) Config() (*STDConfig, error) {
+func (c *UTLSClientConfig) Config() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for uTLS")
 }
 
-func (e *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
-	if e.recordFragment {
-		conn = tf.NewConn(conn, e.ctx, e.fragment, e.recordFragment, e.fragmentFallbackDelay)
+func (c *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
+	if c.recordFragment {
+		conn = tf.NewConn(conn, c.ctx, c.fragment, c.recordFragment, c.fragmentFallbackDelay)
 	}
-	return &utlsALPNWrapper{utlsConnWrapper{utls.UClient(conn, e.config.Clone(), e.id)}, e.config.NextProtos}, nil
+	return &utlsALPNWrapper{utlsConnWrapper{utls.UClient(conn, c.config.Clone(), c.id)}, c.config.NextProtos}, nil
 }
 
-func (e *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
-	e.config.SessionIDGenerator = generator
+func (c *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []byte, sessionID []byte) error) {
+	c.config.SessionIDGenerator = generator
 }
 
-func (e *UTLSClientConfig) Clone() Config {
+func (c *UTLSClientConfig) Clone() Config {
 	return &UTLSClientConfig{
-		e.ctx, e.config.Clone(), e.id, e.fragment, e.fragmentFallbackDelay, e.recordFragment,
+		c.ctx, c.config.Clone(), c.id, c.fragment, c.fragmentFallbackDelay, c.recordFragment,
 	}
+}
+
+func (c *UTLSClientConfig) ECHConfigList() []byte {
+	return c.config.EncryptedClientHelloConfigList
+}
+
+func (c *UTLSClientConfig) SetECHConfigList(EncryptedClientHelloConfigList []byte) {
+	c.config.EncryptedClientHelloConfigList = EncryptedClientHelloConfigList
 }
 
 type utlsConnWrapper struct {
@@ -124,14 +131,12 @@ func (c *utlsALPNWrapper) HandshakeContext(ctx context.Context) error {
 	return c.UConn.HandshakeContext(ctx)
 }
 
-func NewUTLSClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (*UTLSClientConfig, error) {
+func NewUTLSClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
 	} else if serverAddress != "" {
-		if _, err := netip.ParseAddr(serverName); err != nil {
-			serverName = serverAddress
-		}
+		serverName = serverAddress
 	}
 	if serverName == "" && !options.Insecure {
 		return nil, E.New("missing server_name or insecure=true")
@@ -140,11 +145,7 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	var tlsConfig utls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
-	if options.DisableSNI {
-		tlsConfig.ServerName = "127.0.0.1"
-	} else {
-		tlsConfig.ServerName = serverName
-	}
+	tlsConfig.ServerName = serverName
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
 	} else if options.DisableSNI {
@@ -200,7 +201,15 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	if err != nil {
 		return nil, err
 	}
-	return &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}, nil
+	uConfig := &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	if options.ECH != nil && options.ECH.Enabled {
+		if options.Reality != nil && options.Reality.Enabled {
+			return nil, E.New("Reality is conflict with ECH")
+		}
+		return parseECHClientConfig(ctx, uConfig, options)
+	} else {
+		return uConfig, nil
+	}
 }
 
 var (
@@ -228,7 +237,7 @@ func init() {
 
 func uTLSClientHelloID(name string) (utls.ClientHelloID, error) {
 	switch name {
-	case "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq":
+	case "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq", "chrome_pq_psk":
 		fallthrough
 	case "chrome", "":
 		return utls.HelloChrome_Auto, nil
