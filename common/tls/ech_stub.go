@@ -10,7 +10,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func parseECHClientConfig(ctx context.Context, options option.OutboundTLSOptions, tlsConfig *tls.Config) (Config, error) {
+func parseECHClientConfig(ctx context.Context, clientConfig ECHCapableConfig, options option.OutboundTLSOptions) (Config, error) {
 	return nil, E.New("ECH requires go1.24, please recompile your binary.")
 }
 
