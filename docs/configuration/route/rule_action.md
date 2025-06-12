@@ -172,13 +172,11 @@ and should not be used to circumvent real censorship.
 Due to poor performance, try `tls_record_fragment` first, and only apply to server names known to be blocked.
 
 On Linux, Apple platforms, (administrator privileges required) Windows,
-the wait time can be automatically detected, otherwise it will fall back to
+the wait time can be automatically detected. Otherwise, it will fall back to
 waiting for a fixed time specified by `tls_fragment_fallback_delay`.
 
 In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time,
 because the target is considered to be local or behind a transparent proxy.
-
-Conflict with `tls_record_fragment`.
 
 #### tls_fragment_fallback_delay
 
@@ -193,11 +191,6 @@ The fallback value used when TLS segmentation cannot automatically determine the
 !!! question "Since sing-box 1.12.0"
 
 Fragment TLS handshake into multiple TLS records to bypass firewalls.
-
-This feature is intended to circumvent simple firewalls based on **plaintext packet matching**,
-and should not be used to circumvent real censorship.
-
-Conflict with `tls_fragment`.
 
 ### sniff
 
