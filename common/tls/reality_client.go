@@ -74,7 +74,7 @@ func NewRealityClient(ctx context.Context, serverAddress string, options option.
 	if decodedLen > 8 {
 		return nil, E.New("invalid short_id")
 	}
-	return &RealityClientConfig{ctx, uClient, publicKey, shortID}, nil
+	return &RealityClientConfig{ctx, uClient.(*UTLSClientConfig), publicKey, shortID}, nil
 }
 
 func (e *RealityClientConfig) ServerName() string {
