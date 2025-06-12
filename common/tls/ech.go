@@ -25,7 +25,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-func parseECHClientConfig(ctx context.Context, options option.OutboundTLSOptions, tlsConfig *tls.Config) (Config, error) {
+func parseECHClientConfig(ctx context.Context, stdConfig *STDClientConfig, options option.OutboundTLSOptions) (Config, error) {
 	var echConfig []byte
 	if len(options.ECH.Config) > 0 {
 		echConfig = []byte(strings.Join(options.ECH.Config, "\n"))
@@ -45,11 +45,11 @@ func parseECHClientConfig(ctx context.Context, options option.OutboundTLSOptions
 		if block == nil || block.Type != "ECH CONFIGS" || len(rest) > 0 {
 			return nil, E.New("invalid ECH configs pem")
 		}
-		tlsConfig.EncryptedClientHelloConfigList = block.Bytes
-		return &STDClientConfig{tlsConfig}, nil
+		stdConfig.config.EncryptedClientHelloConfigList = block.Bytes
+		return stdConfig, nil
 	} else {
 		return &STDECHClientConfig{
-			STDClientConfig: STDClientConfig{tlsConfig},
+			STDClientConfig: stdConfig,
 			dnsRouter:       service.FromContext[adapter.DNSRouter](ctx),
 		}, nil
 	}
@@ -103,7 +103,7 @@ func reloadECHKeys(echKeyPath string, tlsConfig *tls.Config) error {
 }
 
 type STDECHClientConfig struct {
-	STDClientConfig
+	*STDClientConfig
 	access     sync.Mutex
 	dnsRouter  adapter.DNSRouter
 	lastTTL    time.Duration
@@ -171,7 +171,7 @@ func (s *STDECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Con
 }
 
 func (s *STDECHClientConfig) Clone() Config {
-	return &STDECHClientConfig{STDClientConfig: STDClientConfig{s.config.Clone()}, dnsRouter: s.dnsRouter, lastUpdate: s.lastUpdate}
+	return &STDECHClientConfig{STDClientConfig: s.STDClientConfig.Clone().(*STDClientConfig), dnsRouter: s.dnsRouter, lastUpdate: s.lastUpdate}
 }
 
 func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {
