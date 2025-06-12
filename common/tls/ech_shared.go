@@ -11,6 +11,12 @@ import (
 	"github.com/cloudflare/circl/kem"
 )
 
+type ECHCapableConfig interface {
+	Config
+	ECHConfigList() []byte
+	SetECHConfigList([]byte)
+}
+
 func ECHKeygenDefault(serverName string) (configPem string, keyPem string, err error) {
 	cipherSuites := []echCipherSuite{
 		{
