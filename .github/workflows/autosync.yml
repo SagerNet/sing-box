@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Sync fork with upstream
-        uses: tgymnich/fork-sync@v2.0.10
+        uses: garmr-ulfr/fork-sync@request-pr-reviewers
         with:
           # The owner of your forked repository
           owner: getlantern
@@ -26,3 +26,4 @@ jobs:
           auto_merge: false
           pr_title: 'Automated Fork Sync from Upstream'
           pr_message: 'This pull request was automatically generated to sync the `lantern-main` branch with the `main` branch from `sagernet/sing-box`.'
+          pr_reviewers: 'myleshorton,garmr-ulfr'
