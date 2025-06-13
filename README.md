@@ -1,5 +1,9 @@
 # sing-box
 
+The `lantern-main` branch is our primary working branch. It will automatically be synced with `SagerNet/sing-box/main` on a weekly basis, but you can also trigger a manual sync by running the auto sync workflow.
+
+## 
+
 The universal proxy platform.
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/sing-box.svg)](https://repology.org/project/sing-box/versions)

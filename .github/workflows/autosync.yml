@@ -1,0 +1,28 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Runs every Monday at 00:00 UTC
+
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync fork with upstream
+        uses: tgymnich/fork-sync@v2.0.10
+        with:
+          # The owner of your forked repository
+          owner: getlantern
+          # The name of your forked repository
+          repo: sing-box-minimal
+          # The branch in forked repository to update
+          head: lantern-main
+          # The branch in the *upstream* repository to sync with
+          base: main
+          merge_method: merge
+          auto_merge: false
+          pr_title: 'Automated Fork Sync from Upstream'
+          pr_message: 'This pull request was automatically generated to sync the `lantern-main` branch with the `main` branch from `sagernet/sing-box`.'
