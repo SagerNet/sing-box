@@ -16,3 +16,11 @@ type URLTestOutboundOptions struct {
 	IdleTimeout               badoption.Duration `json:"idle_timeout,omitempty"`
 	InterruptExistConnections bool               `json:"interrupt_exist_connections,omitempty"`
 }
+
+type FallbackOutboundOptions struct {
+	Outbounds                 []string           `json:"outbounds"`
+	URL                       string             `json:"url,omitempty"`
+	Interval                  badoption.Duration `json:"interval,omitempty"`
+	IdleTimeout               badoption.Duration `json:"idle_timeout,omitempty"`
+	InterruptExistConnections bool               `json:"interrupt_exist_connections,omitempty"`
+}
