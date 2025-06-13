@@ -36,6 +36,7 @@
 | `dns`          | [DNS](./dns/)                   |
 | `selector`     | [Selector](./selector/)         |
 | `urltest`      | [URLTest](./urltest/)           |
+| `fallback`     | [Fallback](./fallback/)         |
 
 #### tag
 

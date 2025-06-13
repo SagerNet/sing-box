@@ -170,6 +170,7 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+          - Fallback: configuration/outbound/fallback.md
       - Service:
           - configuration/service/index.md
           - DERP: configuration/service/derp.md
