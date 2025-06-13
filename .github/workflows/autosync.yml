@@ -18,10 +18,10 @@ jobs:
           owner: getlantern
           # The name of your forked repository
           repo: sing-box-minimal
-          # The branch in forked repository to update
-          head: lantern-main
-          # The branch in the *upstream* repository to sync with
-          base: main
+          # The name of the branch where your changes are implemented.
+          head: main
+          # The name of the branch you want the changes pulled into.
+          base: lantern-main
           merge_method: merge
           auto_merge: false
           pr_title: 'Automated Fork Sync from Upstream'
