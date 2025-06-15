@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -99,7 +100,7 @@ func (m *Manager) Remove(tag string) error {
 	if index == -1 {
 		panic("invalid service index")
 	}
-	m.services = append(m.services[:index], m.services[index+1:]...)
+	m.services = slices.Delete(m.services, index, index+1)
 	started := m.started
 	m.access.Unlock()
 	if started {
@@ -136,7 +137,7 @@ func (m *Manager) Create(ctx context.Context, logger log.ContextLogger, tag stri
 		if existsIndex == -1 {
 			panic("invalid service index")
 		}
-		m.services = append(m.services[:existsIndex], m.services[existsIndex+1:]...)
+		m.services = slices.Delete(m.services, existsIndex, existsIndex+1)
 	}
 	m.services = append(m.services, service)
 	m.serviceByTag[tag] = service
