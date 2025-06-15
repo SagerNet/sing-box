@@ -14,7 +14,8 @@ import (
 
 func TestConverter(t *testing.T) {
 	t.Parallel()
-	rules, err := Convert(strings.NewReader(`
+	ruleString := `||sagernet.org^$important
+@@|sing-box.sagernet.org^$important
 ||example.org^
 |example.com^
 example.net^
@@ -22,10 +23,9 @@ example.net^
 ||example.edu.tw^
 |example.gov
 example.arpa
-@@|sagernet.example.org|
-||sagernet.org^$important
-@@|sing-box.sagernet.org^$important
-`), logger.NOP())
+@@|sagernet.example.org^
+`
+	rules, err := ToOptions(strings.NewReader(ruleString), logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
 	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
@@ -76,11 +76,14 @@ example.arpa
 			Domain: domain,
 		}), domain)
 	}
+	ruleFromOptions, err := FromOptions(rules)
+	require.NoError(t, err)
+	require.Equal(t, ruleString, string(ruleFromOptions))
 }
 
 func TestHosts(t *testing.T) {
 	t.Parallel()
-	rules, err := Convert(strings.NewReader(`
+	rules, err := ToOptions(strings.NewReader(`
 127.0.0.1 localhost
 ::1 localhost #[IPv6]
 0.0.0.0 google.com
@@ -111,7 +114,7 @@ func TestHosts(t *testing.T) {
 
 func TestSimpleHosts(t *testing.T) {
 	t.Parallel()
-	rules, err := Convert(strings.NewReader(`
+	rules, err := ToOptions(strings.NewReader(`
 example.com
 www.example.org
 `), logger.NOP())

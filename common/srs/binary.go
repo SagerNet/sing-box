@@ -215,16 +215,15 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 		case ruleItemWIFIBSSID:
 			rule.WIFIBSSID, err = readRuleItemString(reader)
 		case ruleItemAdGuardDomain:
-			if recover {
-				err = E.New("unable to decompile binary AdGuard rules to rule-set")
-				return
-			}
 			var matcher *domain.AdGuardMatcher
 			matcher, err = domain.ReadAdGuardMatcher(reader)
 			if err != nil {
 				return
 			}
 			rule.AdGuardDomainMatcher = matcher
+			if recover {
+				rule.AdGuardDomain = matcher.Dump()
+			}
 		case ruleItemNetworkType:
 			rule.NetworkType, err = readRuleItemUint8[option.InterfaceType](reader)
 		case ruleItemNetworkIsExpensive:
