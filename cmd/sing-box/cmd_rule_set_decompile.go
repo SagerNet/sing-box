@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/common/srs"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
@@ -50,6 +53,11 @@ func decompileRuleSet(sourcePath string) error {
 	if err != nil {
 		return err
 	}
+	if hasRule(ruleSet.Options.Rules, func(rule option.DefaultHeadlessRule) bool {
+		return len(rule.AdGuardDomain) > 0
+	}) {
+		return E.New("unable to decompile binary AdGuard rules to rule-set.")
+	}
 	var outputPath string
 	if flagRuleSetDecompileOutput == flagRuleSetDecompileDefaultOutput {
 		if strings.HasSuffix(sourcePath, ".srs") {
@@ -74,4 +82,20 @@ func decompileRuleSet(sourcePath string) error {
 	}
 	outputFile.Close()
 	return nil
+}
+
+func hasRule(rules []option.HeadlessRule, cond func(rule option.DefaultHeadlessRule) bool) bool {
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault:
+			if cond(rule.DefaultOptions) {
+				return true
+			}
+		case C.RuleTypeLogical:
+			if hasRule(rule.LogicalOptions.Rules, cond) {
+				return true
+			}
+		}
+	}
+	return false
 }
