@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 )
 
@@ -27,7 +27,7 @@ type agdguardRuleLine struct {
 	isImportant bool
 }
 
-func Convert(reader io.Reader) ([]option.HeadlessRule, error) {
+func Convert(reader io.Reader, logger logger.Logger) ([]option.HeadlessRule, error) {
 	scanner := bufio.NewScanner(reader)
 	var (
 		ruleLines    []agdguardRuleLine
@@ -36,9 +36,45 @@ func Convert(reader io.Reader) ([]option.HeadlessRule, error) {
 parseLine:
 	for scanner.Scan() {
 		ruleLine := scanner.Text()
-		if ruleLine == "" || ruleLine[0] == '!' || ruleLine[0] == '#' {
+
+		// Empty line
+		if ruleLine == "" {
 			continue
 		}
+		// Comment (both line comment and in-line comment)
+		if strings.Contains(ruleLine, "!") {
+			continue
+		}
+		// Either comment or cosmetic filter
+		if strings.Contains(ruleLine, "#") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		// We don't support URL query anyway
+		if strings.Contains(ruleLine, "?") || strings.Contains(ruleLine, "&") {
+			ignoredLines++
+			logger.Debug("ignored unsupported rule with query: ", ruleLine)
+			continue
+		}
+		// Commonly seen in CSS selectors of cosmetic filters
+		if strings.Contains(ruleLine, "[") || strings.Contains(ruleLine, "]") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		if strings.Contains(ruleLine, "(") || strings.Contains(ruleLine, ")") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		// We don't support $domain modifier
+		if strings.Contains(ruleLine, "~") {
+			ignoredLines++
+			logger.Debug("ignored unsupported rule modifier: ", ruleLine)
+			continue
+		}
+
 		originRuleLine := ruleLine
 		if M.IsDomainName(ruleLine) {
 			ruleLines = append(ruleLines, agdguardRuleLine{
@@ -92,7 +128,7 @@ parseLine:
 				}
 				if !ignored {
 					ignoredLines++
-					log.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", ruleLine)
+					logger.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", ruleLine)
 					continue parseLine
 				}
 			}
@@ -120,7 +156,7 @@ parseLine:
 			ruleLine = ruleLine[1 : len(ruleLine)-1]
 			if ignoreIPCIDRRegexp(ruleLine) {
 				ignoredLines++
-				log.Debug("ignored unsupported rule with IPCIDR regexp: ", ruleLine)
+				logger.Debug("ignored unsupported rule with IPCIDR regexp: ", ruleLine)
 				continue
 			}
 			isRegexp = true
@@ -130,17 +166,7 @@ parseLine:
 			}
 			if strings.Contains(ruleLine, "/") {
 				ignoredLines++
-				log.Debug("ignored unsupported rule with path: ", ruleLine)
-				continue
-			}
-			if strings.Contains(ruleLine, "##") {
-				ignoredLines++
-				log.Debug("ignored unsupported rule with element hiding: ", ruleLine)
-				continue
-			}
-			if strings.Contains(ruleLine, "#$#") {
-				ignoredLines++
-				log.Debug("ignored unsupported rule with element hiding: ", ruleLine)
+				logger.Debug("ignored unsupported rule with path: ", ruleLine)
 				continue
 			}
 			var domainCheck string
@@ -151,7 +177,7 @@ parseLine:
 			}
 			if ruleLine == "" {
 				ignoredLines++
-				log.Debug("ignored unsupported rule with empty domain", originRuleLine)
+				logger.Debug("ignored unsupported rule with empty domain", originRuleLine)
 				continue
 			} else {
 				domainCheck = strings.ReplaceAll(domainCheck, "*", "x")
@@ -159,13 +185,13 @@ parseLine:
 					_, ipErr := parseADGuardIPCIDRLine(ruleLine)
 					if ipErr == nil {
 						ignoredLines++
-						log.Debug("ignored unsupported rule with IPCIDR: ", ruleLine)
+						logger.Debug("ignored unsupported rule with IPCIDR: ", ruleLine)
 						continue
 					}
 					if M.ParseSocksaddr(domainCheck).Port != 0 {
-						log.Debug("ignored unsupported rule with port: ", ruleLine)
+						logger.Debug("ignored unsupported rule with port: ", ruleLine)
 					} else {
-						log.Debug("ignored unsupported rule with invalid domain: ", ruleLine)
+						logger.Debug("ignored unsupported rule with invalid domain: ", ruleLine)
 					}
 					ignoredLines++
 					continue
@@ -283,7 +309,7 @@ parseLine:
 			},
 		}
 	}
-	log.Info("parsed rules: ", len(ruleLines), "/", len(ruleLines)+ignoredLines)
+	logger.Info("parsed rules: ", len(ruleLines), "/", len(ruleLines)+ignoredLines)
 	return []option.HeadlessRule{currentRule}, nil
 }
 
