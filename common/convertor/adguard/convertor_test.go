@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/route/rule"
+	"github.com/sagernet/sing/common/logger"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ example.arpa
 @@|sagernet.example.org|
 ||sagernet.org^$important
 @@|sing-box.sagernet.org^$important
-`))
+`), logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
 	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
@@ -83,7 +84,7 @@ func TestHosts(t *testing.T) {
 127.0.0.1 localhost
 ::1 localhost #[IPv6]
 0.0.0.0 google.com
-`))
+`), logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
 	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
@@ -113,7 +114,7 @@ func TestSimpleHosts(t *testing.T) {
 	rules, err := Convert(strings.NewReader(`
 example.com
 www.example.org
-`))
+`), logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
 	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
