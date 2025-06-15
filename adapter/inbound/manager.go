@@ -3,6 +3,7 @@ package inbound
 import (
 	"context"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -104,7 +105,7 @@ func (m *Manager) Remove(tag string) error {
 	if index == -1 {
 		panic("invalid inbound index")
 	}
-	m.inbounds = append(m.inbounds[:index], m.inbounds[index+1:]...)
+	m.inbounds = slices.Delete(m.inbounds, index, index+1)
 	started := m.started
 	m.access.Unlock()
 	if started {
@@ -141,7 +142,7 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 		if existsIndex == -1 {
 			panic("invalid inbound index")
 		}
-		m.inbounds = append(m.inbounds[:existsIndex], m.inbounds[existsIndex+1:]...)
+		m.inbounds = slices.Delete(m.inbounds, existsIndex, existsIndex+1)
 	}
 	m.inbounds = append(m.inbounds, inbound)
 	m.inboundByTag[tag] = inbound
