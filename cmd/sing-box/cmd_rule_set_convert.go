@@ -54,7 +54,7 @@ func convertRuleSet(sourcePath string) error {
 	var rules []option.HeadlessRule
 	switch flagRuleSetConvertType {
 	case "adguard":
-		rules, err = adguard.Convert(reader, log.StdLogger())
+		rules, err = adguard.ToOptions(reader, log.StdLogger())
 	case "":
 		return E.New("source type is required")
 	default:
