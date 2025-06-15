@@ -2,6 +2,7 @@ package adguard
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"net/netip"
 	"os"
@@ -27,7 +28,7 @@ type agdguardRuleLine struct {
 	isImportant bool
 }
 
-func Convert(reader io.Reader, logger logger.Logger) ([]option.HeadlessRule, error) {
+func ToOptions(reader io.Reader, logger logger.Logger) ([]option.HeadlessRule, error) {
 	scanner := bufio.NewScanner(reader)
 	var (
 		ruleLines    []agdguardRuleLine
@@ -36,45 +37,12 @@ func Convert(reader io.Reader, logger logger.Logger) ([]option.HeadlessRule, err
 parseLine:
 	for scanner.Scan() {
 		ruleLine := scanner.Text()
-
-		// Empty line
 		if ruleLine == "" {
 			continue
 		}
-		// Comment (both line comment and in-line comment)
-		if strings.Contains(ruleLine, "!") {
+		if strings.HasPrefix(ruleLine, "!") || strings.HasPrefix(ruleLine, "#") {
 			continue
 		}
-		// Either comment or cosmetic filter
-		if strings.Contains(ruleLine, "#") {
-			ignoredLines++
-			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
-			continue
-		}
-		// We don't support URL query anyway
-		if strings.Contains(ruleLine, "?") || strings.Contains(ruleLine, "&") {
-			ignoredLines++
-			logger.Debug("ignored unsupported rule with query: ", ruleLine)
-			continue
-		}
-		// Commonly seen in CSS selectors of cosmetic filters
-		if strings.Contains(ruleLine, "[") || strings.Contains(ruleLine, "]") {
-			ignoredLines++
-			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
-			continue
-		}
-		if strings.Contains(ruleLine, "(") || strings.Contains(ruleLine, ")") {
-			ignoredLines++
-			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
-			continue
-		}
-		// We don't support $domain modifier
-		if strings.Contains(ruleLine, "~") {
-			ignoredLines++
-			logger.Debug("ignored unsupported rule modifier: ", ruleLine)
-			continue
-		}
-
 		originRuleLine := ruleLine
 		if M.IsDomainName(ruleLine) {
 			ruleLines = append(ruleLines, agdguardRuleLine{
@@ -128,7 +96,7 @@ parseLine:
 				}
 				if !ignored {
 					ignoredLines++
-					logger.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", ruleLine)
+					logger.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", originRuleLine)
 					continue parseLine
 				}
 			}
@@ -156,17 +124,35 @@ parseLine:
 			ruleLine = ruleLine[1 : len(ruleLine)-1]
 			if ignoreIPCIDRRegexp(ruleLine) {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule with IPCIDR regexp: ", ruleLine)
+				logger.Debug("ignored unsupported rule with IPCIDR regexp: ", originRuleLine)
 				continue
 			}
 			isRegexp = true
 		} else {
 			if strings.Contains(ruleLine, "://") {
 				ruleLine = common.SubstringAfter(ruleLine, "://")
+				isSuffix = true
 			}
 			if strings.Contains(ruleLine, "/") {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule with path: ", ruleLine)
+				logger.Debug("ignored unsupported rule with path: ", originRuleLine)
+				continue
+			}
+			if strings.Contains(ruleLine, "?") || strings.Contains(ruleLine, "&") {
+				ignoredLines++
+				logger.Debug("ignored unsupported rule with query: ", originRuleLine)
+				continue
+			}
+			if strings.Contains(ruleLine, "[") || strings.Contains(ruleLine, "]") ||
+				strings.Contains(ruleLine, "(") || strings.Contains(ruleLine, ")") ||
+				strings.Contains(ruleLine, "!") || strings.Contains(ruleLine, "#") {
+				ignoredLines++
+				logger.Debug("ignored unsupported cosmetic filter: ", originRuleLine)
+				continue
+			}
+			if strings.Contains(ruleLine, "~") {
+				ignoredLines++
+				logger.Debug("ignored unsupported rule modifier: ", originRuleLine)
 				continue
 			}
 			var domainCheck string
@@ -185,13 +171,13 @@ parseLine:
 					_, ipErr := parseADGuardIPCIDRLine(ruleLine)
 					if ipErr == nil {
 						ignoredLines++
-						logger.Debug("ignored unsupported rule with IPCIDR: ", ruleLine)
+						logger.Debug("ignored unsupported rule with IPCIDR: ", originRuleLine)
 						continue
 					}
 					if M.ParseSocksaddr(domainCheck).Port != 0 {
-						logger.Debug("ignored unsupported rule with port: ", ruleLine)
+						logger.Debug("ignored unsupported rule with port: ", originRuleLine)
 					} else {
-						logger.Debug("ignored unsupported rule with invalid domain: ", ruleLine)
+						logger.Debug("ignored unsupported rule with invalid domain: ", originRuleLine)
 					}
 					ignoredLines++
 					continue
@@ -309,8 +295,110 @@ parseLine:
 			},
 		}
 	}
-	logger.Info("parsed rules: ", len(ruleLines), "/", len(ruleLines)+ignoredLines)
+	if ignoredLines > 0 {
+		logger.Info("parsed rules: ", len(ruleLines), "/", len(ruleLines)+ignoredLines)
+	}
 	return []option.HeadlessRule{currentRule}, nil
+}
+
+var ErrInvalid = E.New("invalid binary AdGuard rule-set")
+
+func FromOptions(rules []option.HeadlessRule) ([]byte, error) {
+	if len(rules) != 1 {
+		return nil, ErrInvalid
+	}
+	rule := rules[0]
+	var (
+		importantDomain             []string
+		importantDomainRegex        []string
+		importantExcludeDomain      []string
+		importantExcludeDomainRegex []string
+		domain                      []string
+		domainRegex                 []string
+		excludeDomain               []string
+		excludeDomainRegex          []string
+	)
+parse:
+	for {
+		switch rule.Type {
+		case C.RuleTypeLogical:
+			if !(len(rule.LogicalOptions.Rules) == 2 && rule.LogicalOptions.Rules[0].Type == C.RuleTypeDefault) {
+				return nil, ErrInvalid
+			}
+			if rule.LogicalOptions.Mode == C.LogicalTypeAnd && rule.LogicalOptions.Rules[0].DefaultOptions.Invert {
+				if len(importantExcludeDomain) == 0 && len(importantExcludeDomainRegex) == 0 {
+					importantExcludeDomain = rule.LogicalOptions.Rules[0].DefaultOptions.AdGuardDomain
+					importantExcludeDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
+					if len(importantExcludeDomain)+len(importantExcludeDomainRegex) == 0 {
+						return nil, ErrInvalid
+					}
+				} else {
+					excludeDomain = rule.LogicalOptions.Rules[0].DefaultOptions.AdGuardDomain
+					excludeDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
+					if len(excludeDomain)+len(excludeDomainRegex) == 0 {
+						return nil, ErrInvalid
+					}
+				}
+			} else if rule.LogicalOptions.Mode == C.LogicalTypeOr && !rule.LogicalOptions.Rules[0].DefaultOptions.Invert {
+				importantDomain = rule.LogicalOptions.Rules[0].DefaultOptions.AdGuardDomain
+				importantDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
+				if len(importantDomain)+len(importantDomainRegex) == 0 {
+					return nil, ErrInvalid
+				}
+			} else {
+				return nil, ErrInvalid
+			}
+			rule = rule.LogicalOptions.Rules[1]
+		case C.RuleTypeDefault:
+			domain = rule.DefaultOptions.AdGuardDomain
+			domainRegex = rule.DefaultOptions.DomainRegex
+			if len(domain)+len(domainRegex) == 0 {
+				return nil, ErrInvalid
+			}
+			break parse
+		}
+	}
+	var output bytes.Buffer
+	for _, ruleLine := range importantDomain {
+		output.WriteString(ruleLine)
+		output.WriteString("$important\n")
+	}
+	for _, ruleLine := range importantDomainRegex {
+		output.WriteString("/")
+		output.WriteString(ruleLine)
+		output.WriteString("/$important\n")
+
+	}
+	for _, ruleLine := range importantExcludeDomain {
+		output.WriteString("@@")
+		output.WriteString(ruleLine)
+		output.WriteString("$important\n")
+	}
+	for _, ruleLine := range importantExcludeDomainRegex {
+		output.WriteString("@@/")
+		output.WriteString(ruleLine)
+		output.WriteString("/$important\n")
+	}
+	for _, ruleLine := range domain {
+		output.WriteString(ruleLine)
+		output.WriteString("\n")
+	}
+	for _, ruleLine := range domainRegex {
+		output.WriteString("/")
+		output.WriteString(ruleLine)
+		output.WriteString("/\n")
+	}
+	for _, ruleLine := range excludeDomain {
+		output.WriteString("@@")
+		output.WriteString(ruleLine)
+		output.WriteString("\n")
+	}
+	for _, ruleLine := range excludeDomainRegex {
+		output.WriteString("@@/")
+		output.WriteString(ruleLine)
+		output.WriteString("/\n")
+	}
+	return output.Bytes(), nil
 }
 
 func ignoreIPCIDRRegexp(ruleLine string) bool {
@@ -320,11 +408,9 @@ func ignoreIPCIDRRegexp(ruleLine string) bool {
 		ruleLine = ruleLine[13:]
 	} else if strings.HasPrefix(ruleLine, "^") {
 		ruleLine = ruleLine[1:]
-	} else {
-		return false
 	}
-	_, parseErr := strconv.ParseUint(common.SubstringBefore(ruleLine, "\\."), 10, 8)
-	return parseErr == nil
+	return common.Error(strconv.ParseUint(common.SubstringBefore(ruleLine, "\\."), 10, 8)) == nil ||
+		common.Error(strconv.ParseUint(common.SubstringBefore(ruleLine, "."), 10, 8)) == nil
 }
 
 func parseAdGuardHostLine(ruleLine string) (string, error) {
