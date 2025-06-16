@@ -8,14 +8,17 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/listener"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/udpnat2"
+	udpnat "github.com/sagernet/sing/common/udpnat2"
 )
 
 func RegisterInbound(registry *inbound.Registry) {
@@ -30,6 +33,7 @@ type Inbound struct {
 	listener            *listener.Listener
 	udpNat              *udpnat.Service
 	overrideOption      int
+	tlsConfig           tls.ServerConfig
 	overrideDestination M.Socksaddr
 }
 
@@ -41,6 +45,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		router:  router,
 		logger:  logger,
 	}
+	var err error
 	if options.OverrideAddress != "" && options.OverridePort != 0 {
 		inbound.overrideOption = 1
 		inbound.overrideDestination = M.ParseSocksaddrHostPort(options.OverrideAddress, options.OverridePort)
@@ -57,6 +62,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	if options.TLS != nil {
+		inbound.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	inbound.udpNat = udpnat.New(inbound, inbound.preparePacketConnection, udpTimeout, false)
 	inbound.listener = listener.New(listener.Options{
 		Context:           ctx,
@@ -73,10 +85,19 @@ func (i *Inbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	var err error
+	if i.tlsConfig != nil {
+		err = i.tlsConfig.Start()
+		if err != nil {
+			return err
+		}
+	}
+
 	return i.listener.Start()
 }
 
 func (i *Inbound) Close() error {
+	i.tlsConfig.Close()
 	return i.listener.Close()
 }
 
@@ -85,6 +106,16 @@ func (i *Inbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
 }
 
 func (i *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	if i.tlsConfig != nil {
+		tlsConn, err := tls.ServerHandshake(ctx, conn, i.tlsConfig)
+		if err != nil {
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			i.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source, ": TLS handshake"))
+			return
+		}
+		conn = tlsConn
+	}
+
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
 	destination := metadata.OriginDestination
