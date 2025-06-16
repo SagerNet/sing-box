@@ -11,7 +11,8 @@
 
   "network": "udp",
   "override_address": "1.0.0.1",
-  "override_port": 53
+  "override_port": 53,
+  "tls": {}
 }
 ```
 
@@ -35,3 +36,6 @@
 
 覆盖连接目标端口。
 
+#### tls
+
+TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。

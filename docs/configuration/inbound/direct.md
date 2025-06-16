@@ -11,7 +11,8 @@
 
   "network": "udp",
   "override_address": "1.0.0.1",
-  "override_port": 53
+  "override_port": 53,
+  "tls": {}
 }
 ```
 
@@ -34,3 +35,7 @@ Override the connection destination address.
 #### override_port
 
 Override the connection destination port.
+
+#### tls
+
+TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
