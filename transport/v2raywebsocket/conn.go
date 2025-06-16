@@ -3,6 +3,7 @@ package v2raywebsocket
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -67,9 +68,10 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 			return
 		}
 		if !E.IsMulti(err, io.EOF, wsutil.ErrNoFrameAdvance) {
+			err = wrapWsError(err)
 			return
 		}
-		header, err = c.reader.NextFrame()
+		header, err = wrapWsError0(c.reader.NextFrame())
 		if err != nil {
 			return
 		}
@@ -78,14 +80,14 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 				err = wsutil.ErrFrameTooLarge
 				return
 			}
-			err = c.controlHandler(header, c.reader)
+			err = wrapWsError(c.controlHandler(header, c.reader))
 			if err != nil {
 				return
 			}
 			continue
 		}
 		if header.OpCode&ws.OpBinary == 0 {
-			err = c.reader.Discard()
+			err = wrapWsError(c.reader.Discard())
 			if err != nil {
 				return
 			}
@@ -95,7 +97,7 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 }
 
 func (c *WebsocketConn) Write(p []byte) (n int, err error) {
-	err = wsutil.WriteMessage(c.Conn, c.state, ws.OpBinary, p)
+	err = wrapWsError(wsutil.WriteMessage(c.Conn, c.state, ws.OpBinary, p))
 	if err != nil {
 		return
 	}
@@ -146,7 +148,7 @@ func (c *EarlyWebsocketConn) Read(b []byte) (n int, err error) {
 			return 0, c.err
 		}
 	}
-	return c.conn.Read(b)
+	return wrapWsError0(c.conn.Read(b))
 }
 
 func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
@@ -191,7 +193,7 @@ func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
 
 func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 	if c.conn != nil {
-		return c.conn.Write(b)
+		return wrapWsError0(c.conn.Write(b))
 	}
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -199,7 +201,7 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 		return 0, c.err
 	}
 	if c.conn != nil {
-		return c.conn.Write(b)
+		return wrapWsError0(c.conn.Write(b))
 	}
 	err = c.writeRequest(b)
 	c.err = err
@@ -212,12 +214,12 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 
 func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	if c.conn != nil {
-		return c.conn.WriteBuffer(buffer)
+		return wrapWsError(c.conn.WriteBuffer(buffer))
 	}
 	c.access.Lock()
 	defer c.access.Unlock()
 	if c.conn != nil {
-		return c.conn.WriteBuffer(buffer)
+		return wrapWsError(c.conn.WriteBuffer(buffer))
 	}
 	if c.err != nil {
 		return c.err
@@ -271,4 +273,24 @@ func (c *EarlyWebsocketConn) Upstream() any {
 
 func (c *EarlyWebsocketConn) LazyHeadroom() bool {
 	return c.conn == nil
+}
+
+func wrapWsError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var closedErr wsutil.ClosedError
+	if errors.As(err, &closedErr) {
+		if closedErr.Code == ws.StatusNormalClosure {
+			err = io.EOF
+		}
+	}
+	return err
+}
+
+func wrapWsError0[T any](value T, err error) (T, error) {
+	if err == nil {
+		return value, nil
+	}
+	return value, wrapWsError(err)
 }

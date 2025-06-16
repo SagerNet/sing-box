@@ -214,7 +214,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if !loaded {
 			return nil, E.New("parse route_address_set: rule-set not found: ", routeAddressSet)
 		}
-		ruleSet.IncRef()
 		inbound.routeRuleSet = append(inbound.routeRuleSet, ruleSet)
 	}
 	for _, routeExcludeAddressSet := range options.RouteExcludeAddressSet {
@@ -222,7 +221,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if !loaded {
 			return nil, E.New("parse route_exclude_address_set: rule-set not found: ", routeExcludeAddressSet)
 		}
-		ruleSet.IncRef()
 		inbound.routeExcludeRuleSet = append(inbound.routeExcludeRuleSet, ruleSet)
 	}
 	if options.AutoRedirect {
@@ -312,7 +310,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeRuleSet.Name())
 				}
-				routeRuleSet.DecRef()
+				routeRuleSet.IncRef()
 				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
 				if t.autoRedirect != nil {
 					t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
@@ -324,7 +322,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				if len(ipSets) == 0 {
 					t.logger.Warn("route_address_set: no destination IP CIDR rules found in rule-set: ", routeExcludeRuleSet.Name())
 				}
-				routeExcludeRuleSet.DecRef()
+				routeExcludeRuleSet.IncRef()
 				t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
 				if t.autoRedirect != nil {
 					t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
