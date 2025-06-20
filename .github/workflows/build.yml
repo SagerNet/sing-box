@@ -437,28 +437,24 @@ jobs:
             platform: ios
             scheme: SFI
             destination: 'generic/platform=iOS'
-            archive: build/SFI.xcarchive
             upload: SFI/Upload.plist
           - name: macOS
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'macOS' }}
             platform: macos
             scheme: SFM
             destination: 'generic/platform=macOS'
-            archive: build/SFM.xcarchive
             upload: SFI/Upload.plist
           - name: tvOS
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'tvOS' }}
             platform: tvos
             scheme: SFT
             destination: 'generic/platform=tvOS'
-            archive: build/SFT.xcarchive
             upload: SFI/Upload.plist
           - name: macOS-standalone
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' }}
             platform: macos
             scheme: SFM.System
             destination: 'generic/platform=macOS'
-            archive: build/SFM.System.xcarchive
             export: SFM.System/Export.plist
             export_path: build/SFM.System
     steps:
@@ -543,6 +539,12 @@ jobs:
           export PATH="$PATH:$(go env GOPATH)/bin"
           go run ./cmd/internal/build_libbox -target apple -platform ${{ matrix.platform }}
           mv Libbox.xcframework clients/apple
+      - name: Build library with tailscale
+        if: matrix.if && (matrix.name == 'iOS' || matrix.name == 'tvOS')
+        run: |-
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          go run ./cmd/internal/build_libbox -target apple -platform ${{ matrix.platform }} -tailscale
+          mv Libbox.xcframework clients/apple/Libbox.WithTailscale.xcframework
       - name: Update macOS version
         if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch'
         run: |-
@@ -561,18 +563,71 @@ jobs:
             -scheme "${{ matrix.scheme }}" \
             -configuration Release \
             -destination "${{ matrix.destination }}" \
-            -archivePath "${{ matrix.archive }}" \
+            -archivePath "build/${{ matrix.scheme }}.xcarchive" \
             -allowProvisioningUpdates \
             -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+      - name: Build with Tailscale
+        if: matrix.if && (matrix.name == 'iOS' || matrix.name == 'tvOS')
+        run: |-
+          cd clients/apple
+          mv Libbox.xcframework Libbox.WithoutTailscale.xcframework
+          mv Libbox.WithTailscale.xcframework Libbox.xcframework
+          xcodebuild archive \
+            -scheme "${{ matrix.scheme }}" \
+            -configuration Release \
+            -destination "${{ matrix.destination }}" \
+            -archivePath "build/${{ matrix.scheme }}.WithTailscale.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath $ASC_KEY_PATH \
+            -authenticationKeyID $ASC_KEY_ID \
+            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+      - name: Export IPA
+        if: matrix.if && (matrix.name == 'iOS' || matrix.name == 'tvOS') && github.event_name == 'workflow_dispatch'
+        run: |-
+          pushd clients/apple
+          xcodebuild -exportArchive \
+            -archivePath "build/${{ matrix.scheme }}.xcarchive" \
+            -exportOptionsPlist SFI/Export.plist \
+            -exportPath "build/${{ matrix.scheme }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath $ASC_KEY_PATH \
+            -authenticationKeyID $ASC_KEY_ID \
+            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+          cp build/${{ matrix.scheme }}/sing-box.ipa .
+          popd
+          mkdir -p dist
+          cp clients/apple/sing-box.ipa "dist/${{ matrix.scheme }}-${{ needs.calculate_version.outputs.version }}.ipa"
+      - name: Export IPA with Tailscale
+        if: matrix.if && (matrix.name == 'iOS' || matrix.name == 'tvOS') && github.event_name == 'workflow_dispatch'
+        run: |-
+          pushd clients/apple
+          xcodebuild -exportArchive \
+            -archivePath "build/${{ matrix.scheme }}.WithTailscale.xcarchive" \
+            -exportOptionsPlist SFI/Export.plist \
+            -exportPath "build/${{ matrix.scheme }}.WithTailscale" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath $ASC_KEY_PATH \
+            -authenticationKeyID $ASC_KEY_ID \
+            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+          cp build/${{ matrix.scheme }}.WithTailscale/sing-box.ipa .
+          popd
+          mkdir -p dist
+          cp clients/apple/sing-box.ipa "dist/${{ matrix.scheme }}-${{ needs.calculate_version.outputs.version }}-WithTailscale.ipa"
+      - name: Upload IPA
+        if: matrix.if && (matrix.name == 'iOS' || matrix.name == 'tvOS') && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.name }}-ipa
+          path: 'dist'
       - name: Upload to App Store Connect
         if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         run: |-
           go run -v ./cmd/internal/app_store_connect cancel_app_store ${{ matrix.platform }}
           cd clients/apple
           xcodebuild -exportArchive \
-            -archivePath "${{ matrix.archive }}" \
+            -archivePath "build/${{ matrix.scheme }}.xcarchive" \
             -exportOptionsPlist ${{ matrix.upload }} \
             -allowProvisioningUpdates \
             -authenticationKeyPath $ASC_KEY_PATH \
@@ -587,7 +642,7 @@ jobs:
         run: |-
           pushd clients/apple
           xcodebuild -exportArchive \
-          	-archivePath "${{ matrix.archive }}" \
+            -archivePath "build/${{ matrix.scheme }}.xcarchive" \
           	-exportOptionsPlist ${{ matrix.export }} \
           	-exportPath "${{ matrix.export_path }}"
           brew install create-dmg
@@ -600,13 +655,13 @@ jobs:
           		--skip-jenkins \
           	SFM.dmg "${{ matrix.export_path }}/SFM.app"
           xcrun notarytool submit "SFM.dmg" --wait --keychain-profile "notarytool-password"          
-          cd "${{ matrix.archive }}"
+          cd "build/${{ matrix.scheme }}.xcarchive"
           zip -r SFM.dSYMs.zip dSYMs
           popd
 
           mkdir -p dist
           cp clients/apple/SFM.dmg "dist/SFM-${VERSION}-universal.dmg"
-          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
+          cp "clients/apple/build/${{ matrix.scheme }}.xcarchive/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
       - name: Upload image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
@@ -615,7 +670,7 @@ jobs:
           path: 'dist'
   upload:
     name: Upload builds
-    if: always() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')
+    if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS' || inputs.build == 'tvOS')"
     runs-on: ubuntu-latest
     needs:
       - calculate_version
