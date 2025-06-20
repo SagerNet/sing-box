@@ -16,15 +16,17 @@ import (
 )
 
 var (
-	debugEnabled bool
-	target       string
-	platform     string
+	debugEnabled  bool
+	target        string
+	platform      string
+	withTailscale bool
 )
 
 func init() {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable debug")
 	flag.StringVar(&target, "target", "android", "target platform")
 	flag.StringVar(&platform, "platform", "", "specify platform")
+	flag.BoolVar(&withTailscale, "tailscale", false, "build tailscale for iOS and tvOS")
 }
 
 func main() {
@@ -151,7 +153,9 @@ func buildApple() {
 		"-v",
 		"-target", bindTarget,
 		"-libname=box",
-		"-tags-macos=" + strings.Join(memcTags, ","),
+	}
+	if withTailscale {
+		args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
 	}
 
 	if !debugEnabled {
@@ -161,6 +165,9 @@ func buildApple() {
 	}
 
 	tags := append(sharedTags, iosTags...)
+	if withTailscale {
+		tags = append(tags, memcTags...)
+	}
 	if debugEnabled {
 		tags = append(tags, debugTags...)
 	}
