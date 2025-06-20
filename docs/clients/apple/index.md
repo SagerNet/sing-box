@@ -19,12 +19,20 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 ## :material-download: Download
 
 * [App Store](https://apps.apple.com/app/sing-box-vt/id6673731168)
-* TestFlight (Beta)
+* TestFlight (Beta) **1**
+* [GitHub Releases](https://github.com/SagerNet/sing-box/releases) **2**
+
+**1**:
 
 TestFlight quota is only available to [sponsors](https://github.com/sponsors/nekohasekai)
 (one-time sponsorships are accepted).
 Once you donate, you can get an invitation by join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot)
 or sending us your Apple ID [via email](mailto:contact@sagernet.org).
+
+**2**:
+
+You can now download compiled IPAs for iOS and tvOS directly from GitHub releases, 
+but you need to purchase the **Apple Developer Program** to install them through AltStore or SideStore.
 
 ## :material-file-download: Download (macOS standalone version)
 
