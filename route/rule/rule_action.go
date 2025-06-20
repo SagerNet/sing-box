@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"sync"
@@ -250,6 +251,23 @@ func (r *RuleActionDirect) String() string {
 	return "direct" + r.description
 }
 
+type RejectedError struct {
+	Cause error
+}
+
+func (r *RejectedError) Error() string {
+	return "rejected"
+}
+
+func (r *RejectedError) Unwrap() error {
+	return r.Cause
+}
+
+func IsRejected(err error) bool {
+	var rejected *RejectedError
+	return errors.As(err, &rejected)
+}
+
 type RuleActionReject struct {
 	Method      string
 	NoDrop      bool
@@ -273,9 +291,9 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	var returnErr error
 	switch r.Method {
 	case C.RuleActionRejectMethodDefault:
-		returnErr = syscall.ECONNREFUSED
+		returnErr = &RejectedError{syscall.ECONNREFUSED}
 	case C.RuleActionRejectMethodDrop:
-		return tun.ErrDrop
+		return &RejectedError{tun.ErrDrop}
 	default:
 		panic(F.ToString("unknown reject method: ", r.Method))
 	}
@@ -293,7 +311,7 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 		if ctx != nil {
 			r.logger.DebugContext(ctx, "dropped due to flooding")
 		}
-		return tun.ErrDrop
+		return &RejectedError{tun.ErrDrop}
 	}
 	return returnErr
 }

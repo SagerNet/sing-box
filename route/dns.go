@@ -2,15 +2,14 @@ package route
 
 import (
 	"context"
-	"errors"
 	"net"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	dnsOutbound "github.com/sagernet/sing-box/protocol/dns"
+	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -58,7 +57,7 @@ func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetB
 
 func ExchangeDNSPacket(ctx context.Context, router *Router, conn N.PacketConn, buffer *buf.Buffer, metadata adapter.InboundContext, destination M.Socksaddr) {
 	err := exchangeDNSPacket(ctx, router, conn, buffer, metadata, destination)
-	if err != nil && !errors.Is(err, tun.ErrDrop) && !E.IsClosedOrCanceled(err) {
+	if err != nil && !R.IsRejected(err) && !E.IsClosedOrCanceled(err) {
 		router.dnsLogger.ErrorContext(ctx, E.Cause(err, "process packet connection"))
 	}
 }
