@@ -96,7 +96,7 @@ parseLine:
 				}
 				if !ignored {
 					ignoredLines++
-					logger.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", ruleLine)
+					logger.Debug("ignored unsupported rule with modifier: ", paramParts[0], ": ", originRuleLine)
 					continue parseLine
 				}
 			}
@@ -124,34 +124,35 @@ parseLine:
 			ruleLine = ruleLine[1 : len(ruleLine)-1]
 			if ignoreIPCIDRRegexp(ruleLine) {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule with IPCIDR regexp: ", ruleLine)
+				logger.Debug("ignored unsupported rule with IPCIDR regexp: ", originRuleLine)
 				continue
 			}
 			isRegexp = true
 		} else {
 			if strings.Contains(ruleLine, "://") {
 				ruleLine = common.SubstringAfter(ruleLine, "://")
+				isSuffix = true
 			}
 			if strings.Contains(ruleLine, "/") {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule with path: ", ruleLine)
+				logger.Debug("ignored unsupported rule with path: ", originRuleLine)
 				continue
 			}
 			if strings.Contains(ruleLine, "?") || strings.Contains(ruleLine, "&") {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule with query: ", ruleLine)
+				logger.Debug("ignored unsupported rule with query: ", originRuleLine)
 				continue
 			}
 			if strings.Contains(ruleLine, "[") || strings.Contains(ruleLine, "]") ||
 				strings.Contains(ruleLine, "(") || strings.Contains(ruleLine, ")") ||
 				strings.Contains(ruleLine, "!") || strings.Contains(ruleLine, "#") {
 				ignoredLines++
-				logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+				logger.Debug("ignored unsupported cosmetic filter: ", originRuleLine)
 				continue
 			}
 			if strings.Contains(ruleLine, "~") {
 				ignoredLines++
-				logger.Debug("ignored unsupported rule modifier: ", ruleLine)
+				logger.Debug("ignored unsupported rule modifier: ", originRuleLine)
 				continue
 			}
 			var domainCheck string
@@ -170,13 +171,13 @@ parseLine:
 					_, ipErr := parseADGuardIPCIDRLine(ruleLine)
 					if ipErr == nil {
 						ignoredLines++
-						logger.Debug("ignored unsupported rule with IPCIDR: ", ruleLine)
+						logger.Debug("ignored unsupported rule with IPCIDR: ", originRuleLine)
 						continue
 					}
 					if M.ParseSocksaddr(domainCheck).Port != 0 {
-						logger.Debug("ignored unsupported rule with port: ", ruleLine)
+						logger.Debug("ignored unsupported rule with port: ", originRuleLine)
 					} else {
-						logger.Debug("ignored unsupported rule with invalid domain: ", ruleLine)
+						logger.Debug("ignored unsupported rule with invalid domain: ", originRuleLine)
 					}
 					ignoredLines++
 					continue
@@ -407,11 +408,9 @@ func ignoreIPCIDRRegexp(ruleLine string) bool {
 		ruleLine = ruleLine[13:]
 	} else if strings.HasPrefix(ruleLine, "^") {
 		ruleLine = ruleLine[1:]
-	} else {
-		return false
 	}
-	_, parseErr := strconv.ParseUint(common.SubstringBefore(ruleLine, "\\."), 10, 8)
-	return parseErr == nil
+	return common.Error(strconv.ParseUint(common.SubstringBefore(ruleLine, "\\."), 10, 8)) == nil ||
+		common.Error(strconv.ParseUint(common.SubstringBefore(ruleLine, "."), 10, 8)) == nil
 }
 
 func parseAdGuardHostLine(ruleLine string) (string, error) {
