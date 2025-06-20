@@ -170,7 +170,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 							Question: []mDNS.Question{message.Question[0]},
 						}, nil
 					case C.RuleActionRejectMethodDrop:
-						return nil, tun.ErrDrop
+						return nil, &R.RejectedError{Cause: tun.ErrDrop}
 					}
 				}
 			}
@@ -289,7 +289,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 					case C.RuleActionRejectMethodDefault:
 						return nil, nil
 					case C.RuleActionRejectMethodDrop:
-						return nil, tun.ErrDrop
+						return nil, &R.RejectedError{Cause: tun.ErrDrop}
 					}
 				}
 			}
