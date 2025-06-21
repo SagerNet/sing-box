@@ -498,6 +498,9 @@ func (r *Router) actionSniff(
 	if inputConn != nil {
 		if len(action.StreamSniffers) == 0 && len(action.PacketSniffers) > 0 {
 			return
+		} else if metadata.SniffError != nil && !errors.Is(metadata.SniffError, sniff.ErrNeedMoreData) {
+			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.SniffError)
+			return
 		}
 		var streamSniffers []sniff.StreamSniffer
 		if len(action.StreamSniffers) > 0 {
@@ -522,6 +525,7 @@ func (r *Router) actionSniff(
 			action.Timeout,
 			streamSniffers...,
 		)
+		metadata.SniffError = err
 		if err == nil {
 			//goland:noinspection GoDeprecation
 			if action.OverrideDestination && M.IsDomainName(metadata.Domain) {
@@ -546,8 +550,8 @@ func (r *Router) actionSniff(
 	} else if inputPacketConn != nil {
 		if len(action.PacketSniffers) == 0 && len(action.StreamSniffers) > 0 {
 			return
-		} else if metadata.PacketSniffError != nil && !errors.Is(metadata.PacketSniffError, sniff.ErrNeedMoreData) {
-			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.PacketSniffError)
+		} else if metadata.SniffError != nil && !errors.Is(metadata.SniffError, sniff.ErrNeedMoreData) {
+			r.logger.DebugContext(ctx, "packet sniff skipped due to previous error: ", metadata.SniffError)
 			return
 		}
 		var packetSniffers []sniff.PacketSniffer
@@ -594,7 +598,7 @@ func (r *Router) actionSniff(
 					return
 				}
 			} else {
-				if len(packetBuffers) > 0 || metadata.PacketSniffError != nil {
+				if len(packetBuffers) > 0 || metadata.SniffError != nil {
 					err = sniff.PeekPacket(
 						ctx,
 						metadata,
@@ -614,7 +618,7 @@ func (r *Router) actionSniff(
 					Destination: destination,
 				}
 				packetBuffers = append(packetBuffers, packetBuffer)
-				metadata.PacketSniffError = err
+				metadata.SniffError = err
 				if errors.Is(err, sniff.ErrNeedMoreData) {
 					// TODO: replace with generic message when there are more multi-packet protocols
 					r.logger.DebugContext(ctx, "attempt to sniff fragmented QUIC client hello")
