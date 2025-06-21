@@ -64,7 +64,7 @@ icon: material/new-box
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "loopback_address": [
-    "10.0.7.1"
+    "10.7.0.1"
   ],
   "strict_route": true,
   "route_address": [
@@ -283,7 +283,7 @@ tun 接口的 IPv6 前缀。
 
 环回地址是用于使指向指定地址的 TCP 连接连接到来源地址的。
 
-将选项值设置为 `10.0.7.1` 可实现与 SideStore/StosVPN 相同的行为。
+将选项值设置为 `10.7.0.1` 可实现与 SideStore/StosVPN 相同的行为。
 
 当启用 `auto_redirect` 时，可以作为网关为局域网设备（而不仅仅是本地）实现相同的行为。
 

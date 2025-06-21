@@ -64,7 +64,7 @@ icon: material/new-box
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "loopback_address": [
-    "10.0.7.1"
+    "10.7.0.1"
   ],
   "strict_route": true,
   "route_address": [
@@ -284,7 +284,7 @@ Connection output mark used by `auto_redirect`.
 
 Loopback addresses make TCP connections to the specified address connect to the source address.
 
-Setting option value to `10.0.7.1` achieves the same behavior as SideStore/StosVPN.
+Setting option value to `10.7.0.1` achieves the same behavior as SideStore/StosVPN.
 
 When `auto_redirect` is enabled, the same behavior can be achieved for LAN devices (not just local) as a gateway.
 
