@@ -468,11 +468,11 @@ jobs:
       - name: Setup Xcode stable
         if: matrix.if && github.ref == 'refs/heads/main-next'
         run: |-
-          sudo xcode-select -s /Applications/Xcode_16.2.app
+          sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Setup Xcode beta
         if: matrix.if && github.ref == 'refs/heads/dev-next'
         run: |-
-          sudo xcode-select -s /Applications/Xcode_16.2.app
+          sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Set tag
         if: matrix.if
         run: |-
