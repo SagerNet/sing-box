@@ -59,7 +59,7 @@
     {
       "external_controller": "0.0.0.0:9090",
       "external_ui": "dashboard"
-      // external_ui_download_detour: "direct"
+      // "external_ui_download_detour": "direct"
     }
     ```
 
