@@ -3,11 +3,15 @@ package transport
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -39,11 +43,13 @@ func RegisterHTTPS(registry *dns.TransportRegistry) {
 
 type HTTPSTransport struct {
 	dns.TransportAdapter
-	logger      logger.ContextLogger
-	dialer      N.Dialer
-	destination *url.URL
-	headers     http.Header
-	transport   *http.Transport
+	logger           logger.ContextLogger
+	dialer           N.Dialer
+	destination      *url.URL
+	headers          http.Header
+	transportAccess  sync.Mutex
+	transport        *http.Transport
+	transportResetAt time.Time
 }
 
 func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteHTTPSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -161,12 +167,33 @@ func (t *HTTPSTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *HTTPSTransport) Close() error {
+	t.transportAccess.Lock()
+	defer t.transportAccess.Unlock()
 	t.transport.CloseIdleConnections()
 	t.transport = t.transport.Clone()
 	return nil
 }
 
 func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	startAt := time.Now()
+	response, err := t.exchange(ctx, message)
+	if err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			t.transportAccess.Lock()
+			defer t.transportAccess.Unlock()
+			if t.transportResetAt.After(startAt) {
+				return nil, err
+			}
+			t.transport.CloseIdleConnections()
+			t.transport = t.transport.Clone()
+			t.transportResetAt = time.Now()
+		}
+		return nil, err
+	}
+	return response, nil
+}
+
+func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	exMessage := *message
 	exMessage.Id = 0
 	exMessage.Compress = true
