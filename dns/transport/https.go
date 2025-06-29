@@ -122,6 +122,7 @@ func NewHTTPSRaw(
 	var transport *http.Transport
 	if tlsConfig != nil {
 		transport = &http.Transport{
+			IdleConnTimeout:   C.TCPKeepAliveInitial,
 			ForceAttemptHTTP2: true,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				tcpConn, hErr := dialer.DialContext(ctx, network, serverAddr)
@@ -138,6 +139,7 @@ func NewHTTPSRaw(
 		}
 	} else {
 		transport = &http.Transport{
+			IdleConnTimeout: C.TCPKeepAliveInitial,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return dialer.DialContext(ctx, network, serverAddr)
 			},
