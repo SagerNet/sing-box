@@ -5,13 +5,13 @@ package tls
 import (
 	"context"
 	"crypto/tls"
-	"os"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/libdns/alidns"
@@ -37,7 +37,38 @@ func (w *acmeWrapper) Close() error {
 	return nil
 }
 
-func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
+type acmeLogWriter struct {
+	logger logger.Logger
+}
+
+func (w *acmeLogWriter) Write(p []byte) (n int, err error) {
+	logLine := strings.ReplaceAll(string(p), "	", ": ")
+	switch {
+	case strings.HasPrefix(logLine, "error: "):
+		w.logger.Error(logLine[7:])
+	case strings.HasPrefix(logLine, "warn: "):
+		w.logger.Warn(logLine[6:])
+	case strings.HasPrefix(logLine, "info: "):
+		w.logger.Info(logLine[6:])
+	case strings.HasPrefix(logLine, "debug: "):
+		w.logger.Debug(logLine[7:])
+	default:
+		w.logger.Debug(logLine)
+	}
+	return len(p), nil
+}
+
+func (w *acmeLogWriter) Sync() error {
+	return nil
+}
+
+func encoderConfig() zapcore.EncoderConfig {
+	config := zap.NewProductionEncoderConfig()
+	config.TimeKey = zapcore.OmitKey
+	return config
+}
+
+func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.Service, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":
@@ -58,14 +89,15 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 	} else {
 		storage = certmagic.Default.Storage
 	}
+	zapLogger := zap.New(zapcore.NewCore(
+		zapcore.NewConsoleEncoder(encoderConfig()),
+		&acmeLogWriter{logger: logger},
+		zap.DebugLevel,
+	))
 	config := &certmagic.Config{
 		DefaultServerName: options.DefaultServerName,
 		Storage:           storage,
-		Logger: zap.New(zapcore.NewCore(
-			zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
-			os.Stderr,
-			zap.InfoLevel,
-		)),
+		Logger:            zapLogger,
 	}
 	acmeConfig := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
@@ -75,7 +107,7 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
-		Logger:                  config.Logger,
+		Logger:                  zapLogger,
 	}
 	if dnsOptions := options.DNS01Challenge; dnsOptions != nil && dnsOptions.Provider != "" {
 		var solver certmagic.DNS01Solver
@@ -103,6 +135,7 @@ func startACME(ctx context.Context, options option.InboundACMEOptions) (*tls.Con
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
 			return config, nil
 		},
+		Logger: zapLogger,
 	})
 	config = certmagic.New(cache, *config)
 	var tlsConfig *tls.Config
