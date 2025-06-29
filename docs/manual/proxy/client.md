@@ -110,7 +110,8 @@ flowchart TB
           "type": "tun",
           "inet4_address": "172.19.0.1/30",
           "auto_route": true,
-          "strict_route": false
+          // "auto_redirect": true, // On linux
+          "strict_route": true
         }
       ],
       "outbounds": [
@@ -130,9 +131,7 @@ flowchart TB
             "action": "hijack-dns"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
@@ -166,6 +165,7 @@ flowchart TB
           "inet4_address": "172.19.0.1/30",
           "inet6_address": "fdfe:dcba:9876::1/126",
           "auto_route": true,
+          // "auto_redirect": true, // On linux
           "strict_route": false
         }
       ],
@@ -186,9 +186,7 @@ flowchart TB
             "action": "hijack-dns"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
@@ -238,6 +236,7 @@ flowchart TB
           "inet4_address": "172.19.0.1/30",
           "inet6_address": "fdfe:dcba:9876::1/126",
           "auto_route": true,
+          // "auto_redirect": true, // On linux
           "strict_route": true
         }
       ],
@@ -258,9 +257,7 @@ flowchart TB
             "action": "hijack-dns"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
@@ -274,218 +271,152 @@ flowchart TB
 
 === ":material-dns: DNS rules"
 
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "type": "tls",
-            "server": "8.8.8.8"
-          },
-          {
-            "tag": "local",
-            "type": "udp",
-            "server": "223.5.5.5"
-          },
-        ],
-        "rules": [
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "rule_set": "geosite-geolocation-cn",
-            "server": "local"
-          }
-        ]
-      },
-      "route": {
-        "default_domain_resolver": "local",
-        "rule_set": [
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
-          }
-        ]
-      }
-    }
-    ```
-
-=== ":material-dns: DNS rules (Enhanced, but slower) (1.9.0+)"
-
     === ":material-shield-off: With DNS leaks"
 
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "type": "tls",
-            "server": "8.8.8.8"
-          },
-          {
-            "tag": "local",
-            "type": "https",
-            "server": "223.5.5.5"
-          }
-        ],
-        "rules": [
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "rule_set": "geosite-geolocation-cn",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Default",
-            "server": "google"
-          },
-          {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
+        ```json
+        {
+          "dns": {
+            "servers": [
               {
-                "rule_set": "geosite-geolocation-!cn",
-                "invert": true
+                "tag": "google",
+                "type": "tls",
+                "server": "8.8.8.8"
               },
               {
-                "rule_set": "geoip-cn"
+                "tag": "local",
+                "type": "https",
+                "server": "223.5.5.5"
               }
             ],
-            "server": "local"
-          }
-        ]
-      },
-      "route": {
-        "default_domain_resolver": "local",
-        "rule_set": [
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
-          },
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-!cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
-          },
-          {
-            "type": "remote",
-            "tag": "geoip-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
-          }
-        ]
-      },
-      "experimental": {
-        "cache_file": {
-          "enabled": true,
-          "store_rdrc": true
-        },
-        "clash_api": {
-          "default_mode": "Enhanced"
-        }
-      }
-    }
-    ```
-
-    === ":material-security: Without DNS leaks, but slower (1.9.0-alpha.2+)"
-
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "type": "tls",
-            "server": "8.8.8.8"
-          },
-          {
-            "tag": "local",
-            "type": "https",
-            "server": "223.5.5.5"
-          }
-        ],
-        "rules": [
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "rule_set": "geosite-geolocation-cn",
-            "server": "local"
-          },
-          {
-            "type": "logical",
-            "mode": "and",
             "rules": [
               {
-                "rule_set": "geosite-geolocation-!cn",
-                "invert": true
+                "rule_set": "geosite-geolocation-cn",
+                "server": "local"
               },
               {
-                "rule_set": "geoip-cn"
+                "type": "logical",
+                "mode": "and",
+                "rules": [
+                  {
+                    "rule_set": "geosite-geolocation-!cn",
+                    "invert": true
+                  },
+                  {
+                    "rule_set": "geoip-cn"
+                  }
+                ],
+                "server": "local"
+              }
+            ]
+          },
+          "route": {
+            "default_domain_resolver": "local",
+            "rule_set": [
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-!cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geoip-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+              }
+            ]
+          },
+          "experimental": {
+            "cache_file": {
+              "enabled": true,
+              "store_rdrc": true
+            },
+            "clash_api": {
+              "default_mode": "Enhanced"
+            }
+          }
+        }
+        ```
+
+    === ":material-security: Without DNS leaks, but slower"
+    
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "tag": "google",
+                "type": "tls",
+                "server": "8.8.8.8"
+              },
+              {
+                "tag": "local",
+                "type": "https",
+                "server": "223.5.5.5"
               }
             ],
-            "server": "google",
-            "client_subnet": "114.114.114.114/24" // Any China client IP address
-          }
-        ]
-      },
-      "route": {
-        "default_domain_resolver": "local",
-        "rule_set": [
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+            "rules": [
+              {
+                "rule_set": "geosite-geolocation-cn",
+                "server": "local"
+              },
+              {
+                "type": "logical",
+                "mode": "and",
+                "rules": [
+                  {
+                    "rule_set": "geosite-geolocation-!cn",
+                    "invert": true
+                  },
+                  {
+                    "rule_set": "geoip-cn"
+                  }
+                ],
+                "server": "google",
+                "client_subnet": "114.114.114.114/24" // Any China client IP address
+              }
+            ]
           },
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-!cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+          "route": {
+            "default_domain_resolver": "local",
+            "rule_set": [
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geosite-geolocation-!cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-!cn.srs"
+              },
+              {
+                "type": "remote",
+                "tag": "geoip-cn",
+                "format": "binary",
+                "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+              }
+            ]
           },
-          {
-            "type": "remote",
-            "tag": "geoip-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs"
+          "experimental": {
+            "cache_file": {
+              "enabled": true,
+              "store_rdrc": true
+            },
+            "clash_api": {
+              "default_mode": "Enhanced"
+            }
           }
-        ]
-      },
-      "experimental": {
-        "cache_file": {
-          "enabled": true,
-          "store_rdrc": true
-        },
-        "clash_api": {
-          "default_mode": "Enhanced"
         }
-      }
-    }
-    ```
+        ```
 
 === ":material-router-network: Route rules"
 
@@ -520,14 +451,6 @@ flowchart TB
             "outbound": "direct"
           },
           {
-            "clash_mode": "Direct",
-            "outbound": "direct"
-          },
-          {
-            "clash_mode": "Global",
-            "outbound": "default"
-          },
-          {
             "type": "logical",
             "mode": "or",
             "rules": [
@@ -545,9 +468,20 @@ flowchart TB
             "action": "reject"
           },
           {
-            "rule_set": [
-              "geoip-cn",
-              "geosite-geolocation-cn"
+            "rule_set": "geosite-geolocation-cn",
+            "outbound": "direct"
+          },
+          {
+            "type": "logical",
+            "mode": "and",
+            "rules": [
+              {
+                "rule_set": "geoip-cn"
+              },
+              {
+                "rule_set": "geosite-geolocation-!cn",
+                "invert": true
+              }
             ],
             "outbound": "direct"
           }
