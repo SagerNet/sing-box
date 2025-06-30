@@ -14,6 +14,7 @@ type TransportAdapter struct {
 	transportType string
 	transportTag  string
 	dependencies  []string
+	hasDetour     bool
 	strategy      C.DomainStrategy
 	clientSubnet  netip.Prefix
 }
@@ -35,6 +36,7 @@ func NewTransportAdapterWithLocalOptions(transportType string, transportTag stri
 		transportType: transportType,
 		transportTag:  transportTag,
 		dependencies:  dependencies,
+		hasDetour:     localOptions.Detour != "",
 		strategy:      C.DomainStrategy(localOptions.LegacyStrategy),
 		clientSubnet:  localOptions.LegacyClientSubnet,
 	}
@@ -67,6 +69,10 @@ func (a *TransportAdapter) Tag() string {
 
 func (a *TransportAdapter) Dependencies() []string {
 	return a.dependencies
+}
+
+func (a *TransportAdapter) HasDetour() bool {
+	return a.hasDetour
 }
 
 func (a *TransportAdapter) LegacyStrategy() C.DomainStrategy {

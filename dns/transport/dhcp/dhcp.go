@@ -41,6 +41,7 @@ type Transport struct {
 	dns.TransportAdapter
 	ctx               context.Context
 	dialer            N.Dialer
+	hasDetour         bool
 	logger            logger.ContextLogger
 	networkManager    adapter.NetworkManager
 	interfaceName     string
@@ -59,6 +60,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeDHCP, tag, options.LocalDNSServerOptions),
 		ctx:              ctx,
 		dialer:           transportDialer,
+		hasDetour:        options.Detour != "",
 		logger:           logger,
 		networkManager:   service.FromContext[adapter.NetworkManager](ctx),
 		interfaceName:    options.Interface,
@@ -87,6 +89,10 @@ func (t *Transport) Close() error {
 		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
 	return nil
+}
+
+func (t *Transport) HasDetour() bool {
+	return t.hasDetour
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {

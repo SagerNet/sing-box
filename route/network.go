@@ -76,6 +76,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 			DomainResolver: defaultDomainResolver.Server,
 			DomainResolveOptions: adapter.DNSQueryOptions{
 				Strategy:     C.DomainStrategy(defaultDomainResolver.Strategy),
+				Timeout:      time.Duration(defaultDomainResolver.Timeout),
 				DisableCache: defaultDomainResolver.DisableCache,
 				RewriteTTL:   defaultDomainResolver.RewriteTTL,
 				ClientSubnet: defaultDomainResolver.ClientSubnet.Build(netip.Prefix{}),

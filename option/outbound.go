@@ -91,6 +91,7 @@ type DialerOptions struct {
 type _DomainResolveOptions struct {
 	Server       string                `json:"server"`
 	Strategy     DomainStrategy        `json:"strategy,omitempty"`
+	Timeout      badoption.Duration    `json:"timeout,omitempty"`
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
@@ -102,6 +103,7 @@ func (o DomainResolveOptions) MarshalJSON() ([]byte, error) {
 	if o.Server == "" {
 		return []byte("{}"), nil
 	} else if o.Strategy == DomainStrategy(C.DomainStrategyAsIS) &&
+		o.Timeout == 0 &&
 		!o.DisableCache &&
 		o.RewriteTTL == nil &&
 		o.ClientSubnet == nil {

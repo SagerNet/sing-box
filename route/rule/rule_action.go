@@ -113,6 +113,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
+				Timeout:      time.Duration(action.RouteOptions.Timeout),
 				DisableCache: action.RouteOptions.DisableCache,
 				RewriteTTL:   action.RouteOptions.RewriteTTL,
 				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
@@ -121,6 +122,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
 			Strategy:     C.DomainStrategy(action.RouteOptionsOptions.Strategy),
+			Timeout:      time.Duration(action.RouteOptionsOptions.Timeout),
 			DisableCache: action.RouteOptionsOptions.DisableCache,
 			RewriteTTL:   action.RouteOptionsOptions.RewriteTTL,
 			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
@@ -235,20 +237,13 @@ func (r *RuleActionDNSRoute) Type() string {
 func (r *RuleActionDNSRoute) String() string {
 	var descriptions []string
 	descriptions = append(descriptions, r.Server)
-	if r.DisableCache {
-		descriptions = append(descriptions, "disable-cache")
-	}
-	if r.RewriteTTL != nil {
-		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *r.RewriteTTL))
-	}
-	if r.ClientSubnet.IsValid() {
-		descriptions = append(descriptions, F.ToString("client-subnet=", r.ClientSubnet))
-	}
+	descriptions = append(descriptions, r.Descriptions()...)
 	return F.ToString("route(", strings.Join(descriptions, ","), ")")
 }
 
 type RuleActionDNSRouteOptions struct {
 	Strategy     C.DomainStrategy
+	Timeout      time.Duration
 	DisableCache bool
 	RewriteTTL   *uint32
 	ClientSubnet netip.Prefix
@@ -259,7 +254,17 @@ func (r *RuleActionDNSRouteOptions) Type() string {
 }
 
 func (r *RuleActionDNSRouteOptions) String() string {
+	return F.ToString("route-options(", strings.Join(r.Descriptions(), ","), ")")
+}
+
+func (r *RuleActionDNSRouteOptions) Descriptions() []string {
 	var descriptions []string
+	if r.Strategy != C.DomainStrategyAsIS {
+		descriptions = append(descriptions, F.ToString("strategy=", option.DomainStrategy(r.Strategy)))
+	}
+	if r.Timeout > 0 {
+		descriptions = append(descriptions, F.ToString("timeout=", r.Timeout.String()))
+	}
 	if r.DisableCache {
 		descriptions = append(descriptions, "disable-cache")
 	}
@@ -269,7 +274,7 @@ func (r *RuleActionDNSRouteOptions) String() string {
 	if r.ClientSubnet.IsValid() {
 		descriptions = append(descriptions, F.ToString("client-subnet=", r.ClientSubnet))
 	}
-	return F.ToString("route-options(", strings.Join(descriptions, ","), ")")
+	return descriptions
 }
 
 type RuleActionDirect struct {
@@ -421,6 +426,7 @@ func (r *RuleActionSniff) String() string {
 type RuleActionResolve struct {
 	Server       string
 	Strategy     C.DomainStrategy
+	Timeout      time.Duration
 	DisableCache bool
 	RewriteTTL   *uint32
 	ClientSubnet netip.Prefix
@@ -437,6 +443,9 @@ func (r *RuleActionResolve) String() string {
 	}
 	if r.Strategy != C.DomainStrategyAsIS {
 		options = append(options, F.ToString(option.DomainStrategy(r.Strategy)))
+	}
+	if r.Timeout > 0 {
+		options = append(options, F.ToString("timeout=", r.Timeout.String()))
 	}
 	if r.DisableCache {
 		options = append(options, "disable_cache")

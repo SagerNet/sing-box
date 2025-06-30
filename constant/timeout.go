@@ -9,6 +9,7 @@ const (
 	TCPTimeout                 = 15 * time.Second
 	ReadPayloadTimeout         = 300 * time.Millisecond
 	DNSTimeout                 = 10 * time.Second
+	DirectDNSTimeout           = 5 * time.Second
 	UDPTimeout                 = 5 * time.Minute
 	DefaultURLTestInterval     = 3 * time.Minute
 	DefaultURLTestIdleTimeout  = 30 * time.Minute

@@ -30,7 +30,6 @@ var (
 var _ adapter.DNSClient = (*Client)(nil)
 
 type Client struct {
-	timeout          time.Duration
 	disableCache     bool
 	disableExpire    bool
 	independentCache bool
@@ -43,7 +42,6 @@ type Client struct {
 }
 
 type ClientOptions struct {
-	Timeout          time.Duration
 	DisableCache     bool
 	DisableExpire    bool
 	IndependentCache bool
@@ -55,16 +53,12 @@ type ClientOptions struct {
 
 func NewClient(options ClientOptions) *Client {
 	client := &Client{
-		timeout:          options.Timeout,
 		disableCache:     options.DisableCache,
 		disableExpire:    options.DisableExpire,
 		independentCache: options.IndependentCache,
 		clientSubnet:     options.ClientSubnet,
 		initRDRCFunc:     options.RDRC,
 		logger:           options.Logger,
-	}
-	if client.timeout == 0 {
-		client.timeout = C.DNSTimeout
 	}
 	cacheCapacity := options.CacheCapacity
 	if cacheCapacity < 1024 {
@@ -153,7 +147,15 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return nil, ErrResponseRejectedCached
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	timeout := options.Timeout
+	if timeout == 0 {
+		if transport.HasDetour() {
+			timeout = C.DNSTimeout
+		} else {
+			timeout = C.DirectDNSTimeout
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	response, err := transport.Exchange(ctx, message)
 	cancel()
 	if err != nil {

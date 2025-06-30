@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"net/netip"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -36,6 +37,7 @@ type DNSQueryOptions struct {
 	Transport      DNSTransport
 	Strategy       C.DomainStrategy
 	LookupStrategy C.DomainStrategy
+	Timeout        time.Duration
 	DisableCache   bool
 	RewriteTTL     *uint32
 	ClientSubnet   netip.Prefix
@@ -53,6 +55,7 @@ func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptio
 	return &DNSQueryOptions{
 		Transport:    transport,
 		Strategy:     C.DomainStrategy(options.Strategy),
+		Timeout:      time.Duration(options.Timeout),
 		DisableCache: options.DisableCache,
 		RewriteTTL:   options.RewriteTTL,
 		ClientSubnet: options.ClientSubnet.Build(netip.Prefix{}),
@@ -70,6 +73,7 @@ type DNSTransport interface {
 	Type() string
 	Tag() string
 	Dependencies() []string
+	HasDetour() bool
 	Exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error)
 }
 
