@@ -130,9 +130,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		deprecated.Report(ctx, deprecated.OptionTUNGSO)
 	}
 
+	platformInterface := service.FromContext[platform.Interface](ctx)
 	tunMTU := options.MTU
 	if tunMTU == 0 {
-		tunMTU = 9000
+		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
+			tunMTU = 4000
+		} else {
+			tunMTU = 9000
+		}
 	}
 	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
@@ -208,7 +213,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		},
 		udpTimeout:        udpTimeout,
 		stack:             options.Stack,
-		platformInterface: service.FromContext[platform.Interface](ctx),
+		platformInterface: platformInterface,
 		platformOptions:   common.PtrValueOrDefault(options.Platform),
 	}
 	for _, routeAddressSet := range options.RouteAddressSet {
