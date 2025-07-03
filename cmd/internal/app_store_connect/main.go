@@ -177,7 +177,7 @@ func publishTestflight(ctx context.Context) error {
 			}
 			log.Info(string(platform), " ", tag, " publish")
 			response, err := client.TestFlight.AddBuildsToBetaGroup(ctx, groupID, []string{build.ID})
-			if response != nil && response.StatusCode == http.StatusUnprocessableEntity {
+			if response != nil && (response.StatusCode == http.StatusUnprocessableEntity || response.StatusCode == http.StatusNotFound) {
 				log.Info("waiting for process")
 				time.Sleep(15 * time.Second)
 				continue
