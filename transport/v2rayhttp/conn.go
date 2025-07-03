@@ -31,6 +31,9 @@ type HTTPConn struct {
 }
 
 func NewHTTP1Conn(conn net.Conn, request *http.Request) *HTTPConn {
+	if request.Header.Get("Host") == "" {
+		request.Header.Set("Host", request.Host)
+	}
 	return &HTTPConn{
 		Conn:    conn,
 		request: request,
@@ -88,9 +91,6 @@ func (c *HTTPConn) writeRequest(payload []byte) error {
 	_, err := writer.Write([]byte(F.ToString(c.request.Method, " ", c.request.URL.RequestURI(), " HTTP/1.1", CRLF)))
 	if err != nil {
 		return err
-	}
-	if c.request.Header.Get("Host") == "" {
-		c.request.Header.Set("Host", c.request.Host)
 	}
 	for key, value := range c.request.Header {
 		_, err = writer.Write([]byte(F.ToString(key, ": ", strings.Join(value, ", "), CRLF)))
