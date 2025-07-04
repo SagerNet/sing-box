@@ -134,7 +134,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	tunMTU := options.MTU
 	if tunMTU == 0 {
 		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
-			tunMTU = 4000
+			// In Network Extension, when MTU exceeds 4064 (4096-UTUN_IF_HEADROOM_SIZE), the performance of tun will drop significantly, which may be a system bug.
+			tunMTU = 4064
 		} else {
 			tunMTU = 9000
 		}
