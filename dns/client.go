@@ -195,8 +195,13 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 		}
 	}*/
 	if responseChecker != nil {
-		addr, addrErr := MessageToAddresses(response)
-		if addrErr != nil || !responseChecker(addr) {
+		var rejected bool
+		if !(response.Rcode == dns.RcodeSuccess || response.Rcode == dns.RcodeNameError) {
+			rejected = true
+		} else {
+			rejected = !responseChecker(MessageToAddresses(response))
+		}
+		if rejected {
 			if c.rdrc != nil {
 				c.rdrc.SaveRDRCAsync(transport.Tag(), question.Name, question.Qtype, c.logger)
 			}
@@ -420,7 +425,10 @@ func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTran
 	if err != nil {
 		return nil, err
 	}
-	return MessageToAddresses(response)
+	if response.Rcode != dns.RcodeSuccess {
+		return nil, RcodeError(response.Rcode)
+	}
+	return MessageToAddresses(response), nil
 }
 
 func (c *Client) questionCache(question dns.Question, transport adapter.DNSTransport) ([]netip.Addr, error) {
@@ -428,7 +436,10 @@ func (c *Client) questionCache(question dns.Question, transport adapter.DNSTrans
 	if response == nil {
 		return nil, ErrNotCached
 	}
-	return MessageToAddresses(response)
+	if response.Rcode != dns.RcodeSuccess {
+		return nil, RcodeError(response.Rcode)
+	}
+	return MessageToAddresses(response), nil
 }
 
 func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransport) (*dns.Msg, int) {
@@ -505,10 +516,7 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 	}
 }
 
-func MessageToAddresses(response *dns.Msg) ([]netip.Addr, error) {
-	if response.Rcode != dns.RcodeSuccess {
-		return nil, RcodeError(response.Rcode)
-	}
+func MessageToAddresses(response *dns.Msg) []netip.Addr {
 	addresses := make([]netip.Addr, 0, len(response.Answer))
 	for _, rawAnswer := range response.Answer {
 		switch answer := rawAnswer.(type) {
@@ -524,7 +532,7 @@ func MessageToAddresses(response *dns.Msg) ([]netip.Addr, error) {
 			}
 		}
 	}
-	return addresses, nil
+	return addresses
 }
 
 func wrapError(err error) error {
