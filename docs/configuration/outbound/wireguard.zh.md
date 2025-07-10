@@ -88,7 +88,7 @@ icon: material/delete-clock
 
 ==必填==
 
-接口的 IPv4/IPv6 地址或地址段的列表您。
+接口的 IPv4/IPv6 地址或地址段的列表。
 
 要分配给接口的 IP（v4 或 v6）地址段列表。
 
