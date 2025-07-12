@@ -60,7 +60,7 @@ func NewUDPRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 		logger:           logger,
 		dialer:           dialer,
 		serverAddr:       serverAddr,
-		udpSize:          512,
+		udpSize:          2048,
 		tcpTransport: &TCPTransport{
 			dialer:     dialer,
 			serverAddr: serverAddr,
@@ -97,14 +97,18 @@ func (t *UDPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 }
 
 func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	conn, err := t.open(ctx)
-	if err != nil {
-		return nil, err
-	}
+	t.access.Lock()
 	if edns0Opt := message.IsEdns0(); edns0Opt != nil {
 		if udpSize := int(edns0Opt.UDPSize()); udpSize > t.udpSize {
 			t.udpSize = udpSize
+			close(t.done)
+			t.done = make(chan struct{})
 		}
+	}
+	t.access.Unlock()
+	conn, err := t.open(ctx)
+	if err != nil {
+		return nil, err
 	}
 	buffer := buf.NewSize(1 + message.Len())
 	defer buffer.Release()
