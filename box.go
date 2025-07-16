@@ -250,7 +250,7 @@ func New(options Options) (*Box, error) {
 		}
 	}
 	var services []adapter.LifecycleService
-	if needCacheFile {
+	if cf := service.FromContext[adapter.CacheFile](ctx); cf == nil && needCacheFile {
 		cacheFile := cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		services = append(services, cacheFile)
