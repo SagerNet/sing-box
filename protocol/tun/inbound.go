@@ -180,6 +180,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
+	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && options.MTU <= 9000))
 	inbound := &Inbound{
 		tag:            tag,
 		ctx:            ctx,
@@ -213,6 +214,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IncludePackage:           options.IncludePackage,
 			ExcludePackage:           options.ExcludePackage,
 			InterfaceMonitor:         networkManager.InterfaceMonitor(),
+			EXP_MultiPendingPackets:  multiPendingPackets,
 		},
 		udpTimeout:        udpTimeout,
 		stack:             options.Stack,
