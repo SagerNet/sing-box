@@ -17,7 +17,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2-0.20250430151523-b46a2b0885f6
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/metacubex/tfo-go v0.0.0-20241231083714-66613d49c422
-	github.com/metacubex/utls v1.7.0-alpha.3
+	github.com/metacubex/utls v1.7.3
 	github.com/mholt/acmez/v3 v3.1.2
 	github.com/miekg/dns v1.1.66
 	github.com/oschwald/maxminddb-golang v1.13.1
@@ -35,7 +35,7 @@ require (
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
 	github.com/sagernet/sing-tun v0.6.10-0.20250718030019-3af7305b853e
-	github.com/sagernet/sing-vmess v0.2.4-0.20250605032146-38cc72672c88
+	github.com/sagernet/sing-vmess v0.2.4
 	github.com/sagernet/smux v1.5.34-mod.2
 	github.com/sagernet/tailscale v1.80.3-mod.5
 	github.com/sagernet/wireguard-go v0.0.1-beta.7
