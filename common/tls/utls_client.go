@@ -145,11 +145,16 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	var tlsConfig utls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
-	tlsConfig.ServerName = serverName
+	if !options.DisableSNI {
+		tlsConfig.ServerName = serverName
+	}
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
 	} else if options.DisableSNI {
-		return nil, E.New("disable_sni is unsupported in uTLS")
+		if options.Reality != nil && options.Reality.Enabled {
+			return nil, E.New("disable_sni is unsupported in reality")
+		}
+		tlsConfig.InsecureServerNameToVerify = serverName
 	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
