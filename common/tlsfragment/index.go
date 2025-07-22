@@ -22,13 +22,13 @@ const (
 	tls13                   uint16 = 0x0304
 )
 
-type myServerName struct {
+type MyServerName struct {
 	Index      int
 	Length     int
 	ServerName string
 }
 
-func indexTLSServerName(payload []byte) *myServerName {
+func IndexTLSServerName(payload []byte) *MyServerName {
 	if len(payload) < recordLayerHeaderLen || payload[0] != contentType {
 		return nil
 	}
@@ -44,7 +44,7 @@ func indexTLSServerName(payload []byte) *myServerName {
 	return serverName
 }
 
-func indexTLSServerNameFromHandshake(hs []byte) *myServerName {
+func indexTLSServerNameFromHandshake(hs []byte) *MyServerName {
 	if len(hs) < handshakeHeaderLen+randomDataLen+sessionIDHeaderLen {
 		return nil
 	}
@@ -84,7 +84,7 @@ func indexTLSServerNameFromHandshake(hs []byte) *myServerName {
 	return serverName
 }
 
-func indexTLSServerNameFromExtensions(exs []byte) *myServerName {
+func indexTLSServerNameFromExtensions(exs []byte) *MyServerName {
 	if len(exs) == 0 {
 		return nil
 	}
@@ -118,7 +118,7 @@ func indexTLSServerNameFromExtensions(exs []byte) *myServerName {
 			}
 			sniLen := uint16(sex[3])<<8 | uint16(sex[4])
 			sex = sex[sniExtensionHeaderLen:]
-			return &myServerName{
+			return &MyServerName{
 				Index:      currentIndex + extensionHeaderLen + sniExtensionHeaderLen,
 				Length:     int(sniLen),
 				ServerName: string(sex),
