@@ -107,15 +107,10 @@ github.com/klauspost/cpuid/v2 v2.2.10 h1:tBs3QSyvjDyFTq3uoc/9xFpCuOsJQFNPiAhYdw2
 github.com/klauspost/cpuid/v2 v2.2.10/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
 github.com/kortschak/wol v0.0.0-20200729010619-da482cc4850a h1:+RR6SqnTkDLWyICxS1xpjCi/3dhyV+TgZwA6Ww3KncQ=
 github.com/kortschak/wol v0.0.0-20200729010619-da482cc4850a/go.mod h1:YTtCCM3ryyfiu4F7t8HQ1mxvp1UBdWM2r6Xa+nGWvDk=
-github.com/libdns/alidns v1.0.4-libdns.v1.beta1 h1:ods22gD4PcT0g4qRX77ucykjz7Rppnkz3vQoxDbbKTM=
-github.com/libdns/alidns v1.0.4-libdns.v1.beta1/go.mod h1:ystHmPwcGoWjPrGpensQSMY9VoCx4cpR2hXNlwk9H/g=
 github.com/libdns/alidns v1.0.5-libdns.v1.beta1 h1:txHK7UxDed3WFBDjrTZPuMn8X+WmhjBTTAMW5xdy5pQ=
 github.com/libdns/alidns v1.0.5-libdns.v1.beta1/go.mod h1:ystHmPwcGoWjPrGpensQSMY9VoCx4cpR2hXNlwk9H/g=
-github.com/libdns/cloudflare v0.2.2-0.20250430151523-b46a2b0885f6 h1:0dlpPjNr8TaYZbkpwCiee4udBNrYrWG8EZPYEbjHEn8=
-github.com/libdns/cloudflare v0.2.2-0.20250430151523-b46a2b0885f6/go.mod h1:Aq4IXdjalB6mD0ELvKqJiIGim8zSC6mlIshRPMOAb5w=
 github.com/libdns/cloudflare v0.2.2-0.20250708034226-c574dccb31a6 h1:3MGrVWs2COjMkQR17oUw1zMIPbm2YAzxDC3oGVZvQs8=
 github.com/libdns/cloudflare v0.2.2-0.20250708034226-c574dccb31a6/go.mod h1:w9uTmRCDlAoafAsTPnn2nJ0XHK/eaUMh86DUk8BWi60=
-github.com/libdns/libdns v1.0.0-beta.1 h1:KIf4wLfsrEpXpZ3vmc/poM8zCATXT2klbdPe6hyOBjQ=
 github.com/libdns/libdns v1.0.0-beta.1/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
 github.com/libdns/libdns v1.1.0 h1:9ze/tWvt7Df6sbhOJRB8jT33GHEHpEQXdtkE3hPthbU=
 github.com/libdns/libdns v1.1.0/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
@@ -174,8 +169,8 @@ github.com/sagernet/nftables v0.3.0-beta.4/go.mod h1:OQXAjvjNGGFxaTgVCSTRIhYB5/l
 github.com/sagernet/quic-go v0.52.0-beta.1 h1:hWkojLg64zjV+MJOvJU/kOeWndm3tiEfBLx5foisszs=
 github.com/sagernet/quic-go v0.52.0-beta.1/go.mod h1:OV+V5kEBb8kJS7k29MzDu6oj9GyMc7HA07sE1tedxz4=
 github.com/sagernet/sing v0.6.9/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
-github.com/sagernet/sing v0.7.0-beta.1.0.20250720120749-5ee6ddd30ca3 h1:/STH8/x0clwkDLq53f0H2T3oxX62SH65Wl8zWxo7/lE=
-github.com/sagernet/sing v0.7.0-beta.1.0.20250720120749-5ee6ddd30ca3/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
+github.com/sagernet/sing v0.7.0-beta.1.0.20250722151551-64142925accb h1:9DU5JA9Cow/bUfdP1v1pYMbAkFiW17UbI4b/iEPjVnc=
+github.com/sagernet/sing v0.7.0-beta.1.0.20250722151551-64142925accb/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
 github.com/sagernet/sing-mux v0.3.2 h1:meZVFiiStvHThb/trcpAkCrmtJOuItG5Dzl1RRP5/NE=
 github.com/sagernet/sing-mux v0.3.2/go.mod h1:pht8iFY4c9Xltj7rhVd208npkNaeCxzyXCgulDPLUDA=
 github.com/sagernet/sing-quic v0.5.0-beta.3 h1:X/acRNsqQNfDlmwE7SorHfaZiny5e67hqIzM/592ric=
