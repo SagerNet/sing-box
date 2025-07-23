@@ -5,7 +5,6 @@ go 1.23.1
 require (
 	github.com/anytls/sing-anytls v0.0.8
 	github.com/caddyserver/certmagic v0.23.0
-	github.com/cloudflare/circl v1.6.1
 	github.com/coder/websocket v1.8.13
 	github.com/cretz/bine v0.2.0
 	github.com/go-chi/chi/v5 v5.2.2
