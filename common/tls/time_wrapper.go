@@ -11,10 +11,13 @@ type TimeServiceWrapper struct {
 }
 
 func (w *TimeServiceWrapper) TimeFunc() func() time.Time {
-	if w.TimeService == nil {
-		return nil
+	return func() time.Time {
+		if w.TimeService != nil {
+			return w.TimeService.TimeFunc()()
+		} else {
+			return time.Now()
+		}
 	}
-	return w.TimeService.TimeFunc()
 }
 
 func (w *TimeServiceWrapper) Upstream() any {
