@@ -39,7 +39,7 @@ To sync with the latest sing-box mainline, simply run:
 ```
 git fetch upstream
 git merge upstream/main
-git push origin lantern-main-next
+git push origin lantern-main
 ```
 
 To make updating other repos easier, you can then do, for example:
