@@ -87,12 +87,14 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
 			verifyOptions := x509.VerifyOptions{
 				Roots:         tlsConfig.RootCAs,
-				CurrentTime:   tlsConfig.Time(),
 				DNSName:       serverName,
 				Intermediates: x509.NewCertPool(),
 			}
 			for _, cert := range state.PeerCertificates[1:] {
 				verifyOptions.Intermediates.AddCert(cert)
+			}
+			if tlsConfig.Time != nil {
+				verifyOptions.CurrentTime = tlsConfig.Time()
 			}
 			_, err := state.PeerCertificates[0].Verify(verifyOptions)
 			return err
