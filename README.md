@@ -46,4 +46,5 @@ To make updating other repos easier, you can then do, for example:
 
 ```
 git tag -a v1.11.11-lantern -m "tagging latest"
+git push --tags
 ```
