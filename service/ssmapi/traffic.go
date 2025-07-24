@@ -50,12 +50,24 @@ func (s *TrafficManager) UpdateUsers(users []string) {
 	newUserTCPSessions := make(map[string]*atomic.Int64)
 	newUserUDPSessions := make(map[string]*atomic.Int64)
 	for _, user := range users {
-		newUserUplink[user] = s.userUplinkPackets[user]
-		newUserDownlink[user] = s.userDownlinkPackets[user]
-		newUserUplinkPackets[user] = s.userUplinkPackets[user]
-		newUserDownlinkPackets[user] = s.userDownlinkPackets[user]
-		newUserTCPSessions[user] = s.userTCPSessions[user]
-		newUserUDPSessions[user] = s.userUDPSessions[user]
+		if counter, loaded := s.userUplink[user]; loaded {
+			newUserUplink[user] = counter
+		}
+		if counter, loaded := s.userDownlink[user]; loaded {
+			newUserDownlink[user] = counter
+		}
+		if counter, loaded := s.userUplinkPackets[user]; loaded {
+			newUserUplinkPackets[user] = counter
+		}
+		if counter, loaded := s.userDownlinkPackets[user]; loaded {
+			newUserDownlinkPackets[user] = counter
+		}
+		if counter, loaded := s.userTCPSessions[user]; loaded {
+			newUserTCPSessions[user] = counter
+		}
+		if counter, loaded := s.userUDPSessions[user]; loaded {
+			newUserUDPSessions[user] = counter
+		}
 	}
 	s.userUplink = newUserUplink
 	s.userDownlink = newUserDownlink
