@@ -14,6 +14,7 @@ import (
 func cacheRouter(ctx context.Context) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/fakeip/flush", flushFakeip(ctx))
+	r.Post("/dns/flush", flushDNS(ctx))
 	return r
 }
 
@@ -27,6 +28,16 @@ func flushFakeip(ctx context.Context) func(w http.ResponseWriter, r *http.Reques
 				render.JSON(w, r, newError(err.Error()))
 				return
 			}
+		}
+		render.NoContent(w, r)
+	}
+}
+
+func flushDNS(ctx context.Context) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
+		if dnsRouter != nil {
+			dnsRouter.ClearCache()
 		}
 		render.NoContent(w, r)
 	}
