@@ -6,6 +6,18 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
+type WireGuardAdvancedSecurityOptions struct {
+	JunkPacketCount            int    `json:"junk_packet_count,omitempty"`             // jc
+	JunkPacketMinSize          int    `json:"junk_packet_min_size,omitempty"`          // jmin
+	JunkPacketMaxSize          int    `json:"junk_packet_max_size,omitempty"`          // jmax
+	InitPacketJunkSize         int    `json:"init_packet_junk_size,omitempty"`         // s1
+	ResponsePacketJunkSize     int    `json:"response_packet_junk_size,omitempty"`     // s2
+	InitPacketMagicHeader      uint32 `json:"init_packet_magic_header,omitempty"`      // h1
+	ResponsePacketMagicHeader  uint32 `json:"response_packet_magic_header,omitempty"`  // h2
+	UnderloadPacketMagicHeader uint32 `json:"underload_packet_magic_header,omitempty"` // h3
+	TransportPacketMagicHeader uint32 `json:"transport_packet_magic_header,omitempty"` // h4
+}
+
 type WireGuardEndpointOptions struct {
 	System     bool                             `json:"system,omitempty"`
 	Name       string                           `json:"name,omitempty"`
@@ -16,6 +28,7 @@ type WireGuardEndpointOptions struct {
 	Peers      []WireGuardPeer                  `json:"peers,omitempty"`
 	UDPTimeout badoption.Duration               `json:"udp_timeout,omitempty"`
 	Workers    int                              `json:"workers,omitempty"`
+	WireGuardAdvancedSecurityOptions
 	DialerOptions
 }
 
