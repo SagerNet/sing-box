@@ -181,8 +181,8 @@ github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11 h1:tK+75
 github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
 github.com/sagernet/sing-tun v0.6.10-0.20250721014417-ebbe32588cfb h1:cvHEzjk3sVy80UA9PFKX15MzSP0g1uKwUspOm2ds3no=
 github.com/sagernet/sing-tun v0.6.10-0.20250721014417-ebbe32588cfb/go.mod h1:AHJuRrLbNRJuivuFZ2VhXwDj4ViYp14szG5EkkKAqRQ=
-github.com/sagernet/sing-vmess v0.2.4 h1:wSg/SdxThELAvoRIN2yCZgu5xsmP1FWPBrP2ab2wq3A=
-github.com/sagernet/sing-vmess v0.2.4/go.mod h1:5aYoOtYksAyS0NXDm0qKeTYW1yoE1bJVcv+XLcVoyJs=
+github.com/sagernet/sing-vmess v0.2.5 h1:UI9KKqfDnMiyvNRknhd2ZCiHdvBl/Gv+Vg/y1yC6RIU=
+github.com/sagernet/sing-vmess v0.2.5/go.mod h1:5aYoOtYksAyS0NXDm0qKeTYW1yoE1bJVcv+XLcVoyJs=
 github.com/sagernet/smux v1.5.34-mod.2 h1:gkmBjIjlJ2zQKpLigOkFur5kBKdV6bNRoFu2WkltRQ4=
 github.com/sagernet/smux v1.5.34-mod.2/go.mod h1:0KW0+R+ycvA2INW4gbsd7BNyg+HEfLIAxa5N02/28Zc=
 github.com/sagernet/tailscale v1.80.3-mod.5 h1:7V7z+p2C//TGtff20pPnDCt3qP6uFyY62peJoKF9z/A=
