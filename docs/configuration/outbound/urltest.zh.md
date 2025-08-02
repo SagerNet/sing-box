@@ -14,7 +14,8 @@
   "interval": "",
   "tolerance": 50,
   "idle_timeout": "",
-  "interrupt_exist_connections": false
+  "interrupt_exist_connections": false,
+  "test_concurrency": 10
 }
 ```
 
@@ -47,3 +48,8 @@
 当选定的出站发生更改时，中断现有连接。
 
 仅入站连接受此设置影响，内部连接将始终被中断。
+
+#### test_concurrency
+
+测试的并发连接数。 默认使用 `10`。
+
