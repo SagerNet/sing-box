@@ -3,6 +3,7 @@ module github.com/sagernet/sing-box
 go 1.23.1
 
 require (
+	github.com/BurntSushi/toml v1.2.1
 	github.com/anytls/sing-anytls v0.0.8
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/coder/websocket v1.8.13

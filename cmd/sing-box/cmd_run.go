@@ -8,11 +8,10 @@ import (
 	"path/filepath"
 	runtimeDebug "runtime/debug"
 	"sort"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -20,6 +19,7 @@ import (
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 
+	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +57,11 @@ func readConfigAt(path string) (*OptionsEntry, error) {
 	if err != nil {
 		return nil, E.Cause(err, "read config at ", path)
 	}
+	if filepath.Ext(path) == ".toml" {
+		if configContent, err = cvtTomlToJson(configContent); err != nil {
+			return nil, E.Cause(err, "convert config at ", path)
+		}
+	}
 	options, err := json.UnmarshalExtendedContext[option.Options](globalCtx, configContent)
 	if err != nil {
 		return nil, E.Cause(err, "decode config at ", path)
@@ -66,6 +71,14 @@ func readConfigAt(path string) (*OptionsEntry, error) {
 		path:    path,
 		options: options,
 	}, nil
+}
+
+func cvtTomlToJson(data []byte) ([]byte, error) {
+	var cfg any
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return json.MarshalContext(globalCtx, cfg)
 }
 
 func readConfig() ([]*OptionsEntry, error) {
@@ -83,7 +96,12 @@ func readConfig() ([]*OptionsEntry, error) {
 			return nil, E.Cause(err, "read config directory at ", directory)
 		}
 		for _, entry := range entries {
-			if !strings.HasSuffix(entry.Name(), ".json") || entry.IsDir() {
+			if entry.IsDir() {
+				continue
+			}
+			switch filepath.Ext(entry.Name()) {
+			case ".json", ".toml":
+			default:
 				continue
 			}
 			optionsEntry, err := readConfigAt(filepath.Join(directory, entry.Name()))
