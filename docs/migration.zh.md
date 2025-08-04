@@ -351,14 +351,15 @@ DNS 服务器已经重构。
         ```json
         {
           "dns": {
-            "servers": [
+            "rules": [
               {
-                "type": "predefined",
-                "responses": [
-                  {
-                    "rcode": "REFUSED"
-                  }
-                ]
+                "domain": [
+                  "example.com"
+                ],
+                // 其他规则
+                
+                "action": "predefined",
+                "rcode": "REFUSED"
               }
             ]
           }
