@@ -164,9 +164,8 @@ func (l *Listener) loopUDPOut() {
 				if l.shutdown.Load() && E.IsClosed(err) {
 					return
 				}
-				l.udpConn.Close()
 				l.logger.Error("udp listener write back: ", destination, ": ", err)
-				return
+				continue
 			}
 			continue
 		case <-l.packetOutboundClosed:
