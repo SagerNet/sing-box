@@ -351,14 +351,15 @@ DNS servers are refactored for better performance and scalability.
         ```json
         {
           "dns": {
-            "servers": [
+            "rules": [
               {
-                "type": "predefined",
-                "responses": [
-                  {
-                    "rcode": "REFUSED"
-                  }
-                ]
+                "domain": [
+                  "example.com"
+                ],
+                // other rules
+                
+                "action": "predefined",
+                "rcode": "REFUSED"
               }
             ]
           }
