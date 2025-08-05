@@ -112,6 +112,8 @@ func buildAndroid() {
 		args = append(args, debugFlags...)
 	}
 
+	args = append(args, "-ldflags", "-checklinkname=0")
+
 	tags := append(sharedTags, memcTags...)
 	if debugEnabled {
 		tags = append(tags, debugTags...)
