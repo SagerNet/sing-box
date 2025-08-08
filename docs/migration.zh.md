@@ -356,7 +356,7 @@ DNS 服务器已经重构。
                 "domain": [
                   "example.com"
                 ],
-                // 其他规则
+                // 其它规则
                 
                 "action": "predefined",
                 "rcode": "REFUSED"
