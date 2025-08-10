@@ -454,5 +454,5 @@ func parseADGuardIPCIDRLine(ruleLine string) (netip.Prefix, error) {
 	for len(ruleParts) < 4 {
 		ruleParts = append(ruleParts, 0)
 	}
-	return netip.PrefixFrom(netip.AddrFrom4(*(*[4]byte)(ruleParts)), bitLen), nil
+	return netip.PrefixFrom(netip.AddrFrom4([4]byte(ruleParts)), bitLen), nil
 }
