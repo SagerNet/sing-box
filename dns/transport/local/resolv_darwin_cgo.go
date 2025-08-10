@@ -20,8 +20,8 @@ import (
 )
 
 func dnsReadConfig(_ context.Context, _ string) *dnsConfig {
-	var state C.res_state
-	if C.res_ninit(state) != 0 {
+	var state C.struct___res_state
+	if C.res_ninit(&state) != 0 {
 		return &dnsConfig{
 			servers:  defaultNS,
 			search:   dnsDefaultSearch(),
