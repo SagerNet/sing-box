@@ -26,7 +26,7 @@ func defaultRouteIP() (netip.Addr, error) {
 	for _, addr := range addrs {
 		ip := addr.(*net.IPNet).IP
 		if ip.To4() != nil {
-			return netip.AddrFrom4(*(*[4]byte)(ip)), nil
+			return netip.AddrFrom4([4]byte(ip)), nil
 		}
 	}
 

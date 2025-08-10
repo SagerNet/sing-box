@@ -96,11 +96,11 @@ func findProcessName(network string, ip netip.Addr, port int) (string, error) {
 		switch {
 		case flag&0x1 > 0 && isIPv4:
 			// ipv4
-			srcIP = netip.AddrFrom4(*(*[4]byte)(buf[inp+76 : inp+80]))
+			srcIP = netip.AddrFrom4([4]byte(buf[inp+76 : inp+80]))
 			srcIsIPv4 = true
 		case flag&0x2 > 0 && !isIPv4:
 			// ipv6
-			srcIP = netip.AddrFrom16(*(*[16]byte)(buf[inp+64 : inp+80]))
+			srcIP = netip.AddrFrom16([16]byte(buf[inp+64 : inp+80]))
 		default:
 			continue
 		}
