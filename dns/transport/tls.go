@@ -30,7 +30,7 @@ func RegisterTLS(registry *dns.TransportRegistry) {
 type TLSTransport struct {
 	dns.TransportAdapter
 	logger      logger.ContextLogger
-	dialer      N.Dialer
+	dialer      tls.Dialer
 	serverAddr  M.Socksaddr
 	tlsConfig   tls.Config
 	access      sync.Mutex
@@ -67,7 +67,7 @@ func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 	return &TLSTransport{
 		TransportAdapter: adapter,
 		logger:           logger,
-		dialer:           dialer,
+		dialer:           tls.NewDialer(dialer, tlsConfig),
 		serverAddr:       serverAddr,
 		tlsConfig:        tlsConfig,
 	}
@@ -100,13 +100,8 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			return response, nil
 		}
 	}
-	tcpConn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
+	tlsConn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
 	if err != nil {
-		return nil, err
-	}
-	tlsConn, err := tls.ClientHandshake(ctx, tcpConn, t.tlsConfig)
-	if err != nil {
-		tcpConn.Close()
 		return nil, err
 	}
 	return t.exchange(message, &tlsDNSConn{Conn: tlsConn})
