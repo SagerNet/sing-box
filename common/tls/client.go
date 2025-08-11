@@ -2,6 +2,8 @@ package tls
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"net"
 	"os"
 
@@ -41,6 +43,13 @@ func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, e
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
 	tlsConn, err := aTLS.ClientHandshake(ctx, conn, config)
+	var echErr *tls.ECHRejectionError
+	if errors.As(err, &echErr) && len(echErr.RetryConfigList) > 0 {
+		if echConfig, isECH := config.(ECHCapableConfig); isECH {
+			echConfig.SetECHConfigList(echErr.RetryConfigList)
+			tlsConn, err = aTLS.ClientHandshake(ctx, conn, config)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
