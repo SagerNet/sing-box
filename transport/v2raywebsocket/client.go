@@ -26,7 +26,6 @@ var _ adapter.V2RayClientTransport = (*Client)(nil)
 
 type Client struct {
 	dialer              N.Dialer
-	tlsConfig           tls.Config
 	serverAddr          M.Socksaddr
 	requestURL          url.URL
 	headers             http.Header
@@ -39,6 +38,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		if len(tlsConfig.NextProtos()) == 0 {
 			tlsConfig.SetNextProtos([]string{"http/1.1"})
 		}
+		dialer = tls.NewDialer(dialer, tlsConfig)
 	}
 	var requestURL url.URL
 	if tlsConfig == nil {
@@ -65,7 +65,6 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}
 	return &Client{
 		dialer,
-		tlsConfig,
 		serverAddr,
 		requestURL,
 		headers,
@@ -78,12 +77,6 @@ func (c *Client) dialContext(ctx context.Context, requestURL *url.URL, headers h
 	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, err
-	}
-	if c.tlsConfig != nil {
-		conn, err = tls.ClientHandshake(ctx, conn, c.tlsConfig)
-		if err != nil {
-			return nil, err
-		}
 	}
 	var deadlineConn net.Conn
 	if deadline.NeedAdditionalReadDeadline(conn) {
