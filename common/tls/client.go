@@ -2,10 +2,11 @@ package tls
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"net"
 	"os"
 
-	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -14,7 +15,7 @@ import (
 	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-func NewDialerFromOptions(ctx context.Context, router adapter.Router, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
+func NewDialerFromOptions(ctx context.Context, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
 	if !options.Enabled {
 		return dialer, nil
 	}
@@ -79,20 +80,29 @@ func (d *defaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 }
 
 func (d *defaultDialer) DialTLSContext(ctx context.Context, destination M.Socksaddr) (Conn, error) {
-	return d.dialContext(ctx, destination)
+	return d.dialContext(ctx, destination, true)
 }
 
-func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr) (Conn, error) {
+func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr, echRetry bool) (Conn, error) {
 	conn, err := d.dialer.DialContext(ctx, N.NetworkTCP, destination)
 	if err != nil {
 		return nil, err
 	}
 	tlsConn, err := aTLS.ClientHandshake(ctx, conn, d.config)
-	if err != nil {
-		conn.Close()
-		return nil, err
+	if err == nil {
+		return tlsConn, nil
 	}
-	return tlsConn, nil
+	conn.Close()
+	if echRetry {
+		var echErr *tls.ECHRejectionError
+		if errors.As(err, &echErr) && len(echErr.RetryConfigList) > 0 {
+			if echConfig, isECH := d.config.(ECHCapableConfig); isECH {
+				echConfig.SetECHConfigList(echErr.RetryConfigList)
+			}
+		}
+		return d.dialContext(ctx, destination, false)
+	}
+	return nil, err
 }
 
 func (d *defaultDialer) Upstream() any {

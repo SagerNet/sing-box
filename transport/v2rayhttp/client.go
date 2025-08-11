@@ -47,15 +47,12 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		if len(tlsConfig.NextProtos()) == 0 {
 			tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
 		}
+		tlsDialer := tls.NewDialer(dialer, tlsConfig)
 		transport = &http2.Transport{
 			ReadIdleTimeout: time.Duration(options.IdleTimeout),
 			PingTimeout:     time.Duration(options.PingTimeout),
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.STDConfig) (net.Conn, error) {
-				conn, err := dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-				if err != nil {
-					return nil, err
-				}
-				return tls.ClientHandshake(ctx, conn, tlsConfig)
+				return tlsDialer.DialTLSContext(ctx, M.ParseSocksaddr(addr))
 			},
 		}
 	}
