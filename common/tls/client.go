@@ -41,6 +41,14 @@ func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, e
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
 	tlsConn, err := aTLS.ClientHandshake(ctx, conn, config)
+	var echErr *tls.ECHRejectionError
+	if errors.As(err, &echErr) && len(echErr.RetryConfigList) > 0 {
+		if clientConfig, ok := config.(*STDClientConfig); ok {
+			clientConfig.SetECHConfigList(echErr.RetryConfigList)
+			// TODO create new conn and handshake
+			// tlsConn, err = aTLS.ClientHandshake(ctx, conn, config)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
