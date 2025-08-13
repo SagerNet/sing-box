@@ -22,6 +22,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 func BaseContext(platformInterface PlatformInterface) context.Context {
@@ -33,7 +34,9 @@ func BaseContext(platformInterface PlatformInterface) context.Context {
 			})
 		}
 	}
-	return box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), dnsRegistry, include.ServiceRegistry())
+	ctx := context.Background()
+	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
+	return box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), dnsRegistry, include.ServiceRegistry())
 }
 
 func parseConfig(ctx context.Context, configContent string) (option.Options, error) {
