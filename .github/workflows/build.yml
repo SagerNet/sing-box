@@ -46,7 +46,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.6
+          go-version: ^1.25.0
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -88,13 +88,14 @@ jobs:
           - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
 
           - { os: windows, arch: amd64 }
-          - { os: windows, arch: amd64, legacy_go: true }
+          - { os: windows, arch: amd64, legacy_go123: true, legacy_name: "windows-7" }
           - { os: windows, arch: "386" }
-          - { os: windows, arch: "386", legacy_go: true }
+          - { os: windows, arch: "386", legacy_go123: true, legacy_name: "windows-7" }
           - { os: windows, arch: arm64 }
 
           - { os: darwin, arch: amd64 }
           - { os: darwin, arch: arm64 }
+          - { os: darwin, arch: amd64, legacy_go124: true, legacy_name: "macos-11" }
 
           - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
           - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
@@ -106,24 +107,29 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: ${{ ! matrix.legacy_go }}
+        if: ${{ ! (matrix.legacy_go123 || matrix.legacy_go124) }}
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.6
-      - name: Cache Legacy Go
-        if: matrix.require_legacy_go
+          go-version: ^1.25.0
+      - name: Setup Go 1.24
+        if: matrix.legacy_go124
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.24.6
+      - name: Cache Go 1.23
+        if: matrix.legacy_go123
         id: cache-legacy-go
         uses: actions/cache@v4
         with:
           path: |
             ~/go/go_legacy
-          key: go_legacy_1236
-      - name: Setup Legacy Go
-        if: matrix.legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
+          key: go_legacy_12312
+      - name: Setup Go 1.23
+        if: matrix.legacy_go123 && steps.cache-legacy-go.outputs.cache-hit != 'true'
         run: |-
           .github/setup_legacy_go.sh
-      - name: Setup Legacy Go 2
-        if: matrix.legacy_go
+      - name: Setup Go 1.23
+        if: matrix.legacy_go123
         run: |-
           echo "PATH=$HOME/go/go_legacy/bin:$PATH" >> $GITHUB_ENV
           echo "GOROOT=$HOME/go/go_legacy" >> $GITHUB_ENV
@@ -184,8 +190,8 @@ jobs:
             DIR_NAME="${DIR_NAME}-${{ matrix.go386 }}"
           elif [[ -n "${{ matrix.gomips }}" && "${{ matrix.gomips }}" != 'hardfloat' ]]; then
             DIR_NAME="${DIR_NAME}-${{ matrix.gomips }}"
-          elif [[ "${{ matrix.legacy_go }}" == 'true' ]]; then
-            DIR_NAME="${DIR_NAME}-legacy"
+          elif [[ -n "${{ matrix.legacy_name }}" ]]; then
+            DIR_NAME="${DIR_NAME}-legacy-${{ matrix.legacy_name }}"
           fi
           echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
           PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
@@ -277,7 +283,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_go && '-legacy' || '' }}
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
   build_android:
     name: Build Android
@@ -294,7 +300,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.6
+          go-version: ^1.25.0
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -374,7 +380,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.6
+          go-version: ^1.25.0
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -472,7 +478,7 @@ jobs:
         if: matrix.if
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.6
+          go-version: ^1.25.0
       - name: Setup Xcode stable
         if: matrix.if && github.ref == 'refs/heads/main-next'
         run: |-
