@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -29,7 +30,7 @@ type Client struct {
 	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
-	conn       quic.Connection
+	conn       atomic.TypedValue[quic.Connection]
 	rawConn    net.Conn
 }
 
@@ -50,13 +51,13 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) offer() (quic.Connection, error) {
-	conn := c.conn
+	conn := c.conn.Load()
 	if conn != nil && !common.Done(conn.Context()) {
 		return conn, nil
 	}
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()
-	conn = c.conn
+	conn = c.conn.Load()
 	if conn != nil && !common.Done(conn.Context()) {
 		return conn, nil
 	}
@@ -78,7 +79,7 @@ func (c *Client) offerNew() (quic.Connection, error) {
 		packetConn.Close()
 		return nil, err
 	}
-	c.conn = quicConn
+	c.conn.Store(quicConn)
 	c.rawConn = udpConn
 	return quicConn, nil
 }
@@ -98,13 +99,13 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 func (c *Client) Close() error {
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()
-	if c.conn != nil {
-		c.conn.CloseWithError(0, "")
+	conn := c.conn.Swap(nil)
+	if conn != nil {
+		conn.CloseWithError(0, "")
 	}
 	if c.rawConn != nil {
 		c.rawConn.Close()
 	}
-	c.conn = nil
 	c.rawConn = nil
 	return nil
 }
