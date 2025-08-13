@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -29,7 +30,7 @@ type Client struct {
 	serverAddr  string
 	serviceName string
 	dialOptions []grpc.DialOption
-	conn        *grpc.ClientConn
+	conn        atomic.Pointer[grpc.ClientConn]
 	connAccess  sync.Mutex
 }
 
@@ -74,13 +75,13 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) connect() (*grpc.ClientConn, error) {
-	conn := c.conn
+	conn := c.conn.Load()
 	if conn != nil && conn.GetState() != connectivity.Shutdown {
 		return conn, nil
 	}
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()
-	conn = c.conn
+	conn = c.conn.Load()
 	if conn != nil && conn.GetState() != connectivity.Shutdown {
 		return conn, nil
 	}
@@ -89,7 +90,7 @@ func (c *Client) connect() (*grpc.ClientConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.conn = conn
+	c.conn.Store(conn)
 	return conn, nil
 }
 
@@ -109,11 +110,9 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) Close() error {
-	c.connAccess.Lock()
-	defer c.connAccess.Unlock()
-	if c.conn != nil {
-		c.conn.Close()
-		c.conn = nil
+	conn := c.conn.Swap(nil)
+	if conn != nil {
+		conn.Close()
 	}
 	return nil
 }
