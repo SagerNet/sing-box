@@ -72,8 +72,7 @@ func (c *Client) offerNew() (quic.Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	var packetConn net.PacketConn
-	packetConn = bufio.NewUnbindPacketConn(udpConn)
+	packetConn := bufio.NewUnbindPacketConn(udpConn)
 	quicConn, err := qtls.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
 	if err != nil {
 		packetConn.Close()

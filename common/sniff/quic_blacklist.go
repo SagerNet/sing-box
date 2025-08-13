@@ -17,8 +17,5 @@ var uQUICChrome115 = &ja3.ClientHello{
 }
 
 func maybeUQUIC(fingerprint *ja3.ClientHello) bool {
-	if uQUICChrome115.Equals(fingerprint, true) {
-		return true
-	}
-	return false
+	return !uQUICChrome115.Equals(fingerprint, true)
 }

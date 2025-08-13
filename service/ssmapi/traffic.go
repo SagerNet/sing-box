@@ -178,7 +178,6 @@ func (s *TrafficManager) ReadUsers(users []*UserObject) {
 	for _, user := range users {
 		s.readUser(user)
 	}
-	return
 }
 
 func (s *TrafficManager) ReadGlobal() (

@@ -180,7 +180,6 @@ func (s *Outbound) connect() (*ssh.Client, error) {
 
 func (s *Outbound) InterfaceUpdated() {
 	common.Close(s.clientConn)
-	return
 }
 
 func (s *Outbound) Close() error {
