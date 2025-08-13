@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -135,20 +136,22 @@ func (c *WebsocketConn) Upstream() any {
 type EarlyWebsocketConn struct {
 	*Client
 	ctx    context.Context
-	conn   *WebsocketConn
+	conn   atomic.Pointer[WebsocketConn]
 	access sync.Mutex
 	create chan struct{}
 	err    error
 }
 
 func (c *EarlyWebsocketConn) Read(b []byte) (n int, err error) {
-	if c.conn == nil {
+	conn := c.conn.Load()
+	if conn == nil {
 		<-c.create
 		if c.err != nil {
 			return 0, c.err
 		}
+		conn = c.conn.Load()
 	}
-	return wrapWsError0(c.conn.Read(b))
+	return wrapWsError0(conn.Read(b))
 }
 
 func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
@@ -187,21 +190,23 @@ func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
 			return err
 		}
 	}
-	c.conn = conn
+	c.conn.Store(conn)
 	return nil
 }
 
 func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
-	if c.conn != nil {
-		return wrapWsError0(c.conn.Write(b))
+	conn := c.conn.Load()
+	if conn != nil {
+		return wrapWsError0(conn.Write(b))
 	}
 	c.access.Lock()
 	defer c.access.Unlock()
+	conn = c.conn.Load()
 	if c.err != nil {
 		return 0, c.err
 	}
-	if c.conn != nil {
-		return wrapWsError0(c.conn.Write(b))
+	if conn != nil {
+		return wrapWsError0(conn.Write(b))
 	}
 	err = c.writeRequest(b)
 	c.err = err
@@ -213,16 +218,18 @@ func (c *EarlyWebsocketConn) Write(b []byte) (n int, err error) {
 }
 
 func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
-	if c.conn != nil {
-		return wrapWsError(c.conn.WriteBuffer(buffer))
+	conn := c.conn.Load()
+	if conn != nil {
+		return wrapWsError(conn.WriteBuffer(buffer))
 	}
 	c.access.Lock()
 	defer c.access.Unlock()
-	if c.conn != nil {
-		return wrapWsError(c.conn.WriteBuffer(buffer))
-	}
 	if c.err != nil {
 		return c.err
+	}
+	conn = c.conn.Load()
+	if conn != nil {
+		return wrapWsError(conn.WriteBuffer(buffer))
 	}
 	err := c.writeRequest(buffer.Bytes())
 	c.err = err
@@ -231,24 +238,27 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 }
 
 func (c *EarlyWebsocketConn) Close() error {
-	if c.conn == nil {
+	conn := c.conn.Load()
+	if conn == nil {
 		return nil
 	}
-	return c.conn.Close()
+	return conn.Close()
 }
 
 func (c *EarlyWebsocketConn) LocalAddr() net.Addr {
-	if c.conn == nil {
+	conn := c.conn.Load()
+	if conn == nil {
 		return M.Socksaddr{}
 	}
-	return c.conn.LocalAddr()
+	return conn.LocalAddr()
 }
 
 func (c *EarlyWebsocketConn) RemoteAddr() net.Addr {
-	if c.conn == nil {
+	conn := c.conn.Load()
+	if conn == nil {
 		return M.Socksaddr{}
 	}
-	return c.conn.RemoteAddr()
+	return conn.RemoteAddr()
 }
 
 func (c *EarlyWebsocketConn) SetDeadline(t time.Time) error {
@@ -268,11 +278,11 @@ func (c *EarlyWebsocketConn) NeedAdditionalReadDeadline() bool {
 }
 
 func (c *EarlyWebsocketConn) Upstream() any {
-	return common.PtrOrNil(c.conn)
+	return common.PtrOrNil(c.conn.Load())
 }
 
 func (c *EarlyWebsocketConn) LazyHeadroom() bool {
-	return c.conn == nil
+	return c.conn.Load() == nil
 }
 
 func wrapWsError(err error) error {
