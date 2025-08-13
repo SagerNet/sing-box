@@ -137,6 +137,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
 			// In Network Extension, when MTU exceeds 4064 (4096-UTUN_IF_HEADROOM_SIZE), the performance of tun will drop significantly, which may be a system bug.
 			tunMTU = 4064
+		} else if C.IsAndroid {
+			// Some Android devices report ENOBUFS when using MTU 65535
+			tunMTU = 9000
 		} else {
 			tunMTU = 65535
 		}
