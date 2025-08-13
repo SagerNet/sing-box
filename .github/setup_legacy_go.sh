@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.23.6"
+VERSION="1.23.12"
 
 mkdir -p $HOME/go
 cd $HOME/go
