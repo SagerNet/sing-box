@@ -151,9 +151,7 @@ func testOnce(boxPath string, stackName string, mtu int, multiThread bool, flags
 	var sudoArgs []string
 	if len(flags) > 0 {
 		sudoArgs = append(sudoArgs, "env")
-		for _, flag := range flags {
-			sudoArgs = append(sudoArgs, flag)
-		}
+		sudoArgs = append(sudoArgs, flags...)
 	}
 	sudoArgs = append(sudoArgs, boxPath, "run", "-c", tempConfig.Name())
 	boxProcess := shell.Exec("sudo", sudoArgs...)

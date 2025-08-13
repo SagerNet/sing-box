@@ -125,7 +125,7 @@ func (s *ECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (a
 func (s *ECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
 	s.access.Lock()
 	defer s.access.Unlock()
-	if len(s.ECHConfigList()) == 0 || s.lastTTL == 0 || time.Now().Sub(s.lastUpdate) > s.lastTTL {
+	if len(s.ECHConfigList()) == 0 || s.lastTTL == 0 || time.Since(s.lastUpdate) > s.lastTTL {
 		message := &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{
 				RecursionDesired: true,

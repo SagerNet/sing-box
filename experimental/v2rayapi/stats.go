@@ -192,7 +192,7 @@ func (s *StatsService) GetSysStats(ctx context.Context, request *SysStatsRequest
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 	response := &SysStatsResponse{
-		Uptime:       uint32(time.Now().Sub(s.createdAt).Seconds()),
+		Uptime:       uint32(time.Since(s.createdAt).Seconds()),
 		NumGoroutine: uint32(runtime.NumGoroutine()),
 		Alloc:        rtm.Alloc,
 		TotalAlloc:   rtm.TotalAlloc,

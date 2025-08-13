@@ -100,7 +100,6 @@ func rewriteRcodeAction(rcodeMap map[string]int, ruleAction *DNSRuleAction) {
 	}
 	ruleAction.Action = C.RuleActionTypePredefined
 	ruleAction.PredefinedOptions.Rcode = common.Ptr(DNSRCode(rcode))
-	return
 }
 
 type DNSClientOptions struct {

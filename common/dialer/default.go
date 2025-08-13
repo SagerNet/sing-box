@@ -271,7 +271,7 @@ func (d *DefaultDialer) DialParallelInterface(ctx context.Context, network strin
 	} else {
 		dialer = d.udpDialer4
 	}
-	fastFallback := time.Now().Sub(d.networkLastFallback.Load()) < C.TCPTimeout
+	fastFallback := time.Since(d.networkLastFallback.Load()) < C.TCPTimeout
 	var (
 		conn      net.Conn
 		isPrimary bool
