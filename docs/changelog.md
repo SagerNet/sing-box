@@ -2,11 +2,23 @@
 icon: material/alert-decagram
 ---
 
-#### 1.12.1
+#### 1.13.0-alpha.1
+
+* Add interface address rule items **1**
+* Fixes and improvements
+
+**1**:
+
+New interface address rules allow you to dynamically adjust rules based on your network environment.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
+
+### 1.12.1
 
 * Fixes and improvements
 
-#### 1.12.0
+### 1.12.0
 
 * Refactor DNS servers **1**
 * Add domain resolver options**2**
