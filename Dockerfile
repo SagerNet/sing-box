@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 COPY . /go/src/github.com/sagernet/sing-box
 WORKDIR /go/src/github.com/sagernet/sing-box
