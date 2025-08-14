@@ -2,11 +2,35 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.2
+
+* Add `preferred_by` rule item **1**
+* Fixes and improvements
+
+**1**:
+
+The new `preferred_by` routing rule item allows you to
+match preferred domains and addresses for specific outbounds.
+
+See [Route Rule](/configuration/route/rule/#preferred_by).
+
+#### 1.13.0-alpha.1
+
+* Add interface address rule items **1**
+* Fixes and improvements
+
+**1**:
+
+New interface address rules allow you to dynamically adjust rules based on your network environment.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
+
 #### 1.12.1
 
 * Fixes and improvements
 
-#### 1.12.0
+### 1.12.0
 
 * Refactor DNS servers **1**
 * Add domain resolver options**2**
@@ -157,7 +181,7 @@ We continue to experience issues updating our sing-box apps on the App Store and
 Until we rewrite and resubmit the apps, they are considered irrecoverable. 
 Therefore, after this release, we will not be repeating this notice unless there is new information.
 
-### 1.11.15
+#### 1.11.15
 
 * Fixes and improvements
 
@@ -173,7 +197,7 @@ violated the rules (TestFlight users are not affected)._
 
 We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
 
-### 1.11.14
+#### 1.11.14
 
 * Fixes and improvements
 
@@ -223,7 +247,7 @@ You can now choose what the DERP home page shows, just like with derper's `-home
 
 See [DERP](/configuration/service/derp/#home).
 
-### 1.11.13
+#### 1.11.13
 
 * Fixes and improvements
 
@@ -261,7 +285,7 @@ SSM API service is a RESTful API server for managing Shadowsocks servers.
 
 See [SSM API Service](/configuration/service/ssm-api/).
 
-### 1.11.11
+#### 1.11.11
 
 * Fixes and improvements
 
@@ -293,7 +317,7 @@ You can now set `bind_interface`, `routing_mark` and `reuse_addr` in Listen Fiel
 
 See [Listen Fields](/configuration/shared/listen/).
 
-### 1.11.10
+#### 1.11.10
 
 * Undeprecate the `block` outbound **1**
 * Fixes and improvements
@@ -311,7 +335,7 @@ violated the rules (TestFlight users are not affected)._
 * Update quic-go to v0.51.0
 * Fixes and improvements
 
-### 1.11.9
+#### 1.11.9
 
 * Fixes and improvements
 
@@ -322,7 +346,7 @@ violated the rules (TestFlight users are not affected)._
 
 * Fixes and improvements
 
-### 1.11.8
+#### 1.11.8
 
 * Improve `auto_redirect` **1**
 * Fixes and improvements
@@ -339,7 +363,7 @@ violated the rules (TestFlight users are not affected)._
 
 * Fixes and improvements
 
-### 1.11.7
+#### 1.11.7
 
 * Fixes and improvements
 
@@ -355,7 +379,7 @@ violated the rules (TestFlight users are not affected)._
 Now `auto_redirect` fixes compatibility issues between tun and Docker bridge networks,
 see [Tun](/configuration/inbound/tun/#auto_redirect).
 
-### 1.11.6
+#### 1.11.6
 
 * Fixes and improvements
 
@@ -396,7 +420,7 @@ See [Protocol Sniff](/configuration/route/sniff/).
 
 See [Dial Fields](/configuration/shared/dial/#domain_resolver).
 
-### 1.11.5
+#### 1.11.5
 
 * Fixes and improvements
 
@@ -412,7 +436,7 @@ violated the rules (TestFlight users are not affected)._
 
 See [DNS Rule Action](/configuration/dns/rule_action/#predefined).
 
-### 1.11.4
+#### 1.11.4
 
 * Fixes and improvements
 
@@ -468,7 +492,7 @@ Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to co
 
 For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches from [MetaCubeX/go](https://github.com/MetaCubeX/go).
 
-### 1.11.3
+#### 1.11.3
 
 * Fixes and improvements
 
@@ -479,7 +503,7 @@ process._
 
 * Fixes and improvements
 
-### 1.11.1
+#### 1.11.1
 
 * Fixes and improvements
 
@@ -658,7 +682,7 @@ See [Hysteria2](/configuration/outbound/hysteria2/).
 
 When `up_mbps` and `down_mbps` are set, `ignore_client_bandwidth` instead denies clients from using BBR CC.
 
-### 1.10.7
+#### 1.10.7
 
 * Fixes and improvements
 
@@ -753,7 +777,7 @@ and the old outbound will be removed in sing-box 1.13.0.
 See [Endpoint](/configuration/endpoint/), [WireGuard Endpoint](/configuration/endpoint/wireguard/)
 and [Migrate WireGuard outbound fields to route options](/migration/#migrate-wireguard-outbound-to-endpoint).
 
-### 1.10.2
+#### 1.10.2
 
 * Add deprecated warnings
 * Fix proxying websocket connections in HTTP/mixed inbounds
@@ -890,7 +914,7 @@ See [Rule Action](/configuration/route/rule_action/).
 * Update quic-go to v0.48.0
 * Fixes and improvements
 
-### 1.10.1
+#### 1.10.1
 
 * Fixes and improvements
 
