@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/common/srs"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
@@ -69,7 +71,7 @@ func compileRuleSet(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	err = srs.Write(outputFile, plainRuleSet.Options, plainRuleSet.Version)
+	err = srs.Write(outputFile, plainRuleSet.Options, downgradeRuleSetVersion(plainRuleSet.Version, plainRuleSet.Options))
 	if err != nil {
 		outputFile.Close()
 		os.Remove(outputPath)
@@ -77,4 +79,19 @@ func compileRuleSet(sourcePath string) error {
 	}
 	outputFile.Close()
 	return nil
+}
+
+func downgradeRuleSetVersion(version uint8, options option.PlainRuleSet) uint8 {
+	if version == C.RuleSetVersion4 && !rule.HasHeadlessRule(options.Rules, func(rule option.DefaultHeadlessRule) bool {
+		return rule.NetworkInterfaceAddress != nil && rule.NetworkInterfaceAddress.Size() > 0 ||
+			len(rule.DefaultInterfaceAddress) > 0
+	}) {
+		version = C.RuleSetVersion3
+	}
+	if version == C.RuleSetVersion3 && !rule.HasHeadlessRule(options.Rules, func(rule option.DefaultHeadlessRule) bool {
+		return len(rule.NetworkType) > 0 || rule.NetworkIsExpensive || rule.NetworkIsConstrained
+	}) {
+		version = C.RuleSetVersion2
+	}
+	return version
 }
