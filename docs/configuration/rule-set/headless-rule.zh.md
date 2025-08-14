@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [network_interface_address](#network_interface_address)  
+    :material-plus: [default_interface_address](#default_interface_address)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [network_type](#network_type)  
@@ -78,6 +83,14 @@ icon: material/new-box
       ],
       "network_is_expensive": false,
       "network_is_constrained": false,
+      "network_interface_address": {
+        "wifi": [
+          "2000::/3"
+        ]
+      },
+      "default_interface_address": [
+        "2000::/3"
+      ],
       "wifi_ssid": [
         "My WIFI"
       ],
@@ -220,6 +233,26 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
     仅在 Apple 平台图形客户端中支持。
 
 匹配如果网络在低数据模式下。
+
+#### network_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配网络接口（可用值同 `network_type`）地址。
+
+#### default_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配默认接口地址。
 
 #### wifi_ssid
 
