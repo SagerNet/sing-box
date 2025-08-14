@@ -246,6 +246,21 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.InterfaceAddress != nil && options.InterfaceAddress.Size() > 0 {
+		item := NewInterfaceAddressItem(networkManager, options.InterfaceAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.NetworkInterfaceAddress != nil && options.NetworkInterfaceAddress.Size() > 0 {
+		item := NewNetworkInterfaceAddressItem(networkManager, options.NetworkInterfaceAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.DefaultInterfaceAddress) > 0 {
+		item := NewDefaultInterfaceAddressItem(networkManager, options.DefaultInterfaceAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.RuleSet) > 0 {
 		var matchSource bool
 		if options.RuleSetIPCIDRMatchSource {
