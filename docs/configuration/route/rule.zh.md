@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [interface_address](#interface_address)  
     :material-plus: [network_interface_address](#network_interface_address)  
-    :material-plus: [default_interface_address](#default_interface_address)
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [preferred_by](#preferred_by)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -149,6 +150,10 @@ icon: material/new-box
         ],
         "wifi_bssid": [
           "00:00:00:00:00:00"
+        ],
+        "preferred_by": [
+          "tailscale",
+          "wireguard"
         ],
         "rule_set": [
           "geoip-cn",
@@ -424,6 +429,17 @@ icon: material/new-box
     仅在 Android 与 Apple 平台图形客户端中支持。
 
 匹配 WiFi BSSID。
+
+#### preferred_by
+
+!!! question "自 sing-box 1.13.0 起"
+
+匹配制定出站的首选路由。
+
+| 类型          | 匹配                             |
+|-------------|--------------------------------|
+| `tailscale` | 匹配 MagicDNS 域名和对端的 allowed IPs |
+| `wireguard` | 匹配对端的 allowed IPs              |
 
 #### rule_set
 
