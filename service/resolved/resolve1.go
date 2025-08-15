@@ -182,9 +182,9 @@ func (t *resolve1Manager) logRequest(sender dbus.Sender, message ...any) context
 		} else if metadata.ProcessInfo.UserId != 0 {
 			prefix = F.ToString("uid:", metadata.ProcessInfo.UserId)
 		}
-		t.logger.InfoContext(ctx, "(", prefix, ") ", F.ToString(message...))
+		t.logger.InfoContext(ctx, "(", prefix, ") ", strings.Join(F.MapToString(message), " "))
 	} else {
-		t.logger.InfoContext(ctx, F.ToString(message...))
+		t.logger.InfoContext(ctx, strings.Join(F.MapToString(message), " "))
 	}
 	return adapter.WithContext(ctx, &metadata)
 }
@@ -280,7 +280,10 @@ func (t *resolve1Manager) ResolveAddress(sender dbus.Sender, ifIndex int32, fami
 		},
 	}
 	ctx := t.logRequest(sender, "ResolveAddress ", link.iif.Name, familyToString(family), addr, flags)
-	response, lookupErr := t.dnsRouter.Exchange(ctx, request, adapter.DNSQueryOptions{})
+	var metadata adapter.InboundContext
+	metadata.InboundType = t.Type()
+	metadata.Inbound = t.Tag()
+	response, lookupErr := t.dnsRouter.Exchange(adapter.WithContext(ctx, &metadata), request, adapter.DNSQueryOptions{})
 	if lookupErr != nil {
 		err = wrapError(err)
 		return
@@ -301,7 +304,7 @@ func (t *resolve1Manager) ResolveAddress(sender dbus.Sender, ifIndex int32, fami
 	return
 }
 
-func (t *resolve1Manager) ResolveRecord(sender dbus.Sender, ifIndex int32, family int32, hostname string, qClass uint16, qType uint16, flags uint64) (records []ResourceRecord, outflags uint64, err *dbus.Error) {
+func (t *resolve1Manager) ResolveRecord(sender dbus.Sender, ifIndex int32, hostname string, qClass uint16, qType uint16, flags uint64) (records []ResourceRecord, outflags uint64, err *dbus.Error) {
 	t.linkAccess.Lock()
 	link, err := t.getLink(ifIndex)
 	if err != nil {
@@ -320,8 +323,11 @@ func (t *resolve1Manager) ResolveRecord(sender dbus.Sender, ifIndex int32, famil
 			},
 		},
 	}
-	ctx := t.logRequest(sender, "ResolveRecord ", link.iif.Name, familyToString(family), hostname, mDNS.Class(qClass), mDNS.Type(qType), flags)
-	response, exchangeErr := t.dnsRouter.Exchange(ctx, request, adapter.DNSQueryOptions{})
+	ctx := t.logRequest(sender, "ResolveRecord", link.iif.Name, hostname, mDNS.Class(qClass), mDNS.Type(qType), flags)
+	var metadata adapter.InboundContext
+	metadata.InboundType = t.Type()
+	metadata.Inbound = t.Tag()
+	response, exchangeErr := t.dnsRouter.Exchange(adapter.WithContext(ctx, &metadata), request, adapter.DNSQueryOptions{})
 	if exchangeErr != nil {
 		err = wrapError(exchangeErr)
 		return
@@ -341,6 +347,7 @@ func (t *resolve1Manager) ResolveRecord(sender dbus.Sender, ifIndex int32, famil
 			err = wrapError(unpackErr)
 		}
 		record.Data = data
+		records = append(records, record)
 	}
 	return
 }
@@ -380,8 +387,10 @@ func (t *resolve1Manager) ResolveService(sender dbus.Sender, ifIndex int32, host
 			},
 		},
 	}
-
-	srvResponse, exchangeErr := t.dnsRouter.Exchange(ctx, srvRequest, adapter.DNSQueryOptions{})
+	var metadata adapter.InboundContext
+	metadata.InboundType = t.Type()
+	metadata.Inbound = t.Tag()
+	srvResponse, exchangeErr := t.dnsRouter.Exchange(adapter.WithContext(ctx, &metadata), srvRequest, adapter.DNSQueryOptions{})
 	if exchangeErr != nil {
 		err = wrapError(exchangeErr)
 		return
