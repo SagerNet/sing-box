@@ -33,6 +33,10 @@ func NewFallbackTransport(ctx context.Context, logger log.ContextLogger, tag str
 	if err != nil {
 		return nil, err
 	}
+	platformInterface := service.FromContext[platform.Interface](ctx)
+	if platformInterface == nil {
+		return transport, nil
+	}
 	return &FallbackTransport{
 		DNSTransport: transport,
 		ctx:          ctx,
@@ -40,11 +44,11 @@ func NewFallbackTransport(ctx context.Context, logger log.ContextLogger, tag str
 }
 
 func (f *FallbackTransport) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
+	err := f.DNSTransport.Start(stage)
+	if err != nil {
+		return err
 	}
-	platformInterface := service.FromContext[platform.Interface](f.ctx)
-	if platformInterface == nil {
+	if stage != adapter.StartStatePostStart {
 		return nil
 	}
 	inboundManager := service.FromContext[adapter.InboundManager](f.ctx)
@@ -59,7 +63,7 @@ func (f *FallbackTransport) Start(stage adapter.StartStage) error {
 }
 
 func (f *FallbackTransport) Close() error {
-	return nil
+	return f.DNSTransport.Close()
 }
 
 func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
