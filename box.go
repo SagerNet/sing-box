@@ -314,15 +314,15 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "initialize service[", i, "]")
 		}
 	}
-	outboundManager.Initialize(common.Must1(
-		direct.NewOutbound(
+	outboundManager.Initialize(func() (adapter.Outbound, error) {
+		return direct.NewOutbound(
 			ctx,
 			router,
 			logFactory.NewLogger("outbound/direct"),
 			"direct",
 			option.DirectOutboundOptions{},
-		),
-	))
+		)
+	})
 	dnsTransportManager.Initialize(common.Must1(
 		local.NewTransport(
 			ctx,

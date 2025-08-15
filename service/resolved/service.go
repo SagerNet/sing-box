@@ -91,11 +91,6 @@ func (i *Service) Start(stage adapter.StartStage) error {
 				return E.New("multiple resolved service are not supported")
 			}
 		}
-	case adapter.StartStateStart:
-		err := i.listener.Start()
-		if err != nil {
-			return err
-		}
 		systemBus, err := dbus.SystemBus()
 		if err != nil {
 			return err
@@ -117,6 +112,11 @@ func (i *Service) Start(stage adapter.StartStage) error {
 			return E.New("unknown request name reply: ", reply)
 		}
 		i.networkUpdateCallback = i.network.NetworkMonitor().RegisterCallback(i.onNetworkUpdate)
+	case adapter.StartStateStart:
+		err := i.listener.Start()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -167,6 +167,8 @@ func (i *Service) exchangePacket0(ctx context.Context, buffer *buf.Buffer, oob [
 	}
 	var metadata adapter.InboundContext
 	metadata.Source = source
+	metadata.InboundType = i.Type()
+	metadata.Inbound = i.Tag()
 	response, err := i.dnsRouter.Exchange(adapter.WithContext(ctx, &metadata), &message, adapter.DNSQueryOptions{})
 	if err != nil {
 		return err
