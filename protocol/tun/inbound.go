@@ -183,7 +183,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
-	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && options.MTU <= 9000))
+    // Use computed tunMTU for Darwin gating to reflect effective MTU
+    // rather than the raw user-provided options.MTU (which may be zero).
+    multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && tunMTU <= 9000))
 	inbound := &Inbound{
 		tag:            tag,
 		ctx:            ctx,
