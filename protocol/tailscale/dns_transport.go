@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -47,8 +46,6 @@ type DNSTransport struct {
 	acceptDefaultResolvers bool
 	dnsRouter              adapter.DNSRouter
 	endpointManager        adapter.EndpointManager
-	cfg                    *wgcfg.Config
-	dnsCfg                 *nDNS.Config
 	endpoint               *Endpoint
 	routePrefixes          []netip.Prefix
 	routes                 map[string][]adapter.DNSTransport
@@ -83,10 +80,10 @@ func (t *DNSTransport) Start(stage adapter.StartStage) error {
 	if !isTailscale {
 		return E.New("endpoint is not Tailscale: ", t.endpointTag)
 	}
-	if ep.onReconfig != nil {
+	if ep.onReconfigHook != nil {
 		return E.New("only one Tailscale DNS server is allowed for single endpoint")
 	}
-	ep.onReconfig = t.onReconfig
+	ep.onReconfigHook = t.onReconfig
 	t.endpoint = ep
 	return nil
 }
@@ -95,14 +92,6 @@ func (t *DNSTransport) Reset() {
 }
 
 func (t *DNSTransport) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCfg *nDNS.Config) {
-	if cfg == nil || dnsCfg == nil {
-		return
-	}
-	if (t.cfg != nil && reflect.DeepEqual(t.cfg, cfg)) && (t.dnsCfg != nil && reflect.DeepEqual(t.dnsCfg, dnsCfg)) {
-		return
-	}
-	t.cfg = cfg
-	t.dnsCfg = dnsCfg
 	err := t.updateDNSServers(routerCfg, dnsCfg)
 	if err != nil {
 		t.logger.Error(E.Cause(err, "update DNS servers"))
