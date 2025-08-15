@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -49,7 +50,13 @@ import (
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
 	"github.com/sagernet/tailscale/wgengine/filter"
+	"github.com/sagernet/tailscale/wgengine/router"
+	"github.com/sagernet/tailscale/wgengine/wgcfg"
+
+	"go4.org/netipx"
 )
+
+var _ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 
 func init() {
 	version.SetVersion("sing-box " + C.Version)
@@ -70,7 +77,12 @@ type Endpoint struct {
 	server            *tsnet.Server
 	stack             *stack.Stack
 	filter            *atomic.Pointer[filter.Filter]
-	onReconfig        wgengine.ReconfigListener
+	onReconfigHook    wgengine.ReconfigListener
+
+	cfg           *wgcfg.Config
+	dnsCfg        *tsDNS.Config
+	routeDomains  common.TypedValue[map[string]bool]
+	routePrefixes atomic.Pointer[netipx.IPSet]
 
 	acceptRoutes           bool
 	exitNode               string
@@ -216,9 +228,7 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
-	if t.onReconfig != nil {
-		t.server.ExportLocalBackend().ExportEngine().(wgengine.ExportedUserspaceEngine).SetOnReconfigListener(t.onReconfig)
-	}
+	t.server.ExportLocalBackend().ExportEngine().(wgengine.ExportedUserspaceEngine).SetOnReconfigListener(t.onReconfig)
 
 	ipStack := t.server.ExportNetstack().ExportIPStack()
 	gErr := ipStack.SetSpoofing(tun.DefaultNIC, true)
@@ -254,7 +264,6 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 		return E.Cause(err, "update prefs")
 	}
 	t.filter = localBackend.ExportFilter()
-
 	go t.watchState()
 	return nil
 }
@@ -473,8 +482,56 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
+func (t *Endpoint) PreferredDomain(domain string) bool {
+	routeDomains := t.routeDomains.Load()
+	if routeDomains == nil {
+		return false
+	}
+	return routeDomains[strings.ToLower(domain)]
+}
+
+func (t *Endpoint) PreferredAddress(address netip.Addr) bool {
+	routePrefixes := t.routePrefixes.Load()
+	if routePrefixes == nil {
+		return false
+	}
+	return routePrefixes.Contains(address)
+}
+
 func (t *Endpoint) Server() *tsnet.Server {
 	return t.server
+}
+
+func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCfg *tsDNS.Config) {
+	if cfg == nil || dnsCfg == nil {
+		return
+	}
+	if (t.cfg != nil && reflect.DeepEqual(t.cfg, cfg)) && (t.dnsCfg != nil && reflect.DeepEqual(t.dnsCfg, dnsCfg)) {
+		return
+	}
+	t.cfg = cfg
+	t.dnsCfg = dnsCfg
+
+	routeDomains := make(map[string]bool)
+	for fqdn := range dnsCfg.Routes {
+		routeDomains[fqdn.WithoutTrailingDot()] = true
+	}
+	for _, fqdn := range dnsCfg.SearchDomains {
+		routeDomains[fqdn.WithoutTrailingDot()] = true
+	}
+	t.routeDomains.Store(routeDomains)
+
+	var builder netipx.IPSetBuilder
+	for _, peer := range cfg.Peers {
+		for _, allowedIP := range peer.AllowedIPs {
+			builder.AddPrefix(allowedIP)
+		}
+	}
+	t.routePrefixes.Store(common.Must1(builder.IPSet()))
+
+	if t.onReconfigHook != nil {
+		t.onReconfigHook(cfg, routerCfg, dnsCfg)
+	}
 }
 
 func addressFromAddr(destination netip.Addr) tcpip.Address {
