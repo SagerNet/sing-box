@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -16,6 +17,11 @@ type Outbound interface {
 	Network() []string
 	Dependencies() []string
 	N.Dialer
+}
+
+type OutboundWithPreferredRoutes interface {
+	PreferredDomain(domain string) bool
+	PreferredAddress(address netip.Addr) bool
 }
 
 type OutboundRegistry interface {
