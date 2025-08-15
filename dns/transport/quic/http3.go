@@ -3,6 +3,8 @@ package quic
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -12,7 +14,7 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/tls"
+	cTLS "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport"
@@ -51,7 +53,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, options.Server, tlsOptions)
+	tlsConfig, err := cTLS.NewClient(ctx, options.Server, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +104,23 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		destination:      &destinationURL,
 		headers:          headers,
 		transport: &http3.Transport{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
-				conn, dialErr := transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
-				if dialErr != nil {
-					return nil, dialErr
+			Dial: func(ctx context.Context, addr string, tlsCfg *cTLS.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
+				udpConn, hErr := transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
+				if hErr != nil {
+					return nil, hErr
 				}
-				return quic.DialEarly(ctx, bufio.NewUnbindPacketConn(conn), conn.RemoteAddr(), tlsCfg, cfg)
+				earlyConn, hErr := quic.DialEarly(ctx, bufio.NewUnbindPacketConn(udpConn), udpConn.RemoteAddr(), tlsCfg, cfg)
+				var echErr *tls.ECHRejectionError
+				if errors.As(hErr, &echErr) && len(echErr.RetryConfigList) > 0 {
+					udpConn.Close()
+					udpConn, hErr = transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
+					if hErr != nil {
+						return nil, hErr
+					}
+					tlsCfg.EncryptedClientHelloConfigList = echErr.RetryConfigList
+					earlyConn, hErr = quic.DialEarly(ctx, bufio.NewUnbindPacketConn(udpConn), udpConn.RemoteAddr(), tlsCfg, cfg)
+				}
+				return earlyConn, hErr
 			},
 			TLSClientConfig: stdConfig,
 		},

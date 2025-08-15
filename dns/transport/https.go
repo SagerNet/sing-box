@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -15,7 +16,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-box/common/tls"
+	cTLS "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -59,7 +60,7 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, options.Server, tlsOptions)
+	tlsConfig, err := cTLS.NewClient(ctx, options.Server, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +124,7 @@ func NewHTTPSRaw(
 	destination *url.URL,
 	headers http.Header,
 	serverAddr M.Socksaddr,
-	tlsConfig tls.Config,
+	tlsConfig cTLS.Config,
 ) *HTTPSTransport {
 	var transport *http.Transport
 	if tlsConfig != nil {
@@ -135,6 +136,18 @@ func NewHTTPSRaw(
 					return nil, hErr
 				}
 				tlsConn, hErr := aTLS.ClientHandshake(ctx, tcpConn, tlsConfig)
+				var echErr *tls.ECHRejectionError
+				if errors.As(hErr, &echErr) && len(echErr.RetryConfigList) > 0 {
+					if echConfig, isECH := tlsConfig.(cTLS.ECHCapableConfig); isECH {
+						tcpConn.Close()
+						tcpConn, hErr = dialer.DialContext(ctx, network, serverAddr)
+						if hErr != nil {
+							return nil, hErr
+						}
+						echConfig.SetECHConfigList(echErr.RetryConfigList)
+						tlsConn, hErr = aTLS.ClientHandshake(ctx, tcpConn, tlsConfig)
+					}
+				}
 				if hErr != nil {
 					tcpConn.Close()
 					return nil, hErr
