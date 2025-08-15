@@ -22,6 +22,8 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
+var _ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
+
 func RegisterEndpoint(registry *endpoint.Registry) {
 	endpoint.Register[option.WireGuardEndpointOptions](registry, C.TypeWireGuard, NewEndpoint)
 }
@@ -209,4 +211,12 @@ func (w *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return packetConn, err
 	}
 	return w.endpoint.ListenPacket(ctx, destination)
+}
+
+func (w *Endpoint) PreferredDomain(domain string) bool {
+	return false
+}
+
+func (w *Endpoint) PreferredAddress(address netip.Addr) bool {
+	return w.endpoint.Lookup(address) != nil
 }
