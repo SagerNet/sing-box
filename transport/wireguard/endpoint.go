@@ -8,7 +8,9 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"reflect"
 	"strings"
+	"unsafe"
 
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -30,6 +32,7 @@ type Endpoint struct {
 	allowedAddress []netip.Prefix
 	tunDevice      Device
 	device         *device.Device
+	allowedIPs     *device.AllowedIPs
 	pause          pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
 }
@@ -191,6 +194,7 @@ func (e *Endpoint) Start(resolve bool) error {
 	if e.pause != nil {
 		e.pauseCallback = e.pause.RegisterCallback(e.onPauseUpdated)
 	}
+	e.allowedIPs = (*device.AllowedIPs)(unsafe.Pointer(reflect.Indirect(reflect.ValueOf(wgDevice)).FieldByName("allowedips").UnsafeAddr()))
 	return nil
 }
 
@@ -216,6 +220,13 @@ func (e *Endpoint) Close() error {
 		e.pause.UnregisterCallback(e.pauseCallback)
 	}
 	return nil
+}
+
+func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
+	if e.allowedIPs == nil {
+		return nil
+	}
+	return e.allowedIPs.Lookup(address.AsSlice())
 }
 
 func (e *Endpoint) onPauseUpdated(event int) {
