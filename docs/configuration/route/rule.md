@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [interface_address](#interface_address)  
     :material-plus: [network_interface_address](#network_interface_address)  
-    :material-plus: [default_interface_address](#default_interface_address)
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [preferred_by](#preferred_by)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -152,6 +153,10 @@ icon: material/new-box
         ],
         "wifi_bssid": [
           "00:00:00:00:00:00"
+        ],
+        "preferred_by": [
+          "tailscale",
+          "wireguard"
         ],
         "rule_set": [
           "geoip-cn",
@@ -427,6 +432,17 @@ Match WiFi SSID.
     Only supported in graphical clients on Android and Apple platforms.
 
 Match WiFi BSSID.
+
+#### preferred_by
+
+!!! question "Since sing-box 1.13.0"
+
+Match specified outbounds' preferred routes.
+
+| Type        | Match                                         |
+|-------------|-----------------------------------------------|
+| `tailscale` | Match MagicDNS domains and peers' allowed IPs |
+| `wireguard` | Match peers's allowed IPs                     |
 
 #### rule_set
 
