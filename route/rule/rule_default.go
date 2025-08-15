@@ -117,7 +117,7 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 	if len(options.DomainRegex) > 0 {
 		item, err := NewDomainRegexItem(options.DomainRegex)
 		if err != nil {
-			return nil, E.Cause(err, "domain_regex")
+			return nil, err
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
@@ -258,6 +258,11 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 	}
 	if len(options.DefaultInterfaceAddress) > 0 {
 		item := NewDefaultInterfaceAddressItem(networkManager, options.DefaultInterfaceAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.PreferredBy) > 0 {
+		item := NewPreferredByItem(ctx, options.PreferredBy)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
