@@ -211,7 +211,9 @@ func (o *DNSServerOptions) Upgrade(ctx context.Context) error {
 	switch serverType {
 	case C.DNSTypeLocal:
 		o.Type = C.DNSTypeLocal
-		o.Options = &remoteOptions.RawLocalDNSServerOptions
+		o.Options = &LocalDNSServerOptions{
+			RawLocalDNSServerOptions: remoteOptions.RawLocalDNSServerOptions,
+		}
 	case C.DNSTypeUDP:
 		o.Type = C.DNSTypeUDP
 		o.Options = &remoteOptions
