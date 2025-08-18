@@ -30,7 +30,7 @@ type TransportManager struct {
 	transportByTag           map[string]adapter.DNSTransport
 	dependByTag              map[string][]string
 	defaultTransport         adapter.DNSTransport
-	defaultTransportFallback adapter.DNSTransport
+	defaultTransportFallback func() (adapter.DNSTransport, error)
 	fakeIPTransport          adapter.FakeIPTransport
 }
 
@@ -45,7 +45,7 @@ func NewTransportManager(logger logger.ContextLogger, registry adapter.DNSTransp
 	}
 }
 
-func (m *TransportManager) Initialize(defaultTransportFallback adapter.DNSTransport) {
+func (m *TransportManager) Initialize(defaultTransportFallback func() (adapter.DNSTransport, error)) {
 	m.defaultTransportFallback = defaultTransportFallback
 }
 
@@ -56,14 +56,27 @@ func (m *TransportManager) Start(stage adapter.StartStage) error {
 	}
 	m.started = true
 	m.stage = stage
-	transports := m.transports
-	m.access.Unlock()
 	if stage == adapter.StartStateStart {
 		if m.defaultTag != "" && m.defaultTransport == nil {
+			m.access.Unlock()
 			return E.New("default DNS server not found: ", m.defaultTag)
 		}
-		return m.startTransports(m.transports)
+		if m.defaultTransport == nil {
+			defaultTransport, err := m.defaultTransportFallback()
+			if err != nil {
+				m.access.Unlock()
+				return E.Cause(err, "default DNS server fallback")
+			}
+			m.transports = append(m.transports, defaultTransport)
+			m.transportByTag[defaultTransport.Tag()] = defaultTransport
+			m.defaultTransport = defaultTransport
+		}
+		transports := m.transports
+		m.access.Unlock()
+		return m.startTransports(transports)
 	} else {
+		transports := m.transports
+		m.access.Unlock()
 		for _, outbound := range transports {
 			err := adapter.LegacyStart(outbound, stage)
 			if err != nil {
@@ -172,11 +185,7 @@ func (m *TransportManager) Transport(tag string) (adapter.DNSTransport, bool) {
 func (m *TransportManager) Default() adapter.DNSTransport {
 	m.access.RLock()
 	defer m.access.RUnlock()
-	if m.defaultTransport != nil {
-		return m.defaultTransport
-	} else {
-		return m.defaultTransportFallback
-	}
+	return m.defaultTransport
 }
 
 func (m *TransportManager) FakeIP() adapter.FakeIPTransport {

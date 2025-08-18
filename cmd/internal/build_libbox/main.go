@@ -59,8 +59,8 @@ func init() {
 	if err != nil {
 		currentTag = "unknown"
 	}
-	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
-	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
+	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid= -checklinkname=0")
+	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+"-s -w -buildid= -checklinkname=0")
 
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api", "with_conntrack")
 	darwinTags = append(darwinTags, "with_dhcp")
@@ -106,17 +106,15 @@ func buildAndroid() {
 		"-libname=box",
 	}
 
-	if !debugEnabled {
-		sharedFlags[3] = sharedFlags[3] + " -checklinkname=0"
-		args = append(args, sharedFlags...)
-	} else {
-		debugFlags[1] = debugFlags[1] + " -checklinkname=0"
-		args = append(args, debugFlags...)
-	}
-
 	tags := append(sharedTags, memcTags...)
 	if debugEnabled {
 		tags = append(tags, debugTags...)
+	}
+
+	if !debugEnabled {
+		args = append(args, sharedFlags...)
+	} else {
+		args = append(args, debugFlags...)
 	}
 
 	args = append(args, "-tags", strings.Join(tags, ","))
