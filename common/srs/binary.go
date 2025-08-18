@@ -235,7 +235,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 		case ruleItemNetworkIsConstrained:
 			rule.NetworkIsConstrained = true
 		case ruleItemNetworkInterfaceAddress:
-			rule.NetworkInterfaceAddress = new(badjson.TypedMap[option.InterfaceType, badoption.Listable[badoption.Prefixable]])
+			rule.NetworkInterfaceAddress = new(badjson.TypedMap[option.InterfaceType, badoption.Listable[*badoption.Prefixable]])
 			var size uint64
 			size, err = binary.ReadUvarint(reader)
 			if err != nil {
@@ -247,7 +247,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 				if err != nil {
 					return
 				}
-				var value []badoption.Prefixable
+				var value []*badoption.Prefixable
 				var prefixCount uint64
 				prefixCount, err = binary.ReadUvarint(reader)
 				if err != nil {
@@ -259,12 +259,12 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 					if err != nil {
 						return
 					}
-					value = append(value, badoption.Prefixable(prefix))
+					value = append(value, common.Ptr(badoption.Prefixable(prefix)))
 				}
 				rule.NetworkInterfaceAddress.Put(option.InterfaceType(key), value)
 			}
 		case ruleItemDefaultInterfaceAddress:
-			var value []badoption.Prefixable
+			var value []*badoption.Prefixable
 			var prefixCount uint64
 			prefixCount, err = binary.ReadUvarint(reader)
 			if err != nil {
@@ -276,7 +276,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 				if err != nil {
 					return
 				}
-				value = append(value, badoption.Prefixable(prefix))
+				value = append(value, common.Ptr(badoption.Prefixable(prefix)))
 			}
 			rule.DefaultInterfaceAddress = value
 		case ruleItemFinal:
@@ -434,6 +434,10 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		}
 		for _, entry := range rule.NetworkInterfaceAddress.Entries() {
 			err = binary.Write(writer, binary.BigEndian, uint8(entry.Key.Build()))
+			if err != nil {
+				return err
+			}
+			_, err = varbin.WriteUvarint(writer, uint64(len(entry.Value)))
 			if err != nil {
 				return err
 			}
