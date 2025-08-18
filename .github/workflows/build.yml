@@ -149,12 +149,29 @@ jobs:
           TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale'
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
       - name: Build
-        if: matrix.os != 'android'
+        if: matrix.os != 'darwin' && matrix.os != 'android'
         run: |
           set -xeuo pipefail
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
           -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build darwin
+        if: matrix.os == 'darwin'
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "0"
