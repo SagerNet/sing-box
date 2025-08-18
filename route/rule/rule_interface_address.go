@@ -19,7 +19,7 @@ type InterfaceAddressItem struct {
 	description        string
 }
 
-func NewInterfaceAddressItem(networkManager adapter.NetworkManager, interfaceAddresses *badjson.TypedMap[string, badoption.Listable[badoption.Prefixable]]) *InterfaceAddressItem {
+func NewInterfaceAddressItem(networkManager adapter.NetworkManager, interfaceAddresses *badjson.TypedMap[string, badoption.Listable[*badoption.Prefixable]]) *InterfaceAddressItem {
 	item := &InterfaceAddressItem{
 		networkManager:     networkManager,
 		interfaceAddresses: make(map[string][]netip.Prefix, interfaceAddresses.Size()),
