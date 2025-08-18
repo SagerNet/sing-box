@@ -17,7 +17,7 @@ type DefaultInterfaceAddressItem struct {
 	interfaceAddresses []netip.Prefix
 }
 
-func NewDefaultInterfaceAddressItem(networkManager adapter.NetworkManager, interfaceAddresses badoption.Listable[badoption.Prefixable]) *DefaultInterfaceAddressItem {
+func NewDefaultInterfaceAddressItem(networkManager adapter.NetworkManager, interfaceAddresses badoption.Listable[*badoption.Prefixable]) *DefaultInterfaceAddressItem {
 	item := &DefaultInterfaceAddressItem{
 		interfaceMonitor:   networkManager.InterfaceMonitor(),
 		interfaceAddresses: make([]netip.Prefix, 0, len(interfaceAddresses)),
