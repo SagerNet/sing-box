@@ -323,13 +323,14 @@ func New(options Options) (*Box, error) {
 			option.DirectOutboundOptions{},
 		)
 	})
-	dnsTransportManager.Initialize(common.Must1(
-		local.NewTransport(
+	dnsTransportManager.Initialize(func() (adapter.DNSTransport, error) {
+		return local.NewTransport(
 			ctx,
 			logFactory.NewLogger("dns/local"),
 			"local",
 			option.LocalDNSServerOptions{},
-		)))
+		)
+	})
 	if platformInterface != nil {
 		err = platformInterface.Initialize(networkManager)
 		if err != nil {
