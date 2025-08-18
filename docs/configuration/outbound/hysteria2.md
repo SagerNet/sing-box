@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [server_ports](#server_ports)  
