@@ -223,6 +223,9 @@ func (e *Endpoint) Close() error {
 }
 
 func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
+	if e.allowedIPs == nil {
+		return nil
+	}
 	return e.allowedIPs.Lookup(address.AsSlice())
 }
 
