@@ -74,12 +74,14 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 			break
 		}
 	}
-	if t.fallback {
-		t.dhcpTransport = newDHCPTransport(t.TransportAdapter, log.ContextWithOverrideLevel(t.ctx, log.LevelDebug), t.dialer, t.logger)
-		if t.dhcpTransport != nil {
-			err := t.dhcpTransport.Start(stage)
-			if err != nil {
-				return err
+	if !C.IsIos {
+		if t.fallback {
+			t.dhcpTransport = newDHCPTransport(t.TransportAdapter, log.ContextWithOverrideLevel(t.ctx, log.LevelDebug), t.dialer, t.logger)
+			if t.dhcpTransport != nil {
+				err := t.dhcpTransport.Start(stage)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -103,10 +105,12 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	if !t.fallback {
 		return t.exchange(ctx, message, question.Name)
 	}
-	if t.dhcpTransport != nil {
-		dhcpTransports, _ := t.dhcpTransport.Fetch()
-		if len(dhcpTransports) > 0 {
-			return t.dhcpTransport.Exchange0(ctx, message, dhcpTransports)
+	if !C.IsIos {
+		if t.dhcpTransport != nil {
+			dhcpTransports, _ := t.dhcpTransport.Fetch()
+			if len(dhcpTransports) > 0 {
+				return t.dhcpTransport.Exchange0(ctx, message, dhcpTransports)
+			}
 		}
 	}
 	if t.preferGo {
@@ -130,5 +134,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		}
 		return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 	}
-	return nil, E.New("only A and AAAA queries are supported on Apple platforms when using TUN and DHCP unavailable.")
+	if C.IsIos {
+		return nil, E.New("only A and AAAA queries are supported on iOS and tvOS when using NetworkExtension.")
+	} else {
+		return nil, E.New("only A and AAAA queries are supported on macOS when using NetworkExtension and DHCP unavailable.")
+	}
 }
