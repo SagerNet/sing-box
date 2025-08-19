@@ -106,6 +106,14 @@ func (c *utlsConnWrapper) Upstream() any {
 	return c.UConn
 }
 
+func (c *utlsConnWrapper) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *utlsConnWrapper) WriterReplaceable() bool {
+	return true
+}
+
 type utlsALPNWrapper struct {
 	utlsConnWrapper
 	nextProtocols []string
