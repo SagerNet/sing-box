@@ -16,6 +16,9 @@ func writeAndWaitAck(ctx context.Context, conn *net.TCPConn, payload []byte, fal
 	err := winiphlpapi.WriteAndWaitAck(ctx, conn, payload)
 	if err != nil {
 		if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
+			if _, err := conn.Write(payload); err != nil {
+				return err
+			}
 			time.Sleep(fallbackDelay)
 			return nil
 		}
