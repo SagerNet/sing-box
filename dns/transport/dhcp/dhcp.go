@@ -201,7 +201,11 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface)
 	}
 	defer packetConn.Close()
 
-	discovery, err := dhcpv4.NewDiscovery(iface.HardwareAddr, dhcpv4.WithBroadcast(true), dhcpv4.WithRequestedOptions(dhcpv4.OptionDomainNameServer, dhcpv4.OptionDNSDomainSearchList))
+	discovery, err := dhcpv4.NewDiscovery(iface.HardwareAddr, dhcpv4.WithBroadcast(true), dhcpv4.WithRequestedOptions(
+		dhcpv4.OptionDomainName,
+		dhcpv4.OptionDomainNameServer,
+		dhcpv4.OptionDNSDomainSearchList,
+	))
 	if err != nil {
 		return err
 	}
@@ -253,8 +257,10 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 
 func (t *Transport) recreateServers(iface *control.Interface, dhcpPacket *dhcpv4.DHCPv4) error {
 	searchList := dhcpPacket.DomainSearch()
-	if searchList != nil {
+	if searchList != nil && len(searchList.Labels) > 0 {
 		t.search = searchList.Labels
+	} else if dhcpPacket.DomainName() != "" {
+		t.search = []string{dhcpPacket.DomainName()}
 	}
 	serverAddrs := common.Map(dhcpPacket.DNS(), func(it net.IP) M.Socksaddr {
 		return M.SocksaddrFrom(M.AddrFromIP(it), 53)
