@@ -109,6 +109,9 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 						if err != nil {
 							return
 						}
+						if i != len(splitIndexes) {
+							time.Sleep(c.fallbackDelay)
+						}
 					}
 				}
 			}
