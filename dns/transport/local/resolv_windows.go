@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	localAddr    = "127.0.0.1"
+	localAddr    = "127.1.1.1"
 	dhcpMarkAddr = "127.1.2.3"
 	setMarkAddr  = "127.3.2.1"
 )
