@@ -128,6 +128,10 @@ func (c *ReadWaitConn) Upstream() any {
 	return c.Conn
 }
 
+func (c *ReadWaitConn) ReaderReplaceable() bool {
+	return true
+}
+
 var tlsRegistry []func(conn net.Conn) (loaded bool, tlsReadRecord func() error, tlsHandlePostHandshakeMessage func() error)
 
 func init() {

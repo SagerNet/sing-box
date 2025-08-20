@@ -6,22 +6,26 @@ import (
 	"net"
 	_ "unsafe"
 
-	"github.com/sagernet/sing/common"
-
 	"github.com/metacubex/utls"
 )
 
 func init() {
 	tlsRegistry = append(tlsRegistry, func(conn net.Conn) (loaded bool, tlsReadRecord func() error, tlsHandlePostHandshakeMessage func() error) {
-		tlsConn, loaded := common.Cast[*tls.UConn](conn)
-		if !loaded {
-			return
+		switch tlsConn := conn.(type) {
+		case *tls.UConn:
+			return true, func() error {
+					return utlsReadRecord(tlsConn.Conn)
+				}, func() error {
+					return utlsHandlePostHandshakeMessage(tlsConn.Conn)
+				}
+		case *tls.Conn:
+			return true, func() error {
+					return utlsReadRecord(tlsConn)
+				}, func() error {
+					return utlsHandlePostHandshakeMessage(tlsConn)
+				}
 		}
-		return true, func() error {
-				return utlsReadRecord(tlsConn.Conn)
-			}, func() error {
-				return utlsHandlePostHandshakeMessage(tlsConn.Conn)
-			}
+		return
 	})
 }
 
