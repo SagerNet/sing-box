@@ -307,3 +307,11 @@ func (c *realityClientConnWrapper) Upstream() any {
 func (c *realityClientConnWrapper) CloseWrite() error {
 	return c.Close()
 }
+
+func (c *realityClientConnWrapper) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *realityClientConnWrapper) WriterReplaceable() bool {
+	return true
+}
