@@ -56,6 +56,14 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	m.started = true
 	m.stage = stage
 	if stage == adapter.StartStateStart {
+		if m.defaultTag != "" && m.defaultOutbound == nil {
+			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
+			if !loaded {
+				m.access.Unlock()
+				return E.New("default outbound not found: ", m.defaultTag)
+			}
+			m.defaultOutbound = defaultEndpoint
+		}
 		if m.defaultOutbound == nil {
 			directOutbound, err := m.defaultOutboundFallback()
 			if err != nil {
@@ -65,14 +73,6 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 			m.outbounds = append(m.outbounds, directOutbound)
 			m.outboundByTag[directOutbound.Tag()] = directOutbound
 			m.defaultOutbound = directOutbound
-		}
-		if m.defaultTag != "" && m.defaultOutbound == nil {
-			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
-			if !loaded {
-				m.access.Unlock()
-				return E.New("default outbound not found: ", m.defaultTag)
-			}
-			m.defaultOutbound = defaultEndpoint
 		}
 		outbounds := m.outbounds
 		m.access.Unlock()
