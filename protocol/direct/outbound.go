@@ -13,7 +13,8 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -151,8 +152,13 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 }
 
 func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
-	h.logger.Info("linked ", metadata.Network, " connection to ", metadata.Destination.AddrString())
-	return tun.NewICMPDestination(h.ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPNetwork(metadata.Network), metadata.Network, metadata.Destination.Addr, routeContext)
+	ctx := log.ContextWithNewID(h.ctx)
+	destination, err := ping.ConnectDestination(ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPNetwork(metadata.Network).Control, metadata.Destination.Addr, routeContext)
+	if err != nil {
+		return nil, err
+	}
+	h.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
+	return destination, nil
 }
 
 func (h *Outbound) DialParallel(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr) (net.Conn, error) {

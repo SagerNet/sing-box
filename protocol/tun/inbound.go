@@ -466,7 +466,7 @@ func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destinat
 	}, routeContext)
 	if err != nil {
 		if !E.IsMulti(err, tun.ErrDrop, syscall.ECONNREFUSED) {
-			t.logger.Warn(err)
+			t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source, " to ", destination))
 		}
 	}
 	return routeDestination, err
