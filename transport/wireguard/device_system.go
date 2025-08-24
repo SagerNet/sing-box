@@ -22,14 +22,14 @@ import (
 var _ Device = (*systemDevice)(nil)
 
 type systemDevice struct {
-	options     DeviceOptions
-	dialer      N.Dialer
-	device      tun.Tun
-	batchDevice tun.LinuxTUN
-	events      chan wgTun.Event
-	closeOnce   sync.Once
-	addr4       netip.Addr
-	addr6       netip.Addr
+	options      DeviceOptions
+	dialer       N.Dialer
+	device       tun.Tun
+	batchDevice  tun.LinuxTUN
+	events       chan wgTun.Event
+	closeOnce    sync.Once
+	inet4Address netip.Addr
+	inet6Address netip.Addr
 }
 
 func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
@@ -53,11 +53,11 @@ func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 		}
 	}
 	return &systemDevice{
-		options: options,
-		dialer:  options.CreateDialer(options.Name),
-		events:  make(chan wgTun.Event, 1),
-		addr4:   inet4Address,
-		addr6:   inet6Address,
+		options:      options,
+		dialer:       options.CreateDialer(options.Name),
+		events:       make(chan wgTun.Event, 1),
+		inet4Address: inet4Address,
+		inet6Address: inet6Address,
 	}, nil
 }
 
@@ -70,11 +70,11 @@ func (w *systemDevice) ListenPacket(ctx context.Context, destination M.Socksaddr
 }
 
 func (w *systemDevice) Inet4Address() netip.Addr {
-	return w.addr4
+	return w.inet4Address
 }
 
 func (w *systemDevice) Inet6Address() netip.Addr {
-	return w.addr6
+	return w.inet6Address
 }
 
 func (w *systemDevice) SetDevice(device *device.Device) {

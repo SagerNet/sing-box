@@ -38,7 +38,7 @@ type DeviceOptions struct {
 func NewDevice(options DeviceOptions) (Device, error) {
 	if !options.System {
 		return newStackDevice(options)
-	} else if options.Handler == nil {
+	} else if !tun.WithGVisor {
 		return newSystemDevice(options)
 	} else {
 		return newSystemStackDevice(options)

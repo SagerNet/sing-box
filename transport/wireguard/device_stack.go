@@ -19,7 +19,9 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -31,6 +33,8 @@ import (
 var _ NatDevice = (*stackDevice)(nil)
 
 type stackDevice struct {
+	ctx            context.Context
+	logger         log.ContextLogger
 	stack          *stack.Stack
 	mtu            uint32
 	events         chan wgTun.Event
@@ -38,25 +42,28 @@ type stackDevice struct {
 	packetOutbound chan *buf.Buffer
 	done           chan struct{}
 	dispatcher     stack.NetworkDispatcher
-	addr4          tcpip.Address
-	addr6          tcpip.Address
-	mapping        *tun.NatMapping
-	writer         *tun.NatWriter
+	inet4Address   netip.Addr
+	inet6Address   netip.Addr
 }
 
 func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 	tunDevice := &stackDevice{
+		ctx:            options.Context,
+		logger:         options.Logger,
 		mtu:            options.MTU,
 		events:         make(chan wgTun.Event, 1),
 		outbound:       make(chan *stack.PacketBuffer, 256),
 		packetOutbound: make(chan *buf.Buffer, 256),
 		done:           make(chan struct{}),
-		mapping:        tun.NewNatMapping(true),
 	}
-	ipStack, err := tun.NewGVisorStack((*wireEndpoint)(tunDevice))
+	ipStack, err := tun.NewGVisorStackWithOptions((*wireEndpoint)(tunDevice), stack.NICOptions{}, true)
 	if err != nil {
 		return nil, err
 	}
+	var (
+		inet4Address netip.Addr
+		inet6Address netip.Addr
+	)
 	for _, prefix := range options.Address {
 		addr := tun.AddressFromAddr(prefix.Addr())
 		protoAddr := tcpip.ProtocolAddress{
@@ -66,10 +73,12 @@ func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 			},
 		}
 		if prefix.Addr().Is4() {
-			tunDevice.addr4 = addr
+			inet4Address = prefix.Addr()
+			tunDevice.inet4Address = inet4Address
 			protoAddr.Protocol = ipv4.ProtocolNumber
 		} else {
-			tunDevice.addr6 = addr
+			inet6Address = prefix.Addr()
+			tunDevice.inet6Address = inet6Address
 			protoAddr.Protocol = ipv6.ProtocolNumber
 		}
 		gErr := ipStack.AddProtocolAddress(tun.DefaultNIC, protoAddr, stack.AddressProperties{})
@@ -77,12 +86,12 @@ func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 			return nil, E.New("parse local address ", protoAddr.AddressWithPrefix, ": ", gErr.String())
 		}
 	}
-	tunDevice.writer = tun.NewNatWriter(tunDevice.Inet4Address(), tunDevice.Inet6Address())
 	tunDevice.stack = ipStack
 	if options.Handler != nil {
 		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
 		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
 		icmpForwarder := tun.NewICMPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout)
+		icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	}
@@ -101,10 +110,10 @@ func (w *stackDevice) DialContext(ctx context.Context, network string, destinati
 	var networkProtocol tcpip.NetworkProtocolNumber
 	if destination.IsIPv4() {
 		networkProtocol = header.IPv4ProtocolNumber
-		bind.Addr = w.addr4
+		bind.Addr = tun.AddressFromAddr(w.inet4Address)
 	} else {
 		networkProtocol = header.IPv6ProtocolNumber
-		bind.Addr = w.addr6
+		bind.Addr = tun.AddressFromAddr(w.inet4Address)
 	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
@@ -131,10 +140,10 @@ func (w *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	var networkProtocol tcpip.NetworkProtocolNumber
 	if destination.IsIPv4() {
 		networkProtocol = header.IPv4ProtocolNumber
-		bind.Addr = w.addr4
+		bind.Addr = tun.AddressFromAddr(w.inet4Address)
 	} else {
 		networkProtocol = header.IPv6ProtocolNumber
-		bind.Addr = w.addr6
+		bind.Addr = tun.AddressFromAddr(w.inet4Address)
 	}
 	udpConn, err := gonet.DialUDP(w.stack, &bind, nil, networkProtocol)
 	if err != nil {
@@ -144,11 +153,11 @@ func (w *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 }
 
 func (w *stackDevice) Inet4Address() netip.Addr {
-	return netip.AddrFrom4(w.addr4.As4())
+	return w.inet4Address
 }
 
 func (w *stackDevice) Inet6Address() netip.Addr {
-	return netip.AddrFrom16(w.addr6.As16())
+	return w.inet6Address
 }
 
 func (w *stackDevice) SetDevice(device *device.Device) {
@@ -192,14 +201,6 @@ func (w *stackDevice) Write(bufs [][]byte, offset int) (count int, err error) {
 	for _, b := range bufs {
 		b = b[offset:]
 		if len(b) == 0 {
-			continue
-		}
-		handled, err := w.mapping.WritePacket(b)
-		if handled {
-			if err != nil {
-				return count, err
-			}
-			count++
 			continue
 		}
 		var networkProtocol tcpip.NetworkProtocolNumber
@@ -248,6 +249,22 @@ func (w *stackDevice) Close() error {
 
 func (w *stackDevice) BatchSize() int {
 	return 1
+}
+
+func (w *stackDevice) CreateDestination(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
+	ctx := log.ContextWithNewID(w.ctx)
+	destination, err := ping.ConnectGVisor(
+		ctx, w.logger,
+		metadata.Source.Addr, metadata.Destination.Addr,
+		routeContext,
+		w.stack,
+		w.inet4Address, w.inet6Address,
+	)
+	if err != nil {
+		return nil, err
+	}
+	w.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
+	return destination, nil
 }
 
 var _ stack.LinkEndpoint = (*wireEndpoint)(nil)
@@ -315,157 +332,3 @@ func (ep *wireEndpoint) Close() {
 
 func (ep *wireEndpoint) SetOnCloseAction(f func()) {
 }
-
-func (w *stackDevice) CreateDestination(metadata adapter.InboundContext, routeContext tun.DirectRouteContext) (tun.DirectRouteDestination, error) {
-	/*	var wq waiter.Queue
-		ep, err := raw.NewEndpoint(w.stack, ipv4.ProtocolNumber, icmp.ProtocolNumber4, &wq)
-		if err != nil {
-			return nil, E.Cause(gonet.TranslateNetstackError(err), "create endpoint")
-		}
-		err = ep.Connect(tcpip.FullAddress{
-			NIC:  tun.DefaultNIC,
-			Port: metadata.Destination.Port,
-			Addr: tun.AddressFromAddr(metadata.Destination.Addr),
-		})
-		if err != nil {
-			ep.Close()
-			return nil, E.Cause(gonet.TranslateNetstackError(err), "ICMP connect ", metadata.Destination)
-		}
-		fmt.Println("linked ", metadata.Network, " connection to ", metadata.Destination.AddrString())
-		destination := &endpointNatDestination{
-			ep:      ep,
-			wq:      &wq,
-			context: routeContext,
-		}
-		go destination.loopRead()
-		return destination, nil*/
-	session := tun.DirectRouteSession{
-		Source:      metadata.Source.Addr,
-		Destination: metadata.Destination.Addr,
-	}
-	w.mapping.CreateSession(session, routeContext)
-	return &stackNatDestination{
-		device:  w,
-		session: session,
-	}, nil
-}
-
-type stackNatDestination struct {
-	device  *stackDevice
-	session tun.DirectRouteSession
-}
-
-func (d *stackNatDestination) WritePacket(buffer *buf.Buffer) error {
-	if d.device.writer != nil {
-		d.device.writer.RewritePacket(buffer.Bytes())
-	}
-	d.device.packetOutbound <- buffer
-	return nil
-}
-
-func (d *stackNatDestination) WritePacketBuffer(buffer *stack.PacketBuffer) error {
-	if d.device.writer != nil {
-		d.device.writer.RewritePacketBuffer(buffer)
-	}
-	d.device.outbound <- buffer
-	return nil
-}
-
-func (d *stackNatDestination) Close() error {
-	d.device.mapping.DeleteSession(d.session)
-	return nil
-}
-
-func (d *stackNatDestination) Timeout() bool {
-	return false
-}
-
-/*type endpointNatDestination struct {
-	ep           tcpip.Endpoint
-	wq           *waiter.Queue
-	networkProto tcpip.NetworkProtocolNumber
-	context      tun.DirectRouteContext
-	done         chan struct{}
-}
-
-func (d *endpointNatDestination) loopRead() {
-	for {
-		println("start read")
-		buffer, err := commonRead(d.ep, d.wq, d.done)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		println("done read")
-		ipHdr := header.IPv4(buffer.Bytes())
-		if ipHdr.TransportProtocol() != header.ICMPv4ProtocolNumber {
-			buffer.Release()
-			continue
-		}
-		icmpHdr := header.ICMPv4(ipHdr.Payload())
-		if icmpHdr.Type() != header.ICMPv4EchoReply {
-			buffer.Release()
-			continue
-		}
-		fmt.Println("read echo reply")
-		_ = d.context.WritePacket(ipHdr)
-		buffer.Release()
-	}
-}
-
-func commonRead(ep tcpip.Endpoint, wq *waiter.Queue, done chan struct{}) (*buf.Buffer, error) {
-	buffer := buf.NewPacket()
-	result, err := ep.Read(buffer, tcpip.ReadOptions{})
-	if err != nil {
-		if _, ok := err.(*tcpip.ErrWouldBlock); ok {
-			waitEntry, notifyCh := waiter.NewChannelEntry(waiter.ReadableEvents)
-			wq.EventRegister(&waitEntry)
-			defer wq.EventUnregister(&waitEntry)
-			for {
-				result, err = ep.Read(buffer, tcpip.ReadOptions{})
-				if _, ok := err.(*tcpip.ErrWouldBlock); !ok {
-					break
-				}
-				select {
-				case <-notifyCh:
-				case <-done:
-					buffer.Release()
-					return nil, context.DeadlineExceeded
-				}
-			}
-		}
-		return nil, gonet.TranslateNetstackError(err)
-	}
-	buffer.Truncate(result.Count)
-	return buffer, nil
-}
-
-func (d *endpointNatDestination) WritePacket(buffer *buf.Buffer) error {
-	_, err := d.ep.Write(buffer, tcpip.WriteOptions{})
-	if err != nil {
-		return gonet.TranslateNetstackError(err)
-	}
-	return nil
-}
-
-func (d *endpointNatDestination) WritePacketBuffer(buffer *stack.PacketBuffer) error {
-	data := buffer.ToView().AsSlice()
-	println("write echo request buffer :" + fmt.Sprint(data))
-	_, err := d.ep.Write(bytes.NewReader(data), tcpip.WriteOptions{})
-	if err != nil {
-		log.Error(err)
-		return gonet.TranslateNetstackError(err)
-	}
-	return nil
-}
-
-func (d *endpointNatDestination) Close() error {
-	d.ep.Abort()
-	close(d.done)
-	return nil
-}
-
-func (d *endpointNatDestination) Timeout() bool {
-	return false
-}
-*/
