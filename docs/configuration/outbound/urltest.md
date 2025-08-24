@@ -14,7 +14,8 @@
   "interval": "",
   "tolerance": 0,
   "idle_timeout": "",
-  "interrupt_exist_connections": false
+  "interrupt_exist_connections": false,
+  "test_concurrency": 10
 }
 ```
 
@@ -47,3 +48,7 @@ The idle timeout. `30m` will be used if empty.
 Interrupt existing connections when the selected outbound has changed.
 
 Only inbound connections are affected by this setting, internal connections will always be interrupted.
+
+#### test_concurrency
+
+URL Test concurrency. `10` will be used if empty.
