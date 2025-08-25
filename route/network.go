@@ -19,7 +19,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -37,7 +36,7 @@ var _ adapter.NetworkManager = (*NetworkManager)(nil)
 type NetworkManager struct {
 	logger            logger.ContextLogger
 	interfaceFinder   *control.DefaultInterfaceFinder
-	networkInterfaces atomic.TypedValue[[]adapter.NetworkInterface]
+	networkInterfaces common.TypedValue[[]adapter.NetworkInterface]
 
 	autoDetectInterface    bool
 	defaultOptions         adapter.NetworkOptions

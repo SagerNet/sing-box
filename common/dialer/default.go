@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -43,7 +42,7 @@ type DefaultDialer struct {
 	networkType            []C.InterfaceType
 	fallbackNetworkType    []C.InterfaceType
 	networkFallbackDelay   time.Duration
-	networkLastFallback    atomic.TypedValue[time.Time]
+	networkLastFallback    common.TypedValue[time.Time]
 }
 
 func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDialer, error) {
