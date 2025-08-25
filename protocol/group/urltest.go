@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -192,7 +192,7 @@ type URLTestGroup struct {
 	ticker                       *time.Ticker
 	close                        chan struct{}
 	started                      bool
-	lastActive                   atomic.TypedValue[time.Time]
+	lastActive                   common.TypedValue[time.Time]
 }
 
 func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool) (*URLTestGroup, error) {

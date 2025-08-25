@@ -10,7 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/atomic"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -37,7 +37,7 @@ type Selector struct {
 	tags                         []string
 	defaultTag                   string
 	outbounds                    map[string]adapter.Outbound
-	selected                     atomic.TypedValue[adapter.Outbound]
+	selected                     common.TypedValue[adapter.Outbound]
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 }

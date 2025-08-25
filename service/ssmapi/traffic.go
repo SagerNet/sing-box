@@ -3,9 +3,9 @@ package ssmapi
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
 )

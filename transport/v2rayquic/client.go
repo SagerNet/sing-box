@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -30,7 +29,7 @@ type Client struct {
 	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
-	conn       atomic.TypedValue[quic.Connection]
+	conn       common.TypedValue[quic.Connection]
 	rawConn    net.Conn
 }
 

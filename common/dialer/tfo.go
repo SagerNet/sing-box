@@ -8,10 +8,10 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
