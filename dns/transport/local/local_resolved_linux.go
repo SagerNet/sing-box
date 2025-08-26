@@ -2,15 +2,20 @@ package local
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/service/resolved"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	"github.com/godbus/dbus/v5"
@@ -18,11 +23,18 @@ import (
 )
 
 type DBusResolvedResolver struct {
-	logger           logger.ContextLogger
-	interfaceMonitor tun.DefaultInterfaceMonitor
-	systemBus        *dbus.Conn
-	resoledObject    common.TypedValue[dbus.BusObject]
-	closeOnce        sync.Once
+	ctx               context.Context
+	logger            logger.ContextLogger
+	interfaceMonitor  tun.DefaultInterfaceMonitor
+	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
+	systemBus         *dbus.Conn
+	resoledObject     atomic.Pointer[ResolvedObject]
+	closeOnce         sync.Once
+}
+
+type ResolvedObject struct {
+	dbus.BusObject
+	InterfaceIndex int32
 }
 
 func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (ResolvedResolver, error) {
@@ -35,6 +47,7 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 		return nil, err
 	}
 	return &DBusResolvedResolver{
+		ctx:              ctx,
 		logger:           logger,
 		interfaceMonitor: interfaceMonitor,
 		systemBus:        systemBus,
@@ -43,6 +56,7 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 
 func (t *DBusResolvedResolver) Start() error {
 	t.updateStatus()
+	t.interfaceCallback = t.interfaceMonitor.RegisterCallback(t.updateDefaultInterface)
 	err := t.systemBus.BusObject().AddMatchSignal(
 		"org.freedesktop.DBus",
 		"NameOwnerChanged",
@@ -58,6 +72,9 @@ func (t *DBusResolvedResolver) Start() error {
 
 func (t *DBusResolvedResolver) Close() error {
 	t.closeOnce.Do(func() {
+		if t.interfaceCallback != nil {
+			t.interfaceMonitor.UnregisterCallback(t.interfaceCallback)
+		}
 		if t.systemBus != nil {
 			_ = t.systemBus.Close()
 		}
@@ -66,26 +83,27 @@ func (t *DBusResolvedResolver) Close() error {
 }
 
 func (t *DBusResolvedResolver) Object() any {
-	return t.resoledObject.Load()
+	return common.PtrOrNil(t.resoledObject.Load())
 }
 
 func (t *DBusResolvedResolver) Exchange(object any, ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	defaultInterface := t.interfaceMonitor.DefaultInterface()
-	if defaultInterface == nil {
-		return nil, E.New("missing default interface")
-	}
 	question := message.Question[0]
-	call := object.(*dbus.Object).CallWithContext(
+	resolvedObject := object.(*ResolvedObject)
+	call := resolvedObject.CallWithContext(
 		ctx,
 		"org.freedesktop.resolve1.Manager.ResolveRecord",
 		0,
-		int32(defaultInterface.Index),
+		resolvedObject.InterfaceIndex,
 		question.Name,
 		question.Qclass,
 		question.Qtype,
 		uint64(0),
 	)
 	if call.Err != nil {
+		var dbusError dbus.Error
+		if errors.As(call.Err, &dbusError) && dbusError.Name == "org.freedesktop.resolve1.NoNameServers" {
+			t.updateStatus()
+		}
 		return nil, E.Cause(call.Err, " resolve record via resolved")
 	}
 	var (
@@ -137,14 +155,76 @@ func (t *DBusResolvedResolver) loopUpdateStatus() {
 }
 
 func (t *DBusResolvedResolver) updateStatus() {
-	dbusObject := t.systemBus.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
-	err := dbusObject.Call("org.freedesktop.DBus.Peer.Ping", 0).Err
+	dbusObject, err := t.checkResolved(context.Background())
+	oldValue := t.resoledObject.Swap(dbusObject)
 	if err != nil {
-		if t.resoledObject.Swap(nil) != nil {
+		var dbusErr dbus.Error
+		if !errors.As(err, &dbusErr) || dbusErr.Name != "org.freedesktop.DBus.Error.NameHasNoOwnerCould" {
+			t.logger.Debug(E.Cause(err, "systemd-resolved service unavailable"))
+		}
+		if oldValue != nil {
 			t.logger.Debug("systemd-resolved service is gone")
 		}
 		return
+	} else if oldValue == nil {
+		t.logger.Debug("using systemd-resolved service as resolver")
 	}
-	t.resoledObject.Store(dbusObject)
-	t.logger.Debug("using systemd-resolved service as resolver")
+}
+
+func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*ResolvedObject, error) {
+	dbusObject := t.systemBus.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
+	err := dbusObject.Call("org.freedesktop.DBus.Peer.Ping", 0).Err
+	if err != nil {
+		return nil, err
+	}
+	defaultInterface := t.interfaceMonitor.DefaultInterface()
+	if defaultInterface == nil {
+		return nil, E.New("missing default interface")
+	}
+	call := dbusObject.(*dbus.Object).CallWithContext(
+		ctx,
+		"org.freedesktop.resolve1.Manager.GetLink",
+		0,
+		int32(defaultInterface.Index),
+	)
+	if call.Err != nil {
+		return nil, err
+	}
+	var linkPath dbus.ObjectPath
+	err = call.Store(&linkPath)
+	if err != nil {
+		return nil, err
+	}
+	linkObject := t.systemBus.Object("org.freedesktop.resolve1", linkPath)
+	if linkObject == nil {
+		return nil, E.New("missing link object for default interface")
+	}
+	dnsProp, err := linkObject.GetProperty("org.freedesktop.resolve1.Link.DNS")
+	if err != nil {
+		return nil, err
+	}
+	var linkDNS []resolved.LinkDNS
+	err = dnsProp.Store(&linkDNS)
+	if err != nil {
+		return nil, err
+	}
+	if len(linkDNS) == 0 {
+		for _, inbound := range service.FromContext[adapter.InboundManager](t.ctx).Inbounds() {
+			if inbound.Type() == C.TypeTun {
+				return nil, E.New("No appropriate name servers or networks for name found")
+			}
+		}
+		return &ResolvedObject{
+			BusObject: dbusObject,
+		}, nil
+	} else {
+		return &ResolvedObject{
+			BusObject:      dbusObject,
+			InterfaceIndex: int32(defaultInterface.Index),
+		}, nil
+	}
+}
+
+func (t *DBusResolvedResolver) updateDefaultInterface(defaultInterface *control.Interface, flags int) {
+	t.updateStatus()
 }
