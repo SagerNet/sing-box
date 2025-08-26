@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -325,7 +324,7 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	var returnErr error
 	switch r.Method {
 	case C.RuleActionRejectMethodDefault:
-		returnErr = &RejectedError{syscall.ECONNREFUSED}
+		returnErr = &RejectedError{tun.ErrReset}
 	case C.RuleActionRejectMethodDrop:
 		return &RejectedError{tun.ErrDrop}
 	default:
