@@ -27,6 +27,7 @@ type _Inbound struct {
 	VLESSOptions       VLESSInboundOptions       `json:"-"`
 	TUICOptions        TUICInboundOptions        `json:"-"`
 	Hysteria2Options   Hysteria2InboundOptions   `json:"-"`
+	WSCOptions         WSCInboundOptions         `json:"-"`
 }
 
 type Inbound _Inbound
@@ -66,6 +67,8 @@ func (h *Inbound) RawOptions() (any, error) {
 		rawOptionsPtr = &h.TUICOptions
 	case C.TypeHysteria2:
 		rawOptionsPtr = &h.Hysteria2Options
+	case C.TypeWSC:
+		rawOptionsPtr = &h.WSCOptions
 	case "":
 		return nil, E.New("missing inbound type")
 	default:

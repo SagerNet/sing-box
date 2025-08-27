@@ -48,6 +48,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewTUIC(ctx, router, logger, tag, options.TUICOptions)
 	case C.TypeHysteria2:
 		return NewHysteria2(ctx, router, logger, tag, options.Hysteria2Options)
+	case C.TypeWSC:
+		return NewWSC(ctx, router, logger, tag, options.WSCOptions)
 	default:
 		return nil, E.New("unknown inbound type: ", options.Type)
 	}

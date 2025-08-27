@@ -27,6 +27,7 @@ type _Outbound struct {
 	Hysteria2Options    Hysteria2OutboundOptions    `json:"-"`
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
+	WSCOptions          WSCOutboundOptions          `json:"-"`
 }
 
 type Outbound _Outbound
@@ -66,6 +67,8 @@ func (h *Outbound) RawOptions() (any, error) {
 		rawOptionsPtr = &h.TUICOptions
 	case C.TypeHysteria2:
 		rawOptionsPtr = &h.Hysteria2Options
+	case C.TypeWSC:
+		rawOptionsPtr = &h.WSCOptions
 	case C.TypeSelector:
 		rawOptionsPtr = &h.SelectorOptions
 	case C.TypeURLTest:
