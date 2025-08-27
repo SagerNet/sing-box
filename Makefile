@@ -14,10 +14,12 @@ MAIN_PARAMS = $(PARAMS) -tags $(TAGS)
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
 
+OUTPUT_DIR = ./bin/sing-box
+
 .PHONY: test release docs build
 
 build:
-	go build $(MAIN_PARAMS) $(MAIN)
+	go build $(MAIN_PARAMS) -o ${OUTPUT_DIR} $(MAIN)
 
 ci_build_go120:
 	go build $(PARAMS) $(MAIN)
