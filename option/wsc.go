@@ -6,8 +6,9 @@ type WSCInboundOptions struct {
 
 type WSCOutboundOptions struct {
 	DialerOptions
+	ServerOptions
+	OutboundTLSOptionsContainer
 	Network NetworkList `json:"network,omitempty"`
 	Auth    string      `json:"auth"`
-	Host    string      `json:"host"`
 	Path    string      `json:"path"`
 }
