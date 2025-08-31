@@ -3,11 +3,7 @@ package outbound
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
-	"net/url"
-	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -16,32 +12,21 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/wsc"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/network"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/ws"
-	"github.com/sagernet/ws/wsutil"
 )
 
 var _ adapter.Outbound = &WSC{}
 
-var _ net.Conn = &wscConn{}
-
 type WSC struct {
 	myOutboundAdapter
-	dialer     N.Dialer
-	serverAddr metadata.Socksaddr
-	auth       string
-	path       string
-	tlsConfig  tls.Config
-}
-
-type wscConn struct {
-	net.Conn
-	reader *wsutil.Reader
-	mu     sync.Mutex
+	dialer    N.Dialer
+	tlsConfig tls.Config
+	client    adapter.WSCClientTransport
 }
 
 func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WSCOutboundOptions) (*WSC, error) {
@@ -59,25 +44,33 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		dialer:     outboundDialer,
-		serverAddr: options.ServerOptions.Build(),
-		auth:       options.Auth,
-		path:       options.Path,
+		dialer: outboundDialer,
 	}
-	if outbound.auth == "" {
+
+	serverAddr := options.ServerOptions.Build()
+
+	if options.Auth == "" {
 		return nil, exceptions.New("Invalid Auth to use in authentications")
 	}
-	if !outbound.serverAddr.IsValid() {
+	if !serverAddr.IsValid() {
 		return nil, exceptions.New("Invalid server address")
 	}
-	if outbound.path == "" {
-		outbound.path = "/"
+	if options.Path == "" {
+		options.Path = "/"
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	outbound.client = &wsc.Client{
+		Auth:   options.Auth,
+		Host:   serverAddr.String(),
+		Path:   options.Path,
+		TLS:    outbound.tlsConfig,
+		Dialer: outbound.dialer,
 	}
 
 	return outbound, nil
@@ -91,13 +84,7 @@ func (wsc *WSC) DialContext(ctx context.Context, network string, destination met
 		return nil, exceptions.Extend(N.ErrUnknownNetwork, network)
 	}
 	wsc.logger.InfoContext(ctx, "WSC outbound connection to ", destination)
-
-	conn, err := wsc.newWscConn(ctx, destination)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return wsc.client.DialContext(ctx, network, destination.String())
 }
 
 func (wsc *WSC) ListenPacket(ctx context.Context, destination metadata.Socksaddr) (net.PacketConn, error) {
@@ -125,153 +112,12 @@ func (wsc *WSC) NewPacketConnection(ctx context.Context, conn network.PacketConn
 	// fmt.Println("wsc packet conn data is : ", dest, " | ", dest.Network(), " | ", buffer.Len())
 
 	// time.Sleep(time.Second * 10)
-	return NewPacketConnection(ctx, wsc.dialer, conn, metadata)
+	// return NewPacketConnection(ctx, wsc.dialer, conn, metadata)
+	return NewPacketConnection(ctx, wsc, conn, metadata)
 }
 
 func (wsc *WSC) Close() error {
-	return wsc.cleanup()
-}
-
-func (wsc *WSC) cleanup() error {
-	scheme := "http"
-	var tlsConfig *tls.STDConfig
-	if wsc.tlsConfig != nil {
-		scheme = "https"
-		var err error
-		tlsConfig, err = wsc.tlsConfig.Config()
-		if err != nil {
-			return err
-		}
-	}
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     wsc.serverAddr.String(),
-		Path:     "/cleanup",
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", wsc.auth)
-	pURL.RawQuery = pQuery.Encode()
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return wsc.dialer.DialContext(ctx, network, metadata.ParseSocksaddr(addr))
-			},
-		},
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, pURL.String(), nil)
-	if err != nil {
-		return err
-	}
-
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-
-	return nil
-}
-
-func (wsc *WSC) newWscConn(ctx context.Context, endpoint metadata.Socksaddr) (*wscConn, error) {
-	scheme := "ws"
-	if wsc.tlsConfig != nil {
-		scheme = "wss"
-	}
-
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     wsc.serverAddr.String(),
-		Path:     wsc.path,
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", wsc.auth)
-	pQuery.Set("ep", endpoint.String())
-	pURL.RawQuery = pQuery.Encode()
-
-	dialer := ws.Dialer{
-		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := wsc.dialer.DialContext(ctx, N.NetworkTCP, metadata.ParseSocksaddr(addr))
-			if err != nil {
-				return nil, err
-			}
-
-			if wsc.tlsConfig != nil {
-				conn, err = tls.ClientHandshake(ctx, conn, wsc.tlsConfig)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			return conn, nil
-		},
-	}
-	wsConn, _, _, err := dialer.Dial(ctx, pURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	reader := wsutil.NewReader(wsConn, ws.StateClientSide)
-
-	return &wscConn{
-		Conn:   wsConn,
-		reader: reader,
-	}, nil
-}
-
-func (cli *wscConn) Close() error {
-	cli.mu.Lock()
-	defer cli.mu.Unlock()
-	_ = wsutil.WriteClientMessage(cli.Conn, ws.OpClose, nil)
-	return cli.Conn.Close()
-}
-
-func (cli *wscConn) Read(b []byte) (n int, err error) {
-	err = nil
-	var header ws.Header
-	for {
-		n, err = cli.reader.Read(b)
-		if n > 0 {
-			return
-		}
-
-		if !exceptions.IsMulti(err, io.EOF, wsutil.ErrNoFrameAdvance) {
-			return
-		}
-
-		header, err = cli.reader.NextFrame()
-		if err != nil {
-			return
-		}
-
-		switch header.OpCode {
-		case ws.OpBinary, ws.OpText, ws.OpContinuation:
-			continue
-		case ws.OpPing:
-			wsutil.WriteClientMessage(cli.Conn, ws.OpPong, nil)
-		case ws.OpPong:
-			continue
-		case ws.OpClose:
-			err = io.EOF
-			return
-		default:
-			continue
-		}
-	}
-}
-
-func (cli *wscConn) Write(b []byte) (n int, err error) {
-	cli.mu.Lock()
-	defer cli.mu.Unlock()
-	if err := wsutil.WriteClientBinary(cli.Conn, b); err != nil {
-		return 0, err
-	}
-	return len(b), nil
+	return wsc.client.Close(ctx)
 }
