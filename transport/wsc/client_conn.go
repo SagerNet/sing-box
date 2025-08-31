@@ -4,13 +4,9 @@ import (
 	"context"
 	"io"
 	"net"
-	"net/url"
 	"sync"
 
-	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
 )
@@ -24,47 +20,11 @@ type clientConn struct {
 }
 
 func (cli *Client) newConn(ctx context.Context, network string, endpoint string) (*clientConn, error) {
-	scheme := "ws"
-	if cli.TLS != nil {
-		scheme = "wss"
-	}
-
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     cli.Host,
-		Path:     cli.Path,
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", cli.Auth)
-	pQuery.Set("ep", endpoint)
-	pQuery.Set("net", network)
-	pURL.RawQuery = pQuery.Encode()
-
-	dialer := ws.Dialer{
-		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := cli.Dialer.DialContext(ctx, N.NetworkTCP, metadata.ParseSocksaddr(addr))
-			if err != nil {
-				return nil, err
-			}
-
-			if cli.TLS != nil {
-				conn, err = tls.ClientHandshake(ctx, conn, cli.TLS)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			return conn, nil
-		},
-	}
-	conn, _, _, err := dialer.Dial(ctx, pURL.String())
+	conn, err := cli.newWSConn(ctx, network, endpoint)
 	if err != nil {
 		return nil, err
 	}
-
 	reader := wsutil.NewReader(conn, ws.StateClientSide)
-
 	return &clientConn{
 		Conn:   conn,
 		reader: reader,

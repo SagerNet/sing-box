@@ -92,7 +92,8 @@ func (wsc *WSC) ListenPacket(ctx context.Context, destination metadata.Socksaddr
 	meta.Outbound = wsc.tag
 	meta.Destination = destination
 	wsc.logger.InfoContext(ctx, "WSC outbound packet to ", destination)
-	return wsc.dialer.ListenPacket(ctx, destination)
+	// return wsc.dialer.ListenPacket(ctx, destination)
+	return wsc.client.ListenPacket(ctx, N.NetworkUDP, destination.String())
 }
 
 func (wsc *WSC) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
@@ -101,18 +102,6 @@ func (wsc *WSC) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 
 func (wsc *WSC) NewPacketConnection(ctx context.Context, conn network.PacketConn, metadata adapter.InboundContext) error {
 	fmt.Println("new packet conn: ", metadata)
-	// fmt.Println("wsc packet conn: ", metadata, " | ", conn)
-	// buffer := buf.NewPacket()
-	// defer buffer.Release()
-	// dest, err := conn.ReadPacket(buffer)
-	// if err != nil {
-	// 	fmt.Println("error wsc packet conn: ", err)
-	// 	return err
-	// }
-	// fmt.Println("wsc packet conn data is : ", dest, " | ", dest.Network(), " | ", buffer.Len())
-
-	// time.Sleep(time.Second * 10)
-	// return NewPacketConnection(ctx, wsc.dialer, conn, metadata)
 	return NewPacketConnection(ctx, wsc, conn, metadata)
 }
 
