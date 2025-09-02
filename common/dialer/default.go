@@ -88,42 +88,40 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 
 	if networkManager != nil {
 		defaultOptions := networkManager.DefaultOptions()
-		if !disableDefaultBind {
-			if defaultOptions.BindInterface != "" {
-				bindFunc := control.BindToInterface(networkManager.InterfaceFinder(), defaultOptions.BindInterface, -1)
+		if defaultOptions.BindInterface != "" {
+			bindFunc := control.BindToInterface(networkManager.InterfaceFinder(), defaultOptions.BindInterface, -1)
+			dialer.Control = control.Append(dialer.Control, bindFunc)
+			listener.Control = control.Append(listener.Control, bindFunc)
+		} else if networkManager.AutoDetectInterface() && !disableDefaultBind {
+			if platformInterface != nil {
+				networkStrategy = (*C.NetworkStrategy)(options.NetworkStrategy)
+				networkType = common.Map(options.NetworkType, option.InterfaceType.Build)
+				fallbackNetworkType = common.Map(options.FallbackNetworkType, option.InterfaceType.Build)
+				if networkStrategy == nil && len(networkType) == 0 && len(fallbackNetworkType) == 0 {
+					networkStrategy = defaultOptions.NetworkStrategy
+					networkType = defaultOptions.NetworkType
+					fallbackNetworkType = defaultOptions.FallbackNetworkType
+				}
+				networkFallbackDelay = time.Duration(options.FallbackDelay)
+				if networkFallbackDelay == 0 && defaultOptions.FallbackDelay != 0 {
+					networkFallbackDelay = defaultOptions.FallbackDelay
+				}
+				if networkStrategy == nil {
+					networkStrategy = common.Ptr(C.NetworkStrategyDefault)
+					defaultNetworkStrategy = true
+				}
+				bindFunc := networkManager.ProtectFunc()
 				dialer.Control = control.Append(dialer.Control, bindFunc)
 				listener.Control = control.Append(listener.Control, bindFunc)
-			} else if networkManager.AutoDetectInterface() {
-				if platformInterface != nil {
-					networkStrategy = (*C.NetworkStrategy)(options.NetworkStrategy)
-					networkType = common.Map(options.NetworkType, option.InterfaceType.Build)
-					fallbackNetworkType = common.Map(options.FallbackNetworkType, option.InterfaceType.Build)
-					if networkStrategy == nil && len(networkType) == 0 && len(fallbackNetworkType) == 0 {
-						networkStrategy = defaultOptions.NetworkStrategy
-						networkType = defaultOptions.NetworkType
-						fallbackNetworkType = defaultOptions.FallbackNetworkType
-					}
-					networkFallbackDelay = time.Duration(options.FallbackDelay)
-					if networkFallbackDelay == 0 && defaultOptions.FallbackDelay != 0 {
-						networkFallbackDelay = defaultOptions.FallbackDelay
-					}
-					if networkStrategy == nil {
-						networkStrategy = common.Ptr(C.NetworkStrategyDefault)
-						defaultNetworkStrategy = true
-					}
-					bindFunc := networkManager.ProtectFunc()
-					dialer.Control = control.Append(dialer.Control, bindFunc)
-					listener.Control = control.Append(listener.Control, bindFunc)
-				} else {
-					bindFunc := networkManager.AutoDetectInterfaceFunc()
-					dialer.Control = control.Append(dialer.Control, bindFunc)
-					listener.Control = control.Append(listener.Control, bindFunc)
-				}
+			} else {
+				bindFunc := networkManager.AutoDetectInterfaceFunc()
+				dialer.Control = control.Append(dialer.Control, bindFunc)
+				listener.Control = control.Append(listener.Control, bindFunc)
 			}
-			if options.RoutingMark == 0 && defaultOptions.RoutingMark != 0 {
-				dialer.Control = control.Append(dialer.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
-				listener.Control = control.Append(listener.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
-			}
+		}
+		if options.RoutingMark == 0 && defaultOptions.RoutingMark != 0 {
+			dialer.Control = control.Append(dialer.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
+			listener.Control = control.Append(listener.Control, setMarkWrapper(networkManager, defaultOptions.RoutingMark, true))
 		}
 	}
 	if networkManager != nil {
