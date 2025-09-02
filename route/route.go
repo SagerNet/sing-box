@@ -675,11 +675,6 @@ func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundCon
 		}
 		metadata.DestinationAddresses = addresses
 		r.logger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
-		if metadata.Destination.IsIPv4() {
-			metadata.IPVersion = 4
-		} else if metadata.Destination.IsIPv6() {
-			metadata.IPVersion = 6
-		}
 	}
 	return nil
 }
