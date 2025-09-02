@@ -2,7 +2,6 @@ package outbound
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
@@ -92,7 +91,6 @@ func (wsc *WSC) ListenPacket(ctx context.Context, destination metadata.Socksaddr
 	meta.Outbound = wsc.tag
 	meta.Destination = destination
 	wsc.logger.InfoContext(ctx, "WSC outbound packet to ", destination)
-	// return wsc.dialer.ListenPacket(ctx, destination)
 	return wsc.client.ListenPacket(ctx, N.NetworkUDP, destination.String())
 }
 
@@ -101,7 +99,6 @@ func (wsc *WSC) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 }
 
 func (wsc *WSC) NewPacketConnection(ctx context.Context, conn network.PacketConn, metadata adapter.InboundContext) error {
-	fmt.Println("new packet conn: ", metadata)
 	return NewPacketConnection(ctx, wsc, conn, metadata)
 }
 

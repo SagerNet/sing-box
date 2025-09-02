@@ -1,115 +1,76 @@
 package wsc
 
-type packetConnPayload struct {
-	ip   [16]byte
-	port uint16
-}
-
-/*
-
 import (
+	"encoding"
 	"encoding/binary"
 	"errors"
-	"net"
+	"net/netip"
 )
 
-// Header is 18 bytes: 16 for IP + 2 for port (big-endian)
-type Header struct {
-	IP   [16]byte
-	Port uint16
+const packetConnPayloadHeaderLen = 18
+
+var _ encoding.BinaryMarshaler = &packetConnPayload{}
+var _ encoding.BinaryUnmarshaler = &packetConnPayload{}
+
+type packetConnPayload struct {
+	addrPort netip.AddrPort
+	payload  []byte
 }
 
-const (
-	headerLen = 18
-)
-
-// ipv4ToMapped fills a 16-byte buffer with ::ffff:w.x.y.z
-func ipv4ToMapped(v4 net.IP, dst *[16]byte) {
-	// v4 must be 4 bytes (no zone)
-	copy(dst[:], []byte{
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0xff, 0xff,
-		v4[0], v4[1], v4[2], v4[3],
-	})
-}
-
-// ipTo16Mapped returns a 16-byte IPv6 form.
-// - IPv6 stays as-is (compressed/expanded form doesn't matter; we copy the 16 raw bytes).
-// - IPv4 becomes IPv4-mapped IPv6 ::ffff:w.x.y.z
-func ipTo16Mapped(ip net.IP) ([16]byte, error) {
-	var out [16]byte
-	if ip == nil {
-		return out, errors.New("nil IP")
+func (payload *packetConnPayload) UnmarshalBinary(data []byte) error {
+	if err := payload.UnmarshalBinaryUnsafe(data); err != nil {
+		return err
 	}
-	if v4 := ip.To4(); v4 != nil {
-		ipv4ToMapped(v4, &out)
-		return out, nil
-	}
-	v6 := ip.To16()
-	if v6 == nil || len(v6) != 16 {
-		return out, errors.New("invalid IP")
-	}
-	copy(out[:], v6)
-	return out, nil
-}
 
-// NewHeader builds a Header from net.IP + port.
-func NewHeader(ip net.IP, port int) (Header, error) {
-	var h Header
-	ip16, err := ipTo16Mapped(ip)
-	if err != nil {
-		return h, err
-	}
-	h.IP = ip16
-	if port < 0 || port > 65535 {
-		return h, errors.New("invalid port")
-	}
-	h.Port = uint16(port)
-	return h, nil
-}
+	payload.payload = append(make([]byte, 0, len(payload.payload)), payload.payload...)
 
-// FromTCPAddr / FromUDPAddr convenience.
-func FromTCPAddr(a *net.TCPAddr) (Header, error) { return NewHeader(a.IP, a.Port) }
-func FromUDPAddr(a *net.UDPAddr) (Header, error) { return NewHeader(a.IP, a.Port) }
-
-// MarshalBinary -> 18 bytes
-func (h Header) MarshalBinary() []byte {
-	b := make([]byte, headerLen)
-	copy(b[:16], h.IP[:])
-	binary.BigEndian.PutUint16(b[16:], h.Port)
-	return b
-}
-
-// UnmarshalBinary <- 18 bytes
-func (h *Header) UnmarshalBinary(b []byte) error {
-	if len(b) < headerLen {
-		return errors.New("short header")
-	}
-	copy(h.IP[:], b[:16])
-	h.Port = binary.BigEndian.Uint16(b[16:18])
 	return nil
 }
 
-// ToNetAddr returns a *net.TCPAddr or *net.UDPAddr-ready IP & port.
-// If the address is IPv4-mapped, it returns the 4-byte form for convenience.
-func (h Header) ToIPPort() (net.IP, int) {
-	ip := net.IP(h.IP[:]).To16()
-	// Detect IPv4-mapped ::ffff:w.x.y.z and convert back to v4 if you like:
-	if ip4 := ip.To4(); ip4 != nil {
-		return ip4, int(h.Port)
+func (payload *packetConnPayload) MarshalBinary() (data []byte, err error) {
+	if !payload.addrPort.IsValid() {
+		return nil, errors.New("addr port is not valid")
 	}
-	return ip, int(h.Port)
+	data = make([]byte, len(payload.payload)+packetConnPayloadHeaderLen)
+	return data, payload.MarshalBinaryUnsafe(data)
 }
-*/
 
-/*
-// Encode
-dst := net.ParseIP("192.0.2.10")
-hdr, _ := NewHeader(dst, 443)
-wireBytes := hdr.MarshalBinary() // 18 bytes ready to send
+func (payload *packetConnPayload) UnmarshalBinaryUnsafe(data []byte) error {
+	const hLen = packetConnPayloadHeaderLen
 
-// Decode
-var got Header
-_ = got.UnmarshalBinary(wireBytes)
-ip, port := got.ToIPPort() // ip is 4-byte 192.0.2.10, port=443
-*/
+	if len(data) < hLen {
+		return errors.New("invalid payload")
+	}
+
+	addr, ok := netip.AddrFromSlice(data[:hLen-2])
+	if !ok {
+		return errors.New("couldn't parse addr port")
+	}
+	port := binary.LittleEndian.Uint16(data[hLen-2 : hLen])
+	payload.addrPort = netip.AddrPortFrom(addr, port)
+
+	payload.payload = data[hLen:]
+
+	return nil
+}
+
+func (payload *packetConnPayload) MarshalBinaryUnsafe(data []byte) error {
+	const hLen = packetConnPayloadHeaderLen
+
+	if !payload.addrPort.IsValid() {
+		return errors.New("addr port is not valid")
+	}
+
+	if len(data) < hLen+len(payload.payload) {
+		return errors.New("invalid data length to write")
+	}
+
+	addr := payload.addrPort.Addr().As16()
+	copy(data[:hLen-2], addr[:])
+
+	binary.LittleEndian.PutUint16(data[hLen-2:hLen], payload.addrPort.Port())
+
+	copy(data[hLen:], payload.payload)
+
+	return nil
+}

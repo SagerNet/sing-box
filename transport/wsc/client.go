@@ -36,22 +36,10 @@ func (cli *Client) Close(ctx context.Context) error {
 }
 
 func (cli *Client) newWSConn(ctx context.Context, network string, endpoint string) (net.Conn, error) {
-	scheme := "ws"
-	if cli.TLS != nil {
-		scheme = "wss"
+	pURL, _, err := cli.newURL("ws", "", endpoint, network)
+	if err != nil {
+		return nil, err
 	}
-
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     cli.Host,
-		Path:     cli.Path,
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", cli.Auth)
-	pQuery.Set("ep", endpoint)
-	pQuery.Set("net", network)
-	pURL.RawQuery = pQuery.Encode()
 
 	dialer := ws.Dialer{
 		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -79,26 +67,10 @@ func (cli *Client) newWSConn(ctx context.Context, network string, endpoint strin
 }
 
 func (cli *Client) cleanup(ctx context.Context) error {
-	scheme := "http"
-	var tlsConfig *tls.STDConfig
-	if cli.TLS != nil {
-		scheme = "https"
-		var err error
-		tlsConfig, err = cli.TLS.Config()
-		if err != nil {
-			return err
-		}
+	pURL, tlsConfig, err := cli.newURL("http", "/cleanup", "", "")
+	if err != nil {
+		return err
 	}
-
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     cli.Host,
-		Path:     "/cleanup",
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", cli.Auth)
-	pURL.RawQuery = pQuery.Encode()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -121,4 +93,38 @@ func (cli *Client) cleanup(ctx context.Context) error {
 	defer response.Body.Close()
 
 	return nil
+}
+
+func (cli *Client) newURL(scheme string, path string, endpoint string, network string) (url.URL, *tls.STDConfig, error) {
+	var tlsConfig *tls.STDConfig = nil
+	if cli.TLS != nil {
+		scheme += "s"
+		var err error
+		tlsConfig, err = cli.TLS.Config()
+		if err != nil {
+			return url.URL{}, nil, err
+		}
+	}
+
+	if path == "" {
+		path = cli.Path
+	}
+
+	pURL := url.URL{
+		Scheme:   scheme,
+		Host:     cli.Host,
+		Path:     path,
+		RawQuery: "",
+	}
+	pQuery := pURL.Query()
+	pQuery.Set("auth", cli.Auth)
+	if endpoint != "" {
+		pQuery.Set("ep", endpoint)
+	}
+	if network != "" {
+		pQuery.Set("net", network)
+	}
+	pURL.RawQuery = pQuery.Encode()
+
+	return pURL, tlsConfig, nil
 }

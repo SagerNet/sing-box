@@ -1,19 +1,32 @@
 package wsc
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"io"
 	"net"
 	"sync"
 
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/network"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
 )
 
-var _ net.PacketConn = &clientPacketConn{}
+var _ network.NetPacketReader = &clientPacketConn{}
+var _ network.NetPacketWriter = &clientPacketConn{}
+
+type readerCache struct {
+	reader *bytes.Reader
+	addr   metadata.Socksaddr
+}
 
 type clientPacketConn struct {
 	net.Conn
 	reader *wsutil.Reader
+	cache  *readerCache
 	mu     sync.Mutex
 }
 
@@ -26,34 +39,122 @@ func (cli *Client) newPacketConn(ctx context.Context, network string, endpoint s
 	return &clientPacketConn{
 		Conn:   conn,
 		reader: reader,
+		cache:  nil,
 	}, nil
 }
 
+func (packetConn *clientPacketConn) ReadPacket(buffer *buf.Buffer) (destination metadata.Socksaddr, err error) {
+	if buffer == nil {
+		return metadata.Socksaddr{}, errors.New("buffer is nil")
+	}
+
+	buf, err := wsutil.ReadServerBinary(packetConn.Conn)
+	if err != nil {
+		var cerr wsutil.ClosedError
+		if errors.Is(err, &cerr) {
+			return metadata.Socksaddr{}, err
+		}
+		return metadata.Socksaddr{}, err
+	}
+
+	payload := packetConnPayload{}
+	if err := payload.UnmarshalBinaryUnsafe(buf); err != nil {
+		return metadata.Socksaddr{}, err
+	}
+
+	destination = metadata.SocksaddrFromNetIP(payload.addrPort)
+
+	if _, err := buffer.Write(payload.payload); err != nil {
+		return metadata.Socksaddr{}, err
+	}
+
+	return destination, nil
+}
+
+func (packetConn *clientPacketConn) WritePacket(buffer *buf.Buffer, destination metadata.Socksaddr) error {
+	if buffer == nil {
+		return errors.New("buffer is nil")
+	}
+
+	payload := packetConnPayload{
+		addrPort: destination.AddrPort(),
+		payload:  buffer.Bytes(),
+	}
+	payloadBytes, err := payload.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	packetConn.mu.Lock()
+	defer packetConn.mu.Unlock()
+
+	if err := wsutil.WriteClientBinary(packetConn.Conn, payloadBytes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (packetConn *clientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	return 0, nil, nil
+	err = nil
+	if packetConn.cache != nil {
+		n, err = packetConn.cache.reader.Read(p)
+		addr = packetConn.cache.addr
+		if err == io.EOF {
+			err = nil
+			packetConn.cache = nil
+		} else {
+			return
+		}
+	}
+
+	buf, err := wsutil.ReadServerBinary(packetConn.Conn)
+	if err != nil {
+		var cerr wsutil.ClosedError
+		if errors.Is(err, &cerr) {
+			return 0, nil, io.EOF
+		}
+		return 0, nil, err
+	}
+
+	payload := packetConnPayload{}
+	if err := payload.UnmarshalBinaryUnsafe(buf); err != nil {
+		return 0, nil, err
+	}
+
+	packetConn.cache = &readerCache{
+		reader: bytes.NewReader(payload.payload),
+		addr:   metadata.SocksaddrFromNetIP(payload.addrPort),
+	}
+
+	n, err = packetConn.cache.reader.Read(p)
+	addr = packetConn.cache.addr
+	if err == io.EOF {
+		packetConn.cache = nil
+	}
+
+	return
 }
 
 func (packetConn *clientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	return 0, nil
-}
+	payload := packetConnPayload{
+		addrPort: metadata.SocksaddrFromNet(addr).AddrPort(),
+		payload:  p,
+	}
+	payloadBytes, err := payload.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
 
-// func (c *clientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-// 	destination := M.SocksaddrFromNet(addr)
-// 	buffer := buf.NewSize(M.SocksaddrSerializer.AddrPortLen(destination) + len(p))
-// 	defer buffer.Release()
-// 	if err = M.SocksaddrSerializer.WriteAddrPort(buffer, destination); err != nil {
-// 		return 0, err
-// 	}
-// 	if _, err = buffer.Write(p); err != nil {
-// 		return 0, err
-// 	}
-// 	c.mu.Lock()
-// 	defer c.mu.Unlock()
-// 	if err = wsutil.WriteClientBinary(c.Conn, buffer.Bytes()); err != nil {
-// 		return 0, err
-// 	}
-// 	return len(p), nil
-// }
+	packetConn.mu.Lock()
+	defer packetConn.mu.Unlock()
+
+	if err := wsutil.WriteClientBinary(packetConn.Conn, payloadBytes); err != nil {
+		return 0, err
+	}
+
+	return len(payloadBytes), nil
+}
 
 func (packetConn *clientPacketConn) Close() error {
 	packetConn.mu.Lock()
@@ -61,153 +162,3 @@ func (packetConn *clientPacketConn) Close() error {
 	_ = wsutil.WriteClientMessage(packetConn.Conn, ws.OpClose, nil)
 	return packetConn.Conn.Close()
 }
-
-/*
-package wsc
-
-import (
-	"bytes"
-	"context"
-	"net"
-	"net/url"
-	"sync"
-
-	"github.com/sagernet/sing-box/common/tls"
-	"github.com/sagernet/sing/common/buf"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/ws"
-	"github.com/sagernet/ws/wsutil"
-)
-
-// clientPacketConn implements net.PacketConn over WebSocket.
-type clientPacketConn struct {
-	net.Conn
-	mu sync.Mutex
-}
-
-// newPacketConn dials a WebSocket endpoint for packet based communications.
-func (cli *Client) newPacketConn(ctx context.Context, network string, endpoint string) (*clientPacketConn, error) {
-	scheme := "ws"
-	if cli.TLS != nil {
-		scheme = "wss"
-	}
-
-	pURL := url.URL{
-		Scheme:   scheme,
-		Host:     cli.Host,
-		Path:     cli.Path,
-		RawQuery: "",
-	}
-	pQuery := pURL.Query()
-	pQuery.Set("auth", cli.Auth)
-	if network != "" {
-		pQuery.Set("net", network)
-	}
-	if endpoint != "" {
-		pQuery.Set("ep", endpoint)
-	}
-	pURL.RawQuery = pQuery.Encode()
-
-	dialer := ws.Dialer{
-		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := cli.Dialer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr(addr))
-			if err != nil {
-				return nil, err
-			}
-			if cli.TLS != nil {
-				conn, err = tls.ClientHandshake(ctx, conn, cli.TLS)
-				if err != nil {
-					return nil, err
-				}
-			}
-			return conn, nil
-		},
-	}
-	conn, _, _, err := dialer.Dial(ctx, pURL.String())
-	if err != nil {
-		return nil, err
-	}
-	return &clientPacketConn{Conn: conn}, nil
-}
-
-// ListenPacket creates a packet-oriented WebSocket connection.
-func (cli *Client) ListenPacket(ctx context.Context, network string, endpoint string) (net.PacketConn, error) {
-	return cli.newPacketConn(ctx, network, endpoint)
-}
-
-func (c *clientPacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
-	msg, err := wsutil.ReadServerBinary(c.Conn)
-	if err != nil {
-		return M.Socksaddr{}, err
-	}
-	reader := bytes.NewReader(msg)
-	destination, err := M.SocksaddrSerializer.ReadAddrPort(reader)
-	if err != nil {
-		return M.Socksaddr{}, err
-	}
-	_, err = buffer.Write(msg[len(msg)-reader.Len():])
-	if err != nil {
-		return M.Socksaddr{}, err
-	}
-	return destination, nil
-}
-
-func (c *clientPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
-	header := buf.With(buffer.ExtendHeader(M.SocksaddrSerializer.AddrPortLen(destination)))
-	if err := M.SocksaddrSerializer.WriteAddrPort(header, destination); err != nil {
-		return err
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return wsutil.WriteClientBinary(c.Conn, buffer.Bytes())
-}
-
-func (c *clientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	msg, err := wsutil.ReadServerBinary(c.Conn)
-	if err != nil {
-		return 0, nil, err
-	}
-	reader := bytes.NewReader(msg)
-	destination, err := M.SocksaddrSerializer.ReadAddrPort(reader)
-	if err != nil {
-		return 0, nil, err
-	}
-	n = copy(p, msg[len(msg)-reader.Len():])
-	if destination.IsFqdn() {
-		addr = destination
-	} else {
-		addr = destination.UDPAddr()
-	}
-	return
-}
-
-func (c *clientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	destination := M.SocksaddrFromNet(addr)
-	buffer := buf.NewSize(M.SocksaddrSerializer.AddrPortLen(destination) + len(p))
-	defer buffer.Release()
-	if err = M.SocksaddrSerializer.WriteAddrPort(buffer, destination); err != nil {
-		return 0, err
-	}
-	if _, err = buffer.Write(p); err != nil {
-		return 0, err
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err = wsutil.WriteClientBinary(c.Conn, buffer.Bytes()); err != nil {
-		return 0, err
-	}
-	return len(p), nil
-}
-
-func (c *clientPacketConn) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	_ = wsutil.WriteClientMessage(c.Conn, ws.OpClose, nil)
-	return c.Conn.Close()
-}
-
-func (c *clientPacketConn) LocalAddr() net.Addr {
-	return c.Conn.LocalAddr()
-}
-*/
