@@ -19,6 +19,7 @@ func NewLocalDialer(ctx context.Context, options option.LocalDNSServerOptions) (
 	if options.LegacyDefaultDialer {
 		return dialer.NewDefaultOutbound(ctx), nil
 	} else {
+		options.UDPFragmentDefault = true
 		return dialer.NewWithOptions(dialer.Options{
 			Context:         ctx,
 			Options:         options.DialerOptions,
