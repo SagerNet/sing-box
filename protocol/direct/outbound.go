@@ -13,7 +13,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -164,26 +163,7 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	var domainStrategy C.DomainStrategy
-	if h.domainStrategy != C.DomainStrategyAsIS {
-		domainStrategy = h.domainStrategy
-	} else {
-		//nolint:staticcheck
-		domainStrategy = C.DomainStrategy(metadata.InboundOptions.DomainStrategy)
-	}
-	switch domainStrategy {
-	case C.DomainStrategyIPv4Only:
-		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is4)
-		if len(destinationAddresses) == 0 {
-			return nil, E.New("no IPv4 address available for ", destination)
-		}
-	case C.DomainStrategyIPv6Only:
-		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is6)
-		if len(destinationAddresses) == 0 {
-			return nil, E.New("no IPv6 address available for ", destination)
-		}
-	}
-	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == C.DomainStrategyPreferIPv6, nil, nil, nil, h.fallbackDelay)
+	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, len(destinationAddresses) > 0 && destinationAddresses[0].Is6(), nil, nil, nil, h.fallbackDelay)
 }
 
 func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
@@ -204,26 +184,7 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	var domainStrategy C.DomainStrategy
-	if h.domainStrategy != C.DomainStrategyAsIS {
-		domainStrategy = h.domainStrategy
-	} else {
-		//nolint:staticcheck
-		domainStrategy = C.DomainStrategy(metadata.InboundOptions.DomainStrategy)
-	}
-	switch domainStrategy {
-	case C.DomainStrategyIPv4Only:
-		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is4)
-		if len(destinationAddresses) == 0 {
-			return nil, E.New("no IPv4 address available for ", destination)
-		}
-	case C.DomainStrategyIPv6Only:
-		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is6)
-		if len(destinationAddresses) == 0 {
-			return nil, E.New("no IPv6 address available for ", destination)
-		}
-	}
-	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, domainStrategy == C.DomainStrategyPreferIPv6, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
+	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, len(destinationAddresses) > 0 && destinationAddresses[0].Is6(), networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 }
 
 func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
