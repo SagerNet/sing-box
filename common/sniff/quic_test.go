@@ -56,7 +56,7 @@ func TestSniffUQUICChrome115(t *testing.T) {
 	err = sniff.QUICClientHello(context.Background(), &metadata, pkt)
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
-	require.Equal(t, metadata.Client, C.ClientQUICGo)
+	require.Equal(t, metadata.Client, C.ClientChromium)
 	require.Equal(t, metadata.Domain, "www.google.com")
 }
 
