@@ -57,6 +57,7 @@ type InboundContext struct {
 	Domain       string
 	Client       string
 	SniffContext any
+	SnifferNames []string
 	SniffError   error
 
 	// cache
