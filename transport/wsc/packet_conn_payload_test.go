@@ -7,7 +7,7 @@ import (
 )
 
 func TestPacketPayload(t *testing.T) {
-	text := "salam chetori?"
+	text := "TEST DATA"
 
 	payload := packetConnPayload{
 		addrPort: netip.MustParseAddrPort("9.9.9.9:53"),

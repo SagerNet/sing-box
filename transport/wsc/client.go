@@ -16,11 +16,29 @@ import (
 var _ adapter.WSCClientTransport = &Client{}
 
 type Client struct {
+	auth   string
+	host   string
+	path   string
+	tls    tls.Config
+	dialer N.Dialer
+}
+
+type ClientConfig struct {
 	Auth   string
 	Host   string
 	Path   string
 	TLS    tls.Config
 	Dialer N.Dialer
+}
+
+func NewClient(params ClientConfig) (*Client, error) {
+	return &Client{
+		auth:   params.Auth,
+		host:   params.Host,
+		path:   params.Path,
+		tls:    params.TLS,
+		dialer: params.Dialer,
+	}, nil
 }
 
 func (cli *Client) DialContext(ctx context.Context, network string, endpoint string) (net.Conn, error) {
@@ -43,13 +61,13 @@ func (cli *Client) newWSConn(ctx context.Context, network string, endpoint strin
 
 	dialer := ws.Dialer{
 		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := cli.Dialer.DialContext(ctx, N.NetworkTCP, metadata.ParseSocksaddr(addr))
+			conn, err := cli.dialer.DialContext(ctx, N.NetworkTCP, metadata.ParseSocksaddr(addr))
 			if err != nil {
 				return nil, err
 			}
 
-			if cli.TLS != nil {
-				conn, err = tls.ClientHandshake(ctx, conn, cli.TLS)
+			if cli.tls != nil {
+				conn, err = tls.ClientHandshake(ctx, conn, cli.tls)
 				if err != nil {
 					return nil, err
 				}
@@ -76,7 +94,7 @@ func (cli *Client) cleanup(ctx context.Context) error {
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return cli.Dialer.DialContext(ctx, network, metadata.ParseSocksaddr(addr))
+				return cli.dialer.DialContext(ctx, network, metadata.ParseSocksaddr(addr))
 			},
 		},
 	}
@@ -97,27 +115,27 @@ func (cli *Client) cleanup(ctx context.Context) error {
 
 func (cli *Client) newURL(scheme string, path string, endpoint string, network string) (url.URL, *tls.STDConfig, error) {
 	var tlsConfig *tls.STDConfig = nil
-	if cli.TLS != nil {
+	if cli.tls != nil {
 		scheme += "s"
 		var err error
-		tlsConfig, err = cli.TLS.Config()
+		tlsConfig, err = cli.tls.Config()
 		if err != nil {
 			return url.URL{}, nil, err
 		}
 	}
 
 	if path == "" {
-		path = cli.Path
+		path = cli.path
 	}
 
 	pURL := url.URL{
 		Scheme:   scheme,
-		Host:     cli.Host,
+		Host:     cli.host,
 		Path:     path,
 		RawQuery: "",
 	}
 	pQuery := pURL.Query()
-	pQuery.Set("auth", cli.Auth)
+	pQuery.Set("auth", cli.auth)
 	if endpoint != "" {
 		pQuery.Set("ep", endpoint)
 	}

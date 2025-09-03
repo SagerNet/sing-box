@@ -64,12 +64,15 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		}
 	}
 
-	outbound.client = &wsc.Client{
+	outbound.client, err = wsc.NewClient(wsc.ClientConfig{
 		Auth:   options.Auth,
 		Host:   serverAddr.String(),
 		Path:   options.Path,
 		TLS:    outbound.tlsConfig,
 		Dialer: outbound.dialer,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return outbound, nil
