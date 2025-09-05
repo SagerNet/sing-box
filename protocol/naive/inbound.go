@@ -170,7 +170,7 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		hostPort = request.Host
 	}
 	source := sHttp.SourceAddress(request)
-	destination := M.ParseSocksaddr(hostPort)
+	destination := M.ParseSocksaddr(hostPort).Unwrap()
 
 	if hijacker, isHijacker := writer.(http.Hijacker); isHijacker {
 		conn, _, err := hijacker.Hijack()

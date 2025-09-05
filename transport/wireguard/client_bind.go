@@ -138,7 +138,7 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		b := packets[0]
 		common.ClearArray(b[1:4])
 	}
-	eps[0] = remoteEndpoint(M.AddrPortFromNet(addr))
+	eps[0] = remoteEndpoint(M.SocksaddrFromNet(addr).Unwrap().AddrPort())
 	count = 1
 	return
 }

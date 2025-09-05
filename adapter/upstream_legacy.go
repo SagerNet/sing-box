@@ -78,8 +78,8 @@ func (w *myUpstreamHandlerWrapper) NewError(ctx context.Context, err error) {
 // Deprecated: removed
 func UpstreamMetadata(metadata InboundContext) M.Metadata {
 	return M.Metadata{
-		Source:      metadata.Source,
-		Destination: metadata.Destination,
+		Source:      metadata.Source.Unwrap(),
+		Destination: metadata.Destination.Unwrap(),
 	}
 }
 
