@@ -320,36 +320,36 @@ func (c *Client) LookupCache(domain string, strategy C.DomainStrategy) ([]netip.
 	}
 	dnsName := dns.Fqdn(domain)
 	if strategy == C.DomainStrategyIPv4Only {
-		response, err := c.questionCache(dns.Question{
+		addresses, err := c.questionCache(dns.Question{
 			Name:   dnsName,
 			Qtype:  dns.TypeA,
 			Qclass: dns.ClassINET,
 		}, nil)
 		if err != ErrNotCached {
-			return response, true
+			return addresses, true
 		}
 	} else if strategy == C.DomainStrategyIPv6Only {
-		response, err := c.questionCache(dns.Question{
+		addresses, err := c.questionCache(dns.Question{
 			Name:   dnsName,
 			Qtype:  dns.TypeAAAA,
 			Qclass: dns.ClassINET,
 		}, nil)
 		if err != ErrNotCached {
-			return response, true
+			return addresses, true
 		}
 	} else {
-		response4, _ := c.questionCache(dns.Question{
+		response4, _ := c.loadResponse(dns.Question{
 			Name:   dnsName,
 			Qtype:  dns.TypeA,
 			Qclass: dns.ClassINET,
 		}, nil)
-		response6, _ := c.questionCache(dns.Question{
+		response6, _ := c.loadResponse(dns.Question{
 			Name:   dnsName,
 			Qtype:  dns.TypeAAAA,
 			Qclass: dns.ClassINET,
 		}, nil)
-		if len(response4) > 0 || len(response6) > 0 {
-			return sortAddresses(response4, response6, strategy), true
+		if response4 != nil || response6 != nil {
+			return sortAddresses(MessageToAddresses(response4), MessageToAddresses(response6), strategy), true
 		}
 	}
 	return nil, false
@@ -517,6 +517,9 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 }
 
 func MessageToAddresses(response *dns.Msg) []netip.Addr {
+	if response == nil || response.Rcode != dns.RcodeSuccess {
+		return nil
+	}
 	addresses := make([]netip.Addr, 0, len(response.Answer))
 	for _, rawAnswer := range response.Answer {
 		switch answer := rawAnswer.(type) {
