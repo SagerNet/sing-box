@@ -16,11 +16,6 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-const (
-	// net.maxDNSPacketSize
-	maxDNSPacketSize = 1232
-)
-
 func (t *Transport) exchangeSingleRequest(ctx context.Context, servers []M.Socksaddr, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
 	var lastErr error
 	for _, fqdn := range t.nameList(domain) {
@@ -118,7 +113,7 @@ func (t *Transport) exchangeOne(ctx context.Context, server M.Socksaddr, questio
 		Question: []mDNS.Question{question},
 		Compress: true,
 	}
-	request.SetEdns0(maxDNSPacketSize, false)
+	request.SetEdns0(buf.UDPBufferSize, false)
 	buffer := buf.Get(buf.UDPBufferSize)
 	defer buf.Put(buffer)
 	for _, network := range networks {
