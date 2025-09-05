@@ -19,7 +19,7 @@ import (
 	"github.com/sagernet/sing/contrab/freelru"
 	"github.com/sagernet/sing/contrab/maphash"
 
-	dns "github.com/miekg/dns"
+	"github.com/miekg/dns"
 )
 
 var (
@@ -116,9 +116,14 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	if clientSubnet.IsValid() {
 		message = SetClientSubnet(message, clientSubnet)
 	}
+
 	isSimpleRequest := len(message.Question) == 1 &&
 		len(message.Ns) == 0 &&
-		len(message.Extra) == 0 &&
+		(len(message.Extra) == 0 || len(message.Extra) == 1 &&
+			message.Extra[0].Header().Rrtype == dns.TypeOPT &&
+			message.Extra[0].Header().Class > 0 &&
+			message.Extra[0].Header().Ttl == 0 &&
+			len(message.Extra[0].(*dns.OPT).Option) == 0) &&
 		!options.ClientSubnet.IsValid()
 	disableCache := !isSimpleRequest || c.disableCache || options.DisableCache
 	if !disableCache {
