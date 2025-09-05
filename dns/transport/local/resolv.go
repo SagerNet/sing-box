@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-const (
-	// net.maxDNSPacketSize
-	maxDNSPacketSize = 1232
-)
-
 type resolverConfig struct {
 	initOnce    sync.Once
 	ch          chan struct{}

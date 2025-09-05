@@ -2,7 +2,9 @@ package local
 
 import (
 	"context"
+	"errors"
 	"math/rand"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -164,7 +166,7 @@ func (t *Transport) exchangeOne(ctx context.Context, server M.Socksaddr, questio
 		Question: []mDNS.Question{question},
 		Compress: true,
 	}
-	request.SetEdns0(maxDNSPacketSize, false)
+	request.SetEdns0(buf.UDPBufferSize, false)
 	buffer := buf.Get(buf.UDPBufferSize)
 	defer buf.Put(buffer)
 	for _, network := range networks {
@@ -184,6 +186,9 @@ func (t *Transport) exchangeOne(ctx context.Context, server M.Socksaddr, questio
 		}
 		_, err = conn.Write(rawMessage)
 		if err != nil {
+			if errors.Is(err, syscall.EMSGSIZE) && network == N.NetworkUDP {
+				continue
+			}
 			return nil, E.Cause(err, "write request")
 		}
 		n, err := conn.Read(buffer)
