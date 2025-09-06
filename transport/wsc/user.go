@@ -154,7 +154,9 @@ func (user *wscUser) removeConn(conn net.Conn) error {
 	user.mu.Lock()
 	defer user.mu.Unlock()
 	if d, exists := user.conns[conn]; exists {
-		user.usedIds[d.id] = false
+		if user.maxConnCount > 0 {
+			user.usedIds[d.id] = false
+		}
 		delete(user.conns, conn)
 		return nil
 	}

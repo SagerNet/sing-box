@@ -5,6 +5,11 @@ type WSCUsageReport struct {
 	Time    Duration `json:"time,omitempty"`
 }
 
+type WSCRule struct {
+	Action string        `json:"action"`
+	Args   []interface{} `json:"args"`
+}
+
 type WSCInboundOptions struct {
 	ListenOptions
 	InboundTLSOptionsContainer
@@ -19,4 +24,5 @@ type WSCOutboundOptions struct {
 	Network NetworkList `json:"network,omitempty"`
 	Auth    string      `json:"auth"`
 	Path    string      `json:"path"`
+	Rules   []WSCRule   `json:"rules,omitempty"`
 }

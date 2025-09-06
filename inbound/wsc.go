@@ -62,6 +62,7 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			logger: logger,
 		},
 		Router:                     router,
+		Dialer:                     network.SystemDialer,
 		MaxConnectionPerUser:       options.MaxConnectionPerUser,
 		UsageReportTrafficInterval: options.UsageTraffic.Traffic,
 		UsageReportTimeInterval:    time.Duration(options.UsageTraffic.Time),
@@ -138,7 +139,7 @@ func (auth *CustomAuthenticator) Authenticate(ctx context.Context, params wsc.Au
 	return wsc.AuthenticateResult{
 		ID:      int64(auth.id),
 		Rate:    math.MaxInt64,
-		MaxConn: 60,
+		MaxConn: params.MaxConn,
 	}, nil
 }
 

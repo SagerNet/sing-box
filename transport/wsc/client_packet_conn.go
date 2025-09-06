@@ -25,21 +25,23 @@ type readerCache struct {
 
 type clientPacketConn struct {
 	net.Conn
-	reader *wsutil.Reader
-	cache  *readerCache
-	mu     sync.Mutex
+	reader         *wsutil.Reader
+	cache          *readerCache
+	mu             sync.Mutex
+	ruleApplicator *WSCRuleApplicator
 }
 
-func (cli *Client) newPacketConn(ctx context.Context, network string, endpoint string) (*clientPacketConn, error) {
+func (cli *Client) newPacketConn(ctx context.Context, ruleApplicator *WSCRuleApplicator, network string, endpoint string) (*clientPacketConn, error) {
 	conn, err := cli.newWSConn(ctx, network, endpoint)
 	if err != nil {
 		return nil, err
 	}
 	reader := wsutil.NewReader(conn, ws.StateClientSide)
 	return &clientPacketConn{
-		Conn:   conn,
-		reader: reader,
-		cache:  nil,
+		Conn:           conn,
+		reader:         reader,
+		cache:          nil,
+		ruleApplicator: ruleApplicator,
 	}, nil
 }
 
@@ -63,12 +65,13 @@ func (packetConn *clientPacketConn) ReadPacket(buffer *buf.Buffer) (destination 
 	}
 
 	destination = metadata.SocksaddrFromNetIP(payload.addrPort)
+	ep, _ := packetConn.ruleApplicator.ApplyEndpointReplace(destination.String(), network.NetworkUDP)
 
 	if _, err := buffer.Write(payload.payload); err != nil {
 		return metadata.Socksaddr{}, err
 	}
 
-	return destination, nil
+	return metadata.ParseSocksaddr(ep), nil
 }
 
 func (packetConn *clientPacketConn) WritePacket(buffer *buf.Buffer, destination metadata.Socksaddr) error {
@@ -76,8 +79,10 @@ func (packetConn *clientPacketConn) WritePacket(buffer *buf.Buffer, destination 
 		return errors.New("buffer is nil")
 	}
 
+	ep, _ := packetConn.ruleApplicator.ApplyEndpointReplace(destination.String(), network.NetworkUDP)
+
 	payload := packetConnPayload{
-		addrPort: destination.AddrPort(),
+		addrPort: metadata.ParseSocksaddr(ep).AddrPort(),
 		payload:  buffer.Bytes(),
 	}
 	payloadBytes, err := payload.MarshalBinary()
@@ -122,9 +127,12 @@ func (packetConn *clientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, er
 		return 0, nil, err
 	}
 
+	ep, _ := packetConn.ruleApplicator.ApplyEndpointReplace(payload.addrPort.String(), network.NetworkUDP)
+
 	packetConn.cache = &readerCache{
 		reader: bytes.NewReader(payload.payload),
-		addr:   metadata.SocksaddrFromNetIP(payload.addrPort),
+		// addr:   metadata.SocksaddrFromNetIP(payload.addrPort),
+		addr: metadata.ParseSocksaddr(ep),
 	}
 
 	n, err = packetConn.cache.reader.Read(p)
@@ -137,8 +145,11 @@ func (packetConn *clientPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, er
 }
 
 func (packetConn *clientPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	ep, _ := packetConn.ruleApplicator.ApplyEndpointReplace(addr.String(), network.NetworkUDP)
+
 	payload := packetConnPayload{
-		addrPort: metadata.SocksaddrFromNet(addr).AddrPort(),
+		// addrPort: metadata.SocksaddrFromNet(addr).AddrPort(),
+		addrPort: metadata.ParseSocksaddr(ep).AddrPort(),
 		payload:  p,
 	}
 	payloadBytes, err := payload.MarshalBinary()

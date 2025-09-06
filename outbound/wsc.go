@@ -70,6 +70,7 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		Path:   options.Path,
 		TLS:    outbound.tlsConfig,
 		Dialer: outbound.dialer,
+		Rules:  options.Rules,
 	})
 	if err != nil {
 		return nil, err

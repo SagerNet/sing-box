@@ -3,7 +3,8 @@ package wsc
 import "context"
 
 type AuthenticateParams struct {
-	Auth string
+	Auth    string
+	MaxConn int
 }
 
 type AuthenticateResult struct {

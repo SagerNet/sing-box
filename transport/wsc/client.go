@@ -8,6 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/ws"
@@ -16,29 +17,42 @@ import (
 var _ adapter.WSCClientTransport = &Client{}
 
 type Client struct {
-	auth   string
-	host   string
-	path   string
-	tls    tls.Config
-	dialer N.Dialer
+	auth            string
+	host            string
+	path            string
+	tls             tls.Config
+	dialer          N.Dialer
+	endpointReplace map[string]string
+	ruleApplicator  *WSCRuleApplicator
 }
 
 type ClientConfig struct {
-	Auth   string
-	Host   string
-	Path   string
-	TLS    tls.Config
-	Dialer N.Dialer
+	Auth            string
+	Host            string
+	Path            string
+	TLS             tls.Config
+	Dialer          N.Dialer
+	EndpointReplace map[string]string
+	Rules           []option.WSCRule
 }
 
 func NewClient(params ClientConfig) (*Client, error) {
-	return &Client{
-		auth:   params.Auth,
-		host:   params.Host,
-		path:   params.Path,
-		tls:    params.TLS,
-		dialer: params.Dialer,
-	}, nil
+	ruleApplicator, err := NewRuleApplicator(params.Rules)
+	if err != nil {
+		return nil, err
+	}
+
+	cli := &Client{
+		auth:            params.Auth,
+		host:            params.Host,
+		path:            params.Path,
+		tls:             params.TLS,
+		dialer:          params.Dialer,
+		endpointReplace: params.EndpointReplace,
+		ruleApplicator:  ruleApplicator,
+	}
+
+	return cli, nil
 }
 
 func (cli *Client) DialContext(ctx context.Context, network string, endpoint string) (net.Conn, error) {
@@ -46,7 +60,7 @@ func (cli *Client) DialContext(ctx context.Context, network string, endpoint str
 }
 
 func (cli *Client) ListenPacket(ctx context.Context, network string, endpoint string) (net.PacketConn, error) {
-	return cli.newPacketConn(ctx, network, endpoint)
+	return cli.newPacketConn(ctx, cli.ruleApplicator, network, endpoint)
 }
 
 func (cli *Client) Close(ctx context.Context) error {
@@ -127,6 +141,12 @@ func (cli *Client) newURL(scheme string, path string, endpoint string, network s
 	if path == "" {
 		path = cli.path
 	}
+
+	if with, exists := cli.endpointReplace[endpoint]; exists {
+		endpoint = with
+	}
+
+	endpoint, network = cli.ruleApplicator.ApplyEndpointReplace(endpoint, network)
 
 	pURL := url.URL{
 		Scheme:   scheme,

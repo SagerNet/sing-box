@@ -17,14 +17,14 @@ type wscUserManager struct {
 	authenticator              Authenticator
 }
 
-func (manager *wscUserManager) findOrCreateUser(ctx context.Context, uid int64, rateLimit int64) *wscUser {
+func (manager *wscUserManager) findOrCreateUser(ctx context.Context, uid int64, rateLimit int64, maxConn int) *wscUser {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	if user, exists := manager.users[uid]; exists {
 		manager.reportUser(ctx, user, false)
 		return user
 	}
-	user := manager.newUser(uid, 0, manager.maxConnPerUser, rateLimit)
+	user := manager.newUser(uid, 0, min(manager.maxConnPerUser, maxConn), rateLimit)
 	manager.users[uid] = user
 	return user
 }
