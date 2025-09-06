@@ -46,7 +46,6 @@ type ServerConfig struct {
 }
 
 /*TODO: Support TLS servers*/
-/*TODO: Pipe conn and packetConn*/
 func NewServer(config ServerConfig) (*Server, error) {
 	if config.Authenticator == nil {
 		return nil, errors.New("authenticator required")
