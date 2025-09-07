@@ -55,7 +55,7 @@ func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	}
 }
 
-func (c *STDServerConfig) Config() (*STDConfig, error) {
+func (c *STDServerConfig) STDConfig() (*STDConfig, error) {
 	return c.config, nil
 }
 
@@ -160,7 +160,7 @@ func (c *STDServerConfig) Close() error {
 	return nil
 }
 
-func NewSTDServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
+func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
@@ -262,7 +262,7 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			return nil, err
 		}
 	}
-	return &STDServerConfig{
+	var config ServerConfig = &STDServerConfig{
 		config:          tlsConfig,
 		logger:          logger,
 		acmeService:     acmeService,
@@ -271,5 +271,14 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 		certificatePath: options.CertificatePath,
 		keyPath:         options.KeyPath,
 		echKeyPath:      echKeyPath,
-	}, nil
+	}
+	if options.KernelTx || options.KernelRx {
+		config = &KTlSServerConfig{
+			ServerConfig: config,
+			logger:       logger,
+			kernelTx:     options.KernelTx,
+			kernelRx:     options.KernelRx,
+		}
+	}
+	return config, nil
 }

@@ -4,6 +4,7 @@ go 1.23.1
 
 require (
 	github.com/anytls/sing-anytls v0.0.8
+	github.com/blang/semver/v4 v4.0.0
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/coder/websocket v1.8.13
 	github.com/cretz/bine v0.2.0
@@ -27,9 +28,9 @@ require (
 	github.com/sagernet/gomobile v0.1.8
 	github.com/sagernet/gvisor v0.0.0-20250822052253-5558536cf237
 	github.com/sagernet/quic-go v0.52.0-beta.1
-	github.com/sagernet/sing v0.7.8-0.20250906004629-421beb6473ea
+	github.com/sagernet/sing v0.7.8-0.20250908063931-beb351e61b89
 	github.com/sagernet/sing-mux v0.3.3
-	github.com/sagernet/sing-quic v0.5.1
+	github.com/sagernet/sing-quic v0.5.2-0.20250908021228-186e280a524e
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11

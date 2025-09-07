@@ -83,6 +83,14 @@ func (c *ClientConn) Upstream() any {
 	return c.ExtendedConn
 }
 
+func (c *ClientConn) ReaderReplaceable() bool {
+	return c.headerWritten
+}
+
+func (c *ClientConn) WriterReplaceable() bool {
+	return c.headerWritten
+}
+
 type ClientPacketConn struct {
 	net.Conn
 	access          sync.Mutex
