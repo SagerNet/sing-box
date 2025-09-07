@@ -154,7 +154,7 @@ jobs:
           set -xeuo pipefail
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "0"
@@ -174,7 +174,7 @@ jobs:
           export CXX="${CC}++"
           mkdir -p dist
           GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "1"
