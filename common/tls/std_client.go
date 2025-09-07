@@ -11,8 +11,10 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tlsfragment"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/ntp"
 )
 
@@ -40,7 +42,7 @@ func (c *STDClientConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
-func (c *STDClientConfig) Config() (*STDConfig, error) {
+func (c *STDClientConfig) STDConfig() (*STDConfig, error) {
 	return c.config, nil
 }
 
@@ -52,7 +54,13 @@ func (c *STDClientConfig) Client(conn net.Conn) (Conn, error) {
 }
 
 func (c *STDClientConfig) Clone() Config {
-	return &STDClientConfig{c.ctx, c.config.Clone(), c.fragment, c.fragmentFallbackDelay, c.recordFragment}
+	return &STDClientConfig{
+		ctx:                   c.ctx,
+		config:                c.config.Clone(),
+		fragment:              c.fragment,
+		fragmentFallbackDelay: c.fragmentFallbackDelay,
+		recordFragment:        c.recordFragment,
+	}
 }
 
 func (c *STDClientConfig) ECHConfigList() []byte {
@@ -63,7 +71,7 @@ func (c *STDClientConfig) SetECHConfigList(EncryptedClientHelloConfigList []byte
 	c.config.EncryptedClientHelloConfigList = EncryptedClientHelloConfigList
 }
 
-func NewSTDClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -146,10 +154,24 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 		}
 		tlsConfig.RootCAs = certPool
 	}
-	stdConfig := &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	var config Config = &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
 	if options.ECH != nil && options.ECH.Enabled {
-		return parseECHClientConfig(ctx, stdConfig, options)
-	} else {
-		return stdConfig, nil
+		var err error
+		config, err = parseECHClientConfig(ctx, config.(ECHCapableConfig), options)
+		if err != nil {
+			return nil, err
+		}
 	}
+	if options.KernelRx || options.KernelTx {
+		if !C.IsLinux {
+			return nil, E.New("kTLS is only supported on Linux")
+		}
+		config = &KTLSClientConfig{
+			Config:   config,
+			logger:   logger,
+			kernelTx: options.KernelTx,
+			kernelRx: options.KernelRx,
+		}
+	}
+	return config, nil
 }

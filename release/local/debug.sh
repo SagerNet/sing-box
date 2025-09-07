@@ -13,7 +13,7 @@ pushd $PROJECT
 git fetch
 git reset FETCH_HEAD --hard
 git clean -fdx
-go install -v -trimpath -ldflags "-s -w -buildid=" -tags with_quic,with_acme,debug ./cmd/sing-box
+go install -v -trimpath -ldflags "-s -w -buildid= -checklinkname=0" -tags with_quic,with_acme,debug ./cmd/sing-box
 popd
 
 sudo systemctl stop sing-box
