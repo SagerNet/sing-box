@@ -74,6 +74,11 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
+	requestURL, headers := &c.requestURL, c.headers.Clone()
+	options, ok := ctx.Value(adapter.V2RayExtraOptionsKey).(adapter.V2RayExtraOptions)
+	if ok {
+		requestURL, headers = options.Apply(requestURL, headers)
+	}
 	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, err
@@ -86,8 +91,8 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	request := &http.Request{
 		Method: http.MethodGet,
-		URL:    &c.requestURL,
-		Header: c.headers.Clone(),
+		URL:    requestURL,
+		Header: headers,
 		Host:   c.host,
 	}
 	request.Header.Set("Connection", "Upgrade")

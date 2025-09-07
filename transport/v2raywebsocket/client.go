@@ -75,6 +75,10 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 }
 
 func (c *Client) dialContext(ctx context.Context, requestURL *url.URL, headers http.Header) (*WebsocketConn, error) {
+	options, ok := ctx.Value(adapter.V2RayExtraOptionsKey).(adapter.V2RayExtraOptions)
+	if ok {
+		requestURL, headers = options.Apply(requestURL, headers)
+	}
 	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, err

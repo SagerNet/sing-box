@@ -77,7 +77,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	)
 	if s.earlyDataHeaderName == "" {
 		if strings.HasPrefix(request.URL.RequestURI(), s.path) {
-			earlyDataStr := request.URL.RequestURI()[len(s.path):]
+			earlyDataStr := request.URL.RequestURI()[len(s.path)+len("?"):]
 			earlyData, err = base64.RawURLEncoding.DecodeString(earlyDataStr)
 		} else {
 			s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad path: ", request.URL.Path))

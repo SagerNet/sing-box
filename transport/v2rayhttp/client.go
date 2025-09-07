@@ -104,10 +104,16 @@ func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 
+	requestURL, headers := &c.requestURL, c.headers.Clone()
+	options, ok := ctx.Value(adapter.V2RayExtraOptionsKey).(adapter.V2RayExtraOptions)
+	if ok {
+		requestURL, headers = options.Apply(requestURL, headers)
+	}
+
 	request := &http.Request{
 		Method: c.method,
-		URL:    &c.requestURL,
-		Header: c.headers.Clone(),
+		URL:    requestURL,
+		Header: headers,
 	}
 	switch hostLen := len(c.host); hostLen {
 	case 0:
@@ -122,12 +128,17 @@ func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
+	requestURL, headers := &c.requestURL, c.headers.Clone()
+	options, ok := ctx.Value(adapter.V2RayExtraOptionsKey).(adapter.V2RayExtraOptions)
+	if ok {
+		requestURL, headers = options.Apply(requestURL, headers)
+	}
 	pipeInReader, pipeInWriter := io.Pipe()
 	request := &http.Request{
 		Method: c.method,
 		Body:   pipeInReader,
-		URL:    &c.requestURL,
-		Header: c.headers.Clone(),
+		URL:    requestURL,
+		Header: headers,
 	}
 	request = request.WithContext(ctx)
 	switch hostLen := len(c.host); hostLen {
