@@ -51,7 +51,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		key:        trojan.Key(options.Password),
 	}
 	if options.TLS != nil {
-		outbound.tlsConfig, err = tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
+		outbound.tlsConfig, err = tls.NewClient(ctx, logger, options.Server, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}

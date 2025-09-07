@@ -14,8 +14,10 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tlsfragment"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/ntp"
 
 	utls "github.com/metacubex/utls"
@@ -50,7 +52,7 @@ func (c *UTLSClientConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
-func (c *UTLSClientConfig) Config() (*STDConfig, error) {
+func (c *UTLSClientConfig) STDConfig() (*STDConfig, error) {
 	return nil, E.New("unsupported usage for uTLS")
 }
 
@@ -139,7 +141,7 @@ func (c *utlsALPNWrapper) HandshakeContext(ctx context.Context) error {
 	return c.UConn.HandshakeContext(ctx)
 }
 
-func NewUTLSClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -214,15 +216,31 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	if err != nil {
 		return nil, err
 	}
-	uConfig := &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	var config Config = &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
 	if options.ECH != nil && options.ECH.Enabled {
 		if options.Reality != nil && options.Reality.Enabled {
 			return nil, E.New("Reality is conflict with ECH")
 		}
-		return parseECHClientConfig(ctx, uConfig, options)
-	} else {
-		return uConfig, nil
+		config, err = parseECHClientConfig(ctx, config.(ECHCapableConfig), options)
+		if err != nil {
+			return nil, err
+		}
 	}
+	if options.KernelRx || options.KernelTx {
+		if options.Reality != nil && options.Reality.Enabled {
+			return nil, E.New("Reality is conflict with kTLS")
+		}
+		if !C.IsLinux {
+			return nil, E.New("kTLS is only supported on Linux")
+		}
+		config = &KTLSClientConfig{
+			Config:   config,
+			logger:   logger,
+			kernelTx: options.KernelTx,
+			kernelRx: options.KernelRx,
+		}
+	}
+	return config, nil
 }
 
 var (
