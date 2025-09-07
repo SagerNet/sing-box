@@ -49,7 +49,7 @@ func NewTLS(ctx context.Context, logger log.ContextLogger, tag string, options o
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, options.Server, tlsOptions)
+	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
