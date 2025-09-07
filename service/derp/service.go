@@ -301,11 +301,11 @@ func (d *Service) startMeshWithHost(derpServer *derp.Server, server *option.DERP
 	}
 	var stdConfig *tls.STDConfig
 	if server.TLS != nil && server.TLS.Enabled {
-		tlsConfig, err := tls.NewClient(d.ctx, hostname, common.PtrValueOrDefault(server.TLS))
+		tlsConfig, err := tls.NewClient(d.ctx, d.logger, hostname, common.PtrValueOrDefault(server.TLS))
 		if err != nil {
 			return err
 		}
-		stdConfig, err = tlsConfig.Config()
+		stdConfig, err = tlsConfig.STDConfig()
 		if err != nil {
 			return err
 		}
