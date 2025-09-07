@@ -166,7 +166,7 @@ func (t *DNSTransport) createResolver(directDialer func() N.Dialer, resolver *dn
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 443
 			}
-			tlsConfig := common.Must1(tls.NewClient(t.ctx, serverAddr.AddrString(), option.OutboundTLSOptions{
+			tlsConfig := common.Must1(tls.NewClient(t.ctx, t.logger, serverAddr.AddrString(), option.OutboundTLSOptions{
 				ALPN: []string{http2.NextProtoTLS, "http/1.1"},
 			}))
 			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, tlsConfig), nil
