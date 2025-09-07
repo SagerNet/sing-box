@@ -59,11 +59,11 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, options.Server, tlsOptions)
+	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
-	if common.Error(tlsConfig.Config()) == nil && !common.Contains(tlsConfig.NextProtos(), http2.NextProtoTLS) {
+	if common.Error(tlsConfig.STDConfig()) == nil && !common.Contains(tlsConfig.NextProtos(), http2.NextProtoTLS) {
 		tlsConfig.SetNextProtos(append(tlsConfig.NextProtos(), http2.NextProtoTLS))
 	}
 	if !common.Contains(tlsConfig.NextProtos(), "http/1.1") {

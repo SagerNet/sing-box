@@ -43,7 +43,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		options.TLS.MinVersion = "1.2"
 		options.TLS.MaxVersion = "1.2"
 	}
-	tlsConfig, err := tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
+	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, common.PtrValueOrDefault(options.TLS))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 				return common.Error(tls.ClientHandshake(ctx, conn, tlsConfig))
 			}
 		} else {
-			stdTLSConfig, err := tlsConfig.Config()
+			stdTLSConfig, err := tlsConfig.STDConfig()
 			if err != nil {
 				return nil, err
 			}
