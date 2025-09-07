@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"errors"
+	"io"
 	"net/netip"
 )
 
@@ -62,7 +63,7 @@ func (payload *packetConnPayload) MarshalBinaryUnsafe(data []byte) error {
 	}
 
 	if len(data) < hLen+len(payload.payload) {
-		return errors.New("invalid data length to write")
+		return io.ErrShortBuffer
 	}
 
 	addr := payload.addrPort.Addr().As16()

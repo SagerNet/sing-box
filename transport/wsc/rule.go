@@ -1,6 +1,7 @@
 package wsc
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/sagernet/sing-box/option"
@@ -8,15 +9,23 @@ import (
 )
 
 type RuleAction int
+type RuleDirection int
 
 const (
 	RuleActionUnknown RuleAction = iota
 	RuleActionReplace
 )
 
+const (
+	RuleDirectionUnknown RuleDirection = iota
+	RuleDirectionInbound
+	RuleDirectionOutbound
+)
+
 type WSCRule struct {
-	Action RuleAction
-	Args   []interface{}
+	Action    RuleAction
+	Direction RuleDirection
+	Args      []interface{}
 }
 
 type WSCRuleApplicator struct {
@@ -30,9 +39,17 @@ func NewRuleApplicator(rules []option.WSCRule) (*WSCRuleApplicator, error) {
 		if err != nil {
 			return nil, err
 		}
+		var direction RuleDirection = RuleDirectionUnknown
+		if len(rule.Direction) > 0 {
+			direction, err = RuleDirectionFromString(rule.Direction)
+			if err != nil {
+				return nil, err
+			}
+		}
 		wscRules = append(wscRules, WSCRule{
-			Action: action,
-			Args:   rule.Args,
+			Action:    action,
+			Direction: direction,
+			Args:      rule.Args,
 		})
 	}
 	return &WSCRuleApplicator{
@@ -40,11 +57,12 @@ func NewRuleApplicator(rules []option.WSCRule) (*WSCRuleApplicator, error) {
 	}, nil
 }
 
-func (ruleManager *WSCRuleApplicator) ApplyEndpointReplace(ep string, netw string) (finalEp string, finalNetw string) {
-	finalEp, finalNetw = ep, netw
-
+func (ruleManager *WSCRuleApplicator) ApplyEndpointReplace(ep string, netw string, direction RuleDirection) (finalEp string, finalNetw string) {
 	for _, rule := range ruleManager.Rules {
 		if rule.Action != RuleActionReplace {
+			continue
+		}
+		if rule.Direction != RuleDirectionUnknown && direction != RuleDirectionUnknown && rule.Direction != direction {
 			continue
 		}
 
@@ -80,7 +98,18 @@ func (ruleManager *WSCRuleApplicator) ApplyEndpointReplace(ep string, netw strin
 				epAddr := metadata.ParseSocksaddr(ep)
 
 				equal := false
-				if (whatAddr.IsFqdn() && epAddr.IsFqdn() && whatAddr.Fqdn == epAddr.Fqdn) || whatAddr.Addr.Compare(epAddr.Addr) == 0 {
+				if whatAddr.IsFqdn() && epAddr.IsFqdn() && whatAddr.Fqdn == epAddr.Fqdn {
+					equal = true
+				} else if whatAddr.IsIPv4() {
+					if epAddr.IsIPv4() || epAddr.Addr.Is4In6() {
+						whatAddr4 := whatAddr.Addr.As4()
+						epAddr4 := epAddr.Addr.As4()
+						equal = bytes.Equal(whatAddr4[:], epAddr4[:])
+					}
+				} else if whatAddr.IsIPv6() && epAddr.IsIPv6() {
+					equal = whatAddr.Addr.Compare(epAddr.Addr) == 0
+				}
+				if equal {
 					if whatAddr.Port == 0 {
 						equal = true
 					} else {
@@ -117,6 +146,17 @@ func RuleActionFromString(actionStr string) (RuleAction, error) {
 	case "replace":
 		return RuleActionReplace, nil
 	default:
-		return 0, errors.New("rule action doesn't exist")
+		return RuleActionUnknown, errors.New("rule action doesn't exist")
+	}
+}
+
+func RuleDirectionFromString(directionStr string) (RuleDirection, error) {
+	switch directionStr {
+	case "inbound":
+		return RuleDirectionInbound, nil
+	case "outbound":
+		return RuleDirectionOutbound, nil
+	default:
+		return RuleDirectionUnknown, errors.New("rule direction doesn't exist")
 	}
 }

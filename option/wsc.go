@@ -6,23 +6,27 @@ type WSCUsageReport struct {
 }
 
 type WSCRule struct {
-	Action string        `json:"action"`
-	Args   []interface{} `json:"args"`
+	Action    string        `json:"action"`
+	Direction string        `json:"direction,omitempty"`
+	Args      []interface{} `json:"args"`
 }
 
 type WSCInboundOptions struct {
 	ListenOptions
 	InboundTLSOptionsContainer
-	MaxConnectionPerUser int            `json:"max_connections,omitempty"`
-	UsageTraffic         WSCUsageReport `json:"usage_traffic,omitempty"`
+	Multiplex            *InboundMultiplexOptions `json:"multiplex,omitempty"`
+	Transport            *V2RayTransportOptions   `json:"transport,omitempty"`
+	MaxConnectionPerUser int                      `json:"max_connections,omitempty"`
+	UsageTraffic         WSCUsageReport           `json:"usage_traffic,omitempty"`
 }
 
 type WSCOutboundOptions struct {
 	DialerOptions
 	ServerOptions
 	OutboundTLSOptionsContainer
-	Network NetworkList `json:"network,omitempty"`
-	Auth    string      `json:"auth"`
-	Path    string      `json:"path"`
-	Rules   []WSCRule   `json:"rules,omitempty"`
+	Multiplex *OutboundMultiplexOptions `json:"multiplex,omitempty"`
+	Transport *V2RayTransportOptions    `json:"transport,omitempty"`
+	Network   NetworkList               `json:"network,omitempty"`
+	Auth      string                    `json:"auth"`
+	Rules     []WSCRule                 `json:"rules,omitempty"`
 }

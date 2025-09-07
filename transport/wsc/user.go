@@ -27,7 +27,6 @@ type wscUser struct {
 	reportedTrafficBytes  atomic.Int64
 	lastTrafficUpdateTick atomic.Int64
 	conns                 map[net.Conn]connData
-	heap                  []byte
 	rateLimit             int64
 	maxConnCount          int
 	usedIds               []bool
@@ -37,7 +36,6 @@ func (manager *wscUserManager) newUser(id int64, usedTrafficBytes int64, maxConn
 	user := &wscUser{
 		id:           id,
 		conns:        make(map[net.Conn]connData, maxConnCount),
-		heap:         make([]byte, connReadSize*2*maxConnCount),
 		rateLimit:    rateLimit,
 		usedIds:      make([]bool, maxConnCount),
 		maxConnCount: maxConnCount,
@@ -46,40 +44,6 @@ func (manager *wscUserManager) newUser(id int64, usedTrafficBytes int64, maxConn
 	user.reportedTrafficBytes.Store(0)
 	user.lastTrafficUpdateTick.Store(0)
 	return user
-}
-
-func (user *wscUser) outBuffer(conn net.Conn) []byte {
-	user.mu.Lock()
-	defer user.mu.Unlock()
-
-	if user.maxConnCount < 1 {
-		return make([]byte, connReadSize)
-	}
-
-	if d, found := user.conns[conn]; found {
-		bufStart := (connReadSize*2)*(d.id+1) - connReadSize
-		bufEnd := bufStart + connReadSize
-		return user.heap[bufStart:bufEnd]
-	}
-
-	return make([]byte, connReadSize)
-}
-
-func (user *wscUser) inBuffer(conn net.Conn) []byte {
-	user.mu.Lock()
-	defer user.mu.Unlock()
-
-	if user.maxConnCount < 1 {
-		return make([]byte, connReadSize)
-	}
-
-	if d, found := user.conns[conn]; found {
-		bufStart := (connReadSize * 2) * d.id
-		bufEnd := bufStart + connReadSize
-		return user.heap[bufStart:bufEnd]
-	}
-
-	return make([]byte, connReadSize)
 }
 
 func (user *wscUser) connReader(conn net.Conn) (io.Reader, error) {

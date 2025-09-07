@@ -2,36 +2,39 @@ package inbound
 
 import (
 	"context"
-	"errors"
 	"math"
 	"net"
-	"net/http"
+	"os"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-box/transport/wsc"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/exceptions"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/network"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var _ adapter.Inbound = &WSC{}
 var _ adapter.InjectableInbound = &WSC{}
 
-var _ adapter.WSCServerTransportHandler = &wscTransportHandler{}
+var _ adapter.V2RayServerTransportHandler = &wscTransportHandler{}
 
 var _ wsc.Authenticator = &CustomAuthenticator{}
 
 type WSC struct {
 	myInboundAdapter
-	server    adapter.WSCServerTransport
+	service   *wsc.Service
 	tlsConfig tls.ServerConfig
+	transport adapter.V2RayServerTransport
 }
 
 type wscTransportHandler WSC
@@ -45,7 +48,7 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	inbound := &WSC{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeWSC,
-			network:       []string{network.NetworkTCP},
+			network:       []string{N.NetworkTCP},
 			ctx:           ctx,
 			router:        router,
 			logger:        logger,
@@ -53,16 +56,36 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			listenOptions: options.ListenOptions,
 		},
 	}
-	server, err := wsc.NewServer(wsc.ServerConfig{
-		Ctx:     ctx,
+
+	var err error
+
+	if options.TLS != nil {
+		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+		inbound.tlsConfig = tlsConfig
+	}
+	if options.Transport != nil {
+		inbound.transport, err = v2ray.NewServerTransport(ctx, common.PtrValueOrDefault(options.Transport), inbound.tlsConfig, (*wscTransportHandler)(inbound))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
+	if err != nil {
+		return nil, err
+	}
+
+	inbound.service, err = wsc.NewService(wsc.ServiceConfig{
+		Handler: adapter.NewUpstreamContextHandler(inbound.newConnection, inbound.newPacketConnection, inbound),
 		Logger:  logger,
-		Handler: (*wscTransportHandler)(inbound),
+		Router:  router,
 		Authenticator: &CustomAuthenticator{
 			id:     0,
 			logger: logger,
 		},
-		Router:                     router,
-		Dialer:                     network.SystemDialer,
 		MaxConnectionPerUser:       options.MaxConnectionPerUser,
 		UsageReportTrafficInterval: options.UsageTraffic.Traffic,
 		UsageReportTimeInterval:    time.Duration(options.UsageTraffic.Time),
@@ -70,68 +93,85 @@ func NewWSC(ctx context.Context, router adapter.Router, logger log.ContextLogger
 	if err != nil {
 		return nil, err
 	}
-	if options.TLS != nil {
-		inbound.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
-		if err != nil {
-			return nil, err
-		}
-	}
-	inbound.server = server
+
+	inbound.connHandler = inbound
+
 	return inbound, nil
 }
 
-func (wsc *WSC) Close() error {
-	return common.Close(&wsc.myInboundAdapter, wsc.tlsConfig, wsc.server)
-}
-
-func (wsc *WSC) Start() error {
-	tcpListener, err := wsc.ListenTCP()
-	if err != nil {
-		return err
-	}
-	go func() {
-		sErr := wsc.server.Serve(tcpListener)
-		if sErr != nil && !exceptions.IsClosedOrCanceled(sErr) && !errors.Is(sErr, http.ErrServerClosed) {
-			wsc.logger.Error("wsc server serve error: ", sErr)
-		}
-	}()
-	return nil
-}
-
 func (wsc *WSC) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	wsc.routeTCP(ctx, conn, metadata)
-	return nil
+	var err error
+	if wsc.tlsConfig != nil && wsc.transport == nil {
+		conn, err = tls.ServerHandshake(ctx, conn, wsc.tlsConfig)
+		if err != nil {
+			return err
+		}
+	}
+	return wsc.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, adapter.UpstreamMetadata(metadata))
 }
 
 func (wsc *WSC) NewPacketConnection(ctx context.Context, conn network.PacketConn, metadata adapter.InboundContext) error {
-	return wsc.myInboundAdapter.newPacketConnection(ctx, conn, metadata)
+	return os.ErrInvalid
 }
 
-func (wsc *WSC) Inject(conn net.Conn, metadata adapter.InboundContext) error {
+func (wsc *WSC) Close() error {
+	return common.Close(&wsc.myInboundAdapter, wsc.tlsConfig, wsc.transport)
+}
+
+func (wsc *WSC) Start() error {
+	if wsc.tlsConfig != nil {
+		err := wsc.tlsConfig.Start()
+		if err != nil {
+			return E.Cause(err, "create TLS config")
+		}
+	}
+	if wsc.transport == nil {
+		return wsc.myInboundAdapter.Start()
+	}
+
+	if common.Contains(wsc.transport.Network(), N.NetworkTCP) {
+		tcpListener, err := wsc.myInboundAdapter.ListenTCP()
+		if err != nil {
+			return err
+		}
+		go func() {
+			sErr := wsc.transport.Serve(tcpListener)
+			if sErr != nil && !E.IsClosed(sErr) {
+				wsc.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
+
+	if common.Contains(wsc.transport.Network(), N.NetworkUDP) {
+		udpConn, err := wsc.myInboundAdapter.ListenUDP()
+		if err != nil {
+			return err
+		}
+		go func() {
+			sErr := wsc.transport.ServePacket(udpConn)
+			if sErr != nil && !E.IsClosed(sErr) {
+				wsc.logger.Error("transport serve error: ", sErr)
+			}
+		}()
+	}
+
+	return nil
+}
+
+func (wsc *WSC) newTransportConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	wsc.injectTCP(conn, metadata)
 	return nil
 }
 
-func (wsc *WSC) NewError(ctx context.Context, err error) {
-	wsc.myInboundAdapter.NewError(ctx, err)
+func (wsc *WSC) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	return wsc.router.RoutePacketConnection(ctx, conn, metadata)
 }
 
 func (handler *wscTransportHandler) NewConnection(ctx context.Context, conn net.Conn, metadata metadata.Metadata) error {
-	return (*WSC)(handler).NewConnection(ctx, conn, adapter.InboundContext{
+	return (*WSC)(handler).newTransportConnection(ctx, conn, adapter.InboundContext{
 		Source:      metadata.Source,
 		Destination: metadata.Destination,
 	})
-}
-
-func (handler *wscTransportHandler) NewPacketConnection(ctx context.Context, conn network.PacketConn, metadata metadata.Metadata) error {
-	return (*WSC)(handler).NewPacketConnection(ctx, conn, adapter.InboundContext{
-		Source:      metadata.Source,
-		Destination: metadata.Destination,
-	})
-}
-
-func (handler *wscTransportHandler) NewError(ctx context.Context, err error) {
-	(*WSC)(handler).NewError(ctx, err)
 }
 
 func (auth *CustomAuthenticator) Authenticate(ctx context.Context, params wsc.AuthenticateParams) (wsc.AuthenticateResult, error) {
