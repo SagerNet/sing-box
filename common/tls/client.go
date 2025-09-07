@@ -10,32 +10,33 @@ import (
 	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-func NewDialerFromOptions(ctx context.Context, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
+func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
 	if !options.Enabled {
 		return dialer, nil
 	}
-	config, err := NewClient(ctx, serverAddress, options)
+	config, err := NewClient(ctx, logger, serverAddress, options)
 	if err != nil {
 		return nil, err
 	}
 	return NewDialer(dialer, config), nil
 }
 
-func NewClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
 	if options.Reality != nil && options.Reality.Enabled {
-		return NewRealityClient(ctx, serverAddress, options)
+		return NewRealityClient(ctx, logger, serverAddress, options)
 	} else if options.UTLS != nil && options.UTLS.Enabled {
-		return NewUTLSClient(ctx, serverAddress, options)
+		return NewUTLSClient(ctx, logger, serverAddress, options)
 	}
-	return NewSTDClient(ctx, serverAddress, options)
+	return NewSTDClient(ctx, logger, serverAddress, options)
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {
