@@ -129,7 +129,7 @@ func (t *Transport) updateTransports(link *TransportLink) error {
 			return os.ErrInvalid
 		}
 		if link.dnsOverTLS {
-			tlsConfig := common.Must1(tls.NewClient(t.ctx, serverAddr.String(), option.OutboundTLSOptions{
+			tlsConfig := common.Must1(tls.NewClient(t.ctx, t.logger, serverAddr.String(), option.OutboundTLSOptions{
 				Enabled:    true,
 				ServerName: serverAddr.String(),
 			}))
@@ -151,7 +151,7 @@ func (t *Transport) updateTransports(link *TransportLink) error {
 			} else {
 				serverName = serverAddr.String()
 			}
-			tlsConfig := common.Must1(tls.NewClient(t.ctx, serverAddr.String(), option.OutboundTLSOptions{
+			tlsConfig := common.Must1(tls.NewClient(t.ctx, t.logger, serverAddr.String(), option.OutboundTLSOptions{
 				Enabled:    true,
 				ServerName: serverName,
 			}))

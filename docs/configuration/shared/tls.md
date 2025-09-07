@@ -1,6 +1,11 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.13.0"
+
+    :material-plus: [kernel_tx](#kernel_tx)  
+    :material-plus: [kernel_rx](#kernel_rx)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -28,6 +33,8 @@ icon: material/alert-decagram
   "certificate_path": "",
   "key": [],
   "key_path": "",
+  "kernel_tx": false,
+  "kernel_rx": false,
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -188,7 +195,8 @@ By default, the maximum version is currently TLS 1.3.
 
 #### cipher_suites
 
-A list of enabled TLS 1.0–1.2 cipher suites. The order of the list is ignored. Note that TLS 1.3 cipher suites are not configurable.
+A list of enabled TLS 1.0–1.2 cipher suites. The order of the list is ignored.
+Note that TLS 1.3 cipher suites are not configurable.
 
 If empty, a safe default list is used. The default cipher suites might change over time.
 
@@ -219,6 +227,50 @@ The server private key line array, in PEM format.
     Will be automatically reloaded if file modified.
 
 The path to the server private key, in PEM format.
+
+#### kernel_tx
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux 5.1+, use a newer kernel if possible.
+
+!!! quote ""
+
+    Only TLS 1.3 is supported.
+
+!!! warning ""
+
+    uTLS is compatible, but not other custom TLS.
+
+!!! warning ""
+
+    kTLS TX may only improve performance when `splice(2)` is available (both ends must be TCP or TLS without additional protocols after handshake); otherwise, it will definitely degrade performance.
+
+Enable kernel TLS transmit support.
+
+#### kernel_rx
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux 5.1+, use a newer kernel if possible.
+
+!!! quote ""
+
+    Only TLS 1.3 is supported.
+
+!!! warning ""
+
+    uTLS is compatible, but not other custom TLS.
+
+!!! failure ""
+
+    kTLS RX will definitely degrade performance even if `splice(2)` is in use, so enabling it is not recommended.
+
+Enable kernel TLS receive support.
 
 ## Custom TLS support
 

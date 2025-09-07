@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [kernel_tx](#kernel_tx)  
+    :material-plus: [kernel_rx](#kernel_rx)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [tls_fragment](#tls_fragment)  
@@ -28,6 +33,8 @@ icon: material/alert-decagram
   "certificate_path": "",
   "key": [],
   "key_path": "",
+  "kernel_tx": false,
+  "kernel_rx": false,
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -215,6 +222,56 @@ TLS 版本值：
 ==仅服务器==
 
 服务器 PEM 私钥路径。
+
+#### kernel_tx
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux 5.1+，如果可能，使用较新的内核。
+
+!!! quote ""
+
+    仅支持 TLS 1.3。
+
+!!! warning ""
+
+    兼容 uTLS，但不兼容其他自定义 TLS。
+
+!!! warning ""
+
+    kTLS TX 仅当 `splice(2)` 可用时（两端经过握手后必须为没有附加协议的 TCP 或 TLS）才能提高性能；否则肯定会降低性能。
+
+启用内核 TLS 发送支持。
+
+#### kernel_rx
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux 5.1+，如果可能，使用较新的内核。
+
+!!! quote ""
+
+    仅支持 TLS 1.3。
+
+!!! warning ""
+
+    兼容 uTLS，但不兼容其他自定义 TLS。
+
+!!! failure ""
+
+    即使使用 `splice(2)`，kTLS RX 也肯定会降低性能，因此不建议启用。
+
+启用内核 TLS 接收支持。
+
+## 自定义 TLS 支持
+
+!!! info "QUIC 支持"
+
+    只有 ECH 在 QUIC 中被支持.
 
 #### utls
 
