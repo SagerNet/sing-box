@@ -14,6 +14,8 @@ type InboundTLSOptions struct {
 	CertificatePath string                     `json:"certificate_path,omitempty"`
 	Key             badoption.Listable[string] `json:"key,omitempty"`
 	KeyPath         string                     `json:"key_path,omitempty"`
+	KernelTx        bool                       `json:"kernel_tx,omitempty"`
+	KernelRx        bool                       `json:"kernel_rx,omitempty"`
 	ACME            *InboundACMEOptions        `json:"acme,omitempty"`
 	ECH             *InboundECHOptions         `json:"ech,omitempty"`
 	Reality         *InboundRealityOptions     `json:"reality,omitempty"`
@@ -50,6 +52,8 @@ type OutboundTLSOptions struct {
 	Fragment              bool                       `json:"fragment,omitempty"`
 	FragmentFallbackDelay badoption.Duration         `json:"fragment_fallback_delay,omitempty"`
 	RecordFragment        bool                       `json:"record_fragment,omitempty"`
+	KernelTx              bool                       `json:"kernel_tx,omitempty"`
+	KernelRx              bool                       `json:"kernel_rx,omitempty"`
 	ECH                   *OutboundECHOptions        `json:"ech,omitempty"`
 	UTLS                  *OutboundUTLSOptions       `json:"utls,omitempty"`
 	Reality               *OutboundRealityOptions    `json:"reality,omitempty"`
