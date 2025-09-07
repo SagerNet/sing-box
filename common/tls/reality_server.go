@@ -119,6 +119,13 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 		return handshakeDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 	}
 
+	if options.ECH != nil && options.ECH.Enabled {
+		return nil, E.New("Reality is conflict with ECH")
+	}
+	if options.KernelRx || options.KernelTx {
+		return nil, E.New("Reality is conflict with kTLS")
+	}
+
 	return &RealityServerConfig{&tlsConfig}, nil
 }
 
@@ -138,7 +145,7 @@ func (c *RealityServerConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
-func (c *RealityServerConfig) Config() (*tls.Config, error) {
+func (c *RealityServerConfig) STDConfig() (*tls.Config, error) {
 	return nil, E.New("unsupported usage for reality")
 }
 

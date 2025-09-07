@@ -88,7 +88,7 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
-		tlsConfig, err = n.tlsConfig.Config()
+		tlsConfig, err = n.tlsConfig.STDConfig()
 		if err != nil {
 			return err
 		}
