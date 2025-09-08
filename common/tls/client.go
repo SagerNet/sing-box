@@ -20,7 +20,12 @@ func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dial
 	if !options.Enabled {
 		return dialer, nil
 	}
-	config, err := NewClient(ctx, logger, serverAddress, options)
+	config, err := NewClientWithOptions(ClientOptions{
+		Context:       ctx,
+		Logger:        logger,
+		ServerAddress: serverAddress,
+		Options:       options,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -28,15 +33,40 @@ func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dial
 }
 
 func NewClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
-	if !options.Enabled {
+	return NewClientWithOptions(ClientOptions{
+		Context:       ctx,
+		Logger:        logger,
+		ServerAddress: serverAddress,
+		Options:       options,
+	})
+}
+
+type ClientOptions struct {
+	Context        context.Context
+	Logger         logger.ContextLogger
+	ServerAddress  string
+	Options        option.OutboundTLSOptions
+	KTLSCompatible bool
+}
+
+func NewClientWithOptions(options ClientOptions) (Config, error) {
+	if !options.Options.Enabled {
 		return nil, nil
 	}
-	if options.Reality != nil && options.Reality.Enabled {
-		return NewRealityClient(ctx, logger, serverAddress, options)
-	} else if options.UTLS != nil && options.UTLS.Enabled {
-		return NewUTLSClient(ctx, logger, serverAddress, options)
+	if !options.KTLSCompatible {
+		if options.Options.KernelTx {
+			options.Logger.Warn("enabling kTLS TX in current scenarios will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_tx")
+		}
 	}
-	return NewSTDClient(ctx, logger, serverAddress, options)
+	if options.Options.KernelRx {
+		options.Logger.Warn("enabling kTLS RX will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_rx")
+	}
+	if options.Options.Reality != nil && options.Options.Reality.Enabled {
+		return NewRealityClient(options.Context, options.Logger, options.ServerAddress, options.Options)
+	} else if options.Options.UTLS != nil && options.Options.UTLS.Enabled {
+		return NewUTLSClient(options.Context, options.Logger, options.ServerAddress, options.Options)
+	}
+	return NewSTDClient(options.Context, options.Logger, options.ServerAddress, options.Options)
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {
