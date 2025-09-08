@@ -30,7 +30,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.25.0
+          go-version: ^1.25.1
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -71,7 +71,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.25.0
+          go-version: ^1.25.1
       - name: Setup Android NDK
         if: matrix.os == 'android'
         uses: nttld/setup-ndk@v1
