@@ -11,6 +11,7 @@ import (
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -301,6 +302,9 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	}
 	var config ServerConfig = serverConfig
 	if options.KernelTx || options.KernelRx {
+		if !C.IsLinux {
+			return nil, E.New("kTLS is only supported on Linux")
+		}
 		config = &KTlSServerConfig{
 			ServerConfig: config,
 			logger:       logger,
