@@ -43,7 +43,12 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		authenticator: auth.NewAuthenticator(options.Users),
 	}
 	if options.TLS != nil {
-		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		tlsConfig, err := tls.NewServerWithOptions(tls.ServerOptions{
+			Context:        ctx,
+			Logger:         logger,
+			Options:        common.PtrValueOrDefault(options.TLS),
+			KTLSCompatible: true,
+		})
 		if err != nil {
 			return nil, err
 		}
