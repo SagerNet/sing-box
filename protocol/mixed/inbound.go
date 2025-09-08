@@ -8,10 +8,12 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/listener"
+	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -33,6 +35,7 @@ type Inbound struct {
 	logger        log.ContextLogger
 	listener      *listener.Listener
 	authenticator *auth.Authenticator
+	tlsConfig     tls.ServerConfig
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) (adapter.Inbound, error) {
@@ -41,6 +44,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		router:        uot.NewRouter(router, logger),
 		logger:        logger,
 		authenticator: auth.NewAuthenticator(options.Users),
+	}
+	if options.TLS != nil {
+		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+		if err != nil {
+			return nil, err
+		}
+		inbound.tlsConfig = tlsConfig
 	}
 	inbound.listener = listener.New(listener.Options{
 		Context:           ctx,
@@ -58,11 +68,20 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	if h.tlsConfig != nil {
+		err := h.tlsConfig.Start()
+		if err != nil {
+			return E.Cause(err, "create TLS config")
+		}
+	}
 	return h.listener.Start()
 }
 
 func (h *Inbound) Close() error {
-	return h.listener.Close()
+	return common.Close(
+		h.listener,
+		h.tlsConfig,
+	)
 }
 
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -78,6 +97,13 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 }
 
 func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
+	if h.tlsConfig != nil {
+		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
+		if err != nil {
+			return E.Cause(err, "TLS handshake")
+		}
+		conn = tlsConn
+	}
 	reader := std_bufio.NewReader(conn)
 	headerBytes, err := reader.Peek(1)
 	if err != nil {
