@@ -44,6 +44,9 @@ func registerQUICInbounds(registry *inbound.Registry) {
 	inbound.Register[option.Hysteria2InboundOptions](registry, C.TypeHysteria2, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.Hysteria2InboundOptions) (adapter.Inbound, error) {
 		return nil, C.ErrQUICNotIncluded
 	})
+	inbound.Register[option.JuicityInboundOptions](registry, C.TypeJuicity, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.JuicityInboundOptions) (adapter.Inbound, error) {
+		return nil, C.ErrQUICNotIncluded
+	})
 	naive.ConfigureHTTP3ListenerFunc = func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.NaiveInboundOptions) (io.Closer, error) {
 		return nil, C.ErrQUICNotIncluded
 	}
@@ -57,6 +60,10 @@ func registerQUICOutbounds(registry *outbound.Registry) {
 		return nil, C.ErrQUICNotIncluded
 	})
 	outbound.Register[option.Hysteria2OutboundOptions](registry, C.TypeHysteria2, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.Hysteria2OutboundOptions) (adapter.Outbound, error) {
+		return nil, C.ErrQUICNotIncluded
+	})
+
+	outbound.Register[option.JuicityOutboundOptions](registry, C.TypeJuicity, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.JuicityOutboundOptions) (adapter.Outbound, error) {
 		return nil, C.ErrQUICNotIncluded
 	})
 }
