@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
 	systemConfig := getSystemDNSConfig(t.ctx)
+	fmt.Println(systemConfig.servers)
 	if systemConfig.singleRequest || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
 		return t.exchangeSingleRequest(ctx, systemConfig, message, domain)
 	} else {
