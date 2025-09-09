@@ -32,6 +32,7 @@ type Conn struct {
 	readWaitOptions N.ReadWaitOptions
 	kernelTx        bool
 	kernelRx        bool
+	pendingRxSplice bool
 }
 
 func NewConn(ctx context.Context, logger logger.ContextLogger, conn aTLS.Conn, txOffload, rxOffload bool) (aTLS.Conn, error) {
@@ -103,6 +104,7 @@ func (c *Conn) SyscallConnForRead() syscall.RawConn {
 
 func (c *Conn) HandleSyscallReadError(inputErr error) ([]byte, error) {
 	if errors.Is(inputErr, unix.EINVAL) {
+		c.pendingRxSplice = true
 		err := c.readRecord()
 		if err != nil {
 			return nil, E.Cause(err, "ktls: handle non-application-data record")
