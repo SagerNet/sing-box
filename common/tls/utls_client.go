@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/common/tlsfragment"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/ntp"
@@ -226,10 +227,7 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 			return nil, err
 		}
 	}
-	if options.KernelRx || options.KernelTx {
-		if options.Reality != nil && options.Reality.Enabled {
-			return nil, E.New("Reality is conflict with kTLS")
-		}
+	if (options.KernelRx || options.KernelTx) && !common.PtrValueOrDefault(options.Reality).Enabled {
 		if !C.IsLinux {
 			return nil, E.New("kTLS is only supported on Linux")
 		}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
@@ -100,7 +99,7 @@ func URLTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err e
 		return
 	}
 	defer instance.Close()
-	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](instance); isEarlyConn && earlyConn.NeedHandshake() {
+	if N.NeedHandshakeForWrite(instance) {
 		start = time.Now()
 	}
 	req, err := http.NewRequest(http.MethodHead, link, nil)
