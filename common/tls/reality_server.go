@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -28,7 +29,7 @@ type RealityServerConfig struct {
 	config *utls.RealityConfig
 }
 
-func NewRealityServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (*RealityServerConfig, error) {
+func NewRealityServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
 	var tlsConfig utls.RealityConfig
 
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
@@ -122,11 +123,19 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 	if options.ECH != nil && options.ECH.Enabled {
 		return nil, E.New("Reality is conflict with ECH")
 	}
-	if options.KernelRx || options.KernelTx {
-		return nil, E.New("Reality is conflict with kTLS")
+	var config ServerConfig = &RealityServerConfig{&tlsConfig}
+	if options.KernelTx || options.KernelRx {
+		if !C.IsLinux {
+			return nil, E.New("kTLS is only supported on Linux")
+		}
+		config = &KTlSServerConfig{
+			ServerConfig: config,
+			logger:       logger,
+			kernelTx:     options.KernelTx,
+			kernelRx:     options.KernelRx,
+		}
 	}
-
-	return &RealityServerConfig{&tlsConfig}, nil
+	return config, nil
 }
 
 func (c *RealityServerConfig) ServerName() string {
