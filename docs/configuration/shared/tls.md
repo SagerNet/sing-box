@@ -242,10 +242,6 @@ The path to the server private key, in PEM format.
 
 !!! warning ""
 
-    uTLS is compatible, but not other custom TLS.
-
-!!! warning ""
-
     kTLS TX may only improve performance when `splice(2)` is available (both ends must be TCP or TLS without additional protocols after handshake); otherwise, it will definitely degrade performance.
 
 Enable kernel TLS transmit support.
@@ -261,10 +257,6 @@ Enable kernel TLS transmit support.
 !!! quote ""
 
     Only TLS 1.3 is supported.
-
-!!! warning ""
-
-    uTLS is compatible, but not other custom TLS.
 
 !!! failure ""
 
