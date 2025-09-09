@@ -237,10 +237,6 @@ TLS 版本值：
 
 !!! warning ""
 
-    兼容 uTLS，但不兼容其他自定义 TLS。
-
-!!! warning ""
-
     kTLS TX 仅当 `splice(2)` 可用时（两端经过握手后必须为没有附加协议的 TCP 或 TLS）才能提高性能；否则肯定会降低性能。
 
 启用内核 TLS 发送支持。
@@ -256,10 +252,6 @@ TLS 版本值：
 !!! quote ""
 
     仅支持 TLS 1.3。
-
-!!! warning ""
-
-    兼容 uTLS，但不兼容其他自定义 TLS。
 
 !!! failure ""
 
