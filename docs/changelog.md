@@ -2,17 +2,51 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.21
+
+* Fix missing mTLS support in client options **1**
+* Fixes and improvements
+
+See [TLS](/configuration/shared/tls/).
+
 #### 1.12.9
 
+* Fixes and improvements
+
+#### 1.13.0-alpha.16
+
+* Add curve preferences, pinned public key SHA256 and mTLS for TLS options **1**
+* Fixes and improvements
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.13.0-alpha.15
+
+* Update quic-go to v0.54.0
+* Update gVisor to v20250811
+* Update Tailscale to v1.86.5
 * Fixes and improvements
 
 #### 1.12.8
 
 * Fixes and improvements
 
+#### 1.13.0-alpha.11
+
+* Fixes and improvements
+
 #### 1.12.5
 
 * Fixes and improvements
+
+#### 1.13.0-alpha.10
+
+* Improve kTLS support **1**
+* Fixes and improvements
+
+**1**:
+
+kTLS is now compatible with custom TLS implementations other than uTLS.
 
 #### 1.12.4
 
