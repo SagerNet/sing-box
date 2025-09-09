@@ -3,6 +3,7 @@ package listener
 import (
 	"net"
 	"net/netip"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,7 +57,7 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 	if l.tproxy {
 		listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
 			return control.Raw(conn, func(fd uintptr) error {
-				return redir.TProxy(fd, !M.ParseSocksaddr(address).IsIPv4(), false)
+				return redir.TProxy(fd, !strings.HasSuffix(network, "4"), false)
 			})
 		})
 	}
