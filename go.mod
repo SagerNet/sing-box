@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.8
-	github.com/sagernet/gvisor v0.0.0-20250822052253-5558536cf237
+	github.com/sagernet/gvisor v0.0.0-20250909151924-850a370d8506
 	github.com/sagernet/quic-go v0.52.0-beta.1
 	github.com/sagernet/sing v0.7.8-0.20250909124511-ab3827767cea
 	github.com/sagernet/sing-mux v0.3.3
@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
-	github.com/sagernet/sing-tun v0.8.0-beta.1.0.20250909100419-a8cb01e6df93
+	github.com/sagernet/sing-tun v0.8.0-beta.1.0.20250909152225-7de8ff7f20a3
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.34-mod.2
 	github.com/sagernet/tailscale v1.80.3-sing-box-1.13-mod.1
@@ -54,8 +54,6 @@ require (
 	google.golang.org/protobuf v1.36.6
 	howett.net/plist v1.0.1
 )
-
-//replace github.com/sagernet/sing => ../sing
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
