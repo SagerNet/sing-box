@@ -227,8 +227,19 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 }
 
 func (m *ConnectionManager) preConnectionCopy(ctx context.Context, source net.Conn, destination net.Conn, direction bool, done *atomic.Bool, onClose N.CloseHandlerFunc) {
-	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](destination); isEarlyConn && earlyConn.NeedHandshake() {
-		err := m.connectionCopyEarly(source, destination)
+	readHandshake := N.NeedHandshakeForRead(source)
+	writeHandshake := N.NeedHandshakeForWrite(destination)
+	if readHandshake || writeHandshake {
+		var err error
+		for {
+			err = m.connectionCopyEarlyWrite(source, destination, readHandshake, writeHandshake)
+			if err == nil && N.NeedHandshakeForRead(source) {
+				continue
+			} else if err == os.ErrInvalid || err == context.DeadlineExceeded {
+				err = nil
+			}
+			break
+		}
 		if err != nil {
 			if done.Swap(true) {
 				onClose(err)
@@ -317,24 +328,32 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 	}
 }
 
-func (m *ConnectionManager) connectionCopyEarly(source net.Conn, destination io.Writer) error {
+func (m *ConnectionManager) connectionCopyEarlyWrite(source net.Conn, destination io.Writer, readHandshake bool, writeHandshake bool) error {
 	payload := buf.NewPacket()
 	defer payload.Release()
 	err := source.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
 	if err != nil {
 		if err == os.ErrInvalid {
-			return common.Error(destination.Write(nil))
+			if writeHandshake {
+				return common.Error(destination.Write(nil))
+			}
 		}
 		return err
 	}
 	_, err = payload.ReadOnceFrom(source)
-	if err != nil && !(E.IsTimeout(err) || errors.Is(err, io.EOF)) {
+	isTimeout := E.IsTimeout(err)
+	if err != nil && !(isTimeout || errors.Is(err, io.EOF)) {
 		return E.Cause(err, "read payload")
 	}
 	_ = source.SetReadDeadline(time.Time{})
-	_, err = destination.Write(payload.Bytes())
-	if err != nil {
-		return E.Cause(err, "write payload")
+	if !payload.IsEmpty() || writeHandshake {
+		_, err = destination.Write(payload.Bytes())
+		if err != nil {
+			return E.Cause(err, "write payload")
+		}
+	}
+	if isTimeout {
+		return context.DeadlineExceeded
 	}
 	return nil
 }
