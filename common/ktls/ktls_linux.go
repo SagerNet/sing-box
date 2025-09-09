@@ -258,14 +258,14 @@ func (c *Conn) readKernelRecord() (uint8, []byte, error) {
 	var err error
 	er := c.rawSyscallConn.Read(func(fd uintptr) bool {
 		n, err = recvmsg(int(fd), &msg, 0)
-		return err != unix.EAGAIN
+		return err != unix.EAGAIN || c.pendingRxSplice
 	})
 	if er != nil {
 		return 0, nil, er
 	}
 	switch err {
 	case nil:
-	case syscall.EINVAL:
+	case syscall.EINVAL, syscall.EAGAIN:
 		return 0, nil, c.rawConn.In.SetErrorLocked(c.sendAlert(alertProtocolVersion))
 	case syscall.EMSGSIZE:
 		return 0, nil, c.rawConn.In.SetErrorLocked(c.sendAlert(alertRecordOverflow))
@@ -276,7 +276,7 @@ func (c *Conn) readKernelRecord() (uint8, []byte, error) {
 	}
 
 	if n <= 0 {
-		return 0, nil, io.EOF
+		return 0, nil, c.rawConn.In.SetErrorLocked(io.EOF)
 	}
 
 	if cmsg.Level == unix.SOL_TLS && cmsg.Type == TLS_GET_RECORD_TYPE {
