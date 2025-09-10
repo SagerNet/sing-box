@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -178,7 +177,7 @@ func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 	startAt := time.Now()
 	response, err := t.exchange(ctx, message)
 	if err != nil {
-		if errors.Is(err, os.ErrDeadlineExceeded) {
+		if errors.Is(err, context.DeadlineExceeded) {
 			t.transportAccess.Lock()
 			defer t.transportAccess.Unlock()
 			if t.transportResetAt.After(startAt) {
