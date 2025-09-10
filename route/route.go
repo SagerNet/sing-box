@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/netip"
-	"os"
 	"strings"
 	"time"
 
@@ -628,7 +627,7 @@ func (r *Router) actionSniff(
 			}
 			if err != nil {
 				sniffBuffer.Release()
-				if !errors.Is(err, os.ErrDeadlineExceeded) {
+				if !errors.Is(err, context.DeadlineExceeded) {
 					fatalErr = err
 					return
 				}
