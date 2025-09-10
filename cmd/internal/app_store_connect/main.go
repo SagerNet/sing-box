@@ -134,6 +134,7 @@ func publishTestflight(ctx context.Context) error {
 			asc.PlatformTVOS,
 		}
 	}
+	waitingForProcess := false
 	for _, platform := range platforms {
 		log.Info(string(platform), " list builds")
 		for {
@@ -145,12 +146,13 @@ func publishTestflight(ctx context.Context) error {
 				return err
 			}
 			build := builds.Data[0]
-			if common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute {
+			if !waitingForProcess && (common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute) {
 				log.Info(string(platform), " ", tag, " waiting for process")
 				time.Sleep(15 * time.Second)
 				continue
 			}
 			if *build.Attributes.ProcessingState != "VALID" {
+				waitingForProcess = true
 				log.Info(string(platform), " ", tag, " waiting for process: ", *build.Attributes.ProcessingState)
 				time.Sleep(15 * time.Second)
 				continue
