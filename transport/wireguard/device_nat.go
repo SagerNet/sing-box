@@ -20,7 +20,7 @@ type natDeviceWrapper struct {
 	ctx            context.Context
 	logger         logger.ContextLogger
 	packetOutbound chan *buf.Buffer
-	rewriter       *ping.Rewriter
+	rewriter       *ping.SourceRewriter
 	buffer         [][]byte
 }
 
@@ -30,7 +30,7 @@ func NewNATDevice(ctx context.Context, logger logger.ContextLogger, upstream Dev
 		ctx:            ctx,
 		logger:         logger,
 		packetOutbound: make(chan *buf.Buffer, 256),
-		rewriter:       ping.NewRewriter(ctx, logger, upstream.Inet4Address(), upstream.Inet6Address()),
+		rewriter:       ping.NewSourceRewriter(ctx, logger, upstream.Inet4Address(), upstream.Inet6Address()),
 	}
 	return wrapper
 }
