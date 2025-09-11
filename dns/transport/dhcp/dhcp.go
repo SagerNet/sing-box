@@ -2,10 +2,13 @@ package dhcp
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -195,7 +198,17 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface)
 	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
 		listenAddr = "255.255.255.255:68"
 	}
-	packetConn, err := listener.ListenPacket(t.ctx, "udp4", listenAddr)
+	var (
+		packetConn net.PacketConn
+		err        error
+	)
+	for i := 0; i < 5; i++ {
+		packetConn, err = listener.ListenPacket(t.ctx, "udp4", listenAddr)
+		if err == nil || !errors.Is(err, syscall.EADDRINUSE) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 	if err != nil {
 		return err
 	}
@@ -232,6 +245,9 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 	for {
 		_, _, err := buffer.ReadPacketFrom(packetConn)
 		if err != nil {
+			if errors.Is(err, io.ErrShortBuffer) {
+				continue
+			}
 			return err
 		}
 
