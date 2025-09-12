@@ -163,15 +163,10 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 		if err != nil {
 			return E.Cause(err, "reload ECH keys from ", c.echKeyPath)
 		}
-		echKeys, err := parseECHKeys(echKey)
+		err = c.setECHServerConfig(echKey)
 		if err != nil {
 			return err
 		}
-		c.access.Lock()
-		config := c.config.Clone()
-		config.EncryptedClientHelloKeys = echKeys
-		c.config = config
-		c.access.Unlock()
 		c.logger.Info("reloaded ECH keys")
 	}
 	return nil

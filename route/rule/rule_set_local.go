@@ -27,16 +27,16 @@ import (
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
 
 type LocalRuleSet struct {
-	ctx            context.Context
-	logger         logger.Logger
-	tag            string
-	rules          []adapter.HeadlessRule
-	metadata       adapter.RuleSetMetadata
-	fileFormat     string
-	watcher        *fswatch.Watcher
-	callbackAccess sync.Mutex
-	callbacks      list.List[adapter.RuleSetUpdateCallback]
-	refs           atomic.Int32
+	ctx        context.Context
+	logger     logger.Logger
+	tag        string
+	access     sync.RWMutex
+	rules      []adapter.HeadlessRule
+	metadata   adapter.RuleSetMetadata
+	fileFormat string
+	watcher    *fswatch.Watcher
+	callbacks  list.List[adapter.RuleSetUpdateCallback]
+	refs       atomic.Int32
 }
 
 func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.RuleSet) (*LocalRuleSet, error) {
@@ -141,11 +141,11 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	metadata.ContainsProcessRule = hasHeadlessRule(headlessRules, isProcessHeadlessRule)
 	metadata.ContainsWIFIRule = hasHeadlessRule(headlessRules, isWIFIHeadlessRule)
 	metadata.ContainsIPCIDRRule = hasHeadlessRule(headlessRules, isIPCIDRHeadlessRule)
+	s.access.Lock()
 	s.rules = rules
 	s.metadata = metadata
-	s.callbackAccess.Lock()
 	callbacks := s.callbacks.Array()
-	s.callbackAccess.Unlock()
+	s.access.Unlock()
 	for _, callback := range callbacks {
 		callback(s)
 	}
@@ -157,10 +157,14 @@ func (s *LocalRuleSet) PostStart() error {
 }
 
 func (s *LocalRuleSet) Metadata() adapter.RuleSetMetadata {
+	s.access.RLock()
+	defer s.access.RUnlock()
 	return s.metadata
 }
 
 func (s *LocalRuleSet) ExtractIPSet() []*netipx.IPSet {
+	s.access.RLock()
+	defer s.access.RUnlock()
 	return common.FlatMap(s.rules, extractIPSetFromRule)
 }
 
@@ -181,14 +185,14 @@ func (s *LocalRuleSet) Cleanup() {
 }
 
 func (s *LocalRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
-	s.callbackAccess.Lock()
-	defer s.callbackAccess.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	return s.callbacks.PushBack(callback)
 }
 
 func (s *LocalRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
-	s.callbackAccess.Lock()
-	defer s.callbackAccess.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.callbacks.Remove(element)
 }
 

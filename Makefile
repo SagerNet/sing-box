@@ -17,6 +17,10 @@ build:
 	export GOTOOLCHAIN=local && \
 	go build $(MAIN_PARAMS) $(MAIN)
 
+race:
+	export GOTOOLCHAIN=local && \
+	go build -race $(MAIN_PARAMS) $(MAIN)
+
 ci_build:
 	export GOTOOLCHAIN=local && \
 	go build $(PARAMS) $(MAIN) && \

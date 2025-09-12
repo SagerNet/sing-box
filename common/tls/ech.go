@@ -81,6 +81,19 @@ func parseECHServerConfig(ctx context.Context, options option.InboundTLSOptions,
 	return nil
 }
 
+func (c *STDServerConfig) setECHServerConfig(echKey []byte) error {
+	echKeys, err := parseECHKeys(echKey)
+	if err != nil {
+		return err
+	}
+	c.access.Lock()
+	config := c.config.Clone()
+	config.EncryptedClientHelloKeys = echKeys
+	c.config = config
+	c.access.Unlock()
+	return nil
+}
+
 func parseECHKeys(echKey []byte) ([]tls.EncryptedClientHelloKey, error) {
 	block, _ := pem.Decode(echKey)
 	if block == nil || block.Type != "ECH KEYS" {

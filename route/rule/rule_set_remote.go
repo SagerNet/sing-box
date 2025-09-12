@@ -40,16 +40,16 @@ type RemoteRuleSet struct {
 	logger         logger.ContextLogger
 	outbound       adapter.OutboundManager
 	options        option.RuleSet
-	metadata       adapter.RuleSetMetadata
 	updateInterval time.Duration
 	dialer         N.Dialer
+	access         sync.RWMutex
 	rules          []adapter.HeadlessRule
+	metadata       adapter.RuleSetMetadata
 	lastUpdated    time.Time
 	lastEtag       string
 	updateTicker   *time.Ticker
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
-	callbackAccess sync.Mutex
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
 	refs           atomic.Int32
 }
@@ -120,10 +120,14 @@ func (s *RemoteRuleSet) PostStart() error {
 }
 
 func (s *RemoteRuleSet) Metadata() adapter.RuleSetMetadata {
+	s.access.RLock()
+	defer s.access.RUnlock()
 	return s.metadata
 }
 
 func (s *RemoteRuleSet) ExtractIPSet() []*netipx.IPSet {
+	s.access.RLock()
+	defer s.access.RUnlock()
 	return common.FlatMap(s.rules, extractIPSetFromRule)
 }
 
@@ -144,14 +148,14 @@ func (s *RemoteRuleSet) Cleanup() {
 }
 
 func (s *RemoteRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
-	s.callbackAccess.Lock()
-	defer s.callbackAccess.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	return s.callbacks.PushBack(callback)
 }
 
 func (s *RemoteRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
-	s.callbackAccess.Lock()
-	defer s.callbackAccess.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.callbacks.Remove(element)
 }
 
@@ -185,13 +189,13 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
 	}
+	s.access.Lock()
 	s.metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
 	s.metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
 	s.metadata.ContainsIPCIDRRule = hasHeadlessRule(plainRuleSet.Rules, isIPCIDRHeadlessRule)
 	s.rules = rules
-	s.callbackAccess.Lock()
 	callbacks := s.callbacks.Array()
-	s.callbackAccess.Unlock()
+	s.access.Unlock()
 	for _, callback := range callbacks {
 		callback(s)
 	}

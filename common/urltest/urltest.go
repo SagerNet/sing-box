@@ -47,15 +47,15 @@ func (s *HistoryStorage) LoadURLTestHistory(tag string) *adapter.URLTestHistory 
 func (s *HistoryStorage) DeleteURLTestHistory(tag string) {
 	s.access.Lock()
 	delete(s.delayHistory, tag)
-	s.access.Unlock()
 	s.notifyUpdated()
+	s.access.Unlock()
 }
 
 func (s *HistoryStorage) StoreURLTestHistory(tag string, history *adapter.URLTestHistory) {
 	s.access.Lock()
 	s.delayHistory[tag] = history
-	s.access.Unlock()
 	s.notifyUpdated()
+	s.access.Unlock()
 }
 
 func (s *HistoryStorage) notifyUpdated() {
@@ -69,6 +69,8 @@ func (s *HistoryStorage) notifyUpdated() {
 }
 
 func (s *HistoryStorage) Close() error {
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.updateHook = nil
 	return nil
 }
