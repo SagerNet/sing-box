@@ -432,7 +432,7 @@ jobs:
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
   build_apple:
     name: Build Apple clients
-    runs-on: macos-15
+    runs-on: macos-26
     needs:
       - calculate_version
     strategy:
@@ -479,14 +479,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.1
-      - name: Setup Xcode stable
-        if: matrix.if && github.ref == 'refs/heads/main-next'
-        run: |-
-          sudo xcode-select -s /Applications/Xcode_16.4.app
-      - name: Setup Xcode beta
-        if: matrix.if && github.ref == 'refs/heads/dev-next'
-        run: |-
-          sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Set tag
         if: matrix.if
         run: |-
