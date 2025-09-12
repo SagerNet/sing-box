@@ -69,11 +69,7 @@ func parseECHServerConfig(ctx context.Context, options option.InboundTLSOptions,
 	} else {
 		return E.New("missing ECH keys")
 	}
-	block, rest := pem.Decode(echKey)
-	if block == nil || block.Type != "ECH KEYS" || len(rest) > 0 {
-		return E.New("invalid ECH keys pem")
-	}
-	echKeys, err := UnmarshalECHKeys(block.Bytes)
+	echKeys, err := parseECHKeys(echKey)
 	if err != nil {
 		return E.Cause(err, "parse ECH keys")
 	}
@@ -85,21 +81,16 @@ func parseECHServerConfig(ctx context.Context, options option.InboundTLSOptions,
 	return nil
 }
 
-func reloadECHKeys(echKeyPath string, tlsConfig *tls.Config) error {
-	echKey, err := os.ReadFile(echKeyPath)
-	if err != nil {
-		return E.Cause(err, "reload ECH keys from ", echKeyPath)
-	}
+func parseECHKeys(echKey []byte) ([]tls.EncryptedClientHelloKey, error) {
 	block, _ := pem.Decode(echKey)
 	if block == nil || block.Type != "ECH KEYS" {
-		return E.New("invalid ECH keys pem")
+		return nil, E.New("invalid ECH keys pem")
 	}
 	echKeys, err := UnmarshalECHKeys(block.Bytes)
 	if err != nil {
-		return E.Cause(err, "parse ECH keys")
+		return nil, E.Cause(err, "parse ECH keys")
 	}
-	tlsConfig.EncryptedClientHelloKeys = echKeys
-	return nil
+	return echKeys, nil
 }
 
 type ECHClientConfig struct {
