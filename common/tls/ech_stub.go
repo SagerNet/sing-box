@@ -18,6 +18,6 @@ func parseECHServerConfig(ctx context.Context, options option.InboundTLSOptions,
 	return E.New("ECH requires go1.24, please recompile your binary.")
 }
 
-func reloadECHKeys(echKeyPath string, tlsConfig *tls.Config) error {
-	return E.New("ECH requires go1.24, please recompile your binary.")
+func (c *STDServerConfig) setECHServerConfig(echKey []byte) error {
+	panic("unreachable")
 }
