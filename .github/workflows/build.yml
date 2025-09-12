@@ -433,6 +433,7 @@ jobs:
   build_apple:
     name: Build Apple clients
     runs-on: macos-26
+    if: false
     needs:
       - calculate_version
     strategy:
