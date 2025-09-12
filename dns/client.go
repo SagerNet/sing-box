@@ -214,6 +214,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			response.Answer = append(response.Answer, validResponse.Answer...)
 		}
 	}*/
+	disableCache = disableCache || response.Rcode != dns.RcodeSuccess || len(response.Answer) == 0
 	if responseChecker != nil {
 		var rejected bool
 		// TODO: add accept_any rule and support to check response instead of addresses
