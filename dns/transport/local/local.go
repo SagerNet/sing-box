@@ -95,7 +95,7 @@ func (t *Transport) exchangeParallel(ctx context.Context, systemConfig *dnsConfi
 			if response.Rcode != mDNS.RcodeSuccess {
 				err = dns.RcodeError(response.Rcode)
 			} else if len(dns.MessageToAddresses(response)) == 0 {
-				err = E.New(fqdn, ": empty result")
+				err = dns.RcodeSuccess
 			}
 		}
 		select {

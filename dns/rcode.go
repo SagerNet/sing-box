@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	RcodeSuccess     RcodeError = mDNS.RcodeSuccess
 	RcodeFormatError RcodeError = mDNS.RcodeFormatError
 	RcodeNameError   RcodeError = mDNS.RcodeNameError
 	RcodeRefused     RcodeError = mDNS.RcodeRefused
