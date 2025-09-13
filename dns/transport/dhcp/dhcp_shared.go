@@ -121,7 +121,7 @@ func (t *Transport) exchangeUDP(ctx context.Context, server M.Socksaddr, request
 	if deadline, loaded := ctx.Deadline(); loaded && !deadline.IsZero() {
 		conn.SetDeadline(deadline)
 	}
-	buffer := buf.Get(1 + request.Len())
+	buffer := buf.Get(buf.UDPBufferSize)
 	defer buf.Put(buffer)
 	rawMessage, err := request.PackBuffer(buffer)
 	if err != nil {
