@@ -3,12 +3,12 @@ package trafficontrol
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/common/compatible"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/clashapi/compatible"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/x/list"
 

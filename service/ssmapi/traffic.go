@@ -3,9 +3,9 @@ package ssmapi
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -142,86 +142,82 @@ func (s *TrafficManager) TrackPacketConnection(conn N.PacketConn, metadata adapt
 	readPacketCounter = append(readPacketCounter, upPacketsCounter)
 	writePacketCounter = append(writePacketCounter, downPacketsCounter)
 	udpSessionCounter.Add(1)
-	return bufio.NewInt64CounterPacketConn(conn, append(readCounter, readPacketCounter...), append(writeCounter, writePacketCounter...))
+	return bufio.NewInt64CounterPacketConn(conn, readCounter, readPacketCounter, writeCounter, writePacketCounter)
 }
 
 func (s *TrafficManager) ReadUser(user *UserObject) {
 	s.userAccess.Lock()
 	defer s.userAccess.Unlock()
-	s.readUser(user)
+	s.readUser(user, false)
 }
 
-func (s *TrafficManager) readUser(user *UserObject) {
+func (s *TrafficManager) readUser(user *UserObject, swap bool) {
 	if counter, loaded := s.userUplink[user.UserName]; loaded {
-		user.UplinkBytes = counter.Load()
+		if swap {
+			user.UplinkBytes = counter.Swap(0)
+		} else {
+			user.UplinkBytes = counter.Load()
+		}
 	}
 	if counter, loaded := s.userDownlink[user.UserName]; loaded {
-		user.DownlinkBytes = counter.Load()
+		if swap {
+			user.DownlinkBytes = counter.Swap(0)
+		} else {
+			user.DownlinkBytes = counter.Load()
+		}
 	}
 	if counter, loaded := s.userUplinkPackets[user.UserName]; loaded {
-		user.UplinkPackets = counter.Load()
+		if swap {
+			user.UplinkPackets = counter.Swap(0)
+		} else {
+			user.UplinkPackets = counter.Load()
+		}
 	}
 	if counter, loaded := s.userDownlinkPackets[user.UserName]; loaded {
-		user.DownlinkPackets = counter.Load()
+		if swap {
+			user.DownlinkPackets = counter.Swap(0)
+		} else {
+			user.DownlinkPackets = counter.Load()
+		}
 	}
 	if counter, loaded := s.userTCPSessions[user.UserName]; loaded {
-		user.TCPSessions = counter.Load()
+		if swap {
+			user.TCPSessions = counter.Swap(0)
+		} else {
+			user.TCPSessions = counter.Load()
+		}
 	}
 	if counter, loaded := s.userUDPSessions[user.UserName]; loaded {
-		user.UDPSessions = counter.Load()
+		if swap {
+			user.UDPSessions = counter.Swap(0)
+		} else {
+			user.UDPSessions = counter.Load()
+		}
 	}
 }
 
-func (s *TrafficManager) ReadUsers(users []*UserObject) {
+func (s *TrafficManager) ReadUsers(users []*UserObject, swap bool) {
 	s.userAccess.Lock()
 	defer s.userAccess.Unlock()
 	for _, user := range users {
-		s.readUser(user)
+		s.readUser(user, swap)
 	}
-	return
 }
 
-func (s *TrafficManager) ReadGlobal() (
-	uplinkBytes int64,
-	downlinkBytes int64,
-	uplinkPackets int64,
-	downlinkPackets int64,
-	tcpSessions int64,
-	udpSessions int64,
-) {
-	return s.globalUplink.Load(),
-		s.globalDownlink.Load(),
-		s.globalUplinkPackets.Load(),
-		s.globalDownlinkPackets.Load(),
-		s.globalTCPSessions.Load(),
-		s.globalUDPSessions.Load()
-}
-
-func (s *TrafficManager) Clear() {
-	s.globalUplink.Store(0)
-	s.globalDownlink.Store(0)
-	s.globalUplinkPackets.Store(0)
-	s.globalDownlinkPackets.Store(0)
-	s.globalTCPSessions.Store(0)
-	s.globalUDPSessions.Store(0)
-	s.userAccess.Lock()
-	defer s.userAccess.Unlock()
-	for _, counter := range s.userUplink {
-		counter.Store(0)
-	}
-	for _, counter := range s.userDownlink {
-		counter.Store(0)
-	}
-	for _, counter := range s.userUplinkPackets {
-		counter.Store(0)
-	}
-	for _, counter := range s.userDownlinkPackets {
-		counter.Store(0)
-	}
-	for _, counter := range s.userTCPSessions {
-		counter.Store(0)
-	}
-	for _, counter := range s.userUDPSessions {
-		counter.Store(0)
+func (s *TrafficManager) ReadGlobal(swap bool) (uplinkBytes int64, downlinkBytes int64, uplinkPackets int64, downlinkPackets int64, tcpSessions int64, udpSessions int64) {
+	if swap {
+		return s.globalUplink.Swap(0),
+			s.globalDownlink.Swap(0),
+			s.globalUplinkPackets.Swap(0),
+			s.globalDownlinkPackets.Swap(0),
+			s.globalTCPSessions.Swap(0),
+			s.globalUDPSessions.Swap(0)
+	} else {
+		return s.globalUplink.Load(),
+			s.globalDownlink.Load(),
+			s.globalUplinkPackets.Load(),
+			s.globalDownlinkPackets.Load(),
+			s.globalTCPSessions.Load(),
+			s.globalUDPSessions.Load()
 	}
 }

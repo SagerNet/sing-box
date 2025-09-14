@@ -40,13 +40,13 @@ jobs:
       version: ${{ steps.outputs.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
+          go-version: ^1.25.1
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -88,13 +88,14 @@ jobs:
           - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
 
           - { os: windows, arch: amd64 }
-          - { os: windows, arch: amd64, legacy_go: true }
+          - { os: windows, arch: amd64, legacy_go123: true, legacy_name: "windows-7" }
           - { os: windows, arch: "386" }
-          - { os: windows, arch: "386", legacy_go: true }
+          - { os: windows, arch: "386", legacy_go123: true, legacy_name: "windows-7" }
           - { os: windows, arch: arm64 }
 
           - { os: darwin, arch: amd64 }
           - { os: darwin, arch: arm64 }
+          - { os: darwin, arch: amd64, legacy_go124: true, legacy_name: "macos-11" }
 
           - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
           - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
@@ -102,28 +103,33 @@ jobs:
           - { os: android, arch: "386", ndk: "i686-linux-android21" }
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: ${{ ! matrix.legacy_go }}
+        if: ${{ ! (matrix.legacy_go123 || matrix.legacy_go124) }}
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
-      - name: Cache Legacy Go
-        if: matrix.require_legacy_go
+          go-version: ^1.25.1
+      - name: Setup Go 1.24
+        if: matrix.legacy_go124
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.24.6
+      - name: Cache Go 1.23
+        if: matrix.legacy_go123
         id: cache-legacy-go
         uses: actions/cache@v4
         with:
           path: |
             ~/go/go_legacy
-          key: go_legacy_1236
-      - name: Setup Legacy Go
-        if: matrix.legacy_go && steps.cache-legacy-go.outputs.cache-hit != 'true'
+          key: go_legacy_12312
+      - name: Setup Go 1.23
+        if: matrix.legacy_go123 && steps.cache-legacy-go.outputs.cache-hit != 'true'
         run: |-
           .github/setup_legacy_go.sh
-      - name: Setup Legacy Go 2
-        if: matrix.legacy_go
+      - name: Setup Go 1.23
+        if: matrix.legacy_go123
         run: |-
           echo "PATH=$HOME/go/go_legacy/bin:$PATH" >> $GITHUB_ENV
           echo "GOROOT=$HOME/go/go_legacy" >> $GITHUB_ENV
@@ -148,7 +154,7 @@ jobs:
           set -xeuo pipefail
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "0"
@@ -168,7 +174,7 @@ jobs:
           export CXX="${CC}++"
           mkdir -p dist
           GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "1"
@@ -184,8 +190,8 @@ jobs:
             DIR_NAME="${DIR_NAME}-${{ matrix.go386 }}"
           elif [[ -n "${{ matrix.gomips }}" && "${{ matrix.gomips }}" != 'hardfloat' ]]; then
             DIR_NAME="${DIR_NAME}-${{ matrix.gomips }}"
-          elif [[ "${{ matrix.legacy_go }}" == 'true' ]]; then
-            DIR_NAME="${DIR_NAME}-legacy"
+          elif [[ -n "${{ matrix.legacy_name }}" ]]; then
+            DIR_NAME="${DIR_NAME}-legacy-${{ matrix.legacy_name }}"
           fi
           echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
           PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
@@ -277,7 +283,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_go && '-legacy' || '' }}
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
   build_android:
     name: Build Android
@@ -287,14 +293,14 @@ jobs:
       - calculate_version
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           submodules: 'recursive'
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
+          go-version: ^1.25.1
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -367,14 +373,14 @@ jobs:
       - calculate_version
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           submodules: 'recursive'
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
+          go-version: ^1.25.1
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -426,7 +432,8 @@ jobs:
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
   build_apple:
     name: Build Apple clients
-    runs-on: macos-15
+    runs-on: macos-26
+    if: false
     needs:
       - calculate_version
     strategy:
@@ -464,7 +471,7 @@ jobs:
     steps:
       - name: Checkout
         if: matrix.if
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           submodules: 'recursive'
@@ -472,15 +479,7 @@ jobs:
         if: matrix.if
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
-      - name: Setup Xcode stable
-        if: matrix.if && github.ref == 'refs/heads/main-next'
-        run: |-
-          sudo xcode-select -s /Applications/Xcode_16.4.app
-      - name: Setup Xcode beta
-        if: matrix.if && github.ref == 'refs/heads/dev-next'
-        run: |-
-          sudo xcode-select -s /Applications/Xcode_16.4.app
+          go-version: ^1.25.1
       - name: Set tag
         if: matrix.if
         run: |-
@@ -624,7 +623,7 @@ jobs:
       - build_apple
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Cache ghr
@@ -647,7 +646,7 @@ jobs:
           git tag v${{ needs.calculate_version.outputs.version }} -f
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Download builds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true

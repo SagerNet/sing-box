@@ -6,7 +6,7 @@ GOHOSTOS = $(shell go env GOHOSTOS)
 GOHOSTARCH = $(shell go env GOHOSTARCH)
 VERSION=$(shell CGO_ENABLED=0 GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest)
 
-PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid="
+PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$(VERSION)' -s -w -buildid= -checklinkname=0"
 MAIN_PARAMS = $(PARAMS) -tags "$(TAGS)"
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
@@ -16,6 +16,10 @@ PREFIX ?= $(shell go env GOPATH)
 build:
 	export GOTOOLCHAIN=local && \
 	go build $(MAIN_PARAMS) $(MAIN)
+
+race:
+	export GOTOOLCHAIN=local && \
+	go build -race $(MAIN_PARAMS) $(MAIN)
 
 ci_build:
 	export GOTOOLCHAIN=local && \
@@ -45,7 +49,7 @@ lint:
 	GOOS=freebsd golangci-lint run ./...
 
 lint_install:
-	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install -v github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 proto:
 	@go run ./cmd/internal/protogen
@@ -245,8 +249,8 @@ lib:
 	go run ./cmd/internal/build_libbox -target ios
 
 lib_install:
-	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.7
-	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.7
+	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.8
+	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.8
 
 docs:
 	venv/bin/mkdocs serve

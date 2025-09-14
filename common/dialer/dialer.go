@@ -111,7 +111,7 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 					dnsQueryOptions.Transport = dnsTransport.Default()
 				} else if options.NewDialer {
 					return nil, E.New("missing domain resolver for domain server address")
-				} else if !options.DirectOutbound {
+				} else {
 					deprecated.Report(options.Context, deprecated.OptionMissingDomainResolver)
 				}
 			}

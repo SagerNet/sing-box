@@ -3,6 +3,7 @@ package group
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -10,7 +11,8 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/atomic"
+	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -37,7 +39,7 @@ type Selector struct {
 	tags                         []string
 	defaultTag                   string
 	outbounds                    map[string]adapter.Outbound
-	selected                     atomic.TypedValue[adapter.Outbound]
+	selected                     common.TypedValue[adapter.Outbound]
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 }
@@ -172,6 +174,14 @@ func (s *Selector) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	} else {
 		s.connection.NewPacketConnection(ctx, selected, conn, metadata, onClose)
 	}
+}
+
+func (s *Selector) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	selected := s.selected.Load()
+	if !common.Contains(selected.Network(), metadata.Network) {
+		return nil, E.New(metadata.Network, " is not supported by outbound: ", selected.Tag())
+	}
+	return selected.(adapter.DirectRouteOutbound).NewDirectRouteConnection(metadata, routeContext, timeout)
 }
 
 func RealTag(detour adapter.Outbound) string {

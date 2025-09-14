@@ -2,17 +2,18 @@ package dhcp
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
-	"github.com/sagernet/sing-box/dns/transport"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	mDNS "github.com/miekg/dns"
+	"golang.org/x/exp/slices"
 )
 
 func RegisterTransport(registry *dns.TransportRegistry) {
@@ -45,9 +47,12 @@ type Transport struct {
 	networkManager    adapter.NetworkManager
 	interfaceName     string
 	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
-	transports        []adapter.DNSTransport
-	updateAccess      sync.Mutex
+	transportLock     sync.RWMutex
 	updatedAt         time.Time
+	servers           []M.Socksaddr
+	search            []string
+	ndots             int
+	attempts          int
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.DHCPDNSServerOptions) (adapter.DNSTransport, error) {
@@ -62,27 +67,40 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		logger:           logger,
 		networkManager:   service.FromContext[adapter.NetworkManager](ctx),
 		interfaceName:    options.Interface,
+		ndots:            1,
+		attempts:         2,
 	}, nil
+}
+
+func NewRawTransport(transportAdapter dns.TransportAdapter, ctx context.Context, dialer N.Dialer, logger log.ContextLogger) *Transport {
+	return &Transport{
+		TransportAdapter: transportAdapter,
+		ctx:              ctx,
+		dialer:           dialer,
+		logger:           logger,
+		networkManager:   service.FromContext[adapter.NetworkManager](ctx),
+		ndots:            1,
+		attempts:         2,
+	}
 }
 
 func (t *Transport) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	err := t.fetchServers()
-	if err != nil {
-		return err
-	}
 	if t.interfaceName == "" {
 		t.interfaceCallback = t.networkManager.InterfaceMonitor().RegisterCallback(t.interfaceUpdated)
 	}
+	go func() {
+		_, err := t.Fetch()
+		if err != nil {
+			t.logger.Error(E.Cause(err, "fetch DNS servers"))
+		}
+	}()
 	return nil
 }
 
 func (t *Transport) Close() error {
-	for _, transport := range t.transports {
-		transport.Close()
-	}
 	if t.interfaceCallback != nil {
 		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
@@ -90,23 +108,44 @@ func (t *Transport) Close() error {
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	err := t.fetchServers()
+	servers, err := t.Fetch()
 	if err != nil {
 		return nil, err
 	}
-
-	if len(t.transports) == 0 {
+	if len(servers) == 0 {
 		return nil, E.New("dhcp: empty DNS servers from response")
 	}
+	return t.Exchange0(ctx, message, servers)
+}
 
-	var response *mDNS.Msg
-	for _, transport := range t.transports {
-		response, err = transport.Exchange(ctx, message)
-		if err == nil {
-			return response, nil
-		}
+func (t *Transport) Exchange0(ctx context.Context, message *mDNS.Msg, servers []M.Socksaddr) (*mDNS.Msg, error) {
+	question := message.Question[0]
+	domain := dns.FqdnToDomain(question.Name)
+	if len(servers) == 1 || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
+		return t.exchangeSingleRequest(ctx, servers, message, domain)
+	} else {
+		return t.exchangeParallel(ctx, servers, message, domain)
 	}
-	return nil, err
+}
+
+func (t *Transport) Fetch() ([]M.Socksaddr, error) {
+	t.transportLock.RLock()
+	updatedAt := t.updatedAt
+	servers := t.servers
+	t.transportLock.RUnlock()
+	if time.Since(updatedAt) < C.DHCPTTL {
+		return servers, nil
+	}
+	t.transportLock.Lock()
+	defer t.transportLock.Unlock()
+	if time.Since(t.updatedAt) < C.DHCPTTL {
+		return t.servers, nil
+	}
+	err := t.updateServers()
+	if err != nil {
+		return nil, err
+	}
+	return t.servers, nil
 }
 
 func (t *Transport) fetchInterface() (*control.Interface, error) {
@@ -124,18 +163,6 @@ func (t *Transport) fetchInterface() (*control.Interface, error) {
 	}
 }
 
-func (t *Transport) fetchServers() error {
-	if time.Since(t.updatedAt) < C.DHCPTTL {
-		return nil
-	}
-	t.updateAccess.Lock()
-	defer t.updateAccess.Unlock()
-	if time.Since(t.updatedAt) < C.DHCPTTL {
-		return nil
-	}
-	return t.updateServers()
-}
-
 func (t *Transport) updateServers() error {
 	iface, err := t.fetchInterface()
 	if err != nil {
@@ -148,7 +175,7 @@ func (t *Transport) updateServers() error {
 	cancel()
 	if err != nil {
 		return err
-	} else if len(t.transports) == 0 {
+	} else if len(t.servers) == 0 {
 		return E.New("dhcp: empty DNS servers response")
 	} else {
 		t.updatedAt = time.Now()
@@ -171,13 +198,27 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface)
 	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
 		listenAddr = "255.255.255.255:68"
 	}
-	packetConn, err := listener.ListenPacket(t.ctx, "udp4", listenAddr)
+	var (
+		packetConn net.PacketConn
+		err        error
+	)
+	for i := 0; i < 5; i++ {
+		packetConn, err = listener.ListenPacket(t.ctx, "udp4", listenAddr)
+		if err == nil || !errors.Is(err, syscall.EADDRINUSE) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 	if err != nil {
 		return err
 	}
 	defer packetConn.Close()
 
-	discovery, err := dhcpv4.NewDiscovery(iface.HardwareAddr, dhcpv4.WithBroadcast(true), dhcpv4.WithRequestedOptions(dhcpv4.OptionDomainNameServer))
+	discovery, err := dhcpv4.NewDiscovery(iface.HardwareAddr, dhcpv4.WithBroadcast(true), dhcpv4.WithRequestedOptions(
+		dhcpv4.OptionDomainName,
+		dhcpv4.OptionDomainNameServer,
+		dhcpv4.OptionDNSDomainSearchList,
+	))
 	if err != nil {
 		return err
 	}
@@ -204,6 +245,9 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 	for {
 		_, _, err := buffer.ReadPacketFrom(packetConn)
 		if err != nil {
+			if errors.Is(err, io.ErrShortBuffer) {
+				continue
+			}
 			return err
 		}
 
@@ -223,31 +267,23 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 			continue
 		}
 
-		dns := dhcpPacket.DNS()
-		if len(dns) == 0 {
-			return nil
-		}
-		return t.recreateServers(iface, common.Map(dns, func(it net.IP) M.Socksaddr {
-			return M.SocksaddrFrom(M.AddrFromIP(it), 53)
-		}))
+		return t.recreateServers(iface, dhcpPacket)
 	}
 }
 
-func (t *Transport) recreateServers(iface *control.Interface, serverAddrs []M.Socksaddr) error {
-	if len(serverAddrs) > 0 {
-		t.logger.Info("dhcp: updated DNS servers from ", iface.Name, ": [", strings.Join(common.Map(serverAddrs, M.Socksaddr.String), ","), "]")
+func (t *Transport) recreateServers(iface *control.Interface, dhcpPacket *dhcpv4.DHCPv4) error {
+	searchList := dhcpPacket.DomainSearch()
+	if searchList != nil && len(searchList.Labels) > 0 {
+		t.search = searchList.Labels
+	} else if dhcpPacket.DomainName() != "" {
+		t.search = []string{dhcpPacket.DomainName()}
 	}
-	serverDialer := common.Must1(dialer.NewDefault(t.ctx, option.DialerOptions{
-		BindInterface:      iface.Name,
-		UDPFragmentDefault: true,
-	}))
-	var transports []adapter.DNSTransport
-	for _, serverAddr := range serverAddrs {
-		transports = append(transports, transport.NewUDPRaw(t.logger, t.TransportAdapter, serverDialer, serverAddr))
+	serverAddrs := common.Map(dhcpPacket.DNS(), func(it net.IP) M.Socksaddr {
+		return M.SocksaddrFrom(M.AddrFromIP(it), 53)
+	})
+	if len(serverAddrs) > 0 && !slices.Equal(t.servers, serverAddrs) {
+		t.logger.Info("dhcp: updated DNS servers from ", iface.Name, ": [", strings.Join(common.Map(serverAddrs, M.Socksaddr.String), ","), "], search: [", strings.Join(t.search, ","), "]")
 	}
-	for _, transport := range t.transports {
-		transport.Close()
-	}
-	t.transports = transports
+	t.servers = serverAddrs
 	return nil
 }

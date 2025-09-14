@@ -15,7 +15,7 @@ require (
 	github.com/libdns/alidns v1.0.5-libdns.v1.beta1
 	github.com/libdns/cloudflare v0.2.2-0.20250708034226-c574dccb31a6
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/metacubex/tfo-go v0.0.0-20241231083714-66613d49c422
+	github.com/metacubex/tfo-go v0.0.0-20250516165257-e29c16ae41d4
 	github.com/metacubex/utls v1.8.0
 	github.com/mholt/acmez/v3 v3.1.2
 	github.com/miekg/dns v1.1.67
@@ -24,31 +24,31 @@ require (
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
-	github.com/sagernet/gomobile v0.1.7
-	github.com/sagernet/gvisor v0.0.0-20250325023245-7a9c0f5725fb
+	github.com/sagernet/gomobile v0.1.8
+	github.com/sagernet/gvisor v0.0.0-20250909151924-850a370d8506
 	github.com/sagernet/quic-go v0.52.0-beta.1
-	github.com/sagernet/sing v0.7.0-beta.2
-	github.com/sagernet/sing-mux v0.3.2
-	github.com/sagernet/sing-quic v0.5.0-beta.3
+	github.com/sagernet/sing v0.8.0-beta.1
+	github.com/sagernet/sing-mux v0.3.3
+	github.com/sagernet/sing-quic v0.5.2-0.20250909100920-da23407a63d5
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
-	github.com/sagernet/sing-tun v0.7.0-beta.1
-	github.com/sagernet/sing-vmess v0.2.6
+	github.com/sagernet/sing-tun v0.8.0-beta.8.0.20250911105100-0381a06643bc
+	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.34-mod.2
-	github.com/sagernet/tailscale v1.80.3-mod.5
+	github.com/sagernet/tailscale v1.80.3-sing-box-1.13-mod.1
 	github.com/sagernet/wireguard-go v0.0.1-beta.7
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netns v0.0.5
 	go.uber.org/zap v1.27.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
-	golang.org/x/mod v0.26.0
-	golang.org/x/net v0.42.0
-	golang.org/x/sys v0.34.0
+	golang.org/x/mod v0.27.0
+	golang.org/x/net v0.43.0
+	golang.org/x/sys v0.35.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
@@ -123,10 +123,10 @@ require (
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect

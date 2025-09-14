@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -137,6 +138,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
 			// In Network Extension, when MTU exceeds 4064 (4096-UTUN_IF_HEADROOM_SIZE), the performance of tun will drop significantly, which may be a system bug.
 			tunMTU = 4064
+		} else if C.IsAndroid {
+			// Some Android devices report ENOBUFS when using MTU 65535
+			tunMTU = 9000
 		} else {
 			tunMTU = 65535
 		}
@@ -451,15 +455,28 @@ func (t *Inbound) Close() error {
 	)
 }
 
-func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr) error {
-	return t.router.PreMatch(adapter.InboundContext{
+func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	var ipVersion uint8
+	if !destination.IsIPv6() {
+		ipVersion = 4
+	} else {
+		ipVersion = 6
+	}
+	routeDestination, err := t.router.PreMatch(adapter.InboundContext{
 		Inbound:        t.tag,
 		InboundType:    C.TypeTun,
+		IPVersion:      ipVersion,
 		Network:        network,
 		Source:         source,
 		Destination:    destination,
 		InboundOptions: t.inboundOptions,
-	})
+	}, routeContext, timeout)
+	if err != nil {
+		if !rule.IsRejected(err) {
+			t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+		}
+	}
+	return routeDestination, err
 }
 
 func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {

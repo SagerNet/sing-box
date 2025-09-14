@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -115,7 +115,7 @@ func (s *StatsService) RoutedPacketConnection(ctx context.Context, conn N.Packet
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
-	return bufio.NewInt64CounterPacketConn(conn, readCounter, writeCounter)
+	return bufio.NewInt64CounterPacketConn(conn, readCounter, nil, writeCounter, nil)
 }
 
 func (s *StatsService) GetStats(ctx context.Context, request *GetStatsRequest) (*GetStatsResponse, error) {
@@ -192,7 +192,7 @@ func (s *StatsService) GetSysStats(ctx context.Context, request *SysStatsRequest
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 	response := &SysStatsResponse{
-		Uptime:       uint32(time.Now().Sub(s.createdAt).Seconds()),
+		Uptime:       uint32(time.Since(s.createdAt).Seconds()),
 		NumGoroutine: uint32(runtime.NumGoroutine()),
 		Alloc:        rtm.Alloc,
 		TotalAlloc:   rtm.TotalAlloc,

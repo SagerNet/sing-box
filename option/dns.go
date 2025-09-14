@@ -100,7 +100,6 @@ func rewriteRcodeAction(rcodeMap map[string]int, ruleAction *DNSRuleAction) {
 	}
 	ruleAction.Action = C.RuleActionTypePredefined
 	ruleAction.PredefinedOptions.Rcode = common.Ptr(DNSRCode(rcode))
-	return
 }
 
 type DNSClientOptions struct {
@@ -191,7 +190,7 @@ func (o *DNSServerOptions) Upgrade(ctx context.Context) error {
 		}
 	}
 	remoteOptions := RemoteDNSServerOptions{
-		LocalDNSServerOptions: LocalDNSServerOptions{
+		RawLocalDNSServerOptions: RawLocalDNSServerOptions{
 			DialerOptions: DialerOptions{
 				Detour: options.Detour,
 				DomainResolver: &DomainResolveOptions{
@@ -212,7 +211,9 @@ func (o *DNSServerOptions) Upgrade(ctx context.Context) error {
 	switch serverType {
 	case C.DNSTypeLocal:
 		o.Type = C.DNSTypeLocal
-		o.Options = &remoteOptions.LocalDNSServerOptions
+		o.Options = &LocalDNSServerOptions{
+			RawLocalDNSServerOptions: remoteOptions.RawLocalDNSServerOptions,
+		}
 	case C.DNSTypeUDP:
 		o.Type = C.DNSTypeUDP
 		o.Options = &remoteOptions
@@ -364,7 +365,7 @@ type HostsDNSServerOptions struct {
 	Predefined *badjson.TypedMap[string, badoption.Listable[netip.Addr]] `json:"predefined,omitempty"`
 }
 
-type LocalDNSServerOptions struct {
+type RawLocalDNSServerOptions struct {
 	DialerOptions
 	Legacy              bool           `json:"-"`
 	LegacyStrategy      DomainStrategy `json:"-"`
@@ -372,8 +373,13 @@ type LocalDNSServerOptions struct {
 	LegacyClientSubnet  netip.Prefix   `json:"-"`
 }
 
+type LocalDNSServerOptions struct {
+	RawLocalDNSServerOptions
+	PreferGo bool `json:"prefer_go,omitempty"`
+}
+
 type RemoteDNSServerOptions struct {
-	LocalDNSServerOptions
+	RawLocalDNSServerOptions
 	DNSServerAddressOptions
 	LegacyAddressResolver      string             `json:"-"`
 	LegacyAddressStrategy      DomainStrategy     `json:"-"`

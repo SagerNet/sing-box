@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-const (
-	// net.maxDNSPacketSize
-	maxDNSPacketSize = 1232
-)
-
 type resolverConfig struct {
 	initOnce    sync.Once
 	ch          chan struct{}
@@ -104,7 +99,7 @@ func (c *dnsConfig) serverOffset() uint32 {
 	return 0
 }
 
-func (conf *dnsConfig) nameList(name string) []string {
+func (c *dnsConfig) nameList(name string) []string {
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
 	if l > 254 || l == 254 && !rooted {
@@ -118,15 +113,15 @@ func (conf *dnsConfig) nameList(name string) []string {
 		return []string{name}
 	}
 
-	hasNdots := strings.Count(name, ".") >= conf.ndots
+	hasNdots := strings.Count(name, ".") >= c.ndots
 	name += "."
 	// l++
 
-	names := make([]string, 0, 1+len(conf.search))
+	names := make([]string, 0, 1+len(c.search))
 	if hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
-	for _, suffix := range conf.search {
+	for _, suffix := range c.search {
 		fqdn := name + suffix
 		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
 			names = append(names, fqdn)

@@ -20,6 +20,7 @@ type NetworkManager interface {
 	DefaultOptions() NetworkOptions
 	RegisterAutoRedirectOutputMark(mark uint32) error
 	AutoRedirectOutputMark() uint32
+	AutoRedirectOutputMarkFunc() control.Func
 	NetworkMonitor() tun.NetworkUpdateMonitor
 	InterfaceMonitor() tun.DefaultInterfaceMonitor
 	PackageManager() tun.PackageManager

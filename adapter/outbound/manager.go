@@ -30,7 +30,7 @@ type Manager struct {
 	outboundByTag           map[string]adapter.Outbound
 	dependByTag             map[string][]string
 	defaultOutbound         adapter.Outbound
-	defaultOutboundFallback adapter.Outbound
+	defaultOutboundFallback func() (adapter.Outbound, error)
 }
 
 func NewManager(logger logger.ContextLogger, registry adapter.OutboundRegistry, endpoint adapter.EndpointManager, defaultTag string) *Manager {
@@ -44,7 +44,7 @@ func NewManager(logger logger.ContextLogger, registry adapter.OutboundRegistry, 
 	}
 }
 
-func (m *Manager) Initialize(defaultOutboundFallback adapter.Outbound) {
+func (m *Manager) Initialize(defaultOutboundFallback func() (adapter.Outbound, error)) {
 	m.defaultOutboundFallback = defaultOutboundFallback
 }
 
@@ -55,18 +55,31 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	}
 	m.started = true
 	m.stage = stage
-	outbounds := m.outbounds
-	m.access.Unlock()
 	if stage == adapter.StartStateStart {
 		if m.defaultTag != "" && m.defaultOutbound == nil {
 			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
 			if !loaded {
+				m.access.Unlock()
 				return E.New("default outbound not found: ", m.defaultTag)
 			}
 			m.defaultOutbound = defaultEndpoint
 		}
+		if m.defaultOutbound == nil {
+			directOutbound, err := m.defaultOutboundFallback()
+			if err != nil {
+				m.access.Unlock()
+				return E.Cause(err, "create direct outbound for fallback")
+			}
+			m.outbounds = append(m.outbounds, directOutbound)
+			m.outboundByTag[directOutbound.Tag()] = directOutbound
+			m.defaultOutbound = directOutbound
+		}
+		outbounds := m.outbounds
+		m.access.Unlock()
 		return m.startOutbounds(append(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })...))
 	} else {
+		outbounds := m.outbounds
+		m.access.Unlock()
 		for _, outbound := range outbounds {
 			err := adapter.LegacyStart(outbound, stage)
 			if err != nil {
@@ -187,11 +200,7 @@ func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
 func (m *Manager) Default() adapter.Outbound {
 	m.access.RLock()
 	defer m.access.RUnlock()
-	if m.defaultOutbound != nil {
-		return m.defaultOutbound
-	} else {
-		return m.defaultOutboundFallback
-	}
+	return m.defaultOutbound
 }
 
 func (m *Manager) Remove(tag string) error {

@@ -7,6 +7,11 @@ on:
         description: "Version name"
         required: true
         type: string
+      forceBeta:
+        description: "Force beta"
+        required: false
+        type: boolean
+        default: false
   release:
     types:
       - published
@@ -19,13 +24,13 @@ jobs:
       version: ${{ steps.outputs.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
+          go-version: ^1.25.1
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -60,13 +65,13 @@ jobs:
           - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64 }
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.24.5
+          go-version: ^1.25.1
       - name: Setup Android NDK
         if: matrix.os == 'android'
         uses: nttld/setup-ndk@v1
@@ -87,7 +92,7 @@ jobs:
           set -xeuo pipefail
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "0"
@@ -99,11 +104,11 @@ jobs:
         run: |-
           TZ=UTC touch -t '197001010000' dist/sing-box
       - name: Set name
-        if: ${{ ! contains(needs.calculate_version.outputs.version, '-') }}
+        if: (! contains(needs.calculate_version.outputs.version, '-')) && !inputs.forceBeta
         run: |-
           echo "NAME=sing-box" >> "$GITHUB_ENV"
       - name: Set beta name
-        if: contains(needs.calculate_version.outputs.version, '-')
+        if: contains(needs.calculate_version.outputs.version, '-') || inputs.forceBeta
         run: |-
           echo "NAME=sing-box-beta" >> "$GITHUB_ENV"
       - name: Set version
@@ -166,7 +171,7 @@ jobs:
       - build
     steps:
       - name: Checkout
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Set tag
@@ -175,7 +180,7 @@ jobs:
           git tag v${{ needs.calculate_version.outputs.version }} -f
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Download builds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true

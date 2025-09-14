@@ -8,7 +8,7 @@ icon: material/arrange-bring-forward
 
 DNS 服务器已经重构。
 
-!!! info "饮用"
+!!! info "引用"
 
     [DNS 服务器](/configuration/dns/server/) /
     [旧 DNS 服务器](/configuration/dns/server/legacy/)
@@ -351,14 +351,15 @@ DNS 服务器已经重构。
         ```json
         {
           "dns": {
-            "servers": [
+            "rules": [
               {
-                "type": "predefined",
-                "responses": [
-                  {
-                    "rcode": "REFUSED"
-                  }
-                ]
+                "domain": [
+                  "example.com"
+                ],
+                // 其它规则
+                
+                "action": "predefined",
+                "rcode": "REFUSED"
               }
             ]
           }

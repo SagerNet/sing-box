@@ -88,7 +88,7 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
-		tlsConfig, err = n.tlsConfig.Config()
+		tlsConfig, err = n.tlsConfig.STDConfig()
 		if err != nil {
 			return err
 		}
@@ -170,7 +170,7 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		hostPort = request.Host
 	}
 	source := sHttp.SourceAddress(request)
-	destination := M.ParseSocksaddr(hostPort)
+	destination := M.ParseSocksaddr(hostPort).Unwrap()
 
 	if hijacker, isHijacker := writer.(http.Hijacker); isHijacker {
 		conn, _, err := hijacker.Hijack()

@@ -2,6 +2,47 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.14
+
+* Fixes and improvements
+
+#### 1.12.8
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.11
+
+* Fixes and improvements
+
+#### 1.12.5
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.10
+
+* Improve kTLS support **1**
+* Fixes and improvements
+
+**1**:
+
+kTLS is now compatible with custom TLS implementations other than uTLS.
+
+#### 1.12.4
+
+* Fixes and improvements
+
+#### 1.12.3
+
+* Fixes and improvements
+
+#### 1.12.2
+
+* Fixes and improvements
+
+#### 1.12.1
+
+* Fixes and improvements
+
 #### 1.12.0
 
 * Refactor DNS servers **1**

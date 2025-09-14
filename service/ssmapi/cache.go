@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync/atomic"
 
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/service/filemanager"

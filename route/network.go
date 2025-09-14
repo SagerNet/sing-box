@@ -19,7 +19,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -37,7 +36,7 @@ var _ adapter.NetworkManager = (*NetworkManager)(nil)
 type NetworkManager struct {
 	logger            logger.ContextLogger
 	interfaceFinder   *control.DefaultInterfaceFinder
-	networkInterfaces atomic.TypedValue[[]adapter.NetworkInterface]
+	networkInterfaces common.TypedValue[[]adapter.NetworkInterface]
 
 	autoDetectInterface    bool
 	defaultOptions         adapter.NetworkOptions
@@ -312,7 +311,7 @@ func (r *NetworkManager) AutoDetectInterfaceFunc() control.Func {
 		if r.interfaceMonitor == nil {
 			return nil
 		}
-		bindFunc := control.BindToInterfaceFunc(r.interfaceFinder, func(network string, address string) (interfaceName string, interfaceIndex int, err error) {
+		return control.BindToInterfaceFunc(r.interfaceFinder, func(network string, address string) (interfaceName string, interfaceIndex int, err error) {
 			remoteAddr := M.ParseSocksaddr(address).Addr
 			if remoteAddr.IsValid() {
 				iif, err := r.interfaceFinder.ByAddr(remoteAddr)
@@ -326,16 +325,6 @@ func (r *NetworkManager) AutoDetectInterfaceFunc() control.Func {
 			}
 			return defaultInterface.Name, defaultInterface.Index, nil
 		})
-		return func(network, address string, conn syscall.RawConn) error {
-			err := bindFunc(network, address, conn)
-			if err != nil {
-				return err
-			}
-			if r.autoRedirectOutputMark > 0 {
-				return control.RoutingMark(r.autoRedirectOutputMark)(network, address, conn)
-			}
-			return nil
-		}
 	}
 }
 
@@ -364,6 +353,15 @@ func (r *NetworkManager) RegisterAutoRedirectOutputMark(mark uint32) error {
 
 func (r *NetworkManager) AutoRedirectOutputMark() uint32 {
 	return r.autoRedirectOutputMark
+}
+
+func (r *NetworkManager) AutoRedirectOutputMarkFunc() control.Func {
+	return func(network, address string, conn syscall.RawConn) error {
+		if r.autoRedirectOutputMark == 0 {
+			return nil
+		}
+		return control.RoutingMark(r.autoRedirectOutputMark)(network, address, conn)
+	}
 }
 
 func (r *NetworkManager) NetworkMonitor() tun.NetworkUpdateMonitor {

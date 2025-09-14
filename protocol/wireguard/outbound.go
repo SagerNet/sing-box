@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -20,6 +22,8 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 )
+
+var _ adapter.OutboundWithPreferredRoutes = (*Outbound)(nil)
 
 func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.LegacyWireGuardOutboundOptions](registry, C.TypeWireGuard, NewOutbound)
@@ -40,7 +44,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
 	}
 	outbound := &Outbound{
-		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, options.DialerOptions),
 		ctx:            ctx,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		logger:         logger,
@@ -157,4 +161,16 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return packetConn, err
 	}
 	return o.endpoint.ListenPacket(ctx, destination)
+}
+
+func (o *Outbound) PreferredDomain(domain string) bool {
+	return false
+}
+
+func (o *Outbound) PreferredAddress(address netip.Addr) bool {
+	return o.endpoint.Lookup(address) != nil
+}
+
+func (o *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	return o.endpoint.NewDirectRouteConnection(metadata, routeContext, timeout)
 }
