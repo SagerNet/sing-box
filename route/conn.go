@@ -235,7 +235,7 @@ func (m *ConnectionManager) preConnectionCopy(ctx context.Context, source net.Co
 			err = m.connectionCopyEarlyWrite(source, destination, readHandshake, writeHandshake)
 			if err == nil && N.NeedHandshakeForRead(source) {
 				continue
-			} else if err == os.ErrInvalid || err == context.DeadlineExceeded {
+			} else if E.IsMulti(err, os.ErrInvalid, context.DeadlineExceeded, io.EOF) {
 				err = nil
 			}
 			break
@@ -340,10 +340,19 @@ func (m *ConnectionManager) connectionCopyEarlyWrite(source net.Conn, destinatio
 		}
 		return err
 	}
+	var (
+		isTimeout bool
+		isEOF     bool
+	)
 	_, err = payload.ReadOnceFrom(source)
-	isTimeout := E.IsTimeout(err)
-	if err != nil && !(isTimeout || errors.Is(err, io.EOF)) {
-		return E.Cause(err, "read payload")
+	if err != nil {
+		if E.IsTimeout(err) {
+			isTimeout = true
+		} else if errors.Is(err, io.EOF) {
+			isEOF = true
+		} else {
+			return E.Cause(err, "read payload")
+		}
 	}
 	_ = source.SetReadDeadline(time.Time{})
 	if !payload.IsEmpty() || writeHandshake {
@@ -354,6 +363,8 @@ func (m *ConnectionManager) connectionCopyEarlyWrite(source net.Conn, destinatio
 	}
 	if isTimeout {
 		return context.DeadlineExceeded
+	} else if isEOF {
+		return io.EOF
 	}
 	return nil
 }
