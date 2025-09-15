@@ -89,7 +89,7 @@ func testQUIC(t *testing.T, clientPort uint16) {
 	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
 	client := &http.Client{
 		Transport: &http3.RoundTripper{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 				destination := M.ParseSocksaddr(addr)
 				udpConn, err := dialer.DialContext(ctx, N.NetworkUDP, destination)
 				if err != nil {
