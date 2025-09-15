@@ -22,7 +22,7 @@ func initializeHTTP3Client(instance *box.Box) error {
 	}
 	http3Client = &http.Client{
 		Transport: &http3.Transport{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 				destination := M.ParseSocksaddr(addr)
 				udpConn, dErr := dialer.DialContext(ctx, N.NetworkUDP, destination)
 				if dErr != nil {
