@@ -8,8 +8,8 @@ import (
 )
 
 type StreamWrapper struct {
-	Conn quic.Connection
-	quic.Stream
+	Conn *quic.Conn
+	*quic.Stream
 }
 
 func (s *StreamWrapper) Read(p []byte) (n int, err error) {
