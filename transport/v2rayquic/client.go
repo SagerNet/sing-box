@@ -29,7 +29,7 @@ type Client struct {
 	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
-	conn       common.TypedValue[quic.Connection]
+	conn       common.TypedValue[*quic.Conn]
 	rawConn    net.Conn
 }
 
@@ -49,7 +49,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}, nil
 }
 
-func (c *Client) offer() (quic.Connection, error) {
+func (c *Client) offer() (*quic.Conn, error) {
 	conn := c.conn.Load()
 	if conn != nil && !common.Done(conn.Context()) {
 		return conn, nil
@@ -67,7 +67,7 @@ func (c *Client) offer() (quic.Connection, error) {
 	return conn, nil
 }
 
-func (c *Client) offerNew() (quic.Connection, error) {
+func (c *Client) offerNew() (*quic.Conn, error) {
 	udpConn, err := c.dialer.DialContext(c.ctx, "udp", c.serverAddr)
 	if err != nil {
 		return nil, err
