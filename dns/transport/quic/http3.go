@@ -102,7 +102,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		destination:      &destinationURL,
 		headers:          headers,
 		transport: &http3.Transport{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
 				conn, dialErr := transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
 				if dialErr != nil {
 					return nil, dialErr
