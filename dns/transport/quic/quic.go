@@ -38,7 +38,7 @@ type Transport struct {
 	serverAddr M.Socksaddr
 	tlsConfig  tls.Config
 	access     sync.Mutex
-	connection quic.EarlyConnection
+	connection *quic.Conn
 }
 
 func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTLSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -88,7 +88,7 @@ func (t *Transport) Close() error {
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	var (
-		conn     quic.Connection
+		conn     *quic.Conn
 		err      error
 		response *mDNS.Msg
 	)
@@ -110,7 +110,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	return nil, err
 }
 
-func (t *Transport) openConnection() (quic.EarlyConnection, error) {
+func (t *Transport) openConnection() (*quic.Conn, error) {
 	connection := t.connection
 	if connection != nil && !common.Done(connection.Context()) {
 		return connection, nil
@@ -139,7 +139,7 @@ func (t *Transport) openConnection() (quic.EarlyConnection, error) {
 	return earlyConnection, nil
 }
 
-func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, conn quic.Connection) (*mDNS.Msg, error) {
+func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, conn *quic.Conn) (*mDNS.Msg, error) {
 	stream, err := conn.OpenStreamSync(ctx)
 	if err != nil {
 		return nil, err
