@@ -25,7 +25,7 @@ require (
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.8
-	github.com/sagernet/gvisor v0.0.0-20250909151924-850a370d8506
+	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
 	github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
 	github.com/sagernet/sing v0.8.0-beta.6
 	github.com/sagernet/sing-mux v0.3.3
