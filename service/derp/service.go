@@ -36,7 +36,7 @@ import (
 	aTLS "github.com/sagernet/sing/common/tls"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
-	"github.com/sagernet/tailscale/client/tailscale"
+	"github.com/sagernet/tailscale/client/local"
 	"github.com/sagernet/tailscale/derp"
 	"github.com/sagernet/tailscale/derp/derphttp"
 	"github.com/sagernet/tailscale/net/netmon"
@@ -244,7 +244,7 @@ func (d *Service) Start(stage adapter.StartStage) error {
 		}
 	case adapter.StartStatePostStart:
 		if len(d.verifyClientEndpoint) > 0 {
-			var endpoints []*tailscale.LocalClient
+			var endpoints []*local.Client
 			endpointManager := service.FromContext[adapter.EndpointManager](d.ctx)
 			for _, endpointTag := range d.verifyClientEndpoint {
 				endpoint, loaded := endpointManager.Get(endpointTag)
@@ -343,7 +343,8 @@ func (d *Service) startMeshWithHost(derpServer *derp.Server, server *option.DERP
 	})
 	add := func(m derp.PeerPresentMessage) { derpServer.AddPacketForwarder(m.Key, meshClient) }
 	remove := func(m derp.PeerGoneMessage) { derpServer.RemovePacketForwarder(m.Peer, meshClient) }
-	go meshClient.RunWatchConnectionLoop(context.Background(), derpServer.PublicKey(), logf, add, remove)
+	notifyError := func(err error) { d.logger.Error(err) }
+	go meshClient.RunWatchConnectionLoop(context.Background(), derpServer.PublicKey(), logf, add, remove, notifyError)
 	return nil
 }
 
