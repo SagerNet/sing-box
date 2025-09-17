@@ -43,13 +43,11 @@ Trojan 用户。
 
 #### tls
 
-==如果启用 HTTP3 则必填==
-
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
+TLS 配置，参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 #### fallback
 
-!!! quote ""
+!!! failure ""
 
     没有证据表明 GFW 基于 HTTP 响应检测并阻止 Trojan 服务器，并且在服务器上打开标准 http/s 端口是一个更大的特征。
 
