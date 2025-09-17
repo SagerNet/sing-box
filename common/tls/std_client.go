@@ -1,9 +1,12 @@
 package tls
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"net"
 	"os"
 	"strings"
@@ -108,6 +111,15 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 			return err
 		}
 	}
+	if len(options.CertificatePublicKeySHA256) > 0 {
+		if len(options.Certificate) > 0 || options.CertificatePath != "" {
+			return nil, E.New("certificate_public_key_sha256 is conflict with certificate or certificate_path")
+		}
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
+		}
+	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
 	}
@@ -136,6 +148,9 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 			}
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
+	}
+	for _, curve := range options.CurvePreferences {
+		tlsConfig.CurvePreferences = append(tlsConfig.CurvePreferences, tls.CurveID(curve))
 	}
 	var certificate []byte
 	if len(options.Certificate) > 0 {
@@ -174,4 +189,23 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		}
 	}
 	return config, nil
+}
+
+func verifyPublicKeySHA256(knownHashValues [][]byte, rawCerts [][]byte, timeFunc func() time.Time) error {
+	leafCertificate, err := x509.ParseCertificate(rawCerts[0])
+	if err != nil {
+		return E.Cause(err, "failed to parse leaf certificate")
+	}
+
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(leafCertificate.PublicKey)
+	if err != nil {
+		return E.Cause(err, "failed to marshal public key")
+	}
+	hashValue := sha256.Sum256(pubKeyBytes)
+	for _, value := range knownHashValues {
+		if bytes.Equal(value, hashValue[:]) {
+			return nil
+		}
+	}
+	return E.New("unrecognized remote public key: ", base64.StdEncoding.EncodeToString(hashValue[:]))
 }
