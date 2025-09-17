@@ -1,9 +1,12 @@
 package tls
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"net"
 	"os"
 	"strings"
@@ -13,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/common/tlsfragment"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/ntp"
@@ -108,6 +112,15 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 			return err
 		}
 	}
+	if len(options.CertificatePublicKeySHA256) > 0 {
+		if len(options.Certificate) > 0 || options.CertificatePath != "" {
+			return nil, E.New("certificate_public_key_sha256 is conflict with certificate or certificate_path")
+		}
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
+		}
+	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
 	}
@@ -136,6 +149,14 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 			}
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
+	}
+	if len(options.CurvePreferences) > 0 {
+		for _, curve := range options.CurvePreferences {
+			tlsConfig.CurvePreferences = append(tlsConfig.CurvePreferences, tls.CurveID(curve))
+		}
+	} else {
+		// DisableX25519MLKEM768 by default
+		tlsConfig.CurvePreferences = []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384, tls.CurveP521}
 	}
 	var certificate []byte
 	if len(options.Certificate) > 0 {
@@ -174,4 +195,65 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		}
 	}
 	return config, nil
+}
+
+func verifyPublicKeySHA256(knownHashValues [][]byte, rawCerts [][]byte, timeFunc func() time.Time) error {
+	for i, rawCert := range rawCerts {
+		certificate, err := x509.ParseCertificate(rawCert)
+		if err != nil {
+			continue
+		}
+
+		// Extract public key and hash it
+		pubKeyBytes, err := x509.MarshalPKIXPublicKey(certificate.PublicKey)
+		if err != nil {
+			continue
+		}
+		hash := sha256.Sum256(pubKeyBytes)
+
+		var matched bool
+		for _, value := range knownHashValues {
+			if bytes.Equal(value, hash[:]) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		if i == 0 {
+			return nil
+		}
+		certificates := make([]*x509.Certificate, i+1)
+		for j := range certificates {
+			certificate, err := x509.ParseCertificate(rawCerts[j])
+			if err != nil {
+				return err
+			}
+			certificates[j] = certificate
+		}
+		verifyOptions := x509.VerifyOptions{
+			Roots:         x509.NewCertPool(),
+			Intermediates: x509.NewCertPool(),
+		}
+		if timeFunc != nil {
+			verifyOptions.CurrentTime = timeFunc()
+		}
+		verifyOptions.Roots.AddCert(certificates[i])
+		for _, certificate := range certificates[1:] {
+			verifyOptions.Intermediates.AddCert(certificate)
+		}
+		return common.Error(certificates[0].Verify(verifyOptions))
+	}
+
+	// Generate error message with first certificate's public key hash
+	if len(rawCerts) > 0 {
+		if certificate, err := x509.ParseCertificate(rawCerts[0]); err == nil {
+			if pubKeyBytes, err := x509.MarshalPKIXPublicKey(certificate.PublicKey); err == nil {
+				hash := sha256.Sum256(pubKeyBytes)
+				return E.New("unrecognized public key: ", base64.StdEncoding.EncodeToString(hash[:]))
+			}
+		}
+	}
+	return E.New("unrecognized certificate")
 }
