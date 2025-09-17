@@ -20,6 +20,8 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
+
+	"github.com/metacubex/tfo-go"
 )
 
 var (
@@ -28,8 +30,8 @@ var (
 )
 
 type DefaultDialer struct {
-	dialer4                tcpDialer
-	dialer6                tcpDialer
+	dialer4                tfo.Dialer
+	dialer6                tfo.Dialer
 	udpDialer4             net.Dialer
 	udpDialer6             net.Dialer
 	udpListener            net.ListenConfig
@@ -177,19 +179,10 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()
 	}
 	if options.TCPMultiPath {
-		if !go121Available {
-			return nil, E.New("MultiPath TCP requires go1.21, please recompile your binary.")
-		}
-		setMultiPathTCP(&dialer4)
+		dialer4.SetMultipathTCP(true)
 	}
-	tcpDialer4, err := newTCPDialer(dialer4, options.TCPFastOpen)
-	if err != nil {
-		return nil, err
-	}
-	tcpDialer6, err := newTCPDialer(dialer6, options.TCPFastOpen)
-	if err != nil {
-		return nil, err
-	}
+	tcpDialer4 := tfo.Dialer{Dialer: dialer4, DisableTFO: !options.TCPFastOpen}
+	tcpDialer6 := tfo.Dialer{Dialer: dialer6, DisableTFO: !options.TCPFastOpen}
 	return &DefaultDialer{
 		dialer4:                tcpDialer4,
 		dialer6:                tcpDialer6,
@@ -269,7 +262,7 @@ func (d *DefaultDialer) DialParallelInterface(ctx context.Context, network strin
 	}
 	var dialer net.Dialer
 	if N.NetworkName(network) == N.NetworkTCP {
-		dialer = dialerFromTCPDialer(d.dialer4)
+		dialer = d.dialer4.Dialer
 	} else {
 		dialer = d.udpDialer4
 	}
@@ -317,9 +310,9 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 
 func (d *DefaultDialer) DialerForICMPDestination(destination netip.Addr) net.Dialer {
 	if !destination.Is6() {
-		return dialerFromTCPDialer(d.dialer6)
+		return d.dialer6.Dialer
 	} else {
-		return dialerFromTCPDialer(d.dialer4)
+		return d.dialer4.Dialer
 	}
 }
 
