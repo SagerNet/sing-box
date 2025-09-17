@@ -1,4 +1,4 @@
-//go:build linux && go1.25 && !without_badtls
+//go:build linux && go1.25 && badlinkname
 
 package ktls
 
