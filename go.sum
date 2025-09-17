@@ -179,8 +179,8 @@ github.com/sagernet/smux v1.5.34-mod.2 h1:gkmBjIjlJ2zQKpLigOkFur5kBKdV6bNRoFu2Wk
 github.com/sagernet/smux v1.5.34-mod.2/go.mod h1:0KW0+R+ycvA2INW4gbsd7BNyg+HEfLIAxa5N02/28Zc=
 github.com/sagernet/tailscale v1.86.5-sing-box-1.13-mod.3 h1:OGoHEw76F3F4keIGcOwB/5U+P1N3i+hLlgC7rvSnub0=
 github.com/sagernet/tailscale v1.86.5-sing-box-1.13-mod.3/go.mod h1:YdN/avjce8sqPFLT9E1uEh8gPewNSnC41U4ZhBJ+ACw=
-github.com/sagernet/wireguard-go v0.0.2-beta.1 h1:Zy7+dXpdViaRhP1pjtcMRfcbb7mWSxduCKzyEYbSJvk=
-github.com/sagernet/wireguard-go v0.0.2-beta.1/go.mod h1:WUxgxUDZoCF2sxVmW+STSxatP02Qn3FcafTiI2BLtE0=
+github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288 h1:E2tZFeg9mGYGQ7E7BbxMv1cU35HxwgRm6tPKI2Pp7DA=
+github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288/go.mod h1:WUxgxUDZoCF2sxVmW+STSxatP02Qn3FcafTiI2BLtE0=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/spf13/cobra v1.9.1 h1:CXSaggrXdbHK9CF+8ywj8Amf7PBRmPCOJugH954Nnlo=
