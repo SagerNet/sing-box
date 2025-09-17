@@ -1,4 +1,4 @@
-//go:build !go1.25 || without_badtls
+//go:build !go1.25 || !badlinkname
 
 package badtls
 
