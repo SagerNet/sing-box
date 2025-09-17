@@ -68,7 +68,10 @@ func NewRealityServer(ctx context.Context, logger log.ContextLogger, options opt
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
 	}
-	if len(options.Certificate) > 0 || options.CertificatePath != "" {
+	if len(options.CurvePreferences) > 0 {
+		return nil, E.New("curve preferences is unavailable in reality")
+	}
+	if len(options.Certificate) > 0 || options.CertificatePath != "" || len(options.ClientCertificatePublicKeySHA256) > 0 {
 		return nil, E.New("certificate is unavailable in reality")
 	}
 	if len(options.Key) > 0 || options.KeyPath != "" {
