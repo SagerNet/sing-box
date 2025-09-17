@@ -17,7 +17,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 
-	"github.com/metacubex/tfo-go"
+	"github.com/database64128/tfo-go/v2"
 )
 
 func (l *Listener) ListenTCP() (net.Listener, error) {
