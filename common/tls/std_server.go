@@ -3,6 +3,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"os"
 	"strings"
@@ -22,16 +23,17 @@ import (
 var errInsecureUnused = E.New("tls: insecure unused")
 
 type STDServerConfig struct {
-	access          sync.RWMutex
-	config          *tls.Config
-	logger          log.Logger
-	acmeService     adapter.SimpleLifecycle
-	certificate     []byte
-	key             []byte
-	certificatePath string
-	keyPath         string
-	echKeyPath      string
-	watcher         *fswatch.Watcher
+	access                sync.RWMutex
+	config                *tls.Config
+	logger                log.Logger
+	acmeService           adapter.SimpleLifecycle
+	certificate           []byte
+	key                   []byte
+	certificatePath       string
+	keyPath               string
+	clientCertificatePath []string
+	echKeyPath            string
+	watcher               *fswatch.Watcher
 }
 
 func (c *STDServerConfig) ServerName() string {
@@ -111,6 +113,9 @@ func (c *STDServerConfig) startWatcher() error {
 	if c.echKeyPath != "" {
 		watchPath = append(watchPath, c.echKeyPath)
 	}
+	if len(c.clientCertificatePath) > 0 {
+		watchPath = append(watchPath, c.clientCertificatePath...)
+	}
 	if len(watchPath) == 0 {
 		return nil
 	}
@@ -159,6 +164,30 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 		c.config = config
 		c.access.Unlock()
 		c.logger.Info("reloaded TLS certificate")
+	} else if common.Contains(c.clientCertificatePath, path) {
+		clientCertificateCA := x509.NewCertPool()
+		var reloaded bool
+		for _, certPath := range c.clientCertificatePath {
+			content, err := os.ReadFile(certPath)
+			if err != nil {
+				c.logger.Error(E.Cause(err, "reload certificate from ", c.clientCertificatePath))
+				continue
+			}
+			if !clientCertificateCA.AppendCertsFromPEM(content) {
+				c.logger.Error(E.New("invalid client certificate file: ", certPath))
+				continue
+			}
+			reloaded = true
+		}
+		if !reloaded {
+			return E.New("client certificates is empty")
+		}
+		c.access.Lock()
+		config := c.config.Clone()
+		config.ClientCAs = clientCertificateCA
+		c.config = config
+		c.access.Unlock()
+		c.logger.Info("reloaded client certificates")
 	} else if path == c.echKeyPath {
 		echKey, err := os.ReadFile(c.echKeyPath)
 		if err != nil {
@@ -235,8 +264,14 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
 	}
-	var certificate []byte
-	var key []byte
+	for _, curveID := range options.CurvePreferences {
+		tlsConfig.CurvePreferences = append(tlsConfig.CurvePreferences, tls.CurveID(curveID))
+	}
+	tlsConfig.ClientAuth = tls.ClientAuthType(options.ClientAuthentication)
+	var (
+		certificate []byte
+		key         []byte
+	)
 	if acmeService == nil {
 		if len(options.Certificate) > 0 {
 			certificate = []byte(strings.Join(options.Certificate, "\n"))
@@ -278,6 +313,43 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 			tlsConfig.Certificates = []tls.Certificate{keyPair}
 		}
 	}
+	if len(options.ClientCertificate) > 0 || len(options.ClientCertificatePath) > 0 {
+		if tlsConfig.ClientAuth == tls.NoClientCert {
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+	}
+	if tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven || tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+		if len(options.ClientCertificate) > 0 {
+			clientCertificateCA := x509.NewCertPool()
+			if !clientCertificateCA.AppendCertsFromPEM([]byte(strings.Join(options.ClientCertificate, "\n"))) {
+				return nil, E.New("invalid client certificate strings")
+			}
+			tlsConfig.ClientCAs = clientCertificateCA
+		} else if len(options.ClientCertificatePath) > 0 {
+			clientCertificateCA := x509.NewCertPool()
+			for _, path := range options.ClientCertificatePath {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					return nil, E.Cause(err, "read client certificate from ", path)
+				}
+				if !clientCertificateCA.AppendCertsFromPEM(content) {
+					return nil, E.New("invalid client certificate file: ", path)
+				}
+			}
+			tlsConfig.ClientCAs = clientCertificateCA
+		} else if len(options.ClientCertificatePublicKeySHA256) > 0 {
+			if tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+				tlsConfig.ClientAuth = tls.RequireAnyClientCert
+			} else if tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven {
+				tlsConfig.ClientAuth = tls.RequestClientCert
+			}
+			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				return verifyPublicKeySHA256(options.ClientCertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
+			}
+		} else {
+			return nil, E.New("missing client_certificate, client_certificate_path or client_certificate_public_key_sha256 for client authentication")
+		}
+	}
 	var echKeyPath string
 	if options.ECH != nil && options.ECH.Enabled {
 		err = parseECHServerConfig(ctx, options, tlsConfig, &echKeyPath)
@@ -286,14 +358,15 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		}
 	}
 	serverConfig := &STDServerConfig{
-		config:          tlsConfig,
-		logger:          logger,
-		acmeService:     acmeService,
-		certificate:     certificate,
-		key:             key,
-		certificatePath: options.CertificatePath,
-		keyPath:         options.KeyPath,
-		echKeyPath:      echKeyPath,
+		config:                tlsConfig,
+		logger:                logger,
+		acmeService:           acmeService,
+		certificate:           certificate,
+		key:                   key,
+		certificatePath:       options.CertificatePath,
+		clientCertificatePath: options.ClientCertificatePath,
+		keyPath:               options.KeyPath,
+		echKeyPath:            echKeyPath,
 	}
 	serverConfig.config.GetConfigForClient = func(info *tls.ClientHelloInfo) (*tls.Config, error) {
 		serverConfig.access.Lock()
