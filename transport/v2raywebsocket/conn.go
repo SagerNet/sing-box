@@ -291,7 +291,7 @@ func wrapWsError(err error) error {
 	}
 	var closedErr wsutil.ClosedError
 	if errors.As(err, &closedErr) {
-		if closedErr.Code == ws.StatusNormalClosure {
+		if closedErr.Code == ws.StatusNormalClosure || closedErr.Code == ws.StatusNoStatusRcvd {
 			err = io.EOF
 		}
 	}
