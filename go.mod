@@ -3,7 +3,7 @@ module github.com/sagernet/sing-box
 go 1.24.7
 
 require (
-	github.com/anytls/sing-anytls v0.0.8
+	github.com/anytls/sing-anytls v0.0.11
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/coder/websocket v1.8.13
 	github.com/cretz/bine v0.2.0
