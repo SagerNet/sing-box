@@ -12,9 +12,7 @@ type iOSPauseFields struct {
 
 func (s *BoxService) Pause() {
 	s.pauseManager.DevicePause()
-	if !C.IsIos {
-		s.instance.Router().ResetNetwork()
-	} else {
+	if C.IsIos {
 		if s.endPauseTimer == nil {
 			s.endPauseTimer = time.AfterFunc(time.Minute, s.pauseManager.DeviceWake)
 		} else {
@@ -26,7 +24,6 @@ func (s *BoxService) Pause() {
 func (s *BoxService) Wake() {
 	if !C.IsIos {
 		s.pauseManager.DeviceWake()
-		s.instance.Router().ResetNetwork()
 	}
 }
 
