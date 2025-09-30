@@ -248,6 +248,18 @@ func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 }
 
 func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
+	if runtime.GOOS != "darwin" {
+		return w.findProcessInfo(network, source, destination)
+	}
+	// MacOS has a Go implementation of process searcher that works well but no implementation in the native platform interface.
+	searcher, err := process.NewSearcher(process.Config{})
+	if err != nil {
+		return nil, err
+	}
+	return searcher.FindProcessInfo(ctx, network, source, destination)
+}
+
+func (w *platformInterfaceWrapper) findProcessInfo(network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
 	var uid int32
 	if w.useProcFS {
 		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
