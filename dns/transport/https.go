@@ -25,7 +25,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	aTLS "github.com/sagernet/sing/common/tls"
 	sHTTP "github.com/sagernet/sing/protocol/http"
 
 	mDNS "github.com/miekg/dns"
@@ -126,19 +125,11 @@ func NewHTTPSRaw(
 ) *HTTPSTransport {
 	var transport *http.Transport
 	if tlsConfig != nil {
+		tlsDialer := tls.NewDialer(dialer, tlsConfig)
 		transport = &http.Transport{
 			ForceAttemptHTTP2: true,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				tcpConn, hErr := dialer.DialContext(ctx, network, serverAddr)
-				if hErr != nil {
-					return nil, hErr
-				}
-				tlsConn, hErr := aTLS.ClientHandshake(ctx, tcpConn, tlsConfig)
-				if hErr != nil {
-					tcpConn.Close()
-					return nil, hErr
-				}
-				return tlsConn, nil
+				return tlsDialer.DialContext(ctx, network, serverAddr)
 			},
 		}
 	} else {
