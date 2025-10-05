@@ -67,7 +67,6 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 		return f.DNSTransport.Exchange(ctx, message)
 	}
 	question := message.Question[0]
-	domain := dns.FqdnToDomain(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
 		var network string
 		if question.Qtype == mDNS.TypeA {
@@ -75,7 +74,7 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 		} else {
 			network = "ip6"
 		}
-		addresses, err := f.resolver.LookupNetIP(ctx, network, domain)
+		addresses, err := f.resolver.LookupNetIP(ctx, network, question.Name)
 		if err != nil {
 			var dnsError *net.DNSError
 			if errors.As(err, &dnsError) && dnsError.IsNotFound {
@@ -85,7 +84,7 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 		}
 		return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 	} else if question.Qtype == mDNS.TypeNS {
-		records, err := f.resolver.LookupNS(ctx, domain)
+		records, err := f.resolver.LookupNS(ctx, question.Name)
 		if err != nil {
 			var dnsError *net.DNSError
 			if errors.As(err, &dnsError) && dnsError.IsNotFound {
@@ -114,7 +113,7 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 		}
 		return response, nil
 	} else if question.Qtype == mDNS.TypeCNAME {
-		cname, err := f.resolver.LookupCNAME(ctx, domain)
+		cname, err := f.resolver.LookupCNAME(ctx, question.Name)
 		if err != nil {
 			var dnsError *net.DNSError
 			if errors.As(err, &dnsError) && dnsError.IsNotFound {
@@ -142,7 +141,7 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 			},
 		}, nil
 	} else if question.Qtype == mDNS.TypeTXT {
-		records, err := f.resolver.LookupTXT(ctx, domain)
+		records, err := f.resolver.LookupTXT(ctx, question.Name)
 		if err != nil {
 			var dnsError *net.DNSError
 			if errors.As(err, &dnsError) && dnsError.IsNotFound {
@@ -170,7 +169,7 @@ func (f *FallbackTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 			},
 		}, nil
 	} else if question.Qtype == mDNS.TypeMX {
-		records, err := f.resolver.LookupMX(ctx, domain)
+		records, err := f.resolver.LookupMX(ctx, question.Name)
 		if err != nil {
 			var dnsError *net.DNSError
 			if errors.As(err, &dnsError) && dnsError.IsNotFound {

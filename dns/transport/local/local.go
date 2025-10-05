@@ -54,18 +54,17 @@ func (t *Transport) Close() error {
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
-	domain := dns.FqdnToDomain(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
-		addresses := t.hosts.Lookup(domain)
+		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
 		if len(addresses) > 0 {
 			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 		}
 	}
 	systemConfig := getSystemDNSConfig(t.ctx)
 	if systemConfig.singleRequest || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
-		return t.exchangeSingleRequest(ctx, systemConfig, message, domain)
+		return t.exchangeSingleRequest(ctx, systemConfig, message, question.Name)
 	} else {
-		return t.exchangeParallel(ctx, systemConfig, message, domain)
+		return t.exchangeParallel(ctx, systemConfig, message, question.Name)
 	}
 }
 
