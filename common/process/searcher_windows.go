@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"syscall"
 
+	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/winiphlpapi"
 
@@ -27,16 +28,16 @@ func initWin32API() error {
 	return winiphlpapi.LoadExtendedTable()
 }
 
-func (s *windowsSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*Info, error) {
+func (s *windowsSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*adapter.ConnectionOwner, error) {
 	pid, err := winiphlpapi.FindPid(network, source)
 	if err != nil {
 		return nil, err
 	}
 	path, err := getProcessPath(pid)
 	if err != nil {
-		return &Info{ProcessID: pid, UserId: -1}, err
+		return &adapter.ConnectionOwner{ProcessID: pid, UserId: -1}, err
 	}
-	return &Info{ProcessID: pid, ProcessPath: path, UserId: -1}, nil
+	return &adapter.ConnectionOwner{ProcessID: pid, ProcessPath: path, UserId: -1}, nil
 }
 
 func getProcessPath(pid uint32) (string, error) {

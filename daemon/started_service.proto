@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+package daemon;
+option go_package = "github.com/sagernet/sing-box/daemon";
+
+import "google/protobuf/empty.proto";
+import "daemon/helper.proto";
+
+service StartedService {
+  rpc StopService(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc ReloadService(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc SubscribeServiceStatus(google.protobuf.Empty) returns(stream ServiceStatus) {}
+  rpc SubscribeLog(google.protobuf.Empty) returns(stream Log) {}
+  rpc GetDefaultLogLevel(google.protobuf.Empty) returns(DefaultLogLevel) {}
+  rpc SubscribeStatus(SubscribeStatusRequest) returns(stream Status) {}
+  rpc SubscribeGroups(google.protobuf.Empty) returns(stream Groups) {}
+
+  rpc GetClashModeStatus(google.protobuf.Empty) returns(ClashModeStatus) {}
+  rpc SubscribeClashMode(google.protobuf.Empty) returns(stream ClashMode) {}
+  rpc SetClashMode(ClashMode) returns(google.protobuf.Empty) {}
+
+  rpc URLTest(URLTestRequest) returns(google.protobuf.Empty) {}
+  rpc SelectOutbound(SelectOutboundRequest) returns (google.protobuf.Empty) {}
+  rpc SetGroupExpand(SetGroupExpandRequest) returns (google.protobuf.Empty) {}
+
+  rpc GetSystemProxyStatus(google.protobuf.Empty) returns(SystemProxyStatus) {}
+  rpc SetSystemProxyEnabled(SetSystemProxyEnabledRequest) returns(google.protobuf.Empty) {}
+
+  rpc SubscribeConnections(SubscribeConnectionsRequest) returns(stream Connections) {}
+  rpc CloseConnection(CloseConnectionRequest) returns(google.protobuf.Empty) {}
+  rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
+  rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
+
+  rpc SubscribeHelperEvents(google.protobuf.Empty) returns(stream HelperRequest) {}
+  rpc SendHelperResponse(HelperResponse) returns(google.protobuf.Empty) {}
+}
+
+message ServiceStatus {
+  enum Type {
+    IDLE = 0;
+    STARTING = 1;
+    STARTED = 2;
+    STOPPING = 3;
+    FATAL = 4;
+  }
+  Type status = 1;
+  string errorMessage = 2;
+}
+
+message ReloadServiceRequest {
+  string newProfileContent = 1;
+}
+
+message SubscribeStatusRequest {
+  int64 interval = 1;
+}
+
+enum LogLevel {
+  PANIC = 0;
+  FATAL = 1;
+  ERROR = 2;
+  WARN = 3;
+  INFO = 4;
+  DEBUG = 5;
+  TRACE = 6;
+}
+
+message Log {
+  repeated Message messages = 1;
+  bool reset = 2;
+  message Message {
+    LogLevel level = 1;
+    string message = 2;
+  }
+}
+
+message DefaultLogLevel {
+  LogLevel level = 1;
+}
+
+message Status {
+  uint64 memory = 1;
+  int32 goroutines = 2;
+  int32 connectionsIn = 3;
+  int32 connectionsOut = 4;
+  bool trafficAvailable = 5;
+  int64 uplink = 6;
+  int64 downlink = 7;
+  int64 uplinkTotal = 8;
+  int64 downlinkTotal = 9;
+}
+
+message Groups {
+  repeated Group group = 1;
+}
+
+message Group {
+  string tag = 1;
+  string type = 2;
+  bool selectable = 3;
+  string selected = 4;
+  bool isExpand = 5;
+  repeated GroupItem items = 6;
+}
+
+message GroupItem {
+  string tag = 1;
+  string type = 2;
+  int64 urlTestTime = 3;
+  int32 urlTestDelay = 4;
+}
+
+message URLTestRequest {
+  string outboundTag = 1;
+}
+
+message SelectOutboundRequest {
+  string groupTag = 1;
+  string outboundTag = 2;
+}
+
+message SetGroupExpandRequest {
+  string groupTag = 1;
+  bool isExpand = 2;
+}
+
+message ClashMode {
+  string mode = 3;
+}
+
+message ClashModeStatus {
+  repeated string modeList = 1;
+  string currentMode = 2;
+}
+
+message SystemProxyStatus {
+  bool available = 1;
+  bool enabled = 2;
+}
+
+message SetSystemProxyEnabledRequest {
+  bool enabled = 1;
+}
+
+message SubscribeConnectionsRequest {
+  int64 interval = 1;
+  ConnectionFilter filter = 2;
+  ConnectionSortBy sortBy = 3;
+}
+
+enum ConnectionFilter {
+  ALL = 0;
+  ACTIVE = 1;
+  CLOSED = 2;
+}
+
+enum ConnectionSortBy {
+  DATE = 0;
+  TRAFFIC = 1;
+  TOTAL_TRAFFIC = 2;
+}
+
+message Connections {
+  repeated Connection connections = 1;
+}
+
+message Connection {
+  string id = 1;
+  string inbound = 2;
+  string inboundType = 3;
+  int32 ipVersion = 4;
+  string network = 5;
+  string source = 6;
+  string destination = 7;
+  string domain = 8;
+  string protocol = 9;
+  string user = 10;
+  string fromOutbound = 11;
+  int64 createdAt = 12;
+  int64 closedAt = 13;
+  int64 uplink = 14;
+  int64 downlink = 15;
+  int64 uplinkTotal = 16;
+  int64 downlinkTotal = 17;
+  string rule = 18;
+  string outbound = 19;
+  string outboundType = 20;
+  repeated string chainList = 21;
+}
+
+message CloseConnectionRequest {
+  string id = 1;
+}
+
+message DeprecatedWarnings {
+  repeated DeprecatedWarning warnings = 1;
+}
+
+message DeprecatedWarning {
+  string message = 1;
+  bool impending = 2;
+  string migrationLink = 3;
+}

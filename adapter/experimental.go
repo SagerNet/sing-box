@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/varbin"
 )
 
@@ -14,6 +15,7 @@ type ClashServer interface {
 	ConnectionTracker
 	Mode() string
 	ModeList() []string
+	SetModeUpdateHook(hook *observable.Subscriber[struct{}])
 	HistoryStorage() URLTestHistoryStorage
 }
 
@@ -23,7 +25,7 @@ type URLTestHistory struct {
 }
 
 type URLTestHistoryStorage interface {
-	SetHook(hook chan<- struct{})
+	SetHook(hook *observable.Subscriber[struct{}])
 	LoadURLTestHistory(tag string) *URLTestHistory
 	DeleteURLTestHistory(tag string)
 	StoreURLTestHistory(tag string, history *URLTestHistory)
