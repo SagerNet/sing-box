@@ -25,7 +25,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	aTLS "github.com/sagernet/sing/common/tls"
 	sHTTP "github.com/sagernet/sing/protocol/http"
 
 	mDNS "github.com/miekg/dns"
@@ -47,7 +46,7 @@ type HTTPSTransport struct {
 	destination      *url.URL
 	headers          http.Header
 	transportAccess  sync.Mutex
-	transport        *http.Transport
+	transport        *HTTPSTransportWrapper
 	transportResetAt time.Time
 }
 
@@ -62,11 +61,8 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 	if err != nil {
 		return nil, err
 	}
-	if common.Error(tlsConfig.Config()) == nil && !common.Contains(tlsConfig.NextProtos(), http2.NextProtoTLS) {
-		tlsConfig.SetNextProtos(append(tlsConfig.NextProtos(), http2.NextProtoTLS))
-	}
-	if !common.Contains(tlsConfig.NextProtos(), "http/1.1") {
-		tlsConfig.SetNextProtos(append(tlsConfig.NextProtos(), "http/1.1"))
+	if len(tlsConfig.NextProtos()) == 0 {
+		tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
 	}
 	headers := options.Headers.Build()
 	host := headers.Get("Host")
@@ -124,37 +120,13 @@ func NewHTTPSRaw(
 	serverAddr M.Socksaddr,
 	tlsConfig tls.Config,
 ) *HTTPSTransport {
-	var transport *http.Transport
-	if tlsConfig != nil {
-		transport = &http.Transport{
-			ForceAttemptHTTP2: true,
-			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				tcpConn, hErr := dialer.DialContext(ctx, network, serverAddr)
-				if hErr != nil {
-					return nil, hErr
-				}
-				tlsConn, hErr := aTLS.ClientHandshake(ctx, tcpConn, tlsConfig)
-				if hErr != nil {
-					tcpConn.Close()
-					return nil, hErr
-				}
-				return tlsConn, nil
-			},
-		}
-	} else {
-		transport = &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialer.DialContext(ctx, network, serverAddr)
-			},
-		}
-	}
 	return &HTTPSTransport{
 		TransportAdapter: adapter,
 		logger:           logger,
 		dialer:           dialer,
 		destination:      destination,
 		headers:          headers,
-		transport:        transport,
+		transport:        NewHTTPSTransportWrapper(tls.NewDialer(dialer, tlsConfig), serverAddr),
 	}
 }
 
