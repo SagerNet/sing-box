@@ -53,26 +53,48 @@ func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, e
 	return tlsConn, nil
 }
 
-type Dialer struct {
+type Dialer interface {
+	N.Dialer
+	DialTLSContext(ctx context.Context, destination M.Socksaddr) (Conn, error)
+}
+
+type defaultDialer struct {
 	dialer N.Dialer
 	config Config
 }
 
-func NewDialer(dialer N.Dialer, config Config) N.Dialer {
-	return &Dialer{dialer, config}
+func NewDialer(dialer N.Dialer, config Config) Dialer {
+	return &defaultDialer{dialer, config}
 }
 
-func (d *Dialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	if network != N.NetworkTCP {
+func (d *defaultDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	if N.NetworkName(network) != N.NetworkTCP {
 		return nil, os.ErrInvalid
 	}
-	conn, err := d.dialer.DialContext(ctx, network, destination)
+	return d.DialTLSContext(ctx, destination)
+}
+
+func (d *defaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, os.ErrInvalid
+}
+
+func (d *defaultDialer) DialTLSContext(ctx context.Context, destination M.Socksaddr) (Conn, error) {
+	return d.dialContext(ctx, destination)
+}
+
+func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr) (Conn, error) {
+	conn, err := d.dialer.DialContext(ctx, N.NetworkTCP, destination)
 	if err != nil {
 		return nil, err
 	}
-	return ClientHandshake(ctx, conn, d.config)
+	tlsConn, err := aTLS.ClientHandshake(ctx, conn, d.config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return tlsConn, nil
 }
 
-func (d *Dialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return nil, os.ErrInvalid
+func (d *defaultDialer) Upstream() any {
+	return d.dialer
 }
