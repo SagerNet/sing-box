@@ -382,18 +382,18 @@ func (r *Router) matchRule(
 			r.logger.InfoContext(ctx, "failed to search process: ", fErr)
 		} else {
 			if processInfo.ProcessPath != "" {
-				if processInfo.User != "" {
-					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath, ", user: ", processInfo.User)
+				if processInfo.UserName != "" {
+					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath, ", user: ", processInfo.UserName)
 				} else if processInfo.UserId != -1 {
 					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath, ", user id: ", processInfo.UserId)
 				} else {
 					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath)
 				}
-			} else if processInfo.PackageName != "" {
-				r.logger.InfoContext(ctx, "found package name: ", processInfo.PackageName)
+			} else if processInfo.AndroidPackageName != "" {
+				r.logger.InfoContext(ctx, "found package name: ", processInfo.AndroidPackageName)
 			} else if processInfo.UserId != -1 {
-				if processInfo.User != "" {
-					r.logger.InfoContext(ctx, "found user: ", processInfo.User)
+				if processInfo.UserName != "" {
+					r.logger.InfoContext(ctx, "found user: ", processInfo.UserName)
 				} else {
 					r.logger.InfoContext(ctx, "found user id: ", processInfo.UserId)
 				}

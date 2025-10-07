@@ -8,6 +8,12 @@ type StringIterator interface {
 	Next() string
 }
 
+type Int32Iterator interface {
+	Len() int32
+	HasNext() bool
+	Next() int32
+}
+
 var _ StringIterator = (*iterator[string])(nil)
 
 type iterator[T any] struct {

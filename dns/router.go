@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
@@ -38,7 +37,7 @@ type Router struct {
 	rules                 []adapter.DNSRule
 	defaultDomainStrategy C.DomainStrategy
 	dnsReverseMapping     freelru.Cache[netip.Addr, string]
-	platformInterface     platform.Interface
+	platformInterface     adapter.PlatformInterface
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {

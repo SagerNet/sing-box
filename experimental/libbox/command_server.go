@@ -1,182 +1,266 @@
 package libbox
 
 import (
-	"encoding/binary"
+	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
-	"sync"
+	"strconv"
+	"syscall"
+	"time"
 
-	"github.com/sagernet/sing-box/common/urltest"
-	"github.com/sagernet/sing-box/experimental/clashapi"
+	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/observable"
-	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type CommandServer struct {
-	listener net.Listener
-	handler  CommandServerHandler
-
-	access     sync.Mutex
-	savedLines list.List[string]
-	maxLines   int
-	subscriber *observable.Subscriber[string]
-	observer   *observable.Observer[string]
-	service    *BoxService
-
-	// These channels only work with a single client. if multi-client support is needed, replace with Subscriber/Observer
-	urlTestUpdate chan struct{}
-	modeUpdate    chan struct{}
-	logReset      chan struct{}
-
-	closedConnections []Connection
+	*daemon.StartedService
+	handler           CommandServerHandler
+	platformInterface PlatformInterface
+	platformWrapper   *platformInterfaceWrapper
+	grpcServer        *grpc.Server
+	listener          net.Listener
+	endPauseTimer     *time.Timer
 }
 
 type CommandServerHandler interface {
+	ServiceStop() error
 	ServiceReload() error
-	PostServiceClose()
-	GetSystemProxyStatus() *SystemProxyStatus
-	SetSystemProxyEnabled(isEnabled bool) error
+	GetSystemProxyStatus() (*SystemProxyStatus, error)
+	SetSystemProxyEnabled(enabled bool) error
+	WriteDebugMessage(message string)
 }
 
-func NewCommandServer(handler CommandServerHandler, maxLines int32) *CommandServer {
+func NewCommandServer(handler CommandServerHandler, platformInterface PlatformInterface) (*CommandServer, error) {
+	ctx := BaseContext(platformInterface)
+	platformWrapper := &platformInterfaceWrapper{
+		iif:       platformInterface,
+		useProcFS: platformInterface.UseProcFS(),
+	}
+	service.MustRegister[adapter.PlatformInterface](ctx, platformWrapper)
 	server := &CommandServer{
-		handler:       handler,
-		maxLines:      int(maxLines),
-		subscriber:    observable.NewSubscriber[string](128),
-		urlTestUpdate: make(chan struct{}, 1),
-		modeUpdate:    make(chan struct{}, 1),
-		logReset:      make(chan struct{}, 1),
+		handler:           handler,
+		platformInterface: platformInterface,
+		platformWrapper:   platformWrapper,
 	}
-	server.observer = observable.NewObserver[string](server.subscriber, 64)
-	return server
+	server.StartedService = daemon.NewStartedService(daemon.ServiceOptions{
+		Context: ctx,
+		// Platform:         platformWrapper,
+		Handler:     (*platformHandler)(server),
+		Debug:       sDebug,
+		LogMaxLines: sLogMaxLines,
+		// WorkingDirectory: sWorkingPath,
+		// TempDirectory:    sTempPath,
+		// UserID:           sUserID,
+		// GroupID:          sGroupID,
+		// SystemProxyEnabled: false,
+	})
+	return server, nil
 }
 
-func (s *CommandServer) SetService(newService *BoxService) {
-	if newService != nil {
-		service.PtrFromContext[urltest.HistoryStorage](newService.ctx).SetHook(s.urlTestUpdate)
-		newService.clashServer.(*clashapi.Server).SetModeUpdateHook(s.modeUpdate)
+func unaryAuthInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	if sCommandServerSecret == "" {
+		return handler(ctx, req)
 	}
-	s.service = newService
-	s.notifyURLTestUpdate()
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	values := md.Get("x-command-secret")
+	if len(values) == 0 {
+		return nil, status.Error(codes.Unauthenticated, "missing authentication secret")
+	}
+	if values[0] != sCommandServerSecret {
+		return nil, status.Error(codes.Unauthenticated, "invalid authentication secret")
+	}
+	return handler(ctx, req)
 }
 
-func (s *CommandServer) notifyURLTestUpdate() {
-	select {
-	case s.urlTestUpdate <- struct{}{}:
-	default:
+func streamAuthInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if sCommandServerSecret == "" {
+		return handler(srv, ss)
 	}
+	md, ok := metadata.FromIncomingContext(ss.Context())
+	if !ok {
+		return status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	values := md.Get("x-command-secret")
+	if len(values) == 0 {
+		return status.Error(codes.Unauthenticated, "missing authentication secret")
+	}
+	if values[0] != sCommandServerSecret {
+		return status.Error(codes.Unauthenticated, "invalid authentication secret")
+	}
+	return handler(srv, ss)
 }
 
 func (s *CommandServer) Start() error {
-	if !sTVOS {
-		return s.listenUNIX()
-	} else {
-		return s.listenTCP()
-	}
-}
-
-func (s *CommandServer) listenUNIX() error {
-	sockPath := filepath.Join(sBasePath, "command.sock")
-	os.Remove(sockPath)
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{
-		Name: sockPath,
-		Net:  "unix",
-	})
-	if err != nil {
-		return E.Cause(err, "listen ", sockPath)
-	}
-	err = os.Chown(sockPath, sUserID, sGroupID)
-	if err != nil {
-		listener.Close()
-		os.Remove(sockPath)
-		return E.Cause(err, "chown")
-	}
-	s.listener = listener
-	go s.loopConnection(listener)
-	return nil
-}
-
-func (s *CommandServer) listenTCP() error {
-	listener, err := net.Listen("tcp", "127.0.0.1:8964")
-	if err != nil {
-		return E.Cause(err, "listen")
-	}
-	s.listener = listener
-	go s.loopConnection(listener)
-	return nil
-}
-
-func (s *CommandServer) Close() error {
-	return common.Close(
-		s.listener,
-		s.observer,
+	var (
+		listener net.Listener
+		err      error
 	)
-}
-
-func (s *CommandServer) loopConnection(listener net.Listener) {
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			return
-		}
-		go func() {
-			hErr := s.handleConnection(conn)
-			if hErr != nil && !E.IsClosed(err) {
-				if debug.Enabled {
-					log.Warn("log-server: process connection: ", hErr)
-				}
+	if sCommandServerListenPort == 0 {
+		sockPath := filepath.Join(sBasePath, "command.sock")
+		os.Remove(sockPath)
+		for i := 0; i < 30; i++ {
+			listener, err = net.ListenUnix("unix", &net.UnixAddr{
+				Name: sockPath,
+				Net:  "unix",
+			})
+			if err == nil {
+				break
 			}
-		}()
+			if !errors.Is(err, syscall.EROFS) {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+		if err != nil {
+			return E.Cause(err, "listen command server")
+		}
+		if sUserID != os.Getuid() {
+			err = os.Chown(sockPath, sUserID, sGroupID)
+			if err != nil {
+				listener.Close()
+				os.Remove(sockPath)
+				return E.Cause(err, "chown")
+			}
+		}
+	} else {
+		listener, err = net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(sCommandServerListenPort))))
+		if err != nil {
+			return E.Cause(err, "listen command server")
+		}
+	}
+	s.listener = listener
+	serverOptions := []grpc.ServerOption{
+		grpc.UnaryInterceptor(unaryAuthInterceptor),
+		grpc.StreamInterceptor(streamAuthInterceptor),
+	}
+	s.grpcServer = grpc.NewServer(serverOptions...)
+	daemon.RegisterStartedServiceServer(s.grpcServer, s.StartedService)
+	go s.grpcServer.Serve(listener)
+	return nil
+}
+
+func (s *CommandServer) Close() {
+	if s.grpcServer != nil {
+		s.grpcServer.Stop()
+	}
+	common.Close(s.listener)
+}
+
+type OverrideOptions struct {
+	AutoRedirect   bool
+	IncludePackage StringIterator
+	ExcludePackage StringIterator
+}
+
+func (s *CommandServer) StartOrReloadService(configContent string, options *OverrideOptions) error {
+	return s.StartedService.StartOrReloadService(configContent, &daemon.OverrideOptions{
+		AutoRedirect:   options.AutoRedirect,
+		IncludePackage: iteratorToArray(options.IncludePackage),
+		ExcludePackage: iteratorToArray(options.ExcludePackage),
+	})
+}
+
+func (s *CommandServer) CloseService() error {
+	return s.StartedService.CloseService()
+}
+
+func (s *CommandServer) WriteMessage(level int32, message string) {
+	s.StartedService.WriteMessage(log.Level(level), message)
+}
+
+func (s *CommandServer) SetError(message string) {
+	s.StartedService.SetError(E.New(message))
+}
+
+func (s *CommandServer) NeedWIFIState() bool {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.Box() == nil {
+		return false
+	}
+	return instance.Box().Router().NeedWIFIState()
+}
+
+func (s *CommandServer) Pause() {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.PauseManager() == nil {
+		return
+	}
+	instance.PauseManager().DevicePause()
+	if C.IsIos {
+		if s.endPauseTimer == nil {
+			s.endPauseTimer = time.AfterFunc(time.Minute, instance.PauseManager().DeviceWake)
+		} else {
+			s.endPauseTimer.Reset(time.Minute)
+		}
 	}
 }
 
-func (s *CommandServer) handleConnection(conn net.Conn) error {
-	defer conn.Close()
-	var command uint8
-	err := binary.Read(conn, binary.BigEndian, &command)
+func (s *CommandServer) Wake() {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.PauseManager() == nil {
+		return
+	}
+	if !C.IsIos {
+		instance.PauseManager().DeviceWake()
+	}
+}
+
+func (s *CommandServer) ResetNetwork() {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.Box() == nil {
+		return
+	}
+	instance.Box().Router().ResetNetwork()
+}
+
+func (s *CommandServer) UpdateWIFIState() {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.Box() == nil {
+		return
+	}
+	instance.Box().Network().UpdateWIFIState()
+}
+
+type platformHandler CommandServer
+
+func (h *platformHandler) ServiceStop() error {
+	return (*CommandServer)(h).handler.ServiceStop()
+}
+
+func (h *platformHandler) ServiceReload() error {
+	return (*CommandServer)(h).handler.ServiceReload()
+}
+
+func (h *platformHandler) SystemProxyStatus() (*daemon.SystemProxyStatus, error) {
+	status, err := (*CommandServer)(h).handler.GetSystemProxyStatus()
 	if err != nil {
-		return E.Cause(err, "read command")
+		return nil, err
 	}
-	switch int32(command) {
-	case CommandLog:
-		return s.handleLogConn(conn)
-	case CommandStatus:
-		return s.handleStatusConn(conn)
-	case CommandServiceReload:
-		return s.handleServiceReload(conn)
-	case CommandServiceClose:
-		return s.handleServiceClose(conn)
-	case CommandCloseConnections:
-		return s.handleCloseConnections(conn)
-	case CommandGroup:
-		return s.handleGroupConn(conn)
-	case CommandSelectOutbound:
-		return s.handleSelectOutbound(conn)
-	case CommandURLTest:
-		return s.handleURLTest(conn)
-	case CommandGroupExpand:
-		return s.handleSetGroupExpand(conn)
-	case CommandClashMode:
-		return s.handleModeConn(conn)
-	case CommandSetClashMode:
-		return s.handleSetClashMode(conn)
-	case CommandGetSystemProxyStatus:
-		return s.handleGetSystemProxyStatus(conn)
-	case CommandSetSystemProxyEnabled:
-		return s.handleSetSystemProxyEnabled(conn)
-	case CommandConnections:
-		return s.handleConnectionsConn(conn)
-	case CommandCloseConnection:
-		return s.handleCloseConnection(conn)
-	case CommandGetDeprecatedNotes:
-		return s.handleGetDeprecatedNotes(conn)
-	default:
-		return E.New("unknown command: ", command)
-	}
+	return &daemon.SystemProxyStatus{
+		Enabled:   status.Enabled,
+		Available: status.Available,
+	}, nil
+}
+
+func (h *platformHandler) SetSystemProxyEnabled(enabled bool) error {
+	return (*CommandServer)(h).handler.SetSystemProxyEnabled(enabled)
+}
+
+func (h *platformHandler) WriteDebugMessage(message string) {
+	(*CommandServer)(h).handler.WriteDebugMessage(message)
 }

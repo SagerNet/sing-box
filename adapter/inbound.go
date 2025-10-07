@@ -5,7 +5,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/sagernet/sing-box/common/process"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -85,7 +84,7 @@ type InboundContext struct {
 	DestinationAddresses []netip.Addr
 	SourceGeoIPCode      string
 	GeoIPCode            string
-	ProcessInfo          *process.Info
+	ProcessInfo          *ConnectionOwner
 	QueryType            uint16
 	FakeIP               bool
 
