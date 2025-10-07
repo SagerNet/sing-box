@@ -89,20 +89,18 @@ func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr
 		return nil, err
 	}
 	tlsConn, err := aTLS.ClientHandshake(ctx, conn, d.config)
-	if err == nil {
-		return tlsConn, nil
-	}
-	conn.Close()
-	if echRetry {
+	if err != nil {
+		conn.Close()
 		var echErr *tls.ECHRejectionError
-		if errors.As(err, &echErr) && len(echErr.RetryConfigList) > 0 {
+		if echRetry && errors.As(err, &echErr) && len(echErr.RetryConfigList) > 0 {
 			if echConfig, isECH := d.config.(ECHCapableConfig); isECH {
 				echConfig.SetECHConfigList(echErr.RetryConfigList)
+				return d.dialContext(ctx, destination, false)
 			}
 		}
-		return d.dialContext(ctx, destination, false)
+		return nil, err
 	}
-	return nil, err
+	return tlsConn, nil
 }
 
 func (d *defaultDialer) Upstream() any {
