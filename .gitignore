@@ -15,5 +15,6 @@
 .DS_Store
 /config.d/
 /venv/
-!/README.md
-/*.md
+CLAUDE.md
+AGENTS.md
+/.claude/
