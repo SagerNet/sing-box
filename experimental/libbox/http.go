@@ -77,22 +77,27 @@ func NewHTTPClient() HTTPClient {
 }
 
 func (c *httpClient) ModernTLS() {
-	c.tls.MinVersion = tls.VersionTLS12
-	c.tls.CipherSuites = common.Map(tls.CipherSuites(), func(it *tls.CipherSuite) uint16 { return it.ID })
+	c.setTLSVersion(tls.VersionTLS12, 0, func(suite *tls.CipherSuite) bool { return true })
 }
 
 func (c *httpClient) RestrictedTLS() {
-	c.tls.MinVersion = tls.VersionTLS13
-	c.tls.CipherSuites = common.Map(common.Filter(tls.CipherSuites(), func(it *tls.CipherSuite) bool {
-		return common.Contains(it.SupportedVersions, uint16(tls.VersionTLS13))
-	}), func(it *tls.CipherSuite) uint16 {
+	c.setTLSVersion(tls.VersionTLS13, 0, func(suite *tls.CipherSuite) bool {
+		return common.Contains(suite.SupportedVersions, uint16(tls.VersionTLS13))
+	})
+}
+
+func (c *httpClient) setTLSVersion(minVersion, maxVersion uint16, filter func(*tls.CipherSuite) bool) {
+	c.tls.MinVersion = minVersion
+	if maxVersion != 0 {
+		c.tls.MaxVersion = maxVersion
+	}
+	c.tls.CipherSuites = common.Map(common.Filter(tls.CipherSuites(), filter), func(it *tls.CipherSuite) uint16 {
 		return it.ID
 	})
 }
 
 func (c *httpClient) PinnedTLS12() {
-	c.tls.MinVersion = tls.VersionTLS12
-	c.tls.MaxVersion = tls.VersionTLS12
+	c.setTLSVersion(tls.VersionTLS12, tls.VersionTLS12, func(suite *tls.CipherSuite) bool { return true })
 }
 
 func (c *httpClient) PinnedSHA256(sumHex string) {
@@ -178,9 +183,7 @@ func (r *httpRequest) SetUserAgent(userAgent string) {
 }
 
 func (r *httpRequest) SetContent(content []byte) {
-	buffer := bytes.Buffer{}
-	buffer.Write(content)
-	r.request.Body = io.NopCloser(bytes.NewReader(buffer.Bytes()))
+	r.request.Body = io.NopCloser(bytes.NewReader(content))
 	r.request.ContentLength = int64(len(content))
 }
 

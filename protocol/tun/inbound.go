@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
@@ -49,7 +48,7 @@ type Inbound struct {
 	stack                       string
 	tunIf                       tun.Tun
 	tunStack                    tun.Stack
-	platformInterface           platform.Interface
+	platformInterface           adapter.PlatformInterface
 	platformOptions             option.TunPlatformOptions
 	autoRedirect                tun.AutoRedirect
 	routeRuleSet                []adapter.RuleSet
@@ -131,7 +130,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		deprecated.Report(ctx, deprecated.OptionTUNGSO)
 	}
 
-	platformInterface := service.FromContext[platform.Interface](ctx)
+	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 	tunMTU := options.MTU
 	enableGSO := C.IsLinux && options.Stack == "gvisor" && platformInterface == nil && tunMTU > 0 && tunMTU < 49152
 	if tunMTU == 0 {
@@ -373,8 +372,8 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			}
 		}
 		monitor.Start("open interface")
-		if t.platformInterface != nil {
-			tunInterface, err = t.platformInterface.OpenTun(&tunOptions, t.platformOptions)
+		if t.platformInterface != nil && t.platformInterface.UsePlatformInterface() {
+			tunInterface, err = t.platformInterface.OpenInterface(&tunOptions, t.platformOptions)
 		} else {
 			if HookBeforeCreatePlatformInterface != nil {
 				HookBeforeCreatePlatformInterface()
@@ -394,7 +393,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		)
 		if t.platformInterface != nil {
 			forwarderBindInterface = true
-			includeAllNetworks = t.platformInterface.IncludeAllNetworks()
+			includeAllNetworks = t.platformInterface.NetworkExtensionIncludeAllNetworks()
 		}
 		tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
 			Context:                t.ctx,

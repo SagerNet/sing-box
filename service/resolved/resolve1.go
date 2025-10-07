@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/process"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -111,7 +110,7 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 	if err != nil {
 		return metadata
 	}
-	var processInfo process.Info
+	var processInfo adapter.ConnectionOwner
 	metadata.ProcessInfo = &processInfo
 	processInfo.ProcessID = uint32(senderPid)
 
@@ -140,7 +139,7 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 					processInfo.UserId = int32(uid)
 					uidFound = true
 					if osUser, _ := user.LookupId(F.ToString(uid)); osUser != nil {
-						processInfo.User = osUser.Username
+						processInfo.UserName = osUser.Username
 					}
 					break
 				}
@@ -159,8 +158,8 @@ func (t *resolve1Manager) log(sender dbus.Sender, message ...any) {
 		var prefix string
 		if metadata.ProcessInfo.ProcessPath != "" {
 			prefix = filepath.Base(metadata.ProcessInfo.ProcessPath)
-		} else if metadata.ProcessInfo.User != "" {
-			prefix = F.ToString("user:", metadata.ProcessInfo.User)
+		} else if metadata.ProcessInfo.UserName != "" {
+			prefix = F.ToString("user:", metadata.ProcessInfo.UserName)
 		} else if metadata.ProcessInfo.UserId != 0 {
 			prefix = F.ToString("uid:", metadata.ProcessInfo.UserId)
 		}
@@ -177,8 +176,8 @@ func (t *resolve1Manager) logRequest(sender dbus.Sender, message ...any) context
 		var prefix string
 		if metadata.ProcessInfo.ProcessPath != "" {
 			prefix = filepath.Base(metadata.ProcessInfo.ProcessPath)
-		} else if metadata.ProcessInfo.User != "" {
-			prefix = F.ToString("user:", metadata.ProcessInfo.User)
+		} else if metadata.ProcessInfo.UserName != "" {
+			prefix = F.ToString("user:", metadata.ProcessInfo.UserName)
 		} else if metadata.ProcessInfo.UserId != 0 {
 			prefix = F.ToString("uid:", metadata.ProcessInfo.UserId)
 		}
