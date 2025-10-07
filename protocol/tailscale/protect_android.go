@@ -1,11 +1,11 @@
 package tailscale
 
 import (
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/tailscale/net/netns"
 )
 
-func setAndroidProtectFunc(platformInterface platform.Interface) {
+func setAndroidProtectFunc(platformInterface adapter.PlatformInterface) {
 	if platformInterface != nil {
 		netns.SetAndroidProtectFunc(func(fd int) error {
 			return platformInterface.AutoDetectInterfaceControl(fd)

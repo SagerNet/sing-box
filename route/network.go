@@ -17,7 +17,6 @@ import (
 	"github.com/sagernet/sing-box/common/settings"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
@@ -48,7 +47,7 @@ type NetworkManager struct {
 	packageManager         tun.PackageManager
 	powerListener          winpowrprof.EventListener
 	pauseManager           pause.Manager
-	platformInterface      platform.Interface
+	platformInterface      adapter.PlatformInterface
 	endpoint               adapter.EndpointManager
 	inbound                adapter.InboundManager
 	outbound               adapter.OutboundManager
@@ -90,7 +89,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 			FallbackDelay:       time.Duration(routeOptions.DefaultFallbackDelay),
 		},
 		pauseManager:      service.FromContext[pause.Manager](ctx),
-		platformInterface: service.FromContext[platform.Interface](ctx),
+		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
@@ -189,7 +188,7 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 			}
 		}
 	case adapter.StartStatePostStart:
-		if r.needWIFIState && !(r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor()) {
+		if r.needWIFIState && r.platformInterface == nil {
 			wifiMonitor, err := settings.NewWIFIMonitor(r.onWIFIStateChanged)
 			if err != nil {
 				if err != os.ErrInvalid {
@@ -264,10 +263,10 @@ func (r *NetworkManager) InterfaceFinder() control.InterfaceFinder {
 }
 
 func (r *NetworkManager) UpdateInterfaces() error {
-	if r.platformInterface == nil {
+	if r.platformInterface == nil || !r.platformInterface.UsePlatformNetworkInterfaces() {
 		return r.interfaceFinder.Update()
 	} else {
-		interfaces, err := r.platformInterface.Interfaces()
+		interfaces, err := r.platformInterface.NetworkInterfaces()
 		if err != nil {
 			return err
 		}
@@ -440,7 +439,7 @@ func (r *NetworkManager) UpdateWIFIState() {
 	var state adapter.WIFIState
 	if r.wifiMonitor != nil {
 		state = r.wifiMonitor.ReadWIFIState()
-	} else if r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor() {
+	} else if r.platformInterface != nil {
 		state = r.platformInterface.ReadWIFIState()
 	} else {
 		return
