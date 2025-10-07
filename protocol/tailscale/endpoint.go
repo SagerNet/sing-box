@@ -28,7 +28,6 @@ import (
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
@@ -79,7 +78,7 @@ type Endpoint struct {
 	logger            logger.ContextLogger
 	dnsRouter         adapter.DNSRouter
 	network           adapter.NetworkManager
-	platformInterface platform.Interface
+	platformInterface adapter.PlatformInterface
 	server            *tsnet.Server
 	stack             *stack.Stack
 	icmpForwarder     *tun.ICMPForwarder
@@ -188,7 +187,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:                 logger,
 		dnsRouter:              dnsRouter,
 		network:                service.FromContext[adapter.NetworkManager](ctx),
-		platformInterface:      service.FromContext[platform.Interface](ctx),
+		platformInterface:      service.FromContext[adapter.PlatformInterface](ctx),
 		server:                 server,
 		acceptRoutes:           options.AcceptRoutes,
 		exitNode:               options.ExitNode,
@@ -288,7 +287,7 @@ func (t *Endpoint) watchState() {
 		if authURL != "" {
 			t.logger.Info("Waiting for authentication: ", authURL)
 			if t.platformInterface != nil {
-				err := t.platformInterface.SendNotification(&platform.Notification{
+				err := t.platformInterface.SendNotification(&adapter.Notification{
 					Identifier: "tailscale-authentication",
 					TypeName:   "Tailscale Authentication Notifications",
 					TypeID:     10,

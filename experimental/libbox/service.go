@@ -1,123 +1,28 @@
 package libbox
 
 import (
-	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"net"
 	"net/netip"
-	"os"
 	"runtime"
-	runtimeDebug "runtime/debug"
+	"strconv"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/process"
-	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/procfs"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service"
-	"github.com/sagernet/sing/service/pause"
 )
 
-type BoxService struct {
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	urlTestHistoryStorage adapter.URLTestHistoryStorage
-	instance              *box.Box
-	clashServer           adapter.ClashServer
-	pauseManager          pause.Manager
-
-	iOSPauseFields
-}
-
-func NewService(configContent string, platformInterface PlatformInterface) (*BoxService, error) {
-	ctx := BaseContext(platformInterface)
-	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
-	options, err := parseConfig(ctx, configContent)
-	if err != nil {
-		return nil, err
-	}
-	runtimeDebug.FreeOSMemory()
-	ctx, cancel := context.WithCancel(ctx)
-	urlTestHistoryStorage := urltest.NewHistoryStorage()
-	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
-	platformWrapper := &platformInterfaceWrapper{
-		iif:       platformInterface,
-		useProcFS: platformInterface.UseProcFS(),
-	}
-	service.MustRegister[platform.Interface](ctx, platformWrapper)
-	instance, err := box.New(box.Options{
-		Context:           ctx,
-		Options:           options,
-		PlatformLogWriter: platformWrapper,
-	})
-	if err != nil {
-		cancel()
-		return nil, E.Cause(err, "create service")
-	}
-	runtimeDebug.FreeOSMemory()
-	return &BoxService{
-		ctx:                   ctx,
-		cancel:                cancel,
-		instance:              instance,
-		urlTestHistoryStorage: urlTestHistoryStorage,
-		pauseManager:          service.FromContext[pause.Manager](ctx),
-		clashServer:           service.FromContext[adapter.ClashServer](ctx),
-	}, nil
-}
-
-func (s *BoxService) Start() error {
-	if sFixAndroidStack {
-		var err error
-		done := make(chan struct{})
-		go func() {
-			err = s.instance.Start()
-			close(done)
-		}()
-		<-done
-		return err
-	} else {
-		return s.instance.Start()
-	}
-}
-
-func (s *BoxService) Close() error {
-	s.cancel()
-	s.urlTestHistoryStorage.Close()
-	var err error
-	done := make(chan struct{})
-	go func() {
-		err = s.instance.Close()
-		close(done)
-	}()
-	select {
-	case <-done:
-		return err
-	case <-time.After(C.FatalStopTimeout):
-		os.Exit(1)
-		return nil
-	}
-}
-
-func (s *BoxService) NeedWIFIState() bool {
-	return s.instance.Network().NeedWIFIState()
-}
-
-var (
-	_ platform.Interface = (*platformInterfaceWrapper)(nil)
-	_ log.PlatformWriter = (*platformInterfaceWrapper)(nil)
-)
+var _ adapter.PlatformInterface = (*platformInterfaceWrapper)(nil)
 
 type platformInterfaceWrapper struct {
 	iif                    PlatformInterface
@@ -143,7 +48,11 @@ func (w *platformInterfaceWrapper) AutoDetectInterfaceControl(fd int) error {
 	return w.iif.AutoDetectInterfaceControl(int32(fd))
 }
 
-func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (w *platformInterfaceWrapper) UsePlatformInterface() bool {
+	return true
+}
+
+func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
 		return nil, E.New("platform: unsupported uid options")
 	}
@@ -172,6 +81,10 @@ func (w *platformInterfaceWrapper) OpenTun(options *tun.Options, platformOptions
 	return tun.New(*options)
 }
 
+func (w *platformInterfaceWrapper) UsePlatformDefaultInterfaceMonitor() bool {
+	return true
+}
+
 func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor {
 	return &platformDefaultInterfaceMonitor{
 		platformInterfaceWrapper: w,
@@ -179,7 +92,11 @@ func (w *platformInterfaceWrapper) CreateDefaultInterfaceMonitor(logger logger.L
 	}
 }
 
-func (w *platformInterfaceWrapper) Interfaces() ([]adapter.NetworkInterface, error) {
+func (w *platformInterfaceWrapper) UsePlatformNetworkInterfaces() bool {
+	return true
+}
+
+func (w *platformInterfaceWrapper) NetworkInterfaces() ([]adapter.NetworkInterface, error) {
 	interfaceIterator, err := w.iif.GetInterfaces()
 	if err != nil {
 		return nil, err
@@ -216,7 +133,7 @@ func (w *platformInterfaceWrapper) UnderNetworkExtension() bool {
 	return w.iif.UnderNetworkExtension()
 }
 
-func (w *platformInterfaceWrapper) IncludeAllNetworks() bool {
+func (w *platformInterfaceWrapper) NetworkExtensionIncludeAllNetworks() bool {
 	return w.iif.IncludeAllNetworks()
 }
 
@@ -224,8 +141,8 @@ func (w *platformInterfaceWrapper) ClearDNSCache() {
 	w.iif.ClearDNSCache()
 }
 
-func (w *platformInterfaceWrapper) UsePlatformWIFIMonitor() bool {
-	return true
+func (w *platformInterfaceWrapper) RequestPermissionForWIFIState() error {
+	return nil
 }
 
 func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
@@ -240,41 +157,82 @@ func (w *platformInterfaceWrapper) SystemCertificates() []string {
 	return iteratorToArray[string](w.iif.SystemCertificates())
 }
 
-func (w *platformInterfaceWrapper) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
+func (w *platformInterfaceWrapper) UsePlatformConnectionOwnerFinder() bool {
+	return true
+}
+
+func (w *platformInterfaceWrapper) FindConnectionOwner(request *adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
 	var uid int32
 	if w.useProcFS {
+		var source netip.AddrPort
+		var destination netip.AddrPort
+		sourceAddr, _ := netip.ParseAddr(request.SourceAddress)
+		source = netip.AddrPortFrom(sourceAddr, uint16(request.SourcePort))
+		destAddr, _ := netip.ParseAddr(request.DestinationAddress)
+		destination = netip.AddrPortFrom(destAddr, uint16(request.DestinationPort))
+
+		var network string
+		switch request.IpProtocol {
+		case int32(syscall.IPPROTO_TCP):
+			network = "tcp"
+		case int32(syscall.IPPROTO_UDP):
+			network = "udp"
+		default:
+			return nil, E.New("unknown protocol: ", request.IpProtocol)
+		}
+
 		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
 		if uid == -1 {
 			return nil, E.New("procfs: not found")
 		}
 	} else {
-		var ipProtocol int32
-		switch N.NetworkName(network) {
-		case N.NetworkTCP:
-			ipProtocol = syscall.IPPROTO_TCP
-		case N.NetworkUDP:
-			ipProtocol = syscall.IPPROTO_UDP
-		default:
-			return nil, E.New("unknown network: ", network)
-		}
 		var err error
-		uid, err = w.iif.FindConnectionOwner(ipProtocol, source.Addr().String(), int32(source.Port()), destination.Addr().String(), int32(destination.Port()))
+		uid, err = w.iif.FindConnectionOwner(request.IpProtocol, request.SourceAddress, request.SourcePort, request.DestinationAddress, request.DestinationPort)
 		if err != nil {
 			return nil, err
 		}
 	}
 	packageName, _ := w.iif.PackageNameByUid(uid)
-	return &process.Info{UserId: uid, PackageName: packageName}, nil
+	return &adapter.ConnectionOwner{
+		UserId:             uid,
+		AndroidPackageName: packageName,
+	}, nil
 }
 
 func (w *platformInterfaceWrapper) DisableColors() bool {
 	return runtime.GOOS != "android"
 }
 
-func (w *platformInterfaceWrapper) WriteMessage(level log.Level, message string) {
-	w.iif.WriteLog(message)
+func (w *platformInterfaceWrapper) UsePlatformNotification() bool {
+	return true
 }
 
-func (w *platformInterfaceWrapper) SendNotification(notification *platform.Notification) error {
+func (w *platformInterfaceWrapper) SendNotification(notification *adapter.Notification) error {
 	return w.iif.SendNotification((*Notification)(notification))
+}
+
+func AvailablePort(startPort int32) (int32, error) {
+	for port := int(startPort); ; port++ {
+		if port > 65535 {
+			return 0, E.New("no available port found")
+		}
+		listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port))))
+		if err != nil {
+			if errors.Is(err, syscall.EADDRINUSE) {
+				continue
+			}
+			return 0, E.Cause(err, "find available port")
+		}
+		err = listener.Close()
+		if err != nil {
+			return 0, E.Cause(err, "close listener")
+		}
+		return int32(port), nil
+	}
+}
+
+func RandomHex(length int32) *StringBox {
+	bytes := make([]byte, length)
+	common.Must1(rand.Read(bytes))
+	return wrapString(hex.EncodeToString(bytes))
 }
