@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package daemon;
+option go_package = "github.com/sagernet/sing-box/daemon";
+
+import "google/protobuf/empty.proto";
+
+message SubscribeHelperRequestRequest {
+  bool acceptGetWIFIStateRequests = 1;
+  bool acceptFindConnectionOwnerRequests = 2;
+  bool acceptSendNotificationRequests = 3;
+}
+
+message HelperRequest {
+  int64 id = 1;
+  oneof request {
+    google.protobuf.Empty getWIFIState = 2;
+    FindConnectionOwnerRequest findConnectionOwner = 3;
+    Notification sendNotification = 4;
+  }
+}
+
+message FindConnectionOwnerRequest {
+  int32 ipProtocol = 1;
+  string sourceAddress = 2;
+  int32 sourcePort = 3;
+  string destinationAddress = 4;
+  int32 destinationPort = 5;
+}
+
+message Notification {
+  string identifier = 1;
+  string typeName = 2;
+  int32 typeId = 3;
+  string title = 4;
+  string subtitle = 5;
+  string body = 6;
+  string openURL = 7;
+}
+
+message HelperResponse {
+  int64 id = 1;
+  oneof response {
+    WIFIState wifiState = 2;
+    string error = 3;
+    ConnectionOwner connectionOwner = 4;
+  }
+}
+
+message ConnectionOwner {
+  int32 userId = 1;
+  string userName = 2;
+  string processPath = 3;
+  string androidPackageName = 4;
+}
+
+message WIFIState {
+  string ssid = 1;
+  string bssid = 2;
+}
+
