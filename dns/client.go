@@ -214,7 +214,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			response.Answer = append(response.Answer, validResponse.Answer...)
 		}
 	}*/
-	disableCache = disableCache || response.Rcode != dns.RcodeSuccess || len(response.Answer) == 0
+	disableCache = disableCache || (response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError) || len(response.Answer) == 0
 	if responseChecker != nil {
 		var rejected bool
 		// TODO: add accept_any rule and support to check response instead of addresses
@@ -364,14 +364,18 @@ func (c *Client) LookupCache(domain string, strategy C.DomainStrategy) ([]netip.
 			Qtype:  dns.TypeA,
 			Qclass: dns.ClassINET,
 		}, nil)
+		if response4 == nil {
+			return nil, false
+		}
 		response6, _ := c.loadResponse(dns.Question{
 			Name:   dnsName,
 			Qtype:  dns.TypeAAAA,
 			Qclass: dns.ClassINET,
 		}, nil)
-		if response4 != nil || response6 != nil {
-			return sortAddresses(MessageToAddresses(response4), MessageToAddresses(response6), strategy), true
+		if response6 == nil {
+			return nil, false
 		}
+		return sortAddresses(MessageToAddresses(response4), MessageToAddresses(response6), strategy), true
 	}
 	return nil, false
 }
