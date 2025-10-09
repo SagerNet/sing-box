@@ -169,6 +169,35 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		}
 		tlsConfig.RootCAs = certPool
 	}
+	var clientCertificate []byte
+	if len(options.ClientCertificate) > 0 {
+		clientCertificate = []byte(strings.Join(options.ClientCertificate, "\n"))
+	} else if options.ClientCertificatePath != "" {
+		content, err := os.ReadFile(options.ClientCertificatePath)
+		if err != nil {
+			return nil, E.Cause(err, "read client certificate")
+		}
+		clientCertificate = content
+	}
+	var clientKey []byte
+	if len(options.ClientKey) > 0 {
+		clientKey = []byte(strings.Join(options.ClientKey, "\n"))
+	} else if options.ClientKeyPath != "" {
+		content, err := os.ReadFile(options.ClientKeyPath)
+		if err != nil {
+			return nil, E.Cause(err, "read client key")
+		}
+		clientKey = content
+	}
+	if len(clientCertificate) > 0 && len(clientKey) > 0 {
+		keyPair, err := tls.X509KeyPair(clientCertificate, clientKey)
+		if err != nil {
+			return nil, E.Cause(err, "parse client x509 key pair")
+		}
+		tlsConfig.Certificates = []tls.Certificate{keyPair}
+	} else if len(clientCertificate) > 0 || len(clientKey) > 0 {
+		return nil, E.New("client certificate and client key must be provided together")
+	}
 	var config Config = &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
 	if options.ECH != nil && options.ECH.Enabled {
 		var err error
