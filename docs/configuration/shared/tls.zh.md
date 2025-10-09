@@ -8,9 +8,11 @@ icon: material/new-box
     :material-plus: [kernel_rx](#kernel_rx)
     :material-plus: [curve_preferences](#curve_preferences)
     :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)
-    :material-plus: [client_authentication](#client_authentication)
     :material-plus: [client_certificate](#client_certificate)
     :material-plus: [client_certificate_path](#client_certificate_path)
+    :material-plus: [client_key](#client_key)
+    :material-plus: [client_key_path](#client_key_path)
+    :material-plus: [client_authentication](#client_authentication)
     :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)
 
 !!! quote "sing-box 1.12.0 中的更改"
@@ -101,9 +103,14 @@ icon: material/new-box
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
+  "curve_preferences": [],
   "certificate": "",
   "certificate_path": "",
   "certificate_public_key_sha256": [],
+  "client_certificate": [],
+  "client_certificate_path": "",
+  "client_key": [],
+  "client_key_path": "",
   "fragment": false,
   "fragment_fallback_delay": "",
   "record_fragment": false,
@@ -252,6 +259,38 @@ openssl x509 -in certificate.pem -pubkey -noout | openssl pkey -pubin -outform d
 # 对于远程服务器的证书
 echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
 ```
+
+#### client_certificate
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+客户端证书链行数组，PEM 格式。
+
+#### client_certificate_path
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+客户端证书链路径，PEM 格式。
+
+#### client_key
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+客户端私钥行数组，PEM 格式。
+
+#### client_key_path
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+客户端私钥路径，PEM 格式。
 
 #### key
 
