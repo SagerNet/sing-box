@@ -222,6 +222,35 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 		}
 		tlsConfig.RootCAs = certPool
 	}
+	var clientCertificate []byte
+	if len(options.ClientCertificate) > 0 {
+		clientCertificate = []byte(strings.Join(options.ClientCertificate, "\n"))
+	} else if options.ClientCertificatePath != "" {
+		content, err := os.ReadFile(options.ClientCertificatePath)
+		if err != nil {
+			return nil, E.Cause(err, "read client certificate")
+		}
+		clientCertificate = content
+	}
+	var clientKey []byte
+	if len(options.ClientKey) > 0 {
+		clientKey = []byte(strings.Join(options.ClientKey, "\n"))
+	} else if options.ClientKeyPath != "" {
+		content, err := os.ReadFile(options.ClientKeyPath)
+		if err != nil {
+			return nil, E.Cause(err, "read client key")
+		}
+		clientKey = content
+	}
+	if len(clientCertificate) > 0 && len(clientKey) > 0 {
+		keyPair, err := utls.X509KeyPair(clientCertificate, clientKey)
+		if err != nil {
+			return nil, E.Cause(err, "parse client x509 key pair")
+		}
+		tlsConfig.Certificates = []utls.Certificate{keyPair}
+	} else if len(clientCertificate) > 0 || len(clientKey) > 0 {
+		return nil, E.New("client certificate and client key must be provided together")
+	}
 	id, err := uTLSClientHelloID(options.UTLS.Fingerprint)
 	if err != nil {
 		return nil, err

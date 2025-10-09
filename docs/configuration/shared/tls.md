@@ -4,13 +4,15 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [kernel_tx](#kernel_tx)  
-    :material-plus: [kernel_rx](#kernel_rx)  
-    :material-plus: [curve_preferences](#curve_preferences)  
-    :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)  
-    :material-plus: [client_authentication](#client_authentication)  
-    :material-plus: [client_certificate](#client_certificate)  
-    :material-plus: [client_certificate_path](#client_certificate_path)  
+    :material-plus: [kernel_tx](#kernel_tx)
+    :material-plus: [kernel_rx](#kernel_rx)
+    :material-plus: [curve_preferences](#curve_preferences)
+    :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)
+    :material-plus: [client_certificate](#client_certificate)
+    :material-plus: [client_certificate_path](#client_certificate_path)
+    :material-plus: [client_key](#client_key)
+    :material-plus: [client_key_path](#client_key_path)
+    :material-plus: [client_authentication](#client_authentication)
     :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)
 
 !!! quote "Changes in sing-box 1.12.0"
@@ -101,9 +103,14 @@ icon: material/new-box
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
+  "curve_preferences": [],
   "certificate": "",
   "certificate_path": "",
   "certificate_public_key_sha256": [],
+  "client_certificate": [],
+  "client_certificate_path": "",
+  "client_key": [],
+  "client_key_path": "",
   "fragment": false,
   "fragment_fallback_delay": "",
   "record_fragment": false,
@@ -257,6 +264,38 @@ openssl x509 -in certificate.pem -pubkey -noout | openssl pkey -pubin -outform d
 # For a certificate from a remote server
 echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
 ```
+
+#### client_certificate
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Client certificate chain line array, in PEM format.
+
+#### client_certificate_path
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+The path to client certificate chain, in PEM format.
+
+#### client_key
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Client private key line array, in PEM format.
+
+#### client_key_path
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+The path to client private key, in PEM format.
 
 #### key
 
