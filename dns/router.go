@@ -386,12 +386,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			if rule != nil {
 				switch action := rule.Action().(type) {
 				case *R.RuleActionReject:
-					switch action.Method {
-					case C.RuleActionRejectMethodDefault:
-						return nil, nil
-					case C.RuleActionRejectMethodDrop:
-						return nil, tun.ErrDrop
-					}
+					return nil, &R.RejectedError{Cause: action.Error(ctx)}
 				case *R.RuleActionPredefined:
 					if action.Rcode != mDNS.RcodeSuccess {
 						err = RcodeError(action.Rcode)
