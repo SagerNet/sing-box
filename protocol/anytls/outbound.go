@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
@@ -42,6 +43,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
+	}
+	// TCP Fast Open is incompatible with anytls because TFO creates a lazy connection
+	// that only establishes on first write. The lazy connection returns an empty address
+	// before establishment, but anytls SOCKS wrapper tries to access the remote address
+	// during handshake, causing a null pointer dereference crash.
+	if options.DialerOptions.TCPFastOpen {
+		return nil, E.New("tcp_fast_open is not supported with anytls outbound")
 	}
 
 	tlsConfig, err := tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
