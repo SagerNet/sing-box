@@ -46,7 +46,7 @@ var (
 	sharedFlags []string
 	debugFlags  []string
 	sharedTags  []string
-	macOSTags   []string
+	darwinTags  []string
 	memcTags    []string
 	notMemcTags []string
 	debugTags   []string
@@ -63,7 +63,7 @@ func init() {
 	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -checklinkname=0")
 
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api", "with_conntrack", "badlinkname", "tfogo_checklinkname0")
-	macOSTags = append(macOSTags, "with_dhcp")
+	darwinTags = append(darwinTags, "with_dhcp")
 	memcTags = append(memcTags, "with_tailscale")
 	notMemcTags = append(notMemcTags, "with_low_memory")
 	debugTags = append(debugTags, "debug")
@@ -158,9 +158,7 @@ func buildApple() {
 		"-tags-not-macos=with_low_memory",
 	}
 	if !withTailscale {
-		args = append(args, "-tags-macos="+strings.Join(append(macOSTags, memcTags...), ","))
-	} else {
-		args = append(args, "-tags-macos="+strings.Join(macOSTags, ","))
+		args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
 	}
 
 	if !debugEnabled {
@@ -169,7 +167,7 @@ func buildApple() {
 		args = append(args, debugFlags...)
 	}
 
-	tags := sharedTags
+	tags := append(sharedTags, darwinTags...)
 	if withTailscale {
 		tags = append(tags, memcTags...)
 	}
