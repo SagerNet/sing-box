@@ -2,6 +2,16 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.10
+
+* Update uTLS to v1.8.1 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes an critical issue that could cause simulated Chrome fingerprints to be detected,
+see https://github.com/refraction-networking/utls/pull/375.
+
 #### 1.12.9
 
 * Fixes and improvements
@@ -96,7 +106,8 @@ See [Tailscale](/configuration/endpoint/tailscale/).
 
 Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
 
-For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches from [MetaCubeX/go](https://github.com/MetaCubeX/go).
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches
+from [MetaCubeX/go](https://github.com/MetaCubeX/go).
 
 **7**:
 
@@ -158,7 +169,8 @@ See [Tun](/configuration/inbound/tun/#loopback_address).
 
 We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
 
-The following data was tested using [tun_bench](https://github.com/SagerNet/sing-box/blob/dev-next/cmd/internal/tun_bench/main.go) on M4 MacBook pro.
+The following data was tested
+using [tun_bench](https://github.com/SagerNet/sing-box/blob/dev-next/cmd/internal/tun_bench/main.go) on M4 MacBook pro.
 
 | Version     | Stack  | MTU   | Upload | Download |
 |-------------|--------|-------|--------|----------|
@@ -177,8 +189,8 @@ The following data was tested using [tun_bench](https://github.com/SagerNet/sing
 
 **18**:
 
-We continue to experience issues updating our sing-box apps on the App Store and Play Store. 
-Until we rewrite and resubmit the apps, they are considered irrecoverable. 
+We continue to experience issues updating our sing-box apps on the App Store and Play Store.
+Until we rewrite and resubmit the apps, they are considered irrecoverable.
 Therefore, after this release, we will not be repeating this notice unless there is new information.
 
 ### 1.11.15
@@ -459,7 +471,8 @@ See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/conf
 
 **2**:
 
-`resolve` route action now accepts `disable_cache` and other options like in DNS route actions, see [Route Action](/configuration/route/rule_action).
+`resolve` route action now accepts `disable_cache` and other options like in DNS route actions,
+see [Route Action](/configuration/route/rule_action).
 
 **3**:
 
@@ -490,7 +503,8 @@ See [Tailscale](/configuration/endpoint/tailscale/).
 
 Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
 
-For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches from [MetaCubeX/go](https://github.com/MetaCubeX/go).
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches
+from [MetaCubeX/go](https://github.com/MetaCubeX/go).
 
 ### 1.11.3
 
