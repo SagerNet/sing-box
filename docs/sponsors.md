@@ -11,16 +11,22 @@ the project maintainer via [GitHub Sponsors](https://github.com/sponsors/nekohas
 
 ![](https://nekohasekai.github.io/sponsor-images/sponsors.svg)
 
-### Special Sponsors
+## Commercial Sponsors
 
-**Viral Tech, Inc.**
+> [Warp](https://go.warp.dev/sing-box), Built for coding with multiple AI agents.
+
+[![](https://github.com/warpdotdev/brand-assets/raw/refs/heads/main/Github/Sponsor/Warp-Github-LG-02.png)](https://go.warp.dev/sing-box)
+
+## Special Sponsors
+
+> Viral Tech, Inc.
 
 Helping us re-list sing-box apps on the Apple Store.
 
 ---
 
-[![JetBrains logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://www.jetbrains.com)
+> [JetBrains](https://www.jetbrains.com)
 
 Free license for the amazing IDEs.
 
----
+[![JetBrains logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://www.jetbrains.com)
