@@ -1,9 +1,11 @@
 package local
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -21,6 +23,25 @@ import (
 	"github.com/godbus/dbus/v5"
 	mDNS "github.com/miekg/dns"
 )
+
+func isSystemdResolvedManaged() bool {
+	resolvContent, err := os.Open("/etc/resolv.conf")
+	if err != nil {
+		return false
+	}
+	defer resolvContent.Close()
+	scanner := bufio.NewScanner(resolvContent)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || line[0] != '#' {
+			return false
+		}
+		if strings.Contains(line, "systemd-resolved") {
+			return true
+		}
+	}
+	return false
+}
 
 type DBusResolvedResolver struct {
 	ctx               context.Context
@@ -188,7 +209,7 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*ResolvedObje
 		int32(defaultInterface.Index),
 	)
 	if call.Err != nil {
-		return nil, err
+		return nil, call.Err
 	}
 	var linkPath dbus.ObjectPath
 	err = call.Store(&linkPath)
@@ -214,15 +235,12 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*ResolvedObje
 				return nil, E.New("No appropriate name servers or networks for name found")
 			}
 		}
-		return &ResolvedObject{
-			BusObject: dbusObject,
-		}, nil
-	} else {
-		return &ResolvedObject{
-			BusObject:      dbusObject,
-			InterfaceIndex: int32(defaultInterface.Index),
-		}, nil
+		return nil, E.New("link has no DNS servers configured")
 	}
+	return &ResolvedObject{
+		BusObject:      dbusObject,
+		InterfaceIndex: int32(defaultInterface.Index),
+	}, nil
 }
 
 func (t *DBusResolvedResolver) updateDefaultInterface(defaultInterface *control.Interface, flags int) {
