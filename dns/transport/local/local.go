@@ -53,13 +53,15 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 	switch stage {
 	case adapter.StartStateInitialize:
 		if !t.preferGo {
-			resolvedResolver, err := NewResolvedResolver(t.ctx, t.logger)
-			if err == nil {
-				err = resolvedResolver.Start()
+			if isSystemdResolvedManaged() {
+				resolvedResolver, err := NewResolvedResolver(t.ctx, t.logger)
 				if err == nil {
-					t.resolved = resolvedResolver
-				} else {
-					t.logger.Warn(E.Cause(err, "initialize resolved resolver"))
+					err = resolvedResolver.Start()
+					if err == nil {
+						t.resolved = resolvedResolver
+					} else {
+						t.logger.Warn(E.Cause(err, "initialize resolved resolver"))
+					}
 				}
 			}
 		}
