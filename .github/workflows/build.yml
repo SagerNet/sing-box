@@ -417,7 +417,7 @@ jobs:
   build_apple:
     name: Build Apple clients
     runs-on: macos-26
-    if: false
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone'}}
     needs:
       - calculate_version
     strategy:
