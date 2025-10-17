@@ -33,7 +33,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  #确定版本号
   calculate_version:
     name: Calculate version
     runs-on: ubuntu-latest
@@ -61,7 +60,6 @@ jobs:
         id: outputs
         run: |-
           echo "version=$version" >> "$GITHUB_OUTPUT"
-  #编译二进制
   build:
     name: Build binary
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
@@ -287,7 +285,6 @@ jobs:
         with:
           name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
-  #编译Android版本
   build_android:
     name: Build Android
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android'
@@ -351,15 +348,23 @@ jobs:
       - name: Build
         run: |-
           mkdir clients/android/app/libs
+          cp libbox.aar clients/android/app/libs
+          cd clients/android
+          ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      - name: Upload libbox.aar
+      - name: Prepare upload
+        run: |-
+          mkdir -p dist
+          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libbox
-          path: libbox.aar
+          name: binary-android-apks
+          path: 'dist'
   publish_android:
     name: Publish Android
     if: github.event_name == 'workflow_dispatch' && inputs.build == 'publish-android'
@@ -425,7 +430,6 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
-  #编译Apple版本
   build_apple:
     name: Build Apple clients
     runs-on: macos-26
@@ -610,7 +614,7 @@ jobs:
           path: 'dist'
   upload:
     name: Upload builds
-    if: "!failure() && github.event_name == 'workflow_dispatch'"
+    if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')"
     runs-on: ubuntu-latest
     needs:
       - calculate_version
