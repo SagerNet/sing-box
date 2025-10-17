@@ -23,10 +23,6 @@ on:
           - tvOS
           - macOS-standalone
           - publish-android
-  push:
-    branches:
-      - main-next
-      - dev-next
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build }}
@@ -664,3 +660,4 @@ jobs:
           ghr --replace -p 5 "v${VERSION}" dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
