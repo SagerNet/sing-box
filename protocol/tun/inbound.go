@@ -203,6 +203,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IPRoute2RuleIndex:        ruleIndex,
 			AutoRedirectInputMark:    inputMark,
 			AutoRedirectOutputMark:   outputMark,
+			ExcludeMPTCP:             options.ExcludeMPTCP,
 			Inet4LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is4),
 			Inet6LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is6),
 			StrictRoute:              options.StrictRoute,
