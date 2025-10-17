@@ -430,28 +430,6 @@ jobs:
             destination: 'generic/platform=iOS'
             archive: build/SFI.xcarchive
             upload: SFI/Upload.plist
-          - name: macOS
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'macOS' }}
-            platform: macos
-            scheme: SFM
-            destination: 'generic/platform=macOS'
-            archive: build/SFM.xcarchive
-            upload: SFI/Upload.plist
-          - name: tvOS
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'tvOS' }}
-            platform: tvos
-            scheme: SFT
-            destination: 'generic/platform=tvOS'
-            archive: build/SFT.xcarchive
-            upload: SFI/Upload.plist
-          - name: macOS-standalone
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' }}
-            platform: macos
-            scheme: SFM.System
-            destination: 'generic/platform=macOS'
-            archive: build/SFM.System.xcarchive
-            export: SFM.System/Export.plist
-            export_path: build/SFM.System
     steps:
       - name: Checkout
         if: matrix.if
