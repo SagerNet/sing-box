@@ -360,6 +360,71 @@ jobs:
         with:
           name: libbox
           path: libbox.aar
+  publish_android:
+    name: Publish Android
+    if: github.event_name == 'workflow_dispatch' && inputs.build == 'publish-android'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.25.3
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+      - name: Setup OpenJDK
+        run: |-
+          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
+          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Set tag
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Build library
+        run: |-
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make lib_android
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Checkout main branch
+        if: github.ref == 'refs/heads/main-next' && github.event_name != 'workflow_dispatch'
+        run: |-
+          cd clients/android
+          git checkout main
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/dev-next'
+        run: |-
+          cd clients/android
+          git checkout dev
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+      - name: Build
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+          mkdir clients/android/app/libs
+          cp libbox.aar clients/android/app/libs
+          cd clients/android
+          echo -n "$SERVICE_ACCOUNT_CREDENTIALS" | base64 --decode > service-account-credentials.json
+          ./gradlew :app:publishPlayReleaseBundle
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
   #编译Apple版本
   build_apple:
     name: Build Apple clients
@@ -543,3 +608,55 @@ jobs:
         with:
           name: binary-macos-dmg
           path: 'dist'
+  upload:
+    name: Upload builds
+    if: "!failure() && github.event_name == 'workflow_dispatch'"
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+      - build
+      - build_android
+      - build_apple
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+      - name: Cache ghr
+        uses: actions/cache@v4
+        id: cache-ghr
+        with:
+          path: |
+            ~/go/bin/ghr
+          key: ghr
+      - name: Setup ghr
+        if: steps.cache-ghr.outputs.cache-hit != 'true'
+        run: |-
+          cd $HOME
+          git clone https://github.com/nekohasekai/ghr ghr
+          cd ghr
+          go install -v .
+      - name: Set tag
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+          echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
+      - name: Download builds
+        uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Upload builds
+        if: ${{ env.PUBLISHED == 'false' }}
+        run: |-
+          export PATH="$PATH:$HOME/go/bin"
+          ghr --replace --draft --prerelease -p 5 "v${VERSION}" dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Replace builds
+        if: ${{ env.PUBLISHED != 'false' }}
+        run: |-
+          export PATH="$PATH:$HOME/go/bin"
+          ghr --replace -p 5 "v${VERSION}" dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
