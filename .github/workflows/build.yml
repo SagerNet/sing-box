@@ -333,10 +333,6 @@ jobs:
         with:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle') }}
-      - name: Update version
-        if: github.event_name == 'workflow_dispatch'
-        run: |-
-          go run -v ./cmd/internal/update_android_version --ci
       - name: Update nightly version
         if: github.event_name != 'workflow_dispatch'
         run: |-
@@ -344,23 +340,15 @@ jobs:
       - name: Build
         run: |-
           mkdir clients/android/app/libs
-          cp libbox.aar clients/android/app/libs
-          cd clients/android
-          ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      - name: Prepare upload
-        run: |-
-          mkdir -p dist
-          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
-          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
-      - name: Upload artifact
+      - name: Upload libbox.aar
         uses: actions/upload-artifact@v4
         with:
-          name: binary-android-apks
-          path: 'dist'
+          name: libbox
+          path: libbox.aar
   publish_android:
     name: Publish Android
     if: github.event_name == 'workflow_dispatch' && inputs.build == 'publish-android'
@@ -538,76 +526,11 @@ jobs:
           export PATH="$PATH:$(go env GOPATH)/bin"
           go run ./cmd/internal/build_libbox -target apple -platform ${{ matrix.platform }}
           mv Libbox.xcframework clients/apple
-      - name: Update macOS version
-        if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch'
-        run: |-
-          MACOS_PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_macos_project_version)
-          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION"
-          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION" >> "$GITHUB_ENV"
-      - name: Update version
-        if: matrix.if && matrix.name != 'iOS'
-        run: |-
-          go run -v ./cmd/internal/update_apple_version --ci
-      - name: Build
-        if: matrix.if
-        run: |-
-          cd clients/apple
-          xcodebuild archive \
-            -scheme "${{ matrix.scheme }}" \
-            -configuration Release \
-            -destination "${{ matrix.destination }}" \
-            -archivePath "${{ matrix.archive }}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath $ASC_KEY_PATH \
-            -authenticationKeyID $ASC_KEY_ID \
-            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
-      - name: Upload to App Store Connect
-        if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch'
-        run: |-
-          go run -v ./cmd/internal/app_store_connect cancel_app_store ${{ matrix.platform }}
-          cd clients/apple
-          xcodebuild -exportArchive \
-            -archivePath "${{ matrix.archive }}" \
-            -exportOptionsPlist ${{ matrix.upload }} \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath $ASC_KEY_PATH \
-            -authenticationKeyID $ASC_KEY_ID \
-            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
-      - name: Publish to TestFlight
-        if: matrix.if && matrix.name != 'macOS-standalone' && github.event_name == 'workflow_dispatch' && github.ref =='refs/heads/dev-next'
-        run: |-
-          go run -v ./cmd/internal/app_store_connect publish_testflight ${{ matrix.platform }}
-      - name: Build image
-        if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
-        run: |-
-          pushd clients/apple
-          xcodebuild -exportArchive \
-          	-archivePath "${{ matrix.archive }}" \
-          	-exportOptionsPlist ${{ matrix.export }} \
-          	-exportPath "${{ matrix.export_path }}"
-          brew install create-dmg
-          create-dmg \
-          	--volname "sing-box" \
-          	--volicon "${{ matrix.export_path }}/SFM.app/Contents/Resources/AppIcon.icns" \
-          	--icon "SFM.app" 0 0 \
-          		--hide-extension "SFM.app" \
-          		--app-drop-link 0 0 \
-          		--skip-jenkins \
-          	SFM.dmg "${{ matrix.export_path }}/SFM.app"
-          xcrun notarytool submit "SFM.dmg" --wait --keychain-profile "notarytool-password"          
-          cd "${{ matrix.archive }}"
-          zip -r SFM.dSYMs.zip dSYMs
-          popd
-
-          mkdir -p dist
-          cp clients/apple/SFM.dmg "dist/SFM-${VERSION}-universal.dmg"
-          cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
-      - name: Upload image
-        if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
+      - name: Upload Libbox.xcframework
         uses: actions/upload-artifact@v4
         with:
-          name: binary-macos-dmg
-          path: 'dist'
+          name: Libbox
+          path: Libbox.xcframework
   upload:
     name: Upload builds
     if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')"
