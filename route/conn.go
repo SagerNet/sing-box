@@ -102,6 +102,8 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		m.connections.Remove(element)
 	})
 	var done atomic.Bool
+	m.preConnectionCopy(ctx, conn, remoteConn, false, &done, onClose)
+	m.preConnectionCopy(ctx, remoteConn, conn, true, &done, onClose)
 	go m.connectionCopy(ctx, conn, remoteConn, false, &done, onClose)
 	go m.connectionCopy(ctx, remoteConn, conn, true, &done, onClose)
 }
@@ -224,6 +226,35 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 	go m.packetConnectionCopy(ctx, destination, conn, true, &done, onClose)
 }
 
+func (m *ConnectionManager) preConnectionCopy(ctx context.Context, source net.Conn, destination net.Conn, direction bool, done *atomic.Bool, onClose N.CloseHandlerFunc) {
+	readHandshake := N.NeedHandshakeForRead(source)
+	writeHandshake := N.NeedHandshakeForWrite(destination)
+	if readHandshake || writeHandshake {
+		var err error
+		for {
+			err = m.connectionCopyEarlyWrite(source, destination, readHandshake, writeHandshake)
+			if err == nil && N.NeedHandshakeForRead(source) {
+				continue
+			} else if E.IsMulti(err, os.ErrInvalid, context.DeadlineExceeded, io.EOF) {
+				err = nil
+			}
+			break
+		}
+		if err != nil {
+			if done.Swap(true) {
+				onClose(err)
+			}
+			common.Close(source, destination)
+			if !direction {
+				m.logger.ErrorContext(ctx, "connection upload handshake: ", err)
+			} else {
+				m.logger.ErrorContext(ctx, "connection download handshake: ", err)
+			}
+			return
+		}
+	}
+}
+
 func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn, destination net.Conn, direction bool, done *atomic.Bool, onClose N.CloseHandlerFunc) {
 	var (
 		sourceReader      io.Reader = source
@@ -262,21 +293,7 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 		}
 		break
 	}
-	if earlyConn, isEarlyConn := common.Cast[N.EarlyConn](destinationWriter); isEarlyConn && earlyConn.NeedHandshake() {
-		err := m.connectionCopyEarly(source, destination)
-		if err != nil {
-			if done.Swap(true) {
-				onClose(err)
-			}
-			common.Close(source, destination)
-			if !direction {
-				m.logger.ErrorContext(ctx, "connection upload handshake: ", err)
-			} else {
-				m.logger.ErrorContext(ctx, "connection download handshake: ", err)
-			}
-			return
-		}
-	}
+
 	_, err := bufio.CopyWithCounters(destinationWriter, sourceReader, source, readCounters, writeCounters, bufio.DefaultIncreaseBufferAfter, bufio.DefaultBatchSize)
 	if err != nil {
 		common.Close(source, destination)
@@ -311,24 +328,43 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 	}
 }
 
-func (m *ConnectionManager) connectionCopyEarly(source net.Conn, destination io.Writer) error {
+func (m *ConnectionManager) connectionCopyEarlyWrite(source net.Conn, destination io.Writer, readHandshake bool, writeHandshake bool) error {
 	payload := buf.NewPacket()
 	defer payload.Release()
 	err := source.SetReadDeadline(time.Now().Add(C.ReadPayloadTimeout))
 	if err != nil {
 		if err == os.ErrInvalid {
-			return common.Error(destination.Write(nil))
+			if writeHandshake {
+				return common.Error(destination.Write(nil))
+			}
 		}
 		return err
 	}
+	var (
+		isTimeout bool
+		isEOF     bool
+	)
 	_, err = payload.ReadOnceFrom(source)
-	if err != nil && !(E.IsTimeout(err) || errors.Is(err, io.EOF)) {
-		return E.Cause(err, "read payload")
+	if err != nil {
+		if E.IsTimeout(err) {
+			isTimeout = true
+		} else if errors.Is(err, io.EOF) {
+			isEOF = true
+		} else {
+			return E.Cause(err, "read payload")
+		}
 	}
 	_ = source.SetReadDeadline(time.Time{})
-	_, err = destination.Write(payload.Bytes())
-	if err != nil {
-		return E.Cause(err, "write payload")
+	if !payload.IsEmpty() || writeHandshake {
+		_, err = destination.Write(payload.Bytes())
+		if err != nil {
+			return E.Cause(err, "write payload")
+		}
+	}
+	if isTimeout {
+		return context.DeadlineExceeded
+	} else if isEOF {
+		return io.EOF
 	}
 	return nil
 }

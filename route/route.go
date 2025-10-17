@@ -16,6 +16,8 @@ import (
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-mux"
+	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -113,6 +115,9 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			}
 		case *R.RuleActionReject:
 			buf.ReleaseMulti(buffers)
+			if action.Method == C.RuleActionRejectMethodReply {
+				return E.New("reject method `reply` is not supported for TCP connections")
+			}
 			return action.Error(ctx)
 		case *R.RuleActionHijackDNS:
 			for _, buffer := range buffers {
@@ -228,6 +233,9 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			}
 		case *R.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
+			if action.Method == C.RuleActionRejectMethodReply {
+				return E.New("reject method `reply` is not supported for UDP connections")
+			}
 			return action.Error(ctx)
 		case *R.RuleActionHijackDNS:
 			return r.hijackDNSPacket(ctx, conn, packetBuffers, metadata, onClose)
@@ -259,19 +267,100 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return nil
 }
 
-func (r *Router) PreMatch(metadata adapter.InboundContext) error {
+func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
 	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if selectedRule == nil {
-		return nil
+	var directRouteOutbound adapter.DirectRouteOutbound
+	if selectedRule != nil {
+		switch action := selectedRule.Action().(type) {
+		case *R.RuleActionReject:
+			switch metadata.Network {
+			case N.NetworkTCP:
+				if action.Method == C.RuleActionRejectMethodReply {
+					return nil, E.New("reject method `reply` is not supported for TCP connections")
+				}
+			case N.NetworkUDP:
+				if action.Method == C.RuleActionRejectMethodReply {
+					return nil, E.New("reject method `reply` is not supported for UDP connections")
+				}
+			}
+			return nil, action.Error(context.Background())
+		case *R.RuleActionRoute:
+			if routeContext == nil {
+				return nil, nil
+			}
+			outbound, loaded := r.outbound.Outbound(action.Outbound)
+			if !loaded {
+				return nil, E.New("outbound not found: ", action.Outbound)
+			}
+			if !common.Contains(outbound.Network(), metadata.Network) {
+				return nil, E.New(metadata.Network, " is not supported by outbound: ", action.Outbound)
+			}
+			directRouteOutbound = outbound.(adapter.DirectRouteOutbound)
+		}
 	}
-	rejectAction, isReject := selectedRule.Action().(*R.RuleActionReject)
-	if !isReject {
-		return nil
+	if directRouteOutbound == nil {
+		if selectedRule != nil || metadata.Network != N.NetworkICMP {
+			return nil, nil
+		}
+		defaultOutbound := r.outbound.Default()
+		if !common.Contains(defaultOutbound.Network(), metadata.Network) {
+			return nil, E.New(metadata.Network, " is not supported by default outbound: ", defaultOutbound.Tag())
+		}
+		directRouteOutbound = defaultOutbound.(adapter.DirectRouteOutbound)
 	}
-	return rejectAction.Error(context.Background())
+	if metadata.Destination.IsFqdn() {
+		if len(metadata.DestinationAddresses) == 0 {
+			var strategy C.DomainStrategy
+			if metadata.Source.IsIPv4() {
+				strategy = C.DomainStrategyIPv4Only
+			} else {
+				strategy = C.DomainStrategyIPv6Only
+			}
+			err = r.actionResolve(r.ctx, &metadata, &R.RuleActionResolve{
+				Strategy: strategy,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		var newDestination netip.Addr
+		if metadata.Source.IsIPv4() {
+			for _, address := range metadata.DestinationAddresses {
+				if address.Is4() {
+					newDestination = address
+					break
+				}
+			}
+		} else {
+			for _, address := range metadata.DestinationAddresses {
+				if address.Is6() {
+					newDestination = address
+					break
+				}
+			}
+		}
+		if !newDestination.IsValid() {
+			if metadata.Source.IsIPv4() {
+				return nil, E.New("no IPv4 address found for domain: ", metadata.Destination.Fqdn)
+			} else {
+				return nil, E.New("no IPv6 address found for domain: ", metadata.Destination.Fqdn)
+			}
+		}
+		metadata.Destination = M.Socksaddr{
+			Addr: newDestination,
+		}
+		routeContext = ping.NewContextDestinationWriter(routeContext, metadata.OriginDestination.Addr)
+		var routeDestination tun.DirectRouteDestination
+		routeDestination, err = directRouteOutbound.NewDirectRouteConnection(metadata, routeContext, timeout)
+		if err != nil {
+			return nil, err
+		}
+		return ping.NewDestinationWriter(routeDestination, newDestination), nil
+	}
+	return directRouteOutbound.NewDirectRouteConnection(metadata, routeContext, timeout)
 }
 
 func (r *Router) matchRule(
@@ -464,7 +553,7 @@ match:
 					fatalErr = newErr
 					return
 				}
-			} else {
+			} else if metadata.Network != N.NetworkICMP {
 				selectedRule = currentRule
 				selectedRuleIndex = currentRuleIndex
 				break match
@@ -478,8 +567,7 @@ match:
 		actionType := currentRule.Action().Type()
 		if actionType == C.RuleActionTypeRoute ||
 			actionType == C.RuleActionTypeReject ||
-			actionType == C.RuleActionTypeHijackDNS ||
-			(actionType == C.RuleActionTypeSniff && preMatch) {
+			actionType == C.RuleActionTypeHijackDNS {
 			selectedRule = currentRule
 			selectedRuleIndex = currentRuleIndex
 			break match

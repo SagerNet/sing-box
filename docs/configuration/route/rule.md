@@ -2,6 +2,14 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.13.0"
+
+    :material-plus: [interface_address](#interface_address)  
+    :material-plus: [network_interface_address](#network_interface_address)  
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [preferred_by](#preferred_by)  
+    :material-alert: [network](#network)
+
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [action](#action)  
@@ -128,11 +136,28 @@ icon: material/new-box
         ],
         "network_is_expensive": false,
         "network_is_constrained": false,
+        "interface_address": {
+          "en0": [
+            "2000::/3"
+          ]
+        },
+        "network_interface_address": {
+          "wifi": [
+            "2000::/3"
+          ]
+        },
+        "default_interface_address": [
+          "2000::/3"
+        ],
         "wifi_ssid": [
           "My WIFI"
         ],
         "wifi_bssid": [
           "00:00:00:00:00:00"
+        ],
+        "preferred_by": [
+          "tailscale",
+          "wireguard"
         ],
         "rule_set": [
           "geoip-cn",
@@ -202,7 +227,15 @@ Sniffed client type, see [Protocol Sniff](/configuration/route/sniff/) for detai
 
 #### network
 
-`tcp` or `udp`.
+!!! quote "Changes in sing-box 1.13.0"
+
+    Since sing-box 1.13.0, you can match ICMP echo (ping) requests via the new `icmp` network.
+    
+    Such traffic originates from `TUN`, `WireGuard`, and `Tailscale` inbounds and can be routed to `Direct`, `WireGuard`, and `Tailscale` outbounds.
+
+Match network type.
+
+`tcp`, `udp` or `icmp`.
 
 #### domain
 
@@ -363,6 +396,36 @@ such as Cellular or a Personal Hotspot (on Apple platforms).
 
 Match if network is in Low Data Mode.
 
+#### interface_address
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match interface address.
+
+#### network_interface_address
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported in graphical clients on Android and Apple platforms.
+
+Matches network interface (same values as `network_type`) address.
+
+#### default_interface_address
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Match default interface address.
+
 #### wifi_ssid
 
 !!! quote ""
@@ -378,6 +441,17 @@ Match WiFi SSID.
     Only supported in graphical clients on Android and Apple platforms.
 
 Match WiFi BSSID.
+
+#### preferred_by
+
+!!! question "Since sing-box 1.13.0"
+
+Match specified outbounds' preferred routes.
+
+| Type        | Match                                         |
+|-------------|-----------------------------------------------|
+| `tailscale` | Match MagicDNS domains and peers' allowed IPs |
+| `wireguard` | Match peers's allowed IPs                     |
 
 #### rule_set
 

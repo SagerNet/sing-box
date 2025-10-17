@@ -46,7 +46,7 @@ var (
 	sharedFlags []string
 	debugFlags  []string
 	sharedTags  []string
-	darwinTags  []string
+	macOSTags   []string
 	memcTags    []string
 	notMemcTags []string
 	debugTags   []string
@@ -59,11 +59,11 @@ func init() {
 	if err != nil {
 		currentTag = "unknown"
 	}
-	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=")
-	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag)
+	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=  -checklinkname=0")
+	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -checklinkname=0")
 
-	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api", "with_conntrack")
-	darwinTags = append(darwinTags, "with_dhcp")
+	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api", "with_conntrack", "badlinkname", "tfogo_checklinkname0")
+	macOSTags = append(macOSTags, "with_dhcp")
 	memcTags = append(memcTags, "with_tailscale")
 	notMemcTags = append(notMemcTags, "with_low_memory")
 	debugTags = append(debugTags, "debug")
@@ -107,10 +107,8 @@ func buildAndroid() {
 	}
 
 	if !debugEnabled {
-		sharedFlags[3] = sharedFlags[3] + " -checklinkname=0"
 		args = append(args, sharedFlags...)
 	} else {
-		debugFlags[1] = debugFlags[1] + " -checklinkname=0"
 		args = append(args, debugFlags...)
 	}
 
@@ -160,7 +158,9 @@ func buildApple() {
 		"-tags-not-macos=with_low_memory",
 	}
 	if !withTailscale {
-		args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
+		args = append(args, "-tags-macos="+strings.Join(append(macOSTags, memcTags...), ","))
+	} else {
+		args = append(args, "-tags-macos="+strings.Join(macOSTags, ","))
 	}
 
 	if !debugEnabled {
@@ -169,7 +169,7 @@ func buildApple() {
 		args = append(args, debugFlags...)
 	}
 
-	tags := append(sharedTags, darwinTags...)
+	tags := sharedTags
 	if withTailscale {
 		tags = append(tags, memcTags...)
 	}

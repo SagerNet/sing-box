@@ -1,9 +1,12 @@
 package tls
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"net"
 	"os"
 	"strings"
@@ -11,8 +14,10 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tlsfragment"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/ntp"
 )
 
@@ -40,7 +45,7 @@ func (c *STDClientConfig) SetNextProtos(nextProto []string) {
 	c.config.NextProtos = nextProto
 }
 
-func (c *STDClientConfig) Config() (*STDConfig, error) {
+func (c *STDClientConfig) STDConfig() (*STDConfig, error) {
 	return c.config, nil
 }
 
@@ -52,7 +57,13 @@ func (c *STDClientConfig) Client(conn net.Conn) (Conn, error) {
 }
 
 func (c *STDClientConfig) Clone() Config {
-	return &STDClientConfig{c.ctx, c.config.Clone(), c.fragment, c.fragmentFallbackDelay, c.recordFragment}
+	return &STDClientConfig{
+		ctx:                   c.ctx,
+		config:                c.config.Clone(),
+		fragment:              c.fragment,
+		fragmentFallbackDelay: c.fragmentFallbackDelay,
+		recordFragment:        c.recordFragment,
+	}
 }
 
 func (c *STDClientConfig) ECHConfigList() []byte {
@@ -63,7 +74,7 @@ func (c *STDClientConfig) SetECHConfigList(EncryptedClientHelloConfigList []byte
 	c.config.EncryptedClientHelloConfigList = EncryptedClientHelloConfigList
 }
 
-func NewSTDClient(ctx context.Context, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
 	var serverName string
 	if options.ServerName != "" {
 		serverName = options.ServerName
@@ -100,6 +111,15 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 			return err
 		}
 	}
+	if len(options.CertificatePublicKeySHA256) > 0 {
+		if len(options.Certificate) > 0 || options.CertificatePath != "" {
+			return nil, E.New("certificate_public_key_sha256 is conflict with certificate or certificate_path")
+		}
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
+		}
+	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
 	}
@@ -129,6 +149,9 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 			return nil, E.New("unknown cipher_suite: ", cipherSuite)
 		}
 	}
+	for _, curve := range options.CurvePreferences {
+		tlsConfig.CurvePreferences = append(tlsConfig.CurvePreferences, tls.CurveID(curve))
+	}
 	var certificate []byte
 	if len(options.Certificate) > 0 {
 		certificate = []byte(strings.Join(options.Certificate, "\n"))
@@ -146,10 +169,72 @@ func NewSTDClient(ctx context.Context, serverAddress string, options option.Outb
 		}
 		tlsConfig.RootCAs = certPool
 	}
-	stdConfig := &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
-	if options.ECH != nil && options.ECH.Enabled {
-		return parseECHClientConfig(ctx, stdConfig, options)
-	} else {
-		return stdConfig, nil
+	var clientCertificate []byte
+	if len(options.ClientCertificate) > 0 {
+		clientCertificate = []byte(strings.Join(options.ClientCertificate, "\n"))
+	} else if options.ClientCertificatePath != "" {
+		content, err := os.ReadFile(options.ClientCertificatePath)
+		if err != nil {
+			return nil, E.Cause(err, "read client certificate")
+		}
+		clientCertificate = content
 	}
+	var clientKey []byte
+	if len(options.ClientKey) > 0 {
+		clientKey = []byte(strings.Join(options.ClientKey, "\n"))
+	} else if options.ClientKeyPath != "" {
+		content, err := os.ReadFile(options.ClientKeyPath)
+		if err != nil {
+			return nil, E.Cause(err, "read client key")
+		}
+		clientKey = content
+	}
+	if len(clientCertificate) > 0 && len(clientKey) > 0 {
+		keyPair, err := tls.X509KeyPair(clientCertificate, clientKey)
+		if err != nil {
+			return nil, E.Cause(err, "parse client x509 key pair")
+		}
+		tlsConfig.Certificates = []tls.Certificate{keyPair}
+	} else if len(clientCertificate) > 0 || len(clientKey) > 0 {
+		return nil, E.New("client certificate and client key must be provided together")
+	}
+	var config Config = &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	if options.ECH != nil && options.ECH.Enabled {
+		var err error
+		config, err = parseECHClientConfig(ctx, config.(ECHCapableConfig), options)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if options.KernelRx || options.KernelTx {
+		if !C.IsLinux {
+			return nil, E.New("kTLS is only supported on Linux")
+		}
+		config = &KTLSClientConfig{
+			Config:   config,
+			logger:   logger,
+			kernelTx: options.KernelTx,
+			kernelRx: options.KernelRx,
+		}
+	}
+	return config, nil
+}
+
+func verifyPublicKeySHA256(knownHashValues [][]byte, rawCerts [][]byte, timeFunc func() time.Time) error {
+	leafCertificate, err := x509.ParseCertificate(rawCerts[0])
+	if err != nil {
+		return E.Cause(err, "failed to parse leaf certificate")
+	}
+
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(leafCertificate.PublicKey)
+	if err != nil {
+		return E.Cause(err, "failed to marshal public key")
+	}
+	hashValue := sha256.Sum256(pubKeyBytes)
+	for _, value := range knownHashValues {
+		if bytes.Equal(value, hashValue[:]) {
+			return nil
+		}
+	}
+	return E.New("unrecognized remote public key: ", base64.StdEncoding.EncodeToString(hashValue[:]))
 }

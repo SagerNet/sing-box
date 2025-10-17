@@ -51,11 +51,11 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, options.Server, tlsOptions)
+	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
-	stdConfig, err := tlsConfig.Config()
+	stdConfig, err := tlsConfig.STDConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		destination:      &destinationURL,
 		headers:          headers,
 		transport: &http3.Transport{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (quic.EarlyConnection, error) {
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
 				conn, dialErr := transportDialer.DialContext(ctx, N.NetworkUDP, serverAddr)
 				if dialErr != nil {
 					return nil, dialErr

@@ -2,6 +2,14 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [interface_address](#interface_address)  
+    :material-plus: [network_interface_address](#network_interface_address)  
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [preferred_by](#preferred_by)  
+    :material-alert: [network](#network)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [action](#action)  
@@ -125,11 +133,28 @@ icon: material/new-box
         ],
         "network_is_expensive": false,
         "network_is_constrained": false,
+        "interface_address": {
+          "en0": [
+            "2000::/3"
+          ]
+        },
+        "network_interface_address": {
+          "wifi": [
+            "2000::/3"
+          ]
+        },
+        "default_interface_address": [
+          "2000::/3"
+        ],
         "wifi_ssid": [
           "My WIFI"
         ],
         "wifi_bssid": [
           "00:00:00:00:00:00"
+        ],
+        "preferred_by": [
+          "tailscale",
+          "wireguard"
         ],
         "rule_set": [
           "geoip-cn",
@@ -199,7 +224,15 @@ icon: material/new-box
 
 #### network
 
-`tcp` 或 `udp`。
+!!! quote "sing-box 1.13.0 中的更改"
+
+    自 sing-box 1.13.0 起，您可以通过新的 `icmp` 网络匹配 ICMP 回显（ping）请求。
+
+    此类流量源自 `TUN`、`WireGuard` 和 `Tailscale` 入站，并可路由至 `Direct`、`WireGuard` 和 `Tailscale` 出站。
+
+匹配网络类型。
+
+`tcp`、`udp` 或 `icmp`。
 
 #### domain
 
@@ -337,7 +370,7 @@ icon: material/new-box
 
 匹配网络类型。
 
-Available values: `wifi`, `cellular`, `ethernet` and `other`.
+可用值: `wifi`, `cellular`, `ethernet` and `other`.
 
 #### network_is_expensive
 
@@ -360,6 +393,36 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 匹配如果网络在低数据模式下。
 
+#### interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配接口地址。
+
+#### network_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配网络接口（可用值同 `network_type`）地址。
+
+#### default_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配默认接口地址。
+
 #### wifi_ssid
 
 !!! quote ""
@@ -375,6 +438,17 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
     仅在 Android 与 Apple 平台图形客户端中支持。
 
 匹配 WiFi BSSID。
+
+#### preferred_by
+
+!!! question "自 sing-box 1.13.0 起"
+
+匹配制定出站的首选路由。
+
+| 类型          | 匹配                             |
+|-------------|--------------------------------|
+| `tailscale` | 匹配 MagicDNS 域名和对端的 allowed IPs |
+| `wireguard` | 匹配对端的 allowed IPs              |
 
 #### rule_set
 
