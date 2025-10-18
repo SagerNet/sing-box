@@ -268,25 +268,46 @@ func decideHTTPVersion(gotlsConfig *gotls.Config, tlsConfig tls.Config) string {
 	if gotlsConfig == nil {
 		// For uTLS or no TLS, check tlsConfig.NextProtos()
 		if tlsConfig == nil {
+			// No TLS: use HTTP/1.1
 			return "1.1"
 		}
 		nextProtos := tlsConfig.NextProtos()
-		if len(nextProtos) == 0 || nextProtos[0] == "http/1.1" {
-			return "1.1"
-		}
-		// For uTLS: respect its ALPN, but HTTP/3 requires gotlsConfig, fallback to HTTP/2
-		if nextProtos[0] == "h3" {
-			// uTLS with h3 ALPN: cannot use HTTP/3 (needs gotlsConfig), fallback to HTTP/2
+		if len(nextProtos) == 0 {
+			// uTLS with no ALPN configured: default to HTTP/2 for xhttp
 			return "2"
 		}
-		// h2 or other protocols
+		// For xhttp: prefer HTTP/2 over HTTP/1.1 if available in ALPN list
+		for _, proto := range nextProtos {
+			if proto == "h2" {
+				return "2"
+			}
+			// h3 cannot be used with uTLS (needs gotlsConfig), skip it
+		}
+		// If only http/1.1 is available, use it (though xhttp may not work well)
+		if nextProtos[0] == "http/1.1" {
+			return "1.1"
+		}
+		// Default to HTTP/2
 		return "2"
 	}
-	if len(gotlsConfig.NextProtos) == 0 || gotlsConfig.NextProtos[0] == "http/1.1" {
-		return "1.1"
+	if len(gotlsConfig.NextProtos) == 0 {
+		// Standard TLS with no ALPN: default to HTTP/2 for xhttp
+		return "2"
 	}
-	if gotlsConfig.NextProtos[0] == "h3" {
-		return "3"
+	// For standard TLS: prefer h3 > h2 > http/1.1
+	for _, proto := range gotlsConfig.NextProtos {
+		if proto == "h3" {
+			return "3"
+		}
+	}
+	for _, proto := range gotlsConfig.NextProtos {
+		if proto == "h2" {
+			return "2"
+		}
+	}
+	// Fallback to http/1.1 if specified, otherwise default to HTTP/2
+	if gotlsConfig.NextProtos[0] == "http/1.1" {
+		return "1.1"
 	}
 	return "2"
 }
