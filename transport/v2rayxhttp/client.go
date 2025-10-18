@@ -52,7 +52,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		var err error
 		gotlsConfig, err = tlsConfig.Config()
 		if err != nil {
-			return nil, err
+			// uTLS doesn't support Config(), use HTTP/2 only
+			gotlsConfig = nil
 		}
 	}
 	baseRequestURL, err := getBaseRequestURL(
@@ -99,7 +100,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			}
 			gotlsConfig2, err = tlsConfig2.Config()
 			if err != nil {
-				return nil, err
+				// uTLS doesn't support Config(), use HTTP/2 only
+				gotlsConfig2 = nil
 			}
 		}
 		baseRequestURL2, err := getBaseRequestURL(&options2.V2RayXHTTPBaseOptions, dest2, tlsConfig2)
@@ -262,8 +264,25 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func decideHTTPVersion(gotlsConfig *gotls.Config) string {
-	if gotlsConfig == nil || len(gotlsConfig.NextProtos) == 0 || gotlsConfig.NextProtos[0] == "http/1.1" {
+func decideHTTPVersion(gotlsConfig *gotls.Config, tlsConfig tls.Config) string {
+	if gotlsConfig == nil {
+		// For uTLS or no TLS, check tlsConfig.NextProtos()
+		if tlsConfig == nil {
+			return "1.1"
+		}
+		nextProtos := tlsConfig.NextProtos()
+		if len(nextProtos) == 0 || nextProtos[0] == "http/1.1" {
+			return "1.1"
+		}
+		// For uTLS: respect its ALPN, but HTTP/3 requires gotlsConfig, fallback to HTTP/2
+		if nextProtos[0] == "h3" {
+			// uTLS with h3 ALPN: cannot use HTTP/3 (needs gotlsConfig), fallback to HTTP/2
+			return "2"
+		}
+		// h2 or other protocols
+		return "2"
+	}
+	if len(gotlsConfig.NextProtos) == 0 || gotlsConfig.NextProtos[0] == "http/1.1" {
 		return "1.1"
 	}
 	if gotlsConfig.NextProtos[0] == "h3" {
@@ -299,7 +318,7 @@ func getBaseRequestURL(options *option.V2RayXHTTPBaseOptions, dest M.Socksaddr, 
 }
 
 func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXHTTPBaseOptions, tlsConfig tls.Config, gotlsConfig *gotls.Config) DialerClient {
-	httpVersion := decideHTTPVersion(gotlsConfig)
+	httpVersion := decideHTTPVersion(gotlsConfig, tlsConfig)
 	dialContext := func(ctxInner context.Context) (net.Conn, error) {
 		conn, err := dialer.DialContext(ctxInner, "tcp", dest)
 		if err != nil {
