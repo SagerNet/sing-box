@@ -276,12 +276,17 @@ func decideHTTPVersion(gotlsConfig *gotls.Config, tlsConfig tls.Config) string {
 			// uTLS with no ALPN configured: default to HTTP/2 for xhttp
 			return "2"
 		}
-		// For xhttp: prefer HTTP/2 over HTTP/1.1 if available in ALPN list
+		// For xhttp: prefer h3 > h2 > http/1.1 to match server ALPN
+		// If h3 is in ALPN list, return "3" (will fail later if gotlsConfig is needed)
+		for _, proto := range nextProtos {
+			if proto == "h3" {
+				return "3"
+			}
+		}
 		for _, proto := range nextProtos {
 			if proto == "h2" {
 				return "2"
 			}
-			// h3 cannot be used with uTLS (needs gotlsConfig), skip it
 		}
 		// If only http/1.1 is available, use it (though xhttp may not work well)
 		if nextProtos[0] == "http/1.1" {
@@ -363,6 +368,22 @@ func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXH
 		if keepAlivePeriod < 0 {
 			keepAlivePeriod = 0
 		}
+		// If gotlsConfig is nil (uTLS case), construct a basic gotls.Config
+		// This allows HTTP/3 to work even when uTLS is configured
+		var h3TLSConfig *gotls.Config
+		if gotlsConfig != nil {
+			h3TLSConfig = gotlsConfig.Clone()
+		} else if tlsConfig != nil {
+			// Build basic gotls.Config from tlsConfig for HTTP/3
+			h3TLSConfig = &gotls.Config{
+				ServerName:         tlsConfig.ServerName(),
+				InsecureSkipVerify: false,
+				NextProtos:         tlsConfig.NextProtos(),
+			}
+		} else {
+			// No TLS config at all, cannot use HTTP/3
+			h3TLSConfig = &gotls.Config{}
+		}
 		quicConfig := &quic.Config{
 			MaxIdleTimeout: net.ConnIdleTimeout,
 			// these two are defaults of quic-go/http3. the default of quic-go (no
@@ -373,7 +394,7 @@ func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXH
 		}
 		transport = &http3.Transport{
 			QUICConfig:      quicConfig,
-			TLSClientConfig: gotlsConfig.Clone(),
+			TLSClientConfig: h3TLSConfig,
 			Dial: func(ctx context.Context, addr string, tlsCfg *gotls.Config, cfg *quic.Config) (*quic.Conn, error) {
 				udpConn, dErr := dialer.DialContext(ctx, N.NetworkUDP, dest)
 				if dErr != nil {
