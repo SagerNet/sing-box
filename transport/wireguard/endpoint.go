@@ -323,7 +323,9 @@ func (e *Endpoint) checkUpdateDNS() {
 	if time.Since(e.lastDNSCheck) < C.DNSTimeout {
 		return
 	}
-	e.lastDNSCheck = time.Now()
+	defer func() {
+		e.lastDNSCheck = time.Now()
+	}()
 	changed := false
 	for i, peer := range e.peers {
 		if !peer.destination.IsFqdn() {
