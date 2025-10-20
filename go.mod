@@ -13,6 +13,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.1-0.20230522191255-76236955d466
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/insomniacslk/dhcp v0.0.0-20250417080101-5f8cf70e8c5f
+	github.com/keybase/go-keychain v0.0.1
 	github.com/libdns/alidns v1.0.5-libdns.v1.beta1
 	github.com/libdns/cloudflare v0.2.2-0.20250708034226-c574dccb31a6
 	github.com/logrusorgru/aurora v2.0.3+incompatible
