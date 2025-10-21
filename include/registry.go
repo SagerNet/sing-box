@@ -134,6 +134,7 @@ func ServiceRegistry() *service.Registry {
 	ssmapi.RegisterService(registry)
 
 	registerDERPService(registry)
+	registerCCMService(registry)
 
 	return registry
 }

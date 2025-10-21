@@ -2,13 +2,15 @@
 
 set -e -o pipefail
 
-DIR=$(dirname "$0")
-PROJECT=$DIR/../..
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
-pushd $PROJECT
+echo "Updating sing-box from git repository..."
+cd "$PROJECT_DIR"
 git fetch
 git reset FETCH_HEAD --hard
 git clean -fdx
-popd
 
-$DIR/reinstall.sh
+echo ""
+echo "Running reinstall..."
+exec "$SCRIPT_DIR/reinstall.sh"

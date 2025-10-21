@@ -93,10 +93,6 @@ jobs:
           - { os: windows, arch: "386", legacy_win7: true, legacy_name: "windows-7" }
           - { os: windows, arch: arm64 }
 
-          - { os: darwin, arch: amd64 }
-          - { os: darwin, arch: arm64 }
-          - { os: darwin, arch: amd64, legacy_go124: true, legacy_name: "macos-11" }
-
           - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
           - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
           - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
@@ -146,7 +142,7 @@ jobs:
       - name: Set build tags
         run: |
           set -xeuo pipefail
-          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,badlinkname,tfogo_checklinkname0'
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
       - name: Build
         if: matrix.os != 'android'
@@ -284,6 +280,77 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
+          path: "dist"
+  build_darwin:
+    name: Build Darwin binaries
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
+    runs-on: macos-latest
+    needs:
+      - calculate_version
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64 }
+          - { arch: arm64 }
+          - { arch: amd64, legacy_go124: true, legacy_name: "macos-11" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        if: ${{ ! matrix.legacy_go124 }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.25.3
+      - name: Setup Go 1.24
+        if: matrix.legacy_go124
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.24.6
+      - name: Set tag
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Set build tags
+        run: |
+          set -xeuo pipefail
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
+          echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
+      - name: Build
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "1"
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set name
+        run: |-
+          DIR_NAME="sing-box-${{ needs.calculate_version.outputs.version }}-darwin-${{ matrix.arch }}"
+          if [[ -n "${{ matrix.legacy_name }}" ]]; then
+            DIR_NAME="${DIR_NAME}-legacy-${{ matrix.legacy_name }}"
+          fi
+          echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
+      - name: Archive
+        run: |
+          set -xeuo pipefail
+          cd dist
+          mkdir -p "${DIR_NAME}"
+          cp ../LICENSE "${DIR_NAME}"
+          cp sing-box "${DIR_NAME}"
+          tar -czvf "${DIR_NAME}.tar.gz" "${DIR_NAME}"
+          rm -r "${DIR_NAME}"
+      - name: Cleanup
+        run: rm dist/sing-box
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-darwin_${{ matrix.arch }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
   build_android:
     name: Build Android
@@ -619,6 +686,7 @@ jobs:
     needs:
       - calculate_version
       - build
+      - build_darwin
       - build_android
       - build_apple
     steps:

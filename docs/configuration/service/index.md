@@ -23,6 +23,7 @@ icon: material/new-box
 
 | Type       | Format                 |
 |------------|------------------------|
+| `ccm`      | [CCM](./ccm)           |
 | `derp`     | [DERP](./derp)         |
 | `resolved` | [Resolved](./resolved) |
 | `ssm-api`  | [SSM API](./ssm-api)   |
