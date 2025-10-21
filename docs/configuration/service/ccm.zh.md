@@ -37,7 +37,9 @@ CCM（Claude Code 多路复用器）服务是一个多路复用服务，允许�
 
 Claude Code OAuth 凭据文件的路径。
 
-如果未指定，默认使用 `~/.claude/.credentials.json`。
+如果未指定，默认值为：
+- 如果设置了 `CLAUDE_CONFIG_DIR` 环境变量，则使用 `$CLAUDE_CONFIG_DIR/.credentials.json`
+- 否则使用 `~/.claude/.credentials.json`
 
 在 macOS 上，首先从系统钥匙串读取凭据，如果不可用则回退到文件。
 
