@@ -37,7 +37,9 @@ See [Listen Fields](/configuration/shared/listen/) for details.
 
 Path to the Claude Code OAuth credentials file.
 
-Defaults to `~/.claude/.credentials.json` if not specified.
+If not specified, defaults to:
+- `$CLAUDE_CONFIG_DIR/.credentials.json` if `CLAUDE_CONFIG_DIR` environment variable is set
+- `~/.claude/.credentials.json` otherwise
 
 On macOS, credentials are read from the system keychain first, then fall back to the file if unavailable.
 
