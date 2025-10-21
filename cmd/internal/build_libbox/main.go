@@ -1,6 +1,5 @@
 package main
 
-import (
 	"flag"
 	"os"
 	"os/exec"
@@ -14,6 +13,18 @@ import (
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/common/shell"
 )
+
+func validateCommandArg(arg string) error {
+	// Check for shell metacharacters and dangerous patterns
+	dangerous := []string{";", "|", "&", "$", "`", "\n", "\r", "(", ")", "<", ">"}
+	for _, char := range dangerous {
+		if strings.Contains(arg, char) {
+			return fmt.Errorf("argument contains dangerous character: %s", char)
+		}
+	}
+	return nil
+}
+
 
 var (
 	debugEnabled  bool
@@ -169,6 +180,12 @@ func buildApple() {
 		args = append(args, debugFlags...)
 	}
 
+	// Validate command arguments to prevent injection
+	for _, arg := range args {
+		if err := validateCommandArg(arg); err != nil {
+			return err
+		}
+	}
 	tags := sharedTags
 	if withTailscale {
 		tags = append(tags, memcTags...)
@@ -180,6 +197,10 @@ func buildApple() {
 	args = append(args, "-tags", strings.Join(tags, ","))
 	args = append(args, "./experimental/libbox")
 
+	// Sanitize and validate command arguments
+	for i, arg := range args {
+		args[i] = filepath.Clean(arg)
+	}
 	command := exec.Command(build_shared.GoBinPath+"/gomobile", args...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
