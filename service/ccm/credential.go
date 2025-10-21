@@ -32,6 +32,9 @@ func getRealUser() (*user.User, error) {
 }
 
 func getDefaultCredentialsPath() (string, error) {
+	if configDir := os.Getenv("CLAUDE_CONFIG_DIR"); configDir != "" {
+		return filepath.Join(configDir, ".credentials.json"), nil
+	}
 	userInfo, err := getRealUser()
 	if err != nil {
 		return "", err
