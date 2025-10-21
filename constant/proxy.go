@@ -28,6 +28,7 @@ const (
 	TypeDERP         = "derp"
 	TypeResolved     = "resolved"
 	TypeSSMAPI       = "ssm-api"
+	TypeCCM          = "ccm"
 )
 
 const (
