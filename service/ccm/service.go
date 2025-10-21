@@ -1,6 +1,7 @@
 package ccm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/http2"
 )
@@ -82,6 +84,7 @@ type Service struct {
 	httpServer     *http.Server
 	userManager    *UserManager
 	access         sync.RWMutex
+	usageTracker   *AggregatedUsage
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.CCMServiceOptions) (adapter.Service, error) {
@@ -107,6 +110,11 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 
 	userManager := NewUserManager()
 
+	var usageTracker *AggregatedUsage
+	if options.UsagesPath != "" {
+		usageTracker = NewAggregatedUsage(options.UsagesPath)
+	}
+
 	service := &Service{
 		Adapter:        boxService.NewAdapter(C.TypeCCM, tag),
 		ctx:            ctx,
@@ -121,7 +129,8 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		userManager: userManager,
+		userManager:  userManager,
+		usageTracker: usageTracker,
 	}
 
 	if options.TLS != nil {
@@ -147,6 +156,15 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		return E.Cause(err, "read credentials")
 	}
 	s.credentials = credentials
+
+	if s.usageTracker != nil {
+		err = s.usageTracker.Load()
+		if err != nil {
+			s.logger.Warn("load usage statistics: ", err)
+		} else {
+			s.logger.Info("usage statistics loaded")
+		}
+	}
 
 	router := chi.NewRouter()
 	router.Mount("/", s)
@@ -230,6 +248,47 @@ func (s *Service) authenticateRequest(r *http.Request) bool {
 	return ok
 }
 
+func (s *Service) getUsernameFromRequest(r *http.Request) string {
+	if len(s.users) == 0 {
+		return ""
+	}
+	clientToken := r.Header.Get("x-api-key")
+	if clientToken == "" {
+		return ""
+	}
+	username, ok := s.userManager.Authenticate(clientToken)
+	if !ok {
+		return ""
+	}
+	return username
+}
+
+func countMessagesInRequest(body []byte) (model string, messagesCount int) {
+	var req struct {
+		Model    string                   `json:"model"`
+		Messages []anthropic.MessageParam `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return "", 0
+	}
+	return req.Model, len(req.Messages)
+}
+
+func extractUsageFromResponse(body []byte) (model string, usage anthropic.Usage) {
+	var message anthropic.Message
+	if err := json.Unmarshal(body, &message); err != nil {
+		return "", anthropic.Usage{}
+	}
+	return string(message.Model), message.Usage
+}
+
+func detectContextWindow(betaHeader string, inputTokens int64) int {
+	if strings.Contains(betaHeader, "context-1m") && inputTokens > 200000 {
+		return 1000000
+	}
+	return 200000
+}
+
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, "/v1/") {
 		writeJSONError(w, r, http.StatusNotFound, "not_found_error", "Not found")
@@ -240,6 +299,19 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.logger.Warn("authentication failed for request from ", r.RemoteAddr)
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid x-api-key")
 		return
+	}
+
+	var requestModel string
+	var messagesCount int
+	var username string
+
+	if s.usageTracker != nil && r.Body != nil {
+		username = s.getUsernameFromRequest(r)
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err == nil {
+			requestModel, messagesCount = countMessagesInRequest(bodyBytes)
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
 	}
 
 	accessToken, err := s.getAccessToken()
@@ -263,7 +335,8 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if betaHeader := proxyRequest.Header.Get("anthropic-beta"); betaHeader != "" {
+	betaHeader := proxyRequest.Header.Get("anthropic-beta")
+	if betaHeader != "" {
 		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue+","+betaHeader)
 	} else {
 		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue)
@@ -290,7 +363,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(response.StatusCode)
-	s.handleResponse(w, response)
+
+	if s.usageTracker != nil && response.StatusCode == http.StatusOK {
+		s.handleResponseWithTracking(w, response, requestModel, betaHeader, messagesCount, username)
+	} else {
+		s.handleResponse(w, response)
+	}
 }
 
 func (s *Service) handleResponse(writer http.ResponseWriter, response *http.Response) {
@@ -320,7 +398,140 @@ func (s *Service) handleResponse(writer http.ResponseWriter, response *http.Resp
 	}
 }
 
+func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, requestModel string, betaHeader string, messagesCount int, username string) {
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	isStreaming := err == nil && mediaType == "text/event-stream"
+
+	if !isStreaming {
+		bodyBytes, err := io.ReadAll(response.Body)
+		if err != nil {
+			s.logger.Error("read response body: ", err)
+			return
+		}
+
+		responseModel, usage := extractUsageFromResponse(bodyBytes)
+		if responseModel == "" {
+			responseModel = requestModel
+		}
+
+		if usage.InputTokens > 0 || usage.OutputTokens > 0 {
+			contextWindow := detectContextWindow(betaHeader, usage.InputTokens)
+			s.usageTracker.AddUsage(
+				responseModel,
+				contextWindow,
+				messagesCount,
+				usage.InputTokens,
+				usage.OutputTokens,
+				usage.CacheReadInputTokens,
+				usage.CacheCreationInputTokens,
+				username,
+			)
+		}
+
+		_, _ = writer.Write(bodyBytes)
+		return
+	}
+
+	flusher, ok := writer.(http.Flusher)
+	if !ok {
+		s.logger.Error("streaming not supported")
+		return
+	}
+
+	var accumulatedUsage anthropic.Usage
+	var responseModel string
+	buffer := make([]byte, buf.BufferSize)
+	var leftover []byte
+
+	for {
+		n, err := response.Body.Read(buffer)
+		if n > 0 {
+			data := append(leftover, buffer[:n]...)
+			lines := bytes.Split(data, []byte("\n"))
+
+			if err == nil {
+				leftover = lines[len(lines)-1]
+				lines = lines[:len(lines)-1]
+			} else {
+				leftover = nil
+			}
+
+			for _, line := range lines {
+				line = bytes.TrimSpace(line)
+				if len(line) == 0 {
+					continue
+				}
+
+				if bytes.HasPrefix(line, []byte("data: ")) {
+					eventData := bytes.TrimPrefix(line, []byte("data: "))
+					if bytes.Equal(eventData, []byte("[DONE]")) {
+						continue
+					}
+
+					var event anthropic.MessageStreamEventUnion
+					if err := json.Unmarshal(eventData, &event); err == nil {
+						switch event.Type {
+						case "message_start":
+							messageStart := event.AsMessageStart()
+							if messageStart.Message.Model != "" {
+								responseModel = string(messageStart.Message.Model)
+							}
+							if messageStart.Message.Usage.InputTokens > 0 {
+								accumulatedUsage.InputTokens = messageStart.Message.Usage.InputTokens
+								accumulatedUsage.CacheReadInputTokens = messageStart.Message.Usage.CacheReadInputTokens
+								accumulatedUsage.CacheCreationInputTokens = messageStart.Message.Usage.CacheCreationInputTokens
+							}
+						case "message_delta":
+							messageDelta := event.AsMessageDelta()
+							if messageDelta.Usage.OutputTokens > 0 {
+								accumulatedUsage.OutputTokens = messageDelta.Usage.OutputTokens
+							}
+						}
+					}
+				}
+			}
+
+			_, writeError := writer.Write(buffer[:n])
+			if writeError != nil {
+				s.logger.Error("write streaming response: ", writeError)
+				return
+			}
+			flusher.Flush()
+		}
+
+		if err != nil {
+			if responseModel == "" {
+				responseModel = requestModel
+			}
+
+			if accumulatedUsage.InputTokens > 0 || accumulatedUsage.OutputTokens > 0 {
+				contextWindow := detectContextWindow(betaHeader, accumulatedUsage.InputTokens)
+				s.usageTracker.AddUsage(
+					responseModel,
+					contextWindow,
+					messagesCount,
+					accumulatedUsage.InputTokens,
+					accumulatedUsage.OutputTokens,
+					accumulatedUsage.CacheReadInputTokens,
+					accumulatedUsage.CacheCreationInputTokens,
+					username,
+				)
+			}
+			return
+		}
+	}
+}
+
 func (s *Service) Close() error {
+	if s.usageTracker != nil {
+		err := s.usageTracker.Save()
+		if err != nil {
+			s.logger.Error("save usage statistics: ", err)
+		} else {
+			s.logger.Info("usage statistics saved")
+		}
+	}
+
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
 		common.PtrOrNil(s.listener),

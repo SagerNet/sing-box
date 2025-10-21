@@ -11,6 +11,7 @@ type CCMServiceOptions struct {
 	Users          []CCMUser            `json:"users,omitempty"`
 	Headers        badoption.HTTPHeader `json:"headers,omitempty"`
 	Detour         string               `json:"detour,omitempty"`
+	UsagesPath     string               `json:"usages_path,omitempty"`
 }
 
 type CCMUser struct {
