@@ -351,6 +351,11 @@ func (s *StartedService) GetDefaultLogLevel(ctx context.Context, empty *emptypb.
 	return &DefaultLogLevel{Level: LogLevel(logLevel)}, nil
 }
 
+func (s *StartedService) ClearLogs(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	s.resetLogs()
+	return &emptypb.Empty{}, nil
+}
+
 func (s *StartedService) SubscribeStatus(request *SubscribeStatusRequest, server grpc.ServerStreamingServer[Status]) error {
 	interval := time.Duration(request.Interval)
 	if interval <= 0 {
