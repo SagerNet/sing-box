@@ -13,6 +13,7 @@ service StartedService {
   rpc SubscribeServiceStatus(google.protobuf.Empty) returns(stream ServiceStatus) {}
   rpc SubscribeLog(google.protobuf.Empty) returns(stream Log) {}
   rpc GetDefaultLogLevel(google.protobuf.Empty) returns(DefaultLogLevel) {}
+  rpc ClearLogs(google.protobuf.Empty) returns(google.protobuf.Empty) {}
   rpc SubscribeStatus(SubscribeStatusRequest) returns(stream Status) {}
   rpc SubscribeGroups(google.protobuf.Empty) returns(stream Groups) {}
 
