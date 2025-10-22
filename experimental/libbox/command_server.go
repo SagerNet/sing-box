@@ -192,7 +192,7 @@ func (s *CommandServer) NeedWIFIState() bool {
 	if instance == nil || instance.Box() == nil {
 		return false
 	}
-	return instance.Box().Router().NeedWIFIState()
+	return instance.Box().Network().NeedWIFIState()
 }
 
 func (s *CommandServer) Pause() {

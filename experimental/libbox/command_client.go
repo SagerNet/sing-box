@@ -410,6 +410,16 @@ func (c *CommandClient) ServiceClose() error {
 	return err
 }
 
+func (c *CommandClient) ClearLogs() error {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.ClearLogs(context.Background(), &emptypb.Empty{})
+	return err
+}
+
 func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
 	client, err := c.getClientForCall()
 	if err != nil {
