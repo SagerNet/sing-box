@@ -20,6 +20,7 @@ const (
 	StartedService_SubscribeServiceStatus_FullMethodName = "/daemon.StartedService/SubscribeServiceStatus"
 	StartedService_SubscribeLog_FullMethodName           = "/daemon.StartedService/SubscribeLog"
 	StartedService_GetDefaultLogLevel_FullMethodName     = "/daemon.StartedService/GetDefaultLogLevel"
+	StartedService_ClearLogs_FullMethodName              = "/daemon.StartedService/ClearLogs"
 	StartedService_SubscribeStatus_FullMethodName        = "/daemon.StartedService/SubscribeStatus"
 	StartedService_SubscribeGroups_FullMethodName        = "/daemon.StartedService/SubscribeGroups"
 	StartedService_GetClashModeStatus_FullMethodName     = "/daemon.StartedService/GetClashModeStatus"
@@ -47,6 +48,7 @@ type StartedServiceClient interface {
 	SubscribeServiceStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceStatus], error)
 	SubscribeLog(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Log], error)
 	GetDefaultLogLevel(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*DefaultLogLevel, error)
+	ClearLogs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SubscribeStatus(ctx context.Context, in *SubscribeStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Status], error)
 	SubscribeGroups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Groups], error)
 	GetClashModeStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClashModeStatus, error)
@@ -135,6 +137,16 @@ func (c *startedServiceClient) GetDefaultLogLevel(ctx context.Context, in *empty
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DefaultLogLevel)
 	err := c.cc.Invoke(ctx, StartedService_GetDefaultLogLevel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *startedServiceClient) ClearLogs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, StartedService_ClearLogs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -355,6 +367,7 @@ type StartedServiceServer interface {
 	SubscribeServiceStatus(*emptypb.Empty, grpc.ServerStreamingServer[ServiceStatus]) error
 	SubscribeLog(*emptypb.Empty, grpc.ServerStreamingServer[Log]) error
 	GetDefaultLogLevel(context.Context, *emptypb.Empty) (*DefaultLogLevel, error)
+	ClearLogs(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	SubscribeStatus(*SubscribeStatusRequest, grpc.ServerStreamingServer[Status]) error
 	SubscribeGroups(*emptypb.Empty, grpc.ServerStreamingServer[Groups]) error
 	GetClashModeStatus(context.Context, *emptypb.Empty) (*ClashModeStatus, error)
@@ -399,6 +412,10 @@ func (UnimplementedStartedServiceServer) SubscribeLog(*emptypb.Empty, grpc.Serve
 
 func (UnimplementedStartedServiceServer) GetDefaultLogLevel(context.Context, *emptypb.Empty) (*DefaultLogLevel, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultLogLevel not implemented")
+}
+
+func (UnimplementedStartedServiceServer) ClearLogs(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearLogs not implemented")
 }
 
 func (UnimplementedStartedServiceServer) SubscribeStatus(*SubscribeStatusRequest, grpc.ServerStreamingServer[Status]) error {
@@ -557,6 +574,24 @@ func _StartedService_GetDefaultLogLevel_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StartedServiceServer).GetDefaultLogLevel(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StartedService_ClearLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).ClearLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_ClearLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).ClearLogs(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -832,6 +867,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDefaultLogLevel",
 			Handler:    _StartedService_GetDefaultLogLevel_Handler,
+		},
+		{
+			MethodName: "ClearLogs",
+			Handler:    _StartedService_ClearLogs_Handler,
 		},
 		{
 			MethodName: "GetClashModeStatus",
