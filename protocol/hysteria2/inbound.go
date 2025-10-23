@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -36,6 +37,7 @@ type Inbound struct {
 	tlsConfig    tls.ServerConfig
 	service      *hysteria2.Service[int]
 	userNameList []string
+	userMutex    sync.RWMutex
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.Hysteria2InboundOptions) (adapter.Inbound, error) {
@@ -157,7 +159,13 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	h.userMutex.RLock()
+	var userName string
+	if userID < len(h.userNameList) {
+		userName = h.userNameList[userID]
+	}
+	h.userMutex.RUnlock()
+	if userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
 	} else {
@@ -180,7 +188,13 @@ func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	h.userMutex.RLock()
+	var userName string
+	if userID < len(h.userNameList) {
+		userName = h.userNameList[userID]
+	}
+	h.userMutex.RUnlock()
+	if userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound packet connection to ", metadata.Destination)
 	} else {
@@ -212,4 +226,35 @@ func (h *Inbound) Close() error {
 		h.tlsConfig,
 		common.PtrOrNil(h.service),
 	)
+}
+
+// Reload implements adapter.ReloadableInbound
+func (h *Inbound) Reload(options any) error {
+	h2Options, ok := options.(option.Hysteria2InboundOptions)
+	if !ok {
+		return E.New("invalid options type for Hysteria2 inbound reload")
+	}
+
+	h.logger.Info("performing hot reload of Hysteria2 users")
+
+	// Build new user lists
+	userList := make([]int, 0, len(h2Options.Users))
+	userNameList := make([]string, 0, len(h2Options.Users))
+	userPasswordList := make([]string, 0, len(h2Options.Users))
+	for index, user := range h2Options.Users {
+		userList = append(userList, index)
+		userNameList = append(userNameList, user.Name)
+		userPasswordList = append(userPasswordList, user.Password)
+	}
+
+	// Update users in service (thread-safe operation)
+	h.service.UpdateUsers(userList, userPasswordList)
+
+	// Update our internal user name list with mutex
+	h.userMutex.Lock()
+	h.userNameList = userNameList
+	h.userMutex.Unlock()
+
+	h.logger.Info("Hysteria2 user reload completed successfully, ", len(userList), " users configured")
+	return nil
 }

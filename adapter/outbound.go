@@ -7,7 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -44,4 +44,5 @@ type OutboundManager interface {
 	Default() Outbound
 	Remove(tag string) error
 	Create(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) error
+	Reload(tag string, options any) error
 }

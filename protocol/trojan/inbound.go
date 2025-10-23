@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -40,6 +41,7 @@ type Inbound struct {
 	fallbackAddr             M.Socksaddr
 	fallbackAddrTLSNextProto map[string]M.Socksaddr
 	transport                adapter.V2RayServerTransport
+	userMutex                sync.RWMutex
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanInboundOptions) (adapter.Inbound, error) {
@@ -189,7 +191,12 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -207,7 +214,12 @@ func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, me
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -260,4 +272,36 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+// Reload implements adapter.ReloadableInbound
+func (h *Inbound) Reload(options any) error {
+	trojanOptions, ok := options.(option.TrojanInboundOptions)
+	if !ok {
+		return E.New("invalid options type for Trojan inbound reload")
+	}
+
+	h.logger.Info("performing hot reload of Trojan users")
+
+	// Build user data
+	userIndices := common.MapIndexed(trojanOptions.Users, func(index int, _ option.TrojanUser) int {
+		return index
+	})
+	userPasswords := common.Map(trojanOptions.Users, func(it option.TrojanUser) string {
+		return it.Password
+	})
+
+	// Update users in service (thread-safe operation)
+	err := h.service.UpdateUsers(userIndices, userPasswords)
+	if err != nil {
+		return E.Cause(err, "update Trojan users")
+	}
+
+	// Update our internal user list with mutex
+	h.userMutex.Lock()
+	h.users = trojanOptions.Users
+	h.userMutex.Unlock()
+
+	h.logger.Info("Trojan user reload completed successfully, ", len(trojanOptions.Users), " users configured")
+	return nil
 }

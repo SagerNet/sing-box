@@ -30,6 +30,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -52,6 +53,8 @@ type Box struct {
 	router          *route.Router
 	internalService []adapter.LifecycleService
 	done            chan struct{}
+	currentOptions  option.Options
+	ctx             context.Context
 }
 
 type Options struct {
@@ -395,6 +398,8 @@ func New(options Options) (*Box, error) {
 		logger:          logFactory.Logger(),
 		internalService: internalServices,
 		done:            make(chan struct{}),
+		currentOptions:  options.Options,
+		ctx:             ctx,
 	}, nil
 }
 
@@ -526,4 +531,229 @@ func (s *Box) Inbound() adapter.InboundManager {
 
 func (s *Box) Outbound() adapter.OutboundManager {
 	return s.outbound
+}
+
+func (s *Box) Reload(newOptions option.Options) error {
+	s.logger.Info("reloading configuration...")
+
+	// Reload endpoints
+	oldEndpointMap := make(map[string]option.Endpoint)
+	for _, ep := range s.currentOptions.Endpoints {
+		oldEndpointMap[ep.Tag] = ep
+	}
+
+	newEndpointMap := make(map[string]option.Endpoint)
+	for _, ep := range newOptions.Endpoints {
+		newEndpointMap[ep.Tag] = ep
+	}
+
+	// Process endpoint changes
+	for tag, newEp := range newEndpointMap {
+		oldEp, exists := oldEndpointMap[tag]
+		if !exists {
+			// New endpoint - create it
+			s.logger.Info("creating new endpoint: ", tag)
+			err := s.endpoint.Create(
+				s.ctx,
+				s.router,
+				s.logFactory.NewLogger(F.ToString("endpoint/", newEp.Type, "[", tag, "]")),
+				tag,
+				newEp.Type,
+				newEp.Options,
+			)
+			if err != nil {
+				return E.Cause(err, "create endpoint[", tag, "]")
+			}
+		} else if !endpointsEqual(oldEp, newEp) {
+			// Modified endpoint - try to reload
+			s.logger.Info("reloading endpoint: ", tag)
+			err := s.endpoint.Reload(tag, newEp.Options)
+			if err != nil {
+				s.logger.Warn("endpoint ", tag, " does not support reload, recreating: ", err)
+				// Fall back to recreate
+				err = s.endpoint.Create(
+					s.ctx,
+					s.router,
+					s.logFactory.NewLogger(F.ToString("endpoint/", newEp.Type, "[", tag, "]")),
+					tag,
+					newEp.Type,
+					newEp.Options,
+				)
+				if err != nil {
+					return E.Cause(err, "recreate endpoint[", tag, "]")
+				}
+			}
+		}
+	}
+
+	// Remove deleted endpoints
+	for tag := range oldEndpointMap {
+		if _, exists := newEndpointMap[tag]; !exists {
+			s.logger.Info("removing endpoint: ", tag)
+			err := s.endpoint.Remove(tag)
+			if err != nil {
+				return E.Cause(err, "remove endpoint[", tag, "]")
+			}
+		}
+	}
+
+	// Reload inbounds
+	oldInboundMap := make(map[string]option.Inbound)
+	for _, ib := range s.currentOptions.Inbounds {
+		oldInboundMap[ib.Tag] = ib
+	}
+
+	newInboundMap := make(map[string]option.Inbound)
+	for _, ib := range newOptions.Inbounds {
+		newInboundMap[ib.Tag] = ib
+	}
+
+	// Process inbound changes
+	for tag, newIb := range newInboundMap {
+		oldIb, exists := oldInboundMap[tag]
+		if !exists {
+			// New inbound - create it
+			s.logger.Info("creating new inbound: ", tag)
+			err := s.inbound.Create(
+				s.ctx,
+				s.router,
+				s.logFactory.NewLogger(F.ToString("inbound/", newIb.Type, "[", tag, "]")),
+				tag,
+				newIb.Type,
+				newIb.Options,
+			)
+			if err != nil {
+				return E.Cause(err, "create inbound[", tag, "]")
+			}
+		} else if !inboundsEqual(oldIb, newIb) {
+			// Modified inbound - try to reload
+			s.logger.Info("reloading inbound: ", tag)
+			err := s.inbound.Reload(tag, newIb.Options)
+			if err != nil {
+				s.logger.Warn("inbound ", tag, " does not support reload, recreating: ", err)
+				// Fall back to recreate
+				err = s.inbound.Create(
+					s.ctx,
+					s.router,
+					s.logFactory.NewLogger(F.ToString("inbound/", newIb.Type, "[", tag, "]")),
+					tag,
+					newIb.Type,
+					newIb.Options,
+				)
+				if err != nil {
+					return E.Cause(err, "recreate inbound[", tag, "]")
+				}
+			}
+		}
+	}
+
+	// Remove deleted inbounds
+	for tag := range oldInboundMap {
+		if _, exists := newInboundMap[tag]; !exists {
+			s.logger.Info("removing inbound: ", tag)
+			err := s.inbound.Remove(tag)
+			if err != nil {
+				return E.Cause(err, "remove inbound[", tag, "]")
+			}
+		}
+	}
+
+	// Reload outbounds
+	oldOutboundMap := make(map[string]option.Outbound)
+	for _, ob := range s.currentOptions.Outbounds {
+		oldOutboundMap[ob.Tag] = ob
+	}
+
+	newOutboundMap := make(map[string]option.Outbound)
+	for _, ob := range newOptions.Outbounds {
+		newOutboundMap[ob.Tag] = ob
+	}
+
+	// Process outbound changes
+	for tag, newOb := range newOutboundMap {
+		oldOb, exists := oldOutboundMap[tag]
+		if !exists {
+			// New outbound - create it
+			s.logger.Info("creating new outbound: ", tag)
+			outboundCtx := s.ctx
+			if tag != "" {
+				outboundCtx = adapter.WithContext(outboundCtx, &adapter.InboundContext{
+					Outbound: tag,
+				})
+			}
+			err := s.outbound.Create(
+				outboundCtx,
+				s.router,
+				s.logFactory.NewLogger(F.ToString("outbound/", newOb.Type, "[", tag, "]")),
+				tag,
+				newOb.Type,
+				newOb.Options,
+			)
+			if err != nil {
+				return E.Cause(err, "create outbound[", tag, "]")
+			}
+		} else if !outboundsEqual(oldOb, newOb) {
+			// Modified outbound - try to reload
+			s.logger.Info("reloading outbound: ", tag)
+			err := s.outbound.Reload(tag, newOb.Options)
+			if err != nil {
+				s.logger.Warn("outbound ", tag, " does not support reload, recreating: ", err)
+				// Fall back to recreate
+				outboundCtx := s.ctx
+				if tag != "" {
+					outboundCtx = adapter.WithContext(outboundCtx, &adapter.InboundContext{
+						Outbound: tag,
+					})
+				}
+				err = s.outbound.Create(
+					outboundCtx,
+					s.router,
+					s.logFactory.NewLogger(F.ToString("outbound/", newOb.Type, "[", tag, "]")),
+					tag,
+					newOb.Type,
+					newOb.Options,
+				)
+				if err != nil {
+					return E.Cause(err, "recreate outbound[", tag, "]")
+				}
+			}
+		}
+	}
+
+	// Remove deleted outbounds
+	for tag := range oldOutboundMap {
+		if _, exists := newOutboundMap[tag]; !exists {
+			s.logger.Info("removing outbound: ", tag)
+			err := s.outbound.Remove(tag)
+			if err != nil {
+				return E.Cause(err, "remove outbound[", tag, "]")
+			}
+		}
+	}
+
+	// Update current options
+	s.currentOptions = newOptions
+
+	s.logger.Info("configuration reloaded successfully")
+	return nil
+}
+
+// Helper functions for comparing configurations
+func endpointsEqual(a, b option.Endpoint) bool {
+	// Simple JSON comparison for now
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
+}
+
+func inboundsEqual(a, b option.Inbound) bool {
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
+}
+
+func outboundsEqual(a, b option.Outbound) bool {
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
 }

@@ -10,12 +10,13 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -40,6 +41,7 @@ type Endpoint struct {
 	allowedIPs     *device.AllowedIPs
 	pause          pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
+	peerMutex      sync.RWMutex
 }
 
 func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
@@ -259,6 +261,157 @@ func (e *Endpoint) onPauseUpdated(event int) {
 	case pause.EventDeviceWake, pause.EventNetworkWake:
 		e.device.Up()
 	}
+}
+
+// ReloadPeers dynamically updates the peer configuration without disrupting existing connections.
+// It compares the new peer list with the current one and applies only the necessary changes.
+func (e *Endpoint) ReloadPeers(newPeers []PeerOptions) error {
+	if e.device == nil {
+		return E.New("endpoint not started")
+	}
+
+	// Convert new peer options to peer configs
+	var newPeerConfigs []peerConfig
+	for peerIndex, rawPeer := range newPeers {
+		peer := peerConfig{
+			allowedIPs: rawPeer.AllowedIPs,
+			keepalive:  rawPeer.PersistentKeepaliveInterval,
+		}
+		if rawPeer.Endpoint.Addr.IsValid() {
+			peer.endpoint = rawPeer.Endpoint.AddrPort()
+		} else if rawPeer.Endpoint.IsFqdn() {
+			peer.destination = rawPeer.Endpoint
+			// Resolve if we have a resolver
+			if e.options.ResolvePeer != nil {
+				destinationAddress, err := e.options.ResolvePeer(peer.destination.Fqdn)
+				if err != nil {
+					return E.Cause(err, "resolve endpoint domain for peer[", peerIndex, "]: ", peer.destination)
+				}
+				peer.endpoint = netip.AddrPortFrom(destinationAddress, peer.destination.Port)
+			}
+		}
+		publicKeyBytes, err := base64.StdEncoding.DecodeString(rawPeer.PublicKey)
+		if err != nil {
+			return E.Cause(err, "decode public key for peer ", peerIndex)
+		}
+		peer.publicKeyHex = hex.EncodeToString(publicKeyBytes)
+		if rawPeer.PreSharedKey != "" {
+			preSharedKeyBytes, err := base64.StdEncoding.DecodeString(rawPeer.PreSharedKey)
+			if err != nil {
+				return E.Cause(err, "decode pre shared key for peer ", peerIndex)
+			}
+			peer.preSharedKeyHex = hex.EncodeToString(preSharedKeyBytes)
+		}
+		if len(rawPeer.AllowedIPs) == 0 {
+			return E.New("missing allowed ips for peer ", peerIndex)
+		}
+		if len(rawPeer.Reserved) > 0 {
+			if len(rawPeer.Reserved) != 3 {
+				return E.New("invalid reserved value for peer ", peerIndex, ", required 3 bytes, got ", len(peer.reserved))
+			}
+			copy(peer.reserved[:], rawPeer.Reserved[:])
+		}
+		newPeerConfigs = append(newPeerConfigs, peer)
+	}
+
+	e.peerMutex.Lock()
+	defer e.peerMutex.Unlock()
+
+	// Build maps for comparison
+	oldPeerMap := make(map[string]peerConfig)
+	for _, peer := range e.peers {
+		oldPeerMap[peer.publicKeyHex] = peer
+	}
+
+	newPeerMap := make(map[string]peerConfig)
+	for _, peer := range newPeerConfigs {
+		newPeerMap[peer.publicKeyHex] = peer
+	}
+
+	// Generate IPC commands for changes
+	var ipcLines string
+
+	// Remove peers that are no longer in the new config
+	for pubKey := range oldPeerMap {
+		if _, exists := newPeerMap[pubKey]; !exists {
+			ipcLines += "\npublic_key=" + pubKey + "\nremove=true"
+			e.options.Logger.Info("removing WireGuard peer: ", pubKey[:16], "...")
+		}
+	}
+
+	// Add or update peers
+	for pubKey, newPeer := range newPeerMap {
+		oldPeer, exists := oldPeerMap[pubKey]
+		if !exists {
+			// New peer - add it
+			ipcLines += newPeer.GenerateIpcLines()
+			e.options.Logger.Info("adding WireGuard peer: ", pubKey[:16], "...")
+		} else if !peersEqual(oldPeer, newPeer) {
+			// Peer exists but config changed - update it
+			ipcLines += newPeer.GenerateIpcLines()
+			e.options.Logger.Info("updating WireGuard peer: ", pubKey[:16], "...")
+		}
+	}
+
+	// Apply changes if there are any
+	if ipcLines != "" {
+		err := e.device.IpcSet(ipcLines)
+		if err != nil {
+			return E.Cause(err, "apply peer changes: \n", ipcLines)
+		}
+	}
+
+	// Update internal peer list
+	e.peers = newPeerConfigs
+
+	// Recalculate allowed addresses
+	var allowedPrefixBuilder netipx.IPSetBuilder
+	for _, peer := range newPeerConfigs {
+		for _, prefix := range peer.allowedIPs {
+			allowedPrefixBuilder.AddPrefix(prefix)
+		}
+	}
+	allowedIPSet, err := allowedPrefixBuilder.IPSet()
+	if err != nil {
+		return err
+	}
+	e.allowedAddress = allowedIPSet.Prefixes()
+
+	// Update allowedIPs lookup in device
+	if e.allowedIPs != nil {
+		e.allowedIPs = (*device.AllowedIPs)(unsafe.Pointer(reflect.Indirect(reflect.ValueOf(e.device)).FieldByName("allowedips").UnsafeAddr()))
+	}
+
+	e.options.Logger.Info("WireGuard peer reload completed successfully")
+	return nil
+}
+
+// peersEqual checks if two peer configs are equal
+func peersEqual(a, b peerConfig) bool {
+	if a.publicKeyHex != b.publicKeyHex {
+		return false
+	}
+	if a.preSharedKeyHex != b.preSharedKeyHex {
+		return false
+	}
+	if a.endpoint != b.endpoint {
+		return false
+	}
+	if a.keepalive != b.keepalive {
+		return false
+	}
+	if a.reserved != b.reserved {
+		return false
+	}
+	if len(a.allowedIPs) != len(b.allowedIPs) {
+		return false
+	}
+	for i := range a.allowedIPs {
+		if a.allowedIPs[i] != b.allowedIPs[i] {
+			return false
+		}
+	}
+	return true
 }
 
 type peerConfig struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -15,7 +16,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
-	"github.com/sagernet/sing-vmess"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
@@ -44,6 +45,7 @@ type Inbound struct {
 	users     []option.VMessUser
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
+	userMutex sync.RWMutex
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VMessInboundOptions) (adapter.Inbound, error) {
@@ -178,7 +180,12 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -196,7 +203,12 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -226,4 +238,39 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+// Reload implements adapter.ReloadableInbound
+func (h *Inbound) Reload(options any) error {
+	vmessOptions, ok := options.(option.VMessInboundOptions)
+	if !ok {
+		return E.New("invalid options type for VMess inbound reload")
+	}
+
+	h.logger.Info("performing hot reload of VMess users")
+
+	// Build user data
+	userIndices := common.MapIndexed(vmessOptions.Users, func(index int, _ option.VMessUser) int {
+		return index
+	})
+	userUUIDs := common.Map(vmessOptions.Users, func(it option.VMessUser) string {
+		return it.UUID
+	})
+	userAlterIds := common.Map(vmessOptions.Users, func(it option.VMessUser) int {
+		return it.AlterId
+	})
+
+	// Update users in service (thread-safe operation)
+	err := h.service.UpdateUsers(userIndices, userUUIDs, userAlterIds)
+	if err != nil {
+		return E.Cause(err, "update VMess users")
+	}
+
+	// Update our internal user list with mutex
+	h.userMutex.Lock()
+	h.users = vmessOptions.Users
+	h.userMutex.Unlock()
+
+	h.logger.Info("VMess user reload completed successfully, ", len(vmessOptions.Users), " users configured")
+	return nil
 }

@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -170,34 +170,70 @@ func run() error {
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(osSignals)
+
+	instance, cancel, err := create()
+	if err != nil {
+		return err
+	}
+	runtimeDebug.FreeOSMemory()
+
 	for {
-		instance, cancel, err := create()
+		osSignal := <-osSignals
+		if osSignal == syscall.SIGHUP {
+			log.Info("received SIGHUP, reloading configuration...")
+
+			// Validate new config first
+			err = check()
+			if err != nil {
+				log.Error(E.Cause(err, "config validation failed, keeping current configuration"))
+				continue
+			}
+
+			// Try to read and reload the new configuration
+			newOptions, err := readConfigAndMerge()
+			if err != nil {
+				log.Error(E.Cause(err, "failed to read new configuration, keeping current configuration"))
+				continue
+			}
+
+			// Attempt hot reload
+			err = instance.Reload(newOptions)
+			if err != nil {
+				log.Error(E.Cause(err, "hot reload failed, falling back to full restart"))
+
+				// Fall back to full restart
+				cancel()
+				closeCtx, closed := context.WithCancel(context.Background())
+				go closeMonitor(closeCtx)
+				err = instance.Close()
+				closed()
+				if err != nil {
+					log.Error(E.Cause(err, "sing-box did not close properly during restart"))
+				}
+
+				// Create new instance
+				instance, cancel, err = create()
+				if err != nil {
+					return err
+				}
+				runtimeDebug.FreeOSMemory()
+				log.Info("full restart completed")
+			} else {
+				log.Info("hot reload completed successfully")
+			}
+			continue
+		}
+
+		// Handle interrupt/terminate signals
+		cancel()
+		closeCtx, closed := context.WithCancel(context.Background())
+		go closeMonitor(closeCtx)
+		err = instance.Close()
+		closed()
 		if err != nil {
-			return err
+			log.Error(E.Cause(err, "sing-box did not close properly"))
 		}
-		runtimeDebug.FreeOSMemory()
-		for {
-			osSignal := <-osSignals
-			if osSignal == syscall.SIGHUP {
-				err = check()
-				if err != nil {
-					log.Error(E.Cause(err, "reload service"))
-					continue
-				}
-			}
-			cancel()
-			closeCtx, closed := context.WithCancel(context.Background())
-			go closeMonitor(closeCtx)
-			err = instance.Close()
-			closed()
-			if osSignal != syscall.SIGHUP {
-				if err != nil {
-					log.Error(E.Cause(err, "sing-box did not closed properly"))
-				}
-				return nil
-			}
-			break
-		}
+		return nil
 	}
 }
 

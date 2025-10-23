@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -43,6 +44,7 @@ type Inbound struct {
 	service   *vless.Service[int]
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
+	userMutex sync.RWMutex
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSInboundOptions) (adapter.Inbound, error) {
@@ -172,7 +174,12 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -190,7 +197,12 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	h.userMutex.RLock()
+	var user string
+	if userIndex < len(h.users) {
+		user = h.users[userIndex].Name
+	}
+	h.userMutex.RUnlock()
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -220,4 +232,36 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+// Reload implements adapter.ReloadableInbound
+func (h *Inbound) Reload(options any) error {
+	vlessOptions, ok := options.(option.VLESSInboundOptions)
+	if !ok {
+		return E.New("invalid options type for VLESS inbound reload")
+	}
+
+	h.logger.Info("performing hot reload of VLESS users")
+
+	// Build user lists
+	userIndices := common.MapIndexed(vlessOptions.Users, func(index int, _ option.VLESSUser) int {
+		return index
+	})
+	userUUIDs := common.Map(vlessOptions.Users, func(it option.VLESSUser) string {
+		return it.UUID
+	})
+	userFlows := common.Map(vlessOptions.Users, func(it option.VLESSUser) string {
+		return it.Flow
+	})
+
+	// Update users in service (thread-safe operation)
+	h.service.UpdateUsers(userIndices, userUUIDs, userFlows)
+
+	// Update our internal user list with mutex
+	h.userMutex.Lock()
+	h.users = vlessOptions.Users
+	h.userMutex.Unlock()
+
+	h.logger.Info("VLESS user reload completed successfully, ", len(vlessOptions.Users), " users configured")
+	return nil
 }

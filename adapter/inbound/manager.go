@@ -147,3 +147,18 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	m.inboundByTag[tag] = inbound
 	return nil
 }
+
+func (m *Manager) Reload(tag string, options any) error {
+	m.access.Lock()
+	inbound, found := m.inboundByTag[tag]
+	m.access.Unlock()
+	if !found {
+		// Try endpoint manager
+		return m.endpoint.Reload(tag, options)
+	}
+	reloadable, ok := inbound.(adapter.ReloadableInbound)
+	if !ok {
+		return E.New("inbound does not support reload: ", tag)
+	}
+	return reloadable.Reload(options)
+}
