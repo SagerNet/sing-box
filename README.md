@@ -16,6 +16,75 @@ The universal proxy platform.
 
 https://sing-box.sagernet.org
 
+## Hot Reload
+
+sing-box supports hot reloading of configuration without service interruption. Supported protocols: WireGuard, Hysteria2, VLESS, Trojan, VMess.
+
+### Binary Usage
+
+Edit your configuration file and send SIGHUP signal:
+
+```bash
+# Edit configuration
+vim /etc/sing-box/config.json
+
+# Trigger hot reload
+pkill -HUP sing-box
+
+# Or using systemd
+systemctl reload sing-box
+```
+
+Existing connections continue uninterrupted while new connections use the updated configuration.
+
+**Supported hot reload changes:**
+- WireGuard: Add/remove/update peers
+- Hysteria2, Trojan: Add/remove/update users and passwords
+- VLESS: Add/remove/update users, UUIDs, and flows
+- VMess: Add/remove/update users, UUIDs, and alterIds
+
+**Changes requiring full restart:**
+- Listen address/port changes
+- TLS certificate paths
+- Transport type changes
+- DNS/routing rule changes
+
+### Golang Library Usage
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/sagernet/sing-box"
+    "github.com/sagernet/sing-box/option"
+)
+
+func main() {
+    // Create instance
+    ctx := context.Background()
+    options, _ := option.ReadConfigFile("config.json")
+    instance, _ := box.New(box.Options{
+        Context: ctx,
+        Options: options,
+    })
+    
+    instance.Start()
+    
+    // Hot reload with new configuration
+    newOptions, _ := option.ReadConfigFile("config.json")
+    err := instance.Reload(newOptions)
+    if err != nil {
+        // Reload failed, instance continues with old config
+        log.Error("Hot reload failed: ", err)
+    }
+    
+    instance.Close()
+}
+```
+
+For more details, see [Hot Reload Documentation](https://sing-box.sagernet.org/configuration/hot-reload/).
+
 ## License
 
 ```
