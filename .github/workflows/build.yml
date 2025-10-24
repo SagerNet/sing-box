@@ -44,7 +44,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Check input version
@@ -104,12 +104,12 @@ jobs:
           fetch-depth: 0
       - name: Setup Go
         if: ${{ ! (matrix.legacy_go123 || matrix.legacy_go124) }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Setup Go 1.24
         if: matrix.legacy_go124
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ~1.24.6
       - name: Cache Go for Windows 7
@@ -277,7 +277,7 @@ jobs:
       - name: Cleanup
         run: rm dist/sing-box
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
@@ -300,12 +300,12 @@ jobs:
           fetch-depth: 0
       - name: Setup Go
         if: ${{ ! matrix.legacy_go124 }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Setup Go 1.24
         if: matrix.legacy_go124
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ~1.24.6
       - name: Set tag
@@ -348,7 +348,7 @@ jobs:
       - name: Cleanup
         run: rm dist/sing-box
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-darwin_${{ matrix.arch }}${{ matrix.legacy_name && format('-legacy-{0}', matrix.legacy_name) }}
           path: "dist"
@@ -365,7 +365,7 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Setup Android NDK
@@ -428,7 +428,7 @@ jobs:
           cp clients/android/app/build/outputs/apk/play/release/*.apk dist
           cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-android-apks
           path: 'dist'
@@ -445,7 +445,7 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Setup Android NDK
@@ -544,7 +544,7 @@ jobs:
           submodules: 'recursive'
       - name: Setup Go
         if: matrix.if
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.3
       - name: Set tag
@@ -675,7 +675,7 @@ jobs:
           cp "clients/apple/${{ matrix.archive }}/SFM.dSYMs.zip" "dist/SFM-${VERSION}-universal.dSYMs.zip"
       - name: Upload image
         if: matrix.if && matrix.name == 'macOS-standalone' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary-macos-dmg
           path: 'dist'
@@ -714,7 +714,7 @@ jobs:
           git tag v${{ needs.calculate_version.outputs.version }} -f
           echo "VERSION=${{ needs.calculate_version.outputs.version }}" >> "$GITHUB_ENV"
       - name: Download builds
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: dist
           merge-multiple: true
