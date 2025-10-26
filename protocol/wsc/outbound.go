@@ -66,24 +66,24 @@ func NewOutbound(ctx context.Context, router adapter.Router, lg log.ContextLogge
 	return outbound, nil
 }
 
-func (outbound *Outbound) Type() string {
+func (out *Outbound) Type() string {
 	return C.TypeWSC
 }
 
-func (outbound *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func (out *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if network != N.NetworkTCP {
 		return nil, errors.New("wsc: only TCP is supported")
 	}
 
-	host := outbound.serverAddr.Fqdn
-	port := outbound.serverAddr.Port
+	host := out.serverAddr.Fqdn
+	port := out.serverAddr.Port
 
-	if host == "" && outbound.serverAddr.Fqdn == "" {
-		host = outbound.serverAddr.Addr.String()
+	if host == "" && out.serverAddr.Fqdn == "" {
+		host = out.serverAddr.Addr.String()
 	}
 
 	scheme := "ws"
-	if outbound.useTLS {
+	if out.useTLS {
 		scheme = "wss"
 	}
 
@@ -94,7 +94,7 @@ func (outbound *Outbound) DialContext(ctx context.Context, network string, desti
 	}
 
 	query := uri.Query()
-	query.Set("user", outbound.account)
+	query.Set("user", out.account)
 	query.Set("net", "tcp")
 	query.Set("addr", destination.String())
 	uri.RawQuery = query.Encode()
@@ -111,18 +111,18 @@ func (outbound *Outbound) DialContext(ctx context.Context, network string, desti
 				return nil, err
 			}
 
-			return outbound.dialer.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
+			return out.dialer.DialContext(ctx, N.NetworkTCP, M.Socksaddr{
 				Fqdn: host,
 				Port: uint16(portInt),
 			})
 		},
 	}
 
-	if outbound.useTLS && outbound.tlsCfg != nil {
-		if (*outbound.tlsCfg).ServerName == "" {
-			(*outbound.tlsCfg).ServerName = host
+	if out.useTLS && out.tlsCfg != nil {
+		if (*out.tlsCfg).ServerName == "" {
+			(*out.tlsCfg).ServerName = host
 		}
-		wsDialer.TLSConfig = outbound.tlsCfg
+		wsDialer.TLSConfig = out.tlsCfg
 	}
 
 	wsConn, _, _, err := wsDialer.Dial(ctx, uri.String())
@@ -130,9 +130,9 @@ func (outbound *Outbound) DialContext(ctx context.Context, network string, desti
 		return nil, err
 	}
 
-	return newWSStreamConn(wsConn), nil
+	return newWSStreamConn(wsConn, false), nil
 }
 
-func (outbound *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+func (out *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, errors.New("wsc: UDP is not supported")
 }
