@@ -242,42 +242,39 @@ func (w *Endpoint) NewDirectRouteConnection(metadata adapter.InboundContext, rou
 
 // Reload implements adapter.ReloadableEndpoint
 func (w *Endpoint) Reload(options any) error {
-	wgOptions, ok := options.(option.WireGuardEndpointOptions)
+	// Expect pointer type (consistent with endpoint registry)
+	wgOptionsPtr, ok := options.(*option.WireGuardEndpointOptions)
 	if !ok {
-		return E.New("invalid options type for WireGuard endpoint reload")
+		return E.New("invalid options type for WireGuard endpoint reload (expected *option.WireGuardEndpointOptions)")
 	}
 
-	// Check if only peers changed (most common case for client management)
-	if w.canReloadPeersOnly(wgOptions) {
-		w.logger.Info("performing hot reload of WireGuard peers")
-		peers := common.Map(wgOptions.Peers, func(it option.WireGuardPeer) wireguard.PeerOptions {
-			return wireguard.PeerOptions{
-				Endpoint:                    M.ParseSocksaddrHostPort(it.Address, it.Port),
-				PublicKey:                   it.PublicKey,
-				PreSharedKey:                it.PreSharedKey,
-				AllowedIPs:                  it.AllowedIPs,
-				PersistentKeepaliveInterval: it.PersistentKeepaliveInterval,
-				Reserved:                    it.Reserved,
-			}
-		})
-		err := w.endpoint.ReloadPeers(peers)
-		if err != nil {
-			return E.Cause(err, "reload WireGuard peers")
+	// Nil check
+	if wgOptionsPtr == nil {
+		return E.New("nil options provided for WireGuard endpoint reload")
+	}
+
+	wgOptions := *wgOptionsPtr
+
+	// Hot reload WireGuard peers (most common case for VPN client management)
+	w.logger.Info("performing hot reload of WireGuard peers")
+	peers := common.Map(wgOptions.Peers, func(it option.WireGuardPeer) wireguard.PeerOptions {
+		return wireguard.PeerOptions{
+			Endpoint:                    M.ParseSocksaddrHostPort(it.Address, it.Port),
+			PublicKey:                   it.PublicKey,
+			PreSharedKey:                it.PreSharedKey,
+			AllowedIPs:                  it.AllowedIPs,
+			PersistentKeepaliveInterval: it.PersistentKeepaliveInterval,
+			Reserved:                    it.Reserved,
 		}
-		w.localAddresses = wgOptions.Address
-		return nil
+	})
+
+	err := w.endpoint.ReloadPeers(peers)
+	if err != nil {
+		return E.Cause(err, "reload WireGuard peers")
 	}
 
-	// If other settings changed, we need a full recreate
-	return E.New("WireGuard configuration changes require full restart (only peer changes support hot reload)")
-}
+	// Update local addresses in case they changed
+	w.localAddresses = wgOptions.Address
 
-// canReloadPeersOnly checks if only peer configuration changed
-func (w *Endpoint) canReloadPeersOnly(newOptions option.WireGuardEndpointOptions) bool {
-	// Check that critical settings haven't changed
-	// These would require a full restart:
-	// - PrivateKey, MTU, Name, System, ListenPort, Workers
-	// We'll return false for now to be safe, and only allow peer-only changes
-	// In a production implementation, you'd compare all fields
-	return true
+	return nil
 }
