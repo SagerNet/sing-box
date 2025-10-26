@@ -136,6 +136,7 @@ func (in *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata 
 	}
 
 	if uri.Path != in.path {
+		N.CloseOnHandshakeFailure(conn, onClose, nil)
 		return // optional path is not allowed
 	}
 
