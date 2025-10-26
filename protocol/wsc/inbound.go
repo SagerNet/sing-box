@@ -62,7 +62,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 	}
 
-	if ib.path != "" {
+	if ib.path == "" {
 		ib.path = "/"
 	}
 
