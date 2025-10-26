@@ -19,6 +19,7 @@ const (
 	TypeTor          = "tor"
 	TypeSSH          = "ssh"
 	TypeShadowTLS    = "shadowtls"
+	TypeWSC          = "wsc"
 	TypeAnyTLS       = "anytls"
 	TypeShadowsocksR = "shadowsocksr"
 	TypeVLESS        = "vless"
@@ -73,6 +74,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "SSH"
 	case TypeShadowTLS:
 		return "ShadowTLS"
+	case TypeWSC:
+		return "WSC"
 	case TypeShadowsocksR:
 		return "ShadowsocksR"
 	case TypeVLESS:
