@@ -1,10 +1,7 @@
 package wsc
 
 import (
-	"errors"
-	"io"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/sagernet/ws"
@@ -15,70 +12,38 @@ type wsStreamConn struct {
 	conn   net.Conn
 	reader *wsutil.Reader
 	writer *wsutil.Writer
-	mutex  sync.Mutex
-	closed bool
+	server bool
 }
 
-func newWSStreamConn(conn net.Conn) net.Conn {
+func newWSStreamConn(conn net.Conn, server bool) net.Conn {
+	var state ws.State
+
+	if server {
+		state = ws.StateClientSide
+	} else {
+		state = ws.StateClientSide
+	}
+
 	return &wsStreamConn{
 		conn: conn,
 		reader: &wsutil.Reader{
 			Source: conn,
-			State:  ws.StateClientSide,
+			State:  state,
 		},
-		writer: wsutil.NewWriter(conn, ws.StateClientSide, ws.OpBinary),
+		writer: wsutil.NewWriter(conn, state, ws.OpBinary),
+		server: server,
 	}
 }
 
 func (wsConn *wsStreamConn) Read(payload []byte) (int, error) {
-	for {
-		hdr, err := wsConn.reader.NextFrame()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return 0, io.EOF
-			}
-			return 0, err
-		}
-
-		if hdr.OpCode.IsControl() {
-			continue
-		}
-
-		if hdr.OpCode == ws.OpText {
-			if _, err := io.Copy(io.Discard, wsConn.reader); err != nil {
-				return 0, err
-			}
-			continue
-		}
-
-		if hdr.OpCode == ws.OpBinary {
-			return wsConn.reader.Read(payload)
-		}
-
-		return 0, nil
-	}
+	return wsConn.read(payload)
 }
 
 func (wsConn *wsStreamConn) Write(payload []byte) (int, error) {
-	wsConn.mutex.Lock()
-	defer wsConn.mutex.Unlock()
-
-	wsConn.writer.Reset(wsConn.conn, ws.StateClientSide, ws.OpBinary)
-
-	if _, err := wsConn.writer.Write(payload); err != nil {
-		return 0, err
-	}
-	if err := wsConn.writer.Flush(); err != nil {
-		return 0, err
-	}
-	return len(payload), nil
+	return wsConn.write(payload)
 }
 
 func (wsConn *wsStreamConn) Close() error {
-	if wsConn.closed {
-		return nil
-	}
-	wsConn.closed = true
 	return wsConn.conn.Close()
 }
 
@@ -100,4 +65,28 @@ func (wsConn *wsStreamConn) SetReadDeadline(dead time.Time) error {
 
 func (wsConn *wsStreamConn) SetWriteDeadline(dead time.Time) error {
 	return wsConn.conn.SetWriteDeadline(dead)
+}
+
+func (wsConn *wsStreamConn) write(payload []byte) (int, error) {
+	if wsConn.server {
+		return len(payload), wsutil.WriteServerMessage(wsConn.conn, ws.OpBinary, payload)
+	} else {
+		return len(payload), wsutil.WriteClientMessage(wsConn.conn, ws.OpBinary, payload)
+	}
+}
+
+func (wsConn *wsStreamConn) read(payload []byte) (int, error) {
+	if wsConn.server {
+		readed, _, err := wsutil.ReadClientData(wsConn.conn)
+		if err != nil {
+			return 0, err
+		}
+		return copy(payload, readed), nil
+	} else {
+		readed, _, err := wsutil.ReadServerData(wsConn.conn)
+		if err != nil {
+			return 0, err
+		}
+		return copy(payload, readed), nil
+	}
 }
