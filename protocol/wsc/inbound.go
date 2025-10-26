@@ -36,6 +36,7 @@ func RegisterInbound(registry *inbound.Registry) {
 type Inbound struct {
 	inbound.Adapter
 
+	path      string
 	router    adapter.ConnectionRouterEx
 	logger    logger.ContextLogger
 	listener  *listener.Listener
@@ -43,15 +44,16 @@ type Inbound struct {
 	tlsConfig tls.ServerConfig
 }
 
-func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WSCInboundOptions) (adapter.Inbound, error) {
+func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, opts option.WSCInboundOptions) (adapter.Inbound, error) {
 	ib := &Inbound{
 		Adapter: inbound.NewAdapter(C.TypeWSC, tag),
+		path:    opts.Path,
 		router:  uot.NewRouter(router, logger),
 		logger:  logger,
 		users:   map[string]bool{},
 	}
 
-	for _, user := range options.Users {
+	for _, user := range opts.Users {
 		_, ok := ib.users[user.Auth]
 		if !ok {
 			ib.users[user.Auth] = true
@@ -60,9 +62,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 	}
 
+	if ib.path != "" {
+		ib.path = "/"
+	}
+
 	var err error
-	if options.TLS != nil {
-		ib.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
+	if opts.TLS != nil {
+		ib.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(opts.TLS))
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +78,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		Context:           ctx,
 		Logger:            logger,
 		Network:           []string{N.NetworkTCP},
-		Listen:            options.ListenOptions,
+		Listen:            opts.ListenOptions,
 		ConnectionHandler: ib,
 	})
 	return ib, nil
@@ -127,6 +133,10 @@ func (in *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata 
 	if err != nil {
 		N.CloseOnHandshakeFailure(conn, onClose, E.Cause(err, "parse request uri"))
 		return
+	}
+
+	if uri.Path != in.path {
+		return // optional path is not allowed
 	}
 
 	query := uri.Query()

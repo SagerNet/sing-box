@@ -30,6 +30,7 @@ type Outbound struct {
 	outbound.Adapter
 
 	account    string
+	path       string
 	logger     logger.ContextLogger
 	serverAddr M.Socksaddr
 	dialer     N.Dialer
@@ -48,9 +49,14 @@ func NewOutbound(ctx context.Context, router adapter.Router, lg log.ContextLogge
 			C.TypeWSC, tag, []string{N.NetworkTCP}, opts.DialerOptions,
 		),
 		account: opts.Auth,
+		path:    opts.Path,
 		logger:  lg,
 		dialer:  dialer,
 		useTLS:  opts.TLS.Enabled,
+	}
+
+	if outbound.path == "" {
+		outbound.path = "/"
 	}
 
 	if opts.TLS.Enabled {

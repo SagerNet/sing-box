@@ -2,8 +2,9 @@ package option
 
 type WSCInboundOptions struct {
 	ListenOptions
-	Users []WSCUser `json:"users"`
 	InboundTLSOptionsContainer
+	Users []WSCUser `json:"users"`
+	Path  string
 }
 
 type WSCUser struct {
@@ -15,4 +16,5 @@ type WSCOutboundOptions struct {
 	ServerOptions
 	OutboundTLSOptionsContainer
 	Auth string
+	Path string
 }
