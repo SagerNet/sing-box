@@ -740,10 +740,22 @@ func (s *Box) Reload(newOptions option.Options) error {
 
 // Helper functions for comparing configurations
 func endpointsEqual(a, b option.Endpoint) bool {
-	// Simple JSON comparison for now
-	aJSON, _ := json.Marshal(a)
-	bJSON, _ := json.Marshal(b)
-	return string(aJSON) == string(bJSON)
+	// Compare type and tag first
+	if a.Type != b.Type || a.Tag != b.Tag {
+		return false
+	}
+
+	// Compare Options field using reflection since it's excluded from JSON
+	// Convert both to JSON to compare the actual config
+	aOptionsJSON, err1 := json.Marshal(a.Options)
+	bOptionsJSON, err2 := json.Marshal(b.Options)
+
+	if err1 != nil || err2 != nil {
+		// If marshaling fails, fall back to pointer comparison
+		return a.Options == b.Options
+	}
+
+	return string(aOptionsJSON) == string(bOptionsJSON)
 }
 
 func inboundsEqual(a, b option.Inbound) bool {
