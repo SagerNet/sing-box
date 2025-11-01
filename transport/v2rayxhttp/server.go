@@ -48,6 +48,8 @@ type Server struct {
 	path        string
 	sessionMu   sync.Mutex
 	sessions    sync.Map
+	enableTCP   bool
+	enableH3    bool
 }
 
 func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayXHTTPOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
@@ -60,7 +62,25 @@ func NewServer(ctx context.Context, logger logger.ContextLogger, options option.
 		host:      options.Host,
 		path:      options.GetNormalizedPath(),
 	}
-	if server.network() == N.NetworkTCP {
+	hasNonH3 := true
+	if tlsConfig != nil {
+		hasNonH3 = false
+		for _, proto := range tlsConfig.NextProtos() {
+			if proto == "h3" {
+				server.enableH3 = true
+			} else if proto != "" {
+				hasNonH3 = true
+			}
+		}
+		// If ALPN list is empty we still expose HTTP/1.1 or HTTP/2 over TCP.
+		if len(tlsConfig.NextProtos()) == 0 {
+			hasNonH3 = true
+		}
+	} else {
+		server.enableH3 = false
+	}
+	server.enableTCP = hasNonH3
+	if server.enableTCP {
 		protocols := new(http.Protocols)
 		protocols.SetHTTP1(true)
 		protocols.SetUnencryptedHTTP2(true)
@@ -76,7 +96,8 @@ func NewServer(ctx context.Context, logger logger.ContextLogger, options option.
 				return log.ContextWithNewID(ctx)
 			},
 		}
-	} else {
+	}
+	if server.enableH3 {
 		server.quicConfig = &quic.Config{
 			DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
 		}
@@ -279,44 +300,48 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (s *Server) Network() []string {
-	return []string{s.network()}
+	var networks []string
+	if s.enableTCP {
+		networks = append(networks, N.NetworkTCP)
+	}
+	if s.enableH3 {
+		networks = append(networks, N.NetworkUDP)
+	}
+	return networks
 }
 
 func (s *Server) Serve(listener net.Listener) error {
-	if s.network() == N.NetworkTCP {
-		if s.tlsConfig != nil {
-			listener = aTLS.NewListener(listener, s.tlsConfig)
-		}
-		s.localAddr = listener.Addr()
-		return s.httpServer.Serve(listener)
+	if !s.enableTCP {
+		return os.ErrInvalid
 	}
-	return os.ErrInvalid
+	if s.tlsConfig != nil {
+		listener = aTLS.NewListener(listener, s.tlsConfig)
+	}
+	s.localAddr = listener.Addr()
+	return s.httpServer.Serve(listener)
 }
 
 func (s *Server) ServePacket(listener net.PacketConn) error {
-	if s.network() == N.NetworkUDP {
-		quicListener, err := qtls.ListenEarly(listener, s.tlsConfig, s.quicConfig)
-		if err != nil {
-			return err
-		}
-		s.localAddr = quicListener.Addr()
-		return s.http3Server.ServeListener(quicListener)
+	if !s.enableH3 {
+		return os.ErrInvalid
 	}
-	return os.ErrInvalid
+	quicListener, err := qtls.ListenEarly(listener, s.tlsConfig, s.quicConfig)
+	if err != nil {
+		return err
+	}
+	s.localAddr = quicListener.Addr()
+	return s.http3Server.ServeListener(quicListener)
 }
 
 func (s *Server) Close() error {
-	if s.network() == N.NetworkTCP {
-		return common.Close(s.httpServer)
+	var closers []any
+	if s.enableTCP {
+		closers = append(closers, s.httpServer)
 	}
-	return common.Close(s.http3Server)
-}
-
-func (s *Server) network() string {
-	if s.tlsConfig != nil && len(s.tlsConfig.NextProtos()) == 1 && s.tlsConfig.NextProtos()[0] == "h3" {
-		return N.NetworkUDP
+	if s.enableH3 {
+		closers = append(closers, s.http3Server)
 	}
-	return N.NetworkTCP
+	return common.Close(closers...)
 }
 
 func (s *Server) upsertSession(sessionId string) *httpSession {
