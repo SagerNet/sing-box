@@ -147,7 +147,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	mode := c.options.Mode
 	sessionIdUuid := uuid.New()
 	requestURL := c.getRequestURL(sessionIdUuid.String())
-	requestURL2 := c.getRequestURL(sessionIdUuid.String())
+	requestURL2 := c.getRequestURL2(sessionIdUuid.String())
 	httpClient, xmuxClient := c.getHTTPClient()
 	httpClient2, xmuxClient2 := c.getHTTPClient2()
 	if xmuxClient != nil {
