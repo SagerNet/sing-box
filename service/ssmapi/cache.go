@@ -49,6 +49,9 @@ func (s *Service) loadCache() error {
 		os.RemoveAll(basePath)
 		return err
 	}
+	s.cacheMutex.Lock()
+	s.lastSavedCache = cacheBinary
+	s.cacheMutex.Unlock()
 	return nil
 }
 
@@ -56,16 +59,30 @@ func (s *Service) saveCache() error {
 	if s.cachePath == "" {
 		return nil
 	}
+	cacheBinary, err := s.encodeCache()
+	if err != nil {
+		return err
+	}
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+	if bytes.Equal(s.lastSavedCache, cacheBinary) {
+		return nil
+	}
+	return s.writeCache(cacheBinary)
+}
+
+func (s *Service) writeCache(cacheBinary []byte) error {
 	basePath := filemanager.BasePath(s.ctx, s.cachePath)
 	err := os.MkdirAll(filepath.Dir(basePath), 0o777)
 	if err != nil {
 		return err
 	}
-	cacheBinary, err := s.encodeCache()
+	err = os.WriteFile(basePath, cacheBinary, 0o644)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.cachePath, cacheBinary, 0o644)
+	s.lastSavedCache = cacheBinary
+	return nil
 }
 
 func (s *Service) decodeCache(cacheBinary []byte) error {
