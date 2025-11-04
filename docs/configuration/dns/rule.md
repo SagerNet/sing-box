@@ -6,7 +6,8 @@ icon: material/alert-decagram
 
     :material-plus: [interface_address](#interface_address)  
     :material-plus: [network_interface_address](#network_interface_address)  
-    :material-plus: [default_interface_address](#default_interface_address)
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [domain_wildcard](#domain_wildcard)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -83,6 +84,9 @@ icon: material/alert-decagram
         ],
         "domain_regex": [
           "^stun\\..+"
+        ],
+        "domain_wildcard": [
+          "a*.test.com"
         ],
         "source_ip_cidr": [
           "10.0.0.0/24",
@@ -203,7 +207,7 @@ icon: material/alert-decagram
 !!! note ""
 
     The default rule uses the following matching logic:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `domain_wildcard` || `geosite`) &&  
     (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr` ｜｜ `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
@@ -252,6 +256,12 @@ Match domain using keyword.
 #### domain_regex
 
 Match domain using regular expression.
+
+### domain_wildcard
+
+!!! question "Since sing-box 1.13.0"
+
+Match domain using wildcard expression.
 
 #### geosite
 

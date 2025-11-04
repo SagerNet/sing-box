@@ -27,6 +27,7 @@ const (
 	ruleItemDomain
 	ruleItemDomainKeyword
 	ruleItemDomainRegex
+	ruleItemDomainWildcard
 	ruleItemSourceIPCIDR
 	ruleItemIPCIDR
 	ruleItemSourcePort
@@ -182,6 +183,8 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			rule.DomainKeyword, err = readRuleItemString(reader)
 		case ruleItemDomainRegex:
 			rule.DomainRegex, err = readRuleItemString(reader)
+		case ruleItemDomainWildcard:
+			rule.DomainWildcard, err = readRuleItemString(reader)
 		case ruleItemSourceIPCIDR:
 			rule.SourceIPSet, err = readIPSet(reader)
 			if err != nil {
@@ -329,6 +332,12 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 	}
 	if len(rule.DomainRegex) > 0 {
 		err = writeRuleItemString(writer, ruleItemDomainRegex, rule.DomainRegex)
+		if err != nil {
+			return err
+		}
+	}
+	if len(rule.DomainWildcard) > 0 {
+		err = writeRuleItemString(writer, ruleItemDomainWildcard, rule.DomainWildcard)
 		if err != nil {
 			return err
 		}

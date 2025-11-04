@@ -122,6 +122,11 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.DomainWildcard) > 0 {
+		item := NewDomainWildcardItem(options.DomainWildcard)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.Geosite) > 0 {
 		return nil, E.New("geosite database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
 	}

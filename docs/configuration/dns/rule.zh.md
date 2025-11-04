@@ -6,7 +6,8 @@ icon: material/alert-decagram
 
     :material-plus: [interface_address](#interface_address)  
     :material-plus: [network_interface_address](#network_interface_address)  
-    :material-plus: [default_interface_address](#default_interface_address)
+    :material-plus: [default_interface_address](#default_interface_address)  
+    :material-plus: [domain_wildcard](#domain_wildcard)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -83,6 +84,9 @@ icon: material/alert-decagram
         ],
         "domain_regex": [
           "^stun\\..+"
+        ],
+        "domain_wildcard": [
+          "a*.test.com"
         ],
         "source_ip_cidr": [
           "10.0.0.0/24",
@@ -202,7 +206,7 @@ icon: material/alert-decagram
 !!! note ""
 
     默认规则使用以下匹配逻辑:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `domain_wildcard` || `geosite`) &&  
     (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
@@ -251,6 +255,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### domain_regex
 
 匹配域名正则表达式。
+
+### domain_wildcard
+
+!!! question "自 sing-box 1.13.0 起"
+
+匹配域名通配符表达式。
 
 #### geosite
 

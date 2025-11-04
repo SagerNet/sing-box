@@ -188,6 +188,7 @@ type DefaultHeadlessRule struct {
 	DomainSuffix            badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword           badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
 	DomainRegex             badoption.Listable[string]                                                  `json:"domain_regex,omitempty"`
+	DomainWildcard          badoption.Listable[string]                                                  `json:"domain_wildcard,omitempty"`
 	SourceIPCIDR            badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty"`
 	IPCIDR                  badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
 	SourcePort              badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`

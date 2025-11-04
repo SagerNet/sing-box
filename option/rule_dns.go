@@ -77,6 +77,7 @@ type RawDefaultDNSRule struct {
 	Domain                   badoption.Listable[string]                                                  `json:"domain,omitempty"`
 	DomainSuffix             badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword            badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
+	DomainWildcard           badoption.Listable[string]                                                  `json:"domain_wildcard,omitempty"`
 	DomainRegex              badoption.Listable[string]                                                  `json:"domain_regex,omitempty"`
 	Geosite                  badoption.Listable[string]                                                  `json:"geosite,omitempty"`
 	SourceGeoIP              badoption.Listable[string]                                                  `json:"source_geoip,omitempty"`

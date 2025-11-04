@@ -8,6 +8,7 @@ icon: material/new-box
     :material-plus: [network_interface_address](#network_interface_address)  
     :material-plus: [default_interface_address](#default_interface_address)  
     :material-plus: [preferred_by](#preferred_by)  
+    :material-plus: [domain_wildcard](#domain_wildcard)  
     :material-alert: [network](#network)
 
 !!! quote "sing-box 1.11.0 中的更改"
@@ -74,6 +75,9 @@ icon: material/new-box
         ],
         "domain_regex": [
           "^stun\\..+"
+        ],
+        "domain_wildcard": [
+          "a*.test.com"
         ],
         "geosite": [
           "cn"
@@ -190,7 +194,7 @@ icon: material/new-box
 !!! note ""
 
     默认规则使用以下匹配逻辑:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `geoip` || `ip_cidr` || `ip_is_private`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `domain_wildcard` || `geosite` || `geoip` || `ip_cidr` || `ip_is_private`) &&  
     (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
@@ -249,6 +253,12 @@ icon: material/new-box
 #### domain_regex
 
 匹配域名正则表达式。
+
+### domain_wildcard
+
+!!! question "自 sing-box 1.13.0 起"
+
+匹配域名通配符表达式。
 
 #### geosite
 
