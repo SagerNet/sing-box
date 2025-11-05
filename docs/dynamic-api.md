@@ -2,7 +2,10 @@
 
 ## 配置说明
 
-在 `config.json` 中启用 Dynamic API：
+在 `config.json` 中启用 Dynamic_API：
+go build -tags "with_dynamic_api" ./cmd/sing-box
+
+运行sing-box.exe run  config.json
 
 ```json
 {
@@ -167,6 +170,10 @@ curl -X POST http://127.0.0.1:9091/api/route/rule \
     "process_name": ["chrome.exe"],
     "outbound": "proxy1"
   }'
+  {
+    "process_pid": [82132,82132],
+    "outbound": "proxy1"
+  }
 
 # 域名规则示例
 curl -X POST http://127.0.0.1:9091/api/route/rule \
