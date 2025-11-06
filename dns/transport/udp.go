@@ -85,6 +85,9 @@ func (t *UDPTransport) Close() error {
 }
 
 func (t *UDPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	if t.serverAddr.Addr.String() == "0.0.0.0" {
+		return nil, E.New("No DNS address detected")
+	}
 	response, err := t.exchange(ctx, message)
 	if err != nil {
 		return nil, err
