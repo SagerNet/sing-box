@@ -14,7 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -45,6 +45,7 @@ type URLTest struct {
 	idleTimeout                  time.Duration
 	group                        *URLTestGroup
 	interruptExternalConnections bool
+	selectMode                   option.URLTestMode
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (adapter.Outbound, error) {
@@ -61,6 +62,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		tolerance:                    options.Tolerance,
 		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
+		selectMode:                   options.SelectMode,
 	}
 	if len(outbound.tags) == 0 {
 		return nil, E.New("missing tags")
@@ -77,7 +79,7 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
+	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections, s.selectMode)
 	if err != nil {
 		return err
 	}
@@ -209,9 +211,10 @@ type URLTestGroup struct {
 	close                        chan struct{}
 	started                      bool
 	lastActive                   common.TypedValue[time.Time]
+	selectMode                   option.URLTestMode
 }
 
-func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool) (*URLTestGroup, error) {
+func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool, selectMode option.URLTestMode) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
@@ -246,6 +249,7 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 		pause:                        service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: interruptExternalConnections,
+		selectMode:                   selectMode,
 	}, nil
 }
 
@@ -285,6 +289,39 @@ func (g *URLTestGroup) Close() error {
 }
 
 func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
+	if g.selectMode == option.FirstAvailable {
+		return g.selectFirstAvailable(network)
+	}
+	return g.selectMinLatency(network)
+}
+
+// selectFirstAvailable returns the first outbound (by configuration order)
+// that supports the requested network and has a recent successful delay test
+// in history. If none are healthy yet, it falls back to the first outbound
+// that supports the requested network.
+func (g *URLTestGroup) selectFirstAvailable(network string) (adapter.Outbound, bool) {
+	for _, detour := range g.outbounds {
+		if !common.Contains(detour.Network(), network) {
+			continue
+		}
+		if history := g.history.LoadURLTestHistory(RealTag(detour)); history != nil {
+			return detour, true
+		}
+	}
+	for _, detour := range g.outbounds {
+		if !common.Contains(detour.Network(), network) {
+			continue
+		}
+		return detour, false
+	}
+	return nil, false
+}
+
+// selectMinLatency returns the outbound with the smallest measured delay,
+// using the recorded delay history and respecting the configured tolerance.
+// If no history exists yet, it falls back to the first outbound that supports
+// the requested network.
+func (g *URLTestGroup) selectMinLatency(network string) (adapter.Outbound, bool) {
 	var minDelay uint16
 	var minOutbound adapter.Outbound
 	switch network {
