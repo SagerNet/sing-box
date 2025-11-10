@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -28,21 +30,27 @@ func RegisterService(registry *boxService.Registry) {
 
 type Service struct {
 	boxService.Adapter
-	ctx        context.Context
-	logger     log.ContextLogger
-	listener   *listener.Listener
-	tlsConfig  tls.ServerConfig
-	httpServer *http.Server
-	traffics   map[string]*TrafficManager
-	users      map[string]*UserManager
-	cachePath  string
+	ctx            context.Context
+	cancel         context.CancelFunc
+	logger         log.ContextLogger
+	listener       *listener.Listener
+	tlsConfig      tls.ServerConfig
+	httpServer     *http.Server
+	traffics       map[string]*TrafficManager
+	users          map[string]*UserManager
+	cachePath      string
+	saveTicker     *time.Ticker
+	lastSavedCache []byte
+	cacheMutex     sync.Mutex
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.SSMAPIServiceOptions) (adapter.Service, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	chiRouter := chi.NewRouter()
 	s := &Service{
 		Adapter: boxService.NewAdapter(C.TypeSSMAPI, tag),
 		ctx:     ctx,
+		cancel:  cancel,
 		logger:  logger,
 		listener: listener.New(listener.Options{
 			Context: ctx,
@@ -95,6 +103,8 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if err != nil {
 		s.logger.Error(E.Cause(err, "load cache"))
 	}
+	s.saveTicker = time.NewTicker(1 * time.Minute)
+	go s.loopSaveCache()
 	if s.tlsConfig != nil {
 		err = s.tlsConfig.Start()
 		if err != nil {
@@ -120,7 +130,27 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	return nil
 }
 
+func (s *Service) loopSaveCache() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.saveTicker.C:
+			err := s.saveCache()
+			if err != nil {
+				s.logger.Error(E.Cause(err, "save cache"))
+			}
+		}
+	}
+}
+
 func (s *Service) Close() error {
+	if s.cancel != nil {
+		s.cancel()
+	}
+	if s.saveTicker != nil {
+		s.saveTicker.Stop()
+	}
 	err := s.saveCache()
 	if err != nil {
 		s.logger.Error(E.Cause(err, "save cache"))

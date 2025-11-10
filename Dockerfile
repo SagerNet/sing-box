@@ -20,8 +20,6 @@ RUN set -ex \
 FROM --platform=$TARGETPLATFORM alpine AS dist
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 RUN set -ex \
-    && apk upgrade \
-    && apk add bash tzdata ca-certificates nftables \
-    && rm -rf /var/cache/apk/*
+    && apk add --no-cache --upgrade bash tzdata ca-certificates nftables
 COPY --from=builder /go/bin/sing-box /usr/local/bin/sing-box
 ENTRYPOINT ["sing-box"]
