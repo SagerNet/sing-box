@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"os/signal"
@@ -17,10 +18,11 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/json"
+	singJson "github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var commandRun = &cobra.Command{
@@ -44,6 +46,28 @@ type OptionsEntry struct {
 	options option.Options
 }
 
+// isYAMLFile checks if a file path has a YAML extension
+func isYAMLFile(path string) bool {
+	return strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml")
+}
+
+// convertYAMLToJSON converts YAML content to JSON format
+func convertYAMLToJSON(yamlContent []byte) ([]byte, error) {
+	var data interface{}
+	err := yaml.Unmarshal(yamlContent, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to JSON
+	jsonContent, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonContent, nil
+}
+
 func readConfigAt(path string) (*OptionsEntry, error) {
 	var (
 		configContent []byte
@@ -57,12 +81,24 @@ func readConfigAt(path string) (*OptionsEntry, error) {
 	if err != nil {
 		return nil, E.Cause(err, "read config at ", path)
 	}
-	options, err := json.UnmarshalExtendedContext[option.Options](globalCtx, configContent)
+
+	// Convert YAML to JSON if necessary
+	var jsonContent []byte
+	if path != "stdin" && isYAMLFile(path) {
+		jsonContent, err = convertYAMLToJSON(configContent)
+		if err != nil {
+			return nil, E.Cause(err, "convert YAML to JSON at ", path)
+		}
+	} else {
+		jsonContent = configContent
+	}
+
+	options, err := singJson.UnmarshalExtendedContext[option.Options](globalCtx, jsonContent)
 	if err != nil {
 		return nil, E.Cause(err, "decode config at ", path)
 	}
 	return &OptionsEntry{
-		content: configContent,
+		content: jsonContent,
 		path:    path,
 		options: options,
 	}, nil
@@ -83,10 +119,12 @@ func readConfig() ([]*OptionsEntry, error) {
 			return nil, E.Cause(err, "read config directory at ", directory)
 		}
 		for _, entry := range entries {
-			if !strings.HasSuffix(entry.Name(), ".json") || entry.IsDir() {
+			name := entry.Name()
+			// Accept .json, .yaml, and .yml files
+			if entry.IsDir() || (!strings.HasSuffix(name, ".json") && !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml")) {
 				continue
 			}
-			optionsEntry, err := readConfigAt(filepath.Join(directory, entry.Name()))
+			optionsEntry, err := readConfigAt(filepath.Join(directory, name))
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +145,7 @@ func readConfigAndMerge() (option.Options, error) {
 	if len(optionsList) == 1 {
 		return optionsList[0].options, nil
 	}
-	var mergedMessage json.RawMessage
+	var mergedMessage singJson.RawMessage
 	for _, options := range optionsList {
 		mergedMessage, err = badjson.MergeJSON(globalCtx, options.options.RawMessage, mergedMessage, false)
 		if err != nil {

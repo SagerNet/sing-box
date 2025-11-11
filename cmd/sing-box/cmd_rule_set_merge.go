@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,11 +12,12 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/json"
+	singJson "github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/rw"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -60,12 +62,24 @@ func readRuleSetAt(path string) (*RuleSetEntry, error) {
 	if err != nil {
 		return nil, E.Cause(err, "read config at ", path)
 	}
-	options, err := json.UnmarshalExtendedContext[option.PlainRuleSetCompat](globalCtx, configContent)
+
+	// Convert YAML to JSON if necessary
+	var jsonContent []byte
+	if path != "stdin" && isYAMLFile(path) {
+		jsonContent, err = convertYAMLToJSON(configContent)
+		if err != nil {
+			return nil, E.Cause(err, "convert YAML to JSON at ", path)
+		}
+	} else {
+		jsonContent = configContent
+	}
+
+	options, err := singJson.UnmarshalExtendedContext[option.PlainRuleSetCompat](globalCtx, jsonContent)
 	if err != nil {
 		return nil, E.Cause(err, "decode config at ", path)
 	}
 	return &RuleSetEntry{
-		content: configContent,
+		content: jsonContent,
 		path:    path,
 		options: options,
 	}, nil
@@ -86,10 +100,12 @@ func readRuleSet() ([]*RuleSetEntry, error) {
 			return nil, E.Cause(err, "read rule-set directory at ", directory)
 		}
 		for _, entry := range entries {
-			if !strings.HasSuffix(entry.Name(), ".json") || entry.IsDir() {
+			name := entry.Name()
+			// Accept .json, .yaml, and .yml files
+			if entry.IsDir() || (!strings.HasSuffix(name, ".json") && !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml")) {
 				continue
 			}
-			optionsEntry, err := readRuleSetAt(filepath.Join(directory, entry.Name()))
+			optionsEntry, err := readRuleSetAt(filepath.Join(directory, name))
 			if err != nil {
 				return nil, err
 			}
@@ -116,14 +132,14 @@ func readRuleSetAndMerge() (option.PlainRuleSetCompat, error) {
 			optionVersion = options.options.Version
 		}
 	}
-	var mergedMessage json.RawMessage
+	var mergedMessage singJson.RawMessage
 	for _, options := range optionsList {
 		mergedMessage, err = badjson.MergeJSON(globalCtx, options.options.RawMessage, mergedMessage, false)
 		if err != nil {
 			return option.PlainRuleSetCompat{}, E.Cause(err, "merge config at ", options.path)
 		}
 	}
-	mergedOptions, err := json.UnmarshalExtendedContext[option.PlainRuleSetCompat](globalCtx, mergedMessage)
+	mergedOptions, err := singJson.UnmarshalExtendedContext[option.PlainRuleSetCompat](globalCtx, mergedMessage)
 	if err != nil {
 		return option.PlainRuleSetCompat{}, E.Cause(err, "unmarshal merged config")
 	}
@@ -137,7 +153,7 @@ func mergeRuleSet(outputPath string) error {
 		return err
 	}
 	buffer := new(bytes.Buffer)
-	encoder := json.NewEncoder(buffer)
+	encoder := singJson.NewEncoder(buffer)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(mergedOptions)
 	if err != nil {

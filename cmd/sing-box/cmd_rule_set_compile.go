@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -10,9 +11,10 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing/common/json"
+	singJson "github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var flagRuleSetCompileOutput string
@@ -53,7 +55,19 @@ func compileRuleSet(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	plainRuleSet, err := json.UnmarshalExtended[option.PlainRuleSetCompat](content)
+
+	// Convert YAML to JSON if necessary
+	var jsonContent []byte
+	if sourcePath != "stdin" && isYAMLFile(sourcePath) {
+		jsonContent, err = convertYAMLToJSON(content)
+		if err != nil {
+			return err
+		}
+	} else {
+		jsonContent = content
+	}
+
+	plainRuleSet, err := singJson.UnmarshalExtended[option.PlainRuleSetCompat](jsonContent)
 	if err != nil {
 		return err
 	}
@@ -61,6 +75,10 @@ func compileRuleSet(sourcePath string) error {
 	if flagRuleSetCompileOutput == flagRuleSetCompileDefaultOutput {
 		if strings.HasSuffix(sourcePath, ".json") {
 			outputPath = sourcePath[:len(sourcePath)-5] + ".srs"
+		} else if strings.HasSuffix(sourcePath, ".yaml") {
+			outputPath = sourcePath[:len(sourcePath)-5] + ".srs"
+		} else if strings.HasSuffix(sourcePath, ".yml") {
+			outputPath = sourcePath[:len(sourcePath)-4] + ".srs"
 		} else {
 			outputPath = sourcePath + ".srs"
 		}
