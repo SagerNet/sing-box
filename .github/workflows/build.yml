@@ -107,7 +107,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: ${{ ! (matrix.legacy_go123 || matrix.legacy_go124) }}
+        if: ${{ ! (matrix.legacy_win7 || matrix.legacy_go124) }}
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.3
