@@ -9,7 +9,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 !!! failure ""
 
-    We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected).
+    Due to non-technical reasons, we are temporarily unable to update the sing-box app on the App Store and release the standalone version of the macOS client (TestFlight users are not affected)
 
 ## :material-graph: Requirements
 
@@ -18,7 +18,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 ## :material-download: Download
 
-* [App Store](https://apps.apple.com/app/sing-box-vt/id6673731168)
+* ~~[App Store](https://apps.apple.com/app/sing-box-vt/id6673731168)~~
 * TestFlight (Beta)
 
 TestFlight quota is only available to [sponsors](https://github.com/sponsors/nekohasekai)
@@ -26,15 +26,15 @@ TestFlight quota is only available to [sponsors](https://github.com/sponsors/nek
 Once you donate, you can get an invitation by join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot)
 or sending us your Apple ID [via email](mailto:contact@sagernet.org).
 
-## :material-file-download: Download (macOS standalone version)
+## ~~:material-file-download: Download (macOS standalone version)~~
 
-* [Homebrew Cask](https://formulae.brew.sh/cask/sfm)
+* ~~[Homebrew Cask](https://formulae.brew.sh/cask/sfm)~~
 
 ```bash
-brew install sfm
+# brew install sfm
 ```
 
-* [GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+* ~~[GitHub Releases](https://github.com/SagerNet/sing-box/releases)~~
 
 ## :material-source-repository: Source code
 
