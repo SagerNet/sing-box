@@ -2,6 +2,17 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.13
+
+* Fix naive inbound
+* Fixes and improvements
+
+__Unfortunately, for non-technical reasons, we are currently unable to notarize the standalone version of the macOS client:
+because system extensions require signatures to function, we have had to temporarily halt its release.__
+
+__We plan to fix the App Store release issue and launch a new standalone desktop client, but until then,
+only clients on TestFlight will be available (unless you have an Apple Developer Program and compile from source code).__
+
 #### 1.12.12
 
 * Fixes and improvements
