@@ -73,7 +73,7 @@ func NewUpstreamContextHandlerEx(
 }
 
 func (w *myUpstreamContextHandlerWrapperEx) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
-	myMetadata := ContextFrom(ctx)
+	_, myMetadata := ExtendContext(ctx)
 	if source.IsValid() {
 		myMetadata.Source = source
 	}
@@ -84,7 +84,7 @@ func (w *myUpstreamContextHandlerWrapperEx) NewConnectionEx(ctx context.Context,
 }
 
 func (w *myUpstreamContextHandlerWrapperEx) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
-	myMetadata := ContextFrom(ctx)
+	_, myMetadata := ExtendContext(ctx)
 	if source.IsValid() {
 		myMetadata.Source = source
 	}
@@ -146,7 +146,7 @@ type routeContextHandlerWrapperEx struct {
 }
 
 func (r *routeContextHandlerWrapperEx) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
-	metadata := ContextFrom(ctx)
+	_, metadata := ExtendContext(ctx)
 	if source.IsValid() {
 		metadata.Source = source
 	}
@@ -157,7 +157,7 @@ func (r *routeContextHandlerWrapperEx) NewConnectionEx(ctx context.Context, conn
 }
 
 func (r *routeContextHandlerWrapperEx) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
-	metadata := ContextFrom(ctx)
+	_, metadata := ExtendContext(ctx)
 	if source.IsValid() {
 		metadata.Source = source
 	}
