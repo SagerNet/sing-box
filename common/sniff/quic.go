@@ -26,6 +26,7 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 		metadata.SniffContext = nil
 	} else {
 		ja3DataBuf = buf.NewSize(32 * 1024)
+		_ = ja3DataBuf.WriteZeroN(5)
 	}
 	defer func() {
 		if ja3DataBuf != nil {
@@ -230,11 +231,11 @@ sniff:
 
 			start := int(5 + offset)
 			end := start + int(length)
-			if ja3DataBuf.Len() < end {
-				if ja3DataBuf.Cap() < end {
-					return io.ErrShortBuffer
+			// Ensure ja3DataBuf has enough space
+			if n := end - ja3DataBuf.Len(); n > 0 {
+				if err := ja3DataBuf.WriteZeroN(n); err != nil {
+					return err
 				}
-				ja3DataBuf.Truncate(end)
 			}
 
 			_, err = decryptedReader.Read(ja3DataBuf.Range(start, end))
