@@ -21,16 +21,16 @@ import (
 )
 
 func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error {
-	ja3DataBuf, ok := metadata.SniffContext.(*buf.Buffer)
+	ja3Buffer, ok := metadata.SniffContext.(*buf.Buffer)
 	if ok {
 		metadata.SniffContext = nil
 	} else {
-		ja3DataBuf = buf.NewSize(32 * 1024)
-		_ = ja3DataBuf.WriteZeroN(5)
+		ja3Buffer = buf.NewSize(32 * 1024)
+		_ = ja3Buffer.WriteZeroN(5)
 	}
 	defer func() {
-		if ja3DataBuf != nil {
-			ja3DataBuf.Release()
+		if ja3Buffer != nil {
+			ja3Buffer.Release()
 		}
 	}()
 sniff:
@@ -232,13 +232,13 @@ sniff:
 			start := int(5 + offset)
 			end := start + int(length)
 			// Ensure ja3DataBuf has enough space
-			if n := end - ja3DataBuf.Len(); n > 0 {
-				if err := ja3DataBuf.WriteZeroN(n); err != nil {
+			if n := end - ja3Buffer.Len(); n > 0 {
+				if err := ja3Buffer.WriteZeroN(n); err != nil {
 					return err
 				}
 			}
 
-			_, err = decryptedReader.Read(ja3DataBuf.Range(start, end))
+			_, err = decryptedReader.Read(ja3Buffer.Range(start, end))
 			if err != nil {
 				return err
 			}
@@ -264,20 +264,20 @@ sniff:
 			return os.ErrInvalid
 		}
 	}
-	head := ja3DataBuf.Range(0, 5)
+	head := ja3Buffer.Range(0, 5)
 	head[0] = 0x16
 	binary.BigEndian.PutUint16(head[1:3], 0x0303)
-	frameLen := ja3DataBuf.Len() - 5
+	frameLen := ja3Buffer.Len() - 5
 	binary.BigEndian.PutUint16(head[3:5], uint16(frameLen))
 	metadata.Protocol = C.ProtocolQUIC
-	fingerprint, err := ja3.Compute(ja3DataBuf.Bytes())
+	fingerprint, err := ja3.Compute(ja3Buffer.Bytes())
 	if err != nil {
 		packet = packet[hdrLen+int(packetLen):]
 		if len(packet) > 0 {
 			goto sniff
 		}
-		metadata.SniffContext = ja3DataBuf
-		ja3DataBuf = nil
+		metadata.SniffContext = ja3Buffer
+		ja3Buffer = nil
 		metadata.Client = C.ClientChromium
 		return E.Cause1(ErrNeedMoreData, err)
 	}
