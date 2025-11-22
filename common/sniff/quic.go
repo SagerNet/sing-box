@@ -21,6 +21,19 @@ import (
 )
 
 func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error {
+	ja3Buffer, ok := metadata.SniffContext.(*buf.Buffer)
+	if ok {
+		metadata.SniffContext = nil
+	} else {
+		ja3Buffer = buf.NewSize(32 * 1024)
+		_ = ja3Buffer.WriteZeroN(5)
+	}
+	defer func() {
+		if ja3Buffer != nil {
+			ja3Buffer.Release()
+		}
+	}()
+sniff:
 	reader := bytes.NewReader(packet)
 	typeByte, err := reader.ReadByte()
 	if err != nil {
@@ -62,7 +75,7 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 		return err
 	}
 
-	_, err = io.CopyN(io.Discard, reader, int64(srcConnIDLen))
+	_, err = reader.Seek(int64(srcConnIDLen), io.SeekCurrent)
 	if err != nil {
 		return err
 	}
@@ -72,7 +85,7 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 		return err
 	}
 
-	_, err = io.CopyN(io.Discard, reader, int64(tokenLen))
+	_, err = reader.Seek(int64(tokenLen), io.SeekCurrent)
 	if err != nil {
 		return err
 	}
@@ -82,20 +95,9 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 		return err
 	}
 
-	hdrLen := int(reader.Size()) - reader.Len()
+	hdrLen := len(packet) - reader.Len()
 	if hdrLen+int(packetLen) > len(packet) {
 		return os.ErrInvalid
-	}
-
-	_, err = io.CopyN(io.Discard, reader, 4)
-	if err != nil {
-		return err
-	}
-
-	pnBytes := make([]byte, aes.BlockSize)
-	_, err = io.ReadFull(reader, pnBytes)
-	if err != nil {
-		return err
 	}
 
 	var salt []byte
@@ -122,33 +124,12 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 		return err
 	}
 	mask := make([]byte, aes.BlockSize)
-	block.Encrypt(mask, pnBytes)
-	newPacket := make([]byte, len(packet))
-	copy(newPacket, packet)
-	newPacket[0] ^= mask[0] & 0xf
-	for i := range newPacket[hdrLen : hdrLen+4] {
-		newPacket[hdrLen+i] ^= mask[i+1]
+	block.Encrypt(mask, packet[hdrLen+4:])
+	packet[0] ^= mask[0] & 0xf
+	packetNumberLength := int(packet[0]&0x3 + 1)
+	for i := range packetNumberLength {
+		packet[hdrLen+i] ^= mask[i+1]
 	}
-	packetNumberLength := newPacket[0]&0x3 + 1
-	if hdrLen+int(packetNumberLength) > int(packetLen)+hdrLen {
-		return os.ErrInvalid
-	}
-	var packetNumber uint32
-	switch packetNumberLength {
-	case 1:
-		packetNumber = uint32(newPacket[hdrLen])
-	case 2:
-		packetNumber = uint32(binary.BigEndian.Uint16(newPacket[hdrLen:]))
-	case 3:
-		packetNumber = uint32(newPacket[hdrLen+2]) | uint32(newPacket[hdrLen+1])<<8 | uint32(newPacket[hdrLen])<<16
-	case 4:
-		packetNumber = binary.BigEndian.Uint32(newPacket[hdrLen:])
-	default:
-		return E.New("bad packet number length")
-	}
-	extHdrLen := hdrLen + int(packetNumberLength)
-	copy(newPacket[extHdrLen:hdrLen+4], packet[extHdrLen:])
-	data := newPacket[extHdrLen : int(packetLen)+hdrLen]
 
 	var keyLabel string
 	var ivLabel string
@@ -165,13 +146,15 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 	iv := qtls.HKDFExpandLabel(crypto.SHA256, secret, []byte{}, ivLabel, 12)
 	cipher := qtls.AEADAESGCMTLS13(key, iv)
 	nonce := make([]byte, int32(cipher.NonceSize()))
-	binary.BigEndian.PutUint64(nonce[len(nonce)-8:], uint64(packetNumber))
-	decrypted, err := cipher.Open(newPacket[extHdrLen:extHdrLen], nonce, data, newPacket[:extHdrLen])
+	copy(nonce[len(nonce)-packetNumberLength:], packet[hdrLen:])
+
+	extHdrLen := hdrLen + int(packetNumberLength)
+	data := packet[extHdrLen : int(packetLen)+hdrLen]
+	decrypted, err := cipher.Open(packet[extHdrLen:extHdrLen], nonce, data, packet[:extHdrLen])
 	if err != nil {
 		return err
 	}
 	var frameType byte
-	var fragments []qCryptoFragment
 	decryptedReader := bytes.NewReader(decrypted)
 	const (
 		frameTypePadding         = 0x00
@@ -245,9 +228,17 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 			if err != nil {
 				return err
 			}
-			index := len(decrypted) - decryptedReader.Len()
-			fragments = append(fragments, qCryptoFragment{offset, length, decrypted[index : index+int(length)]})
-			_, err = decryptedReader.Seek(int64(length), io.SeekCurrent)
+
+			start := int(5 + offset)
+			end := start + int(length)
+			// Ensure ja3DataBuf has enough space
+			if n := end - ja3Buffer.Len(); n > 0 {
+				if err := ja3Buffer.WriteZeroN(n); err != nil {
+					return err
+				}
+			}
+
+			_, err = decryptedReader.Read(ja3Buffer.Range(start, end))
 			if err != nil {
 				return err
 			}
@@ -273,39 +264,21 @@ func QUICClientHello(ctx context.Context, metadata *adapter.InboundContext, pack
 			return os.ErrInvalid
 		}
 	}
-	if metadata.SniffContext != nil {
-		fragments = append(fragments, metadata.SniffContext.([]qCryptoFragment)...)
-		metadata.SniffContext = nil
-	}
-	var frameLen uint64
-	for _, fragment := range fragments {
-		frameLen += fragment.length
-	}
-	buffer := buf.NewSize(5 + int(frameLen))
-	defer buffer.Release()
-	buffer.WriteByte(0x16)
-	binary.Write(buffer, binary.BigEndian, uint16(0x0303))
-	binary.Write(buffer, binary.BigEndian, uint16(frameLen))
-	var index uint64
-	var length int
-find:
-	for {
-		for _, fragment := range fragments {
-			if fragment.offset == index {
-				buffer.Write(fragment.payload)
-				index = fragment.offset + fragment.length
-				length++
-				continue find
-			}
-		}
-		break
-	}
+	head := ja3Buffer.Range(0, 5)
+	head[0] = 0x16
+	binary.BigEndian.PutUint16(head[1:3], 0x0303)
+	frameLen := ja3Buffer.Len() - 5
+	binary.BigEndian.PutUint16(head[3:5], uint16(frameLen))
 	metadata.Protocol = C.ProtocolQUIC
-	fingerprint, err := ja3.Compute(buffer.Bytes())
+	fingerprint, err := ja3.Compute(ja3Buffer.Bytes())
 	if err != nil {
-		metadata.Protocol = C.ProtocolQUIC
+		packet = packet[hdrLen+int(packetLen):]
+		if len(packet) > 0 {
+			goto sniff
+		}
+		metadata.SniffContext = ja3Buffer
+		ja3Buffer = nil
 		metadata.Client = C.ClientChromium
-		metadata.SniffContext = fragments
 		return E.Cause1(ErrNeedMoreData, err)
 	}
 	metadata.Domain = fingerprint.ServerName
