@@ -86,7 +86,7 @@ func (c *DefaultDialerClient) OpenStream(ctx context.Context, url string, body i
 }
 
 func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body io.Reader, contentLength int64) error {
-	req, err := http.NewRequestWithContext(context.WithoutCancel(ctx), "POST", url, body)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, body)
 	if err != nil {
 		return err
 	}
