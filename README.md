@@ -1,4 +1,4 @@
-# mbox
+# sing-box
 
 A fork of sing-box with [mieru](https://github.com/enfein/mieru) protocol
 support.
