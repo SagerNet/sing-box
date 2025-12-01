@@ -157,7 +157,8 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		xmuxClient2.OpenUsage.Add(1)
 	}
 	var closed atomic.Int32
-	uploadCtx, cancelUpload := context.WithCancel(context.Background())
+	uploadBaseCtx := context.WithoutCancel(ctx)
+	uploadCtx, cancelUpload := context.WithCancel(uploadBaseCtx)
 	reader, writer := io.Pipe()
 	conn := splitConn{
 		writer: writer,
