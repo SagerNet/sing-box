@@ -260,10 +260,12 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 				(xmuxClient.UnreusableAt != time.Time{} && lastWrite.After(xmuxClient.UnreusableAt))) {
 				httpClient, xmuxClient = c.getHTTPClient()
 			}
-			go func(chunk buf.MultiBuffer) {
+			go func(chunk buf.MultiBuffer, baseCtx context.Context) {
+				postCtx, cancelPost := context.WithCancel(baseCtx)
+				defer cancelPost()
 				defer wroteRequest.Close()
 				err := httpClient.PostPacket(
-					reqCtx,
+					postCtx,
 					url.String(),
 					&buf.MultiBufferContainer{MultiBuffer: chunk},
 					int64(chunk.Len()),
@@ -271,7 +273,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 				if err != nil {
 					uploadPipeReader.Interrupt()
 				}
-			}(chunk)
+			}(chunk, reqCtx)
 			if _, ok := httpClient.(*DefaultDialerClient); ok {
 				select {
 				case <-wroteRequest.Wait():
