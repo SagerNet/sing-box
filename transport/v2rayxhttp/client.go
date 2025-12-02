@@ -77,6 +77,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	var xmuxOptions option.V2RayXHTTPXmuxOptions
 	if options.Xmux != nil {
 		xmuxOptions = *options.Xmux
+		if err := xmuxOptions.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	xmuxManager := NewXmuxManager(xmuxOptions, func() XmuxConn {
 		return createHTTPClient(dest, dialer, &options.V2RayXHTTPBaseOptions, tlsConfig, gotlsConfig)
@@ -123,6 +126,9 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		var xmuxOptions2 option.V2RayXHTTPXmuxOptions
 		if options2.Xmux != nil {
 			xmuxOptions2 = *options2.Xmux
+			if err := xmuxOptions2.Validate(); err != nil {
+				return nil, err
+			}
 		}
 		xmuxManager2 := NewXmuxManager(xmuxOptions2, func() XmuxConn {
 			return createHTTPClient(dest2, dialer2, &options2.V2RayXHTTPBaseOptions, tlsConfig2, gotlsConfig2)
