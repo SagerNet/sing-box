@@ -494,20 +494,20 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	metadata.Inbound = t.Tag()
 	metadata.InboundType = t.Type()
 	metadata.Source = source
-	metadata.Destination = destination
 	addr4, addr6 := t.server.TailscaleIPs()
 	switch destination.Addr {
 	case addr4:
 		metadata.OriginDestination = destination
 		destination.Addr = netip.AddrFrom4([4]uint8{127, 0, 0, 1})
-		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
+		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, destination)
 	case addr6:
 		metadata.OriginDestination = destination
 		destination.Addr = netip.IPv6Loopback()
-		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
+		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, destination)
 	}
+	metadata.Destination = destination
 	t.logger.InfoContext(ctx, "inbound packet connection from ", source)
-	t.logger.InfoContext(ctx, "inbound packet connection to ", destination)
+	t.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
