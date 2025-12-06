@@ -37,7 +37,7 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 	if l.listenOptions.ReuseAddr {
 		listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
 	}
-	if l.listenOptions.TCPKeepAlive >= 0 {
+	if !l.listenOptions.DisableTCPKeepAlive {
 		keepIdle := time.Duration(l.listenOptions.TCPKeepAlive)
 		if keepIdle == 0 {
 			keepIdle = C.TCPKeepAliveInitial
