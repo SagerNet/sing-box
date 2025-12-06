@@ -100,6 +100,15 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 		}
 		_, copyErr := io.Copy(io.Discard, resp.Body)
 		closeErr := resp.Body.Close()
+		if resp.StatusCode != 200 {
+			if copyErr != nil {
+				return copyErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			return fmt.Errorf("bad status code: %s", resp.Status)
+		}
 		if copyErr != nil {
 			return copyErr
 		}
