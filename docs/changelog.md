@@ -6,9 +6,6 @@ icon: material/alert-decagram
 
 * Fixes and improvements
 
-_We are currently unable to notarize the standalone version of SFM for unknown reasons (TestFlight users are not affected).
-Providing this update is not recommended for package managers that offer SFM standalone binaries._
-
 #### 1.12.12
 
 * Fixes and improvements
