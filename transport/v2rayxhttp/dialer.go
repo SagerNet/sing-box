@@ -183,36 +183,55 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 type WaitReadCloser struct {
 	Wait chan struct{}
 	io.ReadCloser
+	mu   sync.Mutex
+	once sync.Once
+}
+
+func (w *WaitReadCloser) notify() {
+	w.once.Do(func() {
+		close(w.Wait)
+	})
 }
 
 func (w *WaitReadCloser) Set(rc io.ReadCloser) {
+	w.mu.Lock()
+	if w.ReadCloser != nil {
+		w.mu.Unlock()
+		rc.Close()
+		return
+	}
 	w.ReadCloser = rc
-	defer func() {
-		if recover() != nil {
-			rc.Close()
-		}
-	}()
-	close(w.Wait)
+	w.mu.Unlock()
+	w.notify()
 }
 
 func (w *WaitReadCloser) Read(b []byte) (int, error) {
-	if w.ReadCloser == nil {
-		if <-w.Wait; w.ReadCloser == nil {
+	w.mu.Lock()
+	rc := w.ReadCloser
+	w.mu.Unlock()
+
+	if rc == nil {
+		<-w.Wait
+		w.mu.Lock()
+		rc = w.ReadCloser
+		w.mu.Unlock()
+		if rc == nil {
 			return 0, io.ErrClosedPipe
 		}
 	}
-	return w.ReadCloser.Read(b)
+	return rc.Read(b)
 }
 
 func (w *WaitReadCloser) Close() error {
-	if w.ReadCloser != nil {
-		return w.ReadCloser.Close()
+	w.mu.Lock()
+	rc := w.ReadCloser
+	w.ReadCloser = nil
+	w.mu.Unlock()
+
+	if rc != nil {
+		return rc.Close()
 	}
-	defer func() {
-		if recover() != nil && w.ReadCloser != nil {
-			w.ReadCloser.Close()
-		}
-	}()
-	close(w.Wait)
+
+	w.notify()
 	return nil
 }
