@@ -231,7 +231,21 @@ type V2RayXHTTPXmuxOptions struct {
 	HKeepAlivePeriod int64            `json:"h_keep_alive_period"`
 }
 
+func (m V2RayXHTTPXmuxOptions) isZero() bool {
+	return m == (V2RayXHTTPXmuxOptions{})
+}
+
+func (m *V2RayXHTTPXmuxOptions) Validate() error {
+	if m.MaxConnections.To > 0 && m.MaxConcurrency.To > 0 {
+		return E.New("maxConnections cannot be specified together with maxConcurrency")
+	}
+	return nil
+}
+
 func (m *V2RayXHTTPXmuxOptions) GetNormalizedMaxConcurrency() Xbadoption.Range {
+	if m.isZero() {
+		return Xbadoption.Range{From: 1, To: 1}
+	}
 	return m.MaxConcurrency
 }
 
@@ -244,9 +258,15 @@ func (m *V2RayXHTTPXmuxOptions) GetNormalizedCMaxReuseTimes() Xbadoption.Range {
 }
 
 func (m *V2RayXHTTPXmuxOptions) GetNormalizedHMaxRequestTimes() Xbadoption.Range {
+	if m.isZero() && m.HMaxRequestTimes.From == 0 && m.HMaxRequestTimes.To == 0 {
+		return Xbadoption.Range{From: 600, To: 900}
+	}
 	return m.HMaxRequestTimes
 }
 
 func (m *V2RayXHTTPXmuxOptions) GetNormalizedHMaxReusableSecs() Xbadoption.Range {
+	if m.isZero() && m.HMaxReusableSecs.From == 0 && m.HMaxReusableSecs.To == 0 {
+		return Xbadoption.Range{From: 1800, To: 3000}
+	}
 	return m.HMaxReusableSecs
 }
