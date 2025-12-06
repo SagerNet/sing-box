@@ -2,6 +2,12 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)
+    :material-plus: [tcp_keep_alive](#tcp_keep_alive)
+    :material-plus: [tcp_keep_alive_interval](#tcp_keep_alive_interval)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [domain_resolver](#domain_resolver)  
@@ -29,7 +35,11 @@ icon: material/new-box
   "connect_timeout": "",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
+  "disable_tcp_keep_alive": false,
+  "tcp_keep_alive": "",
+  "tcp_keep_alive_interval": "",
   "udp_fragment": false,
+
   "domain_resolver": "", // 或 {}
   "network_strategy": "",
   "network_type": [],
@@ -108,6 +118,30 @@ icon: material/new-box
     需要 Go 1.21。
 
 启用 TCP Multi Path。
+
+#### disable_tcp_keep_alive
+
+!!! question "自 sing-box 1.13.0 起"
+
+禁用 TCP keep alive。
+
+#### tcp_keep_alive
+
+!!! question "自 sing-box 1.13.0 起"
+
+    默认值从 `10m` 更改为 `5m`。
+
+TCP keep-alive 初始周期。
+
+默认使用 `5m`。
+
+#### tcp_keep_alive_interval
+
+!!! question "自 sing-box 1.13.0 起"
+
+TCP keep-alive 间隔。
+
+默认使用 `75s`。
 
 #### udp_fragment
 
