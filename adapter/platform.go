@@ -32,6 +32,8 @@ type PlatformInterface interface {
 	UsePlatformConnectionOwnerFinder() bool
 	FindConnectionOwner(request *FindConnectionOwnerRequest) (*ConnectionOwner, error)
 
+	UsePlatformWIFIMonitor() bool
+
 	UsePlatformNotification() bool
 	SendNotification(notification *Notification) error
 }
