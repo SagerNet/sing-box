@@ -74,6 +74,9 @@ func (c *DefaultDialerClient) OpenStream(ctx context.Context, url string, body i
 			return
 		}
 		if resp.StatusCode != 200 || uploadOnly { // stream-up
+			if resp.StatusCode != 200 {
+				c.closed = true
+			}
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close() // if it is called immediately, the upload will be interrupted also
 			wrc.Close()
@@ -101,6 +104,7 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 		_, copyErr := io.Copy(io.Discard, resp.Body)
 		closeErr := resp.Body.Close()
 		if resp.StatusCode != 200 {
+			c.closed = true
 			if copyErr != nil {
 				return copyErr
 			}
@@ -148,6 +152,7 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 					_, copyErr := io.Copy(io.Discard, resp.Body)
 					closeErr := resp.Body.Close()
 					if resp.StatusCode != 200 {
+						c.closed = true
 						return fmt.Errorf("got non-200 error response code: %d", resp.StatusCode)
 					}
 					if copyErr != nil {
