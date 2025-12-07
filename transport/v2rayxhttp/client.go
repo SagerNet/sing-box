@@ -45,21 +45,23 @@ type Client struct {
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayXHTTPOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
 	mode := strings.TrimSpace(options.Mode)
 	dest := serverAddr
+	_, isReality := tlsConfig.(*tls.RealityClientConfig)
 	var gotlsConfig *gotls.Config
-	var tlsConfigErr error
-	if tlsConfig != nil {
+	if tlsConfig != nil && !isReality {
 		var err error
 		gotlsConfig, err = tlsConfig.Config()
 		if err != nil {
-			tlsConfigErr = err
 			// uTLS doesn't support Config(), use HTTP/2 only
 			gotlsConfig = nil
 		}
 	}
-	if (mode == "" || mode == "auto") && tlsConfigErr != nil && strings.Contains(strings.ToLower(tlsConfigErr.Error()), "reality") {
-		mode = "stream-one"
-		if options.Download != nil {
-			mode = "stream-up"
+	if mode == "" || mode == "auto" {
+		mode = "packet-up"
+		if isReality {
+			mode = "stream-one"
+			if options.Download != nil {
+				mode = "stream-up"
+			}
 		}
 	}
 	options.Mode = mode
