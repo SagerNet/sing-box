@@ -430,7 +430,7 @@ Match default interface address.
 
 !!! quote ""
 
-    Only supported in graphical clients on Android and Apple platforms.
+    Only supported in graphical clients on Android and Apple platforms, or on Linux.
 
 Match WiFi SSID.
 
@@ -438,7 +438,7 @@ Match WiFi SSID.
 
 !!! quote ""
 
-    Only supported in graphical clients on Android and Apple platforms.
+    Only supported in graphical clients on Android and Apple platforms, or on Linux.
 
 Match WiFi BSSID.
 

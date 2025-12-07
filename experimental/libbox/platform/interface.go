@@ -18,6 +18,7 @@ type Interface interface {
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ClearDNSCache()
+	UsePlatformWIFIMonitor() bool
 	ReadWIFIState() adapter.WIFIState
 	SystemCertificates() []string
 	process.Searcher

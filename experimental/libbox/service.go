@@ -111,7 +111,7 @@ func (s *BoxService) Close() error {
 }
 
 func (s *BoxService) NeedWIFIState() bool {
-	return s.instance.Router().NeedWIFIState()
+	return s.instance.Network().NeedWIFIState()
 }
 
 var (
@@ -222,6 +222,10 @@ func (w *platformInterfaceWrapper) IncludeAllNetworks() bool {
 
 func (w *platformInterfaceWrapper) ClearDNSCache() {
 	w.iif.ClearDNSCache()
+}
+
+func (w *platformInterfaceWrapper) UsePlatformWIFIMonitor() bool {
+	return true
 }
 
 func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
