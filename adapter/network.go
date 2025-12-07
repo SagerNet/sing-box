@@ -10,6 +10,7 @@ import (
 
 type NetworkManager interface {
 	Lifecycle
+	Initialize(ruleSets []RuleSet)
 	InterfaceFinder() control.InterfaceFinder
 	UpdateInterfaces() error
 	DefaultNetworkInterface() *NetworkInterface
@@ -24,9 +25,10 @@ type NetworkManager interface {
 	NetworkMonitor() tun.NetworkUpdateMonitor
 	InterfaceMonitor() tun.DefaultInterfaceMonitor
 	PackageManager() tun.PackageManager
+	NeedWIFIState() bool
 	WIFIState() WIFIState
-	ResetNetwork()
 	UpdateWIFIState()
+	ResetNetwork()
 }
 
 type NetworkOptions struct {
