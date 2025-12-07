@@ -8,11 +8,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/conntrack"
+	"github.com/sagernet/sing-box/common/settings"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
@@ -50,11 +52,14 @@ type NetworkManager struct {
 	endpoint               adapter.EndpointManager
 	inbound                adapter.InboundManager
 	outbound               adapter.OutboundManager
+	needWIFIState          bool
+	wifiMonitor            settings.WIFIMonitor
 	wifiState              adapter.WIFIState
+	wifiStateMutex         sync.RWMutex
 	started                bool
 }
 
-func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions) (*NetworkManager, error) {
+func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions, dnsOptions option.DNSOptions) (*NetworkManager, error) {
 	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
 	if routeOptions.AutoDetectInterface && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
 		return nil, E.New("`auto_detect_interface` is only supported on Linux, Windows and macOS")
@@ -89,6 +94,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
+		needWIFIState:     hasRule(routeOptions.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 	}
 	if routeOptions.DefaultNetworkStrategy != nil {
 		if routeOptions.DefaultInterface != "" {
@@ -183,9 +189,33 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 			}
 		}
 	case adapter.StartStatePostStart:
+		if r.needWIFIState && !(r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor()) {
+			wifiMonitor, err := settings.NewWIFIMonitor(r.onWIFIStateChanged)
+			if err != nil {
+				if err != os.ErrInvalid {
+					r.logger.Warn(E.Cause(err, "create WIFI monitor"))
+				}
+			} else {
+				r.wifiMonitor = wifiMonitor
+				err = r.wifiMonitor.Start()
+				if err != nil {
+					r.logger.Warn(E.Cause(err, "start WIFI monitor"))
+				}
+			}
+		}
 		r.started = true
 	}
 	return nil
+}
+
+func (r *NetworkManager) Initialize(ruleSets []adapter.RuleSet) {
+	for _, ruleSet := range ruleSets {
+		metadata := ruleSet.Metadata()
+		if metadata.ContainsWIFIRule {
+			r.needWIFIState = true
+			break
+		}
+	}
 }
 
 func (r *NetworkManager) Close() error {
@@ -216,6 +246,13 @@ func (r *NetworkManager) Close() error {
 		monitor.Start("close network monitor")
 		err = E.Append(err, r.networkMonitor.Close(), func(err error) error {
 			return E.Cause(err, "close network monitor")
+		})
+		monitor.Finish()
+	}
+	if r.wifiMonitor != nil {
+		monitor.Start("close WIFI monitor")
+		err = E.Append(err, r.wifiMonitor.Close(), func(err error) error {
+			return E.Cause(err, "close WIFI monitor")
 		})
 		monitor.Finish()
 	}
@@ -376,20 +413,39 @@ func (r *NetworkManager) PackageManager() tun.PackageManager {
 	return r.packageManager
 }
 
+func (r *NetworkManager) NeedWIFIState() bool {
+	return r.needWIFIState
+}
+
 func (r *NetworkManager) WIFIState() adapter.WIFIState {
+	r.wifiStateMutex.RLock()
+	defer r.wifiStateMutex.RUnlock()
 	return r.wifiState
 }
 
-func (r *NetworkManager) UpdateWIFIState() {
-	if r.platformInterface != nil {
-		state := r.platformInterface.ReadWIFIState()
-		if state != r.wifiState {
-			r.wifiState = state
-			if state.SSID != "" {
-				r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
-			}
-		}
+func (r *NetworkManager) onWIFIStateChanged(state adapter.WIFIState) {
+	r.wifiStateMutex.Lock()
+	if state == r.wifiState {
+		r.wifiStateMutex.Unlock()
+		return
 	}
+	r.wifiState = state
+	r.wifiStateMutex.Unlock()
+	if state.SSID != "" {
+		r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+	}
+}
+
+func (r *NetworkManager) UpdateWIFIState() {
+	var state adapter.WIFIState
+	if r.wifiMonitor != nil {
+		state = r.wifiMonitor.ReadWIFIState()
+	} else if r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor() {
+		state = r.platformInterface.ReadWIFIState()
+	} else {
+		return
+	}
+	r.onWIFIStateChanged(state)
 }
 
 func (r *NetworkManager) ResetNetwork() {
