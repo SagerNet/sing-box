@@ -427,7 +427,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅在 Android 与 Apple 平台图形客户端中支持。
+    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
 
 匹配 WiFi SSID。
 
@@ -435,7 +435,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅在 Android 与 Apple 平台图形客户端中支持。
+    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
 
 匹配 WiFi BSSID。
 
