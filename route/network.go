@@ -58,24 +58,24 @@ type NetworkManager struct {
 	started                bool
 }
 
-func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOptions option.RouteOptions, dnsOptions option.DNSOptions) (*NetworkManager, error) {
-	defaultDomainResolver := common.PtrValueOrDefault(routeOptions.DefaultDomainResolver)
-	if routeOptions.AutoDetectInterface && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
+func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*NetworkManager, error) {
+	defaultDomainResolver := common.PtrValueOrDefault(options.DefaultDomainResolver)
+	if options.AutoDetectInterface && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
 		return nil, E.New("`auto_detect_interface` is only supported on Linux, Windows and macOS")
-	} else if routeOptions.OverrideAndroidVPN && !C.IsAndroid {
+	} else if options.OverrideAndroidVPN && !C.IsAndroid {
 		return nil, E.New("`override_android_vpn` is only supported on Android")
-	} else if routeOptions.DefaultInterface != "" && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
+	} else if options.DefaultInterface != "" && !(C.IsLinux || C.IsDarwin || C.IsWindows) {
 		return nil, E.New("`default_interface` is only supported on Linux, Windows and macOS")
-	} else if routeOptions.DefaultMark != 0 && !C.IsLinux {
+	} else if options.DefaultMark != 0 && !C.IsLinux {
 		return nil, E.New("`default_mark` is only supported on linux")
 	}
 	nm := &NetworkManager{
 		logger:              logger,
 		interfaceFinder:     control.NewDefaultInterfaceFinder(),
-		autoDetectInterface: routeOptions.AutoDetectInterface,
+		autoDetectInterface: options.AutoDetectInterface,
 		defaultOptions: adapter.NetworkOptions{
-			BindInterface:  routeOptions.DefaultInterface,
-			RoutingMark:    uint32(routeOptions.DefaultMark),
+			BindInterface:  options.DefaultInterface,
+			RoutingMark:    uint32(options.DefaultMark),
 			DomainResolver: defaultDomainResolver.Server,
 			DomainResolveOptions: adapter.DNSQueryOptions{
 				Strategy:     C.DomainStrategy(defaultDomainResolver.Strategy),
@@ -83,28 +83,28 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 				RewriteTTL:   defaultDomainResolver.RewriteTTL,
 				ClientSubnet: defaultDomainResolver.ClientSubnet.Build(netip.Prefix{}),
 			},
-			NetworkStrategy:     (*C.NetworkStrategy)(routeOptions.DefaultNetworkStrategy),
-			NetworkType:         common.Map(routeOptions.DefaultNetworkType, option.InterfaceType.Build),
-			FallbackNetworkType: common.Map(routeOptions.DefaultFallbackNetworkType, option.InterfaceType.Build),
-			FallbackDelay:       time.Duration(routeOptions.DefaultFallbackDelay),
+			NetworkStrategy:     (*C.NetworkStrategy)(options.DefaultNetworkStrategy),
+			NetworkType:         common.Map(options.DefaultNetworkType, option.InterfaceType.Build),
+			FallbackNetworkType: common.Map(options.DefaultFallbackNetworkType, option.InterfaceType.Build),
+			FallbackDelay:       time.Duration(options.DefaultFallbackDelay),
 		},
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
-		needWIFIState:     hasRule(routeOptions.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		needWIFIState:     hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 	}
-	if routeOptions.DefaultNetworkStrategy != nil {
-		if routeOptions.DefaultInterface != "" {
+	if options.DefaultNetworkStrategy != nil {
+		if options.DefaultInterface != "" {
 			return nil, E.New("`default_network_strategy` is conflict with `default_interface`")
 		}
-		if !routeOptions.AutoDetectInterface {
+		if !options.AutoDetectInterface {
 			return nil, E.New("`auto_detect_interface` is required by `default_network_strategy`")
 		}
 	}
 	usePlatformDefaultInterfaceMonitor := nm.platformInterface != nil
-	enforceInterfaceMonitor := routeOptions.AutoDetectInterface
+	enforceInterfaceMonitor := options.AutoDetectInterface
 	if !usePlatformDefaultInterfaceMonitor {
 		networkMonitor, err := tun.NewNetworkUpdateMonitor(logger)
 		if !((err != nil && !enforceInterfaceMonitor) || errors.Is(err, os.ErrInvalid)) {
@@ -114,7 +114,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, routeOp
 			nm.networkMonitor = networkMonitor
 			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(nm.networkMonitor, logger, tun.DefaultInterfaceMonitorOptions{
 				InterfaceFinder:       nm.interfaceFinder,
-				OverrideAndroidVPN:    routeOptions.OverrideAndroidVPN,
+				OverrideAndroidVPN:    options.OverrideAndroidVPN,
 				UnderNetworkExtension: nm.platformInterface != nil && nm.platformInterface.UnderNetworkExtension(),
 			})
 			if err != nil {
@@ -188,7 +188,7 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 			}
 		}
 	case adapter.StartStatePostStart:
-		if r.needWIFIState && r.platformInterface == nil {
+		if r.needWIFIState && !(r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor()) {
 			wifiMonitor, err := settings.NewWIFIMonitor(r.onWIFIStateChanged)
 			if err != nil {
 				if err != os.ErrInvalid {
@@ -424,14 +424,16 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 
 func (r *NetworkManager) onWIFIStateChanged(state adapter.WIFIState) {
 	r.wifiStateMutex.Lock()
-	if state == r.wifiState {
+	if state != r.wifiState {
+		r.wifiState = state
 		r.wifiStateMutex.Unlock()
-		return
-	}
-	r.wifiState = state
-	r.wifiStateMutex.Unlock()
-	if state.SSID != "" {
-		r.logger.Info("updated WIFI state: SSID=", state.SSID, ", BSSID=", state.BSSID)
+		if state.SSID != "" {
+			r.logger.Info("WIFI state changed: SSID=", state.SSID, ", BSSID=", state.BSSID)
+		} else {
+			r.logger.Info("WIFI disconnected")
+		}
+	} else {
+		r.wifiStateMutex.Unlock()
 	}
 }
 
@@ -439,7 +441,7 @@ func (r *NetworkManager) UpdateWIFIState() {
 	var state adapter.WIFIState
 	if r.wifiMonitor != nil {
 		state = r.wifiMonitor.ReadWIFIState()
-	} else if r.platformInterface != nil {
+	} else if r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor() {
 		state = r.platformInterface.ReadWIFIState()
 	} else {
 		return

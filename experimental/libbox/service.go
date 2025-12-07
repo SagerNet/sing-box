@@ -145,6 +145,10 @@ func (w *platformInterfaceWrapper) RequestPermissionForWIFIState() error {
 	return nil
 }
 
+func (w *platformInterfaceWrapper) UsePlatformWIFIMonitor() bool {
+	return true
+}
+
 func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 	wifiState := w.iif.ReadWIFIState()
 	if wifiState == nil {
