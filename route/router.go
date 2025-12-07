@@ -38,7 +38,6 @@ type Router struct {
 	pauseManager      pause.Manager
 	trackers          []adapter.ConnectionTracker
 	platformInterface platform.Interface
-	needWIFIState     bool
 	started           bool
 }
 
@@ -57,7 +56,6 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[platform.Interface](ctx),
-		needWIFIState:     hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 	}
 }
 
@@ -113,14 +111,12 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		if cacheContext != nil {
 			cacheContext.Close()
 		}
+		r.network.Initialize(r.ruleSets)
 		needFindProcess := r.needFindProcess
 		for _, ruleSet := range r.ruleSets {
 			metadata := ruleSet.Metadata()
 			if metadata.ContainsProcessRule {
 				needFindProcess = true
-			}
-			if metadata.ContainsWIFIRule {
-				r.needWIFIState = true
 			}
 		}
 		if needFindProcess {
@@ -193,10 +189,6 @@ func (r *Router) Close() error {
 func (r *Router) RuleSet(tag string) (adapter.RuleSet, bool) {
 	ruleSet, loaded := r.ruleSetMap[tag]
 	return ruleSet, loaded
-}
-
-func (r *Router) NeedWIFIState() bool {
-	return r.needWIFIState
 }
 
 func (r *Router) Rules() []adapter.Rule {
