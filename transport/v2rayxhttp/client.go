@@ -44,10 +44,23 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayXHTTPOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
-	mode := strings.TrimSpace(options.Mode)
+	configMode, err := option.NormalizeXHTTPMode(options.Mode)
+	if err != nil {
+		return nil, err
+	}
+	if options.Download != nil {
+		options.Download.Mode, err = option.NormalizeXHTTPMode(options.Download.Mode)
+		if err != nil {
+			return nil, err
+		}
+		if configMode == "stream-one" {
+			return nil, E.New(`download is not allowed when mode is "stream-one"`)
+		}
+	}
+	mode := configMode
 	dest := serverAddr
 	_, isReality := tlsConfig.(*tls.RealityClientConfig)
-	if mode == "" || mode == "auto" {
+	if mode == "auto" {
 		mode = "packet-up"
 		if isReality {
 			mode = "stream-one"
@@ -371,7 +384,7 @@ func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXH
 			KeepAlivePeriod:    keepAlivePeriod,
 		}
 		transport = &http3.Transport{
-			QUICConfig:      quicConfig,
+			QUICConfig: quicConfig,
 			Dial: func(ctx context.Context, addr string, tlsCfg *gotls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 				udpConn, dErr := dialer.DialContext(ctx, N.NetworkUDP, dest)
 				if dErr != nil {
