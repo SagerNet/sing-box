@@ -1,0 +1,8 @@
+FROM alpine
+ARG TARGETARCH
+ARG TARGETVARIANT
+LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
+RUN set -ex \
+    && apk add --no-cache --upgrade bash tzdata ca-certificates nftables
+COPY sing-box-${TARGETARCH}${TARGETVARIANT} /usr/local/bin/sing-box
+ENTRYPOINT ["sing-box"]

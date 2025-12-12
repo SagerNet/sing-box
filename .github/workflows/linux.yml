@@ -1,6 +1,10 @@
 name: Build Linux Packages
 
 on:
+  #push:
+  #  branches:
+  #    - main-next
+  #    - dev-next
   workflow_dispatch:
     inputs:
       version:
@@ -52,11 +56,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: linux, arch: amd64, debian: amd64, rpm: x86_64, pacman: x86_64 }
-          - { os: linux, arch: "386", debian: i386, rpm: i386 }
+          # Naive-enabled builds (musl)
+          - { os: linux, arch: amd64, naive: true, debian: amd64, rpm: x86_64, pacman: x86_64 }
+          - { os: linux, arch: arm64, naive: true, debian: arm64, rpm: aarch64, pacman: aarch64 }
+          - { os: linux, arch: "386", naive: true, debian: i386, rpm: i386 }
+          - { os: linux, arch: arm, goarm: "7", naive: true, debian: armhf, rpm: armv7hl, pacman: armv7hl }
+          # Non-naive builds (unsupported architectures)
           - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl }
-          - { os: linux, arch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl }
-          - { os: linux, arch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64 }
           - { os: linux, arch: mips64le, debian: mips64el, rpm: mips64el }
           - { os: linux, arch: mipsle, debian: mipsel, rpm: mipsel }
           - { os: linux, arch: s390x, debian: s390x, rpm: s390x }
@@ -72,12 +78,37 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.6
-      - name: Setup Android NDK
-        if: matrix.os == 'android'
-        uses: nttld/setup-ndk@v1
+      - name: Clone cronet-go
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
+          git init ~/cronet-go
+          git -C ~/cronet-go remote add origin https://github.com/sagernet/cronet-go.git
+          git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
+          git -C ~/cronet-go checkout FETCH_HEAD
+          git -C ~/cronet-go submodule update --init --recursive --depth=1
+      - name: Cache Chromium toolchain
+        if: matrix.naive
+        id: cache-chromium-toolchain
+        uses: actions/cache@v4
         with:
-          ndk-version: r28
-          local-cache: true
+          path: |
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/Release+Asserts
+            ~/cronet-go/naiveproxy/src/out/sysroot-build
+          key: chromium-toolchain-${{ matrix.arch }}-musl-${{ hashFiles('.github/CRONET_GO_VERSION') }}
+      - name: Download Chromium toolchain
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.arch }} --libc=musl download-toolchain
+      - name: Set Chromium toolchain environment
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.arch }} --libc=musl env >> $GITHUB_ENV
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
@@ -86,8 +117,26 @@ jobs:
         run: |
           set -xeuo pipefail
           TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
+          if [[ "${{ matrix.naive }}" == "true" ]]; then
+            TAGS="${TAGS},with_naive_outbound,with_musl"
+          fi
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
-      - name: Build
+      - name: Build (naive)
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (non-naive)
+        if: ${{ ! matrix.naive }}
         run: |
           set -xeuo pipefail
           mkdir -p dist
@@ -185,5 +234,6 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Publish packages
+        if: github.event_name != 'push'
         run: |-
           ls dist | xargs -I {} curl -F "package=@dist/{}" https://${{ secrets.FURY_TOKEN }}@push.fury.io/sagernet/

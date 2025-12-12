@@ -57,6 +57,37 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_v2ray_api`                   | :material-close:️    | Build with V2Ray API support, see [Experimental](/configuration/experimental#v2ray-api-fields).                                                                                                                                                                                                                                |
 | `with_gvisor`                      | :material-check:     | Build with gVisor support, see [Tun inbound](/configuration/inbound/tun#stack) and [WireGuard outbound](/configuration/outbound/wireguard#system_interface).                                                                                                                                                                   |
 | `with_embedded_tor` (CGO required) | :material-close:️    | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor/).                                                                                                                                                                                                                                             |
-| `with_tailscale`                   | :material-check:   | Build with Tailscale support, see [Tailscale endpoint](/configuration/endpoint/tailscale)                                                                                                                                                                                                                                      |
+| `with_tailscale`                   | :material-check:     | Build with Tailscale support, see [Tailscale endpoint](/configuration/endpoint/tailscale)                                                                                                                                                                                                                                      |
+| `with_naive_outbound`              | :material-close:️    | Build with NaiveProxy outbound support, see [NaiveProxy outbound](/configuration/outbound/naive/).                                                                                                                                                                                                                             |
 
 It is not recommended to change the default build tag list unless you really know what you are adding.
+
+## :material-layers: with_naive_outbound
+
+NaiveProxy outbound requires special build configurations depending on your target platform.
+
+### Supported Platforms
+
+| Platform        | Architectures      | Mode   | Requirements                                                                                                                         |
+|-----------------|--------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
+| Windows         | *                  | purego | None                                                                                                                                 |
+| Linux           | amd64, arm64       | purego | Download libcronet from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) to system library path or sing-box binary directory |
+| Linux           | 386, amd64, arm, arm64 | CGO    | Chromium toolchain (see [cronet-go](https://github.com/sagernet/cronet-go))                                                          |
+| Apple platforms | *                  | CGO    | Xcode                                                                                                                                |
+| Android         | *                  | CGO    | Android NDK                                                                                                                          |
+
+### Windows
+
+Use `with_purego` tag.
+
+### Linux (purego, amd64/arm64 only)
+
+Download `libcronet.so` from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) and install to system library path or the same directory as sing-box binary, then use `with_purego` tag.
+
+### Linux (CGO)
+
+See [cronet-go](https://github.com/sagernet/cronet-go#linux-build-instructions).
+
+### Apple platforms / Android
+
+See [cronet-go](https://github.com/sagernet/cronet-go).
