@@ -62,5 +62,36 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_gvisor`                      | :material-check:  | Build with gVisor support, see [Tun inbound](/configuration/inbound/tun#stack) and [WireGuard outbound](/configuration/outbound/wireguard#system_interface).                                                                                                                                                                   |
 | `with_embedded_tor` (CGO required) | :material-close:️ | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor/).                                                                                                                                                                                                                                             |
 | `with_tailscale`                   | :material-check:  | Build with Tailscale support, see [Tailscale endpoint](/configuration/endpoint/tailscale)                                                                                                                                                                                                                                      |
+| `with_naive_outbound`              | :material-close:️ | 构建 NaiveProxy 出站支持，参阅 [NaiveProxy 出站](/zh/configuration/outbound/naive/)。                                                                                                                                                                                                                                                      |
 
 除非您确实知道您正在启用什么，否则不建议更改默认构建标签列表。
+
+## :material-layers: with_naive_outbound
+
+NaiveProxy 出站需要根据目标平台进行特殊的构建配置。
+
+### 支持的平台
+
+| 平台            | 架构                   | 模式     | 要求                                                                                                                                          |
+|---------------|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| Windows       | *                    | purego | 无                                                                                                                                           |
+| Linux         | amd64, arm64         | purego | 从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载 libcronet 到系统库目录或 sing-box 二进制文件相同目录                                |
+| Linux         | 386, amd64, arm, arm64 | CGO    | Chromium 工具链（参阅 [cronet-go](https://github.com/sagernet/cronet-go)）                                                                         |
+| Apple 平台      | *                    | CGO    | Xcode                                                                                                                                       |
+| Android       | *                    | CGO    | Android NDK                                                                                                                                 |
+
+### Windows
+
+使用 `with_purego` 标记。
+
+### Linux (purego, 仅 amd64/arm64)
+
+从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载 `libcronet.so` 并安装到系统库目录或 sing-box 二进制文件相同目录，然后使用 `with_purego` 标记。
+
+### Linux (CGO)
+
+参阅 [cronet-go](https://github.com/sagernet/cronet-go#linux-build-instructions)。
+
+### Apple 平台 / Android
+
+参阅 [cronet-go](https://github.com/sagernet/cronet-go)。
