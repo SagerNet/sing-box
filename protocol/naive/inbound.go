@@ -2,8 +2,8 @@ package naive
 
 import (
 	"context"
+	"errors"
 	"io"
-	"math/rand"
 	"net"
 	"net/http"
 
@@ -22,7 +22,11 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	aTLS "github.com/sagernet/sing/common/tls"
 	sHttp "github.com/sagernet/sing/protocol/http"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var ConfigureHTTP3ListenerFunc func(listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, logger logger.Logger) (io.Closer, error)
@@ -82,15 +86,10 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	var tlsConfig *tls.STDConfig
 	if n.tlsConfig != nil {
 		err := n.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
-		}
-		tlsConfig, err = n.tlsConfig.Config()
-		if err != nil {
-			return err
 		}
 	}
 	if common.Contains(n.network, N.NetworkTCP) {
@@ -99,20 +98,23 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 			return err
 		}
 		n.httpServer = &http.Server{
-			Handler:   n,
-			TLSConfig: tlsConfig,
+			Handler: h2c.NewHandler(n, &http2.Server{}),
 			BaseContext: func(listener net.Listener) context.Context {
 				return n.ctx
 			},
 		}
 		go func() {
-			var sErr error
-			if tlsConfig != nil {
-				sErr = n.httpServer.ServeTLS(tcpListener, "", "")
-			} else {
-				sErr = n.httpServer.Serve(tcpListener)
+			listener := net.Listener(tcpListener)
+			if n.tlsConfig != nil {
+				if len(n.tlsConfig.NextProtos()) == 0 {
+					n.tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
+				} else if !common.Contains(n.tlsConfig.NextProtos(), http2.NextProtoTLS) {
+					n.tlsConfig.SetNextProtos(append([]string{http2.NextProtoTLS}, n.tlsConfig.NextProtos()...))
+				}
+				listener = aTLS.NewListener(tcpListener, n.tlsConfig)
 			}
-			if sErr != nil && !E.IsClosedOrCanceled(sErr) {
+			sErr := n.httpServer.Serve(listener)
+			if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
 				n.logger.Error("http server serve error: ", sErr)
 			}
 		}()
@@ -161,13 +163,16 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		n.badRequest(ctx, request, E.New("authorization failed"))
 		return
 	}
-	writer.Header().Set("Padding", generateNaivePaddingHeader())
+	writer.Header().Set("Padding", generatePaddingHeader())
 	writer.WriteHeader(http.StatusOK)
 	writer.(http.Flusher).Flush()
 
-	hostPort := request.URL.Host
+	hostPort := request.Header.Get("-connect-authority")
 	if hostPort == "" {
-		hostPort = request.Host
+		hostPort = request.URL.Host
+		if hostPort == "" {
+			hostPort = request.Host
+		}
 	}
 	source := sHttp.SourceAddress(request)
 	destination := M.ParseSocksaddr(hostPort).Unwrap()
@@ -178,9 +183,14 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			n.badRequest(ctx, request, E.New("hijack failed"))
 			return
 		}
-		n.newConnection(ctx, false, &naiveH1Conn{Conn: conn}, userName, source, destination)
+		n.newConnection(ctx, false, &naiveConn{Conn: conn}, userName, source, destination)
 	} else {
-		n.newConnection(ctx, true, &naiveH2Conn{reader: request.Body, writer: writer, flusher: writer.(http.Flusher)}, userName, source, destination)
+		n.newConnection(ctx, true, &naiveH2Conn{
+			reader:        request.Body,
+			writer:        writer,
+			flusher:       writer.(http.Flusher),
+			remoteAddress: source,
+		}, userName, source, destination)
 	}
 }
 
@@ -235,19 +245,4 @@ func rejectHTTP(writer http.ResponseWriter, statusCode int) {
 		tcpConn.SetLinger(0)
 	}
 	conn.Close()
-}
-
-func generateNaivePaddingHeader() string {
-	paddingLen := rand.Intn(32) + 30
-	padding := make([]byte, paddingLen)
-	bits := rand.Uint64()
-	for i := 0; i < 16; i++ {
-		// Codes that won't be Huffman coded.
-		padding[i] = "!#$()+<>?@[]^`{}"[bits&15]
-		bits >>= 4
-	}
-	for i := 16; i < paddingLen; i++ {
-		padding[i] = '~'
-	}
-	return string(padding)
 }
