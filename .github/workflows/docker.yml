@@ -1,6 +1,10 @@
 name: Publish Docker Images
 
 on:
+  #push:
+  #  branches:
+  #    - main-next
+  #    - dev-next
   release:
     types:
       - published
@@ -13,8 +17,134 @@ env:
   REGISTRY_IMAGE: ghcr.io/sagernet/sing-box
 
 jobs:
-  build:
+  build_binary:
+    name: Build binary
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Naive-enabled builds (musl)
+          - { arch: amd64, naive: true, docker_platform: "linux/amd64" }
+          - { arch: arm64, naive: true, docker_platform: "linux/arm64" }
+          - { arch: "386", naive: true, docker_platform: "linux/386" }
+          - { arch: arm, goarm: "7", naive: true, docker_platform: "linux/arm/v7" }
+          # Non-naive builds
+          - { arch: arm, goarm: "6", docker_platform: "linux/arm/v6" }
+          - { arch: ppc64le, docker_platform: "linux/ppc64le" }
+          - { arch: riscv64, docker_platform: "linux/riscv64" }
+          - { arch: s390x, docker_platform: "linux/s390x" }
+    steps:
+      - name: Get commit to build
+        id: ref
+        run: |-
+          if [[ -z "${{ github.event.inputs.tag }}" ]]; then
+            ref="${{ github.ref_name }}"
+          else
+            ref="${{ github.event.inputs.tag }}"
+          fi
+          echo "ref=$ref"
+          echo "ref=$ref" >> $GITHUB_OUTPUT
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.25.4
+      - name: Clone cronet-go
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
+          git init ~/cronet-go
+          git -C ~/cronet-go remote add origin https://github.com/sagernet/cronet-go.git
+          git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
+          git -C ~/cronet-go checkout FETCH_HEAD
+          git -C ~/cronet-go submodule update --init --recursive --depth=1
+      - name: Cache Chromium toolchain
+        if: matrix.naive
+        id: cache-chromium-toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/Release+Asserts
+            ~/cronet-go/naiveproxy/src/out/sysroot-build
+          key: chromium-toolchain-${{ matrix.arch }}-musl-${{ hashFiles('.github/CRONET_GO_VERSION') }}
+      - name: Download Chromium toolchain
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.arch }} --libc=musl download-toolchain
+      - name: Set version
+        run: |
+          set -xeuo pipefail
+          VERSION=$(go run ./cmd/internal/read_tag)
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+      - name: Set Chromium toolchain environment
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.arch }} --libc=musl env >> $GITHUB_ENV
+      - name: Set build tags
+        run: |
+          set -xeuo pipefail
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
+          if [[ "${{ matrix.naive }}" == "true" ]]; then
+            TAGS="${TAGS},with_naive_outbound,with_musl"
+          fi
+          echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
+      - name: Build (naive)
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          go build -v -trimpath -o sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -s -w -buildid= -checklinkname=0" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+      - name: Build (non-naive)
+        if: ${{ ! matrix.naive }}
+        run: |
+          set -xeuo pipefail
+          go build -v -trimpath -o sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -s -w -buildid= -checklinkname=0" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+      - name: Prepare artifact
+        run: |
+          platform=${{ matrix.docker_platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          # Rename binary to include arch info for Dockerfile.binary
+          BINARY_NAME="sing-box-${{ matrix.arch }}"
+          if [[ -n "${{ matrix.goarm }}" ]]; then
+            BINARY_NAME="${BINARY_NAME}v${{ matrix.goarm }}"
+          fi
+          mv sing-box "${BINARY_NAME}"
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ env.PLATFORM_PAIR }}
+          path: ${{ env.BINARY_NAME }}
+          if-no-files-found: error
+          retention-days: 1
+  build_docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs:
+      - build_binary
     strategy:
       fail-fast: true
       matrix:
@@ -47,6 +177,16 @@ jobs:
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      - name: Download binary
+        uses: actions/download-artifact@v5
+        with:
+          name: binary-${{ env.PLATFORM_PAIR }}
+          path: .
+      - name: Prepare binary
+        run: |
+          # Find and make the binary executable
+          chmod +x sing-box-*
+          ls -la sing-box-*
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
       - name: Setup Docker Buildx
@@ -68,8 +208,7 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           context: .
-          build-args: |
-            BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
+          file: Dockerfile.binary
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       - name: Export digest
@@ -87,7 +226,7 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs:
-      - build
+      - build_docker
     steps:
       - name: Get commit to build
         id: ref
@@ -121,6 +260,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create manifest list and push
+        if: github.event_name != 'push'
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
@@ -128,6 +268,7 @@ jobs:
             -t "${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.ref }}" \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       - name: Inspect image
+        if: github.event_name != 'push'
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.latest }}
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.ref }}

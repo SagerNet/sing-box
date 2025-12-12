@@ -277,8 +277,8 @@ func (s *StartedService) SubscribeLog(empty *emptypb.Empty, server grpc.ServerSt
 	for element := s.logLines.Front(); element != nil; element = element.Next() {
 		savedLines = append(savedLines, element.Value)
 	}
-	s.logAccess.Unlock()
 	subscription, done, err := s.logObserver.Subscribe()
+	s.logAccess.Unlock()
 	if err != nil {
 		return err
 	}
@@ -816,13 +816,13 @@ func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {
 
 func (s *StartedService) WriteMessage(level log.Level, message string) {
 	item := &log.Entry{Level: level, Message: message}
-	s.logSubscriber.Emit(item)
 	s.logAccess.Lock()
 	s.logLines.PushBack(item)
 	if s.logLines.Len() > s.logMaxLines {
 		s.logLines.Remove(s.logLines.Front())
 	}
 	s.logAccess.Unlock()
+	s.logSubscriber.Emit(item)
 	if s.debug {
 		s.handler.WriteDebugMessage(message)
 	}
