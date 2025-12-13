@@ -13,6 +13,19 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
+func NormalizeXHTTPMode(mode string) (string, error) {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return "auto", nil
+	}
+	switch mode {
+	case "auto", "packet-up", "stream-up", "stream-one":
+		return mode, nil
+	default:
+		return "", E.New("unsupported mode: ", mode)
+	}
+}
+
 type _V2RayTransportOptions struct {
 	Type               string                  `json:"type"`
 	HTTPOptions        V2RayHTTPOptions        `json:"-"`

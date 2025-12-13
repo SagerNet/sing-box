@@ -74,6 +74,9 @@ func (c *DefaultDialerClient) OpenStream(ctx context.Context, url string, body i
 			return
 		}
 		if resp.StatusCode != 200 || uploadOnly { // stream-up
+			if resp.StatusCode != 200 {
+				c.closed = true
+			}
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close() // if it is called immediately, the upload will be interrupted also
 			wrc.Close()
@@ -98,8 +101,24 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 			c.closed = true
 			return err
 		}
-		io.Copy(io.Discard, resp.Body)
-		defer resp.Body.Close()
+		_, copyErr := io.Copy(io.Discard, resp.Body)
+		closeErr := resp.Body.Close()
+		if resp.StatusCode != 200 {
+			c.closed = true
+			if copyErr != nil {
+				return copyErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			return fmt.Errorf("bad status code: %s", resp.Status)
+		}
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
 	} else {
 		// stringify the entire HTTP/1.1 request so it can be
 		// safely retried. if instead req.Write is called multiple
@@ -130,10 +149,17 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 						c.closed = true
 						return fmt.Errorf("error while reading response: %s", err.Error())
 					}
-					io.Copy(io.Discard, resp.Body)
-					defer resp.Body.Close()
+					_, copyErr := io.Copy(io.Discard, resp.Body)
+					closeErr := resp.Body.Close()
 					if resp.StatusCode != 200 {
+						c.closed = true
 						return fmt.Errorf("got non-200 error response code: %d", resp.StatusCode)
+					}
+					if copyErr != nil {
+						return copyErr
+					}
+					if closeErr != nil {
+						return closeErr
 					}
 				}
 			}
@@ -157,36 +183,61 @@ func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, body i
 type WaitReadCloser struct {
 	Wait chan struct{}
 	io.ReadCloser
+	mu   sync.Mutex
+	once sync.Once
+	closed bool
+}
+
+func (w *WaitReadCloser) notify() {
+	w.once.Do(func() {
+		close(w.Wait)
+	})
 }
 
 func (w *WaitReadCloser) Set(rc io.ReadCloser) {
+	w.mu.Lock()
+	if w.closed || w.ReadCloser != nil {
+		w.mu.Unlock()
+		rc.Close()
+		return
+	}
 	w.ReadCloser = rc
-	defer func() {
-		if recover() != nil {
-			rc.Close()
-		}
-	}()
-	close(w.Wait)
+	w.mu.Unlock()
+	w.notify()
 }
 
 func (w *WaitReadCloser) Read(b []byte) (int, error) {
-	if w.ReadCloser == nil {
-		if <-w.Wait; w.ReadCloser == nil {
+	w.mu.Lock()
+	rc := w.ReadCloser
+	w.mu.Unlock()
+
+	if rc == nil {
+		<-w.Wait
+		w.mu.Lock()
+		rc = w.ReadCloser
+		w.mu.Unlock()
+		if rc == nil {
 			return 0, io.ErrClosedPipe
 		}
 	}
-	return w.ReadCloser.Read(b)
+	return rc.Read(b)
 }
 
 func (w *WaitReadCloser) Close() error {
-	if w.ReadCloser != nil {
-		return w.ReadCloser.Close()
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return nil
 	}
-	defer func() {
-		if recover() != nil && w.ReadCloser != nil {
-			w.ReadCloser.Close()
-		}
-	}()
-	close(w.Wait)
+	w.closed = true
+	rc := w.ReadCloser
+	w.ReadCloser = nil
+	w.mu.Unlock()
+
+	if rc != nil {
+		return rc.Close()
+	}
+
+	w.notify()
 	return nil
 }

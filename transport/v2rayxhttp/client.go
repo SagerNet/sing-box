@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
+	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/xray/buf"
@@ -23,6 +23,7 @@ import (
 	"github.com/sagernet/sing-box/common/xray/signal/done"
 	"github.com/sagernet/sing-box/common/xray/uuid"
 	"github.com/sagernet/sing-box/option"
+	qtls "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -43,23 +44,29 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayXHTTPOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
-	mode := strings.TrimSpace(options.Mode)
-	dest := serverAddr
-	var gotlsConfig *gotls.Config
-	var tlsConfigErr error
-	if tlsConfig != nil {
-		var err error
-		gotlsConfig, err = tlsConfig.Config()
+	configMode, err := option.NormalizeXHTTPMode(options.Mode)
+	if err != nil {
+		return nil, err
+	}
+	if options.Download != nil {
+		options.Download.Mode, err = option.NormalizeXHTTPMode(options.Download.Mode)
 		if err != nil {
-			tlsConfigErr = err
-			// uTLS doesn't support Config(), use HTTP/2 only
-			gotlsConfig = nil
+			return nil, err
+		}
+		if configMode == "stream-one" {
+			return nil, E.New(`download is not allowed when mode is "stream-one"`)
 		}
 	}
-	if (mode == "" || mode == "auto") && tlsConfigErr != nil && strings.Contains(strings.ToLower(tlsConfigErr.Error()), "reality") {
-		mode = "stream-one"
-		if options.Download != nil {
-			mode = "stream-up"
+	mode := configMode
+	dest := serverAddr
+	_, isReality := tlsConfig.(*tls.RealityClientConfig)
+	if mode == "auto" {
+		mode = "packet-up"
+		if isReality {
+			mode = "stream-one"
+			if options.Download != nil {
+				mode = "stream-up"
+			}
 		}
 	}
 	options.Mode = mode
@@ -82,7 +89,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		}
 	}
 	xmuxManager := NewXmuxManager(xmuxOptions, func() XmuxConn {
-		return createHTTPClient(dest, dialer, &options.V2RayXHTTPBaseOptions, tlsConfig, gotlsConfig)
+		return createHTTPClient(dest, dialer, &options.V2RayXHTTPBaseOptions, tlsConfig)
 	})
 	getHTTPClient := func() (DialerClient, *XmuxClient) {
 		xmuxClient := xmuxManager.GetXmuxClient(ctx)
@@ -102,16 +109,10 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		}
 		dest2 := options2.ServerOptions.Build()
 		var tlsConfig2 tls.Config
-		var gotlsConfig2 *gotls.Config
 		if options2.TLS != nil {
 			tlsConfig2, err = tls.NewClient(ctx, options2.Server, common.PtrValueOrDefault(options2.TLS))
 			if err != nil {
 				return nil, err
-			}
-			gotlsConfig2, err = tlsConfig2.Config()
-			if err != nil {
-				// uTLS doesn't support Config(), use HTTP/2 only
-				gotlsConfig2 = nil
 			}
 		}
 		baseRequestURL2, err := getBaseRequestURL(&options2.V2RayXHTTPBaseOptions, dest2, tlsConfig2)
@@ -131,7 +132,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			}
 		}
 		xmuxManager2 := NewXmuxManager(xmuxOptions2, func() XmuxConn {
-			return createHTTPClient(dest2, dialer2, &options2.V2RayXHTTPBaseOptions, tlsConfig2, gotlsConfig2)
+			return createHTTPClient(dest2, dialer2, &options2.V2RayXHTTPBaseOptions, tlsConfig2)
 		})
 		getHTTPClient2 = func() (DialerClient, *XmuxClient) {
 			xmuxClient2 := xmuxManager2.GetXmuxClient(ctx)
@@ -297,73 +298,23 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func decideHTTPVersion(gotlsConfig *gotls.Config, tlsConfig tls.Config) string {
-	defaultALPN := []string{http2.NextProtoTLS, "http/1.1"}
-	var tlsNextProtos []string
-	if tlsConfig != nil {
-		tlsNextProtos = tlsConfig.NextProtos()
-		if len(tlsNextProtos) == 0 {
-			tlsDefaults := append([]string(nil), defaultALPN...)
-			tlsConfig.SetNextProtos(tlsDefaults)
-			tlsNextProtos = tlsDefaults
-		}
-	}
-	if gotlsConfig != nil && len(gotlsConfig.NextProtos) == 0 {
-		if len(tlsNextProtos) > 0 {
-			gotlsConfig.NextProtos = append([]string(nil), tlsNextProtos...)
-		} else {
-			gotlsConfig.NextProtos = append([]string(nil), defaultALPN...)
-		}
-	}
-	if gotlsConfig == nil {
-		// For uTLS or no TLS, check tlsConfig.NextProtos()
-		if tlsConfig == nil {
-			// No TLS: use HTTP/1.1
-			return "1.1"
-		}
-		if len(tlsNextProtos) == 0 {
-			tlsNextProtos = tlsConfig.NextProtos()
-		}
-		if len(tlsNextProtos) == 0 {
-			// uTLS with no ALPN configured: default to HTTP/2 for xhttp
-			return "2"
-		}
-		// For xhttp: prefer h3 > h2 > http/1.1 to match server ALPN
-		// If h3 is in ALPN list, return "3" (will fail later if gotlsConfig is needed)
-		for _, proto := range tlsNextProtos {
-			if proto == "h3" {
-				return "3"
-			}
-		}
-		for _, proto := range tlsNextProtos {
-			if proto == http2.NextProtoTLS {
-				return "2"
-			}
-		}
-		// If only http/1.1 is available, use it (though xhttp may not work well)
-		if tlsNextProtos[0] == "http/1.1" {
-			return "1.1"
-		}
-		// Default to HTTP/2
+func decideHTTPVersion(tlsConfig tls.Config) string {
+	if _, ok := tlsConfig.(*tls.RealityClientConfig); ok {
 		return "2"
 	}
-	if len(gotlsConfig.NextProtos) == 0 {
-		// Standard TLS with no ALPN: default to HTTP/2 for xhttp
-		return "2"
+	if tlsConfig == nil {
+		return "1.1"
 	}
-	// For standard TLS: prefer h3 > h2 > http/1.1
-	for _, proto := range gotlsConfig.NextProtos {
-		if proto == "h3" {
-			return "3"
-		}
+	nextProtos := tlsConfig.NextProtos()
+
+	if len(nextProtos) == 0 {
+		tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
 	}
-	for _, proto := range gotlsConfig.NextProtos {
-		if proto == http2.NextProtoTLS {
-			return "2"
-		}
+	
+	if len(nextProtos) > 0 && nextProtos[0] == "h3" {
+		return "3"
 	}
-	// Fallback to http/1.1 if specified, otherwise default to HTTP/2
-	if gotlsConfig.NextProtos[0] == "http/1.1" {
+	if len(nextProtos) > 0 && nextProtos[0] == "http/1.1" {
 		return "1.1"
 	}
 	return "2"
@@ -395,8 +346,8 @@ func getBaseRequestURL(options *option.V2RayXHTTPBaseOptions, dest M.Socksaddr, 
 	return requestURL, nil
 }
 
-func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXHTTPBaseOptions, tlsConfig tls.Config, gotlsConfig *gotls.Config) DialerClient {
-	httpVersion := decideHTTPVersion(gotlsConfig, tlsConfig)
+func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXHTTPBaseOptions, tlsConfig tls.Config) DialerClient {
+	httpVersion := decideHTTPVersion(tlsConfig)
 	dialContext := func(ctxInner context.Context) (net.Conn, error) {
 		conn, err := dialer.DialContext(ctxInner, "tcp", dest)
 		if err != nil {
@@ -424,22 +375,6 @@ func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXH
 		if keepAlivePeriod < 0 {
 			keepAlivePeriod = 0
 		}
-		// If gotlsConfig is nil (uTLS case), construct a basic gotls.Config
-		// This allows HTTP/3 to work even when uTLS is configured
-		var h3TLSConfig *gotls.Config
-		if gotlsConfig != nil {
-			h3TLSConfig = gotlsConfig.Clone()
-		} else if tlsConfig != nil {
-			// Build basic gotls.Config from tlsConfig for HTTP/3
-			h3TLSConfig = &gotls.Config{
-				ServerName:         tlsConfig.ServerName(),
-				InsecureSkipVerify: false,
-				NextProtos:         tlsConfig.NextProtos(),
-			}
-		} else {
-			// No TLS config at all, cannot use HTTP/3
-			h3TLSConfig = &gotls.Config{}
-		}
 		quicConfig := &quic.Config{
 			MaxIdleTimeout: net.ConnIdleTimeout,
 			// these two are defaults of quic-go/http3. the default of quic-go (no
@@ -449,14 +384,13 @@ func createHTTPClient(dest M.Socksaddr, dialer N.Dialer, options *option.V2RayXH
 			KeepAlivePeriod:    keepAlivePeriod,
 		}
 		transport = &http3.Transport{
-			QUICConfig:      quicConfig,
-			TLSClientConfig: h3TLSConfig,
-			Dial: func(ctx context.Context, addr string, tlsCfg *gotls.Config, cfg *quic.Config) (*quic.Conn, error) {
+			QUICConfig: quicConfig,
+			Dial: func(ctx context.Context, addr string, tlsCfg *gotls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 				udpConn, dErr := dialer.DialContext(ctx, N.NetworkUDP, dest)
 				if dErr != nil {
 					return nil, dErr
 				}
-				return quic.DialEarly(ctx, bufio.NewUnbindPacketConn(udpConn), udpConn.RemoteAddr(), tlsCfg, cfg)
+				return qtls.DialEarly(ctx, bufio.NewUnbindPacketConn(udpConn), udpConn.RemoteAddr(), tlsConfig, cfg)
 			},
 		}
 	case "2":
