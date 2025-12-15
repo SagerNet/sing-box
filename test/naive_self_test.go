@@ -310,12 +310,12 @@ func TestNaiveSelfECH(t *testing.T) {
 	naiveOutbound := naiveOut.(*naive.Outbound)
 
 	netLogPath := "/tmp/naive_ech_netlog.json"
-	require.True(t, naiveOutbound.StartNetLogToFile(netLogPath, true))
-	defer naiveOutbound.StopNetLog()
+	require.True(t, naiveOutbound.Client().Engine().StartNetLogToFile(netLogPath, true))
+	defer naiveOutbound.Client().Engine().StopNetLog()
 
 	testTCP(t, clientPort, testPort)
 
-	naiveOutbound.StopNetLog()
+	naiveOutbound.Client().Engine().StopNetLog()
 
 	logContent, err := os.ReadFile(netLogPath)
 	require.NoError(t, err)
@@ -418,8 +418,8 @@ func TestNaiveSelfInsecureConcurrency(t *testing.T) {
 	naiveOutbound := naiveOut.(*naive.Outbound)
 
 	netLogPath := "/tmp/naive_concurrency_netlog.json"
-	require.True(t, naiveOutbound.StartNetLogToFile(netLogPath, true))
-	defer naiveOutbound.StopNetLog()
+	require.True(t, naiveOutbound.Client().Engine().StartNetLogToFile(netLogPath, true))
+	defer naiveOutbound.Client().Engine().StopNetLog()
 
 	// Send multiple sequential connections to trigger round-robin
 	// With insecure_concurrency=3, connections will be distributed to 3 pools
@@ -427,7 +427,7 @@ func TestNaiveSelfInsecureConcurrency(t *testing.T) {
 		testTCP(t, clientPort, testPort)
 	}
 
-	naiveOutbound.StopNetLog()
+	naiveOutbound.Client().Engine().StopNetLog()
 
 	// Verify NetLog contains multiple independent HTTP/2 sessions
 	logContent, err := os.ReadFile(netLogPath)

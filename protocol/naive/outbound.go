@@ -16,10 +16,12 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/uot"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -28,9 +30,10 @@ func RegisterOutbound(registry *outbound.Registry) {
 
 type Outbound struct {
 	outbound.Adapter
-	ctx    context.Context
-	logger logger.ContextLogger
-	client *cronet.NaiveClient
+	ctx       context.Context
+	logger    logger.ContextLogger
+	client    *cronet.NaiveClient
+	uotClient *uot.Client
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.NaiveOutboundOptions) (adapter.Outbound, error) {
@@ -119,61 +122,85 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 
 	client, err := cronet.NewNaiveClient(cronet.NaiveClientConfig{
-		Context:                    ctx,
-		ServerAddress:              serverAddress,
-		ServerName:                 serverName,
-		Username:                   options.Username,
-		Password:                   options.Password,
-		Concurrency:                options.InsecureConcurrency,
-		ExtraHeaders:               extraHeaders,
-		TrustedRootCertificates:    trustedRootCertificates,
-		CertificatePublicKeySHA256: options.TLS.CertificatePublicKeySHA256,
-		Dialer:                     outboundDialer,
+		Context:                           ctx,
+		ServerAddress:                     serverAddress,
+		ServerName:                        serverName,
+		Username:                          options.Username,
+		Password:                          options.Password,
+		InsecureConcurrency:               options.InsecureConcurrency,
+		ExtraHeaders:                      extraHeaders,
+		TrustedRootCertificates:           trustedRootCertificates,
+		TrustedCertificatePublicKeySHA256: options.TLS.CertificatePublicKeySHA256,
+		Dialer:                            outboundDialer,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	var uotClient *uot.Client
+	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
+	if uotOptions.Enabled {
+		uotClient = &uot.Client{
+			Dialer:  &naiveDialer{client},
+			Version: uotOptions.Version,
+		}
+	}
 	return &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, []string{N.NetworkTCP}, options.DialerOptions),
-		ctx:     ctx,
-		logger:  logger,
-		client:  client,
+		Adapter:   outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, []string{N.NetworkTCP}, options.DialerOptions),
+		ctx:       ctx,
+		logger:    logger,
+		client:    client,
+		uotClient: uotClient,
 	}, nil
 }
 
-func (o *Outbound) Start(stage adapter.StartStage) error {
+func (h *Outbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	err := o.client.Start()
+	err := h.client.Start()
 	if err != nil {
 		return err
 	}
-	o.logger.Info("NaiveProxy started, version: ", o.client.Engine().Version())
+	h.logger.Info("NaiveProxy started, version: ", h.client.Engine().Version())
 	return nil
 }
 
-func (o *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	ctx, metadata := adapter.ExtendContext(ctx)
-	metadata.Outbound = o.Tag()
-	metadata.Destination = destination
-	o.logger.InfoContext(ctx, "outbound connection to ", destination)
-	return o.client.DialContext(ctx, destination)
+func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	switch N.NetworkName(network) {
+	case N.NetworkTCP:
+		h.logger.InfoContext(ctx, "outbound connection to ", destination)
+		return h.client.DialEarly(destination)
+	case N.NetworkUDP:
+		if h.uotClient == nil {
+			return nil, E.New("UDP is not supported unless UDP over TCP is enabled")
+		}
+		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
+		return h.uotClient.DialContext(ctx, network, destination)
+	default:
+		return nil, E.Extend(N.ErrUnknownNetwork, network)
+	}
 }
 
-func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return nil, os.ErrInvalid
+func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	if h.uotClient == nil {
+		return nil, E.New("UDP is not supported unless UDP over TCP is enabled")
+	}
+	return h.uotClient.ListenPacket(ctx, destination)
 }
 
-func (o *Outbound) Close() error {
-	return o.client.Close()
+func (h *Outbound) Close() error {
+	return h.client.Close()
 }
 
-func (o *Outbound) StartNetLogToFile(fileName string, logAll bool) bool {
-	return o.client.Engine().StartNetLogToFile(fileName, logAll)
+func (h *Outbound) Client() *cronet.NaiveClient {
+	return h.client
 }
 
-func (o *Outbound) StopNetLog() {
-	o.client.Engine().StopNetLog()
+type naiveDialer struct {
+	*cronet.NaiveClient
+}
+
+func (d *naiveDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	return d.NaiveClient.DialEarly(destination)
 }
