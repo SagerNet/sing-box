@@ -19,5 +19,6 @@ type NaiveOutboundOptions struct {
 	Password            string               `json:"password,omitempty"`
 	InsecureConcurrency int                  `json:"insecure_concurrency,omitempty"`
 	ExtraHeaders        badoption.HTTPHeader `json:"extra_headers,omitempty"`
+	UDPOverTCP          *UDPOverTCPOptions   `json:"udp_over_tcp,omitempty"`
 	OutboundTLSOptionsContainer
 }
