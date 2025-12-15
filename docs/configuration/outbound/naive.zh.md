@@ -1,6 +1,8 @@
-!!! quote "sing-box 1.13.0 中的更改"
+---
+icon: material/new-box
+---
 
-    :material-plus: 初始版本
+!!! question "自 sing-box 1.13.0 起"
 
 ### 结构
 
@@ -15,6 +17,7 @@
   "password": "password",
   "insecure_concurrency": 0,
   "extra_headers": {},
+  "udp_over_tcp": false | {},
   "tls": {},
 
   ... // 拨号字段
@@ -54,6 +57,12 @@
 #### extra_headers
 
 HTTP 请求中发送的额外头部。
+
+#### udp_over_tcp
+
+UDP over TCP 配置。
+
+参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp/)。
 
 #### tls
 
