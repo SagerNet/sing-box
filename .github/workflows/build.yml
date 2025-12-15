@@ -591,8 +591,8 @@ jobs:
       - name: Prepare upload
         run: |-
           mkdir -p dist
-          cp clients/android/app/build/outputs/apk/play/release/*.apk dist
-          cp clients/android/app/build/outputs/apk/other/release/*-universal.apk dist
+          #cp clients/android/app/build/outputs/apk/play/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/other/release/*.apk dist
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
