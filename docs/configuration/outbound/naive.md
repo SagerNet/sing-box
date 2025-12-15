@@ -1,6 +1,8 @@
-!!! quote "Changes in sing-box 1.13.0"
+---
+icon: material/new-box
+---
 
-    :material-plus: Initial release
+!!! question "Since sing-box 1.13.0"
 
 ### Structure
 
@@ -15,6 +17,7 @@
   "password": "password",
   "insecure_concurrency": 0,
   "extra_headers": {},
+  "udp_over_tcp": false | {},
   "tls": {},
 
   ... // Dial Fields
@@ -54,6 +57,12 @@ Number of concurrent tunnel connections. Multiple connections make the tunneling
 #### extra_headers
 
 Extra headers to send in HTTP requests.
+
+#### udp_over_tcp
+
+UDP over TCP protocol settings.
+
+See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
 
 #### tls
 
