@@ -11,7 +11,7 @@ INSTALL_CONFIG_PATH="/usr/local/etc/sing-box"
 INSTALL_DATA_PATH="/var/lib/sing-box"
 SYSTEMD_SERVICE_PATH="/etc/systemd/system"
 
-DEFAULT_BUILD_TAGS="with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0"
+DEFAULT_BUILD_TAGS="with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0"
 
 setup_environment() {
     if [ -d /usr/local/go ]; then
