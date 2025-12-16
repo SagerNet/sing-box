@@ -124,11 +124,68 @@ var (
 		CacheWritePrice: 3.75,
 	}
 
+	opus45Pricing = ModelPricing{
+		InputPrice:      5.0,
+		OutputPrice:     25.0,
+		CacheReadPrice:  0.5,
+		CacheWritePrice: 6.25,
+	}
+
+	sonnet45StandardPricing = ModelPricing{
+		InputPrice:      3.0,
+		OutputPrice:     15.0,
+		CacheReadPrice:  0.3,
+		CacheWritePrice: 3.75,
+	}
+
+	sonnet45PremiumPricing = ModelPricing{
+		InputPrice:      6.0,
+		OutputPrice:     22.5,
+		CacheReadPrice:  0.6,
+		CacheWritePrice: 7.5,
+	}
+
+	haiku45Pricing = ModelPricing{
+		InputPrice:      1.0,
+		OutputPrice:     5.0,
+		CacheReadPrice:  0.1,
+		CacheWritePrice: 1.25,
+	}
+
+	haiku3Pricing = ModelPricing{
+		InputPrice:      0.25,
+		OutputPrice:     1.25,
+		CacheReadPrice:  0.03,
+		CacheWritePrice: 0.3,
+	}
+
+	opus3Pricing = ModelPricing{
+		InputPrice:      15.0,
+		OutputPrice:     75.0,
+		CacheReadPrice:  1.5,
+		CacheWritePrice: 18.75,
+	}
+
 	modelFamilies = []modelFamily{
+		{
+			pattern:         regexp.MustCompile(`^claude-opus-4-5-`),
+			standardPricing: opus45Pricing,
+			premiumPricing:  nil,
+		},
 		{
 			pattern:         regexp.MustCompile(`^claude-(?:opus-4-|4-opus-|opus-4-1-)`),
 			standardPricing: opus4Pricing,
 			premiumPricing:  nil,
+		},
+		{
+			pattern:         regexp.MustCompile(`^claude-(?:opus-3-|3-opus-)`),
+			standardPricing: opus3Pricing,
+			premiumPricing:  nil,
+		},
+		{
+			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4-5-|4-5-sonnet-)`),
+			standardPricing: sonnet45StandardPricing,
+			premiumPricing:  &sonnet45PremiumPricing,
 		},
 		{
 			pattern:         regexp.MustCompile(`^claude-3-7-sonnet-`),
@@ -141,6 +198,16 @@ var (
 			premiumPricing:  &sonnet4PremiumPricing,
 		},
 		{
+			pattern:         regexp.MustCompile(`^claude-3-5-sonnet-`),
+			standardPricing: sonnet35Pricing,
+			premiumPricing:  nil,
+		},
+		{
+			pattern:         regexp.MustCompile(`^claude-(?:haiku-4-5-|4-5-haiku-)`),
+			standardPricing: haiku45Pricing,
+			premiumPricing:  nil,
+		},
+		{
 			pattern:         regexp.MustCompile(`^claude-haiku-4-`),
 			standardPricing: haiku4Pricing,
 			premiumPricing:  nil,
@@ -151,8 +218,8 @@ var (
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-3-5-sonnet-`),
-			standardPricing: sonnet35Pricing,
+			pattern:         regexp.MustCompile(`^claude-3-haiku-`),
+			standardPricing: haiku3Pricing,
 			premiumPricing:  nil,
 		},
 	}
