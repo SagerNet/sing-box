@@ -68,25 +68,33 @@ NaiveProxy outbound requires special build configurations depending on your targ
 
 ### Supported Platforms
 
-| Platform        | Architectures      | Mode   | Requirements                                                                                                                         |
-|-----------------|--------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
-| Windows         | *                  | purego | None                                                                                                                                 |
-| Linux           | amd64, arm64       | purego | Download libcronet from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) to system library path or sing-box binary directory |
-| Linux           | 386, amd64, arm, arm64 | CGO    | Chromium toolchain (see [cronet-go](https://github.com/sagernet/cronet-go))                                                          |
-| Apple platforms | *                  | CGO    | Xcode                                                                                                                                |
-| Android         | *                  | CGO    | Android NDK                                                                                                                          |
+| Platform        | Architectures          | Mode   | Requirements                                      |
+|-----------------|------------------------|--------|---------------------------------------------------|
+| Linux           | amd64, arm64           | purego | None (library included in official releases)      |
+| Linux           | 386, amd64, arm, arm64 | CGO    | Chromium toolchain, glibc >= 2.31 at runtime      |
+| Linux (musl)    | 386, amd64, arm, arm64 | CGO    | Chromium toolchain                                |
+| Windows         | amd64, arm64           | purego | None (library included in official releases)      |
+| Apple platforms | *                      | CGO    | Xcode                                             |
+| Android         | *                      | CGO    | Android NDK                                       |
 
 ### Windows
 
 Use `with_purego` tag.
 
+For official releases, `libcronet.dll` is included in the archive. For self-built binaries, download from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) and place in the same directory as `sing-box.exe` or in a directory listed in `PATH`.
+
 ### Linux (purego, amd64/arm64 only)
 
-Download `libcronet.so` from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) and install to system library path or the same directory as sing-box binary, then use `with_purego` tag.
+Use `with_purego` tag.
+
+For official releases, `libcronet.so` is included in the archive. For self-built binaries, download from [cronet-go releases](https://github.com/sagernet/cronet-go/releases) and place in the same directory as sing-box binary or in system library path.
 
 ### Linux (CGO)
 
 See [cronet-go](https://github.com/sagernet/cronet-go#linux-build-instructions).
+
+- **glibc build**: Requires glibc >= 2.31 at runtime
+- **musl build**: Use `with_musl` tag, statically linked, no runtime requirements
 
 ### Apple platforms / Android
 
