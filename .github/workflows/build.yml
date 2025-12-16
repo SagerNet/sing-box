@@ -190,7 +190,7 @@ jobs:
       - name: Set build tags
         run: |
           set -xeuo pipefail
-          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0'
           if [[ "${{ matrix.naive }}" == "true" ]]; then
             TAGS="${TAGS},with_naive_outbound"
           fi
@@ -427,7 +427,7 @@ jobs:
       - name: Set build tags
         run: |
           set -xeuo pipefail
-          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,badlinkname,tfogo_checklinkname0'
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0'
           if [[ "${{ matrix.legacy_go124 }}" != "true" ]]; then
             TAGS="${TAGS},with_naive_outbound"
           fi
@@ -495,7 +495,7 @@ jobs:
       - name: Build
         run: |
           mkdir -p dist
-          go build -v -trimpath -o dist/sing-box.exe -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_naive_outbound,with_purego,badlinkname,tfogo_checklinkname0" `
+          go build -v -trimpath -o dist/sing-box.exe -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_naive_outbound,with_purego,badlinkname,tfogo_checklinkname0" `
           -ldflags "-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0" `
           ./cmd/sing-box
         env:
@@ -885,6 +885,16 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Generate SFA version metadata
+        run: |-
+          VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
+          cat > dist/SFA-version-metadata.json << EOF
+          {
+            "version_code": ${VERSION_CODE},
+            "version_name": "${VERSION}"
+          }
+          EOF
+          cat dist/SFA-version-metadata.json
       - name: Upload builds
         if: ${{ env.PUBLISHED == 'false' }}
         run: |-

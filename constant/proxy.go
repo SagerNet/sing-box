@@ -29,6 +29,7 @@ const (
 	TypeResolved     = "resolved"
 	TypeSSMAPI       = "ssm-api"
 	TypeCCM          = "ccm"
+	TypeOCM          = "ocm"
 )
 
 const (
