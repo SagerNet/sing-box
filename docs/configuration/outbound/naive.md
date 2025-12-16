@@ -24,9 +24,25 @@ icon: material/new-box
 }
 ```
 
-!!! warning ""
+!!! warning "Platform Support"
 
-    NaiveProxy outbound is only available on Apple platforms, Android, Windows and some Linux architectures, see [Build from source](/installation/build-from-source/#with_naive_outbound).
+    NaiveProxy outbound is only available on Apple platforms, Android, Windows and certain Linux builds.
+
+    **Official Release Build Variants:**
+
+    | Build Variant | Platforms | Description |
+    |---------------|-----------|-------------|
+    | (default)     | Linux amd64/arm64 | purego build with `libcronet.so` included |
+    | `-glibc`      | Linux 386/amd64/arm/arm64 | CGO build dynamically linked with glibc, requires glibc >= 2.31 |
+    | `-musl`       | Linux 386/amd64/arm/arm64 | CGO build statically linked with musl, no system requirements |
+    | (default)     | Windows amd64/arm64 | purego build with `libcronet.dll` included |
+
+    **Runtime Requirements:**
+
+    - **Linux purego**: `libcronet.so` must be in the same directory as the sing-box binary or in system library path
+    - **Windows**: `libcronet.dll` must be in the same directory as `sing-box.exe` or in a directory listed in `PATH`
+
+    For self-built binaries, see [Build from source](/installation/build-from-source/#with_naive_outbound).
 
 ### Fields
 
