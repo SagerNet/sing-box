@@ -69,11 +69,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: linux, arch: amd64, variant: purego, openwrt: "x86_64" }
+          - { os: linux, arch: amd64, variant: purego, naive: true, openwrt: "x86_64" }
           - { os: linux, arch: amd64, variant: glibc, naive: true }
           - { os: linux, arch: amd64, variant: musl, naive: true, debian: amd64, rpm: x86_64, pacman: x86_64, openwrt: "x86_64" }
 
-          - { os: linux, arch: arm64, variant: purego, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
+          - { os: linux, arch: arm64, variant: purego, naive: true, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
           - { os: linux, arch: arm64, variant: glibc, naive: true }
           - { os: linux, arch: arm64, variant: musl, naive: true, debian: arm64, rpm: aarch64, pacman: aarch64, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
 
@@ -217,6 +217,11 @@ jobs:
           GOMIPS: ${{ matrix.gomips }}
           GOMIPS64: ${{ matrix.gomips }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract libcronet.so
+        if: matrix.variant == 'purego' && matrix.naive
+        run: |
+          cd ~/cronet-go
+          CGO_ENABLED=0 go run -v ./cmd/build-naive extract-lib --target ${{ matrix.os }}/${{ matrix.arch }} -o $GITHUB_WORKSPACE/dist
       - name: Build (glibc)
         if: matrix.variant == 'glibc'
         run: |
@@ -383,11 +388,14 @@ jobs:
             zip -r "${DIR_NAME}.zip" "${DIR_NAME}"
           else
             cp sing-box "${DIR_NAME}"
+            if [ -f libcronet.so ]; then
+              cp libcronet.so "${DIR_NAME}"
+            fi
             tar -czvf "${DIR_NAME}.tar.gz" "${DIR_NAME}"
           fi
           rm -r "${DIR_NAME}"
       - name: Cleanup
-        run: rm dist/sing-box
+        run: rm -f dist/sing-box dist/libcronet.so
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -476,9 +484,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - { arch: amd64 }
+          - { arch: amd64, naive: true }
           - { arch: "386" }
-          - { arch: arm64 }
+          - { arch: arm64, naive: true }
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -493,6 +501,7 @@ jobs:
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$env:GITHUB_ENV"
           git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Build
+        if: matrix.naive
         run: |
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box.exe -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_naive_outbound,with_purego,badlinkname,tfogo_checklinkname0" `
@@ -503,7 +512,36 @@ jobs:
           GOOS: windows
           GOARCH: ${{ matrix.arch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        if: ${{ !matrix.naive }}
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box.exe -tags "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0" `
+          -ldflags "-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -checklinkname=0" `
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract libcronet.dll
+        if: matrix.naive
+        run: |
+          $CRONET_GO_VERSION = Get-Content .github/CRONET_GO_VERSION
+          $env:CGO_ENABLED = "0"
+          go run -v "github.com/sagernet/cronet-go/cmd/build-naive@$CRONET_GO_VERSION" extract-lib --target windows/${{ matrix.arch }} -o dist
       - name: Archive
+        if: matrix.naive
+        run: |
+          $DIR_NAME = "sing-box-${{ needs.calculate_version.outputs.version }}-windows-${{ matrix.arch }}"
+          mkdir "dist/$DIR_NAME"
+          Copy-Item LICENSE "dist/$DIR_NAME"
+          Copy-Item "dist/sing-box.exe" "dist/$DIR_NAME"
+          Copy-Item "dist/libcronet.dll" "dist/$DIR_NAME"
+          Compress-Archive -Path "dist/$DIR_NAME" -DestinationPath "dist/$DIR_NAME.zip"
+          Remove-Item -Recurse "dist/$DIR_NAME"
+      - name: Archive
+        if: ${{ !matrix.naive }}
         run: |
           $DIR_NAME = "sing-box-${{ needs.calculate_version.outputs.version }}-windows-${{ matrix.arch }}"
           mkdir "dist/$DIR_NAME"
@@ -512,6 +550,10 @@ jobs:
           Compress-Archive -Path "dist/$DIR_NAME" -DestinationPath "dist/$DIR_NAME.zip"
           Remove-Item -Recurse "dist/$DIR_NAME"
       - name: Cleanup
+        if: matrix.naive
+        run: Remove-Item dist/sing-box.exe, dist/libcronet.dll
+      - name: Cleanup
+        if: ${{ !matrix.naive }}
         run: Remove-Item dist/sing-box.exe
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -593,6 +635,15 @@ jobs:
           mkdir -p dist
           #cp clients/android/app/build/outputs/apk/play/release/*.apk dist
           cp clients/android/app/build/outputs/apk/other/release/*.apk dist
+          VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
+          VERSION_NAME=$(grep VERSION_NAME clients/android/version.properties | cut -d= -f2)
+          cat > dist/SFA-version-metadata.json << EOF
+          {
+            "version_code": ${VERSION_CODE},
+            "version_name": "${VERSION_NAME}"
+          }
+          EOF
+          cat dist/SFA-version-metadata.json
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -885,16 +936,6 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Generate SFA version metadata
-        run: |-
-          VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
-          cat > dist/SFA-version-metadata.json << EOF
-          {
-            "version_code": ${VERSION_CODE},
-            "version_name": "${VERSION}"
-          }
-          EOF
-          cat dist/SFA-version-metadata.json
       - name: Upload builds
         if: ${{ env.PUBLISHED == 'false' }}
         run: |-

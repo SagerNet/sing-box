@@ -24,9 +24,25 @@ icon: material/new-box
 }
 ```
 
-!!! warning ""
+!!! warning "平台支持"
 
-    NaiveProxy 出站仅在 Apple 平台、Android、Windows 和部分架构的 Linux 上可用，参阅 [从源代码构建](/zh/installation/build-from-source/#with_naive_outbound)。
+    NaiveProxy 出站仅在 Apple 平台、Android、Windows 和特定 Linux 构建上可用。
+
+    **官方发布版本区别：**
+
+    | 构建变体      | 平台                     | 说明                                       |
+    |-----------|------------------------|------------------------------------------|
+    | (默认)      | Linux amd64/arm64      | purego 构建，包含 `libcronet.so`              |
+    | `-glibc`  | Linux 386/amd64/arm/arm64 | CGO 构建，动态链接 glibc，要求 glibc >= 2.31       |
+    | `-musl`   | Linux 386/amd64/arm/arm64 | CGO 构建，静态链接 musl，无系统要求                   |
+    | (默认)      | Windows amd64/arm64 | purego 构建，包含 `libcronet.dll`             |
+
+    **运行时要求：**
+
+    - **Linux purego**：`libcronet.so` 必须位于 sing-box 二进制文件相同目录或系统库路径中
+    - **Windows**：`libcronet.dll` 必须位于 `sing-box.exe` 相同目录或 `PATH` 中的任意目录
+
+    自行构建请参阅 [从源代码构建](/zh/installation/build-from-source/#with_naive_outbound)。
 
 ### 字段
 
