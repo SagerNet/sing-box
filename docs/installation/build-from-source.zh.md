@@ -72,25 +72,33 @@ NaiveProxy 出站需要根据目标平台进行特殊的构建配置。
 
 ### 支持的平台
 
-| 平台            | 架构                   | 模式     | 要求                                                                                                                                          |
-|---------------|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| Windows       | *                    | purego | 无                                                                                                                                           |
-| Linux         | amd64, arm64         | purego | 从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载 libcronet 到系统库目录或 sing-box 二进制文件相同目录                                |
-| Linux         | 386, amd64, arm, arm64 | CGO    | Chromium 工具链（参阅 [cronet-go](https://github.com/sagernet/cronet-go)）                                                                         |
-| Apple 平台      | *                    | CGO    | Xcode                                                                                                                                       |
-| Android       | *                    | CGO    | Android NDK                                                                                                                                 |
+| 平台            | 架构                     | 模式     | 要求                             |
+|---------------|------------------------|--------|--------------------------------|
+| Linux         | amd64, arm64           | purego | 无（官方发布版本已包含库文件）                |
+| Linux         | 386, amd64, arm, arm64 | CGO    | Chromium 工具链，运行时需要 glibc >= 2.31 |
+| Linux (musl)  | 386, amd64, arm, arm64 | CGO    | Chromium 工具链                   |
+| Windows       | amd64, arm64           | purego | 无（官方发布版本已包含库文件）                |
+| Apple 平台      | *                      | CGO    | Xcode                          |
+| Android       | *                      | CGO    | Android NDK                    |
 
 ### Windows
 
 使用 `with_purego` 标记。
 
+官方发布版本已包含 `libcronet.dll`。自行构建时，从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载并放置在 `sing-box.exe` 相同目录或 `PATH` 中的任意目录。
+
 ### Linux (purego, 仅 amd64/arm64)
 
-从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载 `libcronet.so` 并安装到系统库目录或 sing-box 二进制文件相同目录，然后使用 `with_purego` 标记。
+使用 `with_purego` 标记。
+
+官方发布版本已包含 `libcronet.so`。自行构建时，从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载并放置在 sing-box 二进制文件相同目录或系统库路径中。
 
 ### Linux (CGO)
 
 参阅 [cronet-go](https://github.com/sagernet/cronet-go#linux-build-instructions)。
+
+- **glibc 构建**：运行时需要 glibc >= 2.31
+- **musl 构建**：使用 `with_musl` 标记，静态链接，无运行时要求
 
 ### Apple 平台 / Android
 
