@@ -86,7 +86,7 @@ UDP over TCP 配置。
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
-只有 `server_name`、`certificate`、`certificate_path` 和 `certificate_public_key_sha256` 是被支持的。
+只有 `server_name`、`certificate`、`certificate_path`、`certificate_public_key_sha256` 和 `ech` 是被支持的。
 
 ### 拨号字段
 
