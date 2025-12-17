@@ -86,7 +86,7 @@ See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
-Only `server_name`, `certificate`, `certificate_path` and `certificate_public_key_sha256` are supported.
+Only `server_name`, `certificate`, `certificate_path`, `certificate_public_key_sha256` and `ech` are supported.
 
 ### Dial Fields
 
