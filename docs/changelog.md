@@ -2,6 +2,31 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.30
+
+* Add ECH support for NaiveProxy outbound **1**
+* Add `tls.ech.query_server_name` option **2**
+* Fix NaiveProxy outbound on Windows **3**
+* Add OpenAI Codex Multiplexer service **4**
+* Fixes and improvements
+
+**1**:
+
+See [NaiveProxy outbound](/configuration/outbound/naive/#tls).
+
+**2**:
+
+See [TLS](/configuration/shared/tls/#query_server_name).
+
+**3**:
+
+Each Windows release now includes `libcronet.dll`.
+Ensure this file is in the same directory as `sing-box.exe` or in a directory listed in `PATH`.
+
+**4**:
+
+See [OCM](/configuration/service/ocm).
+
 #### 1.13.0-alpha.29
 
 * Add UDP over TCP support for naiveproxy outbound **1**
