@@ -4,6 +4,7 @@ package naive
 
 import (
 	"context"
+	"encoding/pem"
 	"net"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -22,6 +24,9 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
+	"github.com/sagernet/sing/service"
+
+	mDNS "github.com/miekg/dns"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -73,9 +78,6 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.TLS.KernelTx || options.TLS.KernelRx {
 		return nil, E.New("kernel TLS is not supported on naive outbound")
 	}
-	if options.TLS.ECH != nil && options.TLS.ECH.Enabled {
-		return nil, E.New("ECH is not currently supported on naive outbound")
-	}
 	if options.TLS.UTLS != nil && options.TLS.UTLS.Enabled {
 		return nil, E.New("uTLS is not supported on naive outbound")
 	}
@@ -121,6 +123,44 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		}
 	}
 
+	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
+	var dnsResolver cronet.DNSResolverFunc
+	if dnsRouter != nil {
+		dnsResolver = func(dnsContext context.Context, request *mDNS.Msg) *mDNS.Msg {
+			response, err := dnsRouter.Exchange(dnsContext, request, adapter.DNSQueryOptions{})
+			if err != nil {
+				logger.Error("DNS exchange failed: ", err)
+				return dns.FixedResponseStatus(request, mDNS.RcodeServerFailure)
+			}
+			return response
+		}
+	}
+
+	var echEnabled bool
+	var echConfigList []byte
+	var echQueryServerName string
+	if options.TLS.ECH != nil && options.TLS.ECH.Enabled {
+		echEnabled = true
+		echQueryServerName = options.TLS.ECH.QueryServerName
+		var echConfig []byte
+		if len(options.TLS.ECH.Config) > 0 {
+			echConfig = []byte(strings.Join(options.TLS.ECH.Config, "\n"))
+		} else if options.TLS.ECH.ConfigPath != "" {
+			content, err := os.ReadFile(options.TLS.ECH.ConfigPath)
+			if err != nil {
+				return nil, E.Cause(err, "read ECH config")
+			}
+			echConfig = content
+		}
+		if len(echConfig) > 0 {
+			block, rest := pem.Decode(echConfig)
+			if block == nil || block.Type != "ECH CONFIGS" || len(rest) > 0 {
+				return nil, E.New("invalid ECH configs pem")
+			}
+			echConfigList = block.Bytes
+		}
+	}
+
 	client, err := cronet.NewNaiveClient(cronet.NaiveClientConfig{
 		Context:                           ctx,
 		ServerAddress:                     serverAddress,
@@ -132,6 +172,10 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		TrustedRootCertificates:           trustedRootCertificates,
 		TrustedCertificatePublicKeySHA256: options.TLS.CertificatePublicKeySHA256,
 		Dialer:                            outboundDialer,
+		DNSResolver:                       dnsResolver,
+		ECHEnabled:                        echEnabled,
+		ECHConfigList:                     echConfigList,
+		ECHQueryServerName:                echQueryServerName,
 	})
 	if err != nil {
 		return nil, err
