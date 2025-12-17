@@ -51,6 +51,7 @@ func parseECHClientConfig(ctx context.Context, clientConfig ECHCapableConfig, op
 		return &ECHClientConfig{
 			ECHCapableConfig: clientConfig,
 			dnsRouter:        service.FromContext[adapter.DNSRouter](ctx),
+			queryServerName:  options.ECH.QueryServerName,
 		}, nil
 	}
 }
@@ -108,10 +109,11 @@ func parseECHKeys(echKey []byte) ([]tls.EncryptedClientHelloKey, error) {
 
 type ECHClientConfig struct {
 	ECHCapableConfig
-	access     sync.Mutex
-	dnsRouter  adapter.DNSRouter
-	lastTTL    time.Duration
-	lastUpdate time.Time
+	access          sync.Mutex
+	dnsRouter       adapter.DNSRouter
+	queryServerName string
+	lastTTL         time.Duration
+	lastUpdate      time.Time
 }
 
 func (s *ECHClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
@@ -130,13 +132,17 @@ func (s *ECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Conn) 
 	s.access.Lock()
 	defer s.access.Unlock()
 	if len(s.ECHConfigList()) == 0 || s.lastTTL == 0 || time.Since(s.lastUpdate) > s.lastTTL {
+		queryServerName := s.queryServerName
+		if queryServerName == "" {
+			queryServerName = s.ServerName()
+		}
 		message := &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{
 				RecursionDesired: true,
 			},
 			Question: []mDNS.Question{
 				{
-					Name:   mDNS.Fqdn(s.ServerName()),
+					Name:   mDNS.Fqdn(queryServerName),
 					Qtype:  mDNS.TypeHTTPS,
 					Qclass: mDNS.ClassINET,
 				},
@@ -175,7 +181,12 @@ func (s *ECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Conn) 
 }
 
 func (s *ECHClientConfig) Clone() Config {
-	return &ECHClientConfig{ECHCapableConfig: s.ECHCapableConfig.Clone().(ECHCapableConfig), dnsRouter: s.dnsRouter, lastUpdate: s.lastUpdate}
+	return &ECHClientConfig{
+		ECHCapableConfig: s.ECHCapableConfig.Clone().(ECHCapableConfig),
+		dnsRouter:        s.dnsRouter,
+		queryServerName:  s.queryServerName,
+		lastUpdate:       s.lastUpdate,
+	}
 }
 
 func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {

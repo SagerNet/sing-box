@@ -14,6 +14,7 @@ icon: material/new-box
     :material-plus: [client_key_path](#client_key_path)
     :material-plus: [client_authentication](#client_authentication)
     :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)
+    :material-plus: [ech.query_server_name](#query_server_name)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -118,6 +119,7 @@ icon: material/new-box
     "enabled": false,
     "config": [],
     "config_path": "",
+    "query_server_name": "",
 
     // 废弃的
     "pq_signature_schemes_enabled": false,
@@ -509,6 +511,16 @@ ECH 配置行数组，PEM 格式。
 ECH 配置路径，PEM 格式。
 
 如果为空，将尝试从 DNS 加载。
+
+#### query_server_name
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+覆盖用于 ECH HTTPS 记录查询的域名。
+
+如果为空，使用 `server_name` 查询。
 
 #### fragment
 
