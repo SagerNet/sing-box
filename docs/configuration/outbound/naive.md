@@ -18,6 +18,8 @@ icon: material/new-box
   "insecure_concurrency": 0,
   "extra_headers": {},
   "udp_over_tcp": false | {},
+  "quic": false,
+  "quic_congestion_control": "",
   "tls": {},
 
   ... // Dial Fields
@@ -79,6 +81,23 @@ Extra headers to send in HTTP requests.
 UDP over TCP protocol settings.
 
 See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
+
+#### quic
+
+Use QUIC instead of HTTP/2.
+
+#### quic_congestion_control
+
+QUIC congestion control algorithm.
+
+| Algorithm | Description |
+|-----------|-------------|
+| `bbr` | BBR |
+| `bbr2` | BBRv2 |
+| `cubic` | CUBIC |
+| `reno` | New Reno |
+
+`bbr` is used by default (the default of QUICHE, used by Chromium which NaiveProxy is based on).
 
 #### tls
 
