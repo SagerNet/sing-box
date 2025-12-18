@@ -2,6 +2,24 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.31
+
+* Add QUIC support for NaiveProxy outbound **1**
+* Add QUIC congestion control option for NaiveProxy **2**
+* Fixes and improvements
+
+**1**:
+
+NaiveProxy outbound now supports QUIC.
+
+See [NaiveProxy outbound](/configuration/outbound/naive/#quic).
+
+**2**:
+
+NaiveProxy inbound and outbound now supports configurable QUIC congestion control algorithms, including BBR and BBRv2.
+
+See [NaiveProxy inbound](/configuration/inbound/naive/#quic_congestion_control) and [NaiveProxy outbound](/configuration/outbound/naive/#quic_congestion_control).
+
 #### 1.13.0-alpha.30
 
 * Add ECH support for NaiveProxy outbound **1**
