@@ -210,7 +210,6 @@ func TestNaiveSelfPublicKeySHA256(t *testing.T) {
 }
 
 func TestNaiveSelfECH(t *testing.T) {
-	t.Skip("TODO: ECH is not currently supported on naive outbound")
 	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	caPemContent, err := os.ReadFile(caPem)
 	require.NoError(t, err)
@@ -439,4 +438,197 @@ func TestNaiveSelfInsecureConcurrency(t *testing.T) {
 	sessionCount := strings.Count(logStr, `"type":249`)
 	require.GreaterOrEqual(t, sessionCount, 3,
 		"Expected at least 3 HTTP/2 sessions with insecure_concurrency=3. NetLog: %s", netLogPath)
+}
+
+func TestNaiveSelfQUIC(t *testing.T) {
+	caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+	caPemContent, err := os.ReadFile(caPem)
+	require.NoError(t, err)
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{
+			{
+				Type: C.TypeMixed,
+				Tag:  "mixed-in",
+				Options: &option.HTTPMixedInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+						ListenPort: clientPort,
+					},
+				},
+			},
+			{
+				Type: C.TypeNaive,
+				Tag:  "naive-in",
+				Options: &option.NaiveInboundOptions{
+					ListenOptions: option.ListenOptions{
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+						ListenPort: serverPort,
+					},
+					Users: []auth.User{
+						{
+							Username: "sekai",
+							Password: "password",
+						},
+					},
+					Network: network.NetworkUDP,
+					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+						TLS: &option.InboundTLSOptions{
+							Enabled:         true,
+							ServerName:      "example.org",
+							CertificatePath: certPem,
+							KeyPath:         keyPem,
+						},
+					},
+				},
+			},
+		},
+		Outbounds: []option.Outbound{
+			{
+				Type: C.TypeDirect,
+			},
+			{
+				Type: C.TypeNaive,
+				Tag:  "naive-out",
+				Options: &option.NaiveOutboundOptions{
+					ServerOptions: option.ServerOptions{
+						Server:     "127.0.0.1",
+						ServerPort: serverPort,
+					},
+					Username: "sekai",
+					Password: "password",
+					QUIC:     true,
+					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+						TLS: &option.OutboundTLSOptions{
+							Enabled:     true,
+							ServerName:  "example.org",
+							Certificate: []string{string(caPemContent)},
+						},
+					},
+				},
+			},
+		},
+		Route: &option.RouteOptions{
+			Rules: []option.Rule{
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultRule{
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "naive-out",
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	testTCP(t, clientPort, testPort)
+}
+
+func TestNaiveSelfQUICCongestionControl(t *testing.T) {
+	testCases := []struct {
+		name              string
+		congestionControl string
+	}{
+		{"BBR", "bbr"},
+		{"BBR2", "bbr2"},
+		{"Cubic", "cubic"},
+		{"Reno", "reno"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			caPem, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
+			caPemContent, err := os.ReadFile(caPem)
+			require.NoError(t, err)
+			startInstance(t, option.Options{
+				Inbounds: []option.Inbound{
+					{
+						Type: C.TypeMixed,
+						Tag:  "mixed-in",
+						Options: &option.HTTPMixedInboundOptions{
+							ListenOptions: option.ListenOptions{
+								Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+								ListenPort: clientPort,
+							},
+						},
+					},
+					{
+						Type: C.TypeNaive,
+						Tag:  "naive-in",
+						Options: &option.NaiveInboundOptions{
+							ListenOptions: option.ListenOptions{
+								Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
+								ListenPort: serverPort,
+							},
+							Users: []auth.User{
+								{
+									Username: "sekai",
+									Password: "password",
+								},
+							},
+							Network:               network.NetworkUDP,
+							QUICCongestionControl: tc.congestionControl,
+							InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
+								TLS: &option.InboundTLSOptions{
+									Enabled:         true,
+									ServerName:      "example.org",
+									CertificatePath: certPem,
+									KeyPath:         keyPem,
+								},
+							},
+						},
+					},
+				},
+				Outbounds: []option.Outbound{
+					{
+						Type: C.TypeDirect,
+					},
+					{
+						Type: C.TypeNaive,
+						Tag:  "naive-out",
+						Options: &option.NaiveOutboundOptions{
+							ServerOptions: option.ServerOptions{
+								Server:     "127.0.0.1",
+								ServerPort: serverPort,
+							},
+							Username:              "sekai",
+							Password:              "password",
+							QUIC:                  true,
+							QUICCongestionControl: tc.congestionControl,
+							OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+								TLS: &option.OutboundTLSOptions{
+									Enabled:     true,
+									ServerName:  "example.org",
+									Certificate: []string{string(caPemContent)},
+								},
+							},
+						},
+					},
+				},
+				Route: &option.RouteOptions{
+					Rules: []option.Rule{
+						{
+							Type: C.RuleTypeDefault,
+							DefaultOptions: option.DefaultRule{
+								RawDefaultRule: option.RawDefaultRule{
+									Inbound: []string{"mixed-in"},
+								},
+								RuleAction: option.RuleAction{
+									Action: C.RuleActionTypeRoute,
+									RouteOptions: option.RouteActionOptions{
+										Outbound: "naive-out",
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+			testTCP(t, clientPort, testPort)
+		})
+	}
 }
