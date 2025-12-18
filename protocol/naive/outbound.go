@@ -160,7 +160,21 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			echConfigList = block.Bytes
 		}
 	}
-
+	var quicCongestionControl cronet.QUICCongestionControl
+	switch options.QUICCongestionControl {
+	case "":
+		quicCongestionControl = cronet.QUICCongestionControlDefault
+	case "bbr":
+		quicCongestionControl = cronet.QUICCongestionControlBBR
+	case "bbr2":
+		quicCongestionControl = cronet.QUICCongestionControlBBRv2
+	case "cubic":
+		quicCongestionControl = cronet.QUICCongestionControlCubic
+	case "reno":
+		quicCongestionControl = cronet.QUICCongestionControlReno
+	default:
+		return nil, E.New("unknown quic congestion control: ", options.QUICCongestionControl)
+	}
 	client, err := cronet.NewNaiveClient(cronet.NaiveClientConfig{
 		Context:                           ctx,
 		ServerAddress:                     serverAddress,
@@ -176,11 +190,12 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		ECHEnabled:                        echEnabled,
 		ECHConfigList:                     echConfigList,
 		ECHQueryServerName:                echQueryServerName,
+		QUIC:                              options.QUIC,
+		QUICCongestionControl:             quicCongestionControl,
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	var uotClient *uot.Client
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
 	if uotOptions.Enabled {

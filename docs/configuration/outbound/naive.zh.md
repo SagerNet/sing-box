@@ -18,6 +18,8 @@ icon: material/new-box
   "insecure_concurrency": 0,
   "extra_headers": {},
   "udp_over_tcp": false | {},
+  "quic": false,
+  "quic_congestion_control": "",
   "tls": {},
 
   ... // 拨号字段
@@ -79,6 +81,23 @@ HTTP 请求中发送的额外头部。
 UDP over TCP 配置。
 
 参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp/)。
+
+#### quic
+
+使用 QUIC 代替 HTTP/2。
+
+#### quic_congestion_control
+
+QUIC 拥塞控制算法。
+
+| 算法 | 描述 |
+|------|------|
+| `bbr` | BBR |
+| `bbr2` | BBRv2 |
+| `cubic` | CUBIC |
+| `reno` | New Reno |
+
+默认使用 `bbr`（NaiveProxy 基于的 Chromium 使用的 QUICHE 的默认值）。
 
 #### tls
 

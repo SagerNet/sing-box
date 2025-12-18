@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var ConfigureHTTP3ListenerFunc func(listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, logger logger.Logger) (io.Closer, error)
+var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.NaiveInboundOptions) (io.Closer, error)
 
 func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.NaiveInboundOptions](registry, C.TypeNaive, NewInbound)
@@ -40,6 +40,7 @@ type Inbound struct {
 	ctx              context.Context
 	router           adapter.ConnectionRouterEx
 	logger           logger.ContextLogger
+	options          option.NaiveInboundOptions
 	listener         *listener.Listener
 	network          []string
 	networkIsDefault bool
@@ -121,7 +122,7 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 	}
 
 	if common.Contains(n.network, N.NetworkUDP) {
-		http3Server, err := ConfigureHTTP3ListenerFunc(n.listener, n, n.tlsConfig, n.logger)
+		http3Server, err := ConfigureHTTP3ListenerFunc(n.ctx, n.logger, n.listener, n, n.tlsConfig, n.options)
 		if err == nil {
 			n.h3Server = http3Server
 		} else if len(n.network) > 1 {
