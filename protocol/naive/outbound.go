@@ -204,8 +204,14 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			Version: uotOptions.Version,
 		}
 	}
+	var networks []string
+	if uotClient != nil {
+		networks = []string{N.NetworkTCP, N.NetworkUDP}
+	} else {
+		networks = []string{N.NetworkTCP}
+	}
 	return &Outbound{
-		Adapter:   outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, []string{N.NetworkTCP}, options.DialerOptions),
+		Adapter:   outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, networks, options.DialerOptions),
 		ctx:       ctx,
 		logger:    logger,
 		client:    client,
