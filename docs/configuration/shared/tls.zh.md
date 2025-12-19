@@ -4,16 +4,16 @@ icon: material/new-box
 
 !!! quote "sing-box 1.13.0 中的更改"
 
-    :material-plus: [kernel_tx](#kernel_tx)
-    :material-plus: [kernel_rx](#kernel_rx)
-    :material-plus: [curve_preferences](#curve_preferences)
-    :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)
-    :material-plus: [client_certificate](#client_certificate)
-    :material-plus: [client_certificate_path](#client_certificate_path)
-    :material-plus: [client_key](#client_key)
-    :material-plus: [client_key_path](#client_key_path)
-    :material-plus: [client_authentication](#client_authentication)
-    :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)
+    :material-plus: [kernel_tx](#kernel_tx)  
+    :material-plus: [kernel_rx](#kernel_rx)  
+    :material-plus: [curve_preferences](#curve_preferences)  
+    :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)  
+    :material-plus: [client_certificate](#client_certificate)  
+    :material-plus: [client_certificate_path](#client_certificate_path)  
+    :material-plus: [client_key](#client_key)  
+    :material-plus: [client_key_path](#client_key_path)  
+    :material-plus: [client_authentication](#client_authentication)  
+    :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)  
     :material-plus: [ech.query_server_name](#query_server_name)
 
 !!! quote "sing-box 1.12.0 中的更改"
