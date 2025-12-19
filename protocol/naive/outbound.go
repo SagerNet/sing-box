@@ -176,22 +176,21 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, E.New("unknown quic congestion control: ", options.QUICCongestionControl)
 	}
 	client, err := cronet.NewNaiveClient(cronet.NaiveClientConfig{
-		Context:                           ctx,
-		ServerAddress:                     serverAddress,
-		ServerName:                        serverName,
-		Username:                          options.Username,
-		Password:                          options.Password,
-		InsecureConcurrency:               options.InsecureConcurrency,
-		ExtraHeaders:                      extraHeaders,
-		TrustedRootCertificates:           trustedRootCertificates,
-		TrustedCertificatePublicKeySHA256: options.TLS.CertificatePublicKeySHA256,
-		Dialer:                            outboundDialer,
-		DNSResolver:                       dnsResolver,
-		ECHEnabled:                        echEnabled,
-		ECHConfigList:                     echConfigList,
-		ECHQueryServerName:                echQueryServerName,
-		QUIC:                              options.QUIC,
-		QUICCongestionControl:             quicCongestionControl,
+		Context:                 ctx,
+		ServerAddress:           serverAddress,
+		ServerName:              serverName,
+		Username:                options.Username,
+		Password:                options.Password,
+		InsecureConcurrency:     options.InsecureConcurrency,
+		ExtraHeaders:            extraHeaders,
+		TrustedRootCertificates: trustedRootCertificates,
+		Dialer:                  outboundDialer,
+		DNSResolver:             dnsResolver,
+		ECHEnabled:              echEnabled,
+		ECHConfigList:           echConfigList,
+		ECHQueryServerName:      echQueryServerName,
+		QUIC:                    options.QUIC,
+		QUICCongestionControl:   quicCongestionControl,
 	})
 	if err != nil {
 		return nil, err
