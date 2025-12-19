@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/pem"
 	"net/netip"
 	"os"
 	"strings"
@@ -82,106 +79,6 @@ func TestNaiveSelf(t *testing.T) {
 							Enabled:     true,
 							ServerName:  "example.org",
 							Certificate: []string{string(caPemContent)},
-						},
-					},
-				},
-			},
-		},
-		Route: &option.RouteOptions{
-			Rules: []option.Rule{
-				{
-					Type: C.RuleTypeDefault,
-					DefaultOptions: option.DefaultRule{
-						RawDefaultRule: option.RawDefaultRule{
-							Inbound: []string{"mixed-in"},
-						},
-						RuleAction: option.RuleAction{
-							Action: C.RuleActionTypeRoute,
-							RouteOptions: option.RouteActionOptions{
-								Outbound: "naive-out",
-							},
-						},
-					},
-				},
-			},
-		},
-	})
-	testTCP(t, clientPort, testPort)
-}
-
-func TestNaiveSelfPublicKeySHA256(t *testing.T) {
-	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-
-	// Read and parse the server certificate to get its public key SHA256
-	certPemContent, err := os.ReadFile(certPem)
-	require.NoError(t, err)
-	block, _ := pem.Decode(certPemContent)
-	require.NotNil(t, block)
-	cert, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err)
-
-	// Calculate SHA256 of SPKI (Subject Public Key Info)
-	spkiBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
-	require.NoError(t, err)
-	pinHash := sha256.Sum256(spkiBytes)
-
-	startInstance(t, option.Options{
-		Inbounds: []option.Inbound{
-			{
-				Type: C.TypeMixed,
-				Tag:  "mixed-in",
-				Options: &option.HTTPMixedInboundOptions{
-					ListenOptions: option.ListenOptions{
-						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
-						ListenPort: clientPort,
-					},
-				},
-			},
-			{
-				Type: C.TypeNaive,
-				Tag:  "naive-in",
-				Options: &option.NaiveInboundOptions{
-					ListenOptions: option.ListenOptions{
-						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
-						ListenPort: serverPort,
-					},
-					Users: []auth.User{
-						{
-							Username: "sekai",
-							Password: "password",
-						},
-					},
-					Network: network.NetworkTCP,
-					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
-						TLS: &option.InboundTLSOptions{
-							Enabled:         true,
-							ServerName:      "example.org",
-							CertificatePath: certPem,
-							KeyPath:         keyPem,
-						},
-					},
-				},
-			},
-		},
-		Outbounds: []option.Outbound{
-			{
-				Type: C.TypeDirect,
-			},
-			{
-				Type: C.TypeNaive,
-				Tag:  "naive-out",
-				Options: &option.NaiveOutboundOptions{
-					ServerOptions: option.ServerOptions{
-						Server:     "127.0.0.1",
-						ServerPort: serverPort,
-					},
-					Username: "sekai",
-					Password: "password",
-					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
-						TLS: &option.OutboundTLSOptions{
-							Enabled:                    true,
-							ServerName:                 "example.org",
-							CertificatePublicKeySHA256: [][]byte{pinHash[:]},
 						},
 					},
 				},

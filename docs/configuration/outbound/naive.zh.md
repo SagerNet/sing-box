@@ -105,7 +105,9 @@ QUIC 拥塞控制算法。
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
-只有 `server_name`、`certificate`、`certificate_path`、`certificate_public_key_sha256` 和 `ech` 是被支持的。
+只有 `server_name`、`certificate`、`certificate_path` 和 `ech` 是被支持的。
+
+自签名证书会显著改变流量行为，违背了 NaiveProxy 旨在抵抗流量分析的设计初衷，不应该在生产环境中使用。
 
 ### 拨号字段
 
