@@ -105,7 +105,9 @@ QUIC congestion control algorithm.
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
-Only `server_name`, `certificate`, `certificate_path`, `certificate_public_key_sha256` and `ech` are supported.
+Only `server_name`, `certificate`, `certificate_path` and `ech` are supported.
+
+Self-signed certificates change traffic behavior significantly, which defeats the purpose of NaiveProxy's design to resist traffic analysis, and should not be used in production.
 
 ### Dial Fields
 
