@@ -2,6 +2,16 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.32
+
+* Remove `certificate_public_key_sha256` option for NaiveProxy outbound **1**
+* Fixes and improvements
+
+**1**:
+
+Self-signed certificates change traffic behavior significantly, which defeats the purpose of NaiveProxy's design to resist traffic analysis.
+For this reason, and due to maintenance costs, there is no reason to continue supporting `certificate_public_key_sha256`, which was designed to simplify the use of self-signed certificates.
+
 #### 1.13.0-alpha.31
 
 * Add QUIC support for NaiveProxy outbound **1**
