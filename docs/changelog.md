@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.33
+
+* Fixes and improvements
+
 #### 1.13.0-alpha.32
 
 * Remove `certificate_public_key_sha256` option for NaiveProxy outbound **1**
