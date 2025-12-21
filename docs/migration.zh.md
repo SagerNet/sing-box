@@ -10,8 +10,8 @@ DNS 服务器已经重构。
 
 !!! info "引用"
 
-    [DNS 服务器](/configuration/dns/server/) /
-    [旧 DNS 服务器](/configuration/dns/server/legacy/)
+    [DNS 服务器](/zh/configuration/dns/server/) /
+    [旧 DNS 服务器](/zh/configuration/dns/server/legacy/)
 
 === "Local"
 

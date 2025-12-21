@@ -127,7 +127,7 @@ TCP keep alive initial period.
 
 #### tcp_keep_alive_interval
 
-TCP keep-alive interval.
+TCP keep alive interval.
 
 `75s` will be used by default.
 
