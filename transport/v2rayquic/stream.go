@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/sagernet/quic-go"
-	"github.com/sagernet/sing/common/baderror"
+	qtls "github.com/sagernet/sing-quic"
 )
 
 type StreamWrapper struct {
@@ -14,14 +14,12 @@ type StreamWrapper struct {
 
 func (s *StreamWrapper) Read(p []byte) (n int, err error) {
 	n, err = s.Stream.Read(p)
-	//nolint:staticcheck
-	return n, baderror.WrapQUIC(err)
+	return n, qtls.WrapError(err)
 }
 
 func (s *StreamWrapper) Write(p []byte) (n int, err error) {
 	n, err = s.Stream.Write(p)
-	//nolint:staticcheck
-	return n, baderror.WrapQUIC(err)
+	return n, qtls.WrapError(err)
 }
 
 func (s *StreamWrapper) LocalAddr() net.Addr {
