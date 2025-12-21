@@ -4,6 +4,10 @@ icon: material/new-box
 
 !!! question "自 sing-box 1.12.0 起"
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [Chrome Root Store](#store)
+
 # 证书
 
 ### 结构
@@ -27,11 +31,12 @@ icon: material/new-box
 
 默认的 X509 受信任 CA 证书列表。
 
-| 类型                | 描述                                                                                       |
-|--------------------|--------------------------------------------------------------------------------------------|
-| `system`（默认）    | 系统受信任的 CA 证书                                                                        |
-| `mozilla`          | [Mozilla 包含列表](https://wiki.mozilla.org/CA/Included_Certificates)（已移除中国 CA 证书） |
-| `none`             | 空列表                                                                                     |
+| 类型              | 描述                                                                                       |
+|-------------------|--------------------------------------------------------------------------------------------|
+| `system`（默认）   | 系统受信任的 CA 证书                                                                        |
+| `mozilla`         | [Mozilla 包含列表](https://wiki.mozilla.org/CA/Included_Certificates)（已移除中国 CA 证书） |
+| `chrome`          | [Chrome Root Store](https://g.co/chrome/root-policy)（已移除中国 CA 证书）                  |
+| `none`            | 空列表                                                                                     |
 
 #### certificate
 
