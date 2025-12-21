@@ -126,6 +126,7 @@ nav:
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md
           - TCP Brutal: configuration/shared/tcp-brutal.md
+          - Wi-Fi State: configuration/shared/wifi-state.md
       - Endpoint:
           - configuration/endpoint/index.md
           - WireGuard: configuration/endpoint/wireguard.md
@@ -268,6 +269,7 @@ plugins:
             DNS01 Challenge Fields: DNS01 验证字段
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层
+            Wi-Fi State: Wi-Fi 状态
 
             Endpoint: 端点
             Inbound: 入站
