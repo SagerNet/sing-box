@@ -425,19 +425,15 @@ icon: material/new-box
 
 #### wifi_ssid
 
-!!! quote ""
-
-    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
-
 匹配 WiFi SSID。
+
+参阅 [Wi-Fi 状态](/zh/configuration/shared/wifi-state/)。
 
 #### wifi_bssid
 
-!!! quote ""
-
-    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
-
 匹配 WiFi BSSID。
+
+参阅 [Wi-Fi 状态](/zh/configuration/shared/wifi-state/)。
 
 #### preferred_by
 
