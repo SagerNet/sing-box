@@ -627,7 +627,7 @@ MAC 密钥。
 
 ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 
-参阅 [DNS01 验证字段](/configuration/shared/dns01_challenge/)。
+参阅 [DNS01 验证字段](/zh/configuration/shared/dns01_challenge/)。
 
 ### Reality 字段
 
