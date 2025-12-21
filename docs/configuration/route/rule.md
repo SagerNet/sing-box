@@ -428,19 +428,15 @@ Match default interface address.
 
 #### wifi_ssid
 
-!!! quote ""
-
-    Only supported in graphical clients on Android and Apple platforms, or on Linux.
-
 Match WiFi SSID.
+
+See [Wi-Fi State](/configuration/shared/wifi-state/) for details.
 
 #### wifi_bssid
 
-!!! quote ""
-
-    Only supported in graphical clients on Android and Apple platforms, or on Linux.
-
 Match WiFi BSSID.
+
+See [Wi-Fi State](/configuration/shared/wifi-state/) for details.
 
 #### preferred_by
 
