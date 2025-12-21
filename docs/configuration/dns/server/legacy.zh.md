@@ -53,7 +53,7 @@ DNS 服务器的地址。
 | `HTTP3`                              | `h3://8.8.8.8/dns-query`     |
 | `RCode`                              | `rcode://refused`            |
 | `DHCP`                               | `dhcp://auto` 或 `dhcp://en0` |
-| [FakeIP](/configuration/dns/fakeip/) | `fakeip`                     |
+| [FakeIP](/zh/configuration/dns/fakeip/) | `fakeip`                     |
 
 !!! warning ""
 
