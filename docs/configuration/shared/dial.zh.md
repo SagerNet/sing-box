@@ -131,7 +131,7 @@ icon: material/new-box
 
     默认值从 `10m` 更改为 `5m`。
 
-TCP keep-alive 初始周期。
+TCP keep alive 初始周期。
 
 默认使用 `5m`。
 
@@ -139,7 +139,7 @@ TCP keep-alive 初始周期。
 
 !!! question "自 sing-box 1.13.0 起"
 
-TCP keep-alive 间隔。
+TCP keep alive 间隔。
 
 默认使用 `75s`。
 
