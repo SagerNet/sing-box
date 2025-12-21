@@ -1,9 +1,18 @@
+---
+icon: material/new-box
+---
+
+!!! quote "Changes in sing-box 1.13.0"
+
+    :material-plus: [alidns.security_token](#security_token)
+    :material-plus: [cloudflare.zone_token](#zone_token)
+
 ### Structure
 
 ```json
 {
   "provider": "",
-  
+
   ... // Provider Fields
 }
 ```
@@ -17,15 +26,31 @@
   "provider": "alidns",
   "access_key_id": "",
   "access_key_secret": "",
-  "region_id": ""
+  "region_id": "",
+  "security_token": ""
 }
 ```
+
+##### security_token
+
+!!! question "Since sing-box 1.13.0"
+
+The Security Token for STS temporary credentials.
 
 #### Cloudflare
 
 ```json
 {
   "provider": "cloudflare",
-  "api_token": ""
+  "api_token": "",
+  "zone_token": ""
 }
 ```
+
+##### zone_token
+
+!!! question "Since sing-box 1.13.0"
+
+Optional API token with `Zone:Read` permission.
+
+When provided, allows `api_token` to be scoped to a single zone.
