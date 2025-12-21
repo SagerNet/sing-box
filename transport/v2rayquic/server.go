@@ -88,7 +88,7 @@ func (s *Server) streamAcceptLoop(conn *quic.Conn) error {
 	for {
 		stream, err := conn.AcceptStream(s.ctx)
 		if err != nil {
-			return err
+			return qtls.WrapError(err)
 		}
 		go s.handler.NewConnectionEx(conn.Context(), &StreamWrapper{Conn: conn, Stream: stream}, M.SocksaddrFromNet(conn.RemoteAddr()), M.Socksaddr{}, nil)
 	}
