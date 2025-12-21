@@ -53,6 +53,8 @@ func NewStore(ctx context.Context, logger logger.Logger, options option.Certific
 		}
 	case C.CertificateStoreMozilla:
 		systemPool = mozillaIncluded
+	case C.CertificateStoreChrome:
+		systemPool = chromeIncluded
 	case C.CertificateStoreNone:
 		systemPool = nil
 	default:
