@@ -133,7 +133,7 @@ Disable TCP keep alive.
 
     Default value changed from `10m` to `5m`.
 
-TCP keep-alive initial period.
+TCP keep alive initial period.
 
 `5m` will be used by default.
 
@@ -141,7 +141,7 @@ TCP keep-alive initial period.
 
 !!! question "Since sing-box 1.13.0"
 
-TCP keep-alive interval.
+TCP keep alive interval.
 
 `75s` will be used by default.
 
