@@ -75,8 +75,10 @@ type ACMEDNS01AliDNSOptions struct {
 	AccessKeyID     string `json:"access_key_id,omitempty"`
 	AccessKeySecret string `json:"access_key_secret,omitempty"`
 	RegionID        string `json:"region_id,omitempty"`
+	SecurityToken   string `json:"security_token,omitempty"`
 }
 
 type ACMEDNS01CloudflareOptions struct {
-	APIToken string `json:"api_token,omitempty"`
+	APIToken  string `json:"api_token,omitempty"`
+	ZoneToken string `json:"zone_token,omitempty"`
 }
