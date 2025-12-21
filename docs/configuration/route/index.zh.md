@@ -62,7 +62,7 @@ icon: material/alert-decagram
 
 !!! question "自 sing-box 1.8.0 起"
 
-一组 [规则集](/configuration/rule-set/)。
+一组 [规则集](/zh/configuration/rule-set/)。
 
 #### final
 
