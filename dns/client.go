@@ -353,68 +353,6 @@ func (c *Client) ClearCache() {
 	}
 }
 
-func (c *Client) LookupCache(domain string, strategy C.DomainStrategy) ([]netip.Addr, bool) {
-	if c.disableCache || c.independentCache {
-		return nil, false
-	}
-	if dns.IsFqdn(domain) {
-		domain = domain[:len(domain)-1]
-	}
-	dnsName := dns.Fqdn(domain)
-	if strategy == C.DomainStrategyIPv4Only {
-		addresses, err := c.questionCache(dns.Question{
-			Name:   dnsName,
-			Qtype:  dns.TypeA,
-			Qclass: dns.ClassINET,
-		}, nil)
-		if err != ErrNotCached {
-			return addresses, true
-		}
-	} else if strategy == C.DomainStrategyIPv6Only {
-		addresses, err := c.questionCache(dns.Question{
-			Name:   dnsName,
-			Qtype:  dns.TypeAAAA,
-			Qclass: dns.ClassINET,
-		}, nil)
-		if err != ErrNotCached {
-			return addresses, true
-		}
-	} else {
-		response4, _ := c.loadResponse(dns.Question{
-			Name:   dnsName,
-			Qtype:  dns.TypeA,
-			Qclass: dns.ClassINET,
-		}, nil)
-		if response4 == nil {
-			return nil, false
-		}
-		response6, _ := c.loadResponse(dns.Question{
-			Name:   dnsName,
-			Qtype:  dns.TypeAAAA,
-			Qclass: dns.ClassINET,
-		}, nil)
-		if response6 == nil {
-			return nil, false
-		}
-		return sortAddresses(MessageToAddresses(response4), MessageToAddresses(response6), strategy), true
-	}
-	return nil, false
-}
-
-func (c *Client) ExchangeCache(ctx context.Context, message *dns.Msg) (*dns.Msg, bool) {
-	if c.disableCache || c.independentCache || len(message.Question) != 1 {
-		return nil, false
-	}
-	question := message.Question[0]
-	response, ttl := c.loadResponse(question, nil)
-	if response == nil {
-		return nil, false
-	}
-	logCachedResponse(c.logger, ctx, response, ttl)
-	response.Id = message.Id
-	return response, true
-}
-
 func sortAddresses(response4 []netip.Addr, response6 []netip.Addr, strategy C.DomainStrategy) []netip.Addr {
 	if strategy == C.DomainStrategyPreferIPv6 {
 		return append(response6, response4...)

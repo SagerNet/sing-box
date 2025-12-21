@@ -214,96 +214,94 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	}
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	var (
+		response  *mDNS.Msg
 		transport adapter.DNSTransport
 		err       error
 	)
-	response, cached := r.client.ExchangeCache(ctx, message)
-	if !cached {
-		var metadata *adapter.InboundContext
-		ctx, metadata = adapter.ExtendContext(ctx)
-		metadata.Destination = M.Socksaddr{}
-		metadata.QueryType = message.Question[0].Qtype
-		switch metadata.QueryType {
-		case mDNS.TypeA:
-			metadata.IPVersion = 4
-		case mDNS.TypeAAAA:
-			metadata.IPVersion = 6
-		}
-		metadata.Domain = FqdnToDomain(message.Question[0].Name)
-		if options.Transport != nil {
-			transport = options.Transport
-			if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
-				if options.Strategy == C.DomainStrategyAsIS {
-					options.Strategy = legacyTransport.LegacyStrategy()
-				}
-				if !options.ClientSubnet.IsValid() {
-					options.ClientSubnet = legacyTransport.LegacyClientSubnet()
-				}
-			}
+	var metadata *adapter.InboundContext
+	ctx, metadata = adapter.ExtendContext(ctx)
+	metadata.Destination = M.Socksaddr{}
+	metadata.QueryType = message.Question[0].Qtype
+	switch metadata.QueryType {
+	case mDNS.TypeA:
+		metadata.IPVersion = 4
+	case mDNS.TypeAAAA:
+		metadata.IPVersion = 6
+	}
+	metadata.Domain = FqdnToDomain(message.Question[0].Name)
+	if options.Transport != nil {
+		transport = options.Transport
+		if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
 			if options.Strategy == C.DomainStrategyAsIS {
-				options.Strategy = r.defaultDomainStrategy
+				options.Strategy = legacyTransport.LegacyStrategy()
 			}
-			response, err = r.client.Exchange(ctx, transport, message, options, nil)
-		} else {
-			var (
-				rule      adapter.DNSRule
-				ruleIndex int
-			)
-			ruleIndex = -1
-			for {
-				dnsCtx := adapter.OverrideContext(ctx)
-				dnsOptions := options
-				transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &dnsOptions)
-				if rule != nil {
-					switch action := rule.Action().(type) {
-					case *R.RuleActionReject:
-						switch action.Method {
-						case C.RuleActionRejectMethodDefault:
-							return &mDNS.Msg{
-								MsgHdr: mDNS.MsgHdr{
-									Id:       message.Id,
-									Rcode:    mDNS.RcodeRefused,
-									Response: true,
-								},
-								Question: []mDNS.Question{message.Question[0]},
-							}, nil
-						case C.RuleActionRejectMethodDrop:
-							return nil, tun.ErrDrop
-						}
-					case *R.RuleActionPredefined:
-						return action.Response(message), nil
-					}
-				}
-				var responseCheck func(responseAddrs []netip.Addr) bool
-				if rule != nil && rule.WithAddressLimit() {
-					responseCheck = func(responseAddrs []netip.Addr) bool {
-						metadata.DestinationAddresses = responseAddrs
-						return rule.MatchAddressLimit(metadata)
-					}
-				}
-				if dnsOptions.Strategy == C.DomainStrategyAsIS {
-					dnsOptions.Strategy = r.defaultDomainStrategy
-				}
-				response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
-				var rejected bool
-				if err != nil {
-					if errors.Is(err, ErrResponseRejectedCached) {
-						rejected = true
-						r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
-					} else if errors.Is(err, ErrResponseRejected) {
-						rejected = true
-						r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
-					} else if len(message.Question) > 0 {
-						r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
-					} else {
-						r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
-					}
-				}
-				if responseCheck != nil && rejected {
-					continue
-				}
-				break
+			if !options.ClientSubnet.IsValid() {
+				options.ClientSubnet = legacyTransport.LegacyClientSubnet()
 			}
+		}
+		if options.Strategy == C.DomainStrategyAsIS {
+			options.Strategy = r.defaultDomainStrategy
+		}
+		response, err = r.client.Exchange(ctx, transport, message, options, nil)
+	} else {
+		var (
+			rule      adapter.DNSRule
+			ruleIndex int
+		)
+		ruleIndex = -1
+		for {
+			dnsCtx := adapter.OverrideContext(ctx)
+			dnsOptions := options
+			transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &dnsOptions)
+			if rule != nil {
+				switch action := rule.Action().(type) {
+				case *R.RuleActionReject:
+					switch action.Method {
+					case C.RuleActionRejectMethodDefault:
+						return &mDNS.Msg{
+							MsgHdr: mDNS.MsgHdr{
+								Id:       message.Id,
+								Rcode:    mDNS.RcodeRefused,
+								Response: true,
+							},
+							Question: []mDNS.Question{message.Question[0]},
+						}, nil
+					case C.RuleActionRejectMethodDrop:
+						return nil, tun.ErrDrop
+					}
+				case *R.RuleActionPredefined:
+					return action.Response(message), nil
+				}
+			}
+			var responseCheck func(responseAddrs []netip.Addr) bool
+			if rule != nil && rule.WithAddressLimit() {
+				responseCheck = func(responseAddrs []netip.Addr) bool {
+					metadata.DestinationAddresses = responseAddrs
+					return rule.MatchAddressLimit(metadata)
+				}
+			}
+			if dnsOptions.Strategy == C.DomainStrategyAsIS {
+				dnsOptions.Strategy = r.defaultDomainStrategy
+			}
+			response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
+			var rejected bool
+			if err != nil {
+				if errors.Is(err, ErrResponseRejectedCached) {
+					rejected = true
+					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
+				} else if errors.Is(err, ErrResponseRejected) {
+					rejected = true
+					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
+				} else if len(message.Question) > 0 {
+					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
+				} else {
+					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
+				}
+			}
+			if responseCheck != nil && rejected {
+				continue
+			}
+			break
 		}
 	}
 	if err != nil {
@@ -327,7 +325,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
 	var (
 		responseAddrs []netip.Addr
-		cached        bool
 		err           error
 	)
 	printResult := func() {
@@ -346,13 +343,6 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 		if err != nil {
 			err = E.Cause(err, "lookup ", domain)
 		}
-	}
-	responseAddrs, cached = r.client.LookupCache(domain, options.Strategy)
-	if cached {
-		if len(responseAddrs) == 0 {
-			return nil, E.New("lookup ", domain, ": empty result (cached)")
-		}
-		return responseAddrs, nil
 	}
 	r.logger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, metadata := adapter.ExtendContext(ctx)

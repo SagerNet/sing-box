@@ -27,8 +27,6 @@ type DNSClient interface {
 	Start()
 	Exchange(ctx context.Context, transport DNSTransport, message *dns.Msg, options DNSQueryOptions, responseChecker func(responseAddrs []netip.Addr) bool) (*dns.Msg, error)
 	Lookup(ctx context.Context, transport DNSTransport, domain string, options DNSQueryOptions, responseChecker func(responseAddrs []netip.Addr) bool) ([]netip.Addr, error)
-	LookupCache(domain string, strategy C.DomainStrategy) ([]netip.Addr, bool)
-	ExchangeCache(ctx context.Context, message *dns.Msg) (*dns.Msg, bool)
 	ClearCache()
 }
 
