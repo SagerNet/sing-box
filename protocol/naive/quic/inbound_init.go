@@ -4,12 +4,14 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/congestion"
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/naive"
 	"github.com/sagernet/sing-quic"
@@ -35,11 +37,15 @@ func init() {
 		}
 
 		var congestionControl func(conn *quic.Conn) congestion.CongestionControl
+		timeFunc := ntp.TimeFuncFromContext(ctx)
+		if timeFunc == nil {
+			timeFunc = time.Now
+		}
 		switch options.QUICCongestionControl {
 		case "", "bbr":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_meta2.NewBbrSender(
-					congestion_meta2.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_meta2.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					congestion.ByteCount(congestion_meta1.InitialCongestionWindow),
 				)
@@ -47,7 +53,7 @@ func init() {
 		case "bbr_standard":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_bbr1.NewBbrSender(
-					congestion_bbr1.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_bbr1.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					congestion_bbr1.InitialCongestionWindowPackets,
 					congestion_bbr1.MaxCongestionWindowPackets,
@@ -56,7 +62,7 @@ func init() {
 		case "bbr2":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_bbr2.NewBBR2Sender(
-					congestion_bbr2.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_bbr2.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					0,
 					false,
@@ -65,7 +71,7 @@ func init() {
 		case "bbr2_variant":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_bbr2.NewBBR2Sender(
-					congestion_bbr2.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_bbr2.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					32*congestion.ByteCount(conn.Config().InitialPacketSize),
 					true,
@@ -74,7 +80,7 @@ func init() {
 		case "cubic":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_meta1.NewCubicSender(
-					congestion_meta1.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_meta1.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					false,
 				)
@@ -82,7 +88,7 @@ func init() {
 		case "reno":
 			congestionControl = func(conn *quic.Conn) congestion.CongestionControl {
 				return congestion_meta1.NewCubicSender(
-					congestion_meta1.DefaultClock{TimeFunc: ntp.TimeFuncFromContext(ctx)},
+					congestion_meta1.DefaultClock{TimeFunc: timeFunc},
 					congestion.ByteCount(conn.Config().InitialPacketSize),
 					true,
 				)
@@ -92,9 +98,8 @@ func init() {
 		}
 
 		quicListener, err := qtls.ListenEarly(udpConn, tlsConfig, &quic.Config{
-			MaxIncomingStreams:   1 << 60,
-			Allow0RTT:            true,
-			GetCongestionControl: congestionControl,
+			MaxIncomingStreams: 1 << 60,
+			Allow0RTT:          true,
 		})
 		if err != nil {
 			udpConn.Close()
@@ -103,6 +108,10 @@ func init() {
 
 		h3Server := &http3.Server{
 			Handler: handler,
+			ConnContext: func(ctx context.Context, conn *quic.Conn) context.Context {
+				conn.SetCongestionControl(congestionControl(conn))
+				return log.ContextWithNewID(ctx)
+			},
 		}
 
 		go func() {
