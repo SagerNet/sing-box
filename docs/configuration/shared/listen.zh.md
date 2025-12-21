@@ -7,7 +7,7 @@ icon: material/new-box
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)
     :material-alert: [tcp_keep_alive](#tcp_keep_alive)
 
-!!! quote "Changes in sing-box 1.12.0"
+!!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [netns](#netns)  
     :material-plus: [bind_interface](#bind_interface)  
@@ -127,7 +127,7 @@ TCP keep alive 初始周期。
 
 #### tcp_keep_alive_interval
 
-TCP keep-alive 间隔。
+TCP keep alive 间隔。
 
 默认使用 `75s`。
 
