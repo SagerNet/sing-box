@@ -41,6 +41,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/tailscale/ipn"
@@ -176,6 +177,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 				},
 				TLSClientConfig: &tls.Config{
 					RootCAs: adapter.RootPoolFromContext(ctx),
+					Time:    ntp.TimeFuncFromContext(ctx),
 				},
 			},
 		},
