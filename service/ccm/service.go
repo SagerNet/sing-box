@@ -3,6 +3,7 @@ package ccm
 import (
 	"bytes"
 	"context"
+	stdTLS "crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -26,6 +27,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	aTLS "github.com/sagernet/sing/common/tls"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -111,6 +113,10 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2: true,
+			TLSClientConfig: &stdTLS.Config{
+				RootCAs: adapter.RootPoolFromContext(ctx),
+				Time:    ntp.TimeFuncFromContext(ctx),
+			},
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return serviceDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
