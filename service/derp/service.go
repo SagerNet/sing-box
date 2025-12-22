@@ -3,6 +3,7 @@ package derp
 import (
 	"bufio"
 	"context"
+	stdTLS "crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	aTLS "github.com/sagernet/sing/common/tls"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
@@ -159,6 +161,10 @@ func (d *Service) Start(stage adapter.StartStage) error {
 				httpClients = append(httpClients, &http.Client{
 					Transport: &http.Transport{
 						ForceAttemptHTTP2: true,
+						TLSClientConfig: &stdTLS.Config{
+							RootCAs: adapter.RootPoolFromContext(d.ctx),
+							Time:    ntp.TimeFuncFromContext(d.ctx),
+						},
 						DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 							return verifyDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 						},
