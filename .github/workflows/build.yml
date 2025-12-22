@@ -623,7 +623,7 @@ jobs:
       - name: Build
         run: |-
           mkdir clients/android/app/libs
-          cp libbox.aar clients/android/app/libs
+          cp *.aar clients/android/app/libs
           cd clients/android
           ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
         env:
@@ -705,7 +705,7 @@ jobs:
         run: |-
           go run -v ./cmd/internal/update_android_version --ci
           mkdir clients/android/app/libs
-          cp libbox.aar clients/android/app/libs
+          cp *.aar clients/android/app/libs
           cd clients/android
           echo -n "$SERVICE_ACCOUNT_CREDENTIALS" | base64 --decode > service-account-credentials.json
           ./gradlew :app:publishPlayReleaseBundle
