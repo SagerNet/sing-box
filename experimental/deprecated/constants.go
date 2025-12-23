@@ -30,7 +30,7 @@ func (n Note) Impending() bool {
 	versionCurrent := badversion.Parse(C.Version)
 	versionMinor := badversion.Parse(n.ScheduledVersion).Minor - versionCurrent.Minor
 	if versionCurrent.PreReleaseIdentifier == "" && versionMinor < 0 {
-		panic("invalid deprecated note: " + n.Name)
+		panic(n.MessageWithLink())
 	}
 	return versionMinor <= 1
 }
