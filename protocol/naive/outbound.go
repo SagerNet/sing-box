@@ -175,7 +175,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	default:
 		return nil, E.New("unknown quic congestion control: ", options.QUICCongestionControl)
 	}
-	client, err := cronet.NewNaiveClient(cronet.NaiveClientConfig{
+	client, err := cronet.NewNaiveClient(cronet.NaiveClientOptions{
 		Context:                 ctx,
 		ServerAddress:           serverAddress,
 		ServerName:              serverName,
