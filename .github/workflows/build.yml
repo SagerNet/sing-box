@@ -102,10 +102,10 @@ jobs:
           - { os: windows, arch: amd64, legacy_win7: true, legacy_name: "windows-7" }
           - { os: windows, arch: "386", legacy_win7: true, legacy_name: "windows-7" }
 
-          - { os: android, arch: arm64, ndk: "aarch64-linux-android21" }
-          - { os: android, arch: arm, ndk: "armv7a-linux-androideabi21" }
-          - { os: android, arch: amd64, ndk: "x86_64-linux-android21" }
-          - { os: android, arch: "386", ndk: "i686-linux-android21" }
+          - { os: android, arch: arm64, ndk: "aarch64-linux-android23" }
+          - { os: android, arch: arm, ndk: "armv7a-linux-androideabi23" }
+          - { os: android, arch: amd64, ndk: "x86_64-linux-android23" }
+          - { os: android, arch: "386", ndk: "i686-linux-android23" }
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -625,7 +625,7 @@ jobs:
           mkdir clients/android/app/libs
           cp *.aar clients/android/app/libs
           cd clients/android
-          ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease
+          ./gradlew :app:assembleOtherRelease :app:assembleOtherLegacyRelease
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -635,6 +635,7 @@ jobs:
           mkdir -p dist
           #cp clients/android/app/build/outputs/apk/play/release/*.apk dist
           cp clients/android/app/build/outputs/apk/other/release/*.apk dist
+          cp clients/android/app/build/outputs/apk/otherLegacy/release/*.apk dist
           VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
           VERSION_NAME=$(grep VERSION_NAME clients/android/version.properties | cut -d= -f2)
           cat > dist/SFA-version-metadata.json << EOF
