@@ -182,6 +182,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if outputMark == 0 {
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
+	resetMark := uint32(options.AutoRedirectResetMark)
+	if resetMark == 0 {
+		resetMark = tun.DefaultAutoRedirectResetMark
+	}
+	nfQueue := options.AutoRedirectNFQueue
+	if nfQueue == 0 {
+		nfQueue = tun.DefaultAutoRedirectNFQueue
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && options.MTU <= 9000))
 	inbound := &Inbound{
@@ -202,6 +210,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IPRoute2RuleIndex:        ruleIndex,
 			AutoRedirectInputMark:    inputMark,
 			AutoRedirectOutputMark:   outputMark,
+			AutoRedirectResetMark:    resetMark,
+			AutoRedirectNFQueue:      nfQueue,
 			ExcludeMPTCP:             options.ExcludeMPTCP,
 			Inet4LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is4),
 			Inet6LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is6),
@@ -472,8 +482,15 @@ func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destinat
 		InboundOptions: t.inboundOptions,
 	}, routeContext, timeout)
 	if err != nil {
-		if !rule.IsRejected(err) {
-			t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+		switch {
+		case rule.IsBypassed(err):
+			err = nil
+		case rule.IsRejected(err):
+			t.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		default:
+			if network == N.NetworkICMP {
+				t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			}
 		}
 	}
 	return routeDestination, err
@@ -509,6 +526,37 @@ func (t *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 
 type autoRedirectHandler Inbound
 
+func (t *autoRedirectHandler) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+	var ipVersion uint8
+	if !destination.IsIPv6() {
+		ipVersion = 4
+	} else {
+		ipVersion = 6
+	}
+	routeDestination, err := t.router.PreMatch(adapter.InboundContext{
+		Inbound:        t.tag,
+		InboundType:    C.TypeTun,
+		IPVersion:      ipVersion,
+		Network:        network,
+		Source:         source,
+		Destination:    destination,
+		InboundOptions: t.inboundOptions,
+	}, routeContext, timeout)
+	if err != nil {
+		switch {
+		case rule.IsBypassed(err):
+			t.logger.Trace("bypass ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		case rule.IsRejected(err):
+			t.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		default:
+			if network == N.NetworkICMP {
+				t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			}
+		}
+	}
+	return routeDestination, err
+}
+
 func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
@@ -521,4 +569,8 @@ func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn
 	t.logger.InfoContext(ctx, "inbound redirect connection from ", metadata.Source)
 	t.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	t.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (t *autoRedirectHandler) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+	panic("unexcepted")
 }

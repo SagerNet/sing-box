@@ -30,6 +30,7 @@ const (
 	RuleActionTypeRoute        = "route"
 	RuleActionTypeRouteOptions = "route-options"
 	RuleActionTypeDirect       = "direct"
+	RuleActionTypeBypass       = "bypass"
 	RuleActionTypeReject       = "reject"
 	RuleActionTypeHijackDNS    = "hijack-dns"
 	RuleActionTypeSniff        = "sniff"

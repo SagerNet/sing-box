@@ -142,8 +142,15 @@ func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 		Destination: destination,
 	}, routeContext, timeout)
 	if err != nil {
-		if !rule.IsRejected(err) {
-			w.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+		switch {
+		case rule.IsBypassed(err):
+			err = nil
+		case rule.IsRejected(err):
+			w.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		default:
+			if network == N.NetworkICMP {
+				w.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			}
 		}
 	}
 	return routeDestination, err

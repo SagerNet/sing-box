@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "sing-box 1.13.0 中的更改"
 
+    :material-plus: [bypass](#bypass)
     :material-alert: [reject](#reject)
 
 !!! quote "sing-box 1.12.0 中的更改"
@@ -29,6 +30,39 @@ icon: material/new-box
 ```
 
 `route` 继承了将连接路由到指定出站的经典规则动作。
+
+#### outbound
+
+==必填==
+
+目标出站的标签。
+
+#### route-options 字段
+
+参阅下方的 `route-options` 字段。
+
+### bypass
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要启用 `auto_redirect`。
+
+```json
+{
+  "action": "bypass",
+  "outbound": "",
+
+  ... // route-options 字段
+}
+```
+
+`bypass` 将连接路由到指定出站。
+
+对于[预匹配](/configuration/shared/pre-match/)中的 tun 连接，连接将在内核层面绕过 sing-box 直接连接。
+
+对于非 tun 连接和已建立的连接，行为与 `route` 相同。
 
 #### outbound
 
