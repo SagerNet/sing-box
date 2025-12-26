@@ -4,8 +4,8 @@ icon: material/new-box
 
 !!! quote "sing-box 1.13.0 中的更改"
 
-    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)
-    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)
+    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)  
+    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)  
     :material-plus: [exclude_mptcp](#exclude_mptcp)
 
 !!! quote "sing-box 1.12.0 中的更改"
@@ -28,7 +28,7 @@ icon: material/new-box
     :material-delete-clock: [inet6_route_address](#inet6_route_address)  
     :material-plus: [route_exclude_address](#route_address)  
     :material-delete-clock: [inet4_route_exclude_address](#inet4_route_exclude_address)  
-    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)   
+    :material-delete-clock: [inet6_route_exclude_address](#inet6_route_exclude_address)  
     :material-plus: [iproute2_table_index](#iproute2_table_index)  
     :material-plus: [iproute2_rule_index](#iproute2_table_index)  
     :material-plus: [auto_redirect](#auto_redirect)  
@@ -40,7 +40,7 @@ icon: material/new-box
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
-    :material-plus: [platform.http_proxy.match_domain](#platformhttp_proxymatch_domain)  
+    :material-plus: [platform.http_proxy.match_domain](#platformhttp_proxymatch_domain)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
