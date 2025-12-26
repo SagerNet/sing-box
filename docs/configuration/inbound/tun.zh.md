@@ -4,6 +4,8 @@ icon: material/new-box
 
 !!! quote "sing-box 1.13.0 中的更改"
 
+    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)
+    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)
     :material-plus: [exclude_mptcp](#exclude_mptcp)
 
 !!! quote "sing-box 1.12.0 中的更改"
@@ -67,6 +69,8 @@ icon: material/new-box
   "auto_redirect": true,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
+  "auto_redirect_reset_mark": "0x2025",
+  "auto_redirect_nfqueue": 100,
   "exclude_mptcp": false,
   "loopback_address": [
     "10.7.0.1"
@@ -281,6 +285,22 @@ tun 接口的 IPv6 前缀。
 `auto_redirect` 使用的连接输出标记。
 
 默认使用 `0x2024`。
+
+#### auto_redirect_reset_mark
+
+!!! question "自 sing-box 1.13.0 起"
+
+`auto_redirect` 预匹配使用的连接重置标记。
+
+默认使用 `0x2025`。
+
+#### auto_redirect_nfqueue
+
+!!! question "自 sing-box 1.13.0 起"
+
+`auto_redirect` 预匹配使用的 NFQueue 编号。
+
+默认使用 `100`。
 
 #### exclude_mptcp
 
