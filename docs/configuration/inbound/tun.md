@@ -4,6 +4,8 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
+    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)
+    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)
     :material-plus: [exclude_mptcp](#exclude_mptcp)
 
 !!! quote "Changes in sing-box 1.12.0"
@@ -67,6 +69,8 @@ icon: material/new-box
   "auto_redirect": true,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
+  "auto_redirect_reset_mark": "0x2025",
+  "auto_redirect_nfqueue": 100,
   "exclude_mptcp": false,
   "loopback_address": [
     "10.7.0.1"
@@ -282,6 +286,22 @@ Connection input mark used by `auto_redirect`.
 Connection output mark used by `auto_redirect`.
 
 `0x2024` is used by default.
+
+#### auto_redirect_reset_mark
+
+!!! question "Since sing-box 1.13.0"
+
+Connection reset mark used by `auto_redirect` pre-matching.
+
+`0x2025` is used by default.
+
+#### auto_redirect_nfqueue
+
+!!! question "Since sing-box 1.13.0"
+
+NFQueue number used by `auto_redirect` pre-matching.
+
+`100` is used by default.
 
 #### exclude_mptcp
 

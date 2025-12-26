@@ -56,6 +56,21 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
 			TLSRecordFragment:         action.RouteOptionsOptions.TLSRecordFragment,
 		}, nil
+	case C.RuleActionTypeBypass:
+		return &RuleActionBypass{
+			Outbound: action.BypassOptions.Outbound,
+			RuleActionRouteOptions: RuleActionRouteOptions{
+				OverrideAddress:           M.ParseSocksaddrHostPort(action.BypassOptions.OverrideAddress, 0),
+				OverridePort:              action.BypassOptions.OverridePort,
+				NetworkStrategy:           (*C.NetworkStrategy)(action.BypassOptions.NetworkStrategy),
+				FallbackDelay:             time.Duration(action.BypassOptions.FallbackDelay),
+				UDPDisableDomainUnmapping: action.BypassOptions.UDPDisableDomainUnmapping,
+				UDPConnect:                action.BypassOptions.UDPConnect,
+				TLSFragment:               action.BypassOptions.TLSFragment,
+				TLSFragmentFallbackDelay:  time.Duration(action.BypassOptions.TLSFragmentFallbackDelay),
+				TLSRecordFragment:         action.BypassOptions.TLSRecordFragment,
+			},
+		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
 		if err != nil {
@@ -156,6 +171,22 @@ func (r *RuleActionRoute) String() string {
 	descriptions = append(descriptions, r.Outbound)
 	descriptions = append(descriptions, r.Descriptions()...)
 	return F.ToString("route(", strings.Join(descriptions, ","), ")")
+}
+
+type RuleActionBypass struct {
+	Outbound string
+	RuleActionRouteOptions
+}
+
+func (r *RuleActionBypass) Type() string {
+	return C.RuleActionTypeBypass
+}
+
+func (r *RuleActionBypass) String() string {
+	var descriptions []string
+	descriptions = append(descriptions, r.Outbound)
+	descriptions = append(descriptions, r.Descriptions()...)
+	return F.ToString("bypass(", strings.Join(descriptions, ","), ")")
 }
 
 type RuleActionRouteOptions struct {
@@ -299,6 +330,23 @@ func (r *RejectedError) Unwrap() error {
 func IsRejected(err error) bool {
 	var rejected *RejectedError
 	return errors.As(err, &rejected)
+}
+
+type BypassedError struct {
+	Cause error
+}
+
+func (b *BypassedError) Error() string {
+	return "bypassed"
+}
+
+func (b *BypassedError) Unwrap() error {
+	return b.Cause
+}
+
+func IsBypassed(err error) bool {
+	var bypassed *BypassedError
+	return errors.As(err, &bypassed)
 }
 
 type RuleActionReject struct {
