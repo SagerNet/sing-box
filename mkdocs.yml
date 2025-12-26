@@ -122,6 +122,7 @@ nav:
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
           - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
+          - Pre-match: configuration/shared/pre-match.md
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md

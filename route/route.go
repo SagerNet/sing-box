@@ -113,6 +113,17 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 				buf.ReleaseMulti(buffers)
 				return E.New("TCP is not supported by outbound: ", selectedOutbound.Tag())
 			}
+		case *R.RuleActionBypass:
+			var loaded bool
+			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
+			if !loaded {
+				buf.ReleaseMulti(buffers)
+				return E.New("outbound not found: ", action.Outbound)
+			}
+			if !common.Contains(selectedOutbound.Network(), N.NetworkTCP) {
+				buf.ReleaseMulti(buffers)
+				return E.New("TCP is not supported by outbound: ", selectedOutbound.Tag())
+			}
 		case *R.RuleActionReject:
 			buf.ReleaseMulti(buffers)
 			if action.Method == C.RuleActionRejectMethodReply {
@@ -231,6 +242,17 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 				N.ReleaseMultiPacketBuffer(packetBuffers)
 				return E.New("UDP is not supported by outbound: ", selectedOutbound.Tag())
 			}
+		case *R.RuleActionBypass:
+			var loaded bool
+			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
+			if !loaded {
+				N.ReleaseMultiPacketBuffer(packetBuffers)
+				return E.New("outbound not found: ", action.Outbound)
+			}
+			if !common.Contains(selectedOutbound.Network(), N.NetworkUDP) {
+				N.ReleaseMultiPacketBuffer(packetBuffers)
+				return E.New("UDP is not supported by outbound: ", selectedOutbound.Tag())
+			}
 		case *R.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
 			if action.Method == C.RuleActionRejectMethodReply {
@@ -287,6 +309,8 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 				}
 			}
 			return nil, action.Error(context.Background())
+		case *R.RuleActionBypass:
+			return nil, &R.BypassedError{Cause: tun.ErrBypass}
 		case *R.RuleActionRoute:
 			if routeContext == nil {
 				return nil, nil
@@ -567,7 +591,8 @@ match:
 		actionType := currentRule.Action().Type()
 		if actionType == C.RuleActionTypeRoute ||
 			actionType == C.RuleActionTypeReject ||
-			actionType == C.RuleActionTypeHijackDNS {
+			actionType == C.RuleActionTypeHijackDNS ||
+			actionType == C.RuleActionTypeBypass {
 			selectedRule = currentRule
 			selectedRuleIndex = currentRuleIndex
 			break match
