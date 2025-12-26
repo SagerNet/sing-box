@@ -4,8 +4,8 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)
-    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)
+    :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)  
+    :material-plus: [auto_redirect_nfqueue](#auto_redirect_nfqueue)  
     :material-plus: [exclude_mptcp](#exclude_mptcp)
 
 !!! quote "Changes in sing-box 1.12.0"
@@ -40,7 +40,7 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.9.0"
 
     :material-plus: [platform.http_proxy.bypass_domain](#platformhttp_proxybypass_domain)  
-    :material-plus: [platform.http_proxy.match_domain](#platformhttp_proxymatch_domain)  
+    :material-plus: [platform.http_proxy.match_domain](#platformhttp_proxymatch_domain)
 
 !!! quote "Changes in sing-box 1.8.0"
 

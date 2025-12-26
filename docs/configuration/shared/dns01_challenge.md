@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [alidns.security_token](#security_token)
+    :material-plus: [alidns.security_token](#security_token)  
     :material-plus: [cloudflare.zone_token](#zone_token)
 
 ### Structure

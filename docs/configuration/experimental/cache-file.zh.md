@@ -3,7 +3,7 @@
 !!! quote "sing-box 1.9.0 中的更改"
 
     :material-plus: [store_rdrc](#store_rdrc)  
-    :material-plus: [rdrc_timeout](#rdrc_timeout)  
+    :material-plus: [rdrc_timeout](#rdrc_timeout)
 
 ### 结构
 

@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "sing-box 1.13.0 中的更改"
 
-    :material-plus: [bypass](#bypass)
+    :material-plus: [bypass](#bypass)  
     :material-alert: [reject](#reject)
 
 !!! quote "sing-box 1.12.0 中的更改"
