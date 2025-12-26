@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [bypass](#bypass)
+    :material-plus: [bypass](#bypass)  
     :material-alert: [reject](#reject)
 
 !!! quote "Changes in sing-box 1.12.0"
