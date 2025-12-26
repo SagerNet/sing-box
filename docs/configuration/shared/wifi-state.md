@@ -6,7 +6,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: Linux support
+    :material-plus: Linux support  
     :material-plus: Windows support
 
 sing-box can monitor Wi-Fi state to enable routing rules based on `wifi_ssid` and `wifi_bssid`.
