@@ -40,6 +40,7 @@ func New(options Options) (Factory, error) {
 	case "stdout":
 		logWriter = os.Stdout
 	default:
+		logWriter = io.Discard
 		logFilePath = logOptions.Output
 	}
 	logFormatter := Formatter{
