@@ -2,6 +2,20 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-alpha.35
+
+* Add pre-match support for `auto_redirect` **1**
+
+**1**:
+
+`auto_redirect` now allows you to bypass sing-box for connections based on routing rules.
+
+A new rule action `bypass` is introduced to support this feature. When matched during pre-match, the connection will bypass sing-box and connect directly.
+
+This feature requires Linux with `auto_redirect` enabled.
+
+See [Pre-match](/configuration/shared/pre-match/) and [Rule Action](/configuration/route/rule_action/#bypass).
+
 #### 1.13.0-alpha.34
 
 * Add Chrome Root Store certificate option **1**
