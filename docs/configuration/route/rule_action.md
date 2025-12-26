@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
+    :material-plus: [bypass](#bypass)
     :material-alert: [reject](#reject)
 
 !!! quote "Changes in sing-box 1.12.0"
@@ -33,6 +34,40 @@ icon: material/new-box
     You can ignore the JSON Array [] tag when the content is only one item
 
 `route` inherits the classic rule behavior of routing connection to the specified outbound.
+
+#### outbound
+
+==Required==
+
+Tag of target outbound.
+
+#### route-options Fields
+
+See `route-options` fields below.
+
+### bypass
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux with `auto_redirect` enabled.
+
+```json
+{
+  "action": "bypass",
+  "outbound": "",
+
+  ... // route-options Fields
+}
+```
+
+`bypass` routes connection to the specified outbound.
+
+For tun connections in [pre-match](/configuration/shared/pre-match/),
+the connection will bypass sing-box and connect directly at the kernel level.
+
+For non-tun connections and already established connections, the behavior is the same as `route`.
 
 #### outbound
 
