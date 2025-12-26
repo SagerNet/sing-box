@@ -12,7 +12,7 @@ icon: material/delete-clock
 
 !!! quote "sing-box 1.8.0 中的更改"
 
-    :material-plus: [gso](#gso)  
+    :material-plus: [gso](#gso)
 
 ### 结构
 

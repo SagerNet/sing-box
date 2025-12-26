@@ -18,15 +18,15 @@ icon: material/new-box
 
 !!! quote "sing-box 1.12.0 中的更改"
 
-    :material-plus: [fragment](#fragment)
-    :material-plus: [fragment_fallback_delay](#fragment_fallback_delay)
-    :material-plus: [record_fragment](#record_fragment)
-    :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)
+    :material-plus: [fragment](#fragment)  
+    :material-plus: [fragment_fallback_delay](#fragment_fallback_delay)  
+    :material-plus: [record_fragment](#record_fragment)  
+    :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)  
     :material-delete-clock: [ech.dynamic_record_sizing_disabled](#dynamic_record_sizing_disabled)
 
 !!! quote "sing-box 1.10.0 中的更改"
 
-    :material-alert-decagram: [utls](#utls)  
+    :material-alert-decagram: [utls](#utls)
 
 ### 入站
 

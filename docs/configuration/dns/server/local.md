@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [prefer_go](#prefer_go)  
+    :material-plus: [prefer_go](#prefer_go)
 
 !!! question "Since sing-box 1.12.0"
 
