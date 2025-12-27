@@ -62,18 +62,17 @@ See `route-options` fields below.
 }
 ```
 
-`bypass` routes connection to the specified outbound.
+`bypass` bypasses sing-box at the kernel level for auto redirect connections in pre-match.
 
-For tun connections in [pre-match](/configuration/shared/pre-match/),
-the connection will bypass sing-box and connect directly at the kernel level.
-
-For non-tun connections and already established connections, the behavior is the same as `route`.
+For non-auto-redirect connections and already established connections,
+the behavior is the same as `route` if `outbound` is specified.
 
 #### outbound
 
-==Required==
-
 Tag of target outbound.
+
+If not specified, the rule only matches in [pre-match](/configuration/shared/pre-match/)
+from auto redirect, and will be skipped in other contexts.
 
 #### route-options Fields
 

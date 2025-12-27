@@ -95,7 +95,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewConn(conn)
 	}
-	selectedRule, _, buffers, _, err := r.matchRule(ctx, &metadata, false, conn, nil)
+	selectedRule, _, buffers, _, err := r.matchRule(ctx, &metadata, false, false, conn, nil)
 	if err != nil {
 		return err
 	}
@@ -114,6 +114,9 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 				return E.New("TCP is not supported by outbound: ", selectedOutbound.Tag())
 			}
 		case *R.RuleActionBypass:
+			if action.Outbound == "" {
+				break
+			}
 			var loaded bool
 			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
 			if !loaded {
@@ -223,7 +226,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
 	}*/
 
-	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, false, nil, conn)
+	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, false, false, nil, conn)
 	if err != nil {
 		return err
 	}
@@ -243,6 +246,9 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 				return E.New("UDP is not supported by outbound: ", selectedOutbound.Tag())
 			}
 		case *R.RuleActionBypass:
+			if action.Outbound == "" {
+				break
+			}
 			var loaded bool
 			selectedOutbound, loaded = r.outbound.Outbound(action.Outbound)
 			if !loaded {
@@ -289,8 +295,8 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return nil
 }
 
-func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
-	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil)
+func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration, supportBypass bool) (tun.DirectRouteDestination, error) {
+	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, supportBypass, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +316,20 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 			}
 			return nil, action.Error(context.Background())
 		case *R.RuleActionBypass:
-			return nil, &R.BypassedError{Cause: tun.ErrBypass}
+			if supportBypass {
+				return nil, &R.BypassedError{Cause: tun.ErrBypass}
+			}
+			if routeContext == nil {
+				return nil, nil
+			}
+			outbound, loaded := r.outbound.Outbound(action.Outbound)
+			if !loaded {
+				return nil, E.New("outbound not found: ", action.Outbound)
+			}
+			if !common.Contains(outbound.Network(), metadata.Network) {
+				return nil, E.New(metadata.Network, " is not supported by outbound: ", action.Outbound)
+			}
+			directRouteOutbound = outbound.(adapter.DirectRouteOutbound)
 		case *R.RuleActionRoute:
 			if routeContext == nil {
 				return nil, nil
@@ -388,7 +407,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 }
 
 func (r *Router) matchRule(
-	ctx context.Context, metadata *adapter.InboundContext, preMatch bool,
+	ctx context.Context, metadata *adapter.InboundContext, preMatch bool, supportBypass bool,
 	inputConn net.Conn, inputPacketConn N.PacketConn,
 ) (
 	selectedRule adapter.Rule, selectedRuleIndex int,
@@ -591,8 +610,16 @@ match:
 		actionType := currentRule.Action().Type()
 		if actionType == C.RuleActionTypeRoute ||
 			actionType == C.RuleActionTypeReject ||
-			actionType == C.RuleActionTypeHijackDNS ||
-			actionType == C.RuleActionTypeBypass {
+			actionType == C.RuleActionTypeHijackDNS {
+			selectedRule = currentRule
+			selectedRuleIndex = currentRuleIndex
+			break match
+		}
+		if actionType == C.RuleActionTypeBypass {
+			bypassAction := currentRule.Action().(*R.RuleActionBypass)
+			if !supportBypass && bypassAction.Outbound == "" {
+				continue match
+			}
 			selectedRule = currentRule
 			selectedRuleIndex = currentRuleIndex
 			break match

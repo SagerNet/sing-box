@@ -35,3 +35,5 @@ icon: material/new-box
     仅支持 Linux，且需要启用 `auto_redirect`。
 
 在内核层面绕过 sing-box 直接连接。
+
+对于其他所有场景，指定了 `outbound` 的 bypass 行为与 `route` 相同。

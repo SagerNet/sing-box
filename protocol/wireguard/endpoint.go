@@ -140,7 +140,7 @@ func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 		Network:     network,
 		Source:      source,
 		Destination: destination,
-	}, routeContext, timeout)
+	}, routeContext, timeout, false)
 	if err != nil {
 		switch {
 		case rule.IsBypassed(err):
