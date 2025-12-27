@@ -130,6 +130,14 @@ func (c *Connections) Iterator() ConnectionIterator {
 	return newPtrIterator(c.filtered)
 }
 
+type ProcessInfo struct {
+	ProcessID   int64
+	UserID      int32
+	UserName    string
+	ProcessPath string
+	PackageName string
+}
+
 type Connection struct {
 	ID            string
 	Inbound       string
@@ -152,6 +160,7 @@ type Connection struct {
 	Outbound      string
 	OutboundType  string
 	ChainList     []string
+	ProcessInfo   *ProcessInfo
 }
 
 func (c *Connection) Chain() StringIterator {
@@ -219,6 +228,16 @@ func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 }
 
 func ConnectionFromGRPC(conn *daemon.Connection) Connection {
+	var processInfo *ProcessInfo
+	if conn.ProcessInfo != nil {
+		processInfo = &ProcessInfo{
+			ProcessID:   int64(conn.ProcessInfo.ProcessId),
+			UserID:      conn.ProcessInfo.UserId,
+			UserName:    conn.ProcessInfo.UserName,
+			ProcessPath: conn.ProcessInfo.ProcessPath,
+			PackageName: conn.ProcessInfo.PackageName,
+		}
+	}
 	return Connection{
 		ID:            conn.Id,
 		Inbound:       conn.Inbound,
@@ -241,6 +260,7 @@ func ConnectionFromGRPC(conn *daemon.Connection) Connection {
 		Outbound:      conn.Outbound,
 		OutboundType:  conn.OutboundType,
 		ChainList:     conn.ChainList,
+		ProcessInfo:   processInfo,
 	}
 }
 
