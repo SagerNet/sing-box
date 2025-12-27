@@ -480,7 +480,7 @@ func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destinat
 		Source:         source,
 		Destination:    destination,
 		InboundOptions: t.inboundOptions,
-	}, routeContext, timeout)
+	}, routeContext, timeout, false)
 	if err != nil {
 		switch {
 		case rule.IsBypassed(err):
@@ -541,7 +541,7 @@ func (t *autoRedirectHandler) PrepareConnection(network string, source M.Socksad
 		Source:         source,
 		Destination:    destination,
 		InboundOptions: t.inboundOptions,
-	}, routeContext, timeout)
+	}, routeContext, timeout, true)
 	if err != nil {
 		switch {
 		case rule.IsBypassed(err):

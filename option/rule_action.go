@@ -93,9 +93,6 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Action == C.RuleActionTypeBypass && r.BypassOptions.Outbound == "" {
-		return E.New("missing outbound for bypass action")
-	}
 	return nil
 }
 
