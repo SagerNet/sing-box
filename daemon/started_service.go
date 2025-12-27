@@ -737,6 +737,16 @@ func newConnection(connections map[uuid.UUID]*Connection, metadata trafficontrol
 		uplink = 0
 		downlink = 0
 	}
+	var processInfo *ProcessInfo
+	if metadata.Metadata.ProcessInfo != nil {
+		processInfo = &ProcessInfo{
+			ProcessId:   metadata.Metadata.ProcessInfo.ProcessID,
+			UserId:      metadata.Metadata.ProcessInfo.UserId,
+			UserName:    metadata.Metadata.ProcessInfo.UserName,
+			ProcessPath: metadata.Metadata.ProcessInfo.ProcessPath,
+			PackageName: metadata.Metadata.ProcessInfo.AndroidPackageName,
+		}
+	}
 	connection := &Connection{
 		Id:            metadata.ID.String(),
 		Inbound:       metadata.Metadata.Inbound,
@@ -759,6 +769,7 @@ func newConnection(connections map[uuid.UUID]*Connection, metadata trafficontrol
 		Outbound:      metadata.Outbound,
 		OutboundType:  metadata.OutboundType,
 		ChainList:     metadata.Chain,
+		ProcessInfo:   processInfo,
 	}
 	connections[metadata.ID] = connection
 	return connection

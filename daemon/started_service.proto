@@ -189,6 +189,15 @@ message Connection {
   string outbound = 19;
   string outboundType = 20;
   repeated string chainList = 21;
+  ProcessInfo processInfo = 22;
+}
+
+message ProcessInfo {
+  uint32 processId = 1;
+  int32 userId = 2;
+  string userName = 3;
+  string processPath = 4;
+  string packageName = 5;
 }
 
 message CloseConnectionRequest {
