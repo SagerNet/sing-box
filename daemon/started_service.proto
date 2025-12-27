@@ -32,6 +32,7 @@ service StartedService {
   rpc CloseConnection(CloseConnectionRequest) returns(google.protobuf.Empty) {}
   rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
   rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
+  rpc GetStartedAt(google.protobuf.Empty) returns(StartedAt) {}
 
   rpc SubscribeHelperEvents(google.protobuf.Empty) returns(stream HelperRequest) {}
   rpc SendHelperResponse(HelperResponse) returns(google.protobuf.Empty) {}
@@ -202,4 +203,8 @@ message DeprecatedWarning {
   string message = 1;
   bool impending = 2;
   string migrationLink = 3;
+}
+
+message StartedAt {
+  int64 startedAt = 1;
 }

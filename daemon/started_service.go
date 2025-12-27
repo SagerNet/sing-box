@@ -50,6 +50,7 @@ type StartedService struct {
 	logSubscriber           *observable.Subscriber[*log.Entry]
 	logObserver             *observable.Observer[*log.Entry]
 	instance                *Instance
+	startedAt               time.Time
 	urlTestSubscriber       *observable.Subscriber[struct{}]
 	urlTestObserver         *observable.Observer[struct{}]
 	urlTestHistoryStorage   *urltest.HistoryStorage
@@ -193,6 +194,7 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 	if err != nil {
 		return s.updateStatusError(err)
 	}
+	s.startedAt = time.Now()
 	s.updateStatus(ServiceStatus_STARTED)
 	s.serviceAccess.Unlock()
 	runtime.GC()
@@ -215,6 +217,7 @@ func (s *StartedService) CloseService() error {
 		}
 	}
 	s.instance = nil
+	s.startedAt = time.Time{}
 	s.updateStatus(ServiceStatus_IDLE)
 	s.serviceAccess.Unlock()
 	runtime.GC()
@@ -801,6 +804,12 @@ func (s *StartedService) GetDeprecatedWarnings(ctx context.Context, empty *empty
 			}
 		}),
 	}, nil
+}
+
+func (s *StartedService) GetStartedAt(ctx context.Context, empty *emptypb.Empty) (*StartedAt, error) {
+	s.serviceAccess.RLock()
+	defer s.serviceAccess.RUnlock()
+	return &StartedAt{StartedAt: s.startedAt.UnixMilli()}, nil
 }
 
 func (s *StartedService) SubscribeHelperEvents(empty *emptypb.Empty, server grpc.ServerStreamingServer[HelperRequest]) error {
