@@ -24,9 +24,13 @@ When a rule matches an action that requires an established connection, pre-match
 
 Reject with TCP RST / ICMP unreachable.
 
+See [reject](/configuration/route/rule_action/#reject) for details.
+
 #### route
 
 Route ICMP connections to the specified outbound for direct reply.
+
+See [route](/configuration/route/rule_action/#route) for details.
 
 #### bypass
 
@@ -37,3 +41,10 @@ Route ICMP connections to the specified outbound for direct reply.
     Only supported on Linux with `auto_redirect` enabled.
 
 Bypass sing-box and connect directly at kernel level.
+
+If `outbound` is not specified, the rule only matches in pre-match from auto redirect,
+and will be skipped in other contexts.
+
+For all other contexts, bypass with `outbound` behaves like `route` action.
+
+See [bypass](/configuration/route/rule_action/#bypass) for details.

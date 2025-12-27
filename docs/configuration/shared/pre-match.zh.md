@@ -22,9 +22,13 @@ icon: material/new-box
 
 以 TCP RST / ICMP 不可达拒绝。
 
+详情参阅 [reject](/configuration/route/rule_action/#reject)。
+
 #### route
 
 将 ICMP 连接路由到指定出站以直接回复。
+
+详情参阅 [route](/configuration/route/rule_action/#route)。
 
 #### bypass
 
@@ -35,3 +39,9 @@ icon: material/new-box
     仅支持 Linux，且需要启用 `auto_redirect`。
 
 在内核层面绕过 sing-box 直接连接。
+
+如果未指定 `outbound`，规则仅在来自 auto redirect 的预匹配中匹配，在其他场景中将被跳过。
+
+对于其他所有场景，指定了 `outbound` 的 bypass 行为与 `route` 相同。
+
+详情参阅 [bypass](/configuration/route/rule_action/#bypass)。
