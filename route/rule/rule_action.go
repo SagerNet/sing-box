@@ -183,6 +183,9 @@ func (r *RuleActionBypass) Type() string {
 }
 
 func (r *RuleActionBypass) String() string {
+	if r.Outbound == "" {
+		return "bypass()"
+	}
 	var descriptions []string
 	descriptions = append(descriptions, r.Outbound)
 	descriptions = append(descriptions, r.Descriptions()...)
