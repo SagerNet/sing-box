@@ -37,3 +37,5 @@ Route ICMP connections to the specified outbound for direct reply.
     Only supported on Linux with `auto_redirect` enabled.
 
 Bypass sing-box and connect directly at kernel level.
+
+For all other contexts, bypass with `outbound` behaves like `route` action.
