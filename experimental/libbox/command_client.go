@@ -466,6 +466,19 @@ func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 	return newIterator(notes), nil
 }
 
+func (c *CommandClient) GetStartedAt() (int64, error) {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return 0, err
+	}
+
+	startedAt, err := client.GetStartedAt(context.Background(), &emptypb.Empty{})
+	if err != nil {
+		return 0, err
+	}
+	return startedAt.StartedAt, nil
+}
+
 func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 	client, err := c.getClientForCall()
 	if err != nil {
