@@ -58,17 +58,15 @@ icon: material/new-box
 }
 ```
 
-`bypass` 将连接路由到指定出站。
+`bypass` 在预匹配中为 auto redirect 连接在内核层面绕过 sing-box。
 
-对于[预匹配](/configuration/shared/pre-match/)中的 tun 连接，连接将在内核层面绕过 sing-box 直接连接。
-
-对于非 tun 连接和已建立的连接，行为与 `route` 相同。
+对于非 auto redirect 连接和已建立的连接，如果指定了 `outbound`，行为与 `route` 相同；否则规则将被跳过。
 
 #### outbound
 
-==必填==
-
 目标出站的标签。
+
+如果未指定，规则仅在来自 auto redirect 的[预匹配](/configuration/shared/pre-match/)中匹配，在其他场景中将被跳过。
 
 #### route-options 字段
 
