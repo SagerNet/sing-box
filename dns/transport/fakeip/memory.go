@@ -82,8 +82,12 @@ func (s *MemoryStorage) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr
 }
 
 func (s *MemoryStorage) FakeIPReset() error {
+	s.addressAccess.Lock()
+	s.domainAccess.Lock()
 	s.addressCache = make(map[netip.Addr]string)
 	s.domainCache4 = make(map[string]netip.Addr)
 	s.domainCache6 = make(map[string]netip.Addr)
+	s.domainAccess.Unlock()
+	s.addressAccess.Unlock()
 	return nil
 }

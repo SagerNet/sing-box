@@ -108,6 +108,13 @@ func (t *Transport) Close() error {
 	return nil
 }
 
+func (t *Transport) Reset() {
+	t.transportLock.Lock()
+	t.updatedAt = time.Time{}
+	t.servers = nil
+	t.transportLock.Unlock()
+}
+
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	servers, err := t.fetch()
 	if err != nil {
