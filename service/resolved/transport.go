@@ -110,6 +110,16 @@ func (t *Transport) Close() error {
 	return nil
 }
 
+func (t *Transport) Reset() {
+	t.linkAccess.RLock()
+	defer t.linkAccess.RUnlock()
+	for _, servers := range t.linkServers {
+		for _, server := range servers.Servers {
+			server.Reset()
+		}
+	}
+}
+
 func (t *Transport) updateTransports(link *TransportLink) error {
 	t.linkAccess.Lock()
 	defer t.linkAccess.Unlock()
