@@ -3,6 +3,7 @@ package fakeip
 import (
 	"context"
 	"net/netip"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -13,13 +14,15 @@ import (
 var _ adapter.FakeIPStore = (*Store)(nil)
 
 type Store struct {
-	ctx          context.Context
-	logger       logger.Logger
-	inet4Range   netip.Prefix
-	inet6Range   netip.Prefix
-	storage      adapter.FakeIPStorage
-	inet4Current netip.Addr
-	inet6Current netip.Addr
+	ctx        context.Context
+	logger     logger.Logger
+	inet4Range netip.Prefix
+	inet6Range netip.Prefix
+	storage    adapter.FakeIPStorage
+
+	addressAccess sync.Mutex
+	inet4Current  netip.Addr
+	inet6Current  netip.Addr
 }
 
 func NewStore(ctx context.Context, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
@@ -65,18 +68,30 @@ func (s *Store) Close() error {
 	if s.storage == nil {
 		return nil
 	}
-	return s.storage.FakeIPSaveMetadata(&adapter.FakeIPMetadata{
+	s.addressAccess.Lock()
+	metadata := &adapter.FakeIPMetadata{
 		Inet4Range:   s.inet4Range,
 		Inet6Range:   s.inet6Range,
 		Inet4Current: s.inet4Current,
 		Inet6Current: s.inet6Current,
-	})
+	}
+	s.addressAccess.Unlock()
+	return s.storage.FakeIPSaveMetadata(metadata)
 }
 
 func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
 	if address, loaded := s.storage.FakeIPLoadDomain(domain, isIPv6); loaded {
 		return address, nil
 	}
+
+	s.addressAccess.Lock()
+	defer s.addressAccess.Unlock()
+
+	// Double-check after acquiring lock
+	if address, loaded := s.storage.FakeIPLoadDomain(domain, isIPv6); loaded {
+		return address, nil
+	}
+
 	var address netip.Addr
 	if !isIPv6 {
 		if !s.inet4Current.IsValid() {
@@ -99,7 +114,10 @@ func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
 		s.inet6Current = nextAddress
 		address = nextAddress
 	}
-	s.storage.FakeIPStoreAsync(address, domain, s.logger)
+	err := s.storage.FakeIPStore(address, domain)
+	if err != nil {
+		s.logger.Warn("save FakeIP cache: ", err)
+	}
 	s.storage.FakeIPSaveMetadataAsync(&adapter.FakeIPMetadata{
 		Inet4Range:   s.inet4Range,
 		Inet6Range:   s.inet6Range,
