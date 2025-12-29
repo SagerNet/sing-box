@@ -77,10 +77,16 @@ func (t *UDPTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *UDPTransport) Close() error {
+	var conn *dnsConnection
 	t.access.Lock()
-	defer t.access.Unlock()
 	close(t.done)
 	t.done = make(chan struct{})
+	conn = t.conn
+	t.conn = nil
+	t.access.Unlock()
+	if conn != nil {
+		conn.Close(os.ErrClosed)
+	}
 	return nil
 }
 
@@ -105,6 +111,7 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			t.done = make(chan struct{})
 		}
 	}
+	done := t.done
 	t.access.Unlock()
 	conn, err := t.open(ctx)
 	if err != nil {
@@ -143,7 +150,7 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return callback.message, nil
 	case <-conn.done:
 		return nil, conn.err
-	case <-t.done:
+	case <-done:
 		return nil, os.ErrClosed
 	case <-ctx.Done():
 		conn.Close(ctx.Err())
@@ -153,14 +160,17 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 
 func (t *UDPTransport) open(ctx context.Context) (*dnsConnection, error) {
 	t.access.Lock()
-	defer t.access.Unlock()
 	if t.conn != nil {
 		select {
 		case <-t.conn.done:
+			t.conn = nil
 		default:
-			return t.conn, nil
+			conn := t.conn
+			t.access.Unlock()
+			return conn, nil
 		}
 	}
+	t.access.Unlock()
 	conn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 	if err != nil {
 		return nil, err
@@ -170,8 +180,20 @@ func (t *UDPTransport) open(ctx context.Context) (*dnsConnection, error) {
 		done:      make(chan struct{}),
 		callbacks: make(map[uint16]*dnsCallback),
 	}
-	go t.recvLoop(dnsConn)
+	t.access.Lock()
+	if t.conn != nil {
+		select {
+		case <-t.conn.done:
+		default:
+			conn := t.conn
+			t.access.Unlock()
+			dnsConn.Close(os.ErrClosed)
+			return conn, nil
+		}
+	}
 	t.conn = dnsConn
+	t.access.Unlock()
+	go t.recvLoop(dnsConn)
 	return dnsConn, nil
 }
 
