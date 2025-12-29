@@ -59,6 +59,9 @@ func (t *Transport) Close() error {
 	return nil
 }
 
+func (t *Transport) Reset() {
+}
+
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
 	domain := mDNS.CanonicalName(question.Name)
