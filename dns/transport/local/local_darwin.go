@@ -92,6 +92,12 @@ func (t *Transport) Close() error {
 	)
 }
 
+func (t *Transport) Reset() {
+	if t.dhcpTransport != nil {
+		t.dhcpTransport.Reset()
+	}
+}
+
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
