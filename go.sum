@@ -224,8 +224,8 @@ github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 h1:aSwUNYUkV
 github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1/go.mod h1:P11scgTxMxVVQ8dlM27yNm3Cro40mD0+gHbnqrNGDuY=
 github.com/sagernet/smux v1.5.34-mod.2 h1:gkmBjIjlJ2zQKpLigOkFur5kBKdV6bNRoFu2WkltRQ4=
 github.com/sagernet/smux v1.5.34-mod.2/go.mod h1:0KW0+R+ycvA2INW4gbsd7BNyg+HEfLIAxa5N02/28Zc=
-github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.3.0.20251225080651-3b25379a5bf8 h1:+rb3fIFwFxhCkIt8B/V3bXWZmiNwDWBd22jQMxqY92w=
-github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.3.0.20251225080651-3b25379a5bf8/go.mod h1:HZxL3asFIkcIJtHdnqsdcXsY6d+1iMtq0SPUlX17TGM=
+github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.4 h1:p+9JllOL5Q2pj6bmP9gu+LdjyRg/XxHLTpMfuhuQsY4=
+github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.4/go.mod h1:HZxL3asFIkcIJtHdnqsdcXsY6d+1iMtq0SPUlX17TGM=
 github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288 h1:E2tZFeg9mGYGQ7E7BbxMv1cU35HxwgRm6tPKI2Pp7DA=
 github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288/go.mod h1:WUxgxUDZoCF2sxVmW+STSxatP02Qn3FcafTiI2BLtE0=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
