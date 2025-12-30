@@ -11,6 +11,7 @@ const (
 	TypeHTTP         = "http"
 	TypeMixed        = "mixed"
 	TypeShadowsocks  = "shadowsocks"
+	TypeSudoku       = "sudoku"
 	TypeVMess        = "vmess"
 	TypeTrojan       = "trojan"
 	TypeNaive        = "naive"
@@ -59,6 +60,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Mixed"
 	case TypeShadowsocks:
 		return "Shadowsocks"
+	case TypeSudoku:
+		return "Sudoku"
 	case TypeVMess:
 		return "VMess"
 	case TypeTrojan:
