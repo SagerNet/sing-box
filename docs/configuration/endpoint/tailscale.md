@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.13.0"
+
+    :material-plus: [relay_server_port](#relay_server_port)  
+    :material-plus: [relay_server_static_endpoints](#relay_server_static_endpoints)
+
 !!! question "Since sing-box 1.12.0"
 
 ### Structure
@@ -20,6 +25,8 @@ icon: material/new-box
   "exit_node_allow_lan_access": false,
   "advertise_routes": [],
   "advertise_exit_node": false,
+  "relay_server_port": 0,
+  "relay_server_static_endpoints": [],
   "udp_timeout": "5m",
   
   ... // Dial Fields
@@ -88,6 +95,14 @@ Example: `["192.168.1.1/24"]`
 #### advertise_exit_node
 
 Indicates whether the node should advertise itself as an exit node.
+
+#### relay_server_port
+
+The port to listen on for incoming relay connections from other Tailscale nodes.
+
+#### relay_server_static_endpoints
+
+Static endpoints to advertise for the relay server.
 
 #### udp_timeout
 

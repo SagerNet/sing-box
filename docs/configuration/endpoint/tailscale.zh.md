@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [relay_server_port](#relay_server_port)  
+    :material-plus: [relay_server_static_endpoints](#relay_server_static_endpoints)
+
 !!! question "自 sing-box 1.12.0 起"
 
 ### 结构
@@ -20,6 +25,8 @@ icon: material/new-box
   "exit_node_allow_lan_access": false,
   "advertise_routes": [],
   "advertise_exit_node": false,
+  "relay_server_port": 0,
+  "relay_server_static_endpoints": [],
   "udp_timeout": "5m",
 
   ... // 拨号字段
@@ -87,6 +94,14 @@ icon: material/new-box
 #### advertise_exit_node
 
 指示节点是否应将自己通告为出口节点。
+
+#### relay_server_port
+
+监听来自其他 Tailscale 节点的中继连接的端口。
+
+#### relay_server_static_endpoints
+
+为中继服务器通告的静态端点。
 
 #### udp_timeout
 
