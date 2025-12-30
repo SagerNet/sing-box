@@ -377,12 +377,14 @@ func (c *streamSplitConn) Close() error {
 	}
 
 	// Best-effort session close signal (avoid leaking server-side sessions).
-	closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	closeCtx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	req, err := http.NewRequestWithContext(closeCtx, http.MethodPost, c.closeURL, nil)
-	if err == nil {
+	if err == nil && c.client != nil {
+		req.Close = true
 		req.Host = c.headerHost
 		applyTunnelHeaders(req.Header, c.headerHost, TunnelModeStream)
+		req.Header.Set("Connection", "close")
 		if resp, doErr := c.client.Do(req); doErr == nil && resp != nil {
 			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4*1024))
 			_ = resp.Body.Close()
@@ -712,12 +714,14 @@ func (c *pollConn) Close() error {
 	}
 
 	// Best-effort session close signal (avoid leaking server-side sessions).
-	closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	closeCtx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	req, err := http.NewRequestWithContext(closeCtx, http.MethodPost, c.closeURL, nil)
 	if err == nil && c.client != nil {
+		req.Close = true
 		req.Host = c.headerHost
 		applyTunnelHeaders(req.Header, c.headerHost, TunnelModePoll)
+		req.Header.Set("Connection", "close")
 		if resp, doErr := c.client.Do(req); doErr == nil && resp != nil {
 			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4*1024))
 			_ = resp.Body.Close()
