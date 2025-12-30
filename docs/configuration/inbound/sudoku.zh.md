@@ -33,6 +33,10 @@
 
 Sudoku 密钥。
 
+可以是共享密钥字符串（两端填写相同值），也可以是 Ed25519 密钥。
+
+如需使用 Ed25519 密钥对模式，可通过 `sing-box generate sudoku-keypair` 生成，然后将入站 `key` 设置为 `PublicKey`，出站 `key` 设置为 `PrivateKey`。
+
 #### aead
 
 AEAD 方法。
@@ -98,4 +102,3 @@ HTTP 伪装模式。
 * `stream`（真实 HTTP 流式隧道，可通过 CDN）
 * `poll`（真实 HTTP 轮询隧道）
 * `auto`（同时接受 stream 与 poll）
-

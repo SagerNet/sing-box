@@ -45,6 +45,10 @@ The server port.
 
 Sudoku key.
 
+It can be a shared secret string (same value on both sides) or an Ed25519 key.
+
+To use Ed25519 key pair mode, generate one with `sing-box generate sudoku-keypair`, then set outbound `key` to `PrivateKey` and inbound `key` to `PublicKey`.
+
 #### aead
 
 AEAD method.
@@ -128,4 +132,3 @@ Available values:
 ### Dial Fields
 
 See [Dial Fields](/configuration/shared/dial/) for details.
-

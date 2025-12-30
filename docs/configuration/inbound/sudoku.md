@@ -33,6 +33,10 @@ See [Listen Fields](/configuration/shared/listen/) for details.
 
 Sudoku key.
 
+It can be a shared secret string (same value on both sides) or an Ed25519 key.
+
+To use Ed25519 key pair mode, generate one with `sing-box generate sudoku-keypair`, then set inbound `key` to `PublicKey` and outbound `key` to `PrivateKey`.
+
 #### aead
 
 AEAD method.
@@ -98,4 +102,3 @@ Available values:
 * `stream` (real HTTP streaming tunnel, CDN compatible)
 * `poll` (real HTTP polling tunnel)
 * `auto` (accept stream and poll)
-

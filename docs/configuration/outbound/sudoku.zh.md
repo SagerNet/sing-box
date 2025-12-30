@@ -45,6 +45,10 @@
 
 Sudoku 密钥。
 
+可以是共享密钥字符串（两端填写相同值），也可以是 Ed25519 密钥。
+
+如需使用 Ed25519 密钥对模式，可通过 `sing-box generate sudoku-keypair` 生成，然后将出站 `key` 设置为 `PrivateKey`，入站 `key` 设置为 `PublicKey`。
+
 #### aead
 
 AEAD 方法。
@@ -128,4 +132,3 @@ HTTP 伪装模式。
 ### 拨号字段
 
 参阅 [拨号字段](/zh/configuration/shared/dial/)。
-
