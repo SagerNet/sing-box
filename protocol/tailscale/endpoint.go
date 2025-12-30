@@ -44,6 +44,7 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
+	_ "github.com/sagernet/tailscale/feature/relayserver"
 	"github.com/sagernet/tailscale/ipn"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/net/netmon"
@@ -91,11 +92,13 @@ type Endpoint struct {
 	routeDomains  common.TypedValue[map[string]bool]
 	routePrefixes atomic.Pointer[netipx.IPSet]
 
-	acceptRoutes           bool
-	exitNode               string
-	exitNodeAllowLANAccess bool
-	advertiseRoutes        []netip.Prefix
-	advertiseExitNode      bool
+	acceptRoutes               bool
+	exitNode                   string
+	exitNodeAllowLANAccess     bool
+	advertiseRoutes            []netip.Prefix
+	advertiseExitNode          bool
+	relayServerPort            *uint16
+	relayServerStaticEndpoints []netip.AddrPort
 
 	udpTimeout time.Duration
 }
@@ -183,20 +186,22 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		},
 	}
 	return &Endpoint{
-		Adapter:                endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
-		ctx:                    ctx,
-		router:                 router,
-		logger:                 logger,
-		dnsRouter:              dnsRouter,
-		network:                service.FromContext[adapter.NetworkManager](ctx),
-		platformInterface:      service.FromContext[adapter.PlatformInterface](ctx),
-		server:                 server,
-		acceptRoutes:           options.AcceptRoutes,
-		exitNode:               options.ExitNode,
-		exitNodeAllowLANAccess: options.ExitNodeAllowLANAccess,
-		advertiseRoutes:        options.AdvertiseRoutes,
-		advertiseExitNode:      options.AdvertiseExitNode,
-		udpTimeout:             udpTimeout,
+		Adapter:                    endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
+		ctx:                        ctx,
+		router:                     router,
+		logger:                     logger,
+		dnsRouter:                  dnsRouter,
+		network:                    service.FromContext[adapter.NetworkManager](ctx),
+		platformInterface:          service.FromContext[adapter.PlatformInterface](ctx),
+		server:                     server,
+		acceptRoutes:               options.AcceptRoutes,
+		exitNode:                   options.ExitNode,
+		exitNodeAllowLANAccess:     options.ExitNodeAllowLANAccess,
+		advertiseRoutes:            options.AdvertiseRoutes,
+		advertiseExitNode:          options.AdvertiseExitNode,
+		relayServerPort:            options.RelayServerPort,
+		relayServerStaticEndpoints: options.RelayServerStaticEndpoints,
+		udpTimeout:                 udpTimeout,
 	}, nil
 }
 
@@ -269,6 +274,14 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 	}
 	if t.advertiseExitNode {
 		perfs.AdvertiseRoutes = append(perfs.AdvertiseRoutes, tsaddr.ExitRoutes()...)
+	}
+	if t.relayServerPort != nil {
+		perfs.RelayServerPort = t.relayServerPort
+		perfs.RelayServerPortSet = true
+	}
+	if len(t.relayServerStaticEndpoints) > 0 {
+		perfs.RelayServerStaticEndpoints = t.relayServerStaticEndpoints
+		perfs.RelayServerStaticEndpointsSet = true
 	}
 	_, err = localBackend.EditPrefs(perfs)
 	if err != nil {
