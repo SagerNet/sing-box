@@ -18,9 +18,10 @@ type OutboundOptionsRegistry interface {
 }
 
 type _Outbound struct {
-	Type    string `json:"type"`
-	Tag     string `json:"tag,omitempty"`
-	Options any    `json:"-"`
+	Type    string   `json:"type"`
+	Tag     string   `json:"tag,omitempty"`
+	Weight  *float64 `json:"weight,omitempty"`
+	Options any      `json:"-"`
 }
 
 type Outbound _Outbound

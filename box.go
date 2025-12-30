@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport/local"
@@ -269,6 +270,15 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "initialize inbound[", i, "]")
 		}
 	}
+	// 初始化权重存储，供 urltest_pro 使用
+	weightStorage := urltest.NewWeightStorage()
+	for _, outboundOptions := range options.Outbounds {
+		if outboundOptions.Weight != nil && outboundOptions.Tag != "" {
+			weightStorage.StoreWeight(outboundOptions.Tag, *outboundOptions.Weight)
+		}
+	}
+	service.MustRegister[adapter.OutboundWeightStorage](ctx, weightStorage)
+
 	for i, outboundOptions := range options.Outbounds {
 		var tag string
 		if outboundOptions.Tag != "" {
