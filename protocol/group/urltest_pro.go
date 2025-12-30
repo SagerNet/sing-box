@@ -2,6 +2,7 @@ package group
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net"
 	"sync"
@@ -498,7 +499,7 @@ func (g *URLTestProGroup) urlTest(ctx context.Context, force bool) (map[string]u
 			} else {
 				weight := g.getWeight(tag)
 				score := float64(t) / weight
-				g.logger.Debug("outbound ", tag, " available: ", t, "ms, weight: ", weight, ", score: ", score)
+				g.logger.Debug("outbound ", tag, " available: ", t, "ms, weight: ", fmt.Sprintf("%.2f", weight), ", score: ", fmt.Sprintf("%.2f", score))
 				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
 					Time:  time.Now(),
 					Delay: t,
