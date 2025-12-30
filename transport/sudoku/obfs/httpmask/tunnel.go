@@ -210,11 +210,12 @@ func newHTTPClient(serverAddress string, opts TunnelDialOptions, maxIdleConns in
 	}
 
 	transport := &http.Transport{
-		ForceAttemptHTTP2:   true,
-		DisableCompression:  true,
-		MaxIdleConns:        maxIdleConns,
-		IdleConnTimeout:     30 * time.Second,
-		TLSHandshakeTimeout: 10 * time.Second,
+		ForceAttemptHTTP2:     true,
+		DisableCompression:    true,
+		MaxIdleConns:          maxIdleConns,
+		IdleConnTimeout:       30 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
 		DialContext: func(dialCtx context.Context, network, _ string) (net.Conn, error) {
 			return opts.DialContext(dialCtx, network, dialAddr)
 		},
@@ -472,9 +473,8 @@ func dialStreamSplit(ctx context.Context, serverAddress string, opts TunnelDialO
 
 func (c *streamSplitConn) pullLoop() {
 	const (
-		requestTimeout = 30 * time.Second
-		readChunkSize  = 32 * 1024
-		idleBackoff    = 25 * time.Millisecond
+		readChunkSize = 32 * 1024
+		idleBackoff   = 25 * time.Millisecond
 	)
 
 	buf := make([]byte, readChunkSize)
@@ -485,10 +485,8 @@ func (c *streamSplitConn) pullLoop() {
 		default:
 		}
 
-		reqCtx, cancel := context.WithTimeout(c.ctx, requestTimeout)
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.pullURL, nil)
+		req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, c.pullURL, nil)
 		if err != nil {
-			cancel()
 			_ = c.Close()
 			return
 		}
@@ -497,14 +495,12 @@ func (c *streamSplitConn) pullLoop() {
 
 		resp, err := c.client.Do(req)
 		if err != nil {
-			cancel()
 			_ = c.Close()
 			return
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			cancel()
 			_ = c.Close()
 			return
 		}
@@ -520,13 +516,11 @@ func (c *streamSplitConn) pullLoop() {
 				case c.rxc <- payload:
 				case <-c.closed:
 					_ = resp.Body.Close()
-					cancel()
 					return
 				}
 			}
 			if rerr != nil {
 				_ = resp.Body.Close()
-				cancel()
 				if errors.Is(rerr, io.EOF) {
 					// Long-poll ended; retry.
 					break
@@ -535,7 +529,6 @@ func (c *streamSplitConn) pullLoop() {
 				return
 			}
 		}
-		cancel()
 		if !readAny {
 			// Avoid tight loop if the server replied quickly with an empty body.
 			select {
@@ -809,8 +802,6 @@ func dialPoll(ctx context.Context, serverAddress string, opts TunnelDialOptions)
 }
 
 func (c *pollConn) pullLoop() {
-	const requestTimeout = 30 * time.Second
-
 	for {
 		select {
 		case <-c.closed:
@@ -818,10 +809,8 @@ func (c *pollConn) pullLoop() {
 		default:
 		}
 
-		reqCtx, cancel := context.WithTimeout(c.ctx, requestTimeout)
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.pullURL, nil)
+		req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, c.pullURL, nil)
 		if err != nil {
-			cancel()
 			_ = c.Close()
 			return
 		}
@@ -830,14 +819,12 @@ func (c *pollConn) pullLoop() {
 
 		resp, err := c.client.Do(req)
 		if err != nil {
-			cancel()
 			_ = c.Close()
 			return
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			cancel()
 			_ = c.Close()
 			return
 		}
@@ -851,7 +838,6 @@ func (c *pollConn) pullLoop() {
 			payload, err := base64.StdEncoding.DecodeString(line)
 			if err != nil {
 				_ = resp.Body.Close()
-				cancel()
 				_ = c.Close()
 				return
 			}
@@ -859,17 +845,14 @@ func (c *pollConn) pullLoop() {
 			case c.rxc <- payload:
 			case <-c.closed:
 				_ = resp.Body.Close()
-				cancel()
 				return
 			}
 		}
 		_ = resp.Body.Close()
 		if err := scanner.Err(); err != nil {
-			cancel()
 			_ = c.Close()
 			return
 		}
-		cancel()
 	}
 }
 
