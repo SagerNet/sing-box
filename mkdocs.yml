@@ -139,6 +139,7 @@ nav:
           - SOCKS: configuration/inbound/socks.md
           - HTTP: configuration/inbound/http.md
           - Shadowsocks: configuration/inbound/shadowsocks.md
+          - Sudoku: configuration/inbound/sudoku.md
           - VMess: configuration/inbound/vmess.md
           - Trojan: configuration/inbound/trojan.md
           - Naive: configuration/inbound/naive.md
@@ -158,6 +159,7 @@ nav:
           - SOCKS: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
           - Shadowsocks: configuration/outbound/shadowsocks.md
+          - Sudoku: configuration/outbound/sudoku.md
           - VMess: configuration/outbound/vmess.md
           - Trojan: configuration/outbound/trojan.md
           - Naive: configuration/outbound/naive.md
