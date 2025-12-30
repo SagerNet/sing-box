@@ -44,7 +44,7 @@ get_version() {
 get_ldflags() {
     local version
     version=$(get_version)
-    echo "-X 'github.com/sagernet/sing-box/constant.Version=${version}' -s -w -buildid= -checklinkname=0"
+    echo "-X 'github.com/sagernet/sing-box/constant.Version=${version}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -s -w -buildid= -checklinkname=0"
 }
 
 build_sing_box() {
