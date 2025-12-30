@@ -103,7 +103,7 @@ jobs:
         run: |
           set -xeuo pipefail
           go build -v -trimpath -o sing-box -tags "${BUILD_TAGS}" \
-          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -s -w -buildid= -checklinkname=0" \
+          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -s -w -buildid= -checklinkname=0" \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "1"
@@ -115,7 +115,7 @@ jobs:
         run: |
           set -xeuo pipefail
           go build -v -trimpath -o sing-box -tags "${BUILD_TAGS}" \
-          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -s -w -buildid= -checklinkname=0" \
+          -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=${VERSION}\" -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -s -w -buildid= -checklinkname=0" \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "0"
