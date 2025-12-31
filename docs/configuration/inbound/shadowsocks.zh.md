@@ -9,6 +9,7 @@
 
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "managed": false,
   "multiplex": {}
 }
 ```
@@ -85,6 +86,10 @@
 | none          | /                                        |
 | 2022 methods  | `sing-box generate rand --base64 <密钥长度>` |
 | other methods | 任意字符串                                    |
+
+#### managed
+
+默认为 `false`。当该入站需要由 [SSM API](/zh/configuration/service/ssm-api) 管理用户时必须启用此字段。
 
 #### multiplex
 
