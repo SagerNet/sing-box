@@ -14,6 +14,7 @@
 --depends kmod-inet-diag
 --depends kmod-tun
 --depends firewall4
+--depends kmod-nft-queue
 
 --before-remove release/config/openwrt.prerm
 
