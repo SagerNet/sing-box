@@ -69,19 +69,19 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: linux, arch: amd64, variant: purego, naive: true, openwrt: "x86_64" }
+          - { os: linux, arch: amd64, variant: purego, naive: true }
           - { os: linux, arch: amd64, variant: glibc, naive: true }
           - { os: linux, arch: amd64, variant: musl, naive: true, debian: amd64, rpm: x86_64, pacman: x86_64, openwrt: "x86_64" }
 
-          - { os: linux, arch: arm64, variant: purego, naive: true, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
+          - { os: linux, arch: arm64, variant: purego, naive: true }
           - { os: linux, arch: arm64, variant: glibc, naive: true }
           - { os: linux, arch: arm64, variant: musl, naive: true, debian: arm64, rpm: aarch64, pacman: aarch64, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
 
-          - { os: linux, arch: "386", go386: sse2, openwrt: "i386_pentium4" }
+          - { os: linux, arch: "386", go386: sse2 }
           - { os: linux, arch: "386", variant: glibc, naive: true, go386: sse2 }
           - { os: linux, arch: "386", variant: musl, naive: true, go386: sse2, debian: i386, rpm: i386, openwrt: "i386_pentium4" }
 
-          - { os: linux, arch: arm, goarm: "7", openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
+          - { os: linux, arch: arm, goarm: "7" }
           - { os: linux, arch: arm, variant: glibc, naive: true, goarm: "7" }
           - { os: linux, arch: arm, variant: musl, naive: true, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl, openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
 
@@ -369,12 +369,8 @@ jobs:
             -p "dist/openwrt.deb" \
             --architecture all \
             dist/sing-box=/usr/bin/sing-box
-          SUFFIX=""
-          if [[ "${{ matrix.variant }}" == "musl" ]]; then
-            SUFFIX="_musl"
-          fi
           for architecture in ${{ matrix.openwrt }}; do
-            .github/deb2ipk.sh "$architecture" "dist/openwrt.deb" "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}${SUFFIX}.ipk"
+            .github/deb2ipk.sh "$architecture" "dist/openwrt.deb" "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}.ipk"
           done
           rm "dist/openwrt.deb"
       - name: Archive
