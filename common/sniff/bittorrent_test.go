@@ -3,6 +3,7 @@ package sniff_test
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -97,7 +98,7 @@ func TestSniffNotUTP(t *testing.T) {
 	t.Parallel()
 
 	packets := []string{
-		"0102736470696e674958d580121500000000000079aaed6717a39c27b07c0c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		"0102736470696e674958d580121500000000000079aaed6717a39c27b07c0c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 	}
 	for _, pkt := range packets {
 		pkt, err := hex.DecodeString(pkt)
@@ -107,4 +108,317 @@ func TestSniffNotUTP(t *testing.T) {
 		err = sniff.UTP(context.TODO(), &metadata, pkt)
 		require.Error(t, err)
 	}
+}
+
+// TestSniffMSEEncryption tests Message Stream Encryption detection
+func TestSniffMSEEncryption(t *testing.T) {
+	t.Parallel()
+
+	t.Run("MSE with Verification Constant", func(t *testing.T) {
+		// Create MSE handshake with DH key + padding + VC (8 zero bytes)
+		payload := make([]byte, 200)
+		// Fill first 96 bytes with pseudo-random data (DH public key)
+		for i := 0; i < 96; i++ {
+			payload[i] = byte(i * 17 % 256)
+		}
+		// Add some padding
+		for i := 96; i < 110; i++ {
+			payload[i] = byte(i * 13 % 256)
+		}
+		// Insert VC (8 consecutive zero bytes) at offset 110
+		for i := 110; i < 118; i++ {
+			payload[i] = 0x00
+		}
+
+		var metadata adapter.InboundContext
+		err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(payload))
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+
+	t.Run("MSE with high entropy DH key", func(t *testing.T) {
+		// Create payload with high entropy in first 96 bytes
+		payload := make([]byte, 120)
+		for i := 0; i < 96; i++ {
+			payload[i] = byte(i*37 % 256)
+		}
+
+		var metadata adapter.InboundContext
+		err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(payload))
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+}
+
+// TestSniffExtendedProtocol tests BEP 10 Extended Protocol detection
+func TestSniffExtendedProtocol(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Extended handshake message", func(t *testing.T) {
+		// Extended handshake: length(4) + msg_id(1)=20 + ext_id(1)=0 + bencode dict
+		payload := []byte{
+			0x00, 0x00, 0x00, 0x30, // Length: 48 bytes
+			0x14,                   // Message ID: 20 (Extended)
+			0x00,                   // Extended ID: 0 (handshake)
+			'd',                    // Bencode dictionary start
+			'1', ':', 'm', 'd',
+			'6', ':', 'u', 't', '_', 'p', 'e', 'x',
+			'i', '1', 'e', 'e', 'e',
+		}
+
+		var metadata adapter.InboundContext
+		err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(payload))
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+
+	t.Run("Extended ut_metadata message", func(t *testing.T) {
+		payload := []byte{
+			0x00, 0x00, 0x00, 0x20, // Length
+			0x14, // Message ID: 20
+			0x02, // Extended ID: 2 (ut_metadata)
+			'd', '8', ':', 'm', 's', 'g', '_', 't', 'y', 'p', 'e',
+			'i', '0', 'e', 'e',
+		}
+
+		var metadata adapter.InboundContext
+		err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(payload))
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+}
+
+// TestSniffFASTExtension tests BEP 6 FAST Extension detection
+func TestSniffFASTExtension(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload []byte
+	}{
+		{
+			name: "Suggest Piece (ID 13)",
+			payload: []byte{
+				0x00, 0x00, 0x00, 0x05, // Length: 5
+				0x0D,                   // Message ID: 13
+				0x00, 0x00, 0x00, 0x2A, // Piece index: 42
+			},
+		},
+		{
+			name: "Have All (ID 14)",
+			payload: []byte{
+				0x00, 0x00, 0x00, 0x01, // Length: 1
+				0x0E, // Message ID: 14
+			},
+		},
+		{
+			name: "Have None (ID 15)",
+			payload: []byte{
+				0x00, 0x00, 0x00, 0x01, // Length: 1
+				0x0F, // Message ID: 15
+			},
+		},
+		{
+			name: "Reject Request (ID 16)",
+			payload: []byte{
+				0x00, 0x00, 0x00, 0x0D, // Length: 13
+				0x10,                   // Message ID: 16
+				0x00, 0x00, 0x00, 0x05, // Index: 5
+				0x00, 0x00, 0x00, 0x00, // Begin: 0
+				0x00, 0x00, 0x40, 0x00, // Length: 16384
+			},
+		},
+		{
+			name: "Allowed Fast (ID 17)",
+			payload: []byte{
+				0x00, 0x00, 0x00, 0x05, // Length: 5
+				0x11,                   // Message ID: 17
+				0x00, 0x00, 0x00, 0x0A, // Piece index: 10
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader(tt.payload))
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		})
+	}
+}
+
+// TestSniffHTTPBitTorrent tests HTTP-based BitTorrent detection
+func TestSniffHTTPBitTorrent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{
+			name:    "WebSeed request",
+			payload: "GET /webseed?info_hash=0123456789ABCDEF0123456789ABCDEF01234567&piece=0 HTTP/1.1\r\nHost: webseed.example.com\r\n\r\n",
+		},
+		{
+			name:    "Bitcomet persistent seed",
+			payload: "GET /data?fid=12345&size=1048576 HTTP/1.1\r\nHost: peer.example.com\r\n\r\n",
+		},
+		{
+			name:    "Azureus User-Agent",
+			payload: "GET /announce HTTP/1.1\r\nHost: tracker.example.com\r\nUser-Agent: Azureus 5.7.6.0\r\n\r\n",
+		},
+		{
+			name:    "BitTorrent User-Agent",
+			payload: "GET /announce HTTP/1.1\r\nUser-Agent: BitTorrent/7.10.5\r\n\r\n",
+		},
+		{
+			name:    "BTWebClient User-Agent",
+			payload: "GET /file HTTP/1.1\r\nUser-Agent: BTWebClient/1.0\r\n\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader([]byte(tt.payload)))
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		})
+	}
+}
+
+// TestSniffDHTBencode tests DHT Bencode structure detection
+func TestSniffDHTBencode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{
+			name:    "DHT query",
+			payload: "d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t2:aa1:y1:qe",
+		},
+		{
+			name:    "DHT response",
+			payload: "d1:rd2:id20:abcdefghij0123456789e1:t2:aa1:y1:re",
+		},
+		{
+			name:    "DHT error",
+			payload: "d1:eli201e4:teste1:t2:aa1:y1:ee",
+		},
+		{
+			name:    "DHT with token",
+			payload: "d1:rd2:id20:123456789012345678905:token8:abcdefghe1:t2:aa1:y1:re",
+		},
+		{
+			name:    "Suricata d1:ad prefix",
+			payload: "d1:ad2:id20:12345678901234567890e1:q4:ping1:t2:aa1:y1:qe",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader([]byte(tt.payload)))
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		})
+	}
+}
+
+// TestSniffSignatureDetection tests signature-based detection
+func TestSniffSignatureDetection(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{
+			name:    "PEX extension",
+			payload: "d1:md6:ut_pexi1ee5:added52:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxe",
+		},
+		{
+			name:    "Magnet link",
+			payload: "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+		},
+		{
+			name:    "Tracker announce",
+			payload: "GET /announce?info_hash=abc&peer_id=xyz&uploaded=0&downloaded=0 HTTP/1.1\r\n",
+		},
+		{
+			name:    "DHT find_node",
+			payload: "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe",
+		},
+		{
+			name:    "DHT get_peers",
+			payload: "d1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe",
+		},
+		{
+			name:    "LSD announcement",
+			payload: "BT-SEARCH * HTTP/1.1\r\nHost: 239.192.152.143:6771\r\nInfohash: ABCD\r\nPort: 6881\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrent(context.TODO(), &metadata, bytes.NewReader([]byte(tt.payload)))
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		})
+	}
+}
+
+// TestSniffUDPTrackerAnnounce tests UDP tracker announce detection
+func TestSniffUDPTrackerAnnounce(t *testing.T) {
+	t.Parallel()
+
+	// Create announce packet: connection_id(8) + action(4)=1 + transaction_id(4) + info_hash(20) + peer_id(20) + ...
+	packet := make([]byte, 98)
+	// Connection ID (8 bytes)
+	copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
+	// Action: Announce (4 bytes) = 1
+	binary.BigEndian.PutUint32(packet[8:12], 1)
+	// Transaction ID (4 bytes)
+	binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+
+	var metadata adapter.InboundContext
+	err := sniff.UDPTracker(context.TODO(), &metadata, packet)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+// TestSniffUDPTrackerScrape tests UDP tracker scrape detection
+func TestSniffUDPTrackerScrape(t *testing.T) {
+	t.Parallel()
+
+	// Create scrape packet: connection_id(8) + action(4)=2 + transaction_id(4) + info_hash(20)
+	packet := make([]byte, 36)
+	// Connection ID (8 bytes)
+	copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
+	// Action: Scrape (4 bytes) = 2
+	binary.BigEndian.PutUint32(packet[8:12], 2)
+	// Transaction ID (4 bytes)
+	binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+
+	var metadata adapter.InboundContext
+	err := sniff.UDPTracker(context.TODO(), &metadata, packet)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+// TestSniffDHTInUDP tests DHT detection in UDP packets
+func TestSniffDHTInUDP(t *testing.T) {
+	t.Parallel()
+
+	// DHT ping query
+	payload := []byte("d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t2:aa1:y1:qe")
+
+	var metadata adapter.InboundContext
+	err := sniff.UDPTracker(context.TODO(), &metadata, payload)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
 }
