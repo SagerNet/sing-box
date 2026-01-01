@@ -376,19 +376,64 @@ func TestSniffSignatureDetection(t *testing.T) {
 func TestSniffUDPTrackerAnnounce(t *testing.T) {
 	t.Parallel()
 
-	// Create announce packet: connection_id(8) + action(4)=1 + transaction_id(4) + info_hash(20) + peer_id(20) + ...
-	packet := make([]byte, 98)
-	// Connection ID (8 bytes)
-	copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
-	// Action: Announce (4 bytes) = 1
-	binary.BigEndian.PutUint32(packet[8:12], 1)
-	// Transaction ID (4 bytes)
-	binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+	t.Run("Announce with qBittorrent PeerID", func(t *testing.T) {
+		// Create announce packet: connection_id(8) + action(4)=1 + transaction_id(4) + info_hash(20) + peer_id(20) + ...
+		packet := make([]byte, 98)
+		// Connection ID (8 bytes)
+		copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
+		// Action: Announce (4 bytes) = 1
+		binary.BigEndian.PutUint32(packet[8:12], 1)
+		// Transaction ID (4 bytes)
+		binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+		// Info hash (20 bytes) - offset 16
+		for i := 16; i < 36; i++ {
+			packet[i] = byte(i)
+		}
+		// PeerID (20 bytes) - offset 36 with qBittorrent prefix "-qB4520-"
+		copy(packet[36:44], []byte("-qB4520-"))
+		for i := 44; i < 56; i++ {
+			packet[i] = byte(i)
+		}
 
-	var metadata adapter.InboundContext
-	err := sniff.UDPTracker(context.TODO(), &metadata, packet)
-	require.NoError(t, err)
-	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		var metadata adapter.InboundContext
+		err := sniff.UDPTracker(context.TODO(), &metadata, packet)
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+
+	t.Run("Announce with Transmission PeerID", func(t *testing.T) {
+		packet := make([]byte, 98)
+		copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
+		binary.BigEndian.PutUint32(packet[8:12], 1)
+		binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+		for i := 16; i < 36; i++ {
+			packet[i] = byte(i)
+		}
+		// Transmission PeerID: "-TR4000-"
+		copy(packet[36:44], []byte("-TR4000-"))
+
+		var metadata adapter.InboundContext
+		err := sniff.UDPTracker(context.TODO(), &metadata, packet)
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
+
+	t.Run("Announce without known PeerID prefix", func(t *testing.T) {
+		// Even without known PeerID, should still detect based on structure
+		packet := make([]byte, 98)
+		copy(packet[0:8], []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88})
+		binary.BigEndian.PutUint32(packet[8:12], 1)
+		binary.BigEndian.PutUint32(packet[12:16], 0x12345678)
+		// Random PeerID without known prefix
+		for i := 36; i < 56; i++ {
+			packet[i] = byte(i * 7 % 256)
+		}
+
+		var metadata adapter.InboundContext
+		err := sniff.UDPTracker(context.TODO(), &metadata, packet)
+		require.NoError(t, err)
+		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+	})
 }
 
 // TestSniffUDPTrackerScrape tests UDP tracker scrape detection
