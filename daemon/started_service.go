@@ -823,14 +823,6 @@ func (s *StartedService) GetStartedAt(ctx context.Context, empty *emptypb.Empty)
 	return &StartedAt{StartedAt: s.startedAt.UnixMilli()}, nil
 }
 
-func (s *StartedService) SubscribeHelperEvents(empty *emptypb.Empty, server grpc.ServerStreamingServer[HelperRequest]) error {
-	return os.ErrInvalid
-}
-
-func (s *StartedService) SendHelperResponse(ctx context.Context, response *HelperResponse) (*emptypb.Empty, error) {
-	return nil, os.ErrInvalid
-}
-
 func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {
 }
 
