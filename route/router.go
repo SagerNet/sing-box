@@ -121,6 +121,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		if C.IsAndroid && r.platformInterface != nil {
 			needFindProcess = true
 		}
+		r.needFindProcess = needFindProcess
 		if needFindProcess {
 			if r.platformInterface != nil && r.platformInterface.UsePlatformConnectionOwnerFinder() {
 				r.processSearcher = newPlatformSearcher(r.platformInterface)
@@ -199,6 +200,10 @@ func (r *Router) Rules() []adapter.Rule {
 
 func (r *Router) AppendTracker(tracker adapter.ConnectionTracker) {
 	r.trackers = append(r.trackers, tracker)
+}
+
+func (r *Router) NeedFindProcess() bool {
+	return r.needFindProcess
 }
 
 func (r *Router) ResetNetwork() {
