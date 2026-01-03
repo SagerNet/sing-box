@@ -166,7 +166,6 @@ func (w *platformInterfaceWrapper) UsePlatformConnectionOwnerFinder() bool {
 }
 
 func (w *platformInterfaceWrapper) FindConnectionOwner(request *adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
-	var uid int32
 	if w.useProcFS {
 		var source netip.AddrPort
 		var destination netip.AddrPort
@@ -185,21 +184,24 @@ func (w *platformInterfaceWrapper) FindConnectionOwner(request *adapter.FindConn
 			return nil, E.New("unknown protocol: ", request.IpProtocol)
 		}
 
-		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
+		uid := procfs.ResolveSocketByProcSearch(network, source, destination)
 		if uid == -1 {
 			return nil, E.New("procfs: not found")
 		}
-	} else {
-		var err error
-		uid, err = w.iif.FindConnectionOwner(request.IpProtocol, request.SourceAddress, request.SourcePort, request.DestinationAddress, request.DestinationPort)
-		if err != nil {
-			return nil, err
-		}
+		return &adapter.ConnectionOwner{
+			UserId: uid,
+		}, nil
 	}
-	packageName, _ := w.iif.PackageNameByUid(uid)
+
+	result, err := w.iif.FindConnectionOwner(request.IpProtocol, request.SourceAddress, request.SourcePort, request.DestinationAddress, request.DestinationPort)
+	if err != nil {
+		return nil, err
+	}
 	return &adapter.ConnectionOwner{
-		UserId:             uid,
-		AndroidPackageName: packageName,
+		UserId:             result.UserId,
+		UserName:           result.UserName,
+		ProcessPath:        result.ProcessPath,
+		AndroidPackageName: result.AndroidPackageName,
 	}, nil
 }
 

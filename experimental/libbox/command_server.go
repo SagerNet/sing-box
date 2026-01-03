@@ -195,6 +195,14 @@ func (s *CommandServer) NeedWIFIState() bool {
 	return instance.Box().Network().NeedWIFIState()
 }
 
+func (s *CommandServer) NeedFindProcess() bool {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.Box() == nil {
+		return false
+	}
+	return instance.Box().Router().NeedFindProcess()
+}
+
 func (s *CommandServer) Pause() {
 	instance := s.StartedService.Instance()
 	if instance == nil || instance.PauseManager() == nil {
