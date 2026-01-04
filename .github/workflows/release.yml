@@ -1,0 +1,360 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (without v prefix)'
+        required: true
+        type: string
+
+env:
+  GO_VERSION: '1.25.5'
+  BUILD_TAGS: 'with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0'
+
+jobs:
+  prepare:
+    name: Prepare version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-linux:
+    name: Build Linux
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64, suffix: '' }
+          - { arch: arm64, suffix: '' }
+          - { arch: '386', suffix: '' }
+          - { arch: arm, goarm: '7', suffix: 'v7' }
+          - { arch: arm, goarm: '6', suffix: 'v6' }
+          - { arch: mips64le, suffix: '' }
+          - { arch: mipsle, gomips: 'softfloat', suffix: '-softfloat' }
+          - { arch: riscv64, suffix: '' }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set tag
+        run: git tag v${{ needs.prepare.outputs.version }} -f
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${{ env.BUILD_TAGS }}" \
+            -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+
+      - name: Archive
+        run: |
+          cd dist
+          ARCHIVE_NAME="sing-box-${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}${{ matrix.suffix }}"
+          mkdir "$ARCHIVE_NAME"
+          cp sing-box "$ARCHIVE_NAME/"
+          cp ../LICENSE "$ARCHIVE_NAME/"
+          tar -czvf "$ARCHIVE_NAME.tar.gz" "$ARCHIVE_NAME"
+          rm -rf "$ARCHIVE_NAME" sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}${{ matrix.suffix }}
+          path: dist/*.tar.gz
+
+  build-windows:
+    name: Build Windows
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64 }
+          - { arch: '386' }
+          - { arch: arm64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set tag
+        run: git tag v${{ needs.prepare.outputs.version }} -f
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box.exe -tags "${{ env.BUILD_TAGS }}" \
+            -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+
+      - name: Archive
+        run: |
+          cd dist
+          ARCHIVE_NAME="sing-box-${{ needs.prepare.outputs.version }}-windows-${{ matrix.arch }}"
+          mkdir "$ARCHIVE_NAME"
+          cp sing-box.exe "$ARCHIVE_NAME/"
+          cp ../LICENSE "$ARCHIVE_NAME/"
+          zip -r "$ARCHIVE_NAME.zip" "$ARCHIVE_NAME"
+          rm -rf "$ARCHIVE_NAME" sing-box.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: dist/*.zip
+
+  build-darwin:
+    name: Build macOS
+    needs: prepare
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64 }
+          - { arch: arm64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set tag
+        run: git tag v${{ needs.prepare.outputs.version }} -f
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${{ env.BUILD_TAGS }}" \
+            -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch }}
+
+      - name: Archive
+        run: |
+          cd dist
+          ARCHIVE_NAME="sing-box-${{ needs.prepare.outputs.version }}-darwin-${{ matrix.arch }}"
+          mkdir "$ARCHIVE_NAME"
+          cp sing-box "$ARCHIVE_NAME/"
+          cp ../LICENSE "$ARCHIVE_NAME/"
+          tar -czvf "$ARCHIVE_NAME.tar.gz" "$ARCHIVE_NAME"
+          rm -rf "$ARCHIVE_NAME" sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  build-android:
+    name: Build Android
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: arm64, ndk: 'aarch64-linux-android23' }
+          - { arch: arm, ndk: 'armv7a-linux-androideabi23' }
+          - { arch: amd64, ndk: 'x86_64-linux-android23' }
+          - { arch: '386', ndk: 'i686-linux-android23' }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+          local-cache: true
+
+      - name: Set tag
+        run: git tag v${{ needs.prepare.outputs.version }} -f
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          go install -v ./cmd/internal/build
+          export CC='${{ matrix.ndk }}-clang'
+          export CXX="${CC}++"
+          GOOS=android GOARCH=${{ matrix.arch }} $(go env GOPATH)/bin/build go build -v -trimpath \
+            -o dist/sing-box -tags "${{ env.BUILD_TAGS }}" \
+            -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: '1'
+
+      - name: Archive
+        run: |
+          cd dist
+          ARCHIVE_NAME="sing-box-${{ needs.prepare.outputs.version }}-android-${{ matrix.arch }}"
+          mkdir "$ARCHIVE_NAME"
+          cp sing-box "$ARCHIVE_NAME/"
+          cp ../LICENSE "$ARCHIVE_NAME/"
+          tar -czvf "$ARCHIVE_NAME.tar.gz" "$ARCHIVE_NAME"
+          rm -rf "$ARCHIVE_NAME" sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  build-freebsd:
+    name: Build FreeBSD
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64 }
+          - { arch: arm64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set tag
+        run: git tag v${{ needs.prepare.outputs.version }} -f
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${{ env.BUILD_TAGS }}" \
+            -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: '0'
+          GOOS: freebsd
+          GOARCH: ${{ matrix.arch }}
+
+      - name: Archive
+        run: |
+          cd dist
+          ARCHIVE_NAME="sing-box-${{ needs.prepare.outputs.version }}-freebsd-${{ matrix.arch }}"
+          mkdir "$ARCHIVE_NAME"
+          cp sing-box "$ARCHIVE_NAME/"
+          cp ../LICENSE "$ARCHIVE_NAME/"
+          tar -czvf "$ARCHIVE_NAME.tar.gz" "$ARCHIVE_NAME"
+          rm -rf "$ARCHIVE_NAME" sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  release:
+    name: Create Release
+    needs:
+      - prepare
+      - build-linux
+      - build-windows
+      - build-darwin
+      - build-android
+      - build-freebsd
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List files
+        run: ls -la dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: sing-box ${{ needs.prepare.outputs.version }}
+          draft: true
+          prerelease: ${{ contains(needs.prepare.outputs.version, '-') }}
+          files: |
+            dist/*
+          body: |
+            ## sing-box ${{ needs.prepare.outputs.version }}
+
+            ### Downloads
+
+            | Platform | Architecture | Download |
+            |----------|--------------|----------|
+            | Linux | amd64 | [sing-box-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}/sing-box-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz) |
+            | Linux | arm64 | [sing-box-${{ needs.prepare.outputs.version }}-linux-arm64.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}/sing-box-${{ needs.prepare.outputs.version }}-linux-arm64.tar.gz) |
+            | Windows | amd64 | [sing-box-${{ needs.prepare.outputs.version }}-windows-amd64.zip](https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}/sing-box-${{ needs.prepare.outputs.version }}-windows-amd64.zip) |
+            | macOS | arm64 | [sing-box-${{ needs.prepare.outputs.version }}-darwin-arm64.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}/sing-box-${{ needs.prepare.outputs.version }}-darwin-arm64.tar.gz) |
+
+            See checksums.txt for SHA256 verification.
+
+      - name: Upload artifacts (manual trigger)
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: release-${{ needs.prepare.outputs.version }}
+          path: dist/*
