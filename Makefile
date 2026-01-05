@@ -109,7 +109,7 @@ build_ios:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFI.xcarchive && \
 	xcodebuild clean -scheme SFI && \
-	xcodebuild archive -scheme SFI -configuration Release -destination 'generic/platform=iOS' -archivePath build/SFI.xcarchive -allowProvisioningUpdates
+	xcodebuild archive -scheme SFI -configuration Release -destination 'generic/platform=iOS' -archivePath build/SFI.xcarchive -allowProvisioningUpdates | xcbeautify | grep -A 10 -e "Archive Succeeded" -e "ARCHIVE FAILED" -e "❌"
 
 upload_ios_app_store:
 	cd ../sing-box-for-apple && \
@@ -130,7 +130,7 @@ release_ios: build_ios upload_ios_app_store
 build_macos:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFM.xcarchive && \
-	xcodebuild archive -scheme SFM -configuration Release -archivePath build/SFM.xcarchive -allowProvisioningUpdates
+	xcodebuild archive -scheme SFM -configuration Release -archivePath build/SFM.xcarchive -allowProvisioningUpdates | xcbeautify | grep -A 10 -e "Archive Succeeded" -e "ARCHIVE FAILED" -e "❌"
 
 upload_macos_app_store:
 	cd ../sing-box-for-apple && \
@@ -139,54 +139,50 @@ upload_macos_app_store:
 release_macos: build_macos upload_macos_app_store
 
 build_macos_standalone:
-	cd ../sing-box-for-apple && \
-	rm -rf build/SFM.System.xcarchive && \
-	xcodebuild archive -scheme SFM.System -configuration Release -archivePath build/SFM.System.xcarchive -allowProvisioningUpdates
+	$(MAKE) -C ../sing-box-for-apple archive_macos_standalone
 
 build_macos_dmg:
-	rm -rf dist/SFM
-	mkdir -p dist/SFM
-	cd ../sing-box-for-apple && \
-	rm -rf build/SFM.System && \
-	rm -rf build/SFM.dmg && \
-	xcodebuild -exportArchive \
-		-archivePath "build/SFM.System.xcarchive" \
-		-exportOptionsPlist SFM.System/Export.plist -allowProvisioningUpdates \
-		-exportPath "build/SFM.System" && \
-	create-dmg \
-		--volname "sing-box" \
-		--volicon "build/SFM.System/SFM.app/Contents/Resources/AppIcon.icns" \
-		--icon "SFM.app" 0 0 \
- 		--hide-extension "SFM.app" \
- 		--app-drop-link 0 0 \
- 		--skip-jenkins \
-		"../sing-box/dist/SFM/SFM.dmg" "build/SFM.System/SFM.app"
+	$(MAKE) -C ../sing-box-for-apple build_macos_dmg
+
+build_macos_pkg:
+	$(MAKE) -C ../sing-box-for-apple build_macos_pkg
 
 notarize_macos_dmg:
-	xcrun notarytool submit "dist/SFM/SFM.dmg" --wait \
-	  --keychain-profile "notarytool-password" \
-  	  --no-s3-acceleration
+	$(MAKE) -C ../sing-box-for-apple notarize_macos_dmg
+
+notarize_macos_pkg:
+	$(MAKE) -C ../sing-box-for-apple notarize_macos_pkg
 
 upload_macos_dmg:
-	cd dist/SFM && \
-	cp SFM.dmg "SFM-${VERSION}-universal.dmg" && \
-	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dmg"
+	mkdir -p dist/SFM
+	cp ../sing-box-for-apple/build/SFM-Apple.dmg "dist/SFM/SFM-${VERSION}-Apple.dmg"
+	cp ../sing-box-for-apple/build/SFM-Intel.dmg "dist/SFM/SFM-${VERSION}-Intel.dmg"
+	cp ../sing-box-for-apple/build/SFM-Universal.dmg "dist/SFM/SFM-${VERSION}-Universal.dmg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Apple.dmg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Intel.dmg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Universal.dmg"
+
+upload_macos_pkg:
+	mkdir -p dist/SFM
+	cp ../sing-box-for-apple/build/SFM-Apple.pkg "dist/SFM/SFM-${VERSION}-Apple.pkg"
+	cp ../sing-box-for-apple/build/SFM-Intel.pkg "dist/SFM/SFM-${VERSION}-Intel.pkg"
+	cp ../sing-box-for-apple/build/SFM-Universal.pkg "dist/SFM/SFM-${VERSION}-Universal.pkg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Apple.pkg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Intel.pkg"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}-Universal.pkg"
 
 upload_macos_dsyms:
-	pushd ../sing-box-for-apple/build/SFM.System.xcarchive && \
-	zip -r SFM.dSYMs.zip dSYMs && \
-	mv SFM.dSYMs.zip ../../../sing-box/dist/SFM && \
-	popd && \
-	cd dist/SFM && \
-	cp SFM.dSYMs.zip "SFM-${VERSION}-universal.dSYMs.zip" && \
-	ghr --replace --draft --prerelease "v${VERSION}" "SFM-${VERSION}-universal.dSYMs.zip"
+	mkdir -p dist/SFM
+	cd ../sing-box-for-apple/build/SFM.System-universal.xcarchive && zip -r SFM.dSYMs.zip dSYMs
+	cp ../sing-box-for-apple/build/SFM.System-universal.xcarchive/SFM.dSYMs.zip "dist/SFM/SFM-${VERSION}.dSYMs.zip"
+	ghr --replace --draft --prerelease "v${VERSION}" "dist/SFM/SFM-${VERSION}.dSYMs.zip"
 
-release_macos_standalone: build_macos_standalone build_macos_dmg notarize_macos_dmg upload_macos_dmg upload_macos_dsyms
+release_macos_standalone: build_macos_pkg notarize_macos_pkg upload_macos_pkg upload_macos_dsyms
 
 build_tvos:
 	cd ../sing-box-for-apple && \
 	rm -rf build/SFT.xcarchive && \
-	xcodebuild archive -scheme SFT -configuration Release -archivePath build/SFT.xcarchive -allowProvisioningUpdates
+	xcodebuild archive -scheme SFT -configuration Release -archivePath build/SFT.xcarchive -allowProvisioningUpdates | xcbeautify | grep -A 10 -e "Archive Succeeded" -e "ARCHIVE FAILED" -e "❌"
 
 upload_tvos_app_store:
 	cd ../sing-box-for-apple && \
