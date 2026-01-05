@@ -263,6 +263,7 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 	defer buffer.Release()
 
 	for {
+		buffer.Reset()
 		_, _, err := buffer.ReadPacketFrom(packetConn)
 		if err != nil {
 			if errors.Is(err, io.ErrShortBuffer) {
