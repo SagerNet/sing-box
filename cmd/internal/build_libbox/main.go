@@ -194,7 +194,7 @@ func buildApple() {
 	} else if debugEnabled {
 		bindTarget = "ios"
 	} else {
-		bindTarget = "ios,tvos,macos"
+		bindTarget = "ios,iossimulator,tvos,tvossimulator,macos"
 	}
 
 	args := []string{

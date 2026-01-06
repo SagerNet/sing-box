@@ -248,8 +248,8 @@ lib:
 	go run ./cmd/internal/build_libbox -target ios
 
 lib_install:
-	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.10
-	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.10
+	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.11
+	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.11
 
 docs:
 	venv/bin/mkdocs serve
