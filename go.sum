@@ -194,8 +194,8 @@ github.com/sagernet/cronet-go/lib/windows_arm64 v0.0.0-20251231115934-b87a9ae9bd
 github.com/sagernet/cronet-go/lib/windows_arm64 v0.0.0-20251231115934-b87a9ae9bd80/go.mod h1:n34YyLgapgjWdKa0IoeczjAFCwD3/dxbsH5sucKw0bw=
 github.com/sagernet/fswatch v0.1.1 h1:YqID+93B7VRfqIH3PArW/XpJv5H4OLEVWDfProGoRQs=
 github.com/sagernet/fswatch v0.1.1/go.mod h1:nz85laH0mkQqJfaOrqPpkwtU1znMFNVTpT/5oRsVz/o=
-github.com/sagernet/gomobile v0.1.10 h1:ElqZ0OVDvyQlU91MU0C9cfU0FrILBbc65+NOKzZ1t0c=
-github.com/sagernet/gomobile v0.1.10/go.mod h1:A8l3FlHi2D/+mfcd4HHvk5DGFPW/ShFb9jHP5VmSiDY=
+github.com/sagernet/gomobile v0.1.11 h1:niMQAspvuThup5eRZQpsGcbM76zAvnsGr7RUIpnQMDQ=
+github.com/sagernet/gomobile v0.1.11/go.mod h1:A8l3FlHi2D/+mfcd4HHvk5DGFPW/ShFb9jHP5VmSiDY=
 github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1 h1:AzCE2RhBjLJ4WIWc/GejpNh+z30d5H1hwaB0nD9eY3o=
 github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1/go.mod h1:NJKBtm9nVEK3iyOYWsUlrDQuoGh4zJ4KOPhSYVidvQ4=
 github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a h1:ObwtHN2VpqE0ZNjr6sGeT00J8uU7JF4cNUdb44/Duis=
