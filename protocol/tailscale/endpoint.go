@@ -22,8 +22,6 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/header"
 	"github.com/sagernet/gvisor/pkg/tcpip/stack"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
-	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
-	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -49,8 +47,10 @@ import (
 	tsDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/net/netmon"
 	"github.com/sagernet/tailscale/net/tsaddr"
+	tsTUN "github.com/sagernet/tailscale/net/tstun"
 	"github.com/sagernet/tailscale/tsnet"
 	"github.com/sagernet/tailscale/types/ipproto"
+	"github.com/sagernet/tailscale/types/nettype"
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
 	"github.com/sagernet/tailscale/wgengine/filter"
@@ -101,6 +101,51 @@ type Endpoint struct {
 	relayServerStaticEndpoints []netip.AddrPort
 
 	udpTimeout time.Duration
+
+	systemInterface     bool
+	systemInterfaceName string
+	systemInterfaceMTU  uint32
+	systemTun           tun.Tun
+	fallbackTCPCloser   func()
+}
+
+func (t *Endpoint) registerNetstackHandlers() {
+	netstack := t.server.ExportNetstack()
+	if netstack == nil {
+		return
+	}
+	previousTCP := netstack.GetTCPHandlerForFlow
+	netstack.GetTCPHandlerForFlow = func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
+		if previousTCP != nil {
+			handler, intercept = previousTCP(src, dst)
+			if handler != nil || !intercept {
+				return handler, intercept
+			}
+		}
+		return func(conn net.Conn) {
+			ctx := log.ContextWithNewID(t.ctx)
+			source := M.SocksaddrFrom(src.Addr(), src.Port())
+			destination := M.SocksaddrFrom(dst.Addr(), dst.Port())
+			t.NewConnectionEx(ctx, conn, source, destination, nil)
+		}, true
+	}
+
+	previousUDP := netstack.GetUDPHandlerForFlow
+	netstack.GetUDPHandlerForFlow = func(src, dst netip.AddrPort) (handler func(nettype.ConnPacketConn), intercept bool) {
+		if previousUDP != nil {
+			handler, intercept = previousUDP(src, dst)
+			if handler != nil || !intercept {
+				return handler, intercept
+			}
+		}
+		return func(conn nettype.ConnPacketConn) {
+			ctx := log.ContextWithNewID(t.ctx)
+			source := M.SocksaddrFrom(src.Addr(), src.Port())
+			destination := M.SocksaddrFrom(dst.Addr(), dst.Port())
+			packetConn := bufio.NewPacketConn(conn)
+			t.NewPacketConnectionEx(ctx, packetConn, source, destination, nil)
+		}, true
+	}
 }
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailscaleEndpointOptions) (adapter.Endpoint, error) {
@@ -202,6 +247,9 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		relayServerPort:            options.RelayServerPort,
 		relayServerStaticEndpoints: options.RelayServerStaticEndpoints,
 		udpTimeout:                 udpTimeout,
+		systemInterface:            options.SystemInterface,
+		systemInterfaceName:        options.SystemInterfaceName,
+		systemInterfaceMTU:         options.SystemInterfaceMTU,
 	}, nil
 }
 
@@ -237,9 +285,58 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 			setAndroidProtectFunc(t.platformInterface)
 		}
 	}
+	if t.systemInterface {
+		mtu := t.systemInterfaceMTU
+		if mtu == 0 {
+			mtu = uint32(tsTUN.DefaultTUNMTU())
+		}
+		tunName := t.systemInterfaceName
+		if tunName == "" {
+			tunName = tun.CalculateInterfaceName("tailscale")
+		}
+		tunOptions := tun.Options{
+			Name:                      tunName,
+			MTU:                       mtu,
+			GSO:                       true,
+			InterfaceScope:            true,
+			InterfaceMonitor:          t.network.InterfaceMonitor(),
+			InterfaceFinder:           t.network.InterfaceFinder(),
+			Logger:                    t.logger,
+			EXP_ExternalConfiguration: true,
+		}
+		systemTun, err := tun.New(tunOptions)
+		if err != nil {
+			return err
+		}
+		err = systemTun.Start()
+		if err != nil {
+			_ = systemTun.Close()
+			return err
+		}
+		wgTunDevice, err := newTunDeviceAdapter(systemTun, int(mtu), t.logger)
+		if err != nil {
+			_ = systemTun.Close()
+			return err
+		}
+		t.systemTun = systemTun
+		t.server.TunDevice = wgTunDevice
+	}
 	err := t.server.Start()
 	if err != nil {
+		if t.systemTun != nil {
+			_ = t.systemTun.Close()
+		}
 		return err
+	}
+	if t.fallbackTCPCloser == nil {
+		t.fallbackTCPCloser = t.server.RegisterFallbackTCPHandler(func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
+			return func(conn net.Conn) {
+				ctx := log.ContextWithNewID(t.ctx)
+				source := M.SocksaddrFrom(src.Addr(), src.Port())
+				destination := M.SocksaddrFrom(dst.Addr(), dst.Port())
+				t.NewConnectionEx(ctx, conn, source, destination, nil)
+			}, true
+		})
 	}
 	t.server.ExportLocalBackend().ExportEngine().(wgengine.ExportedUserspaceEngine).SetOnReconfigListener(t.onReconfig)
 
@@ -252,13 +349,12 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 	if gErr != nil {
 		return gonet.TranslateNetstackError(gErr)
 	}
-	ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(t.ctx, ipStack, t).HandlePacket)
-	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(t.ctx, ipStack, t, t.udpTimeout).HandlePacket)
 	icmpForwarder := tun.NewICMPForwarder(t.ctx, ipStack, t, t.udpTimeout)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	t.stack = ipStack
 	t.icmpForwarder = icmpForwarder
+	t.registerNetstackHandlers()
 
 	localBackend := t.server.ExportLocalBackend()
 	perfs := &ipn.MaskedPrefs{
@@ -354,6 +450,10 @@ func (t *Endpoint) Close() error {
 	netmon.RegisterInterfaceGetter(nil)
 	if runtime.GOOS == "android" {
 		setAndroidProtectFunc(nil)
+	}
+	if t.fallbackTCPCloser != nil {
+		t.fallbackTCPCloser()
+		t.fallbackTCPCloser = nil
 	}
 	return common.Close(common.PtrOrNil(t.server))
 }
