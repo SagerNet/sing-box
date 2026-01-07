@@ -4,8 +4,11 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.13.0"
 
-    :material-plus: [relay_server_port](#relay_server_port)  
+    :material-plus: [relay_server_port](#relay_server_port)
     :material-plus: [relay_server_static_endpoints](#relay_server_static_endpoints)
+    :material-plus: [system_interface](#system_interface)
+    :material-plus: [system_interface_name](#system_interface_name)
+    :material-plus: [system_interface_mtu](#system_interface_mtu)
 
 !!! question "Since sing-box 1.12.0"
 
@@ -27,8 +30,11 @@ icon: material/new-box
   "advertise_exit_node": false,
   "relay_server_port": 0,
   "relay_server_static_endpoints": [],
+  "system_interface": false,
+  "system_interface_name": "",
+  "system_interface_mtu": 0,
   "udp_timeout": "5m",
-  
+
   ... // Dial Fields
 }
 ```
@@ -98,11 +104,33 @@ Indicates whether the node should advertise itself as an exit node.
 
 #### relay_server_port
 
+!!! question "Since sing-box 1.13.0"
+
 The port to listen on for incoming relay connections from other Tailscale nodes.
 
 #### relay_server_static_endpoints
 
+!!! question "Since sing-box 1.13.0"
+
 Static endpoints to advertise for the relay server.
+
+#### system_interface
+
+!!! question "Since sing-box 1.13.0"
+
+Create a system TUN interface for Tailscale.
+
+#### system_interface_name
+
+!!! question "Since sing-box 1.13.0"
+
+Custom TUN interface name. By default, `tailscale` (or `utun` on macOS) will be used.
+
+#### system_interface_mtu
+
+!!! question "Since sing-box 1.13.0"
+
+Override the TUN MTU. By default, Tailscale's own MTU is used.
 
 #### udp_timeout
 
