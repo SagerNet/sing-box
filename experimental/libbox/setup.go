@@ -71,11 +71,11 @@ func Version() string {
 }
 
 func FormatBytes(length int64) string {
-	return byteformats.FormatBytes(uint64(length))
+	return byteformats.FormatKBytes(uint64(length))
 }
 
 func FormatMemoryBytes(length int64) string {
-	return byteformats.FormatMemoryBytes(uint64(length))
+	return byteformats.FormatMemoryKBytes(uint64(length))
 }
 
 func FormatDuration(duration int64) string {
