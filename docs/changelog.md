@@ -2,6 +2,26 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-beta.4
+
+* Apple/Android: Add support for sharing configurations via [QRS](https://github.com/qifi-dev/qrs)
+* Android: Add support for resisting VPN detection via Xposed
+* Update quic-go to v0.59.0
+* Fixes and improvements
+
+#### 1.13.0-beta.2
+
+* Add `bind_address_no_port` option for dial fields **1**
+* Fixes and improvements
+
+**1**:
+
+Adds the Linux socket option `IP_BIND_ADDRESS_NO_PORT` support when explicitly binding to a source address.
+
+This allows reusing the same source port for multiple connections, improving scalability for high-concurrency proxy scenarios.
+
+See [Dial Fields](/configuration/shared/dial/#bind_address_no_port).
+
 #### 1.13.0-beta.1
 
 * Add system interface support for Tailscale endpoint **1**
