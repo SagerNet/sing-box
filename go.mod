@@ -15,6 +15,7 @@ require (
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/insomniacslk/dhcp v0.0.0-20251020182700-175e84fbb167
 	github.com/keybase/go-keychain v0.0.1
+	github.com/libdns/acmedns v0.5.0
 	github.com/libdns/alidns v1.0.6-beta.3
 	github.com/libdns/cloudflare v0.2.2
 	github.com/logrusorgru/aurora v2.0.3+incompatible
