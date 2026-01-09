@@ -69,6 +69,7 @@ type DialerOptions struct {
 	BindInterface        string                            `json:"bind_interface,omitempty"`
 	Inet4BindAddress     *badoption.Addr                   `json:"inet4_bind_address,omitempty"`
 	Inet6BindAddress     *badoption.Addr                   `json:"inet6_bind_address,omitempty"`
+	BindAddressNoPort    bool                              `json:"bind_address_no_port,omitempty"`
 	ProtectPath          string                            `json:"protect_path,omitempty"`
 	RoutingMark          FwMark                            `json:"routing_mark,omitempty"`
 	ReuseAddr            bool                              `json:"reuse_addr,omitempty"`

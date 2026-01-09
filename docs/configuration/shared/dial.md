@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
     :material-plus: [tcp_keep_alive](#tcp_keep_alive)  
-    :material-plus: [tcp_keep_alive_interval](#tcp_keep_alive_interval)
+    :material-plus: [tcp_keep_alive_interval](#tcp_keep_alive_interval)  
+    :material-plus: [bind_address_no_port](#bind_address_no_port)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -29,6 +30,7 @@ icon: material/new-box
   "bind_interface": "",
   "inet4_bind_address": "",
   "inet6_bind_address": "",
+  "bind_address_no_port": false,
   "routing_mark": 0,
   "reuse_addr": false,
   "netns": "",
@@ -75,6 +77,18 @@ The IPv4 address to bind to.
 #### inet6_bind_address
 
 The IPv6 address to bind to.
+
+#### bind_address_no_port
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Do not reserve a port when binding to a source address.
+
+This allows reusing the same source port for multiple connections if the full 4-tuple (source IP, source port, destination IP, destination port) remains unique.
 
 #### routing_mark
 
