@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
     :material-plus: [tcp_keep_alive](#tcp_keep_alive)  
-    :material-plus: [tcp_keep_alive_interval](#tcp_keep_alive_interval)
+    :material-plus: [tcp_keep_alive_interval](#tcp_keep_alive_interval)  
+    :material-plus: [bind_address_no_port](#bind_address_no_port)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -29,6 +30,7 @@ icon: material/new-box
   "bind_interface": "",
   "inet4_bind_address": "",
   "inet6_bind_address": "",
+  "bind_address_no_port": false,
   "routing_mark": 0,
   "reuse_addr": false,
   "netns": "",
@@ -75,6 +77,18 @@ icon: material/new-box
 #### inet6_bind_address
 
 要绑定的 IPv6 地址。
+
+#### bind_address_no_port
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+绑定到源地址时不保留端口。
+
+这允许在完整的四元组（源 IP、源端口、目标 IP、目标端口）保持唯一的情况下，为多个连接复用同一源端口。
 
 #### routing_mark
 
