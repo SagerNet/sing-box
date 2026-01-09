@@ -46,12 +46,12 @@ jobs:
           echo "ref=$ref"
           echo "ref=$ref" >> $GITHUB_OUTPUT
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           ref: ${{ steps.ref.outputs.ref }}
           fetch-depth: 0
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ^1.25.4
       - name: Clone cronet-go
@@ -67,7 +67,7 @@ jobs:
       - name: Cache Chromium toolchain
         if: matrix.naive
         id: cache-chromium-toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/cronet-go/naiveproxy/src/third_party/llvm-build/Release+Asserts
@@ -134,7 +134,7 @@ jobs:
           mv sing-box "${BINARY_NAME}"
           echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: binary-${{ env.PLATFORM_PAIR }}
           path: ${{ env.BINARY_NAME }}
@@ -169,7 +169,7 @@ jobs:
           echo "ref=$ref"
           echo "ref=$ref" >> $GITHUB_OUTPUT
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           ref: ${{ steps.ref.outputs.ref }}
           fetch-depth: 0
@@ -178,7 +178,7 @@ jobs:
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       - name: Download binary
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: binary-${{ env.PLATFORM_PAIR }}
           path: .
@@ -217,7 +217,7 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -246,7 +246,7 @@ jobs:
           echo "latest=$latest"
           echo "latest=$latest" >> $GITHUB_OUTPUT
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-*
