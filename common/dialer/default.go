@@ -137,6 +137,12 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		dialer.Control = control.Append(dialer.Control, control.ProtectPath(options.ProtectPath))
 		listener.Control = control.Append(listener.Control, control.ProtectPath(options.ProtectPath))
 	}
+	if options.BindAddressNoPort {
+		if !C.IsLinux {
+			return nil, E.New("`bind_address_no_port` is only supported on Linux")
+		}
+		dialer.Control = control.Append(dialer.Control, control.BindAddressNoPort())
+	}
 	if options.ConnectTimeout != 0 {
 		dialer.Timeout = time.Duration(options.ConnectTimeout)
 	} else {
