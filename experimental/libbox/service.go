@@ -126,6 +126,9 @@ func (w *platformInterfaceWrapper) NetworkInterfaces() ([]adapter.NetworkInterfa
 			Constrained: isDefault && w.isConstrained,
 		})
 	}
+	interfaces = common.UniqBy(interfaces, func(it adapter.NetworkInterface) string {
+		return it.Name
+	})
 	return interfaces, nil
 }
 
