@@ -211,7 +211,7 @@ release_apple: lib_ios update_apple_version release_ios release_macos release_tv
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
 
 publish_testflight:
-	go run -v ./cmd/internal/app_store_connect publish_testflight
+	go run -v ./cmd/internal/app_store_connect publish_testflight $(filter-out $@,$(MAKECMDGOALS))
 
 prepare_app_store:
 	go run -v ./cmd/internal/app_store_connect prepare_app_store
@@ -269,3 +269,6 @@ update:
 	git fetch
 	git reset FETCH_HEAD --hard
 	git clean -fdx
+
+%:
+	@:
