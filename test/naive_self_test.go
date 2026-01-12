@@ -1,3 +1,5 @@
+//go:build with_naive_outbound
+
 package main
 
 import (
