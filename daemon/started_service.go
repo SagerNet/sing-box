@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 
@@ -677,6 +678,10 @@ func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsReque
 	ticker := time.NewTicker(time.Duration(request.Interval))
 	defer ticker.Stop()
 	trafficManager := boxService.clashServer.(*clashapi.Server).TrafficManager()
+	const (
+		maxClosedConnections   = 1000
+		closedConnectionMaxAge = int64(time.Hour / time.Millisecond)
+	)
 	var (
 		connections    = make(map[uuid.UUID]*Connection)
 		outConnections []*Connection
@@ -693,6 +698,7 @@ func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsReque
 		if err != nil {
 			return err
 		}
+		evictClosedConnections(connections, closedConnectionMaxAge, maxClosedConnections, time.Now().UnixMilli())
 		select {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
@@ -773,6 +779,27 @@ func newConnection(connections map[uuid.UUID]*Connection, metadata trafficontrol
 	}
 	connections[metadata.ID] = connection
 	return connection
+}
+
+func evictClosedConnections(connections map[uuid.UUID]*Connection, maxAgeMs int64, maxCount int, nowMs int64) {
+	var closedIDs []uuid.UUID
+	for id, conn := range connections {
+		if conn.ClosedAt != 0 {
+			if nowMs-conn.ClosedAt > maxAgeMs {
+				delete(connections, id)
+			} else {
+				closedIDs = append(closedIDs, id)
+			}
+		}
+	}
+	if len(closedIDs) > maxCount {
+		sort.Slice(closedIDs, func(i, j int) bool {
+			return connections[closedIDs[i]].ClosedAt < connections[closedIDs[j]].ClosedAt
+		})
+		for i := 0; i < len(closedIDs)-maxCount; i++ {
+			delete(connections, closedIDs[i])
+		}
+	}
 }
 
 func (s *StartedService) CloseConnection(ctx context.Context, request *CloseConnectionRequest) (*emptypb.Empty, error) {

@@ -27,6 +27,7 @@ type CommandClient struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	clientMutex sync.RWMutex
+	standalone  bool
 }
 
 type CommandClientOptions struct {
@@ -73,7 +74,7 @@ func SetXPCDialer(dialer XPCDialer) {
 }
 
 func NewStandaloneCommandClient() *CommandClient {
-	return new(CommandClient)
+	return &CommandClient{standalone: true}
 }
 
 func NewCommandClient(handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
@@ -332,6 +333,28 @@ func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, error) 
 	return c.grpcClient, nil
 }
 
+func (c *CommandClient) closeConnection() {
+	c.clientMutex.Lock()
+	defer c.clientMutex.Unlock()
+	if c.grpcConn != nil {
+		c.grpcConn.Close()
+		c.grpcConn = nil
+		c.grpcClient = nil
+	}
+}
+
+func callWithResult[T any](c *CommandClient, call func(client daemon.StartedServiceClient) (T, error)) (T, error) {
+	client, err := c.getClientForCall()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	return call(client)
+}
+
 func (c *CommandClient) getStreamContext() (daemon.StartedServiceClient, context.Context) {
 	c.clientMutex.RLock()
 	defer c.clientMutex.RUnlock()
@@ -481,162 +504,122 @@ func (c *CommandClient) handleConnectionsStream() {
 }
 
 func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.SelectOutbound(context.Background(), &daemon.SelectOutboundRequest{
-		GroupTag:    groupTag,
-		OutboundTag: outboundTag,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SelectOutbound(context.Background(), &daemon.SelectOutboundRequest{
+			GroupTag:    groupTag,
+			OutboundTag: outboundTag,
+		})
 	})
 	return err
 }
 
 func (c *CommandClient) URLTest(groupTag string) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.URLTest(context.Background(), &daemon.URLTestRequest{
-		OutboundTag: groupTag,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.URLTest(context.Background(), &daemon.URLTestRequest{
+			OutboundTag: groupTag,
+		})
 	})
 	return err
 }
 
 func (c *CommandClient) SetClashMode(newMode string) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.SetClashMode(context.Background(), &daemon.ClashMode{
-		Mode: newMode,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetClashMode(context.Background(), &daemon.ClashMode{
+			Mode: newMode,
+		})
 	})
 	return err
 }
 
 func (c *CommandClient) CloseConnection(connId string) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.CloseConnection(context.Background(), &daemon.CloseConnectionRequest{
-		Id: connId,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CloseConnection(context.Background(), &daemon.CloseConnectionRequest{
+			Id: connId,
+		})
 	})
 	return err
 }
 
 func (c *CommandClient) CloseConnections() error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.CloseAllConnections(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CloseAllConnections(context.Background(), &emptypb.Empty{})
+	})
 	return err
 }
 
 func (c *CommandClient) ServiceReload() error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.ReloadService(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.ReloadService(context.Background(), &emptypb.Empty{})
+	})
 	return err
 }
 
 func (c *CommandClient) ServiceClose() error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.StopService(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.StopService(context.Background(), &emptypb.Empty{})
+	})
 	return err
 }
 
 func (c *CommandClient) ClearLogs() error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.ClearLogs(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.ClearLogs(context.Background(), &emptypb.Empty{})
+	})
 	return err
 }
 
 func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return nil, err
-	}
-
-	status, err := client.GetSystemProxyStatus(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-	return SystemProxyStatusFromGRPC(status), nil
+	return callWithResult(c, func(client daemon.StartedServiceClient) (*SystemProxyStatus, error) {
+		status, err := client.GetSystemProxyStatus(context.Background(), &emptypb.Empty{})
+		if err != nil {
+			return nil, err
+		}
+		return SystemProxyStatusFromGRPC(status), nil
+	})
 }
 
 func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.SetSystemProxyEnabled(context.Background(), &daemon.SetSystemProxyEnabledRequest{
-		Enabled: isEnabled,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetSystemProxyEnabled(context.Background(), &daemon.SetSystemProxyEnabledRequest{
+			Enabled: isEnabled,
+		})
 	})
 	return err
 }
 
 func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return nil, err
-	}
-
-	warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	var notes []*DeprecatedNote
-	for _, warning := range warnings.Warnings {
-		notes = append(notes, &DeprecatedNote{
-			Description:   warning.Message,
-			MigrationLink: warning.MigrationLink,
-		})
-	}
-	return newIterator(notes), nil
+	return callWithResult(c, func(client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
+		warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})
+		if err != nil {
+			return nil, err
+		}
+		var notes []*DeprecatedNote
+		for _, warning := range warnings.Warnings {
+			notes = append(notes, &DeprecatedNote{
+				Description:   warning.Message,
+				MigrationLink: warning.MigrationLink,
+			})
+		}
+		return newIterator(notes), nil
+	})
 }
 
 func (c *CommandClient) GetStartedAt() (int64, error) {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return 0, err
-	}
-
-	startedAt, err := client.GetStartedAt(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		return 0, err
-	}
-	return startedAt.StartedAt, nil
+	return callWithResult(c, func(client daemon.StartedServiceClient) (int64, error) {
+		startedAt, err := client.GetStartedAt(context.Background(), &emptypb.Empty{})
+		if err != nil {
+			return 0, err
+		}
+		return startedAt.StartedAt, nil
+	})
 }
 
 func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
-	client, err := c.getClientForCall()
-	if err != nil {
-		return err
-	}
-
-	_, err = client.SetGroupExpand(context.Background(), &daemon.SetGroupExpandRequest{
-		GroupTag: groupTag,
-		IsExpand: isExpand,
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetGroupExpand(context.Background(), &daemon.SetGroupExpandRequest{
+			GroupTag: groupTag,
+			IsExpand: isExpand,
+		})
 	})
 	return err
 }
