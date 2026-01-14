@@ -27,7 +27,7 @@ service StartedService {
   rpc GetSystemProxyStatus(google.protobuf.Empty) returns(SystemProxyStatus) {}
   rpc SetSystemProxyEnabled(SetSystemProxyEnabledRequest) returns(google.protobuf.Empty) {}
 
-  rpc SubscribeConnections(SubscribeConnectionsRequest) returns(stream Connections) {}
+  rpc SubscribeConnections(SubscribeConnectionsRequest) returns(stream ConnectionEvents) {}
   rpc CloseConnection(CloseConnectionRequest) returns(google.protobuf.Empty) {}
   rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
   rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
@@ -143,24 +143,26 @@ message SetSystemProxyEnabledRequest {
 
 message SubscribeConnectionsRequest {
   int64 interval = 1;
-  ConnectionFilter filter = 2;
-  ConnectionSortBy sortBy = 3;
 }
 
-enum ConnectionFilter {
-  ALL = 0;
-  ACTIVE = 1;
-  CLOSED = 2;
+enum ConnectionEventType {
+  CONNECTION_EVENT_NEW = 0;
+  CONNECTION_EVENT_UPDATE = 1;
+  CONNECTION_EVENT_CLOSED = 2;
 }
 
-enum ConnectionSortBy {
-  DATE = 0;
-  TRAFFIC = 1;
-  TOTAL_TRAFFIC = 2;
+message ConnectionEvent {
+  ConnectionEventType type = 1;
+  string id = 2;
+  Connection connection = 3;
+  int64 uplinkDelta = 4;
+  int64 downlinkDelta = 5;
+  int64 closedAt = 6;
 }
 
-message Connections {
-  repeated Connection connections = 1;
+message ConnectionEvents {
+  repeated ConnectionEvent events = 1;
+  bool reset = 2;
 }
 
 message Connection {
