@@ -69,8 +69,7 @@ const (
 )
 
 const (
-	maxClosedConnections   = 1000
-	closedConnectionMaxAge = int64(time.Hour / time.Millisecond)
+	closedConnectionMaxAge = int64((5 * time.Minute) / time.Millisecond)
 )
 
 type ConnectionEvent struct {
@@ -102,11 +101,6 @@ type Connections struct {
 	filtered      []Connection
 	filterState   int32
 	filterApplied bool
-}
-
-type closedConnection struct {
-	id       string
-	closedAt int64
 }
 
 func NewConnections() *Connections {
@@ -168,34 +162,13 @@ func (c *Connections) ApplyEvents(events *ConnectionEvents) {
 }
 
 func (c *Connections) evictClosedConnections(nowMilliseconds int64) {
-	var closedConnections []closedConnection
 	for id, conn := range c.connectionMap {
 		if conn.ClosedAt == 0 {
 			continue
 		}
 		if nowMilliseconds-conn.ClosedAt > closedConnectionMaxAge {
 			delete(c.connectionMap, id)
-			continue
 		}
-		closedConnections = append(closedConnections, closedConnection{
-			id:       id,
-			closedAt: conn.ClosedAt,
-		})
-	}
-	if len(closedConnections) <= maxClosedConnections {
-		return
-	}
-	slices.SortFunc(closedConnections, func(left, right closedConnection) int {
-		if left.closedAt < right.closedAt {
-			return -1
-		}
-		if left.closedAt > right.closedAt {
-			return 1
-		}
-		return strings.Compare(left.id, right.id)
-	})
-	for i := 0; i < len(closedConnections)-maxClosedConnections; i++ {
-		delete(c.connectionMap, closedConnections[i].id)
 	}
 }
 
