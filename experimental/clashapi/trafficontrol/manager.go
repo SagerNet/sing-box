@@ -10,10 +10,28 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/x/list"
 
 	"github.com/gofrs/uuid/v5"
 )
+
+type ConnectionEventType int
+
+const (
+	ConnectionEventNew ConnectionEventType = iota
+	ConnectionEventUpdate
+	ConnectionEventClosed
+)
+
+type ConnectionEvent struct {
+	Type          ConnectionEventType
+	ID            uuid.UUID
+	Metadata      TrackerMetadata
+	UplinkDelta   int64
+	DownlinkDelta int64
+	ClosedAt      time.Time
+}
 
 type Manager struct {
 	uploadTotal   atomic.Int64
@@ -22,16 +40,29 @@ type Manager struct {
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
 	closedConnections       list.List[TrackerMetadata]
-	// process     *process.Process
-	memory uint64
+	memory                  uint64
+
+	eventSubscriber *observable.Subscriber[ConnectionEvent]
 }
 
 func NewManager() *Manager {
 	return &Manager{}
 }
 
+func (m *Manager) SetEventHook(subscriber *observable.Subscriber[ConnectionEvent]) {
+	m.eventSubscriber = subscriber
+}
+
 func (m *Manager) Join(c Tracker) {
-	m.connections.Store(c.Metadata().ID, c)
+	metadata := c.Metadata()
+	m.connections.Store(metadata.ID, c)
+	if m.eventSubscriber != nil {
+		m.eventSubscriber.Emit(ConnectionEvent{
+			Type:     ConnectionEventNew,
+			ID:       metadata.ID,
+			Metadata: metadata,
+		})
+	}
 }
 
 func (m *Manager) Leave(c Tracker) {
@@ -40,11 +71,19 @@ func (m *Manager) Leave(c Tracker) {
 	if loaded {
 		metadata.ClosedAt = time.Now()
 		m.closedConnectionsAccess.Lock()
-		defer m.closedConnectionsAccess.Unlock()
 		if m.closedConnections.Len() >= 1000 {
 			m.closedConnections.PopFront()
 		}
 		m.closedConnections.PushBack(metadata)
+		m.closedConnectionsAccess.Unlock()
+		if m.eventSubscriber != nil {
+			m.eventSubscriber.Emit(ConnectionEvent{
+				Type:     ConnectionEventClosed,
+				ID:       metadata.ID,
+				Metadata: metadata,
+				ClosedAt: metadata.ClosedAt,
+			})
+		}
 	}
 }
 

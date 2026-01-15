@@ -84,15 +84,15 @@ type StatsServiceServer interface {
 type UnimplementedStatsServiceServer struct{}
 
 func (UnimplementedStatsServiceServer) GetStats(context.Context, *GetStatsRequest) (*GetStatsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
+	return nil, status.Error(codes.Unimplemented, "method GetStats not implemented")
 }
 
 func (UnimplementedStatsServiceServer) QueryStats(context.Context, *QueryStatsRequest) (*QueryStatsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method QueryStats not implemented")
+	return nil, status.Error(codes.Unimplemented, "method QueryStats not implemented")
 }
 
 func (UnimplementedStatsServiceServer) GetSysStats(context.Context, *SysStatsRequest) (*SysStatsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSysStats not implemented")
+	return nil, status.Error(codes.Unimplemented, "method GetSysStats not implemented")
 }
 func (UnimplementedStatsServiceServer) mustEmbedUnimplementedStatsServiceServer() {}
 func (UnimplementedStatsServiceServer) testEmbeddedByValue()                      {}
@@ -105,7 +105,7 @@ type UnsafeStatsServiceServer interface {
 }
 
 func RegisterStatsServiceServer(s grpc.ServiceRegistrar, srv StatsServiceServer) {
-	// If the following call pancis, it indicates UnimplementedStatsServiceServer was
+	// If the following call panics, it indicates UnimplementedStatsServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.

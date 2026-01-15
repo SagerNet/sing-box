@@ -49,7 +49,7 @@ type CommandClientHandler interface {
 	WriteGroups(message OutboundGroupIterator)
 	InitializeClashMode(modeList StringIterator, currentMode string)
 	UpdateClashMode(newMode string)
-	WriteConnections(message *Connections)
+	WriteConnectionEvents(events *ConnectionEvents)
 }
 
 type LogEntry struct {
@@ -491,15 +491,14 @@ func (c *CommandClient) handleConnectionsStream() {
 		return
 	}
 
-	var connections Connections
 	for {
-		conns, err := stream.Recv()
+		events, err := stream.Recv()
 		if err != nil {
 			c.handler.Disconnected(err.Error())
 			return
 		}
-		connections.input = ConnectionsFromGRPC(conns)
-		c.handler.WriteConnections(&connections)
+		libboxEvents := ConnectionEventsFromGRPC(events)
+		c.handler.WriteConnectionEvents(libboxEvents)
 	}
 }
 
