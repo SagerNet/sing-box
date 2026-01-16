@@ -237,17 +237,21 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, startContext *adapter.HTTPSta
 	if startContext != nil {
 		httpClient = startContext.HTTPClient(s.options.RemoteOptions.DownloadDetour, s.dialer)
 	} else {
+		dialerCtx := func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+		}
 		httpClient = &http.Client{
-			Transport: &http.Transport{
-				ForceAttemptHTTP2:   true,
-				TLSHandshakeTimeout: C.TCPTimeout,
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			Transport: &adapter.MultiEncodingTransport{
+				Base: &http.Transport{
+					ForceAttemptHTTP2:   true,
+					TLSHandshakeTimeout: C.TCPTimeout,
+					DialContext:         dialerCtx,
+					TLSClientConfig: &tls.Config{
+						Time:    ntp.TimeFuncFromContext(s.ctx),
+						RootCAs: adapter.RootPoolFromContext(s.ctx),
+					},
 				},
-				TLSClientConfig: &tls.Config{
-					Time:    ntp.TimeFuncFromContext(s.ctx),
-					RootCAs: adapter.RootPoolFromContext(s.ctx),
-				},
+				Dialer: dialerCtx,
 			},
 		}
 	}
