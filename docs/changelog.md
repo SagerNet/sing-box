@@ -2,6 +2,19 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.17
+
+* Update uTLS to v1.8.2 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes missing padding extension for Chrome 120+ fingerprints.
+
+Also, documentation has been updated with a warning about uTLS fingerprinting vulnerabilities.
+uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
+use NaiveProxy instead for TLS fingerprint resistance.
+
 #### 1.12.16
 
 * Fixes and improvements
