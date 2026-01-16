@@ -127,7 +127,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	var dnsResolver cronet.DNSResolverFunc
 	if dnsRouter != nil {
 		dnsResolver = func(dnsContext context.Context, request *mDNS.Msg) *mDNS.Msg {
-			response, err := dnsRouter.Exchange(dnsContext, request, adapter.DNSQueryOptions{})
+			response, err := dnsRouter.Exchange(dnsContext, request, outboundDialer.(dialer.ResolveDialer).QueryOptions())
 			if err != nil {
 				logger.Error("DNS exchange failed: ", err)
 				return dns.FixedResponseStatus(request, mDNS.RcodeServerFailure)
@@ -177,6 +177,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	client, err := cronet.NewNaiveClient(cronet.NaiveClientOptions{
 		Context:                 ctx,
+		Logger:                  logger,
 		ServerAddress:           serverAddress,
 		ServerName:              serverName,
 		Username:                options.Username,
