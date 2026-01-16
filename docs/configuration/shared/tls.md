@@ -230,9 +230,18 @@ The path to the server private key, in PEM format.
 
 ==Client only==
 
-!!! failure ""
-    
-    There is no evidence that GFW detects and blocks servers based on TLS client fingerprinting, and using an imperfect emulation that has not been security reviewed could pose security risks.
+!!! failure "Not Recommended"
+
+    uTLS has had repeated fingerprinting vulnerabilities discovered by researchers.
+
+    uTLS is a Go library that attempts to imitate browser TLS fingerprints by copying
+    ClientHello structure. However, browsers use completely different TLS stacks
+    (Chrome uses BoringSSL, Firefox uses NSS) with distinct implementation behaviors
+    that cannot be replicated by simply copying the handshake format, making detection possible.
+    Additionally, the library lacks active maintenance and has poor code quality,
+    making it unsuitable for censorship circumvention.
+
+    For TLS fingerprint resistance, use [NaiveProxy](/configuration/inbound/naive/) instead.
 
 uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.
 

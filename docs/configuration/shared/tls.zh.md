@@ -220,9 +220,16 @@ TLS 版本值：
 
 ==仅客户端==
 
-!!! failure ""
+!!! failure "不推荐"
 
-    没有证据表明 GFW 根据 TLS 客户端指纹检测并阻止服务器，并且，使用一个未经安全审查的不完美模拟可能带来安全隐患。
+    uTLS 已被研究人员多次发现其指纹可被识别的漏洞。
+
+    uTLS 是一个试图通过复制 ClientHello 结构来模仿浏览器 TLS 指纹的 Go 库。
+    然而，浏览器使用完全不同的 TLS 实现（Chrome 使用 BoringSSL，Firefox 使用 NSS），
+    其实现行为无法通过简单复制握手格式来复现，其行为细节必然存在差异，使得检测成为可能。
+    此外，此库缺乏积极维护，且代码质量较差，不建议用于反审查场景。
+
+    如需 TLS 指纹抵抗，请改用 [NaiveProxy](/configuration/inbound/naive/)。
 
 uTLS 是 "crypto/tls" 的一个分支，它提供了 ClientHello 指纹识别阻力。
 
