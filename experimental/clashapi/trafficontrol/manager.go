@@ -33,13 +33,15 @@ type ConnectionEvent struct {
 	ClosedAt      time.Time
 }
 
+const closedConnectionsLimit = 1000
+
 type Manager struct {
 	uploadTotal   atomic.Int64
 	downloadTotal atomic.Int64
 
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
-	closedConnections       list.List[*TrackerMetadata]
+	closedConnections       list.List[TrackerMetadata]
 	memory                  uint64
 
 	eventSubscriber *observable.Subscriber[ConnectionEvent]
@@ -69,19 +71,21 @@ func (m *Manager) Leave(c Tracker) {
 	metadata := c.Metadata()
 	_, loaded := m.connections.LoadAndDelete(metadata.ID)
 	if loaded {
-		metadata.ClosedAt = time.Now()
+		closedAt := time.Now()
+		metadata.ClosedAt = closedAt
+		metadataCopy := *metadata
 		m.closedConnectionsAccess.Lock()
-		if m.closedConnections.Len() >= 1000 {
+		if m.closedConnections.Len() >= closedConnectionsLimit {
 			m.closedConnections.PopFront()
 		}
-		m.closedConnections.PushBack(metadata)
+		m.closedConnections.PushBack(metadataCopy)
 		m.closedConnectionsAccess.Unlock()
 		if m.eventSubscriber != nil {
 			m.eventSubscriber.Emit(ConnectionEvent{
 				Type:     ConnectionEventClosed,
 				ID:       metadata.ID,
-				Metadata: metadata,
-				ClosedAt: metadata.ClosedAt,
+				Metadata: &metadataCopy,
+				ClosedAt: closedAt,
 			})
 		}
 	}
@@ -114,8 +118,16 @@ func (m *Manager) Connections() []*TrackerMetadata {
 
 func (m *Manager) ClosedConnections() []*TrackerMetadata {
 	m.closedConnectionsAccess.Lock()
-	defer m.closedConnectionsAccess.Unlock()
-	return m.closedConnections.Array()
+	values := m.closedConnections.Array()
+	m.closedConnectionsAccess.Unlock()
+	if len(values) == 0 {
+		return nil
+	}
+	connections := make([]*TrackerMetadata, len(values))
+	for i := range values {
+		connections[i] = &values[i]
+	}
+	return connections
 }
 
 func (m *Manager) Connection(id uuid.UUID) Tracker {
