@@ -148,6 +148,7 @@ func publishTestflight(ctx context.Context) error {
 			return err
 		}
 		build := builds.Data[0]
+		log.Info(string(platform), " ", tag, " found build: ", build.ID, " (", *build.Attributes.Version, ")")
 		if !waitingForProcess && (common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute) {
 			log.Info(string(platform), " ", tag, " waiting for process")
 			time.Sleep(15 * time.Second)

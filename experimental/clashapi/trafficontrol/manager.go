@@ -27,7 +27,7 @@ const (
 type ConnectionEvent struct {
 	Type          ConnectionEventType
 	ID            uuid.UUID
-	Metadata      TrackerMetadata
+	Metadata      *TrackerMetadata
 	UplinkDelta   int64
 	DownlinkDelta int64
 	ClosedAt      time.Time
@@ -39,7 +39,7 @@ type Manager struct {
 
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
-	closedConnections       list.List[TrackerMetadata]
+	closedConnections       list.List[*TrackerMetadata]
 	memory                  uint64
 
 	eventSubscriber *observable.Subscriber[ConnectionEvent]
@@ -103,8 +103,8 @@ func (m *Manager) ConnectionsLen() int {
 	return m.connections.Len()
 }
 
-func (m *Manager) Connections() []TrackerMetadata {
-	var connections []TrackerMetadata
+func (m *Manager) Connections() []*TrackerMetadata {
+	var connections []*TrackerMetadata
 	m.connections.Range(func(_ uuid.UUID, value Tracker) bool {
 		connections = append(connections, value.Metadata())
 		return true
@@ -112,7 +112,7 @@ func (m *Manager) Connections() []TrackerMetadata {
 	return connections
 }
 
-func (m *Manager) ClosedConnections() []TrackerMetadata {
+func (m *Manager) ClosedConnections() []*TrackerMetadata {
 	m.closedConnectionsAccess.Lock()
 	defer m.closedConnectionsAccess.Unlock()
 	return m.closedConnections.Array()
@@ -163,7 +163,7 @@ func (s *Snapshot) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"downloadTotal": s.Download,
 		"uploadTotal":   s.Upload,
-		"connections":   common.Map(s.Connections, func(t Tracker) TrackerMetadata { return t.Metadata() }),
+		"connections":   common.Map(s.Connections, func(t Tracker) *TrackerMetadata { return t.Metadata() }),
 		"memory":        s.Memory,
 	})
 }

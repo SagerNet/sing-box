@@ -831,7 +831,7 @@ func (s *StartedService) applyConnectionEvent(event trafficontrol.ConnectionEven
 
 func (s *StartedService) buildTrafficUpdates(manager *trafficontrol.Manager, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
 	activeConnections := manager.Connections()
-	activeIndex := make(map[uuid.UUID]trafficontrol.TrackerMetadata, len(activeConnections))
+	activeIndex := make(map[uuid.UUID]*trafficontrol.TrackerMetadata, len(activeConnections))
 	var events []*ConnectionEvent
 
 	for _, metadata := range activeConnections {
@@ -854,18 +854,25 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficontrol.Manager, sna
 		uplinkDelta := currentUpload - snapshot.uplink
 		downlinkDelta := currentDownload - snapshot.downlink
 		if uplinkDelta < 0 || downlinkDelta < 0 {
-			snapshots[metadata.ID] = connectionSnapshot{
-				uplink:   currentUpload,
-				downlink: currentDownload,
+			if snapshot.hadTraffic {
+				events = append(events, &ConnectionEvent{
+					Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
+					Id:            metadata.ID.String(),
+					UplinkDelta:   0,
+					DownlinkDelta: 0,
+				})
 			}
+			snapshot.uplink = currentUpload
+			snapshot.downlink = currentDownload
+			snapshot.hadTraffic = false
+			snapshots[metadata.ID] = snapshot
 			continue
 		}
 		if uplinkDelta > 0 || downlinkDelta > 0 {
-			snapshots[metadata.ID] = connectionSnapshot{
-				uplink:     currentUpload,
-				downlink:   currentDownload,
-				hadTraffic: true,
-			}
+			snapshot.uplink = currentUpload
+			snapshot.downlink = currentDownload
+			snapshot.hadTraffic = true
+			snapshots[metadata.ID] = snapshot
 			events = append(events, &ConnectionEvent{
 				Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
 				Id:            metadata.ID.String(),
@@ -875,10 +882,10 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficontrol.Manager, sna
 			continue
 		}
 		if snapshot.hadTraffic {
-			snapshots[metadata.ID] = connectionSnapshot{
-				uplink:   currentUpload,
-				downlink: currentDownload,
-			}
+			snapshot.uplink = currentUpload
+			snapshot.downlink = currentDownload
+			snapshot.hadTraffic = false
+			snapshots[metadata.ID] = snapshot
 			events = append(events, &ConnectionEvent{
 				Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
 				Id:            metadata.ID.String(),
@@ -888,13 +895,13 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficontrol.Manager, sna
 		}
 	}
 
-	var closedIndex map[uuid.UUID]trafficontrol.TrackerMetadata
+	var closedIndex map[uuid.UUID]*trafficontrol.TrackerMetadata
 	for id := range snapshots {
 		if _, exists := activeIndex[id]; exists {
 			continue
 		}
 		if closedIndex == nil {
-			closedIndex = make(map[uuid.UUID]trafficontrol.TrackerMetadata)
+			closedIndex = make(map[uuid.UUID]*trafficontrol.TrackerMetadata)
 			for _, metadata := range manager.ClosedConnections() {
 				closedIndex[metadata.ID] = metadata
 			}
@@ -920,7 +927,7 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficontrol.Manager, sna
 	return events
 }
 
-func buildConnectionProto(metadata trafficontrol.TrackerMetadata) *Connection {
+func buildConnectionProto(metadata *trafficontrol.TrackerMetadata) *Connection {
 	var rule string
 	if metadata.Rule != nil {
 		rule = metadata.Rule.String()
