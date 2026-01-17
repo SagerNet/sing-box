@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [alidns.security_token](#security_token)  
-    :material-plus: [cloudflare.zone_token](#zone_token)
+    :material-plus: [cloudflare.zone_token](#zone_token)  
+    :material-plus: [acmedns](#acmedns)
 
 ### 结构
 
@@ -54,3 +55,19 @@ icon: material/new-box
 具有 `Zone:Read` 权限的可选 API 令牌。
 
 提供后可将 `api_token` 限定到单个区域。
+
+#### ACME-DNS
+
+!!! question "自 sing-box 1.13.0 起"
+
+```json
+{
+  "provider": "acmedns",
+  "username": "",
+  "password": "",
+  "subdomain": "",
+  "server_url": ""
+}
+```
+
+参阅 [ACME-DNS](https://github.com/joohoi/acme-dns)。
