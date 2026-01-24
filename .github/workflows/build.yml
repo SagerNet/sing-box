@@ -621,7 +621,8 @@ jobs:
           mkdir clients/android/app/libs
           cp *.aar clients/android/app/libs
           cd clients/android
-          ./gradlew :app:assembleOtherRelease :app:assembleOtherLegacyRelease
+          ./gradlew :app:assembleOtherRelease
+          # Fixed build task
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -631,7 +632,6 @@ jobs:
           mkdir -p dist
           #cp clients/android/app/build/outputs/apk/play/release/*.apk dist
           cp clients/android/app/build/outputs/apk/other/release/*.apk dist
-          cp clients/android/app/build/outputs/apk/otherLegacy/release/*.apk dist
           VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
           VERSION_NAME=$(grep VERSION_NAME clients/android/version.properties | cut -d= -f2)
           cat > dist/SFA-version-metadata.json << EOF
