@@ -2,11 +2,11 @@
 icon: material/alert-decagram
 ---
 
+# DNS Server
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [type](#type)
-
-# DNS Server
 
 ### Structure
 
