@@ -1,7 +1,3 @@
----
-icon: material/new-box
----
-
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -63,7 +59,7 @@ icon: material/new-box
     {
       "external_controller": "0.0.0.0:9090",
       "external_ui": "dashboard"
-      // external_ui_download_detour: "direct"
+      // "external_ui_download_detour": "direct"
     }
     ```
 

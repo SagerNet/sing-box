@@ -1,4 +1,21 @@
+---
+icon: material/alert-decagram
+---
+
 # 路由
+
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [default_domain_resolver](#default_domain_resolver)  
+    :material-note-remove: [geoip](#geoip)  
+    :material-note-remove: [geosite](#geosite)
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [network_strategy](#network_strategy)  
+    :material-plus: [default_network_type](#default_network_type)  
+    :material-plus: [default_fallback_network_type](#default_fallback_network_type)  
+    :material-plus: [default_fallback_delay](#default_fallback_delay)
 
 !!! quote "sing-box 1.8.0 中的更改"
 
@@ -18,11 +35,17 @@
     "final": "",
     "auto_detect_interface": false,
     "override_android_vpn": false,
-    "default_interface": "en0",
-    "default_mark": 233
+    "default_interface": "",
+    "default_mark": 0,
+    "default_network_strategy": "",
+    "default_fallback_delay": ""
   }
 }
 ```
+
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
 ### 字段
 
@@ -39,7 +62,7 @@
 
 !!! question "自 sing-box 1.8.0 起"
 
-一组 [规则集](/configuration/rule-set/)。
+一组 [规则集](/zh/configuration/rule-set/)。
 
 #### final
 
@@ -82,3 +105,41 @@
 默认为出站连接设置路由标记。
 
 如果设置了 `outbound.routing_mark` 设置，则不生效。
+
+#### default_domain_resolver
+
+!!! question "自 sing-box 1.12.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#domain_resolver)。
+
+可以被 `outbound.domain_resolver` 覆盖。
+
+#### network_strategy
+
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#network_strategy)。
+
+当 `outbound.bind_interface`, `outbound.inet4_bind_address` 或 `outbound.inet6_bind_address` 已设置时不生效。
+
+可以被 `outbound.network_strategy` 覆盖。
+
+与 `default_interface` 冲突。
+
+#### default_network_type
+
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#default_network_type)。
+
+#### default_fallback_network_type
+
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#default_fallback_network_type)。
+
+#### default_fallback_delay
+
+!!! question "自 sing-box 1.11.0 起"
+
+详情参阅 [拨号字段](/configuration/shared/dial/#fallback_delay)。

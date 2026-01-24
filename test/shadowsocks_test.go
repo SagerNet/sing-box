@@ -9,7 +9,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+	"github.com/sagernet/sing/common"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/stretchr/testify/require"
 )
@@ -102,9 +104,9 @@ func testShadowsocksInboundWithShadowsocksRust(t *testing.T, method string, pass
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Method:   method,
@@ -127,9 +129,9 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -138,7 +140,7 @@ func testShadowsocksOutboundWithShadowsocksRust(t *testing.T, method string, pas
 		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -158,18 +160,18 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Method:   method,
@@ -184,7 +186,7 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -197,9 +199,18 @@ func testShadowsocksSelf(t *testing.T, method string, password string) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "ss-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "ss-out",
+							},
+						},
 					},
 				},
 			},
@@ -216,18 +227,18 @@ func TestShadowsocksUoT(t *testing.T) {
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Method:   method,
@@ -242,7 +253,7 @@ func TestShadowsocksUoT(t *testing.T) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -258,9 +269,18 @@ func TestShadowsocksUoT(t *testing.T) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "ss-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "ss-out",
+							},
+						},
 					},
 				},
 			},
@@ -275,18 +295,18 @@ func testShadowsocks2022EIH(t *testing.T, method string, password string) {
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeShadowsocks,
-				ShadowsocksOptions: option.ShadowsocksInboundOptions{
+				Options: &option.ShadowsocksInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Method:   method,
@@ -306,7 +326,7 @@ func testShadowsocks2022EIH(t *testing.T, method string, password string) {
 			{
 				Type: C.TypeShadowsocks,
 				Tag:  "ss-out",
-				ShadowsocksOptions: option.ShadowsocksOutboundOptions{
+				Options: &option.ShadowsocksOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -319,9 +339,18 @@ func testShadowsocks2022EIH(t *testing.T, method string, password string) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "ss-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "ss-out",
+							},
+						},
 					},
 				},
 			},

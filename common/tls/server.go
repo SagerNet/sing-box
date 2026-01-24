@@ -12,17 +12,37 @@ import (
 	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-func NewServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (ServerConfig, error) {
-	if !options.Enabled {
+type ServerOptions struct {
+	Context        context.Context
+	Logger         log.ContextLogger
+	Options        option.InboundTLSOptions
+	KTLSCompatible bool
+}
+
+func NewServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
+	return NewServerWithOptions(ServerOptions{
+		Context: ctx,
+		Logger:  logger,
+		Options: options,
+	})
+}
+
+func NewServerWithOptions(options ServerOptions) (ServerConfig, error) {
+	if !options.Options.Enabled {
 		return nil, nil
 	}
-	if options.ECH != nil && options.ECH.Enabled {
-		return NewECHServer(ctx, logger, options)
-	} else if options.Reality != nil && options.Reality.Enabled {
-		return NewRealityServer(ctx, logger, options)
-	} else {
-		return NewSTDServer(ctx, logger, options)
+	if !options.KTLSCompatible {
+		if options.Options.KernelTx {
+			options.Logger.Warn("enabling kTLS TX in current scenarios will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_tx")
+		}
 	}
+	if options.Options.KernelRx {
+		options.Logger.Warn("enabling kTLS RX will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_rx")
+	}
+	if options.Options.Reality != nil && options.Options.Reality.Enabled {
+		return NewRealityServer(options.Context, options.Logger, options.Options)
+	}
+	return NewSTDServer(options.Context, options.Logger, options.Options)
 }
 
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {

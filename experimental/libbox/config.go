@@ -3,24 +3,41 @@ package libbox
 import (
 	"bytes"
 	"context"
-	"net/netip"
 	"os"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/process"
-	"github.com/sagernet/sing-box/experimental/libbox/platform"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
-func parseConfig(configContent string) (option.Options, error) {
-	options, err := json.UnmarshalExtended[option.Options]([]byte(configContent))
+func BaseContext(platformInterface PlatformInterface) context.Context {
+	dnsRegistry := include.DNSTransportRegistry()
+	if platformInterface != nil {
+		if localTransport := platformInterface.LocalDNSTransport(); localTransport != nil {
+			dns.RegisterTransport[option.LocalDNSServerOptions](dnsRegistry, C.DNSTypeLocal, func(ctx context.Context, logger log.ContextLogger, tag string, options option.LocalDNSServerOptions) (adapter.DNSTransport, error) {
+				return newPlatformTransport(localTransport, tag, options), nil
+			})
+		}
+	}
+	ctx := context.Background()
+	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
+	return box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), dnsRegistry, include.ServiceRegistry())
+}
+
+func parseConfig(ctx context.Context, configContent string) (option.Options, error) {
+	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(configContent))
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
@@ -28,16 +45,17 @@ func parseConfig(configContent string) (option.Options, error) {
 }
 
 func CheckConfig(configContent string) error {
-	options, err := parseConfig(configContent)
+	ctx := BaseContext(nil)
+	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	ctx = service.ContextWith[adapter.PlatformInterface](ctx, (*platformInterfaceStub)(nil))
 	instance, err := box.New(box.Options{
-		Context:           ctx,
-		Options:           options,
-		PlatformInterface: (*platformInterfaceStub)(nil),
+		Context: ctx,
+		Options: options,
 	})
 	if err == nil {
 		instance.Close()
@@ -47,7 +65,7 @@ func CheckConfig(configContent string) error {
 
 type platformInterfaceStub struct{}
 
-func (s *platformInterfaceStub) Initialize(ctx context.Context, router adapter.Router) error {
+func (s *platformInterfaceStub) Initialize(networkManager adapter.NetworkManager) error {
 	return nil
 }
 
@@ -59,7 +77,11 @@ func (s *platformInterfaceStub) AutoDetectInterfaceControl(fd int) error {
 	return nil
 }
 
-func (s *platformInterfaceStub) OpenTun(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (s *platformInterfaceStub) UsePlatformInterface() bool {
+	return false
+}
+
+func (s *platformInterfaceStub) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
 	return nil, os.ErrInvalid
 }
 
@@ -71,11 +93,11 @@ func (s *platformInterfaceStub) CreateDefaultInterfaceMonitor(logger logger.Logg
 	return (*interfaceMonitorStub)(nil)
 }
 
-func (s *platformInterfaceStub) UsePlatformInterfaceGetter() bool {
-	return true
+func (s *platformInterfaceStub) UsePlatformNetworkInterfaces() bool {
+	return false
 }
 
-func (s *platformInterfaceStub) Interfaces() ([]control.Interface, error) {
+func (s *platformInterfaceStub) NetworkInterfaces() ([]adapter.NetworkInterface, error) {
 	return nil, os.ErrInvalid
 }
 
@@ -83,19 +105,51 @@ func (s *platformInterfaceStub) UnderNetworkExtension() bool {
 	return false
 }
 
-func (s *platformInterfaceStub) IncludeAllNetworks() bool {
+func (s *platformInterfaceStub) NetworkExtensionIncludeAllNetworks() bool {
 	return false
 }
 
 func (s *platformInterfaceStub) ClearDNSCache() {
 }
 
+func (s *platformInterfaceStub) RequestPermissionForWIFIState() error {
+	return nil
+}
+
+func (s *platformInterfaceStub) UsePlatformWIFIMonitor() bool {
+	return false
+}
+
 func (s *platformInterfaceStub) ReadWIFIState() adapter.WIFIState {
 	return adapter.WIFIState{}
 }
 
-func (s *platformInterfaceStub) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*process.Info, error) {
+func (s *platformInterfaceStub) SystemCertificates() []string {
+	return nil
+}
+
+func (s *platformInterfaceStub) UsePlatformConnectionOwnerFinder() bool {
+	return false
+}
+
+func (s *platformInterfaceStub) FindConnectionOwner(request *adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
 	return nil, os.ErrInvalid
+}
+
+func (s *platformInterfaceStub) UsePlatformNotification() bool {
+	return false
+}
+
+func (s *platformInterfaceStub) SendNotification(notification *adapter.Notification) error {
+	return nil
+}
+
+func (s *platformInterfaceStub) UsePlatformLocalDNSTransport() bool {
+	return false
+}
+
+func (s *platformInterfaceStub) LocalDNSTransport() dns.TransportConstructorFunc[option.LocalDNSServerOptions] {
+	return nil
 }
 
 type interfaceMonitorStub struct{}
@@ -108,16 +162,8 @@ func (s *interfaceMonitorStub) Close() error {
 	return os.ErrInvalid
 }
 
-func (s *interfaceMonitorStub) DefaultInterfaceName(destination netip.Addr) string {
-	return ""
-}
-
-func (s *interfaceMonitorStub) DefaultInterfaceIndex(destination netip.Addr) int {
-	return -1
-}
-
-func (s *interfaceMonitorStub) DefaultInterface(destination netip.Addr) (string, int) {
-	return "", -1
+func (s *interfaceMonitorStub) DefaultInterface() *control.Interface {
+	return nil
 }
 
 func (s *interfaceMonitorStub) OverrideAndroidVPN() bool {
@@ -135,12 +181,15 @@ func (s *interfaceMonitorStub) RegisterCallback(callback tun.DefaultInterfaceUpd
 func (s *interfaceMonitorStub) UnregisterCallback(element *list.Element[tun.DefaultInterfaceUpdateCallback]) {
 }
 
-func (s *platformInterfaceStub) SendNotification(notification *platform.Notification) error {
-	return nil
+func (s *interfaceMonitorStub) RegisterMyInterface(interfaceName string) {
+}
+
+func (s *interfaceMonitorStub) MyInterface() string {
+	return ""
 }
 
 func FormatConfig(configContent string) (*StringBox, error) {
-	options, err := parseConfig(configContent)
+	options, err := parseConfig(BaseContext(nil), configContent)
 	if err != nil {
 		return nil, err
 	}

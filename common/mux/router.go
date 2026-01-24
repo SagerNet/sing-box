@@ -15,11 +15,11 @@ import (
 )
 
 type Router struct {
-	router  adapter.ConnectionRouter
+	router  adapter.ConnectionRouterEx
 	service *mux.Service
 }
 
-func NewRouterWithOptions(router adapter.ConnectionRouter, logger logger.ContextLogger, options option.InboundMultiplexOptions) (adapter.ConnectionRouter, error) {
+func NewRouterWithOptions(router adapter.ConnectionRouterEx, logger logger.ContextLogger, options option.InboundMultiplexOptions) (adapter.ConnectionRouterEx, error) {
 	if !options.Enabled {
 		return router, nil
 	}
@@ -41,10 +41,10 @@ func NewRouterWithOptions(router adapter.ConnectionRouter, logger logger.Context
 		NewStreamContext: func(ctx context.Context, conn net.Conn) context.Context {
 			return log.ContextWithNewID(ctx)
 		},
-		Logger:  logger,
-		Handler: adapter.NewRouteContextHandler(router, logger),
-		Padding: options.Padding,
-		Brutal:  brutalOptions,
+		Logger:    logger,
+		HandlerEx: adapter.NewRouteContextHandlerEx(router),
+		Padding:   options.Padding,
+		Brutal:    brutalOptions,
 	})
 	if err != nil {
 		return nil, err
@@ -52,14 +52,29 @@ func NewRouterWithOptions(router adapter.ConnectionRouter, logger logger.Context
 	return &Router{router, service}, nil
 }
 
+// Deprecated: Use RouteConnectionEx instead.
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	if metadata.Destination == mux.Destination {
+		// TODO: check if WithContext is necessary
 		return r.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, adapter.UpstreamMetadata(metadata))
 	} else {
 		return r.router.RouteConnection(ctx, conn, metadata)
 	}
 }
 
+// Deprecated: Use RoutePacketConnectionEx instead.
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return r.router.RoutePacketConnection(ctx, conn, metadata)
+}
+
+func (r *Router) RouteConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	if metadata.Destination == mux.Destination {
+		r.service.NewConnectionEx(adapter.WithContext(ctx, &metadata), conn, metadata.Source, metadata.Destination, onClose)
+		return
+	}
+	r.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (r *Router) RoutePacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	r.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }

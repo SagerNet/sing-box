@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/debug"
@@ -28,6 +29,12 @@ func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
 }
 
+var globalCtx context.Context
+
+func init() {
+	globalCtx = include.Context(context.Background())
+}
+
 func startInstance(t *testing.T, options option.Options) *box.Box {
 	if debug.Enabled {
 		options.Log = &option.LogOptions{
@@ -38,8 +45,7 @@ func startInstance(t *testing.T, options option.Options) *box.Box {
 			Level: "warning",
 		}
 	}
-	// ctx := context.Background()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(globalCtx)
 	var instance *box.Box
 	var err error
 	for retry := 0; retry < 3; retry++ {
@@ -82,8 +88,8 @@ func testSuit(t *testing.T, clientPort uint16, testPort uint16) {
 func testQUIC(t *testing.T, clientPort uint16) {
 	dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", clientPort), socks.Version5, "", "")
 	client := &http.Client{
-		Transport: &http3.RoundTripper{
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+		Transport: &http3.Transport{
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 				destination := M.ParseSocksaddr(addr)
 				udpConn, err := dialer.DialContext(ctx, N.NetworkUDP, destination)
 				if err != nil {

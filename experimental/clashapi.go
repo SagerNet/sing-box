@@ -12,7 +12,7 @@ import (
 	"github.com/sagernet/sing/common"
 )
 
-type ClashServerConstructor = func(ctx context.Context, router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error)
+type ClashServerConstructor = func(ctx context.Context, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error)
 
 var clashServerConstructor ClashServerConstructor
 
@@ -20,11 +20,11 @@ func RegisterClashServerConstructor(constructor ClashServerConstructor) {
 	clashServerConstructor = constructor
 }
 
-func NewClashServer(ctx context.Context, router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
+func NewClashServer(ctx context.Context, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 	if clashServerConstructor == nil {
 		return nil, os.ErrInvalid
 	}
-	return clashServerConstructor(ctx, router, logFactory, options)
+	return clashServerConstructor(ctx, logFactory, options)
 }
 
 func CalculateClashModeList(options option.Options) []string {

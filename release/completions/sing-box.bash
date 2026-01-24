@@ -1179,6 +1179,36 @@ _sing-box_rule-set_match()
     noun_aliases=()
 }
 
+_sing-box_rule-set_merge()
+{
+    last_command="sing-box_rule-set_merge"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    two_word_flags+=("-c")
+    flags+=("--config-directory=")
+    two_word_flags+=("--config-directory")
+    two_word_flags+=("-C")
+    flags+=("--directory=")
+    two_word_flags+=("--directory")
+    two_word_flags+=("-D")
+    flags+=("--disable-color")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
 _sing-box_rule-set_upgrade()
 {
     last_command="sing-box_rule-set_upgrade"
@@ -1225,6 +1255,7 @@ _sing-box_rule-set()
     commands+=("decompile")
     commands+=("format")
     commands+=("match")
+    commands+=("merge")
     commands+=("upgrade")
 
     flags=()

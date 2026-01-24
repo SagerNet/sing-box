@@ -1,10 +1,14 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
 
-!!! quote "sing-box 1.9.0 中的更改"
+!!! quote "sing-box 1.12.0 中的更改"
 
-    :material-plus: [client_subnet](#client_subnet)
+    :material-decagram: [servers](#servers)
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [cache_capacity](#cache_capacity)
 
 # DNS
 
@@ -20,6 +24,7 @@ icon: material/new-box
     "disable_cache": false,
     "disable_expire": false,
     "independent_cache": false,
+    "cache_capacity": 0,
     "reverse_mapping": false,
     "client_subnet": "",
     "fakeip": {}
@@ -47,8 +52,6 @@ icon: material/new-box
 
 可选值: `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
-如果设置了 `server.strategy`，则不生效。
-
 #### disable_cache
 
 禁用 DNS 缓存。
@@ -60,6 +63,14 @@ icon: material/new-box
 #### independent_cache
 
 使每个 DNS 服务器的缓存独立，以满足特殊目的。如果启用，将轻微降低性能。
+
+#### cache_capacity
+
+!!! question "自 sing-box 1.11.0 起"
+
+LRU 缓存容量。
+
+小于 1024 的值将被忽略。
 
 #### reverse_mapping
 

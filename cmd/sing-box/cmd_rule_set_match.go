@@ -2,15 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/srs"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/route/rule"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -55,6 +57,14 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	if err != nil {
 		return E.Cause(err, "read rule-set")
 	}
+	if flagRuleSetMatchFormat == "" {
+		switch filepath.Ext(sourcePath) {
+		case ".json":
+			flagRuleSetMatchFormat = C.RuleSetFormatSource
+		case ".srs":
+			flagRuleSetMatchFormat = C.RuleSetFormatBinary
+		}
+	}
 	var ruleSet option.PlainRuleSetCompat
 	switch flagRuleSetMatchFormat {
 	case C.RuleSetFormatSource:
@@ -83,7 +93,7 @@ func ruleSetMatch(sourcePath string, domain string) error {
 	}
 	for i, ruleOptions := range plainRuleSet.Rules {
 		var currentRule adapter.HeadlessRule
-		currentRule, err = route.NewHeadlessRule(nil, ruleOptions)
+		currentRule, err = rule.NewHeadlessRule(context.Background(), ruleOptions)
 		if err != nil {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}

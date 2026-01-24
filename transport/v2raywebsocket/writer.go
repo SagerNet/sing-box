@@ -63,10 +63,10 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 	if !w.isServer {
 		maskKey := rand.Uint32()
 		binary.BigEndian.PutUint32(header[1+payloadBitLength:], maskKey)
-		ws.Cipher(data, *(*[4]byte)(header[1+payloadBitLength:]), 0)
+		ws.Cipher(data, [4]byte(header[1+payloadBitLength:]), 0)
 	}
 
-	return w.writer.WriteBuffer(buffer)
+	return wrapWsError(w.writer.WriteBuffer(buffer))
 }
 
 func (w *Writer) FrontHeadroom() int {

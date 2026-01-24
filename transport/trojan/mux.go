@@ -4,16 +4,19 @@ import (
 	std_bufio "bufio"
 	"context"
 	"net"
+	"os"
 
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/smux"
 )
 
-func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler) error {
+func HandleMuxConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, handler Handler, logger logger.ContextLogger, onClose N.CloseHandlerFunc) error {
 	session, err := smux.Server(conn, smuxConfig())
 	if err != nil {
 		return err
@@ -26,29 +29,32 @@ func HandleMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata
 			if err != nil {
 				return err
 			}
-			go newMuxConnection(ctx, stream, metadata, handler)
+			go newMuxConnection(ctx, stream, source, handler, logger)
 		}
 	})
 	group.Cleanup(func() {
 		session.Close()
+		if onClose != nil {
+			onClose(os.ErrClosed)
+		}
 	})
 	return group.Run(ctx)
 }
 
-func newMuxConnection(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler) {
-	err := newMuxConnection0(ctx, conn, metadata, handler)
+func newMuxConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, handler Handler, logger logger.ContextLogger) {
+	err := newMuxConnection0(ctx, conn, source, handler)
 	if err != nil {
-		handler.NewError(ctx, E.Cause(err, "process trojan-go multiplex connection"))
+		logger.ErrorContext(ctx, E.Cause(err, "process trojan-go multiplex connection"))
 	}
 }
 
-func newMuxConnection0(ctx context.Context, conn net.Conn, metadata M.Metadata, handler Handler) error {
+func newMuxConnection0(ctx context.Context, conn net.Conn, source M.Socksaddr, handler Handler) error {
 	reader := std_bufio.NewReader(conn)
 	command, err := reader.ReadByte()
 	if err != nil {
 		return E.Cause(err, "read command")
 	}
-	metadata.Destination, err = M.SocksaddrSerializer.ReadAddrPort(reader)
+	destination, err := M.SocksaddrSerializer.ReadAddrPort(reader)
 	if err != nil {
 		return E.Cause(err, "read destination")
 	}
@@ -62,12 +68,13 @@ func newMuxConnection0(ctx context.Context, conn net.Conn, metadata M.Metadata, 
 	}
 	switch command {
 	case CommandTCP:
-		return handler.NewConnection(ctx, conn, metadata)
+		handler.NewConnectionEx(ctx, conn, source, destination, nil)
 	case CommandUDP:
-		return handler.NewPacketConnection(ctx, &PacketConn{Conn: conn}, metadata)
+		handler.NewPacketConnectionEx(ctx, &PacketConn{Conn: conn}, source, destination, nil)
 	default:
 		return E.New("unknown command ", command)
 	}
+	return nil
 }
 
 func smuxConfig() *smux.Config {

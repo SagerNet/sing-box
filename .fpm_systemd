@@ -1,0 +1,25 @@
+-s dir
+--name sing-box
+--category net
+--license GPL-3.0-or-later
+--description "The universal proxy platform."
+--url "https://sing-box.sagernet.org/"
+--maintainer "nekohasekai <contact-git@sekai.icu>"
+--deb-field "Bug: https://github.com/SagerNet/sing-box/issues"
+--no-deb-generate-changes
+--config-files /etc/sing-box/config.json
+--after-install release/config/sing-box.postinst
+
+release/config/config.json=/etc/sing-box/config.json
+
+release/config/sing-box.service=/usr/lib/systemd/system/sing-box.service
+release/config/sing-box@.service=/usr/lib/systemd/system/sing-box@.service
+release/config/sing-box.sysusers=/usr/lib/sysusers.d/sing-box.conf
+release/config/sing-box.rules=usr/share/polkit-1/rules.d/sing-box.rules
+release/config/sing-box-split-dns.xml=/usr/share/dbus-1/system.d/sing-box-split-dns.conf
+
+release/completions/sing-box.bash=/usr/share/bash-completion/completions/sing-box.bash
+release/completions/sing-box.fish=/usr/share/fish/vendor_completions.d/sing-box.fish
+release/completions/sing-box.zsh=/usr/share/zsh/site-functions/_sing-box
+
+LICENSE=/usr/share/licenses/sing-box/LICENSE

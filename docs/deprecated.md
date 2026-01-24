@@ -4,6 +4,69 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.12.0
+
+#### Legacy DNS server formats
+
+DNS servers are refactored,
+check [Migration](../migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+#### `outbound` DNS rule item
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by dial fields,
+check [Migration](../migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+#### Legacy ECH fields
+
+ECH support has been migrated to use stdlib in sing-box 1.12.0,
+which does not come with support for PQ signature schemes,
+so `pq_signature_schemes_enabled` has been deprecated and no longer works.
+
+Also, `dynamic_record_sizing_disabled` has nothing to do with ECH,
+was added by mistake, has been deprecated and no longer works.
+
+These fields will be removed in sing-box 1.13.0.
+
+## 1.11.0
+
+#### Legacy special outbounds
+
+Legacy special outbounds (`block` / `dns`) are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-legacy-special-outbounds-to-rule-actions).
+
+Old fields will be removed in sing-box 1.13.0.
+
+#### Legacy inbound fields
+
+Legacy inbound fields （`inbound.<sniff/domain_strategy/...>` are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-legacy-inbound-fields-to-rule-actions).
+
+Old fields will be removed in sing-box 1.13.0.
+
+#### Destination override fields in direct outbound
+
+Destination override fields (`override_address` / `override_port`) in direct outbound are deprecated
+and can be replaced by rule actions,
+check [Migration](../migration/#migrate-destination-override-fields-to-route-options).
+
+#### WireGuard outbound
+
+WireGuard outbound is deprecated and can be replaced by endpoint,
+check [Migration](../migration/#migrate-wireguard-outbound-to-endpoint).
+
+Old outbound will be removed in sing-box 1.13.0.
+
+#### GSO option in TUN
+
+GSO has no advantages for transparent proxy scenarios, is deprecated and no longer works in TUN.
+
+Old fields will be removed in sing-box 1.13.0.
+
 ## 1.10.0
 
 #### TUN address fields are merged
@@ -12,7 +75,7 @@ icon: material/delete-alert
 `inet4_route_address` and `inet6_route_address` are merged into `route_address`,
 `inet4_route_exclude_address` and `inet6_route_exclude_address` are merged into `route_exclude_address`.
 
-Old fields are deprecated and will be removed in sing-box 1.11.0.
+Old fields will be removed in sing-box 1.12.0.
 
 #### Match source rule items are renamed
 
@@ -32,7 +95,7 @@ check [Migration](/migration/#migrate-cache-file-from-clash-api-to-independent-o
 
 #### GeoIP
 
-GeoIP is deprecated and may be removed in the future.
+GeoIP is deprecated and will be removed in sing-box 1.12.0.
 
 The maxmind GeoIP National Database, as an IP classification database,
 is not entirely suitable for traffic bypassing,
@@ -43,7 +106,7 @@ check [Migration](/migration/#migrate-geoip-to-rule-sets).
 
 #### Geosite
 
-Geosite is deprecated and may be removed in the future.
+Geosite is deprecated and will be removed in sing-box 1.12.0.
 
 Geosite, the `domain-list-community` project maintained by V2Ray as an early traffic bypassing solution,
 suffers from a number of problems, including lack of maintenance, inaccurate rules, and difficult management.

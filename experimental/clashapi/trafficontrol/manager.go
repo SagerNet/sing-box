@@ -3,17 +3,37 @@ package trafficontrol
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/common/compatible"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/clashapi/compatible"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/common/x/list"
 
 	"github.com/gofrs/uuid/v5"
 )
+
+type ConnectionEventType int
+
+const (
+	ConnectionEventNew ConnectionEventType = iota
+	ConnectionEventUpdate
+	ConnectionEventClosed
+)
+
+type ConnectionEvent struct {
+	Type          ConnectionEventType
+	ID            uuid.UUID
+	Metadata      *TrackerMetadata
+	UplinkDelta   int64
+	DownlinkDelta int64
+	ClosedAt      time.Time
+}
+
+const closedConnectionsLimit = 1000
 
 type Manager struct {
 	uploadTotal   atomic.Int64
@@ -22,29 +42,52 @@ type Manager struct {
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
 	closedConnections       list.List[TrackerMetadata]
-	// process     *process.Process
-	memory uint64
+	memory                  uint64
+
+	eventSubscriber *observable.Subscriber[ConnectionEvent]
 }
 
 func NewManager() *Manager {
 	return &Manager{}
 }
 
+func (m *Manager) SetEventHook(subscriber *observable.Subscriber[ConnectionEvent]) {
+	m.eventSubscriber = subscriber
+}
+
 func (m *Manager) Join(c Tracker) {
-	m.connections.Store(c.Metadata().ID, c)
+	metadata := c.Metadata()
+	m.connections.Store(metadata.ID, c)
+	if m.eventSubscriber != nil {
+		m.eventSubscriber.Emit(ConnectionEvent{
+			Type:     ConnectionEventNew,
+			ID:       metadata.ID,
+			Metadata: metadata,
+		})
+	}
 }
 
 func (m *Manager) Leave(c Tracker) {
 	metadata := c.Metadata()
 	_, loaded := m.connections.LoadAndDelete(metadata.ID)
 	if loaded {
-		metadata.ClosedAt = time.Now()
+		closedAt := time.Now()
+		metadata.ClosedAt = closedAt
+		metadataCopy := *metadata
 		m.closedConnectionsAccess.Lock()
-		defer m.closedConnectionsAccess.Unlock()
-		if m.closedConnections.Len() >= 1000 {
+		if m.closedConnections.Len() >= closedConnectionsLimit {
 			m.closedConnections.PopFront()
 		}
-		m.closedConnections.PushBack(metadata)
+		m.closedConnections.PushBack(metadataCopy)
+		m.closedConnectionsAccess.Unlock()
+		if m.eventSubscriber != nil {
+			m.eventSubscriber.Emit(ConnectionEvent{
+				Type:     ConnectionEventClosed,
+				ID:       metadata.ID,
+				Metadata: &metadataCopy,
+				ClosedAt: closedAt,
+			})
+		}
 	}
 }
 
@@ -64,8 +107,8 @@ func (m *Manager) ConnectionsLen() int {
 	return m.connections.Len()
 }
 
-func (m *Manager) Connections() []TrackerMetadata {
-	var connections []TrackerMetadata
+func (m *Manager) Connections() []*TrackerMetadata {
+	var connections []*TrackerMetadata
 	m.connections.Range(func(_ uuid.UUID, value Tracker) bool {
 		connections = append(connections, value.Metadata())
 		return true
@@ -73,10 +116,18 @@ func (m *Manager) Connections() []TrackerMetadata {
 	return connections
 }
 
-func (m *Manager) ClosedConnections() []TrackerMetadata {
+func (m *Manager) ClosedConnections() []*TrackerMetadata {
 	m.closedConnectionsAccess.Lock()
-	defer m.closedConnectionsAccess.Unlock()
-	return m.closedConnections.Array()
+	values := m.closedConnections.Array()
+	m.closedConnectionsAccess.Unlock()
+	if len(values) == 0 {
+		return nil
+	}
+	connections := make([]*TrackerMetadata, len(values))
+	for i := range values {
+		connections[i] = &values[i]
+	}
+	return connections
 }
 
 func (m *Manager) Connection(id uuid.UUID) Tracker {
@@ -124,7 +175,7 @@ func (s *Snapshot) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"downloadTotal": s.Download,
 		"uploadTotal":   s.Upload,
-		"connections":   common.Map(s.Connections, func(t Tracker) TrackerMetadata { return t.Metadata() }),
+		"connections":   common.Map(s.Connections, func(t Tracker) *TrackerMetadata { return t.Metadata() }),
 		"memory":        s.Memory,
 	})
 }

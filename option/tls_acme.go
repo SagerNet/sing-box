@@ -4,10 +4,12 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 type InboundACMEOptions struct {
-	Domain                  Listable[string]            `json:"domain,omitempty"`
+	Domain                  badoption.Listable[string]  `json:"domain,omitempty"`
 	DataDirectory           string                      `json:"data_directory,omitempty"`
 	DefaultServerName       string                      `json:"default_server_name,omitempty"`
 	Email                   string                      `json:"email,omitempty"`
@@ -29,6 +31,7 @@ type _ACMEDNS01ChallengeOptions struct {
 	Provider          string                     `json:"provider,omitempty"`
 	AliDNSOptions     ACMEDNS01AliDNSOptions     `json:"-"`
 	CloudflareOptions ACMEDNS01CloudflareOptions `json:"-"`
+	ACMEDNSOptions    ACMEDNS01ACMEDNSOptions    `json:"-"`
 }
 
 type ACMEDNS01ChallengeOptions _ACMEDNS01ChallengeOptions
@@ -40,12 +43,14 @@ func (o ACMEDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 		v = o.AliDNSOptions
 	case C.DNSProviderCloudflare:
 		v = o.CloudflareOptions
+	case C.DNSProviderACMEDNS:
+		v = o.ACMEDNSOptions
 	case "":
 		return nil, E.New("missing provider type")
 	default:
 		return nil, E.New("unknown provider type: " + o.Provider)
 	}
-	return MarshallObjects((_ACMEDNS01ChallengeOptions)(o), v)
+	return badjson.MarshallObjects((_ACMEDNS01ChallengeOptions)(o), v)
 }
 
 func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
@@ -59,10 +64,12 @@ func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.AliDNSOptions
 	case C.DNSProviderCloudflare:
 		v = &o.CloudflareOptions
+	case C.DNSProviderACMEDNS:
+		v = &o.ACMEDNSOptions
 	default:
 		return E.New("unknown provider type: " + o.Provider)
 	}
-	err = UnmarshallExcluded(bytes, (*_ACMEDNS01ChallengeOptions)(o), v)
+	err = badjson.UnmarshallExcluded(bytes, (*_ACMEDNS01ChallengeOptions)(o), v)
 	if err != nil {
 		return err
 	}
@@ -73,8 +80,17 @@ type ACMEDNS01AliDNSOptions struct {
 	AccessKeyID     string `json:"access_key_id,omitempty"`
 	AccessKeySecret string `json:"access_key_secret,omitempty"`
 	RegionID        string `json:"region_id,omitempty"`
+	SecurityToken   string `json:"security_token,omitempty"`
 }
 
 type ACMEDNS01CloudflareOptions struct {
-	APIToken string `json:"api_token,omitempty"`
+	APIToken  string `json:"api_token,omitempty"`
+	ZoneToken string `json:"zone_token,omitempty"`
+}
+
+type ACMEDNS01ACMEDNSOptions struct {
+	Username  string `json:"username,omitempty"`
+	Password  string `json:"password,omitempty"`
+	Subdomain string `json:"subdomain,omitempty"`
+	ServerURL string `json:"server_url,omitempty"`
 }

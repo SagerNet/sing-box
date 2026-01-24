@@ -1,6 +1,28 @@
 ---
-icon: material/new-box
+icon: material/alert-decagram
 ---
+
+!!! quote "sing-box 1.13.0 中的更改"
+
+    :material-plus: [interface_address](#interface_address)  
+    :material-plus: [network_interface_address](#network_interface_address)  
+    :material-plus: [default_interface_address](#default_interface_address)
+
+!!! quote "sing-box 1.12.0 中的更改"
+
+    :material-plus: [ip_accept_any](#ip_accept_any)  
+    :material-delete-clock: [outbound](#outbound)
+
+!!! quote "sing-box 1.11.0 中的更改"
+
+    :material-plus: [action](#action)  
+    :material-alert: [server](#server)  
+    :material-alert: [disable_cache](#disable_cache)  
+    :material-alert: [rewrite_ttl](#rewrite_ttl)  
+    :material-alert: [client_subnet](#client_subnet)  
+    :material-plus: [network_type](#network_type)  
+    :material-plus: [network_is_expensive](#network_is_expensive)  
+    :material-plus: [network_is_constrained](#network_is_constrained)
 
 !!! quote "sing-box 1.10.0 中的更改"
 
@@ -14,7 +36,7 @@ icon: material/new-box
     :material-plus: [geoip](#geoip)  
     :material-plus: [ip_cidr](#ip_cidr)  
     :material-plus: [ip_is_private](#ip_is_private)  
-    :material-plus: [client_subnet](#client_subnet)
+    :material-plus: [client_subnet](#client_subnet)  
     :material-plus: [rule_set_ipcidr_match_source](#rule_set_ipcidr_match_source)
 
 !!! quote "sing-box 1.8.0 中的更改"
@@ -62,15 +84,6 @@ icon: material/new-box
         "domain_regex": [
           "^stun\\..+"
         ],
-        "geosite": [
-          "cn"
-        ],
-        "source_geoip": [
-          "private"
-        ],
-        "geoip": [
-          "cn"
-        ],
         "source_ip_cidr": [
           "10.0.0.0/24",
           "192.168.0.1"
@@ -81,6 +94,7 @@ icon: material/new-box
           "192.168.0.1"
         ],
         "ip_is_private": false,
+        "ip_accept_any": false,
         "source_port": [
           12345
         ],
@@ -117,6 +131,24 @@ icon: material/new-box
           1000
         ],
         "clash_mode": "direct",
+        "network_type": [
+          "wifi"
+        ],
+        "network_is_expensive": false,
+        "network_is_constrained": false,
+        "interface_address": {
+          "en0": [
+            "2000::/3"
+          ]
+        },
+        "network_interface_address": {
+          "wifi": [
+            "2000::/3"
+          ]
+        },
+        "default_interface_address": [
+          "2000::/3"
+        ],
         "wifi_ssid": [
           "My WIFI"
         ],
@@ -127,25 +159,33 @@ icon: material/new-box
           "geoip-cn",
           "geosite-cn"
         ],
-        // 已弃用
-        "rule_set_ipcidr_match_source": false,
         "rule_set_ip_cidr_match_source": false,
         "rule_set_ip_cidr_accept_empty": false,
         "invert": false,
         "outbound": [
           "direct"
         ],
+        "action": "route",
         "server": "local",
-        "disable_cache": false,
-        "client_subnet": "127.0.0.1/24"
+
+        // 已弃用
+        "rule_set_ipcidr_match_source": false,
+        "geosite": [
+          "cn"
+        ],
+        "source_geoip": [
+          "private"
+        ],
+        "geoip": [
+          "cn"
+        ]
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [],
-        "server": "local",
-        "disable_cache": false,
-        "client_subnet": "127.0.0.1/24"
+        "action": "route",
+        "server": "local"
       }
     ]
   }
@@ -214,17 +254,17 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### geosite
 
-!!! failure "已在 sing-box 1.8.0 废弃"
+!!! failure "已在 sing-box 1.12.0 中被移除"
 
-    Geosite 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geosite)。
+    GeoSite 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geosite)。
 
 匹配 Geosite。
 
 #### source_geoip
 
-!!! failure "已在 sing-box 1.8.0 废弃"
+!!! failure "已在 sing-box 1.12.0 中被移除"
 
-    GeoIP 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geoip)。
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
 
 匹配源 GeoIP。
 
@@ -304,11 +344,74 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 匹配 Clash 模式。
 
-#### wifi_ssid
+#### network_type
+
+!!! question "自 sing-box 1.11.0 起"
 
 !!! quote ""
 
     仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配网络类型。
+
+Available values: `wifi`, `cellular`, `ethernet` and `other`.
+
+#### network_is_expensive
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配如果网络被视为计费 (在 Android) 或被视为昂贵，
+像蜂窝网络或个人热点 (在 Apple 平台)。
+
+#### network_is_constrained
+
+!!! question "自 sing-box 1.11.0 起"
+
+!!! quote ""
+
+    仅在 Apple 平台图形客户端中支持。
+
+匹配如果网络在低数据模式下。
+
+#### interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配接口地址。
+
+#### network_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端中支持。
+
+匹配网络接口（可用值同 `network_type`）地址。
+
+#### default_interface_address
+
+!!! question "自 sing-box 1.13.0 起"
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS.
+
+匹配默认接口地址。
+
+#### wifi_ssid
+
+!!! quote ""
+
+    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
 
 匹配 WiFi SSID。
 
@@ -316,7 +419,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! quote ""
 
-    仅在 Android 与 Apple 平台图形客户端中支持。
+    仅在 Android 与 Apple 平台图形客户端和 Linux 中支持。
 
 匹配 WiFi BSSID。
 
@@ -332,7 +435,7 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 !!! failure "已在 sing-box 1.10.0 废弃"
 
-    `rule_set_ipcidr_match_source` 已重命名为 `rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 移除。
+    `rule_set_ipcidr_match_source` 已重命名为 `rule_set_ip_cidr_match_source` 且将在 sing-box 1.11.0 中被移除。
 
 使规则集中的 `ip_cidr` 规则匹配源 IP。
 
@@ -348,33 +451,43 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### outbound
 
+!!! failure "已在 sing-box 1.12.0 废弃"
+
+    `outbound` 规则项已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver)。
+
 匹配出站。
 
 `any` 可作为值用于匹配任意出站。
 
-#### server
+#### action
 
 ==必填==
 
-目标 DNS 服务器的标签。
+参阅 [规则动作](../rule_action/)。
+
+#### server
+
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### disable_cache
 
-在此查询中禁用缓存。
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### rewrite_ttl
 
-重写 DNS 回应中的 TTL。
+!!! failure "已在 sing-box 1.11.0 废弃"
+
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 #### client_subnet
 
-!!! question "自 sing-box 1.9.0 起"
+!!! failure "已在 sing-box 1.11.0 废弃"
 
-默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
-
-如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
-
-将覆盖 `dns.client_subnet` 与 `servers.[].client_subnet`。
+    已移动到 [DNS 规则动作](../rule_action#route).
 
 ### 地址筛选字段
 
@@ -390,7 +503,10 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### geoip
 
-!!! question "自 sing-box 1.9.0 起"
+!!! failure "已在 sing-box 1.12.0 中被移除"
+
+    GeoIP 已在 sing-box 1.8.0 废弃且在 sing-box 1.12.0 中被移除，参阅 [迁移指南](/zh/migration/#geoip)。
+
 
 与查询响应匹配 GeoIP。
 
@@ -406,6 +522,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 与查询响应匹配非公开 IP。
 
+#### ip_accept_any
+
+!!! question "自 sing-box 1.12.0 起"
+
+匹配任意 IP。
+
 #### rule_set_ip_cidr_accept_empty
 
 !!! question "自 sing-box 1.10.0 起"
@@ -420,8 +542,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 
 #### mode
 
+==必填==
+
 `and` 或 `or`
 
 #### rules
+
+==必填==
 
 包括的规则。

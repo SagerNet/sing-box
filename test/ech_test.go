@@ -8,30 +8,31 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/gofrs/uuid/v5"
 )
 
 func TestECH(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeTrojan,
-				TrojanOptions: option.TrojanInboundOptions{
+				Options: &option.TrojanInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.TrojanUser{
@@ -62,7 +63,7 @@ func TestECH(t *testing.T) {
 			{
 				Type: C.TypeTrojan,
 				Tag:  "trojan-out",
-				TrojanOptions: option.TrojanOutboundOptions{
+				Options: &option.TrojanOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -85,9 +86,18 @@ func TestECH(t *testing.T) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "trojan-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "trojan-out",
+							},
+						},
 					},
 				},
 			},
@@ -98,24 +108,24 @@ func TestECH(t *testing.T) {
 
 func TestECHQUIC(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeTUIC,
-				TUICOptions: option.TUICInboundOptions{
+				Options: &option.TUICInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.TUICUser{{
@@ -143,7 +153,7 @@ func TestECHQUIC(t *testing.T) {
 			{
 				Type: C.TypeTUIC,
 				Tag:  "tuic-out",
-				TUICOptions: option.TUICOutboundOptions{
+				Options: &option.TUICOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -166,9 +176,18 @@ func TestECHQUIC(t *testing.T) {
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "tuic-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "tuic-out",
+							},
+						},
 					},
 				},
 			},
@@ -179,24 +198,24 @@ func TestECHQUIC(t *testing.T) {
 
 func TestECHHysteria2(t *testing.T) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org", false))
+	echConfig, echKey := common.Must2(tls.ECHKeygenDefault("not.example.org"))
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeHysteria2,
-				Hysteria2Options: option.Hysteria2InboundOptions{
+				Options: &option.Hysteria2InboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.Hysteria2User{{
@@ -224,7 +243,7 @@ func TestECHHysteria2(t *testing.T) {
 			{
 				Type: C.TypeHysteria2,
 				Tag:  "hy2-out",
-				Hysteria2Options: option.Hysteria2OutboundOptions{
+				Options: &option.Hysteria2OutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -249,8 +268,16 @@ func TestECHHysteria2(t *testing.T) {
 				{
 					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "hy2-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "hy2-out",
+							},
+						},
 					},
 				},
 			},

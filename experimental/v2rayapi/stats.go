@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
@@ -22,7 +22,7 @@ func init() {
 }
 
 var (
-	_ adapter.V2RayStatsService = (*StatsService)(nil)
+	_ adapter.ConnectionTracker = (*StatsService)(nil)
 	_ StatsServiceServer        = (*StatsService)(nil)
 )
 
@@ -60,7 +60,10 @@ func NewStatsService(options option.V2RayStatsServiceOptions) *StatsService {
 	}
 }
 
-func (s *StatsService) RoutedConnection(inbound string, outbound string, user string, conn net.Conn) net.Conn {
+func (s *StatsService) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
+	inbound := metadata.Inbound
+	user := metadata.User
+	outbound := matchOutbound.Tag()
 	var readCounter []*atomic.Int64
 	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
@@ -86,7 +89,10 @@ func (s *StatsService) RoutedConnection(inbound string, outbound string, user st
 	return bufio.NewInt64CounterConn(conn, readCounter, writeCounter)
 }
 
-func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, user string, conn N.PacketConn) N.PacketConn {
+func (s *StatsService) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) N.PacketConn {
+	inbound := metadata.Inbound
+	user := metadata.User
+	outbound := matchOutbound.Tag()
 	var readCounter []*atomic.Int64
 	var writeCounter []*atomic.Int64
 	countInbound := inbound != "" && s.inbounds[inbound]
@@ -109,7 +115,7 @@ func (s *StatsService) RoutedPacketConnection(inbound string, outbound string, u
 		writeCounter = append(writeCounter, s.loadOrCreateCounter("user>>>"+user+">>>traffic>>>downlink"))
 	}
 	s.access.Unlock()
-	return bufio.NewInt64CounterPacketConn(conn, readCounter, writeCounter)
+	return bufio.NewInt64CounterPacketConn(conn, readCounter, nil, writeCounter, nil)
 }
 
 func (s *StatsService) GetStats(ctx context.Context, request *GetStatsRequest) (*GetStatsResponse, error) {
@@ -186,7 +192,7 @@ func (s *StatsService) GetSysStats(ctx context.Context, request *SysStatsRequest
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 	response := &SysStatsResponse{
-		Uptime:       uint32(time.Now().Sub(s.createdAt).Seconds()),
+		Uptime:       uint32(time.Since(s.createdAt).Seconds()),
 		NumGoroutine: uint32(runtime.NumGoroutine()),
 		Alloc:        rtm.Alloc,
 		TotalAlloc:   rtm.TotalAlloc,

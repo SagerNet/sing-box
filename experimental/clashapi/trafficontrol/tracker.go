@@ -2,11 +2,11 @@ package trafficontrol
 
 import (
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/atomic"
 	"github.com/sagernet/sing/common/bufio"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -45,22 +45,22 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 	if t.Metadata.ProcessInfo != nil {
 		if t.Metadata.ProcessInfo.ProcessPath != "" {
 			processPath = t.Metadata.ProcessInfo.ProcessPath
-		} else if t.Metadata.ProcessInfo.PackageName != "" {
-			processPath = t.Metadata.ProcessInfo.PackageName
+		} else if t.Metadata.ProcessInfo.AndroidPackageName != "" {
+			processPath = t.Metadata.ProcessInfo.AndroidPackageName
 		}
 		if processPath == "" {
 			if t.Metadata.ProcessInfo.UserId != -1 {
 				processPath = F.ToString(t.Metadata.ProcessInfo.UserId)
 			}
-		} else if t.Metadata.ProcessInfo.User != "" {
-			processPath = F.ToString(processPath, " (", t.Metadata.ProcessInfo.User, ")")
+		} else if t.Metadata.ProcessInfo.UserName != "" {
+			processPath = F.ToString(processPath, " (", t.Metadata.ProcessInfo.UserName, ")")
 		} else if t.Metadata.ProcessInfo.UserId != -1 {
 			processPath = F.ToString(processPath, " (", t.Metadata.ProcessInfo.UserId, ")")
 		}
 	}
 	var rule string
 	if t.Rule != nil {
-		rule = F.ToString(t.Rule, " => ", t.Rule.Outbound())
+		rule = F.ToString(t.Rule, " => ", t.Rule.Action())
 	} else {
 		rule = "final"
 	}
@@ -87,8 +87,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 }
 
 type Tracker interface {
-	adapter.Tracker
-	Metadata() TrackerMetadata
+	Metadata() *TrackerMetadata
 	Close() error
 }
 
@@ -98,17 +97,13 @@ type TCPConn struct {
 	manager  *Manager
 }
 
-func (tt *TCPConn) Metadata() TrackerMetadata {
-	return tt.metadata
+func (tt *TCPConn) Metadata() *TrackerMetadata {
+	return &tt.metadata
 }
 
 func (tt *TCPConn) Close() error {
 	tt.manager.Leave(tt)
 	return tt.ExtendedConn.Close()
-}
-
-func (tt *TCPConn) Leave() {
-	tt.manager.Leave(tt)
 }
 
 func (tt *TCPConn) Upstream() any {
@@ -123,7 +118,7 @@ func (tt *TCPConn) WriterReplaceable() bool {
 	return true
 }
 
-func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundContext, router adapter.Router, rule adapter.Rule) *TCPConn {
+func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundContext, outboundManager adapter.OutboundManager, matchRule adapter.Rule, matchOutbound adapter.Outbound) *TCPConn {
 	id, _ := uuid.NewV4()
 	var (
 		chain        []string
@@ -131,19 +126,17 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 		outbound     string
 		outboundType string
 	)
-	if rule == nil {
-		if defaultOutbound, err := router.DefaultOutbound(N.NetworkTCP); err == nil {
-			next = defaultOutbound.Tag()
-		}
+	if matchOutbound != nil {
+		next = matchOutbound.Tag()
 	} else {
-		next = rule.Outbound()
+		next = outboundManager.Default().Tag()
 	}
 	for {
-		chain = append(chain, next)
-		detour, loaded := router.Outbound(next)
+		detour, loaded := outboundManager.Outbound(next)
 		if !loaded {
 			break
 		}
+		chain = append(chain, next)
 		outbound = detour.Tag()
 		outboundType = detour.Type()
 		group, isGroup := detour.(adapter.OutboundGroup)
@@ -169,7 +162,7 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 			Upload:       upload,
 			Download:     download,
 			Chain:        common.Reverse(chain),
-			Rule:         rule,
+			Rule:         matchRule,
 			Outbound:     outbound,
 			OutboundType: outboundType,
 		},
@@ -185,17 +178,13 @@ type UDPConn struct {
 	manager      *Manager
 }
 
-func (ut *UDPConn) Metadata() TrackerMetadata {
-	return ut.metadata
+func (ut *UDPConn) Metadata() *TrackerMetadata {
+	return &ut.metadata
 }
 
 func (ut *UDPConn) Close() error {
 	ut.manager.Leave(ut)
 	return ut.PacketConn.Close()
-}
-
-func (ut *UDPConn) Leave() {
-	ut.manager.Leave(ut)
 }
 
 func (ut *UDPConn) Upstream() any {
@@ -210,7 +199,7 @@ func (ut *UDPConn) WriterReplaceable() bool {
 	return true
 }
 
-func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.InboundContext, router adapter.Router, rule adapter.Rule) *UDPConn {
+func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.InboundContext, outboundManager adapter.OutboundManager, matchRule adapter.Rule, matchOutbound adapter.Outbound) *UDPConn {
 	id, _ := uuid.NewV4()
 	var (
 		chain        []string
@@ -218,19 +207,17 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 		outbound     string
 		outboundType string
 	)
-	if rule == nil {
-		if defaultOutbound, err := router.DefaultOutbound(N.NetworkUDP); err == nil {
-			next = defaultOutbound.Tag()
-		}
+	if matchOutbound != nil {
+		next = matchOutbound.Tag()
 	} else {
-		next = rule.Outbound()
+		next = outboundManager.Default().Tag()
 	}
 	for {
-		chain = append(chain, next)
-		detour, loaded := router.Outbound(next)
+		detour, loaded := outboundManager.Outbound(next)
 		if !loaded {
 			break
 		}
+		chain = append(chain, next)
 		outbound = detour.Tag()
 		outboundType = detour.Type()
 		group, isGroup := detour.(adapter.OutboundGroup)
@@ -256,7 +243,7 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 			Upload:       upload,
 			Download:     download,
 			Chain:        common.Reverse(chain),
-			Rule:         rule,
+			Rule:         matchRule,
 			Outbound:     outbound,
 			OutboundType: outboundType,
 		},

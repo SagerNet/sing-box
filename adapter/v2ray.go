@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -16,8 +15,7 @@ type V2RayServerTransport interface {
 }
 
 type V2RayServerTransportHandler interface {
-	N.TCPConnectionHandler
-	E.Handler
+	N.TCPConnectionHandlerEx
 }
 
 type V2RayClientTransport interface {

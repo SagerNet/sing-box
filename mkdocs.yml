@@ -80,16 +80,32 @@ nav:
           - configuration/log/index.md
       - DNS:
           - configuration/dns/index.md
-          - DNS Server: configuration/dns/server.md
+          - DNS Server:
+              - configuration/dns/server/index.md
+              - Legacy: configuration/dns/server/legacy.md
+              - Local: configuration/dns/server/local.md
+              - Hosts: configuration/dns/server/hosts.md
+              - TCP: configuration/dns/server/tcp.md
+              - UDP: configuration/dns/server/udp.md
+              - TLS: configuration/dns/server/tls.md
+              - QUIC: configuration/dns/server/quic.md
+              - HTTPS: configuration/dns/server/https.md
+              - HTTP3: configuration/dns/server/http3.md
+              - DHCP: configuration/dns/server/dhcp.md
+              - FakeIP: configuration/dns/server/fakeip.md
+              - Tailscale: configuration/dns/server/tailscale.md
+              - Resolved: configuration/dns/server/resolved.md
           - DNS Rule: configuration/dns/rule.md
+          - DNS Rule Action: configuration/dns/rule_action.md
           - FakeIP: configuration/dns/fakeip.md
-      - NTP:
-          - configuration/ntp/index.md
+      - NTP: configuration/ntp/index.md
+      - Certificate: configuration/certificate/index.md
       - Route:
           - configuration/route/index.md
           - GeoIP: configuration/route/geoip.md
           - Geosite: configuration/route/geosite.md
           - Route Rule: configuration/route/rule.md
+          - Rule Action: configuration/route/rule_action.md
           - Protocol Sniff: configuration/route/sniff.md
       - Rule Set:
           - configuration/rule-set/index.md
@@ -106,10 +122,16 @@ nav:
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
           - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
+          - Pre-match: configuration/shared/pre-match.md
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md
           - TCP Brutal: configuration/shared/tcp-brutal.md
+          - Wi-Fi State: configuration/shared/wifi-state.md
+      - Endpoint:
+          - configuration/endpoint/index.md
+          - WireGuard: configuration/endpoint/wireguard.md
+          - Tailscale: configuration/endpoint/tailscale.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
@@ -125,6 +147,7 @@ nav:
           - VLESS: configuration/inbound/vless.md
           - TUIC: configuration/inbound/tuic.md
           - Hysteria2: configuration/inbound/hysteria2.md
+          - AnyTLS: configuration/inbound/anytls.md
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
@@ -137,17 +160,26 @@ nav:
           - Shadowsocks: configuration/outbound/shadowsocks.md
           - VMess: configuration/outbound/vmess.md
           - Trojan: configuration/outbound/trojan.md
+          - Naive: configuration/outbound/naive.md
           - WireGuard: configuration/outbound/wireguard.md
           - Hysteria: configuration/outbound/hysteria.md
           - ShadowTLS: configuration/outbound/shadowtls.md
           - VLESS: configuration/outbound/vless.md
           - TUIC: configuration/outbound/tuic.md
           - Hysteria2: configuration/outbound/hysteria2.md
+          - AnyTLS: configuration/outbound/anytls.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Service:
+          - configuration/service/index.md
+          - DERP: configuration/service/derp.md
+          - Resolved: configuration/service/resolved.md
+          - SSM API: configuration/service/ssm-api.md
+          - CCM: configuration/service/ccm.md
+          - OCM: configuration/service/ocm.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -218,9 +250,11 @@ plugins:
             Log: 日志
             DNS Server: DNS 服务器
             DNS Rule: DNS 规则
+            DNS Rule Action: DNS 规则动作
 
             Route: 路由
             Route Rule: 路由规则
+            Rule Action: 规则动作
             Protocol Sniff: 协议探测
 
             Rule Set: 规则集
@@ -236,7 +270,9 @@ plugins:
             DNS01 Challenge Fields: DNS01 验证字段
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层
+            Wi-Fi State: Wi-Fi 状态
 
+            Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
 

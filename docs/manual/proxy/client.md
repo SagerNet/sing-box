@@ -94,18 +94,13 @@ flowchart TB
         "servers": [
           {
             "tag": "google",
-            "address": "tls://8.8.8.8"
+            "type": "tls",
+            "server": "8.8.8.8"
           },
           {
             "tag": "local",
-            "address": "223.5.5.5",
-            "detour": "direct"
-          }
-        ],
-        "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
+            "type": "udp",
+            "server": "223.5.5.5"
           }
         ],
         "strategy": "ipv4_only"
@@ -113,9 +108,10 @@ flowchart TB
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
+          "address": ["172.19.0.1/30"],
           "auto_route": true,
-          "strict_route": false
+          // "auto_redirect": true, // On linux
+          "strict_route": true
         }
       ],
       "outbounds": [
@@ -123,25 +119,23 @@ flowchart TB
         {
           "type": "direct",
           "tag": "direct"
-        },
-        {
-          "type": "dns",
-          "tag": "dns-out"
         }
       ],
       "route": {
         "rules": [
           {
-            "protocol": "dns",
-            "outbound": "dns-out"
+            "action": "sniff"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "protocol": "dns",
+            "action": "hijack-dns"
+          },
+          {
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
+        "default_domain_resolver": "local",
         "auto_detect_interface": true
       }
     }
@@ -155,28 +149,23 @@ flowchart TB
         "servers": [
           {
             "tag": "google",
-            "address": "tls://8.8.8.8"
+            "type": "tls",
+            "server": "8.8.8.8"
           },
           {
             "tag": "local",
-            "address": "223.5.5.5",
-            "detour": "direct"
-          }
-        ],
-        "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
+            "type": "udp",
+            "server": "223.5.5.5"
           }
         ]
       },
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
-          "inet6_address": "fdfe:dcba:9876::1/126",
+          "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
           "auto_route": true,
-          "strict_route": false
+          // "auto_redirect": true, // On linux
+          "strict_route": true
         }
       ],
       "outbounds": [
@@ -184,25 +173,23 @@ flowchart TB
         {
           "type": "direct",
           "tag": "direct"
-        },
-        {
-          "type": "dns",
-          "tag": "dns-out"
         }
       ],
       "route": {
         "rules": [
           {
-            "protocol": "dns",
-            "outbound": "dns-out"
+            "action": "sniff"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "protocol": "dns",
+            "action": "hijack-dns"
+          },
+          {
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
+        "default_domain_resolver": "local",
         "auto_detect_interface": true
       }
     }
@@ -216,23 +203,22 @@ flowchart TB
         "servers": [
           {
             "tag": "google",
-            "address": "tls://8.8.8.8"
+            "type": "tls",
+            "server": "8.8.8.8"
           },
           {
             "tag": "local",
-            "address": "223.5.5.5",
-            "detour": "direct"
+            "type": "udp",
+            "server": "223.5.5.5"
           },
           {
             "tag": "remote",
-            "address": "fakeip"
+            "type": "fakeip",
+            "inet4_range": "198.18.0.0/15",
+            "inet6_range": "fc00::/18"
           }
         ],
         "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
-          },
           {
             "query_type": [
               "A",
@@ -241,19 +227,14 @@ flowchart TB
             "server": "remote"
           }
         ],
-        "fakeip": {
-          "enabled": true,
-          "inet4_range": "198.18.0.0/15",
-          "inet6_range": "fc00::/18"
-        },
         "independent_cache": true
       },
       "inbounds": [
         {
           "type": "tun",
-          "inet4_address": "172.19.0.1/30",
-          "inet6_address": "fdfe:dcba:9876::1/126",
+          "address": ["172.19.0.1/30","fdfe:dcba:9876::1/126"],
           "auto_route": true,
+          // "auto_redirect": true, // On linux
           "strict_route": true
         }
       ],
@@ -262,25 +243,23 @@ flowchart TB
         {
           "type": "direct",
           "tag": "direct"
-        },
-        {
-          "type": "dns",
-          "tag": "dns-out"
         }
       ],
       "route": {
         "rules": [
           {
-            "protocol": "dns",
-            "outbound": "dns-out"
+            "action": "sniff"
           },
           {
-            "geoip": [
-              "private"
-            ],
+            "protocol": "dns",
+            "action": "hijack-dns"
+          },
+          {
+            "ip_is_private": true,
             "outbound": "direct"
           }
         ],
+        "default_domain_resolver": "local",
         "auto_detect_interface": true
       }
     }
@@ -290,54 +269,6 @@ flowchart TB
 
 === ":material-dns: DNS rules"
 
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "tag": "google",
-            "address": "tls://8.8.8.8"
-          },
-          {
-            "tag": "local",
-            "address": "223.5.5.5",
-            "detour": "direct"
-          }
-        ],
-        "rules": [
-          {
-            "outbound": "any",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Direct",
-            "server": "local"
-          },
-          {
-            "clash_mode": "Global",
-            "server": "google"
-          },
-          {
-            "rule_set": "geosite-geolocation-cn",
-            "server": "local"
-          }
-        ]
-      },
-      "route": {
-        "rule_set": [
-          {
-            "type": "remote",
-            "tag": "geosite-geolocation-cn",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-geolocation-cn.srs"
-          }
-        ]
-      }
-    }
-    ```
-
-=== ":material-dns: DNS rules (Enhanced, but slower) (1.9.0+)"
-
     === ":material-shield-off: With DNS leaks"
 
         ```json
@@ -346,34 +277,19 @@ flowchart TB
             "servers": [
               {
                 "tag": "google",
-                "address": "tls://8.8.8.8"
+                "type": "tls",
+                "server": "8.8.8.8"
               },
               {
                 "tag": "local",
-                "address": "https://223.5.5.5/dns-query",
-                "detour": "direct"
+                "type": "https",
+                "server": "223.5.5.5"
               }
             ],
             "rules": [
               {
-                "outbound": "any",
-                "server": "local"
-              },
-              {
-                "clash_mode": "Direct",
-                "server": "local"
-              },
-              {
-                "clash_mode": "Global",
-                "server": "google"
-              },
-              {
                 "rule_set": "geosite-geolocation-cn",
                 "server": "local"
-              },
-              {
-                "clash_mode": "Default",
-                "server": "google"
               },
               {
                 "type": "logical",
@@ -392,6 +308,7 @@ flowchart TB
             ]
           },
           "route": {
+            "default_domain_resolver": "local",
             "rule_set": [
               {
                 "type": "remote",
@@ -425,35 +342,24 @@ flowchart TB
         }
         ```
 
-    === ":material-security: Without DNS leaks, but slower (1.9.0-alpha.2+)"
-
+    === ":material-security: Without DNS leaks, but slower"
+    
         ```json
         {
           "dns": {
             "servers": [
               {
                 "tag": "google",
-                "address": "tls://8.8.8.8"
+                "type": "tls",
+                "server": "8.8.8.8"
               },
               {
                 "tag": "local",
-                "address": "https://223.5.5.5/dns-query",
-                "detour": "direct"
+                "type": "https",
+                "server": "223.5.5.5"
               }
             ],
             "rules": [
-              {
-                "outbound": "any",
-                "server": "local"
-              },
-              {
-                "clash_mode": "Direct",
-                "server": "local"
-              },
-              {
-                "clash_mode": "Global",
-                "server": "google"
-              },
               {
                 "rule_set": "geosite-geolocation-cn",
                 "server": "local"
@@ -476,6 +382,7 @@ flowchart TB
             ]
           },
           "route": {
+            "default_domain_resolver": "local",
             "rule_set": [
               {
                 "type": "remote",
@@ -517,14 +424,13 @@ flowchart TB
         {
           "type": "direct",
           "tag": "direct"
-        },
-        {
-          "type": "block",
-          "tag": "block"
         }
       ],
       "route": {
         "rules": [
+          {
+            "action": "sniff"
+          },
           {
             "type": "logical",
             "mode": "or",
@@ -536,19 +442,11 @@ flowchart TB
                 "port": 53
               }
             ],
-            "outbound": "dns"
+            "action": "hijack-dns"
           },
           {
             "ip_is_private": true,
             "outbound": "direct"
-          },
-          {
-            "clash_mode": "Direct",
-            "outbound": "direct"
-          },
-          {
-            "clash_mode": "Global",
-            "outbound": "default"
           },
           {
             "type": "logical",
@@ -565,12 +463,23 @@ flowchart TB
                 "protocol": "stun"
               }
             ],
-            "outbound": "block"
+            "action": "reject"
           },
           {
-            "rule_set": [
-              "geoip-cn",
-              "geosite-geolocation-cn"
+            "rule_set": "geosite-geolocation-cn",
+            "outbound": "direct"
+          },
+          {
+            "type": "logical",
+            "mode": "and",
+            "rules": [
+              {
+                "rule_set": "geoip-cn"
+              },
+              {
+                "rule_set": "geosite-geolocation-!cn",
+                "invert": true
+              }
             ],
             "outbound": "direct"
           }

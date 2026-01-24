@@ -4,12 +4,10 @@ import (
 	"context"
 	"os"
 
-	"github.com/sagernet/sing-box/common/settings"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
 
 	"github.com/spf13/cobra"
@@ -45,7 +43,7 @@ func syncTime() error {
 	if err != nil {
 		return err
 	}
-	dialer, err := createDialer(instance, N.NetworkUDP, commandToolsFlagOutbound)
+	dialer, err := createDialer(instance, commandToolsFlagOutbound)
 	if err != nil {
 		return err
 	}
@@ -59,7 +57,7 @@ func syncTime() error {
 		return err
 	}
 	if commandSyncTimeWrite {
-		err = settings.SetSystemTime(response.Time)
+		err = ntp.SetSystemTime(response.Time)
 		if err != nil {
 			return E.Cause(err, "write time to system")
 		}

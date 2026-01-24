@@ -1,5 +1,7 @@
 package option
 
+import "github.com/sagernet/sing/common/json/badoption"
+
 type ExperimentalOptions struct {
 	CacheFile *CacheFileOptions `json:"cache_file,omitempty"`
 	ClashAPI  *ClashAPIOptions  `json:"clash_api,omitempty"`
@@ -8,24 +10,24 @@ type ExperimentalOptions struct {
 }
 
 type CacheFileOptions struct {
-	Enabled     bool     `json:"enabled,omitempty"`
-	Path        string   `json:"path,omitempty"`
-	CacheID     string   `json:"cache_id,omitempty"`
-	StoreFakeIP bool     `json:"store_fakeip,omitempty"`
-	StoreRDRC   bool     `json:"store_rdrc,omitempty"`
-	RDRCTimeout Duration `json:"rdrc_timeout,omitempty"`
+	Enabled     bool               `json:"enabled,omitempty"`
+	Path        string             `json:"path,omitempty"`
+	CacheID     string             `json:"cache_id,omitempty"`
+	StoreFakeIP bool               `json:"store_fakeip,omitempty"`
+	StoreRDRC   bool               `json:"store_rdrc,omitempty"`
+	RDRCTimeout badoption.Duration `json:"rdrc_timeout,omitempty"`
 }
 
 type ClashAPIOptions struct {
-	ExternalController               string           `json:"external_controller,omitempty"`
-	ExternalUI                       string           `json:"external_ui,omitempty"`
-	ExternalUIDownloadURL            string           `json:"external_ui_download_url,omitempty"`
-	ExternalUIDownloadDetour         string           `json:"external_ui_download_detour,omitempty"`
-	Secret                           string           `json:"secret,omitempty"`
-	DefaultMode                      string           `json:"default_mode,omitempty"`
-	ModeList                         []string         `json:"-"`
-	AccessControlAllowOrigin         Listable[string] `json:"access_control_allow_origin,omitempty"`
-	AccessControlAllowPrivateNetwork bool             `json:"access_control_allow_private_network,omitempty"`
+	ExternalController               string                     `json:"external_controller,omitempty"`
+	ExternalUI                       string                     `json:"external_ui,omitempty"`
+	ExternalUIDownloadURL            string                     `json:"external_ui_download_url,omitempty"`
+	ExternalUIDownloadDetour         string                     `json:"external_ui_download_detour,omitempty"`
+	Secret                           string                     `json:"secret,omitempty"`
+	DefaultMode                      string                     `json:"default_mode,omitempty"`
+	ModeList                         []string                   `json:"-"`
+	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty"`
+	AccessControlAllowPrivateNetwork bool                       `json:"access_control_allow_private_network,omitempty"`
 
 	// Deprecated: migrated to global cache file
 	CacheFile string `json:"cache_file,omitempty"`

@@ -93,7 +93,18 @@ func New(ctx context.Context, options option.CacheFileOptions) *CacheFile {
 	}
 }
 
-func (c *CacheFile) start() error {
+func (c *CacheFile) Name() string {
+	return "cache-file"
+}
+
+func (c *CacheFile) Dependencies() []string {
+	return nil
+}
+
+func (c *CacheFile) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
 	const fileMode = 0o666
 	options := bbolt.Options{Timeout: time.Second}
 	var (
@@ -148,14 +159,6 @@ func (c *CacheFile) start() error {
 		return err
 	}
 	c.DB = db
-	return nil
-}
-
-func (c *CacheFile) PreStart() error {
-	return c.start()
-}
-
-func (c *CacheFile) Start() error {
 	return nil
 }
 
@@ -281,8 +284,8 @@ func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
 	})
 }
 
-func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedRuleSet {
-	var savedSet adapter.SavedRuleSet
+func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedBinary {
+	var savedSet adapter.SavedBinary
 	err := c.DB.View(func(t *bbolt.Tx) error {
 		bucket := c.bucket(t, bucketRuleSet)
 		if bucket == nil {
@@ -300,7 +303,7 @@ func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedRuleSet {
 	return &savedSet
 }
 
-func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedRuleSet) error {
+func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedBinary) error {
 	return c.DB.Batch(func(t *bbolt.Tx) error {
 		bucket, err := c.createBucket(t, bucketRuleSet)
 		if err != nil {

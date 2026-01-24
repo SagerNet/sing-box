@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sagernet/asc-go/asc"
@@ -99,12 +100,33 @@ findVersion:
 }
 
 func publishTestflight(ctx context.Context) error {
+	if len(os.Args) < 3 {
+		return E.New("platform required: ios, macos, or tvos")
+	}
+	var platform asc.Platform
+	switch os.Args[2] {
+	case "ios":
+		platform = asc.PlatformIOS
+	case "macos":
+		platform = asc.PlatformMACOS
+	case "tvos":
+		platform = asc.PlatformTVOS
+	default:
+		return E.New("unknown platform: ", os.Args[2])
+	}
+
 	tagVersion, err := build_shared.ReadTagVersion()
 	if err != nil {
 		return err
 	}
 	tag := tagVersion.VersionString()
-	client := createClient(10 * time.Minute)
+
+	releaseNotes := F.ToString("sing-box ", tagVersion.String())
+	if len(os.Args) >= 4 {
+		releaseNotes = strings.Join(os.Args[3:], " ")
+	}
+
+	client := createClient(20 * time.Minute)
 
 	log.Info(tag, " list build IDs")
 	buildIDsResponse, _, err := client.TestFlight.ListBuildIDsForBetaGroup(ctx, groupID, nil)
@@ -114,91 +136,76 @@ func publishTestflight(ctx context.Context) error {
 	buildIDs := common.Map(buildIDsResponse.Data, func(it asc.RelationshipData) string {
 		return it.ID
 	})
-	var platforms []asc.Platform
-	if len(os.Args) == 3 {
-		switch os.Args[2] {
-		case "ios":
-			platforms = []asc.Platform{asc.PlatformIOS}
-		case "macos":
-			platforms = []asc.Platform{asc.PlatformMACOS}
-		case "tvos":
-			platforms = []asc.Platform{asc.PlatformTVOS}
-		default:
-			return E.New("unknown platform: ", os.Args[2])
+
+	waitingForProcess := false
+	log.Info(string(platform), " list builds")
+	for {
+		builds, _, err := client.Builds.ListBuilds(ctx, &asc.ListBuildsQuery{
+			FilterApp:                       []string{appID},
+			FilterPreReleaseVersionPlatform: []string{string(platform)},
+		})
+		if err != nil {
+			return err
 		}
-	} else {
-		platforms = []asc.Platform{
-			asc.PlatformIOS,
-			asc.PlatformMACOS,
-			asc.PlatformTVOS,
+		build := builds.Data[0]
+		log.Info(string(platform), " ", tag, " found build: ", build.ID, " (", *build.Attributes.Version, ")")
+		if !waitingForProcess && (common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute) {
+			log.Info(string(platform), " ", tag, " waiting for process")
+			time.Sleep(15 * time.Second)
+			continue
 		}
-	}
-	for _, platform := range platforms {
-		log.Info(string(platform), " list builds")
-		for {
-			builds, _, err := client.Builds.ListBuilds(ctx, &asc.ListBuildsQuery{
-				FilterApp:                       []string{appID},
-				FilterPreReleaseVersionPlatform: []string{string(platform)},
-			})
+		if *build.Attributes.ProcessingState != "VALID" {
+			waitingForProcess = true
+			log.Info(string(platform), " ", tag, " waiting for process: ", *build.Attributes.ProcessingState)
+			time.Sleep(15 * time.Second)
+			continue
+		}
+		log.Info(string(platform), " ", tag, " list localizations")
+		localizations, _, err := client.TestFlight.ListBetaBuildLocalizationsForBuild(ctx, build.ID, nil)
+		if err != nil {
+			return err
+		}
+		localization := common.Find(localizations.Data, func(it asc.BetaBuildLocalization) bool {
+			return *it.Attributes.Locale == "en-US"
+		})
+		if localization.ID == "" {
+			log.Fatal(string(platform), " ", tag, " no en-US localization found")
+		}
+		if localization.Attributes == nil || localization.Attributes.WhatsNew == nil || *localization.Attributes.WhatsNew == "" {
+			log.Info(string(platform), " ", tag, " update localization")
+			_, _, err = client.TestFlight.UpdateBetaBuildLocalization(ctx, localization.ID, common.Ptr(releaseNotes))
 			if err != nil {
 				return err
 			}
-			build := builds.Data[0]
-			if common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 5*time.Minute {
-				log.Info(string(platform), " ", tag, " waiting for process")
-				time.Sleep(15 * time.Second)
-				continue
-			}
-			if *build.Attributes.ProcessingState != "VALID" {
-				log.Info(string(platform), " ", tag, " waiting for process: ", *build.Attributes.ProcessingState)
-				time.Sleep(15 * time.Second)
-				continue
-			}
-			log.Info(string(platform), " ", tag, " list localizations")
-			localizations, _, err := client.TestFlight.ListBetaBuildLocalizationsForBuild(ctx, build.ID, nil)
+		}
+		log.Info(string(platform), " ", tag, " publish")
+		response, err := client.TestFlight.AddBuildsToBetaGroup(ctx, groupID, []string{build.ID})
+		if response != nil && (response.StatusCode == http.StatusUnprocessableEntity || response.StatusCode == http.StatusNotFound) {
+			log.Info("waiting for process")
+			time.Sleep(15 * time.Second)
+			continue
+		} else if err != nil {
+			return err
+		}
+		log.Info(string(platform), " ", tag, " list submissions")
+		betaSubmissions, _, err := client.TestFlight.ListBetaAppReviewSubmissions(ctx, &asc.ListBetaAppReviewSubmissionsQuery{
+			FilterBuild: []string{build.ID},
+		})
+		if err != nil {
+			return err
+		}
+		if len(betaSubmissions.Data) == 0 {
+			log.Info(string(platform), " ", tag, " create submission")
+			_, _, err = client.TestFlight.CreateBetaAppReviewSubmission(ctx, build.ID)
 			if err != nil {
-				return err
-			}
-			localization := common.Find(localizations.Data, func(it asc.BetaBuildLocalization) bool {
-				return *it.Attributes.Locale == "en-US"
-			})
-			if localization.ID == "" {
-				log.Fatal(string(platform), " ", tag, " no en-US localization found")
-			}
-			if localization.Attributes == nil || localization.Attributes.WhatsNew == nil || *localization.Attributes.WhatsNew == "" {
-				log.Info(string(platform), " ", tag, " update localization")
-				_, _, err = client.TestFlight.UpdateBetaBuildLocalization(ctx, localization.ID, common.Ptr(
-					F.ToString("sing-box ", tagVersion.String()),
-				))
-				if err != nil {
-					return err
+				if strings.Contains(err.Error(), "ANOTHER_BUILD_IN_REVIEW") {
+					log.Error(err)
+					break
 				}
-			}
-			log.Info(string(platform), " ", tag, " publish")
-			response, err := client.TestFlight.AddBuildsToBetaGroup(ctx, groupID, []string{build.ID})
-			if response != nil && response.StatusCode == http.StatusUnprocessableEntity {
-				log.Info("waiting for process")
-				time.Sleep(15 * time.Second)
-				continue
-			} else if err != nil {
 				return err
 			}
-			log.Info(string(platform), " ", tag, " list submissions")
-			betaSubmissions, _, err := client.TestFlight.ListBetaAppReviewSubmissions(ctx, &asc.ListBetaAppReviewSubmissionsQuery{
-				FilterBuild: []string{build.ID},
-			})
-			if err != nil {
-				return err
-			}
-			if len(betaSubmissions.Data) == 0 {
-				log.Info(string(platform), " ", tag, " create submission")
-				_, _, err = client.TestFlight.CreateBetaAppReviewSubmission(ctx, build.ID)
-				if err != nil {
-					return err
-				}
-			}
-			break
 		}
+		break
 	}
 	return nil
 }

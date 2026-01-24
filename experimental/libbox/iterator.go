@@ -8,6 +8,12 @@ type StringIterator interface {
 	Next() string
 }
 
+type Int32Iterator interface {
+	Len() int32
+	HasNext() bool
+	Next() int32
+}
+
 var _ StringIterator = (*iterator[string])(nil)
 
 type iterator[T any] struct {
@@ -18,6 +24,7 @@ func newIterator[T any](values []T) *iterator[T] {
 	return &iterator[T]{values}
 }
 
+//go:noinline
 func newPtrIterator[T any](values []T) *iterator[*T] {
 	return &iterator[*T]{common.Map(values, func(value T) *T { return &value })}
 }

@@ -1,4 +1,10 @@
-# FakeIP
+---
+icon: material/delete-clock
+---
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    Legacy fake-ip configuration is deprecated and will be removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-servers).
 
 ### Structure
 

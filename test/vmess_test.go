@@ -7,6 +7,8 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/spyzhov/ajson"
@@ -184,9 +186,9 @@ func testVMessInboundWithV2Ray(t *testing.T, security string, alterId int, authe
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -232,9 +234,9 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 		Inbounds: []option.Inbound{
 			{
 				Type: C.TypeMixed,
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
@@ -243,7 +245,7 @@ func testVMessOutboundWithV2Ray(t *testing.T, security string, globalPadding boo
 		Outbounds: []option.Outbound{
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -267,18 +269,18 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 			{
 				Type: C.TypeMixed,
 				Tag:  "mixed-in",
-				MixedOptions: option.HTTPMixedInboundOptions{
+				Options: &option.HTTPMixedInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: clientPort,
 					},
 				},
 			},
 			{
 				Type: C.TypeVMess,
-				VMessOptions: option.VMessInboundOptions{
+				Options: &option.VMessInboundOptions{
 					ListenOptions: option.ListenOptions{
-						Listen:     option.NewListenAddress(netip.IPv4Unspecified()),
+						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
 					Users: []option.VMessUser{
@@ -298,7 +300,7 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 			{
 				Type: C.TypeVMess,
 				Tag:  "vmess-out",
-				VMessOptions: option.VMessOutboundOptions{
+				Options: &option.VMessOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: serverPort,
@@ -315,9 +317,17 @@ func testVMessSelf(t *testing.T, security string, alterId int, globalPadding boo
 		Route: &option.RouteOptions{
 			Rules: []option.Rule{
 				{
+					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultRule{
-						Inbound:  []string{"mixed-in"},
-						Outbound: "vmess-out",
+						RawDefaultRule: option.RawDefaultRule{
+							Inbound: []string{"mixed-in"},
+						},
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "vmess-out",
+							},
+						},
 					},
 				},
 			},

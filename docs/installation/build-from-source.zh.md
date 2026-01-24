@@ -6,10 +6,13 @@ icon: material/file-code
 
 ## :material-graph: 要求
 
+### sing-box 1.11
+
+* Go 1.23.1 - ~
+
 ### sing-box 1.10
 
 * Go 1.20.0 - ~
-* Go 1.20.0 - ~ with tag `with_quic`, or `with_utls` enabled
 * Go 1.21.0 - ~ with tag `with_ech` enabled
 
 ### sing-box 1.9
@@ -52,13 +55,51 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_grpc`                        | :material-close:️ | Build with standard gRPC support, see [V2Ray Transport#gRPC](/configuration/shared/v2ray-transport#grpc).                                                                                                                                                                                                                      |
 | `with_dhcp`                        | :material-check:  | Build with DHCP support, see [DHCP DNS transport](/configuration/dns/server/).                                                                                                                                                                                                                                                 |
 | `with_wireguard`                   | :material-check:  | Build with WireGuard support, see [WireGuard outbound](/configuration/outbound/wireguard/).                                                                                                                                                                                                                                    |
-| `with_ech`                         | :material-check:  | Build with TLS ECH extension support for TLS outbound, see [TLS](/configuration/shared/tls#ech).                                                                                                                                                                                                                               |
 | `with_utls`                        | :material-check:  | Build with [uTLS](https://github.com/refraction-networking/utls) support for TLS outbound, see [TLS](/configuration/shared/tls#utls).                                                                                                                                                                                          |
-| `with_reality_server`              | :material-check:  | Build with reality TLS server support,  see [TLS](/configuration/shared/tls/).                                                                                                                                                                                                                                                 |
 | `with_acme`                        | :material-check:  | Build with ACME TLS certificate issuer support, see [TLS](/configuration/shared/tls/).                                                                                                                                                                                                                                         |
 | `with_clash_api`                   | :material-check:  | Build with Clash API support, see [Experimental](/configuration/experimental#clash-api-fields).                                                                                                                                                                                                                                |
 | `with_v2ray_api`                   | :material-close:️ | Build with V2Ray API support, see [Experimental](/configuration/experimental#v2ray-api-fields).                                                                                                                                                                                                                                |
 | `with_gvisor`                      | :material-check:  | Build with gVisor support, see [Tun inbound](/configuration/inbound/tun#stack) and [WireGuard outbound](/configuration/outbound/wireguard#system_interface).                                                                                                                                                                   |
 | `with_embedded_tor` (CGO required) | :material-close:️ | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor/).                                                                                                                                                                                                                                             |
+| `with_tailscale`                   | :material-check:  | Build with Tailscale support, see [Tailscale endpoint](/configuration/endpoint/tailscale)                                                                                                                                                                                                                                      |
+| `with_naive_outbound`              | :material-close:️ | 构建 NaiveProxy 出站支持，参阅 [NaiveProxy 出站](/zh/configuration/outbound/naive/)。                                                                                                                                                                                                                                                      |
 
 除非您确实知道您正在启用什么，否则不建议更改默认构建标签列表。
+
+## :material-layers: with_naive_outbound
+
+NaiveProxy 出站需要根据目标平台进行特殊的构建配置。
+
+### 支持的平台
+
+| 平台            | 架构                     | 模式     | 要求                             |
+|---------------|------------------------|--------|--------------------------------|
+| Linux         | amd64, arm64           | purego | 无（官方发布版本已包含库文件）                |
+| Linux         | 386, amd64, arm, arm64 | CGO    | Chromium 工具链，运行时需要 glibc >= 2.31 |
+| Linux (musl)  | 386, amd64, arm, arm64 | CGO    | Chromium 工具链                   |
+| Windows       | amd64, arm64           | purego | 无（官方发布版本已包含库文件）                |
+| Apple 平台      | *                      | CGO    | Xcode                          |
+| Android       | *                      | CGO    | Android NDK                    |
+
+### Windows
+
+使用 `with_purego` 标记。
+
+官方发布版本已包含 `libcronet.dll`。自行构建时，从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载并放置在 `sing-box.exe` 相同目录或 `PATH` 中的任意目录。
+
+### Linux (purego, 仅 amd64/arm64)
+
+使用 `with_purego` 标记。
+
+官方发布版本已包含 `libcronet.so`。自行构建时，从 [cronet-go releases](https://github.com/sagernet/cronet-go/releases) 下载并放置在 sing-box 二进制文件相同目录或系统库路径中。
+
+### Linux (CGO)
+
+参阅 [cronet-go](https://github.com/sagernet/cronet-go#linux-build-instructions)。
+
+- **glibc 构建**：运行时需要 glibc >= 2.31
+- **musl 构建**：使用 `with_musl` 标记，静态链接，无运行时要求
+
+### Apple 平台 / Android
+
+参阅 [cronet-go](https://github.com/sagernet/cronet-go)。

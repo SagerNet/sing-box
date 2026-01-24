@@ -1,4 +1,6 @@
-`block` outbound closes all incoming requests.
+---
+icon: material/delete-clock
+---
 
 ### Structure
 

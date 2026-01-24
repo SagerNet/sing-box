@@ -9,6 +9,7 @@
 
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "managed": false,
   "multiplex": {}
 }
 ```
@@ -48,9 +49,9 @@
 }
 ```
 
-### Listen Fields
+### 监听字段
 
-See [Listen Fields](/configuration/shared/listen/) for details.
+参阅 [监听字段](/zh/configuration/shared/listen/)。
 
 ### 字段
 
@@ -85,6 +86,10 @@ See [Listen Fields](/configuration/shared/listen/) for details.
 | none          | /                                        |
 | 2022 methods  | `sing-box generate rand --base64 <密钥长度>` |
 | other methods | 任意字符串                                    |
+
+#### managed
+
+默认为 `false`。当该入站需要由 [SSM API](/zh/configuration/service/ssm-api) 管理用户时必须启用此字段。
 
 #### multiplex
 

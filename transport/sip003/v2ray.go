@@ -12,6 +12,8 @@ import (
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-vmess"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json/badoption"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -54,7 +56,7 @@ func newV2RayPlugin(ctx context.Context, pluginOpts Args, router adapter.Router,
 	var tlsClient tls.Config
 	var err error
 	if tlsOptions.Enabled {
-		tlsClient, err = tls.NewClient(ctx, serverAddr.AddrString(), tlsOptions)
+		tlsClient, err = tls.NewClient(ctx, logger.NOP(), serverAddr.AddrString(), tlsOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +69,7 @@ func newV2RayPlugin(ctx context.Context, pluginOpts Args, router adapter.Router,
 		transportOptions = option.V2RayTransportOptions{
 			Type: C.V2RayTransportTypeWebsocket,
 			WebsocketOptions: option.V2RayWebsocketOptions{
-				Headers: map[string]option.Listable[string]{
+				Headers: map[string]badoption.Listable[string]{
 					"Host": []string{host},
 				},
 				Path: path,

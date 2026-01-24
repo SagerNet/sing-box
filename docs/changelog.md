@@ -2,14 +2,1250 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-beta.7
+
+* Fixes and improvements
+
+#### 1.13.0-beta.6
+
+* Update uTLS to v1.8.2 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes missing padding extension for Chrome 120+ fingerprints.
+
+Also, documentation has been updated with a warning about uTLS fingerprinting vulnerabilities.
+uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
+use NaiveProxy instead for TLS fingerprint resistance.
+
+#### 1.12.17
+
+* Update uTLS to v1.8.2 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes missing padding extension for Chrome 120+ fingerprints.
+
+Also, documentation has been updated with a warning about uTLS fingerprinting vulnerabilities.
+uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
+use NaiveProxy instead for TLS fingerprint resistance.
+
+#### 1.13.0-beta.5
+
+* Fixes and improvements
+
+#### 1.12.16
+
+* Fixes and improvements
+
+#### 1.13.0-beta.4
+
+* Apple/Android: Add support for sharing configurations via [QRS](https://github.com/qifi-dev/qrs)
+* Android: Add support for resisting VPN detection via Xposed
+* Update quic-go to v0.59.0
+* Fixes and improvements
+
+#### 1.13.0-beta.2
+
+* Add `bind_address_no_port` option for dial fields **1**
+* Fixes and improvements
+
+**1**:
+
+Adds the Linux socket option `IP_BIND_ADDRESS_NO_PORT` support when explicitly binding to a source address.
+
+This allows reusing the same source port for multiple connections, improving scalability for high-concurrency proxy scenarios.
+
+See [Dial Fields](/configuration/shared/dial/#bind_address_no_port).
+
+#### 1.13.0-beta.1
+
+* Add system interface support for Tailscale endpoint **1**
+* Fixes and improvements
+
+**1**:
+
+Tailscale endpoint can now create a system TUN interface to handle traffic directly.
+
+See [Tailscale endpoint](/configuration/endpoint/tailscale/#system_interface).
+
+#### 1.12.15
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.36
+
+* Downgrade quic-go to v0.57.1
+* Fixes and improvements
+
+#### 1.13.0-alpha.35
+
+* Add pre-match support for `auto_redirect` **1**
+* Fixes and improvements
+
+**1**:
+
+`auto_redirect` now allows you to bypass sing-box for connections based on routing rules.
+
+A new rule action `bypass` is introduced to support this feature. When matched during pre-match, the connection will bypass sing-box and connect directly.
+
+This feature requires Linux with `auto_redirect` enabled.
+
+See [Pre-match](/configuration/shared/pre-match/) and [Rule Action](/configuration/route/rule_action/#bypass).
+
+#### 1.13.0-alpha.34
+
+* Add Chrome Root Store certificate option **1**
+* Add new options for ACME DNS-01 challenge providers **2**
+* Add Wi-Fi state support for Linux and Windows **3**
+* Update naiveproxy to 143.0.7499.109
+* Update quic-go to v0.58.0
+* Update tailscale to v1.92.4
+* Drop support for go1.23 **4**
+* Drop support for Android 5.0 **5**
+
+**1**:
+
+Adds `chrome` as a new certificate store option alongside `mozilla`.
+Both stores filter out China-based CA certificates.
+
+See [Certificate](/configuration/certificate/#store).
+
+**2**:
+
+See [DNS-01 Challenge](/configuration/shared/dns01_challenge/).
+
+**3**:
+
+sing-box can now monitor Wi-Fi state on Linux and Windows to enable routing rules based on `wifi_ssid` and `wifi_bssid`.
+
+See [Wi-Fi State](/configuration/shared/wifi-state/).
+
+**4**:
+
+Due to maintenance difficulties, sing-box 1.13.0 requires at least Go 1.24 to compile.
+
+**5**:
+
+Due to maintenance difficulties, sing-box 1.13.0 will be the last version to support Android 5.0,
+and only through a separate legacy build (with `-legacy-android-5` suffix).
+
+For standalone binaries, the minimum Android version has been raised to Android 6.0,
+since Termux requires Android 7.0 or later.
+
+#### 1.12.14
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.33
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.32
+
+* Remove `certificate_public_key_sha256` option for NaiveProxy outbound **1**
+* Fixes and improvements
+
+**1**:
+
+Self-signed certificates change traffic behavior significantly, which defeats the purpose of NaiveProxy's design to resist traffic analysis.
+For this reason, and due to maintenance costs, there is no reason to continue supporting `certificate_public_key_sha256`, which was designed to simplify the use of self-signed certificates.
+
+#### 1.13.0-alpha.31
+
+* Add QUIC support for NaiveProxy outbound **1**
+* Add QUIC congestion control option for NaiveProxy **2**
+* Fixes and improvements
+
+**1**:
+
+NaiveProxy outbound now supports QUIC.
+
+See [NaiveProxy outbound](/configuration/outbound/naive/#quic).
+
+**2**:
+
+NaiveProxy inbound and outbound now supports configurable QUIC congestion control algorithms, including BBR and BBRv2.
+
+See [NaiveProxy inbound](/configuration/inbound/naive/#quic_congestion_control) and [NaiveProxy outbound](/configuration/outbound/naive/#quic_congestion_control).
+
+#### 1.13.0-alpha.30
+
+* Add ECH support for NaiveProxy outbound **1**
+* Add `tls.ech.query_server_name` option **2**
+* Fix NaiveProxy outbound on Windows **3**
+* Add OpenAI Codex Multiplexer service **4**
+* Fixes and improvements
+
+**1**:
+
+See [NaiveProxy outbound](/configuration/outbound/naive/#tls).
+
+**2**:
+
+See [TLS](/configuration/shared/tls/#query_server_name).
+
+**3**:
+
+Each Windows release now includes `libcronet.dll`.
+Ensure this file is in the same directory as `sing-box.exe` or in a directory listed in `PATH`.
+
+**4**:
+
+See [OCM](/configuration/service/ocm).
+
+#### 1.13.0-alpha.29
+
+* Add UDP over TCP support for naiveproxy outbound **1**
+* Fixes and improvements
+
+**1**:
+
+See [NaiveProxy outbound](/configuration/outbound/naive/#udp_over_tcp).
+
+#### 1.13.0-alpha.28
+
+* Add naiveproxy outbound **1**
+* Add `disable_tcp_keep_alive`, `tcp_keep_alive` and `tcp_keep_alive_interval` options for dial fields **2**
+* Update default TCP keep-alive initial period from 10 minutes to 5 minutes
+* Update quic-go to v0.57.1
+* Fixes and improvements
+
+**1**:
+
+Only available on Apple platforms, Android, Windows and some Linux architectures.
+
+See [NaiveProxy outbound](/configuration/outbound/naive/).
+
+**2**:
+
+See [Dial Fields](/configuration/shared/dial/#tcp_keep_alive).
+
+* __Unfortunately, for non-technical reasons, we are currently unable to notarize the standalone version of the macOS client:
+because system extensions require signatures to function, we have had to temporarily halt its release.__
+
+__We plan to fix the App Store release issue and launch a new standalone desktop client, but until then,
+only clients on TestFlight will be available (unless you have an Apple Developer Program and compile from source code).__
+
+
+#### 1.12.13
+
+* Fix naive inbound
+* Fixes and improvements
+
+__Unfortunately, for non-technical reasons, we are currently unable to notarize the standalone version of the macOS client:
+because system extensions require signatures to function, we have had to temporarily halt its release.__
+
+__We plan to fix the App Store release issue and launch a new standalone desktop client, but until then,
+only clients on TestFlight will be available (unless you have an Apple Developer Program and compile from source code).__
+
+#### 1.12.12
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.26
+
+* Update quic-go to v0.55.0
+* Fix memory leak in hysteria2
+* Fixes and improvements
+
+#### 1.12.11
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.24
+
+* Add Claude Code Multiplexer service **1**
+* Fixes and improvements
+
+**1**:
+
+CCM (Claude Code Multiplexer) service allows you to access your local Claude Code subscription remotely through custom tokens, eliminating the need for OAuth authentication on remote clients.
+
+See [CCM](/configuration/service/ccm).
+
+#### 1.13.0-alpha.23
+
+* Fix compatibility with MPTCP **1**
+* Fixes and improvements
+
+**1**:
+
+`auto_redirect` now rejects MPTCP connections by default to fix compatibility issues,
+but you can change it to bypass the sing-box via the new `exclude_mptcp` option.
+
+See [TUN](/configuration/inbound/tun/#exclude_mptcp).
+
+#### 1.13.0-alpha.22
+
+* Update uTLS to v1.8.1 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes an critical issue that could cause simulated Chrome fingerprints to be detected,
+see https://github.com/refraction-networking/utls/pull/375.
+
+#### 1.12.10
+
+* Update uTLS to v1.8.1 **1**
+* Fixes and improvements
+
+**1**:
+
+This update fixes an critical issue that could cause simulated Chrome fingerprints to be detected,
+see https://github.com/refraction-networking/utls/pull/375.
+
+#### 1.13.0-alpha.21
+
+* Fix missing mTLS support in client options **1**
+* Fixes and improvements
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.12.9
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.16
+
+* Add curve preferences, pinned public key SHA256 and mTLS for TLS options **1**
+* Fixes and improvements
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.13.0-alpha.15
+
+* Update quic-go to v0.54.0
+* Update gVisor to v20250811
+* Update Tailscale to v1.86.5
+* Fixes and improvements
+
+#### 1.12.8
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.11
+
+* Fixes and improvements
+
+#### 1.12.5
+
+* Fixes and improvements
+
+#### 1.13.0-alpha.10
+
+* Improve kTLS support **1**
+* Fixes and improvements
+
+**1**:
+
+kTLS is now compatible with custom TLS implementations other than uTLS.
+
+#### 1.12.4
+
+* Fixes and improvements
+
+#### 1.12.3
+
+* Fixes and improvements
+
+#### 1.12.2
+
+* Fixes and improvements
+
+#### 1.12.1
+
+* Fixes and improvements
+
+#### 1.12.0
+
+* Refactor DNS servers **1**
+* Add domain resolver options**2**
+* Add TLS fragment/record fragment support to route options and outbound TLS options **3**
+* Add certificate options **4**
+* Add Tailscale endpoint and DNS server **5**
+* Drop support for go1.22 **6**
+* Add AnyTLS protocol **7**
+* Migrate to stdlib ECH implementation **8**
+* Add NTP sniffer **9**
+* Add wildcard SNI support for ShadowTLS inbound **10**
+* Improve `auto_redirect` **11**
+* Add control options for listeners **12**
+* Add DERP service **13**
+* Add Resolved service and DNS server **14**
+* Add SSM API service **15**
+* Add loopback address support for tun **16**
+* Improve tun performance on Apple platforms **17**
+* Update quic-go to v0.52.0
+* Update gVisor to 20250319.0
+* Update the status of graphical clients in stores **18**
+
+**1**:
+
+DNS servers are refactored for better performance and scalability.
+
+See [DNS server](/configuration/dns/server/).
+
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+**2**:
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by the new `domain_resolver` option.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver) and
+[Route](/configuration/route/#default_domain_resolver).
+
+For migration,
+see [Migrate outbound DNS rule items to domain resolver](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+**3**:
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment) and [TLS](/configuration/shared/tls/).
+
+**4**:
+
+New certificate options allow you to manage the default list of trusted X509 CA certificates.
+
+For the system certificate list, fixed Go not reading Android trusted certificates correctly.
+
+You can also use the Mozilla Included List instead, or add trusted certificates yourself.
+
+See [Certificate](/configuration/certificate/).
+
+**5**:
+
+See [Tailscale](/configuration/endpoint/tailscale/).
+
+**6**:
+
+Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
+
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches
+from [MetaCubeX/go](https://github.com/MetaCubeX/go).
+
+**7**:
+
+The new AnyTLS protocol claims to mitigate TLS proxy traffic characteristics and comes with a new multiplexing scheme.
+
+See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/configuration/outbound/anytls/).
+
+**8**:
+
+See [TLS](/configuration/shared/tls).
+
+The build tag `with_ech` is no longer needed and has been removed.
+
+**9**:
+
+See [Protocol Sniff](/configuration/route/sniff/).
+
+**10**:
+
+See [ShadowTLS](/configuration/inbound/shadowtls/#wildcard_sni).
+
+**11**:
+
+Now `auto_redirect` fixes compatibility issues between tun and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
+
+**12**:
+
+You can now set `bind_interface`, `routing_mark` and `reuse_addr` in Listen Fields.
+
+See [Listen Fields](/configuration/shared/listen/).
+
+**13**:
+
+DERP service is a Tailscale DERP server, similar to [derper](https://pkg.go.dev/tailscale.com/cmd/derper).
+
+See [DERP Service](/configuration/service/derp/).
+
+**14**:
+
+Resolved service is a fake systemd-resolved DBUS service to receive DNS settings from other programs
+(e.g. NetworkManager) and provide DNS resolution.
+
+See [Resolved Service](/configuration/service/resolved/) and [Resolved DNS Server](/configuration/dns/server/resolved/).
+
+**15**:
+
+SSM API service is a RESTful API server for managing Shadowsocks servers.
+
+See [SSM API Service](/configuration/service/ssm-api/).
+
+**16**:
+
+TUN now implements SideStore's StosVPN.
+
+See [Tun](/configuration/inbound/tun/#loopback_address).
+
+**17**:
+
+We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
+
+The following data was tested
+using [tun_bench](https://github.com/SagerNet/sing-box/blob/dev-next/cmd/internal/tun_bench/main.go) on M4 MacBook pro.
+
+| Version     | Stack  | MTU   | Upload | Download |
+|-------------|--------|-------|--------|----------|
+| 1.11.15     | gvisor | 1500  | 852M   | 2.57G    |
+| 1.12.0-rc.4 | gvisor | 1500  | 2.90G  | 4.68G    |
+| 1.11.15     | gvisor | 4064  | 2.31G  | 6.34G    |
+| 1.12.0-rc.4 | gvisor | 4064  | 7.54G  | 12.2G    |
+| 1.11.15     | gvisor | 65535 | 27.6G  | 18.1G    |
+| 1.12.0-rc.4 | gvisor | 65535 | 39.8G  | 34.7G    |
+| 1.11.15     | system | 1500  | 664M   | 706M     |
+| 1.12.0-rc.4 | system | 1500  | 2.44G  | 2.51G    |
+| 1.11.15     | system | 4064  | 1.88G  | 1.94G    |
+| 1.12.0-rc.4 | system | 4064  | 6.45G  | 6.27G    |
+| 1.11.15     | system | 65535 | 26.2G  | 17.4G    |
+| 1.12.0-rc.4 | system | 65535 | 17.6G  | 21.0G    |
+
+**18**:
+
+We continue to experience issues updating our sing-box apps on the App Store and Play Store.
+Until we rewrite and resubmit the apps, they are considered irrecoverable.
+Therefore, after this release, we will not be repeating this notice unless there is new information.
+
+### 1.11.15
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.32
+
+* Improve tun performance on Apple platforms **1**
+* Fixes and improvements
+
+**1**:
+
+We have significantly improved the performance of tun inbound on Apple platforms, especially in the gVisor stack.
+
+### 1.11.14
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.24
+
+* Allow `tls_fragment` and `tls_record_fragment` to be enabled together **1**
+* Also add fragment options for TLS client configuration **2**
+* Fixes and improvements
+
+**1**:
+
+For debugging only, it is recommended to disable if record fragmentation works.
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment).
+
+**2**:
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.12.0-beta.23
+
+* Add loopback address support for tun **1**
+* Add cache support for ssm-api **2**
+* Fixes and improvements
+
+**1**:
+
+TUN now implements SideStore's StosVPN.
+
+See [Tun](/configuration/inbound/tun/#loopback_address).
+
+**2**:
+
+See [SSM API Service](/configuration/service/ssm-api/#cache_path).
+
+#### 1.12.0-beta.21
+
+* Fix missing `home` option for DERP service **1**
+* Fixes and improvements
+
+**1**:
+
+You can now choose what the DERP home page shows, just like with derper's `-home` flag.
+
+See [DERP](/configuration/service/derp/#home).
+
+### 1.11.13
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.17
+
+* Update quic-go to v0.52.0
+* Fixes and improvements
+
+#### 1.12.0-beta.15
+
+* Add DERP service **1**
+* Add Resolved service and DNS server **2**
+* Add SSM API service **3**
+* Fixes and improvements
+
+**1**:
+
+DERP service is a Tailscale DERP server, similar to [derper](https://pkg.go.dev/tailscale.com/cmd/derper).
+
+See [DERP Service](/configuration/service/derp/).
+
+**2**:
+
+Resolved service is a fake systemd-resolved DBUS service to receive DNS settings from other programs
+(e.g. NetworkManager) and provide DNS resolution.
+
+See [Resolved Service](/configuration/service/resolved/) and [Resolved DNS Server](/configuration/dns/server/resolved/).
+
+**3**:
+
+SSM API service is a RESTful API server for managing Shadowsocks servers.
+
+See [SSM API Service](/configuration/service/ssm-api/).
+
+### 1.11.11
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.13
+
+* Add TLS record fragment route options **1**
+* Add missing `accept_routes` option for Tailscale **2**
+* Fixes and improvements
+
+**1**:
+
+See [Route Action](/configuration/route/rule_action/#tls_record_fragment).
+
+**2**:
+
+See [Tailscale](/configuration/endpoint/tailscale/#accept_routes).
+
+#### 1.12.0-beta.10
+
+* Add control options for listeners **1**
+* Fixes and improvements
+
+**1**:
+
+You can now set `bind_interface`, `routing_mark` and `reuse_addr` in Listen Fields.
+
+See [Listen Fields](/configuration/shared/listen/).
+
+### 1.11.10
+
+* Undeprecate the `block` outbound **1**
+* Fixes and improvements
+
+**1**:
+
+Since we don’t have a replacement for using the `block` outbound in selectors yet,
+we decided to temporarily undeprecate the `block` outbound until a replacement is available in the future.
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.9
+
+* Update quic-go to v0.51.0
+* Fixes and improvements
+
+### 1.11.9
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.5
+
+* Fixes and improvements
+
+### 1.11.8
+
+* Improve `auto_redirect` **1**
+* Fixes and improvements
+
+**1**:
+
+Now `auto_redirect` fixes compatibility issues between TUN and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.3
+
+* Fixes and improvements
+
+### 1.11.7
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-beta.1
+
+* Fixes and improvements
+
+**1**:
+
+Now `auto_redirect` fixes compatibility issues between tun and Docker bridge networks,
+see [Tun](/configuration/inbound/tun/#auto_redirect).
+
+### 1.11.6
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-alpha.19
+
+* Update gVisor to 20250319.0
+* Fixes and improvements
+
+#### 1.12.0-alpha.18
+
+* Add wildcard SNI support for ShadowTLS inbound **1**
+* Fixes and improvements
+
+**1**:
+
+See [ShadowTLS](/configuration/inbound/shadowtls/#wildcard_sni).
+
+#### 1.12.0-alpha.17
+
+* Add NTP sniffer **1**
+* Fixes and improvements
+
+**1**:
+
+See [Protocol Sniff](/configuration/route/sniff/).
+
+#### 1.12.0-alpha.16
+
+* Update `domain_resolver` behavior **1**
+* Fixes and improvements
+
+**1**:
+
+`route.default_domain_resolver` or `outbound.domain_resolver` is now optional when only one DNS server is configured.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver).
+
+### 1.11.5
+
+* Fixes and improvements
+
+_We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we
+violated the rules (TestFlight users are not affected)._
+
+#### 1.12.0-alpha.13
+
+* Move `predefined` DNS server to DNS rule action **1**
+* Fixes and improvements
+
+**1**:
+
+See [DNS Rule Action](/configuration/dns/rule_action/#predefined).
+
+### 1.11.4
+
+* Fixes and improvements
+
+#### 1.12.0-alpha.11
+
+* Fixes and improvements
+
+#### 1.12.0-alpha.10
+
+* Add AnyTLS protocol **1**
+* Improve `resolve` route action **2**
+* Migrate to stdlib ECH implementation **3**
+* Fixes and improvements
+
+**1**:
+
+The new AnyTLS protocol claims to mitigate TLS proxy traffic characteristics and comes with a new multiplexing scheme.
+
+See [AnyTLS Inbound](/configuration/inbound/anytls/) and [AnyTLS Outbound](/configuration/outbound/anytls/).
+
+**2**:
+
+`resolve` route action now accepts `disable_cache` and other options like in DNS route actions,
+see [Route Action](/configuration/route/rule_action).
+
+**3**:
+
+See [TLS](/configuration/shared/tls).
+
+The build tag `with_ech` is no longer needed and has been removed.
+
+#### 1.12.0-alpha.7
+
+* Add Tailscale DNS server **1**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale](/configuration/dns/server/tailscale/).
+
+#### 1.12.0-alpha.6
+
+* Add Tailscale endpoint **1**
+* Drop support for go1.22 **2**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale](/configuration/endpoint/tailscale/).
+
+**2**:
+
+Due to maintenance difficulties, sing-box 1.12.0 requires at least Go 1.23 to compile.
+
+For Windows 7 users, legacy binaries now continue to compile with Go 1.23 and patches
+from [MetaCubeX/go](https://github.com/MetaCubeX/go).
+
+### 1.11.3
+
+* Fixes and improvements
+
+_This version overwrites 1.11.2, as incorrect binaries were released due to a bug in the continuous integration
+process._
+
+#### 1.12.0-alpha.5
+
+* Fixes and improvements
+
+### 1.11.1
+
+* Fixes and improvements
+
+#### 1.12.0-alpha.2
+
+* Update quic-go to v0.49.0
+* Fixes and improvements
+
+#### 1.12.0-alpha.1
+
+* Refactor DNS servers **1**
+* Add domain resolver options**2**
+* Add TLS fragment route options **3**
+* Add certificate options **4**
+
+**1**:
+
+DNS servers are refactored for better performance and scalability.
+
+See [DNS server](/configuration/dns/server/).
+
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+
+Compatibility for old formats will be removed in sing-box 1.14.0.
+
+**2**:
+
+Legacy `outbound` DNS rules are deprecated
+and can be replaced by the new `domain_resolver` option.
+
+See [Dial Fields](/configuration/shared/dial/#domain_resolver) and
+[Route](/configuration/route/#default_domain_resolver).
+
+For migration,
+see [Migrate outbound DNS rule items to domain resolver](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver).
+
+**3**:
+
+The new TLS fragment route options allow you to fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**, and should not be used
+to circumvent real censorship.
+
+Since it is not designed for performance, it should not be applied to all connections, but only to server names that are
+known to be blocked.
+
+See [Route Action](/configuration/route/rule_action/#tls_fragment).
+
+**4**:
+
+New certificate options allow you to manage the default list of trusted X509 CA certificates.
+
+For the system certificate list, fixed Go not reading Android trusted certificates correctly.
+
+You can also use the Mozilla Included List instead, or add trusted certificates yourself.
+
+See [Certificate](/configuration/certificate/).
+
+### 1.11.0
+
+Important changes since 1.10:
+
+* Introducing rule actions **1**
+* Improve tun compatibility **3**
+* Merge route options to route actions **4**
+* Add `network_type`, `network_is_expensive` and `network_is_constrainted` rule items **5**
+* Add multi network dialing **6**
+* Add `cache_capacity` DNS option **7**
+* Add `override_address` and `override_port` route options **8**
+* Upgrade WireGuard outbound to endpoint **9**
+* Add UDP GSO support for WireGuard
+* Make GSO adaptive **10**
+* Add UDP timeout route option **11**
+* Add more masquerade options for hysteria2 **12**
+* Add `rule-set merge` command
+* Add port hopping support for Hysteria2 **13**
+* Hysteria2 `ignore_client_bandwidth` behavior update **14**
+
+**1**:
+
+New rule actions replace legacy inbound fields and special outbound fields,
+and can be used for pre-matching **2**.
+
+See [Rule](/configuration/route/rule/),
+[Rule Action](/configuration/route/rule_action/),
+[DNS Rule](/configuration/dns/rule/) and
+[DNS Rule Action](/configuration/dns/rule_action/).
+
+For migration, see
+[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions),
+[Migrate legacy inbound fields to rule actions](/migration/#migrate-legacy-inbound-fields-to-rule-actions)
+and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
+
+**2**:
+
+Similar to Surge's pre-matching.
+
+Specifically, new rule actions allow you to reject connections with
+TCP RST (for TCP connections) and ICMP port unreachable (for UDP packets)
+before connection established to improve tun's compatibility.
+
+See [Rule Action](/configuration/route/rule_action/).
+
+**3**:
+
+When `gvisor` tun stack is enabled, even if the request passes routing,
+if the outbound connection establishment fails,
+the connection still does not need to be established and a TCP RST is replied.
+
+**4**:
+
+Route options in DNS route actions will no longer be considered deprecated,
+see [DNS Route Action](/configuration/dns/rule_action/).
+
+Also, now `udp_disable_domain_unmapping` and `udp_connect` can also be configured in route action,
+see [Route Action](/configuration/route/rule_action/).
+
+**5**:
+
+When using in graphical clients, new routing rule items allow you to match on
+network type (WIFI, cellular, etc.), whether the network is expensive, and whether Low Data Mode is enabled.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
+
+**6**:
+
+Similar to Surge's strategy.
+
+New options allow you to connect using multiple network interfaces,
+prefer or only use one type of interface,
+and configure a timeout to fallback to other interfaces.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
+**7**:
+
+See [DNS](/configuration/dns/#cache_capacity).
+
+**8**:
+
+See [Rule Action](/configuration/route/#override_address) and
+[Migrate destination override fields to route options](/migration/#migrate-destination-override-fields-to-route-options).
+
+**9**:
+
+The new WireGuard endpoint combines inbound and outbound capabilities,
+and the old outbound will be removed in sing-box 1.13.0.
+
+See [Endpoint](/configuration/endpoint/), [WireGuard Endpoint](/configuration/endpoint/wireguard/)
+and [Migrate WireGuard outbound fields to route options](/migration/#migrate-wireguard-outbound-to-endpoint).
+
+**10**:
+
+For WireGuard outbound and endpoint, GSO will be automatically enabled when available,
+see [WireGuard Outbound](/configuration/outbound/wireguard/#gso).
+
+For TUN, GSO has been removed,
+see [Deprecated](/deprecated/#gso-option-in-tun).
+
+**11**:
+
+See [Rule Action](/configuration/route/rule_action/#udp_timeout).
+
+**12**:
+
+See [Hysteria2](/configuration/inbound/hysteria2/#masquerade).
+
+**13**:
+
+See [Hysteria2](/configuration/outbound/hysteria2/).
+
+**14**:
+
+When `up_mbps` and `down_mbps` are set, `ignore_client_bandwidth` instead denies clients from using BBR CC.
+
 ### 1.10.7
 
 * Fixes and improvements
+
+#### 1.11.0-beta.20
+
+* Hysteria2 `ignore_client_bandwidth` behavior update **1**
+* Fixes and improvements
+
+**1**:
+
+When `up_mbps` and `down_mbps` are set, `ignore_client_bandwidth` instead denies clients from using BBR CC.
+
+See [Hysteria2](/configuration/inbound/hysteria2/#ignore_client_bandwidth).
+
+#### 1.11.0-beta.17
+
+* Add port hopping support for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2](/configuration/outbound/hysteria2/).
+
+#### 1.11.0-beta.14
+
+* Allow adding route (exclude) address sets to routes **1**
+* Fixes and improvements
+
+**1**:
+
+When `auto_redirect` is not enabled, directly add `route[_exclude]_address_set`
+to tun routes (equivalent to `route[_exclude]_address`).
+
+Note that it **doesn't work on the Android graphical client** due to
+the Android VpnService not being able to handle a large number of routes (DeadSystemException),
+but otherwise it works fine on all command line clients and Apple platforms.
+
+See [route_address_set](/configuration/inbound/tun/#route_address_set) and
+[route_exclude_address_set](/configuration/inbound/tun/#route_exclude_address_set).
+
+#### 1.11.0-beta.12
+
+* Add `rule-set merge` command
+* Fixes and improvements
+
+#### 1.11.0-beta.3
+
+* Add more masquerade options for hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2](/configuration/inbound/hysteria2/#masquerade).
+
+#### 1.11.0-alpha.25
+
+* Update quic-go to v0.48.2
+* Fixes and improvements
+
+#### 1.11.0-alpha.22
+
+* Add UDP timeout route option **1**
+* Fixes and improvements
+
+**1**:
+
+See [Rule Action](/configuration/route/rule_action/#udp_timeout).
+
+#### 1.11.0-alpha.20
+
+* Add UDP GSO support for WireGuard
+* Make GSO adaptive **1**
+
+**1**:
+
+For WireGuard outbound and endpoint, GSO will be automatically enabled when available,
+see [WireGuard Outbound](/configuration/outbound/wireguard/#gso).
+
+For TUN, GSO has been removed,
+see [Deprecated](/deprecated/#gso-option-in-tun).
+
+#### 1.11.0-alpha.19
+
+* Upgrade WireGuard outbound to endpoint **1**
+* Fixes and improvements
+
+**1**:
+
+The new WireGuard endpoint combines inbound and outbound capabilities,
+and the old outbound will be removed in sing-box 1.13.0.
+
+See [Endpoint](/configuration/endpoint/), [WireGuard Endpoint](/configuration/endpoint/wireguard/)
+and [Migrate WireGuard outbound fields to route options](/migration/#migrate-wireguard-outbound-to-endpoint).
 
 ### 1.10.2
 
 * Add deprecated warnings
 * Fix proxying websocket connections in HTTP/mixed inbounds
+* Fixes and improvements
+
+#### 1.11.0-alpha.18
+
+* Fixes and improvements
+
+#### 1.11.0-alpha.16
+
+* Add `cache_capacity` DNS option **1**
+* Add `override_address` and `override_port` route options **2**
+* Fixes and improvements
+
+**1**:
+
+See [DNS](/configuration/dns/#cache_capacity).
+
+**2**:
+
+See [Rule Action](/configuration/route/#override_address) and
+[Migrate destination override fields to route options](/migration/#migrate-destination-override-fields-to-route-options).
+
+#### 1.11.0-alpha.15
+
+* Improve multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+New options allow you to configure the network strategy flexibly.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
+#### 1.11.0-alpha.14
+
+* Add multi network dialing **1**
+* Fixes and improvements
+
+**1**:
+
+Similar to Surge's strategy.
+
+New options allow you to connect using multiple network interfaces,
+prefer or only use one type of interface,
+and configure a timeout to fallback to other interfaces.
+
+See [Dial Fields](/configuration/shared/dial/#network_strategy),
+[Rule Action](/configuration/route/rule_action/#network_strategy)
+and [Route](/configuration/route/#default_network_strategy).
+
+#### 1.11.0-alpha.13
+
+* Fixes and improvements
+
+#### 1.11.0-alpha.12
+
+* Merge route options to route actions **1**
+* Add `network_type`, `network_is_expensive` and `network_is_constrainted` rule items **2**
+* Fixes and improvements
+
+**1**:
+
+Route options in DNS route actions will no longer be considered deprecated,
+see [DNS Route Action](/configuration/dns/rule_action/).
+
+Also, now `udp_disable_domain_unmapping` and `udp_connect` can also be configured in route action,
+see [Route Action](/configuration/route/rule_action/).
+
+**2**:
+
+When using in graphical clients, new routing rule items allow you to match on
+network type (WIFI, cellular, etc.), whether the network is expensive, and whether Low Data Mode is enabled.
+
+See [Route Rule](/configuration/route/rule/), [DNS Route Rule](/configuration/dns/rule/)
+and [Headless Rule](/configuration/rule-set/headless-rule/).
+
+#### 1.11.0-alpha.9
+
+* Improve tun compatibility **1**
+* Fixes and improvements
+
+**1**:
+
+When `gvisor` tun stack is enabled, even if the request passes routing,
+if the outbound connection establishment fails,
+the connection still does not need to be established and a TCP RST is replied.
+
+#### 1.11.0-alpha.7
+
+* Introducing rule actions **1**
+
+**1**:
+
+New rule actions replace legacy inbound fields and special outbound fields,
+and can be used for pre-matching **2**.
+
+See [Rule](/configuration/route/rule/),
+[Rule Action](/configuration/route/rule_action/),
+[DNS Rule](/configuration/dns/rule/) and
+[DNS Rule Action](/configuration/dns/rule_action/).
+
+For migration, see
+[Migrate legacy special outbounds to rule actions](/migration/#migrate-legacy-special-outbounds-to-rule-actions),
+[Migrate legacy inbound fields to rule actions](/migration/#migrate-legacy-inbound-fields-to-rule-actions)
+and [Migrate legacy DNS route options to rule actions](/migration/#migrate-legacy-dns-route-options-to-rule-actions).
+
+**2**:
+
+Similar to Surge's pre-matching.
+
+Specifically, new rule actions allow you to reject connections with
+TCP RST (for TCP connections) and ICMP port unreachable (for UDP packets)
+before connection established to improve tun's compatibility.
+
+See [Rule Action](/configuration/route/rule_action/).
+
+#### 1.11.0-alpha.6
+
+* Update quic-go to v0.48.1
+* Set gateway for tun correctly
+* Fixes and improvements
+
+#### 1.11.0-alpha.2
+
+* Add warnings for usage of deprecated features
+* Fixes and improvements
+
+#### 1.11.0-alpha.1
+
+* Update quic-go to v0.48.0
 * Fixes and improvements
 
 ### 1.10.1
@@ -87,7 +1323,7 @@ allows you to write headless rules directly without creating a rule-set file.
 
 **8**:
 
-With the new access control options, not only can you allow Clash dashboards
+With new access control options, not only can you allow Clash dashboards
 to access the Clash API on your local network,
 you can also manually limit the websites that can access the API instead of allowing everyone.
 

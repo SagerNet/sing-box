@@ -9,49 +9,61 @@ icon: material/package
 === ":material-debian: Debian / APT"
 
     ```bash
-    sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc
-    sudo chmod a+r /etc/apt/keyrings/sagernet.asc
-    echo "deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/sagernet.asc] https://deb.sagernet.org/ * *" | \
-      sudo tee /etc/apt/sources.list.d/sagernet.list > /dev/null
-    sudo apt-get update
-    sudo apt-get install sing-box # or sing-box-beta
+    sudo mkdir -p /etc/apt/keyrings &&
+       sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc &&
+       sudo chmod a+r /etc/apt/keyrings/sagernet.asc &&
+       echo '
+    Types: deb
+    URIs: https://deb.sagernet.org/
+    Suites: *
+    Components: *
+    Enabled: yes
+    Signed-By: /etc/apt/keyrings/sagernet.asc
+    ' | sudo tee /etc/apt/sources.list.d/sagernet.sources &&
+       sudo apt-get update &&
+       sudo apt-get install sing-box # or sing-box-beta
     ```
 
-=== ":material-redhat: Redhat / DNF"
+=== ":material-redhat: Redhat / DNF 5"
 
     ```bash
-    sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo
+    sudo dnf config-manager addrepo --from-repofile=https://sing-box.app/sing-box.repo &&
     sudo dnf install sing-box # or sing-box-beta
     ```
-    （这适用于任何使用 `dnf` 作为包管理器的发行版：Fedora、CentOS，甚至安装了 DNF 的 OpenSUSE。）
+
+=== ":material-redhat: Redhat / DNF 4"
+
+    ```bash
+    sudo dnf config-manager --add-repo https://sing-box.app/sing-box.repo &&
+    sudo dnf -y install dnf-plugins-core &&
+    sudo dnf install sing-box # or sing-box-beta
+    ```
 
 ## :material-download-box: 手动安装
 
-=== ":material-debian: Debian / DEB"
+该脚本从 GitHub 发布中下载并安装最新的软件包，适用于基于 deb 或 rpm 的 Linux 发行版、ArchLinux 和 OpenWrt。
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/deb-install.sh)
-    ```
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh
+```
 
-=== ":material-redhat: Redhat / RPM"
+或最新测试版：
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/rpm-install.sh)
-    ```
-    （这适用于任何使用 `rpm` 和 `systemd` 的发行版。由于 `rpm` 定义依赖关系的方式，如果安装成功，就多半能用。）
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --beta
+```
 
-=== ":simple-archlinux: Archlinux / PKG"
+或指定版本：
 
-    ```bash
-    bash <(curl -fsSL https://sing-box.app/arch-install.sh)
-    ```
+```shell
+curl -fsSL https://sing-box.app/install.sh | sh -s -- --version <version>
+```
 
 ## :material-book-lock-open: 托管安装
 
 === ":material-linux: Linux"
 
-    | 类型       | 平台            | 链接                           | 命令                                                                                                            |
+    | 类型       | 平台            | 命令                           | 链接                                                                                                            |
     |----------|---------------|------------------------------|---------------------------------------------------------------------------------------------------------------|
     | AUR      | Arch Linux    | `? -S sing-box`              | [![AUR package](https://repology.org/badge/version-for-repo/aur/sing-box.svg)][aur]                           |
     | nixpkgs  | NixOS         | `nix-env -iA nixos.sing-box` | [![nixpkgs unstable package](https://repology.org/badge/version-for-repo/nix_unstable/sing-box.svg)][nixpkgs] |
@@ -61,13 +73,13 @@ icon: material/package
 
 === ":material-apple: macOS"
 
-    | 类型       | 平台    | 链接                      | 命令                                                                                             |
+    | 类型       | 平台    | 命令                      | 链接                                                                                             |
     |----------|-------|-------------------------|------------------------------------------------------------------------------------------------|
     | Homebrew | macOS | `brew install sing-box` | [![Homebrew package](https://repology.org/badge/version-for-repo/homebrew/sing-box.svg)][brew] |
 
 === ":material-microsoft-windows: Windows"
 
-    | 类型         | 平台      | 链接                        | 命令                                                                                                  |
+    | 类型         | 平台      | 命令                        | 链接                                                                                                  |
     |------------|---------|---------------------------|-----------------------------------------------------------------------------------------------------|
     | Scoop      | Windows | `scoop install sing-box`  | [![Scoop package](https://repology.org/badge/version-for-repo/scoop/sing-box.svg)][scoop]           |
     | Chocolatey | Windows | `choco install sing-box`  | [![Chocolatey package](https://repology.org/badge/version-for-repo/chocolatey/sing-box.svg)][choco] |
@@ -75,13 +87,13 @@ icon: material/package
 
 === ":material-android: Android"
 
-    | 类型     | 平台      | 链接                 | 命令                                                                                           |
+    | 类型     | 平台      | 命令                 | 链接                                                                                           |
     |--------|---------|--------------------|----------------------------------------------------------------------------------------------|
     | Termux | Android | `pkg add sing-box` | [![Termux package](https://repology.org/badge/version-for-repo/termux/sing-box.svg)][termux] |
 
 === ":material-freebsd: FreeBSD"
 
-    | 类型         | 平台      | 链接                     | 命令                                                                                         |
+    | 类型         | 平台      | 命令                     | 链接                                                                                         |
     |------------|---------|------------------------|--------------------------------------------------------------------------------------------|
     | FreshPorts | FreeBSD | `pkg install sing-box` | [![FreeBSD port](https://repology.org/badge/version-for-repo/freebsd/sing-box.svg)][ports] |
 

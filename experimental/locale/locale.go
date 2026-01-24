@@ -7,11 +7,13 @@ var (
 
 type Locale struct {
 	// deprecated messages for graphical clients
+	Locale                  string
 	DeprecatedMessage       string
 	DeprecatedMessageNoLink string
 }
 
 var defaultLocal = &Locale{
+	Locale:                  "en_US",
 	DeprecatedMessage:       "%s is deprecated in sing-box %s and will be removed in sing-box %s please checkout documentation for migration.",
 	DeprecatedMessageNoLink: "%s is deprecated in sing-box %s and will be removed in sing-box %s.",
 }

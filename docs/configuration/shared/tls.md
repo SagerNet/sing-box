@@ -1,10 +1,32 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
+
+!!! quote "Changes in sing-box 1.13.0"
+
+    :material-plus: [kernel_tx](#kernel_tx)  
+    :material-plus: [kernel_rx](#kernel_rx)  
+    :material-plus: [curve_preferences](#curve_preferences)  
+    :material-plus: [certificate_public_key_sha256](#certificate_public_key_sha256)  
+    :material-plus: [client_certificate](#client_certificate)  
+    :material-plus: [client_certificate_path](#client_certificate_path)  
+    :material-plus: [client_key](#client_key)  
+    :material-plus: [client_key_path](#client_key_path)  
+    :material-plus: [client_authentication](#client_authentication)  
+    :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)  
+    :material-plus: [ech.query_server_name](#query_server_name)
+
+!!! quote "Changes in sing-box 1.12.0"
+
+    :material-plus: [fragment](#fragment)  
+    :material-plus: [fragment_fallback_delay](#fragment_fallback_delay)  
+    :material-plus: [record_fragment](#record_fragment)  
+    :material-delete-clock: [ech.pq_signature_schemes_enabled](#pq_signature_schemes_enabled)  
+    :material-delete-clock: [ech.dynamic_record_sizing_disabled](#dynamic_record_sizing_disabled)
 
 !!! quote "Changes in sing-box 1.10.0"
 
-    :material-alert-decagram: [utls](#utls)  
+    :material-alert-decagram: [utls](#utls)
 
 ### Inbound
 
@@ -16,10 +38,17 @@ icon: material/alert-decagram
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
+  "curve_preferences": [],
   "certificate": [],
   "certificate_path": "",
+  "client_authentication": "",
+  "client_certificate": [],
+  "client_certificate_path": [],
+  "client_certificate_public_key_sha256": [],
   "key": [],
   "key_path": "",
+  "kernel_tx": false,
+  "kernel_rx": false,
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -38,10 +67,13 @@ icon: material/alert-decagram
   },
   "ech": {
     "enabled": false,
-    "pq_signature_schemes_enabled": false,
-    "dynamic_record_sizing_disabled": false,
     "key": [],
-    "key_path": ""
+    "key_path": "",
+
+    // Deprecated
+    
+    "pq_signature_schemes_enabled": false,
+    "dynamic_record_sizing_disabled": false
   },
   "reality": {
     "enabled": false,
@@ -72,14 +104,26 @@ icon: material/alert-decagram
   "min_version": "",
   "max_version": "",
   "cipher_suites": [],
+  "curve_preferences": [],
   "certificate": "",
   "certificate_path": "",
+  "certificate_public_key_sha256": [],
+  "client_certificate": [],
+  "client_certificate_path": "",
+  "client_key": [],
+  "client_key_path": "",
+  "fragment": false,
+  "fragment_fallback_delay": "",
+  "record_fragment": false,
   "ech": {
     "enabled": false,
-    "pq_signature_schemes_enabled": false,
-    "dynamic_record_sizing_disabled": false,
     "config": [],
-    "config_path": ""
+    "config_path": "",
+    "query_server_name": "",
+
+    // Deprecated
+    "pq_signature_schemes_enabled": false,
+    "dynamic_record_sizing_disabled": false
   },
   "utls": {
     "enabled": false,
@@ -172,13 +216,29 @@ By default, the maximum version is currently TLS 1.3.
 
 #### cipher_suites
 
-A list of enabled TLS 1.0–1.2 cipher suites. The order of the list is ignored. Note that TLS 1.3 cipher suites are not configurable.
+List of enabled TLS 1.0–1.2 cipher suites. The order of the list is ignored.
+Note that TLS 1.3 cipher suites are not configurable.
 
 If empty, a safe default list is used. The default cipher suites might change over time.
 
+#### curve_preferences
+
+!!! question "Since sing-box 1.13.0"
+
+Set of supported key exchange mechanisms. The order of the list is ignored, and key exchange mechanisms are chosen
+from this list using an internal preference order by Golang.
+
+Available values, also the default list:
+
+* `P256`
+* `P384`
+* `P521`
+* `X25519`
+* `X25519MLKEM768`
+
 #### certificate
 
-The server certificate line array, in PEM format.
+Server certificates chain line array, in PEM format.
 
 #### certificate_path
 
@@ -186,7 +246,58 @@ The server certificate line array, in PEM format.
 
     Will be automatically reloaded if file modified.
 
-The path to the server certificate, in PEM format.
+The path to server certificate chain, in PEM format.
+
+
+#### certificate_public_key_sha256
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+List of SHA-256 hashes of server certificate public keys, in base64 format.
+
+To generate the SHA-256 hash for a certificate's public key, use the following commands:
+
+```bash
+# For a certificate file
+openssl x509 -in certificate.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+
+# For a certificate from a remote server
+echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+```
+
+#### client_certificate
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Client certificate chain line array, in PEM format.
+
+#### client_certificate_path
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+The path to client certificate chain, in PEM format.
+
+#### client_key
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Client private key line array, in PEM format.
+
+#### client_key_path
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+The path to client private key, in PEM format.
 
 #### key
 
@@ -204,6 +315,99 @@ The server private key line array, in PEM format.
 
 The path to the server private key, in PEM format.
 
+#### client_authentication
+
+!!! question "Since sing-box 1.13.0"
+
+==Server only==
+
+The type of client authentication to use.
+
+Available values:
+
+* `no` (default)
+* `request`
+* `require-any`
+* `verify-if-given`
+* `require-and-verify`
+
+One of `client_certificate`, `client_certificate_path`, or `client_certificate_public_key_sha256` is required
+if this option is set to `verify-if-given`, or `require-and-verify`.
+
+#### client_certificate
+
+!!! question "Since sing-box 1.13.0"
+
+==Server only==
+
+Client certificate chain line array, in PEM format.
+
+#### client_certificate_path
+
+!!! question "Since sing-box 1.13.0"
+
+==Server only==
+
+!!! note ""
+
+    Will be automatically reloaded if file modified.
+
+List of path to client certificate chain, in PEM format.
+
+#### client_certificate_public_key_sha256
+
+!!! question "Since sing-box 1.13.0"
+
+==Server only==
+
+List of SHA-256 hashes of client certificate public keys, in base64 format.
+
+To generate the SHA-256 hash for a certificate's public key, use the following commands:
+
+```bash
+# For a certificate file
+openssl x509 -in certificate.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+
+# For a certificate from a remote server
+echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+```
+
+#### kernel_tx
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux 5.1+, use a newer kernel if possible.
+
+!!! quote ""
+
+    Only TLS 1.3 is supported.
+
+!!! warning ""
+
+    kTLS TX may only improve performance when `splice(2)` is available (both ends must be TCP or TLS without additional protocols after handshake); otherwise, it will definitely degrade performance.
+
+Enable kernel TLS transmit support.
+
+#### kernel_rx
+
+!!! question "Since sing-box 1.13.0"
+
+!!! quote ""
+
+    Only supported on Linux 5.1+, use a newer kernel if possible.
+
+!!! quote ""
+
+    Only TLS 1.3 is supported.
+
+!!! failure ""
+
+    kTLS RX will definitely degrade performance even if `splice(2)` is in use, so enabling it is not recommended.
+
+Enable kernel TLS receive support.
+
 ## Custom TLS support
 
 !!! info "QUIC support"
@@ -214,9 +418,18 @@ The path to the server private key, in PEM format.
 
 ==Client only==
 
-!!! failure ""
-    
-    There is no evidence that GFW detects and blocks servers based on TLS client fingerprinting, and using an imperfect emulation that has not been security reviewed could pose security risks.
+!!! failure "Not Recommended"
+
+    uTLS has had repeated fingerprinting vulnerabilities discovered by researchers.
+
+    uTLS is a Go library that attempts to imitate browser TLS fingerprints by copying
+    ClientHello structure. However, browsers use completely different TLS stacks
+    (Chrome uses BoringSSL, Firefox uses NSS) with distinct implementation behaviors
+    that cannot be replicated by simply copying the handshake format, making detection possible.
+    Additionally, the library lacks active maintenance and has poor code quality,
+    making it unsuitable for censorship circumvention.
+
+    For TLS fingerprint resistance, use [NaiveProxy](/configuration/inbound/naive/) instead.
 
 uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance.
 
@@ -250,15 +463,21 @@ Chrome fingerprint will be used if empty.
 ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello
 message.
 
-The ECH key and configuration can be generated by `sing-box generate ech-keypair [--pq-signature-schemes-enabled]`.
+The ECH key and configuration can be generated by `sing-box generate ech-keypair`.
 
 #### pq_signature_schemes_enabled
 
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    ECH support has been migrated to use stdlib in sing-box 1.12.0, which does not come with support for PQ signature schemes, so `pq_signature_schemes_enabled` has been deprecated and no longer works.
+
 Enable support for post-quantum peer certificate signature schemes.
 
-It is recommended to match the parameters of `sing-box generate ech-keypair`.
-
 #### dynamic_record_sizing_disabled
+
+!!! failure "Deprecated in sing-box 1.12.0"
+
+    `dynamic_record_sizing_disabled` has nothing to do with ECH, was added by mistake, has been deprecated and no longer works.
 
 Disables adaptive sizing of TLS records.
 
@@ -296,6 +515,54 @@ If empty, load from DNS will be attempted.
 The path to ECH configuration, in PEM format.
 
 If empty, load from DNS will be attempted.
+
+#### query_server_name
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Overrides the domain name used for ECH HTTPS record queries.
+
+If empty, `server_name` is used for queries.
+
+#### fragment
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+Fragment TLS handshakes to bypass firewalls.
+
+This feature is intended to circumvent simple firewalls based on **plaintext packet matching**,
+and should not be used to circumvent real censorship.
+
+Due to poor performance, try `record_fragment` first, and only apply to server names known to be blocked.
+
+On Linux, Apple platforms, (administrator privileges required) Windows,
+the wait time can be automatically detected. Otherwise, it will fall back to
+waiting for a fixed time specified by `fragment_fallback_delay`.
+
+In addition, if the actual wait time is less than 20ms, it will also fall back to waiting for a fixed time,
+because the target is considered to be local or behind a transparent proxy.
+
+#### fragment_fallback_delay
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+The fallback value used when TLS segmentation cannot automatically determine the wait time.
+
+`500ms` is used by default.
+
+#### record_fragment
+
+!!! question "Since sing-box 1.12.0"
+
+==Client only==
+
+Fragment TLS handshake into multiple TLS records to bypass firewalls.
 
 ### ACME Fields
 
@@ -380,7 +647,7 @@ See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/) for details
 
 ==Required==
 
-Handshake server address and [Dial options](/configuration/shared/dial/).
+Handshake server address and [Dial Fields](/configuration/shared/dial/).
 
 #### private_key
 

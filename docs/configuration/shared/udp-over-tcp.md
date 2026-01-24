@@ -1,5 +1,3 @@
-# UDP over TCP
-
 !!! warning ""
 
     It's a proprietary protocol created by SagerNet, not part of shadowsocks.
@@ -33,12 +31,11 @@ The protocol version, `1` or `2`.
 
 ### Application support
 
-| Project      | UoT v1               | UoT v2                                                                                                            |
-|--------------|----------------------|-------------------------------------------------------------------------------------------------------------------|
-| sing-box     | v0 (2022/08/11)      | v1.2-beta9                                                                                                        |
-| Xray-core    | v1.5.7 (2022/06/05)  | [f57ec13](https://github.com/XTLS/Xray-core/commit/f57ec1388084df041a2289bacab14e446bf1b357) (Not released)       |
-| Clash.Meta   | v1.12.0 (2022/07/02) | [8cb67b6](https://github.com/MetaCubeX/Clash.Meta/commit/8cb67b6480649edfa45dcc9ac89ce0789651e8b3) (Not released) |
-| Shadowrocket | v2.2.12 (2022/08/13) | /                                                                                                                 |
+| Project      | UoT v1               | UoT v2               |
+|--------------|----------------------|----------------------|
+| sing-box     | v0 (2022/08/11)      | v1.2-beta9           |
+| Clash.Meta   | v1.12.0 (2022/07/02) | v1.14.3 (2023/03/31) |
+| Shadowrocket | v2.2.12 (2022/08/13) | /                    |
 
 ### Protocol details
 
@@ -52,7 +49,13 @@ The client requests the magic address to the upper layer proxy protocol to indic
 |------|----------|-------|--------|----------|
 | u8   | variable | u16be | u16be  | variable |
 
-**ATYP / address / port**: Uses the SOCKS address format.
+**ATYP / address / port**: Uses the SOCKS address format, but with different address types:
+
+| ATYP   | Address type |
+|--------|--------------|
+| `0x00` | IPv4 Address |
+| `0x01` | IPv6 Address |
+| `0x02` | Domain Name  |
 
 #### Protocol version 2
 
