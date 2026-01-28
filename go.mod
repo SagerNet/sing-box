@@ -48,6 +48,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netns v0.0.5
+	github.com/xchacha20-poly1305/sing-trusttunnel v0.1.1
 	go.uber.org/zap v1.27.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.46.0
