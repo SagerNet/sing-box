@@ -17,17 +17,17 @@ import (
 )
 
 var (
-	debugEnabled  bool
-	target        string
-	platform      string
-	withTailscale bool
+	debugEnabled bool
+	target       string
+	platform     string
+	// withTailscale bool
 )
 
 func init() {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable debug")
 	flag.StringVar(&target, "target", "android", "target platform")
 	flag.StringVar(&platform, "platform", "", "specify platform")
-	flag.BoolVar(&withTailscale, "with-tailscale", false, "build tailscale for iOS and tvOS")
+	// flag.BoolVar(&withTailscale, "with-tailscale", false, "build tailscale for iOS and tvOS")
 }
 
 func main() {
@@ -48,7 +48,7 @@ var (
 	debugFlags  []string
 	sharedTags  []string
 	darwinTags  []string
-	memcTags    []string
+	// memcTags    []string
 	notMemcTags []string
 	debugTags   []string
 )
@@ -64,8 +64,9 @@ func init() {
 	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0")
 
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_naive_outbound", "with_clash_api", "with_conntrack", "badlinkname", "tfogo_checklinkname0")
-	darwinTags = append(darwinTags, "with_dhcp")
-	memcTags = append(memcTags, "with_tailscale")
+	darwinTags = append(darwinTags, "with_dhcp", "grpcnotrace")
+	// memcTags = append(memcTags, "with_tailscale")
+	sharedTags = append(sharedTags, "with_tailscale", "ts_omit_logtail", "ts_omit_ssh", "ts_omit_drive", "ts_omit_taildrop", "ts_omit_webclient", "ts_omit_doctor", "ts_omit_capture", "ts_omit_kube", "ts_omit_aws", "ts_omit_synology", "ts_omit_bird")
 	notMemcTags = append(notMemcTags, "with_low_memory")
 	debugTags = append(debugTags, "debug")
 }
@@ -164,7 +165,7 @@ func buildAndroid() {
 
 	// Build main variant (SDK 23)
 	mainTags := append([]string{}, sharedTags...)
-	mainTags = append(mainTags, memcTags...)
+	// mainTags = append(mainTags, memcTags...)
 	if debugEnabled {
 		mainTags = append(mainTags, debugTags...)
 	}
@@ -176,7 +177,7 @@ func buildAndroid() {
 
 	// Build legacy variant (SDK 21, no naive outbound)
 	legacyTags := filterTags(sharedTags, "with_naive_outbound")
-	legacyTags = append(legacyTags, memcTags...)
+	// legacyTags = append(legacyTags, memcTags...)
 	if debugEnabled {
 		legacyTags = append(legacyTags, debugTags...)
 	}
@@ -204,9 +205,9 @@ func buildApple() {
 		"-libname=box",
 		"-tags-not-macos=with_low_memory",
 	}
-	if !withTailscale {
-		args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
-	}
+	//if !withTailscale {
+	//	args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
+	//}
 
 	if !debugEnabled {
 		args = append(args, sharedFlags...)
@@ -215,9 +216,9 @@ func buildApple() {
 	}
 
 	tags := append(sharedTags, darwinTags...)
-	if withTailscale {
-		tags = append(tags, memcTags...)
-	}
+	//if withTailscale {
+	//	tags = append(tags, memcTags...)
+	//}
 	if debugEnabled {
 		tags = append(tags, debugTags...)
 	}
