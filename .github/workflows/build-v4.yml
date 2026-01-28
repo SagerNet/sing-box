@@ -1,0 +1,66 @@
+name: Build Sing-box Stable (v4 + Official Only)
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    # 1. 拉取官方源码
+    - uses: actions/checkout@v4
+      with:
+        repository: SagerNet/sing-box
+        fetch-depth: 0
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    # 2. 获取最新【正式版】Tag (关键修改在这里)
+    - name: Get Latest Stable Tag
+      id: get_tag
+      run: |
+        # 逻辑解释：
+        # 1. git tag 列出所有标签
+        # 2. grep -vE 'alpha|beta|rc' 剔除掉包含 alpha/beta/rc 的行
+        # 3. sort -V 按照版本号逻辑排序 (避免 v1.10 排在 v1.2 前面这种错误)
+        # 4. tail -n 1 取最后一个，也就是最大的版本号
+        
+        LATEST_TAG=$(git tag | grep -vE 'alpha|beta|rc' | sort -V | tail -n 1)
+        
+        echo "Found Latest STABLE Tag: $LATEST_TAG"
+        
+        # 检出代码
+        git checkout $LATEST_TAG
+        
+        # 去掉 v 前缀
+        VERSION_NO_V=$(echo $LATEST_TAG | sed 's/^v//')
+        echo "VERSION_NO_V=$VERSION_NO_V" >> $GITHUB_ENV
+
+    # 3. 编译 (你的 v4 优化 + 官方全功能)
+    - name: Build v4 Binary
+      run: |
+        export GOAMD64=v4
+        export CGO_ENABLED=0
+        
+        # 官方全功能 Tags
+        TAGS="with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname"
+        
+        echo "Building Stable Version: ${{ env.VERSION_NO_V }}"
+        
+        go build -v -trimpath -tags "$TAGS" \
+          -ldflags "-s -w -X 'github.com/sagernet/sing-box/constant.Version=${{ env.VERSION_NO_V }}' -checklinkname=0" \
+          -o sing-box ./cmd/sing-box
+          
+        # 验证一下文件
+        ls -lh sing-box
+
+    # 4. 上传成品
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # 改了个名字，方便你下载时区分
+        name: sing-box-stable-${{ env.VERSION_NO_V }}-v4
+        path: sing-box
