@@ -2,11 +2,11 @@ package srs
 
 import (
 	"encoding/binary"
+	"io"
 	"net/netip"
 	"os"
 	"unsafe"
 
-	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/varbin"
 
@@ -20,11 +20,6 @@ type myIPSet struct {
 type myIPRange struct {
 	from netip.Addr
 	to   netip.Addr
-}
-
-type myIPRangeData struct {
-	From []byte
-	To   []byte
 }
 
 func readIPSet(reader varbin.Reader) (*netipx.IPSet, error) {
@@ -41,17 +36,30 @@ func readIPSet(reader varbin.Reader) (*netipx.IPSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ranges := make([]myIPRangeData, length)
-	err = varbin.Read(reader, binary.BigEndian, &ranges)
-	if err != nil {
-		return nil, err
-	}
 	mySet := &myIPSet{
-		rr: make([]myIPRange, len(ranges)),
+		rr: make([]myIPRange, length),
 	}
-	for i, rangeData := range ranges {
-		mySet.rr[i].from = M.AddrFromIP(rangeData.From)
-		mySet.rr[i].to = M.AddrFromIP(rangeData.To)
+	for i := range mySet.rr {
+		fromLen, err := binary.ReadUvarint(reader)
+		if err != nil {
+			return nil, err
+		}
+		fromBytes := make([]byte, fromLen)
+		_, err = io.ReadFull(reader, fromBytes)
+		if err != nil {
+			return nil, err
+		}
+		toLen, err := binary.ReadUvarint(reader)
+		if err != nil {
+			return nil, err
+		}
+		toBytes := make([]byte, toLen)
+		_, err = io.ReadFull(reader, toBytes)
+		if err != nil {
+			return nil, err
+		}
+		mySet.rr[i].from = M.AddrFromIP(fromBytes)
+		mySet.rr[i].to = M.AddrFromIP(toBytes)
 	}
 	return (*netipx.IPSet)(unsafe.Pointer(mySet)), nil
 }
@@ -61,18 +69,27 @@ func writeIPSet(writer varbin.Writer, set *netipx.IPSet) error {
 	if err != nil {
 		return err
 	}
-	dataList := common.Map((*myIPSet)(unsafe.Pointer(set)).rr, func(rr myIPRange) myIPRangeData {
-		return myIPRangeData{
-			From: rr.from.AsSlice(),
-			To:   rr.to.AsSlice(),
-		}
-	})
-	err = binary.Write(writer, binary.BigEndian, uint64(len(dataList)))
+	mySet := (*myIPSet)(unsafe.Pointer(set))
+	err = binary.Write(writer, binary.BigEndian, uint64(len(mySet.rr)))
 	if err != nil {
 		return err
 	}
-	for _, data := range dataList {
-		err = varbin.Write(writer, binary.BigEndian, data)
+	for _, rr := range mySet.rr {
+		fromBytes := rr.from.AsSlice()
+		_, err = varbin.WriteUvarint(writer, uint64(len(fromBytes)))
+		if err != nil {
+			return err
+		}
+		_, err = writer.Write(fromBytes)
+		if err != nil {
+			return err
+		}
+		toBytes := rr.to.AsSlice()
+		_, err = varbin.WriteUvarint(writer, uint64(len(toBytes)))
+		if err != nil {
+			return err
+		}
+		_, err = writer.Write(toBytes)
 		if err != nil {
 			return err
 		}
