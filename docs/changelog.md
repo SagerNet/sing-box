@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.12.18
+
+* Fixes and improvements
+
 #### 1.12.17
 
 * Update uTLS to v1.8.2 **1**
