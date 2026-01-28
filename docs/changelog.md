@@ -2,7 +2,11 @@
 icon: material/alert-decagram
 ---
 
-#### 1.13.0-beta.7
+#### 1.13.0-beta.8
+
+* Fixes and improvements
+
+#### 1.12.18
 
 * Add fallback routing rule for `auto_redirect` **1**
 * Fixes and improvements
