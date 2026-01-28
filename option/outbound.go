@@ -93,11 +93,12 @@ type DialerOptions struct {
 }
 
 type _DomainResolveOptions struct {
-	Server       string                `json:"server"`
-	Strategy     DomainStrategy        `json:"strategy,omitempty"`
-	DisableCache bool                  `json:"disable_cache,omitempty"`
-	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
-	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
+	Server          string                `json:"server"`
+	Strategy        DomainStrategy        `json:"strategy,omitempty"`
+	DisableCache    bool                  `json:"disable_cache,omitempty"`
+	RewriteTTL      *uint32               `json:"rewrite_ttl,omitempty"`
+	ClientSubnet    *badoption.Prefixable `json:"client_subnet,omitempty"`
+	CnameFlattening bool                  `json:"cname_flattening,omitempty"`
 }
 
 type DomainResolveOptions _DomainResolveOptions
