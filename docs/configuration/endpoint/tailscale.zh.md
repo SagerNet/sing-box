@@ -12,6 +12,8 @@ icon: material/new-box
 
 !!! question "自 sing-box 1.12.0 起"
 
+!!! failure "在sing-box for iOS 暂时不可用
+
 ### 结构
 
 ```json
