@@ -11,36 +11,37 @@ import (
 )
 
 type TunInboundOptions struct {
-	InterfaceName          string                           `json:"interface_name,omitempty"`
-	MTU                    uint32                           `json:"mtu,omitempty"`
-	Address                badoption.Listable[netip.Prefix] `json:"address,omitempty"`
-	AutoRoute              bool                             `json:"auto_route,omitempty"`
-	IPRoute2TableIndex     int                              `json:"iproute2_table_index,omitempty"`
-	IPRoute2RuleIndex      int                              `json:"iproute2_rule_index,omitempty"`
-	AutoRedirect           bool                             `json:"auto_redirect,omitempty"`
-	AutoRedirectInputMark  FwMark                           `json:"auto_redirect_input_mark,omitempty"`
-	AutoRedirectOutputMark FwMark                           `json:"auto_redirect_output_mark,omitempty"`
-	AutoRedirectResetMark  FwMark                           `json:"auto_redirect_reset_mark,omitempty"`
-	AutoRedirectNFQueue    uint16                           `json:"auto_redirect_nfqueue,omitempty"`
-	ExcludeMPTCP           bool                             `json:"exclude_mptcp,omitempty"`
-	LoopbackAddress        badoption.Listable[netip.Addr]   `json:"loopback_address,omitempty"`
-	StrictRoute            bool                             `json:"strict_route,omitempty"`
-	RouteAddress           badoption.Listable[netip.Prefix] `json:"route_address,omitempty"`
-	RouteAddressSet        badoption.Listable[string]       `json:"route_address_set,omitempty"`
-	RouteExcludeAddress    badoption.Listable[netip.Prefix] `json:"route_exclude_address,omitempty"`
-	RouteExcludeAddressSet badoption.Listable[string]       `json:"route_exclude_address_set,omitempty"`
-	IncludeInterface       badoption.Listable[string]       `json:"include_interface,omitempty"`
-	ExcludeInterface       badoption.Listable[string]       `json:"exclude_interface,omitempty"`
-	IncludeUID             badoption.Listable[uint32]       `json:"include_uid,omitempty"`
-	IncludeUIDRange        badoption.Listable[string]       `json:"include_uid_range,omitempty"`
-	ExcludeUID             badoption.Listable[uint32]       `json:"exclude_uid,omitempty"`
-	ExcludeUIDRange        badoption.Listable[string]       `json:"exclude_uid_range,omitempty"`
-	IncludeAndroidUser     badoption.Listable[int]          `json:"include_android_user,omitempty"`
-	IncludePackage         badoption.Listable[string]       `json:"include_package,omitempty"`
-	ExcludePackage         badoption.Listable[string]       `json:"exclude_package,omitempty"`
-	UDPTimeout             UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
-	Stack                  string                           `json:"stack,omitempty"`
-	Platform               *TunPlatformOptions              `json:"platform,omitempty"`
+	InterfaceName                 string                           `json:"interface_name,omitempty"`
+	MTU                           uint32                           `json:"mtu,omitempty"`
+	Address                       badoption.Listable[netip.Prefix] `json:"address,omitempty"`
+	AutoRoute                     bool                             `json:"auto_route,omitempty"`
+	IPRoute2TableIndex            int                              `json:"iproute2_table_index,omitempty"`
+	IPRoute2RuleIndex             int                              `json:"iproute2_rule_index,omitempty"`
+	AutoRedirect                  bool                             `json:"auto_redirect,omitempty"`
+	AutoRedirectInputMark         FwMark                           `json:"auto_redirect_input_mark,omitempty"`
+	AutoRedirectOutputMark        FwMark                           `json:"auto_redirect_output_mark,omitempty"`
+	AutoRedirectResetMark         FwMark                           `json:"auto_redirect_reset_mark,omitempty"`
+	AutoRedirectNFQueue           uint16                           `json:"auto_redirect_nfqueue,omitempty"`
+	AutoRedirectFallbackRuleIndex int                              `json:"auto_redirect_iproute2_fallback_rule_index,omitempty"`
+	ExcludeMPTCP                  bool                             `json:"exclude_mptcp,omitempty"`
+	LoopbackAddress               badoption.Listable[netip.Addr]   `json:"loopback_address,omitempty"`
+	StrictRoute                   bool                             `json:"strict_route,omitempty"`
+	RouteAddress                  badoption.Listable[netip.Prefix] `json:"route_address,omitempty"`
+	RouteAddressSet               badoption.Listable[string]       `json:"route_address_set,omitempty"`
+	RouteExcludeAddress           badoption.Listable[netip.Prefix] `json:"route_exclude_address,omitempty"`
+	RouteExcludeAddressSet        badoption.Listable[string]       `json:"route_exclude_address_set,omitempty"`
+	IncludeInterface              badoption.Listable[string]       `json:"include_interface,omitempty"`
+	ExcludeInterface              badoption.Listable[string]       `json:"exclude_interface,omitempty"`
+	IncludeUID                    badoption.Listable[uint32]       `json:"include_uid,omitempty"`
+	IncludeUIDRange               badoption.Listable[string]       `json:"include_uid_range,omitempty"`
+	ExcludeUID                    badoption.Listable[uint32]       `json:"exclude_uid,omitempty"`
+	ExcludeUIDRange               badoption.Listable[string]       `json:"exclude_uid_range,omitempty"`
+	IncludeAndroidUser            badoption.Listable[int]          `json:"include_android_user,omitempty"`
+	IncludePackage                badoption.Listable[string]       `json:"include_package,omitempty"`
+	ExcludePackage                badoption.Listable[string]       `json:"exclude_package,omitempty"`
+	UDPTimeout                    UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
+	Stack                         string                           `json:"stack,omitempty"`
+	Platform                      *TunPlatformOptions              `json:"platform,omitempty"`
 	InboundOptions
 
 	// Deprecated: removed
