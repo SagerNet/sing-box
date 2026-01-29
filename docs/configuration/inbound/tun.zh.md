@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.12.18 中的更改"
+
+    :material-plus: [auto_redirect_iproute2_fallback_rule_index](#auto_redirect_iproute2_fallback_rule_index)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [loopback_address](#loopback_address)
@@ -63,6 +67,7 @@ icon: material/new-box
   "auto_redirect": true,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
+  "auto_redirect_iproute2_fallback_rule_index": 32768,
   "loopback_address": [
     "10.7.0.1"
   ],
@@ -276,6 +281,17 @@ tun 接口的 IPv6 前缀。
 `auto_redirect` 使用的连接输出标记。
 
 默认使用 `0x2024`。
+
+#### auto_redirect_iproute2_fallback_rule_index
+
+!!! question "自 sing-box 1.12.18 起"
+
+`auto_redirect` 生成的 iproute2 回退规则索引。
+
+此规则在系统默认规则（32766: main，32767: default）之后检查，
+仅当系统路由表中未找到路由时才将流量路由到 sing-box 路由表。
+
+默认使用 `32768`。
 
 #### loopback_address
 
