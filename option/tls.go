@@ -215,10 +215,11 @@ type InboundECHOptions struct {
 }
 
 type OutboundECHOptions struct {
-	Enabled         bool                       `json:"enabled,omitempty"`
-	Config          badoption.Listable[string] `json:"config,omitempty"`
-	ConfigPath      string                     `json:"config_path,omitempty"`
-	QueryServerName string                     `json:"query_server_name,omitempty"`
+	Enabled            bool                       `json:"enabled,omitempty"`
+	Config             badoption.Listable[string] `json:"config,omitempty"`
+	ConfigPath         string                     `json:"config_path,omitempty"`
+	QueryServerName    string                     `json:"query_server_name,omitempty"`
+	DisableQueryExpire bool                       `json:"disable_query_expire,omitempty"`
 
 	// Deprecated: not supported by stdlib
 	PQSignatureSchemesEnabled bool `json:"pq_signature_schemes_enabled,omitempty"`
