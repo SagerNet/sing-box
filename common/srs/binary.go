@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net/netip"
+	"unsafe"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -505,7 +506,24 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 }
 
 func readRuleItemString(reader varbin.Reader) ([]string, error) {
-	return varbin.ReadValue[[]string](reader, binary.BigEndian)
+	length, err := binary.ReadUvarint(reader)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, length)
+	for i := range result {
+		strLen, err := binary.ReadUvarint(reader)
+		if err != nil {
+			return nil, err
+		}
+		buf := make([]byte, strLen)
+		_, err = io.ReadFull(reader, buf)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = string(buf)
+	}
+	return result, nil
 }
 
 func writeRuleItemString(writer varbin.Writer, itemType uint8, value []string) error {
@@ -513,11 +531,34 @@ func writeRuleItemString(writer varbin.Writer, itemType uint8, value []string) e
 	if err != nil {
 		return err
 	}
-	return varbin.Write(writer, binary.BigEndian, value)
+	_, err = varbin.WriteUvarint(writer, uint64(len(value)))
+	if err != nil {
+		return err
+	}
+	for _, s := range value {
+		_, err = varbin.WriteUvarint(writer, uint64(len(s)))
+		if err != nil {
+			return err
+		}
+		_, err = writer.Write([]byte(s))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func readRuleItemUint8[E ~uint8](reader varbin.Reader) ([]E, error) {
-	return varbin.ReadValue[[]E](reader, binary.BigEndian)
+	length, err := binary.ReadUvarint(reader)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]E, length)
+	_, err = io.ReadFull(reader, *(*[]byte)(unsafe.Pointer(&result)))
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func writeRuleItemUint8[E ~uint8](writer varbin.Writer, itemType uint8, value []E) error {
@@ -525,11 +566,25 @@ func writeRuleItemUint8[E ~uint8](writer varbin.Writer, itemType uint8, value []
 	if err != nil {
 		return err
 	}
-	return varbin.Write(writer, binary.BigEndian, value)
+	_, err = varbin.WriteUvarint(writer, uint64(len(value)))
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(*(*[]byte)(unsafe.Pointer(&value)))
+	return err
 }
 
 func readRuleItemUint16(reader varbin.Reader) ([]uint16, error) {
-	return varbin.ReadValue[[]uint16](reader, binary.BigEndian)
+	length, err := binary.ReadUvarint(reader)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]uint16, length)
+	err = binary.Read(reader, binary.BigEndian, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func writeRuleItemUint16(writer varbin.Writer, itemType uint8, value []uint16) error {
@@ -537,7 +592,11 @@ func writeRuleItemUint16(writer varbin.Writer, itemType uint8, value []uint16) e
 	if err != nil {
 		return err
 	}
-	return varbin.Write(writer, binary.BigEndian, value)
+	_, err = varbin.WriteUvarint(writer, uint64(len(value)))
+	if err != nil {
+		return err
+	}
+	return binary.Write(writer, binary.BigEndian, value)
 }
 
 func writeRuleItemCIDR(writer varbin.Writer, itemType uint8, value []string) error {
