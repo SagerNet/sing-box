@@ -33,7 +33,7 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
-	github.com/sagernet/sing-tun v0.7.10
+	github.com/sagernet/sing-tun v0.7.11
 	github.com/sagernet/sing-vmess v0.2.7
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
 	github.com/sagernet/tailscale v1.80.3-sing-box-1.12-mod.2
