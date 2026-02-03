@@ -13,7 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -65,7 +65,8 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 			}
 			return cacheFile
 		},
-		Logger: router.logger,
+		CnameFlattening: options.DNSClientOptions.CnameFlattening,
+		Logger:          router.logger,
 	})
 	if options.ReverseMapping {
 		router.dnsReverseMapping = common.Must1(freelru.NewSharded[netip.Addr, string](1024, maphash.NewHasher[netip.Addr]().Hash32))

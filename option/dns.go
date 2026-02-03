@@ -109,6 +109,7 @@ type DNSClientOptions struct {
 	IndependentCache bool                  `json:"independent_cache,omitempty"`
 	CacheCapacity    uint32                `json:"cache_capacity,omitempty"`
 	ClientSubnet     *badoption.Prefixable `json:"client_subnet,omitempty"`
+	CnameFlattening  bool                  `json:"cname_flattening,omitempty"`
 }
 
 type LegacyDNSFakeIPOptions struct {
