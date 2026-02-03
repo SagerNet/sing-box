@@ -4,6 +4,7 @@ import (
 	std_bufio "bufio"
 	"context"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -36,14 +37,22 @@ type Inbound struct {
 	listener      *listener.Listener
 	authenticator *auth.Authenticator
 	tlsConfig     tls.ServerConfig
+	udpTimeout    time.Duration
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) (adapter.Inbound, error) {
+	var udpTimeout time.Duration
+	if options.UDPTimeout != 0 {
+		udpTimeout = time.Duration(options.UDPTimeout)
+	} else {
+		udpTimeout = C.UDPTimeout
+	}
 	inbound := &Inbound{
 		Adapter:       inbound.NewAdapter(C.TypeMixed, tag),
 		router:        uot.NewRouter(router, logger),
 		logger:        logger,
 		authenticator: auth.NewAuthenticator(options.Users),
+		udpTimeout:    udpTimeout,
 	}
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServerWithOptions(tls.ServerOptions{
@@ -139,6 +148,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	metadata.UDPTimeout = h.udpTimeout
 	user, loaded := auth.UserFromContext[string](ctx)
 	if !loaded {
 		if !metadata.Destination.IsValid() {
