@@ -169,6 +169,14 @@ Also, documentation has been updated with a warning about uTLS fingerprinting vu
 uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
 use NaiveProxy instead for TLS fingerprint resistance.
 
+#### 1.12.20
+
+* Fixes and improvements
+
+#### 1.13.0-rc.1
+
+* Fixes and improvements
+
 #### 1.12.19
 
 * Fixes and improvements
