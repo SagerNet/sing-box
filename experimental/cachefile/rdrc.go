@@ -31,7 +31,7 @@ func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (
 	copy(key[2:], qName)
 	defer buf.Put(key)
 	var deleteCache bool
-	err := c.DB.View(func(tx *bbolt.Tx) error {
+	err := c.view(func(tx *bbolt.Tx) error {
 		bucket := c.bucket(tx, bucketRDRC)
 		if bucket == nil {
 			return nil
@@ -56,7 +56,7 @@ func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (
 		return
 	}
 	if deleteCache {
-		c.DB.Update(func(tx *bbolt.Tx) error {
+		c.update(func(tx *bbolt.Tx) error {
 			bucket := c.bucket(tx, bucketRDRC)
 			if bucket == nil {
 				return nil
@@ -72,7 +72,7 @@ func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (
 }
 
 func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) error {
-	return c.DB.Batch(func(tx *bbolt.Tx) error {
+	return c.batch(func(tx *bbolt.Tx) error {
 		bucket, err := c.createBucket(tx, bucketRDRC)
 		if err != nil {
 			return err
