@@ -43,7 +43,7 @@ type CommandServerHandler interface {
 }
 
 func NewCommandServer(handler CommandServerHandler, platformInterface PlatformInterface) (*CommandServer, error) {
-	ctx := BaseContext(platformInterface)
+	ctx := baseContext(platformInterface)
 	platformWrapper := &platformInterfaceWrapper{
 		iif:       platformInterface,
 		useProcFS: platformInterface.UseProcFS(),

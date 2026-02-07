@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -103,6 +104,7 @@ func (s *StartedService) newInstance(profileContent string, overrideOptions *Ove
 	i.clashServer = service.FromContext[adapter.ClashServer](ctx)
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
+	log.SetStdLogger(boxInstance.LogFactory().Logger())
 	return i, nil
 }
 
