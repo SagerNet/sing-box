@@ -2,7 +2,7 @@
 icon: material/alert-decagram
 ---
 
-#### 1.13.0-rc.2
+#### 1.13.0-rc.3
 
 * Fixes and improvements
 
@@ -168,6 +168,14 @@ This update fixes missing padding extension for Chrome 120+ fingerprints.
 Also, documentation has been updated with a warning about uTLS fingerprinting vulnerabilities.
 uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
 use NaiveProxy instead for TLS fingerprint resistance.
+
+#### 1.12.21
+
+* Fixes and improvements
+
+#### 1.13.0-rc.2
+
+* Fixes and improvements
 
 #### 1.12.20
 
