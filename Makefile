@@ -206,7 +206,7 @@ update_apple_version:
 update_macos_version:
 	MACOS_PROJECT_VERSION=$(shell go run -v ./cmd/internal/app_store_connect next_macos_project_version) go run ./cmd/internal/update_apple_version
 
-release_apple: lib_ios update_apple_version release_ios release_macos release_tvos release_macos_standalone
+release_apple: lib_apple update_apple_version release_ios release_macos release_tvos release_macos_standalone
 
 release_apple_beta: update_apple_version release_ios release_macos release_tvos
 
@@ -234,18 +234,14 @@ test_stdio:
 lib_android:
 	go run ./cmd/internal/build_libbox -target android
 
-lib_android_debug:
-	go run ./cmd/internal/build_libbox -target android -debug
-
 lib_apple:
 	go run ./cmd/internal/build_libbox -target apple
 
-lib_ios:
-	go run ./cmd/internal/build_libbox -target apple -platform ios -debug
+lib_android_new:
+	go run ./cmd/internal/build_libbox_newffi -target android
 
-lib:
-	go run ./cmd/internal/build_libbox -target android
-	go run ./cmd/internal/build_libbox -target ios
+lib_apple_new:
+	go run ./cmd/internal/build_libbox_newffi -target apple
 
 lib_install:
 	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.11
