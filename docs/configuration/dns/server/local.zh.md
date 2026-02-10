@@ -44,7 +44,7 @@ icon: material/new-box
 具体来说，它禁用了在 sing-box 1.13.0 中作为功能添加的以下行为：
 
 1. 在 Apple 平台上：尝试在 NetworkExtension 中使用 `getaddrinfo` 解析 A/AAAA 请求。
-2. 在 Linux 上：当可用时通过 `systemd-resolvd` 的 DBus 接口进行解析。
+2. 在 Linux 上：当可用时通过 `systemd-resolved` 的 DBus 接口进行解析。
 
 作为唯一的例外，它无法禁用以下行为：
 
