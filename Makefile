@@ -259,7 +259,7 @@ docs_install:
 
 clean:
 	rm -rf bin dist sing-box
-	rm -f $(shell go env GOPATH)/sing-box
+	rm -f $(PREFIX)/bin/$(NAME)
 
 update:
 	git fetch
