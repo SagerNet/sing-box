@@ -119,7 +119,11 @@ func dialTarget() (string, func(context.Context, string) (net.Conn, error)) {
 		}
 	}
 	if sCommandServerListenPort == 0 {
-		return "unix://" + filepath.Join(sBasePath, "command.sock"), nil
+		socketPath := filepath.Join(sBasePath, "command.sock")
+		return "passthrough:///command-socket", func(ctx context.Context, _ string) (net.Conn, error) {
+			var networkDialer net.Dialer
+			return networkDialer.DialContext(ctx, "unix", socketPath)
+		}
 	}
 	return net.JoinHostPort("127.0.0.1", strconv.Itoa(int(sCommandServerListenPort))), nil
 }
