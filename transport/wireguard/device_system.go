@@ -116,7 +116,7 @@ func (w *systemDevice) Start() error {
 	w.options.Logger.Info("started at ", w.options.Name)
 	w.device = tunInterface
 	batchTUN, isBatchTUN := tunInterface.(tun.LinuxTUN)
-	if isBatchTUN {
+	if isBatchTUN && batchTUN.BatchSize() > 1 {
 		w.batchDevice = batchTUN
 	}
 	w.events <- wgTun.EventUp
