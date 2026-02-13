@@ -32,11 +32,11 @@ type OutboundGroup struct {
 	Selectable bool
 	Selected   string
 	IsExpand   bool
-	ItemList   []*OutboundGroupItem
+	itemList   []*OutboundGroupItem
 }
 
 func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
-	return newIterator(g.ItemList)
+	return newIterator(g.itemList)
 }
 
 type OutboundGroupIterator interface {
@@ -267,12 +267,12 @@ type Connection struct {
 	Rule          string
 	Outbound      string
 	OutboundType  string
-	ChainList     []string
+	chainList     []string
 	ProcessInfo   *ProcessInfo
 }
 
 func (c *Connection) Chain() StringIterator {
-	return newIterator(c.ChainList)
+	return newIterator(c.chainList)
 }
 
 func (c *Connection) DisplayDestination() string {
@@ -292,7 +292,7 @@ type ConnectionIterator interface {
 	HasNext() bool
 }
 
-func StatusMessageFromGRPC(status *daemon.Status) *StatusMessage {
+func statusMessageFromGRPC(status *daemon.Status) *StatusMessage {
 	if status == nil {
 		return nil
 	}
@@ -309,7 +309,7 @@ func StatusMessageFromGRPC(status *daemon.Status) *StatusMessage {
 	}
 }
 
-func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator {
+func outboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator {
 	if groups == nil || len(groups.Group) == 0 {
 		return newIterator([]*OutboundGroup{})
 	}
@@ -323,7 +323,7 @@ func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 			IsExpand:   g.IsExpand,
 		}
 		for _, item := range g.Items {
-			libboxGroup.ItemList = append(libboxGroup.ItemList, &OutboundGroupItem{
+			libboxGroup.itemList = append(libboxGroup.itemList, &OutboundGroupItem{
 				Tag:          item.Tag,
 				Type:         item.Type,
 				URLTestTime:  item.UrlTestTime,
@@ -335,7 +335,7 @@ func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 	return newIterator(libboxGroups)
 }
 
-func ConnectionFromGRPC(conn *daemon.Connection) Connection {
+func connectionFromGRPC(conn *daemon.Connection) Connection {
 	var processInfo *ProcessInfo
 	if conn.ProcessInfo != nil {
 		processInfo = &ProcessInfo{
@@ -367,12 +367,12 @@ func ConnectionFromGRPC(conn *daemon.Connection) Connection {
 		Rule:          conn.Rule,
 		Outbound:      conn.Outbound,
 		OutboundType:  conn.OutboundType,
-		ChainList:     conn.ChainList,
+		chainList:     conn.ChainList,
 		ProcessInfo:   processInfo,
 	}
 }
 
-func ConnectionEventFromGRPC(event *daemon.ConnectionEvent) *ConnectionEvent {
+func connectionEventFromGRPC(event *daemon.ConnectionEvent) *ConnectionEvent {
 	if event == nil {
 		return nil
 	}
@@ -384,13 +384,13 @@ func ConnectionEventFromGRPC(event *daemon.ConnectionEvent) *ConnectionEvent {
 		ClosedAt:      event.ClosedAt,
 	}
 	if event.Connection != nil {
-		conn := ConnectionFromGRPC(event.Connection)
+		conn := connectionFromGRPC(event.Connection)
 		libboxEvent.Connection = &conn
 	}
 	return libboxEvent
 }
 
-func ConnectionEventsFromGRPC(events *daemon.ConnectionEvents) *ConnectionEvents {
+func connectionEventsFromGRPC(events *daemon.ConnectionEvents) *ConnectionEvents {
 	if events == nil {
 		return nil
 	}
@@ -398,14 +398,14 @@ func ConnectionEventsFromGRPC(events *daemon.ConnectionEvents) *ConnectionEvents
 		Reset: events.Reset_,
 	}
 	for _, event := range events.Events {
-		if libboxEvent := ConnectionEventFromGRPC(event); libboxEvent != nil {
+		if libboxEvent := connectionEventFromGRPC(event); libboxEvent != nil {
 			libboxEvents.events = append(libboxEvents.events, libboxEvent)
 		}
 	}
 	return libboxEvents
 }
 
-func SystemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxyStatus {
+func systemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxyStatus {
 	if status == nil {
 		return nil
 	}
@@ -415,7 +415,7 @@ func SystemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxySta
 	}
 }
 
-func SystemProxyStatusToGRPC(status *SystemProxyStatus) *daemon.SystemProxyStatus {
+func systemProxyStatusToGRPC(status *SystemProxyStatus) *daemon.SystemProxyStatus {
 	if status == nil {
 		return nil
 	}

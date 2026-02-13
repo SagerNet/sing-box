@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "packages": [
+    {
+      "id": "libbox",
+      "path": ".",
+      "java_package": "io.nekohasekai.libbox",
+      "apple_prefix": "Libbox"
+    }
+  ],
+  "builds": [
+    {
+      "id": "android-main",
+      "packages": ["libbox"],
+      "default": {
+        "tags": [
+          "with_gvisor",
+          "with_quic",
+          "with_wireguard",
+          "with_utls",
+          "with_naive_outbound",
+          "with_clash_api",
+          "with_conntrack",
+          "badlinkname",
+          "tfogo_checklinkname0",
+          "with_tailscale",
+          "ts_omit_logtail",
+          "ts_omit_ssh",
+          "ts_omit_drive",
+          "ts_omit_taildrop",
+          "ts_omit_webclient",
+          "ts_omit_doctor",
+          "ts_omit_capture",
+          "ts_omit_kube",
+          "ts_omit_aws",
+          "ts_omit_synology",
+          "ts_omit_bird"
+        ],
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "trimpath": true
+      }
+    },
+    {
+      "id": "android-legacy",
+      "packages": ["libbox"],
+      "default": {
+        "tags": [
+          "with_gvisor",
+          "with_quic",
+          "with_wireguard",
+          "with_utls",
+          "with_clash_api",
+          "with_conntrack",
+          "badlinkname",
+          "tfogo_checklinkname0",
+          "with_tailscale",
+          "ts_omit_logtail",
+          "ts_omit_ssh",
+          "ts_omit_drive",
+          "ts_omit_taildrop",
+          "ts_omit_webclient",
+          "ts_omit_doctor",
+          "ts_omit_capture",
+          "ts_omit_kube",
+          "ts_omit_aws",
+          "ts_omit_synology",
+          "ts_omit_bird"
+        ],
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "trimpath": true
+      }
+    },
+    {
+      "id": "apple",
+      "packages": ["libbox"],
+      "default": {
+        "tags": [
+          "with_gvisor",
+          "with_quic",
+          "with_wireguard",
+          "with_utls",
+          "with_naive_outbound",
+          "with_clash_api",
+          "with_conntrack",
+          "badlinkname",
+          "tfogo_checklinkname0",
+          "with_dhcp",
+          "grpcnotrace",
+          "with_tailscale",
+          "ts_omit_logtail",
+          "ts_omit_ssh",
+          "ts_omit_drive",
+          "ts_omit_taildrop",
+          "ts_omit_webclient",
+          "ts_omit_doctor",
+          "ts_omit_capture",
+          "ts_omit_kube",
+          "ts_omit_aws",
+          "ts_omit_synology",
+          "ts_omit_bird"
+        ],
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "trimpath": true
+      },
+      "overrides": [
+        {
+          "match": { "os": "ios" },
+          "tags_append": ["with_low_memory"]
+        },
+        {
+          "match": { "os": "tvos" },
+          "tags_append": ["with_low_memory"]
+        }
+      ]
+    }
+  ],
+  "platforms": [
+    {
+      "type": "android",
+      "build": "android-main",
+      "min_sdk": 23,
+      "lib_name": "box",
+      "languages": [{ "type": "java" }],
+      "artifacts": [
+        {
+          "type": "aar",
+          "output_path": "libbox.aar"
+        }
+      ]
+    },
+    {
+      "type": "android",
+      "build": "android-legacy",
+      "min_sdk": 21,
+      "lib_name": "box",
+      "languages": [{ "type": "java" }],
+      "artifacts": [
+        {
+          "type": "aar",
+          "output_path": "libbox-legacy.aar"
+        }
+      ]
+    },
+    {
+      "type": "apple",
+      "build": "apple",
+      "targets": [
+        "ios/arm64",
+        "ios/simulator/arm64",
+        "ios/simulator/amd64",
+        "tvos/arm64",
+        "tvos/simulator/arm64",
+        "tvos/simulator/amd64",
+        "macos/arm64",
+        "macos/amd64"
+      ],
+      "languages": [{ "type": "objc" }],
+      "artifacts": [
+        {
+          "type": "xcframework",
+          "module_name": "Libbox",
+          "output_path": "Libbox.xcframework"
+        }
+      ]
+    }
+  ]
+}
