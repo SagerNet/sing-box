@@ -440,9 +440,20 @@ func (r *RuleActionSniff) build() error {
 		case C.ProtocolSTUN:
 			r.PacketSniffers = append(r.PacketSniffers, sniff.STUNMessage)
 		case C.ProtocolBitTorrent:
+			// Stream sniffers (TCP)
 			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrent)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentMessage)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentFAST)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentExtended)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentHTTP)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentSignature)
+			r.StreamSniffers = append(r.StreamSniffers, sniff.BitTorrentMSE)
+			// Packet sniffers (UDP)
 			r.PacketSniffers = append(r.PacketSniffers, sniff.UTP)
 			r.PacketSniffers = append(r.PacketSniffers, sniff.UDPTracker)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.BitTorrentDHTPacket)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.BitTorrentLSD)
+			r.PacketSniffers = append(r.PacketSniffers, sniff.BitTorrentSignaturePacket)
 		case C.ProtocolDTLS:
 			r.PacketSniffers = append(r.PacketSniffers, sniff.DTLSRecord)
 		case C.ProtocolSSH:

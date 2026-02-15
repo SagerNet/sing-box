@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"net/netip"
 	"testing"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
+	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/stretchr/testify/require"
 )
@@ -106,5 +108,345 @@ func TestSniffNotUTP(t *testing.T) {
 		var metadata adapter.InboundContext
 		err = sniff.UTP(context.TODO(), &metadata, pkt)
 		require.Error(t, err)
+	}
+}
+
+// --- False positive rejection tests ---
+
+func TestSniffUTPRejectsSTUN(t *testing.T) {
+	t.Parallel()
+
+	// Modern STUN with magic cookie 0x2112A442 at offset 4-7
+	// Binding Request: type=0x0001, length=0x0000, magic=0x2112A442, txn_id=12 bytes
+	pkt, _ := hex.DecodeString("000100002112a44200000000000000000000000000000000")
+	var metadata adapter.InboundContext
+	err := sniff.UTP(context.TODO(), &metadata, pkt)
+	require.Error(t, err)
+}
+
+func TestSniffUTPRejectsDHCP(t *testing.T) {
+	t.Parallel()
+
+	// DHCP DISCOVER: op=1, htype=1, hlen=6, hops=0, ... magic cookie at offset 236
+	pkt := make([]byte, 300)
+	pkt[0] = 0x01 // op=BOOTREQUEST
+	pkt[1] = 0x01 // htype=Ethernet
+	pkt[2] = 0x06 // hlen=6
+	// Magic cookie at offset 236
+	pkt[236] = 0x63
+	pkt[237] = 0x82
+	pkt[238] = 0x53
+	pkt[239] = 0x63
+	var metadata adapter.InboundContext
+	err := sniff.UTP(context.TODO(), &metadata, pkt)
+	require.Error(t, err)
+}
+
+func TestSniffUTPRejectsWireGuard(t *testing.T) {
+	t.Parallel()
+
+	// WireGuard handshake initiation: 0x01 0x00 0x00 0x00 + encrypted data
+	// This looks like uTP type=0, version=1, extension=0, connID=0
+	pkt := make([]byte, 148)
+	pkt[0] = 0x01 // type=0 (DATA), version=1
+	pkt[1] = 0x00 // extension=0
+	pkt[2] = 0x00 // connID high byte
+	pkt[3] = 0x00 // connID low byte
+	var metadata adapter.InboundContext
+	err := sniff.UTP(context.TODO(), &metadata, pkt)
+	require.Error(t, err)
+}
+
+func TestSniffUDPTrackerRejectsDNS(t *testing.T) {
+	t.Parallel()
+
+	// DNS query: txn=0x1234, flags=0x0100 (standard query), qdcount=1
+	pkt := make([]byte, 32)
+	pkt[0] = 0x12 // txn ID
+	pkt[1] = 0x34
+	pkt[2] = 0x01 // flags = standard query (QR=0, OPCODE=0, RD=1)
+	pkt[3] = 0x00
+	pkt[4] = 0x00 // qdcount = 1
+	pkt[5] = 0x01
+	var metadata adapter.InboundContext
+	err := sniff.UDPTracker(context.TODO(), &metadata, pkt)
+	require.Error(t, err)
+}
+
+func TestSniffUDPTrackerRejectsDTLS(t *testing.T) {
+	t.Parallel()
+
+	// DTLS Handshake: content_type=0x16, version=0xFEFD (DTLS 1.2)
+	pkt := make([]byte, 20)
+	pkt[0] = 0x16 // Handshake
+	pkt[1] = 0xFE // Version high
+	pkt[2] = 0xFD // Version low (DTLS 1.2)
+	var metadata adapter.InboundContext
+	err := sniff.UDPTracker(context.TODO(), &metadata, pkt)
+	require.Error(t, err)
+}
+
+// --- DHT tests ---
+
+func TestSniffDHTPacket(t *testing.T) {
+	t.Parallel()
+
+	// DHT ping query: d1:ad2:id20:<20 bytes>e1:q4:ping1:t2:aa1:y1:qe
+	dhtPing := []byte("d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t2:aa1:y1:qe")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentDHTPacket(context.TODO(), &metadata, dhtPing)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+func TestSniffDHTResponse(t *testing.T) {
+	t.Parallel()
+
+	// DHT response with d1:rd prefix
+	dhtResp := []byte("d1:rd2:id20:abcdefghij01234567895:token8:12345678e1:t2:aa1:y1:re")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentDHTPacket(context.TODO(), &metadata, dhtResp)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+func TestSniffDHTRejectsNonBencode(t *testing.T) {
+	t.Parallel()
+
+	// Regular HTTP-like data should not match DHT
+	data := []byte("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentDHTPacket(context.TODO(), &metadata, data)
+	require.Error(t, err)
+}
+
+// --- LSD tests ---
+
+func TestSniffLSDMulticast(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("BT-SEARCH * HTTP/1.1\r\nHost: 239.192.152.143:6771\r\nPort: 6881\r\nInfohash: aabbccdd\r\n\r\n")
+
+	var metadata adapter.InboundContext
+	metadata.Destination = M.Socksaddr{
+		Addr: netip.AddrFrom4([4]byte{239, 192, 152, 143}),
+		Port: 6771,
+	}
+	err := sniff.BitTorrentLSD(context.TODO(), &metadata, payload)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+func TestSniffLSDByPayload(t *testing.T) {
+	t.Parallel()
+
+	// LSD payload without matching destination
+	payload := []byte("BT-SEARCH * HTTP/1.1\r\nHost: 239.192.152.143:6771\r\nPort: 6881\r\n\r\n")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentLSD(context.TODO(), &metadata, payload)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+// --- Signature tests ---
+
+func TestSniffSignaturePacket(t *testing.T) {
+	t.Parallel()
+
+	// Packet containing a known signature
+	payload := []byte("some prefix ut_metadata some suffix")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentSignaturePacket(context.TODO(), &metadata, payload)
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+func TestSniffSignatureStream(t *testing.T) {
+	t.Parallel()
+
+	// Stream containing DHT signature
+	payload := []byte("d1:ad2:id20:abcdefghij0123456789e1:q9:find_node1:t2:bb1:y1:qe")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentSignature(context.TODO(), &metadata, bytes.NewReader(payload))
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+func TestSniffSignatureRejectsNormal(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("This is normal text without any BT signatures at all 12345")
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentSignaturePacket(context.TODO(), &metadata, payload)
+	require.Error(t, err)
+}
+
+// --- FAST Extension tests ---
+
+func TestSniffFASTExtension(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{
+			name: "HaveAll",
+			// length=1, msgID=0x0E (Have All)
+			data: []byte{0x00, 0x00, 0x00, 0x01, 0x0E},
+		},
+		{
+			name: "HaveNone",
+			// length=1, msgID=0x0F (Have None)
+			data: []byte{0x00, 0x00, 0x00, 0x01, 0x0F},
+		},
+		{
+			name: "SuggestPiece",
+			// length=5, msgID=0x0D (Suggest Piece)
+			data: []byte{0x00, 0x00, 0x00, 0x05, 0x0D, 0x00, 0x00, 0x00, 0x01},
+		},
+		{
+			name: "RejectRequest",
+			// length=13, msgID=0x10 (Reject Request)
+			data: []byte{0x00, 0x00, 0x00, 0x0D, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00},
+		},
+		{
+			name: "AllowedFast",
+			// length=5, msgID=0x11 (Allowed Fast)
+			data: []byte{0x00, 0x00, 0x00, 0x05, 0x11, 0x00, 0x00, 0x00, 0x05},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrentFAST(context.TODO(), &metadata, bytes.NewReader(tt.data))
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		})
+	}
+}
+
+// --- Extended Protocol tests ---
+
+func TestSniffExtendedMessage(t *testing.T) {
+	t.Parallel()
+
+	// Extended handshake: length=N, msgID=0x14, extID=0, bencode dict 'd'
+	data := []byte{0x00, 0x00, 0x00, 0x20, 0x14, 0x00, 0x64}
+
+	var metadata adapter.InboundContext
+	err := sniff.BitTorrentExtended(context.TODO(), &metadata, bytes.NewReader(data))
+	require.NoError(t, err)
+	require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+}
+
+// --- HTTP BitTorrent tests ---
+
+func TestSniffHTTPBitTorrent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		match   bool
+	}{
+		{
+			name:    "WebSeed",
+			payload: "GET /webseed?info_hash=%01%02%03&piece=0 HTTP/1.1\r\nHost: example.com\r\n\r\n",
+			match:   true,
+		},
+		{
+			name:    "AzureusUA",
+			payload: "GET /announce HTTP/1.1\r\nUser-Agent: Azureus 4.0\r\nHost: tracker.example.com\r\n\r\n",
+			match:   true,
+		},
+		{
+			name:    "NormalHTTP",
+			payload: "GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0\r\n\r\n",
+			match:   false,
+		},
+		{
+			name:    "ShareazaGnutella",
+			payload: "GET / HTTP/1.1\r\nUser-Agent: Shareaza 2.0\r\nGNUTELLA/0.6 200 OK\r\n",
+			match:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrentHTTP(context.TODO(), &metadata, bytes.NewReader([]byte(tt.payload)))
+			if tt.match {
+				require.NoError(t, err)
+				require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+// --- BitTorrent Message tests ---
+
+func TestSniffBitTorrentMessage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		data  []byte
+		match bool
+	}{
+		{
+			name:  "Choke",
+			data:  []byte{0x00, 0x00, 0x00, 0x01, 0x00},
+			match: true,
+		},
+		{
+			name:  "Unchoke",
+			data:  []byte{0x00, 0x00, 0x00, 0x01, 0x01},
+			match: true,
+		},
+		{
+			name:  "Have",
+			data:  []byte{0x00, 0x00, 0x00, 0x05, 0x04, 0x00, 0x00, 0x00, 0x42},
+			match: true,
+		},
+		{
+			name:  "Request",
+			data:  []byte{0x00, 0x00, 0x00, 0x0D, 0x06, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00},
+			match: true,
+		},
+		{
+			name:  "Port",
+			data:  []byte{0x00, 0x00, 0x00, 0x03, 0x09, 0x1A, 0xE1},
+			match: true,
+		},
+		{
+			name: "SSHRange",
+			// msgID=50 (SSH user auth) — should be rejected
+			data:  []byte{0x00, 0x00, 0x00, 0x10, 0x32, 0x00, 0x00, 0x00, 0x00},
+			match: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var metadata adapter.InboundContext
+			err := sniff.BitTorrentMessage(context.TODO(), &metadata, bytes.NewReader(tt.data))
+			if tt.match {
+				require.NoError(t, err)
+				require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+			} else {
+				require.Error(t, err)
+			}
+		})
 	}
 }
