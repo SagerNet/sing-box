@@ -377,9 +377,11 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 				case *R.RuleActionReject:
 					return nil, &R.RejectedError{Cause: action.Error(ctx)}
 				case *R.RuleActionPredefined:
+					responseAddrs = nil
 					if action.Rcode != mDNS.RcodeSuccess {
 						err = RcodeError(action.Rcode)
 					} else {
+						err = nil
 						for _, answer := range action.Answer {
 							switch record := answer.(type) {
 							case *mDNS.A:
