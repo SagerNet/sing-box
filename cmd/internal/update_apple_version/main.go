@@ -71,12 +71,12 @@ func findAndReplace(objectsMap map[string]any, projectContent string, bundleIDLi
 		indexEnd := indexStart + strings.Index(projectContent[indexStart:], "}")
 		versionStart := indexStart + strings.Index(projectContent[indexStart:indexEnd], "MARKETING_VERSION = ") + 20
 		versionEnd := versionStart + strings.Index(projectContent[versionStart:indexEnd], ";")
-		version := projectContent[versionStart:versionEnd]
+		version := strings.Trim(projectContent[versionStart:versionEnd], "\"")
 		if version == newVersion {
 			continue
 		}
 		updated = true
-		projectContent = projectContent[:versionStart] + newVersion + projectContent[versionEnd:]
+		projectContent = projectContent[:versionStart] + "\"" + newVersion + "\"" + projectContent[versionEnd:]
 	}
 	return projectContent, updated
 }
