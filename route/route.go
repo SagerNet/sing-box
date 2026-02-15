@@ -655,6 +655,12 @@ func (r *Router) actionSniff(
 				sniff.HTTPHost,
 				sniff.StreamDomainNameQuery,
 				sniff.BitTorrent,
+				sniff.BitTorrentMessage,
+				sniff.BitTorrentFAST,
+				sniff.BitTorrentExtended,
+				sniff.BitTorrentHTTP,
+				sniff.BitTorrentSignature,
+				sniff.BitTorrentMSE,
 				sniff.SSH,
 				sniff.RDP,
 			}
@@ -712,6 +718,9 @@ func (r *Router) actionSniff(
 				sniff.STUNMessage,
 				sniff.UTP,
 				sniff.UDPTracker,
+				sniff.BitTorrentDHTPacket,
+				sniff.BitTorrentLSD,
+				sniff.BitTorrentSignaturePacket,
 				sniff.DTLSRecord,
 				sniff.NTP,
 			}
