@@ -1,12 +1,15 @@
 package adapter
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"sync"
 
+	"github.com/andybalholm/brotli"
 	C "github.com/sagernet/sing-box/constant"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -73,6 +76,35 @@ type HTTPStartContext struct {
 	httpClientCache map[string]*http.Client
 }
 
+type MultiEncodingTransport struct {
+	Base   http.RoundTripper
+	Dialer func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+func (t *MultiEncodingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Accept-Encoding", "br, gzip")
+
+	resp, err := t.Base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		resp.Body = reader
+		resp.Header.Del("Content-Encoding")
+	case "br":
+		resp.Body = io.NopCloser(brotli.NewReader(resp.Body))
+		resp.Header.Del("Content-Encoding")
+	}
+
+	return resp, nil
+}
+
 func NewHTTPStartContext(ctx context.Context) *HTTPStartContext {
 	return &HTTPStartContext{
 		ctx:             ctx,
@@ -86,17 +118,21 @@ func (c *HTTPStartContext) HTTPClient(detour string, dialer N.Dialer) *http.Clie
 	if httpClient, loaded := c.httpClientCache[detour]; loaded {
 		return httpClient
 	}
+	dialerCtx := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+	}
 	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: C.TCPTimeout,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+		Transport: &MultiEncodingTransport{
+			Base: &http.Transport{
+				ForceAttemptHTTP2:   true,
+				TLSHandshakeTimeout: C.TCPTimeout,
+				DialContext:         dialerCtx,
+				TLSClientConfig: &tls.Config{
+					Time:    ntp.TimeFuncFromContext(c.ctx),
+					RootCAs: RootPoolFromContext(c.ctx),
+				},
 			},
-			TLSClientConfig: &tls.Config{
-				Time:    ntp.TimeFuncFromContext(c.ctx),
-				RootCAs: RootPoolFromContext(c.ctx),
-			},
+			Dialer: dialerCtx,
 		},
 	}
 	c.httpClientCache[detour] = httpClient
