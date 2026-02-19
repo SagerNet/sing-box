@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/nftables"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -38,6 +39,7 @@ type Router struct {
 	defaultDomainStrategy C.DomainStrategy
 	dnsReverseMapping     freelru.Cache[netip.Addr, string]
 	platformInterface     adapter.PlatformInterface
+	nftablesManager       nftables.Manager
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {
@@ -70,6 +72,16 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 	if options.ReverseMapping {
 		router.dnsReverseMapping = common.Must1(freelru.NewSharded[netip.Addr, string](1024, maphash.NewHasher[netip.Addr]().Hash32))
 	}
+	if C.IsLinux {
+		nftMgr, err := nftables.NewManager(nftables.Options{
+			Logger: router.logger,
+		})
+		if err != nil {
+			router.logger.Warn("failed to create nftables manager: ", err)
+		} else {
+			router.nftablesManager = nftMgr
+		}
+	}
 	return router
 }
 
@@ -88,6 +100,16 @@ func (r *Router) Start(stage adapter.StartStage) error {
 	monitor := taskmonitor.New(r.logger, C.StartTimeout)
 	switch stage {
 	case adapter.StartStateStart:
+		if r.nftablesManager != nil {
+			monitor.Start("initialize nftables manager")
+			err := r.nftablesManager.Start()
+			monitor.Finish()
+			if err != nil {
+				r.logger.Warn("failed to start nftables manager: ", err)
+				r.nftablesManager = nil
+			}
+		}
+
 		monitor.Start("initialize DNS client")
 		r.client.Start()
 		monitor.Finish()
@@ -107,6 +129,15 @@ func (r *Router) Start(stage adapter.StartStage) error {
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	var err error
+
+	if r.nftablesManager != nil {
+		monitor.Start("close nftables manager")
+		err = E.Append(err, r.nftablesManager.Close(), func(err error) error {
+			return E.Cause(err, "close nftables manager")
+		})
+		monitor.Finish()
+	}
+
 	for i, rule := range r.rules {
 		monitor.Start("close dns rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
@@ -213,9 +244,10 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	}
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	var (
-		response  *mDNS.Msg
-		transport adapter.DNSTransport
-		err       error
+		response    *mDNS.Msg
+		transport   adapter.DNSTransport
+		matchedRule adapter.DNSRule
+		err         error
 	)
 	var metadata *adapter.InboundContext
 	ctx, metadata = adapter.ExtendContext(ctx)
@@ -252,6 +284,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 			dnsCtx := adapter.OverrideContext(ctx)
 			dnsOptions := options
 			transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &dnsOptions)
+			matchedRule = rule
 			if rule != nil {
 				switch action := rule.Action().(type) {
 				case *R.RuleActionReject:
@@ -314,6 +347,30 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 					r.dnsReverseMapping.AddWithLifetime(M.AddrFromIP(record.A), FqdnToDomain(record.Hdr.Name), time.Duration(record.Hdr.Ttl)*time.Second)
 				case *mDNS.AAAA:
 					r.dnsReverseMapping.AddWithLifetime(M.AddrFromIP(record.AAAA), FqdnToDomain(record.Hdr.Name), time.Duration(record.Hdr.Ttl)*time.Second)
+				}
+			}
+		}
+	}
+	// Add IPs to nftables sets if configured
+	if response != nil && response.Rcode == mDNS.RcodeSuccess && r.nftablesManager != nil && matchedRule != nil {
+		if action, ok := matchedRule.Action().(*R.RuleActionDNSRoute); ok {
+			has4 := action.NFTablesSetIP4 != ""
+			has6 := action.NFTablesSetIP6 != ""
+			if has4 || has6 {
+				for _, answer := range append(response.Answer, response.Extra...) {
+					if record, ok := answer.(*mDNS.A); has4 && ok {
+						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP4, M.AddrFromIP(record.A), time.Second*time.Duration(record.Hdr.Ttl), FqdnToDomain(record.Hdr.Name)); err != nil {
+							r.logger.WarnContext(ctx, "failed to add IPv4 address to nftables set: ", err)
+						}
+					}
+					if record, ok := answer.(*mDNS.AAAA); has6 && ok {
+						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP6, M.AddrFromIP(record.AAAA), time.Second*time.Duration(record.Hdr.Ttl), FqdnToDomain(record.Hdr.Name)); err != nil {
+							r.logger.WarnContext(ctx, "failed to add IPv6 address to nftables set: ", err)
+						}
+					}
+				}
+				if err := r.nftablesManager.Flush(); err != nil {
+					r.logger.WarnContext(ctx, "failed to flush nftables: ", err)
 				}
 			}
 		}

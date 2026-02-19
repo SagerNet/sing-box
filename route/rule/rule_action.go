@@ -124,7 +124,9 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		return nil
 	case C.RuleActionTypeRoute:
 		return &RuleActionDNSRoute{
-			Server: action.RouteOptions.Server,
+			Server:         action.RouteOptions.Server,
+			NFTablesSetIP4: action.RouteOptions.NFTablesSetIP4,
+			NFTablesSetIP6: action.RouteOptions.NFTablesSetIP6,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
 				DisableCache: action.RouteOptions.DisableCache,
@@ -257,7 +259,9 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 }
 
 type RuleActionDNSRoute struct {
-	Server string
+	Server         string
+	NFTablesSetIP4 string
+	NFTablesSetIP6 string
 	RuleActionDNSRouteOptions
 }
 
