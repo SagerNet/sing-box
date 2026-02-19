@@ -89,6 +89,7 @@ func (m *linuxManager) AddAddress(setName string, address netip.Addr, ttl time.D
 	elem := nftables.SetElement{
 		Key:     address.AsSlice(),
 		Timeout: ttl,
+		Comment: reason,
 	}
 
 	m.conn.SetAddElements(set, []nftables.SetElement{elem})
