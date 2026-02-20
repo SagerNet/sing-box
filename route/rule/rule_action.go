@@ -13,7 +13,7 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -124,9 +124,10 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		return nil
 	case C.RuleActionTypeRoute:
 		return &RuleActionDNSRoute{
-			Server:         action.RouteOptions.Server,
-			NFTablesSetIP4: action.RouteOptions.NFTablesSetIP4,
-			NFTablesSetIP6: action.RouteOptions.NFTablesSetIP6,
+			Server:              action.RouteOptions.Server,
+			NFTablesSetIP4:      action.RouteOptions.NFTablesSetIP4,
+			NFTablesSetIP6:      action.RouteOptions.NFTablesSetIP6,
+			NFTablesSetExtraTTL: action.RouteOptions.NFTablesSetExtraTTL,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
 				DisableCache: action.RouteOptions.DisableCache,
@@ -259,9 +260,10 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 }
 
 type RuleActionDNSRoute struct {
-	Server         string
-	NFTablesSetIP4 string
-	NFTablesSetIP6 string
+	Server              string
+	NFTablesSetIP4      string
+	NFTablesSetIP6      string
+	NFTablesSetExtraTTL uint32
 	RuleActionDNSRouteOptions
 }
 

@@ -359,12 +359,12 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 			if has4 || has6 {
 				for _, answer := range append(response.Answer, response.Extra...) {
 					if record, ok := answer.(*mDNS.A); has4 && ok {
-						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP4, M.AddrFromIP(record.A), time.Second*time.Duration(record.Hdr.Ttl+10), FqdnToDomain(record.Hdr.Name)); err != nil {
+						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP4, M.AddrFromIP(record.A), time.Second*time.Duration(record.Hdr.Ttl+action.NFTablesSetExtraTTL), FqdnToDomain(record.Hdr.Name)); err != nil {
 							r.logger.WarnContext(ctx, "failed to add IPv4 address to nftables set: ", err)
 						}
 					}
 					if record, ok := answer.(*mDNS.AAAA); has6 && ok {
-						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP6, M.AddrFromIP(record.AAAA), time.Second*time.Duration(record.Hdr.Ttl+10), FqdnToDomain(record.Hdr.Name)); err != nil {
+						if err := r.nftablesManager.AddAddress(action.NFTablesSetIP6, M.AddrFromIP(record.AAAA), time.Second*time.Duration(record.Hdr.Ttl+action.NFTablesSetExtraTTL), FqdnToDomain(record.Hdr.Name)); err != nil {
 							r.logger.WarnContext(ctx, "failed to add IPv6 address to nftables set: ", err)
 						}
 					}

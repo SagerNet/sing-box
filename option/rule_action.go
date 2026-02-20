@@ -187,13 +187,14 @@ func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 }
 
 type DNSRouteActionOptions struct {
-	Server         string                `json:"server,omitempty"`
-	Strategy       DomainStrategy        `json:"strategy,omitempty"`
-	DisableCache   bool                  `json:"disable_cache,omitempty"`
-	RewriteTTL     *uint32               `json:"rewrite_ttl,omitempty"`
-	ClientSubnet   *badoption.Prefixable `json:"client_subnet,omitempty"`
-	NFTablesSetIP4 string                `json:"nftables_set_ip4,omitempty"`
-	NFTablesSetIP6 string                `json:"nftables_set_ip6,omitempty"`
+	Server              string                `json:"server,omitempty"`
+	Strategy            DomainStrategy        `json:"strategy,omitempty"`
+	DisableCache        bool                  `json:"disable_cache,omitempty"`
+	RewriteTTL          *uint32               `json:"rewrite_ttl,omitempty"`
+	ClientSubnet        *badoption.Prefixable `json:"client_subnet,omitempty"`
+	NFTablesSetIP4      string                `json:"nftables_set_ip4,omitempty"`
+	NFTablesSetIP6      string                `json:"nftables_set_ip6,omitempty"`
+	NFTablesSetExtraTTL uint32                `json:"nftables_set_extra_ttl,omitempty"`
 }
 
 type _DNSRouteOptionsActionOptions struct {
