@@ -29,10 +29,12 @@ jobs:
           - { arch: arm64, naive: true, docker_platform: "linux/arm64" }
           - { arch: "386", naive: true, docker_platform: "linux/386" }
           - { arch: arm, goarm: "7", naive: true, docker_platform: "linux/arm/v7" }
+          - { arch: mipsle, gomips: softfloat, naive: true, docker_platform: "linux/mipsle" }
+          - { arch: riscv64, naive: true, docker_platform: "linux/riscv64" }
+          - { arch: loong64, naive: true, docker_platform: "linux/loong64" }
           # Non-naive builds
           - { arch: arm, goarm: "6", docker_platform: "linux/arm/v6" }
           - { arch: ppc64le, docker_platform: "linux/ppc64le" }
-          - { arch: riscv64, docker_platform: "linux/riscv64" }
           - { arch: s390x, docker_platform: "linux/s390x" }
     steps:
       - name: Get commit to build
@@ -64,14 +66,23 @@ jobs:
           git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
           git -C ~/cronet-go checkout FETCH_HEAD
           git -C ~/cronet-go submodule update --init --recursive --depth=1
+      - name: Regenerate Debian keyring
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
+          cd ~/cronet-go
+          GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
       - name: Cache Chromium toolchain
         if: matrix.naive
         id: cache-chromium-toolchain
         uses: actions/cache@v4
         with:
           path: |
-            ~/cronet-go/naiveproxy/src/third_party/llvm-build/Release+Asserts
-            ~/cronet-go/naiveproxy/src/out/sysroot-build
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
+            ~/cronet-go/naiveproxy/src/gn/out/
+            ~/cronet-go/naiveproxy/src/chrome/build/pgo_profiles/
+            ~/cronet-go/naiveproxy/src/out/sysroot-build/
           key: chromium-toolchain-${{ matrix.arch }}-musl-${{ hashFiles('.github/CRONET_GO_VERSION') }}
       - name: Download Chromium toolchain
         if: matrix.naive
@@ -110,6 +121,7 @@ jobs:
           GOOS: linux
           GOARCH: ${{ matrix.arch }}
           GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
       - name: Build (non-naive)
         if: ${{ ! matrix.naive }}
         run: |
@@ -154,9 +166,11 @@ jobs:
           - linux/arm/v7
           - linux/arm64
           - linux/386
+          - linux/mipsle
           - linux/ppc64le
           - linux/riscv64
           - linux/s390x
+          - linux/loong64
     steps:
       - name: Get commit to build
         id: ref

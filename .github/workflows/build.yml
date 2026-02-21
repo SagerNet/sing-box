@@ -85,19 +85,27 @@ jobs:
           - { os: linux, arch: arm, variant: glibc, naive: true, goarm: "7" }
           - { os: linux, arch: arm, variant: musl, naive: true, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl, openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
 
+          - { os: linux, arch: mipsle, gomips: hardfloat, naive: true, variant: glibc }
+          - { os: linux, arch: mipsle, gomips: softfloat, naive: true, variant: musl, debian: mipsel, rpm: mipsel, openwrt: "mipsel_24kc mipsel_74kc mipsel_mips32" }
+          - { os: linux, arch: mips64le, gomips: hardfloat, naive: true, variant: glibc, debian: mips64el, rpm: mips64el }
+          - { os: linux, arch: riscv64, naive: true, variant: glibc }
+          - { os: linux, arch: riscv64, naive: true, variant: musl, debian: riscv64, rpm: riscv64, openwrt: "riscv64_generic" }
+          - { os: linux, arch: loong64, naive: true, variant: glibc }
+          - { os: linux, arch: loong64, naive: true, variant: musl, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
+
           - { os: linux, arch: "386", go386: softfloat, openwrt: "i386_pentium-mmx" }
           - { os: linux, arch: arm, goarm: "5", openwrt: "arm_arm926ej-s arm_cortex-a7 arm_cortex-a9 arm_fa526 arm_xscale" }
           - { os: linux, arch: arm, goarm: "6", debian: armel, rpm: armv6hl, openwrt: "arm_arm1176jzf-s_vfp" }
           - { os: linux, arch: mips, gomips: softfloat, openwrt: "mips_24kc mips_4kec mips_mips32" }
-          - { os: linux, arch: mipsle, gomips: hardfloat, debian: mipsel, rpm: mipsel, openwrt: "mipsel_24kc_24kf" }
-          - { os: linux, arch: mipsle, gomips: softfloat, openwrt: "mipsel_24kc mipsel_74kc mipsel_mips32" }
+          - { os: linux, arch: mipsle, gomips: hardfloat, openwrt: "mipsel_24kc_24kf" }
+          - { os: linux, arch: mipsle, gomips: softfloat }
           - { os: linux, arch: mips64, gomips: softfloat, openwrt: "mips64_mips64r2 mips64_octeonplus" }
-          - { os: linux, arch: mips64le, gomips: hardfloat, debian: mips64el, rpm: mips64el }
+          - { os: linux, arch: mips64le, gomips: hardfloat }
           - { os: linux, arch: mips64le, gomips: softfloat, openwrt: "mips64el_mips64r2" }
           - { os: linux, arch: s390x, debian: s390x, rpm: s390x }
           - { os: linux, arch: ppc64le, debian: ppc64el, rpm: ppc64le }
-          - { os: linux, arch: riscv64, debian: riscv64, rpm: riscv64, openwrt: "riscv64_generic" }
-          - { os: linux, arch: loong64, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
+          - { os: linux, arch: riscv64 }
+          - { os: linux, arch: loong64 }
 
           - { os: windows, arch: amd64, legacy_win7: true, legacy_name: "windows-7" }
           - { os: windows, arch: "386", legacy_win7: true, legacy_name: "windows-7" }
@@ -154,14 +162,23 @@ jobs:
           git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
           git -C ~/cronet-go checkout FETCH_HEAD
           git -C ~/cronet-go submodule update --init --recursive --depth=1
+      - name: Regenerate Debian keyring
+        if: matrix.naive
+        run: |
+          set -xeuo pipefail
+          rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
+          cd ~/cronet-go
+          GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
       - name: Cache Chromium toolchain
         if: matrix.naive
         id: cache-chromium-toolchain
         uses: actions/cache@v4
         with:
           path: |
-            ~/cronet-go/naiveproxy/src/third_party/llvm-build/Release+Asserts
-            ~/cronet-go/naiveproxy/src/out/sysroot-build
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
+            ~/cronet-go/naiveproxy/src/gn/out/
+            ~/cronet-go/naiveproxy/src/chrome/build/pgo_profiles/
+            ~/cronet-go/naiveproxy/src/out/sysroot-build/
           key: chromium-toolchain-${{ matrix.arch }}-${{ matrix.variant }}-${{ hashFiles('.github/CRONET_GO_VERSION') }}
       - name: Download Chromium toolchain
         if: matrix.naive
@@ -236,6 +253,8 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           GO386: ${{ matrix.go386 }}
           GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build (musl)
         if: matrix.variant == 'musl'
@@ -251,6 +270,8 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           GO386: ${{ matrix.go386 }}
           GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build (non-variant)
         if: matrix.os != 'android' && matrix.variant == ''
