@@ -4,7 +4,7 @@ icon: material/alert-decagram
 
 #### 1.13.0-rc.5
 
-* Fixes and improvements
+* Add `mipsle`, `mips64le`, `riscv64` and `loong64` support for NaiveProxy outbound
 
 Important changes since 1.12:
 
