@@ -2,6 +2,8 @@
 icon: material/alert-decagram
 ---
 
+# DNS
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-decagram: [servers](#servers)
@@ -9,8 +11,6 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [cache_capacity](#cache_capacity)
-
-# DNS
 
 ### Structure
 
