@@ -159,6 +159,7 @@ func (s *CommandServer) Close() {
 		s.grpcServer.Stop()
 	}
 	common.Close(s.listener)
+	s.StartedService.Close()
 }
 
 type OverrideOptions struct {
