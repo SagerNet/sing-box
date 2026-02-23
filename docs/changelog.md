@@ -2,9 +2,9 @@
 icon: material/alert-decagram
 ---
 
-#### 1.13.0-rc.5
+#### 1.13.0-rc.6
 
-* Add `mipsle`, `mips64le`, `riscv64` and `loong64` support for NaiveProxy outbound
+* Fixes and improvements
 
 Important changes since 1.12:
 
@@ -168,6 +168,10 @@ This update fixes missing padding extension for Chrome 120+ fingerprints.
 Also, documentation has been updated with a warning about uTLS fingerprinting vulnerabilities.
 uTLS is not recommended for censorship circumvention due to fundamental architectural limitations;
 use NaiveProxy instead for TLS fingerprint resistance.
+
+#### 1.13.0-rc.5
+
+* Add `mipsle`, `mips64le`, `riscv64` and `loong64` support for NaiveProxy outbound
 
 #### 1.12.22
 
