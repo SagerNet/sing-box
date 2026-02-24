@@ -425,6 +425,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 					usage.OutputTokens,
 					usage.CacheReadInputTokens,
 					usage.CacheCreationInputTokens,
+					usage.CacheCreation.Ephemeral5mInputTokens,
+					usage.CacheCreation.Ephemeral1hInputTokens,
 					username,
 				)
 			}
@@ -485,6 +487,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 							accumulatedUsage.InputTokens = messageStart.Message.Usage.InputTokens
 							accumulatedUsage.CacheReadInputTokens = messageStart.Message.Usage.CacheReadInputTokens
 							accumulatedUsage.CacheCreationInputTokens = messageStart.Message.Usage.CacheCreationInputTokens
+							accumulatedUsage.CacheCreation.Ephemeral5mInputTokens = messageStart.Message.Usage.CacheCreation.Ephemeral5mInputTokens
+							accumulatedUsage.CacheCreation.Ephemeral1hInputTokens = messageStart.Message.Usage.CacheCreation.Ephemeral1hInputTokens
 						}
 					case "message_delta":
 						messageDelta := event.AsMessageDelta()
@@ -519,6 +523,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 						accumulatedUsage.OutputTokens,
 						accumulatedUsage.CacheReadInputTokens,
 						accumulatedUsage.CacheCreationInputTokens,
+						accumulatedUsage.CacheCreation.Ephemeral5mInputTokens,
+						accumulatedUsage.CacheCreation.Ephemeral1hInputTokens,
 						username,
 					)
 				}

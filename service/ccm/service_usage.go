@@ -13,12 +13,14 @@ import (
 )
 
 type UsageStats struct {
-	RequestCount             int   `json:"request_count"`
-	MessagesCount            int   `json:"messages_count"`
-	InputTokens              int64 `json:"input_tokens"`
-	OutputTokens             int64 `json:"output_tokens"`
-	CacheReadInputTokens     int64 `json:"cache_read_input_tokens"`
-	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
+	RequestCount                    int   `json:"request_count"`
+	MessagesCount                   int   `json:"messages_count"`
+	InputTokens                     int64 `json:"input_tokens"`
+	OutputTokens                    int64 `json:"output_tokens"`
+	CacheReadInputTokens            int64 `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens        int64 `json:"cache_creation_input_tokens"`
+	CacheCreation5MinuteInputTokens int64 `json:"cache_creation_5m_input_tokens,omitempty"`
+	CacheCreation1HourInputTokens   int64 `json:"cache_creation_1h_input_tokens,omitempty"`
 }
 
 type CostCombination struct {
@@ -41,13 +43,15 @@ type AggregatedUsage struct {
 }
 
 type UsageStatsJSON struct {
-	RequestCount             int     `json:"request_count"`
-	MessagesCount            int     `json:"messages_count"`
-	InputTokens              int64   `json:"input_tokens"`
-	OutputTokens             int64   `json:"output_tokens"`
-	CacheReadInputTokens     int64   `json:"cache_read_input_tokens"`
-	CacheCreationInputTokens int64   `json:"cache_creation_input_tokens"`
-	CostUSD                  float64 `json:"cost_usd"`
+	RequestCount                    int     `json:"request_count"`
+	MessagesCount                   int     `json:"messages_count"`
+	InputTokens                     int64   `json:"input_tokens"`
+	OutputTokens                    int64   `json:"output_tokens"`
+	CacheReadInputTokens            int64   `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens        int64   `json:"cache_creation_input_tokens"`
+	CacheCreation5MinuteInputTokens int64   `json:"cache_creation_5m_input_tokens,omitempty"`
+	CacheCreation1HourInputTokens   int64   `json:"cache_creation_1h_input_tokens,omitempty"`
+	CostUSD                         float64 `json:"cost_usd"`
 }
 
 type CostCombinationJSON struct {
@@ -69,10 +73,11 @@ type AggregatedUsageJSON struct {
 }
 
 type ModelPricing struct {
-	InputPrice      float64
-	OutputPrice     float64
-	CacheReadPrice  float64
-	CacheWritePrice float64
+	InputPrice             float64
+	OutputPrice            float64
+	CacheReadPrice         float64
+	CacheWritePrice5Minute float64
+	CacheWritePrice1Hour   float64
 }
 
 type modelFamily struct {
@@ -82,143 +87,205 @@ type modelFamily struct {
 }
 
 var (
-	opus4Pricing = ModelPricing{
-		InputPrice:      15.0,
-		OutputPrice:     75.0,
-		CacheReadPrice:  1.5,
-		CacheWritePrice: 18.75,
+	opus46StandardPricing = ModelPricing{
+		InputPrice:             5.0,
+		OutputPrice:            25.0,
+		CacheReadPrice:         0.5,
+		CacheWritePrice5Minute: 6.25,
+		CacheWritePrice1Hour:   10.0,
 	}
 
-	sonnet4StandardPricing = ModelPricing{
-		InputPrice:      3.0,
-		OutputPrice:     15.0,
-		CacheReadPrice:  0.3,
-		CacheWritePrice: 3.75,
-	}
-
-	sonnet4PremiumPricing = ModelPricing{
-		InputPrice:      6.0,
-		OutputPrice:     22.5,
-		CacheReadPrice:  0.6,
-		CacheWritePrice: 7.5,
-	}
-
-	haiku4Pricing = ModelPricing{
-		InputPrice:      1.0,
-		OutputPrice:     5.0,
-		CacheReadPrice:  0.1,
-		CacheWritePrice: 1.25,
-	}
-
-	haiku35Pricing = ModelPricing{
-		InputPrice:      0.8,
-		OutputPrice:     4.0,
-		CacheReadPrice:  0.08,
-		CacheWritePrice: 1.0,
-	}
-
-	sonnet35Pricing = ModelPricing{
-		InputPrice:      3.0,
-		OutputPrice:     15.0,
-		CacheReadPrice:  0.3,
-		CacheWritePrice: 3.75,
+	opus46PremiumPricing = ModelPricing{
+		InputPrice:             10.0,
+		OutputPrice:            37.5,
+		CacheReadPrice:         1.0,
+		CacheWritePrice5Minute: 12.5,
+		CacheWritePrice1Hour:   20.0,
 	}
 
 	opus45Pricing = ModelPricing{
-		InputPrice:      5.0,
-		OutputPrice:     25.0,
-		CacheReadPrice:  0.5,
-		CacheWritePrice: 6.25,
+		InputPrice:             5.0,
+		OutputPrice:            25.0,
+		CacheReadPrice:         0.5,
+		CacheWritePrice5Minute: 6.25,
+		CacheWritePrice1Hour:   10.0,
+	}
+
+	opus4Pricing = ModelPricing{
+		InputPrice:             15.0,
+		OutputPrice:            75.0,
+		CacheReadPrice:         1.5,
+		CacheWritePrice5Minute: 18.75,
+		CacheWritePrice1Hour:   30.0,
+	}
+
+	sonnet46StandardPricing = ModelPricing{
+		InputPrice:             3.0,
+		OutputPrice:            15.0,
+		CacheReadPrice:         0.3,
+		CacheWritePrice5Minute: 3.75,
+		CacheWritePrice1Hour:   6.0,
+	}
+
+	sonnet46PremiumPricing = ModelPricing{
+		InputPrice:             6.0,
+		OutputPrice:            22.5,
+		CacheReadPrice:         0.6,
+		CacheWritePrice5Minute: 7.5,
+		CacheWritePrice1Hour:   12.0,
 	}
 
 	sonnet45StandardPricing = ModelPricing{
-		InputPrice:      3.0,
-		OutputPrice:     15.0,
-		CacheReadPrice:  0.3,
-		CacheWritePrice: 3.75,
+		InputPrice:             3.0,
+		OutputPrice:            15.0,
+		CacheReadPrice:         0.3,
+		CacheWritePrice5Minute: 3.75,
+		CacheWritePrice1Hour:   6.0,
 	}
 
 	sonnet45PremiumPricing = ModelPricing{
-		InputPrice:      6.0,
-		OutputPrice:     22.5,
-		CacheReadPrice:  0.6,
-		CacheWritePrice: 7.5,
+		InputPrice:             6.0,
+		OutputPrice:            22.5,
+		CacheReadPrice:         0.6,
+		CacheWritePrice5Minute: 7.5,
+		CacheWritePrice1Hour:   12.0,
+	}
+
+	sonnet4StandardPricing = ModelPricing{
+		InputPrice:             3.0,
+		OutputPrice:            15.0,
+		CacheReadPrice:         0.3,
+		CacheWritePrice5Minute: 3.75,
+		CacheWritePrice1Hour:   6.0,
+	}
+
+	sonnet4PremiumPricing = ModelPricing{
+		InputPrice:             6.0,
+		OutputPrice:            22.5,
+		CacheReadPrice:         0.6,
+		CacheWritePrice5Minute: 7.5,
+		CacheWritePrice1Hour:   12.0,
+	}
+
+	sonnet37Pricing = ModelPricing{
+		InputPrice:             3.0,
+		OutputPrice:            15.0,
+		CacheReadPrice:         0.3,
+		CacheWritePrice5Minute: 3.75,
+		CacheWritePrice1Hour:   6.0,
+	}
+
+	sonnet35Pricing = ModelPricing{
+		InputPrice:             3.0,
+		OutputPrice:            15.0,
+		CacheReadPrice:         0.3,
+		CacheWritePrice5Minute: 3.75,
+		CacheWritePrice1Hour:   6.0,
 	}
 
 	haiku45Pricing = ModelPricing{
-		InputPrice:      1.0,
-		OutputPrice:     5.0,
-		CacheReadPrice:  0.1,
-		CacheWritePrice: 1.25,
+		InputPrice:             1.0,
+		OutputPrice:            5.0,
+		CacheReadPrice:         0.1,
+		CacheWritePrice5Minute: 1.25,
+		CacheWritePrice1Hour:   2.0,
+	}
+
+	haiku4Pricing = ModelPricing{
+		InputPrice:             1.0,
+		OutputPrice:            5.0,
+		CacheReadPrice:         0.1,
+		CacheWritePrice5Minute: 1.25,
+		CacheWritePrice1Hour:   2.0,
+	}
+
+	haiku35Pricing = ModelPricing{
+		InputPrice:             0.8,
+		OutputPrice:            4.0,
+		CacheReadPrice:         0.08,
+		CacheWritePrice5Minute: 1.0,
+		CacheWritePrice1Hour:   1.6,
 	}
 
 	haiku3Pricing = ModelPricing{
-		InputPrice:      0.25,
-		OutputPrice:     1.25,
-		CacheReadPrice:  0.03,
-		CacheWritePrice: 0.3,
+		InputPrice:             0.25,
+		OutputPrice:            1.25,
+		CacheReadPrice:         0.03,
+		CacheWritePrice5Minute: 0.3,
+		CacheWritePrice1Hour:   0.5,
 	}
 
 	opus3Pricing = ModelPricing{
-		InputPrice:      15.0,
-		OutputPrice:     75.0,
-		CacheReadPrice:  1.5,
-		CacheWritePrice: 18.75,
+		InputPrice:             15.0,
+		OutputPrice:            75.0,
+		CacheReadPrice:         1.5,
+		CacheWritePrice5Minute: 18.75,
+		CacheWritePrice1Hour:   30.0,
 	}
 
 	modelFamilies = []modelFamily{
 		{
-			pattern:         regexp.MustCompile(`^claude-opus-4-5-`),
+			pattern:         regexp.MustCompile(`^claude-opus-4-6(?:-|$)`),
+			standardPricing: opus46StandardPricing,
+			premiumPricing:  &opus46PremiumPricing,
+		},
+		{
+			pattern:         regexp.MustCompile(`^claude-opus-4-5(?:-|$)`),
 			standardPricing: opus45Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-(?:opus-4-|4-opus-|opus-4-1-)`),
+			pattern:         regexp.MustCompile(`^claude-(?:opus-4(?:-|$)|4-opus-)`),
 			standardPricing: opus4Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-(?:opus-3-|3-opus-)`),
+			pattern:         regexp.MustCompile(`^claude-(?:opus-3(?:-|$)|3-opus-)`),
 			standardPricing: opus3Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4-5-|4-5-sonnet-)`),
+			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4-6(?:-|$)|4-6-sonnet-)`),
+			standardPricing: sonnet46StandardPricing,
+			premiumPricing:  &sonnet46PremiumPricing,
+		},
+		{
+			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4-5(?:-|$)|4-5-sonnet-)`),
 			standardPricing: sonnet45StandardPricing,
 			premiumPricing:  &sonnet45PremiumPricing,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-3-7-sonnet-`),
+			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4(?:-|$)|4-sonnet-)`),
 			standardPricing: sonnet4StandardPricing,
 			premiumPricing:  &sonnet4PremiumPricing,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-(?:sonnet-4-|4-sonnet-)`),
-			standardPricing: sonnet4StandardPricing,
-			premiumPricing:  &sonnet4PremiumPricing,
+			pattern:         regexp.MustCompile(`^claude-3-7-sonnet(?:-|$)`),
+			standardPricing: sonnet37Pricing,
+			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-3-5-sonnet-`),
+			pattern:         regexp.MustCompile(`^claude-3-5-sonnet(?:-|$)`),
 			standardPricing: sonnet35Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-(?:haiku-4-5-|4-5-haiku-)`),
+			pattern:         regexp.MustCompile(`^claude-(?:haiku-4-5(?:-|$)|4-5-haiku-)`),
 			standardPricing: haiku45Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-haiku-4-`),
+			pattern:         regexp.MustCompile(`^claude-haiku-4(?:-|$)`),
 			standardPricing: haiku4Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-3-5-haiku-`),
+			pattern:         regexp.MustCompile(`^claude-3-5-haiku(?:-|$)`),
 			standardPricing: haiku35Pricing,
 			premiumPricing:  nil,
 		},
 		{
-			pattern:         regexp.MustCompile(`^claude-3-haiku-`),
+			pattern:         regexp.MustCompile(`^claude-3-haiku(?:-|$)`),
 			standardPricing: haiku3Pricing,
 			premiumPricing:  nil,
 		},
@@ -243,10 +310,20 @@ func getPricing(model string, contextWindow int) ModelPricing {
 func calculateCost(stats UsageStats, model string, contextWindow int) float64 {
 	pricing := getPricing(model, contextWindow)
 
+	cacheCreationCost := 0.0
+	if stats.CacheCreation5MinuteInputTokens > 0 || stats.CacheCreation1HourInputTokens > 0 {
+		cacheCreationCost =
+			float64(stats.CacheCreation5MinuteInputTokens)*pricing.CacheWritePrice5Minute +
+				float64(stats.CacheCreation1HourInputTokens)*pricing.CacheWritePrice1Hour
+	} else {
+		// Backward compatibility for usage files generated before TTL split tracking.
+		cacheCreationCost = float64(stats.CacheCreationInputTokens) * pricing.CacheWritePrice5Minute
+	}
+
 	cost := (float64(stats.InputTokens)*pricing.InputPrice +
 		float64(stats.OutputTokens)*pricing.OutputPrice +
 		float64(stats.CacheReadInputTokens)*pricing.CacheReadPrice +
-		float64(stats.CacheCreationInputTokens)*pricing.CacheWritePrice) / 1_000_000
+		cacheCreationCost) / 1_000_000
 
 	return math.Round(cost*100) / 100
 }
@@ -273,13 +350,15 @@ func (u *AggregatedUsage) ToJSON() *AggregatedUsageJSON {
 			Model:         combo.Model,
 			ContextWindow: combo.ContextWindow,
 			Total: UsageStatsJSON{
-				RequestCount:             combo.Total.RequestCount,
-				MessagesCount:            combo.Total.MessagesCount,
-				InputTokens:              combo.Total.InputTokens,
-				OutputTokens:             combo.Total.OutputTokens,
-				CacheReadInputTokens:     combo.Total.CacheReadInputTokens,
-				CacheCreationInputTokens: combo.Total.CacheCreationInputTokens,
-				CostUSD:                  totalCost,
+				RequestCount:                    combo.Total.RequestCount,
+				MessagesCount:                   combo.Total.MessagesCount,
+				InputTokens:                     combo.Total.InputTokens,
+				OutputTokens:                    combo.Total.OutputTokens,
+				CacheReadInputTokens:            combo.Total.CacheReadInputTokens,
+				CacheCreationInputTokens:        combo.Total.CacheCreationInputTokens,
+				CacheCreation5MinuteInputTokens: combo.Total.CacheCreation5MinuteInputTokens,
+				CacheCreation1HourInputTokens:   combo.Total.CacheCreation1HourInputTokens,
+				CostUSD:                         totalCost,
 			},
 			ByUser: make(map[string]UsageStatsJSON),
 		}
@@ -289,13 +368,15 @@ func (u *AggregatedUsage) ToJSON() *AggregatedUsageJSON {
 			result.Costs.ByUser[user] += userCost
 
 			comboJSON.ByUser[user] = UsageStatsJSON{
-				RequestCount:             userStats.RequestCount,
-				MessagesCount:            userStats.MessagesCount,
-				InputTokens:              userStats.InputTokens,
-				OutputTokens:             userStats.OutputTokens,
-				CacheReadInputTokens:     userStats.CacheReadInputTokens,
-				CacheCreationInputTokens: userStats.CacheCreationInputTokens,
-				CostUSD:                  userCost,
+				RequestCount:                    userStats.RequestCount,
+				MessagesCount:                   userStats.MessagesCount,
+				InputTokens:                     userStats.InputTokens,
+				OutputTokens:                    userStats.OutputTokens,
+				CacheReadInputTokens:            userStats.CacheReadInputTokens,
+				CacheCreationInputTokens:        userStats.CacheCreationInputTokens,
+				CacheCreation5MinuteInputTokens: userStats.CacheCreation5MinuteInputTokens,
+				CacheCreation1HourInputTokens:   userStats.CacheCreation1HourInputTokens,
+				CostUSD:                         userCost,
 			}
 		}
 
@@ -367,7 +448,13 @@ func (u *AggregatedUsage) Save() error {
 	return err
 }
 
-func (u *AggregatedUsage) AddUsage(model string, contextWindow int, messagesCount int, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64, user string) error {
+func (u *AggregatedUsage) AddUsage(
+	model string,
+	contextWindow int,
+	messagesCount int,
+	inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, cacheCreation5MinuteTokens, cacheCreation1HourTokens int64,
+	user string,
+) error {
 	if model == "" {
 		return E.New("model cannot be empty")
 	}
@@ -400,6 +487,10 @@ func (u *AggregatedUsage) AddUsage(model string, contextWindow int, messagesCoun
 		combo = &u.Combinations[len(u.Combinations)-1]
 	}
 
+	if cacheCreationTokens == 0 {
+		cacheCreationTokens = cacheCreation5MinuteTokens + cacheCreation1HourTokens
+	}
+
 	// Update total stats
 	combo.Total.RequestCount++
 	combo.Total.MessagesCount += messagesCount
@@ -407,6 +498,8 @@ func (u *AggregatedUsage) AddUsage(model string, contextWindow int, messagesCoun
 	combo.Total.OutputTokens += outputTokens
 	combo.Total.CacheReadInputTokens += cacheReadTokens
 	combo.Total.CacheCreationInputTokens += cacheCreationTokens
+	combo.Total.CacheCreation5MinuteInputTokens += cacheCreation5MinuteTokens
+	combo.Total.CacheCreation1HourInputTokens += cacheCreation1HourTokens
 
 	// Update per-user stats if user is specified
 	if user != "" {
@@ -417,6 +510,8 @@ func (u *AggregatedUsage) AddUsage(model string, contextWindow int, messagesCoun
 		userStats.OutputTokens += outputTokens
 		userStats.CacheReadInputTokens += cacheReadTokens
 		userStats.CacheCreationInputTokens += cacheCreationTokens
+		userStats.CacheCreation5MinuteInputTokens += cacheCreation5MinuteTokens
+		userStats.CacheCreation1HourInputTokens += cacheCreation1HourTokens
 		combo.ByUser[user] = userStats
 	}
 
