@@ -236,8 +236,6 @@ github.com/sagernet/sing-shadowsocks2 v0.2.1 h1:dWV9OXCeFPuYGHb6IRqlSptVnSzOelnq
 github.com/sagernet/sing-shadowsocks2 v0.2.1/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11 h1:tK+75l64tm9WvEFrYRE1t0YxoFdWQqw/h7Uhzj0vJ+w=
 github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
-github.com/sagernet/sing-tun v0.8.0-beta.17.0.20260223095246-5715a3919a7f h1:3B8auqVameLvPhWxzw5S8QWdLTv19o0M8LYxPOXNm0g=
-github.com/sagernet/sing-tun v0.8.0-beta.17.0.20260223095246-5715a3919a7f/go.mod h1:+HAK/y9GZljdT0KYKMYDR8MjjqnqDDQZYp5ZZQoRzS8=
 github.com/sagernet/sing-tun v0.8.0-beta.18 h1:C6oHxP9BNBVEVdC9ABMTXmKej9mUVtcuw2v+IiBS8yw=
 github.com/sagernet/sing-tun v0.8.0-beta.18/go.mod h1:+HAK/y9GZljdT0KYKMYDR8MjjqnqDDQZYp5ZZQoRzS8=
 github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 h1:aSwUNYUkVyVvdmBSufR8/nRFonwJeKSIROxHcm5br9o=
@@ -246,8 +244,8 @@ github.com/sagernet/smux v1.5.50-sing-box-mod.1 h1:XkJcivBC9V4wBjiGXIXZ229aZCU1h
 github.com/sagernet/smux v1.5.50-sing-box-mod.1/go.mod h1:NjhsCEWedJm7eFLyhuBgIEzwfhRmytrUoiLluxs5Sk8=
 github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.6 h1:eYz/OpMqWCvO2++iw3dEuzrlfC2xv78GdlGvprIM6O8=
 github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.6/go.mod h1:m87GAn4UcesHQF3leaPFEINZETO5za1LGn1GJdNDgNc=
-github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288 h1:E2tZFeg9mGYGQ7E7BbxMv1cU35HxwgRm6tPKI2Pp7DA=
-github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20250917110311-16510ac47288/go.mod h1:WUxgxUDZoCF2sxVmW+STSxatP02Qn3FcafTiI2BLtE0=
+github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20260224074747-506b7631853c h1:f9cXNB+IOOPnR8DOLMTpr42jf7naxh5Un5Y09BBf5Cg=
+github.com/sagernet/wireguard-go v0.0.2-beta.1.0.20260224074747-506b7631853c/go.mod h1:WUxgxUDZoCF2sxVmW+STSxatP02Qn3FcafTiI2BLtE0=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/spf13/cobra v1.10.2 h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=
