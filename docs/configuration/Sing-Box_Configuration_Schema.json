@@ -1,0 +1,3940 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "sing-box config schema",
+  "type": "object",
+  "$defs": {
+    "listableString": {
+      "$comments": "ref:https://github.com/SagerNet/sing-box/blob/b0db869b052aa32ec1716e43f7c1f50d7e491057/option/types.go#L77",
+      "description": "allow not having to be an array when there's single item",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "portNumber": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "durationStringPattern": {
+      "pattern": "^([+-])?(\\d+(\\.\\d+)?(ns|us|µs|ms|s|m|h))+"
+    },
+    "listenFields": {
+      "properties": {
+        "listen": {
+          "type": "string",
+          "description": "Listen address."
+        },
+        "listen_port": {
+          "type": "integer",
+          "description": "Listen port."
+        },
+        "tcp_fast_open": {
+          "type": "boolean",
+          "description": "Enable TCP Fast Open."
+        },
+        "tcp_multi_path": {
+          "type": "boolean",
+          "description": "Go 1.21 required.\nEnable TCP Multi Path."
+        },
+        "udp_fragment": {
+          "type": "boolean",
+          "description": "Enable UDP fragmentation."
+        },
+        "udp_timeout": {
+          "type": "integer",
+          "description": "UDP NAT expiration time in seconds, default is 300 (5 minutes)."
+        },
+        "detour": {
+          "type": "string",
+          "description": "If set, connections will be forwarded to the specified inbound. Requires target inbound support, see Injectable."
+        },
+        "sniff": {
+          "type": "boolean",
+          "description": "[Deprecated in sing-box 1.11.0] Enable sniffing. See Protocol Sniff for details.",
+          "deprecated": true
+        },
+        "sniff_override_destination": {
+          "type": "boolean",
+          "description": "[Deprecated in sing-box 1.11.0]",
+          "deprecated": true
+        },
+        "sniff_timeout": {
+          "type": "string",
+          "description": "[Deprecated in sing-box 1.11.0] Timeout for sniffing. 300ms is used by default.",
+          "$ref": "#/$defs/durationStringPattern",
+          "deprecated": true
+        },
+        "domain_strategy": {
+          "type": "string",
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"],
+          "description": "[Deprecated in sing-box 1.11.0] If set, the requested domain name will be resolved to IP before routing. If sniff_override_destination is in effect, its value will be taken as a fallback.",
+          "deprecated": true
+        },
+        "udp_disable_domain_unmapping": {
+          "type": "boolean",
+          "description": "If enabled, for UDP proxy requests addressed to a domain, the original packet address will be sent in the response instead of the mapped domain.\nThis option is used for compatibility with clients that do not support receiving UDP packets with domain addresses, such as Surge."
+        }
+      },
+      "required": ["listen"]
+    },
+    "dialFieldsWhenDetourNotSet": {
+      "properties": {
+        "bind_interface": {
+          "type": "string",
+          "description": "The network interface to bind to."
+        },
+        "inet4_bind_address": {
+          "type": "string",
+          "description": "The IPv4 address to bind to."
+        },
+        "inet6_bind_address": {
+          "type": "string",
+          "description": "The IPv6 address to bind to."
+        },
+        "routing_mark": {
+          "type": "number",
+          "description": "Only supported on Linux. Set netfilter routing mark."
+        },
+        "reuse_addr": {
+          "type": "boolean",
+          "description": "Reuse listener address."
+        },
+        "tcp_fast_open": {
+          "type": "boolean",
+          "description": "Enable TCP Fast Open."
+        },
+        "udp_fragment": {
+          "type": "boolean",
+          "description": "Enable UDP fragmentation."
+        },
+        "connect_timeout": {
+          "type": "string",
+          "description": "Connect timeout, in golang's Duration format.\nA duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as \"300ms\", \"-1.5h\" or \"2h45m\". Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\".",
+          "$ref": "#/$defs/durationStringPattern"
+        }
+      }
+    },
+    "dialFields": {
+      "type": "object",
+      "properties": {
+        "domain_strategy": {
+          "type": "string",
+          "description": "[Deprecated in sing-box 1.12.0] Use domain_resolver instead.",
+          "deprecated": true,
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+        },
+        "domain_resolver": {
+          "description": "Domain Resolver options.",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Tag of the DNS server."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "Tag of the DNS server."
+                },
+                "rewrite_ttl": {
+                  "type": "integer",
+                  "description": "Rewrite TTL."
+                },
+                "client_subnet": {
+                  "type": "string",
+                  "description": "Client Subnet."
+                },
+                "strategy": {
+                  "type": "string",
+                  "enum": [
+                    "prefer_ipv4",
+                    "prefer_ipv6",
+                    "ipv4_only",
+                    "ipv6_only"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "fallback_delay": {
+          "type": "string",
+          "description": "The length of time to wait before spawning a RFC 6555 Fast Fallback connection. That is, is the amount of time to wait for connection to succeed before assuming that IPv4/IPv6 is misconfigured and falling back to other type of addresses. If zero, a default delay of 300ms is used.\nOnly take effect when domain_strategy is set.",
+          "$ref": "#/$defs/durationStringPattern"
+        }
+      },
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "bind_interface",
+              "inet4_bind_address",
+              "inet6_bind_address",
+              "routing_mark",
+              "reuse_addr",
+              "tcp_fast_open",
+              "udp_fragment",
+              "connect_timeout",
+              "detour"
+            ]
+          },
+          "properties": {
+            "detour": {
+              "type": "string",
+              "description": "The tag of the upstream outbound."
+            }
+          },
+          "$ref": "#/$defs/dialFieldsWhenDetourNotSet"
+        },
+        {
+          "required": ["detour"],
+          "properties": {
+            "detour": {
+              "type": "string",
+              "description": "The tag of the upstream outbound."
+            }
+          }
+        },
+        {
+          "anyOf": [
+            {
+              "required": ["bind_interface"]
+            },
+            {
+              "required": ["inet4_bind_address"]
+            },
+            {
+              "required": ["inet6_bind_address"]
+            },
+            {
+              "required": ["routing_mark"]
+            },
+            {
+              "required": ["reuse_addr"]
+            },
+            {
+              "required": ["tcp_fast_open"]
+            },
+            {
+              "required": ["udp_fragment"]
+            },
+            {
+              "required": ["connect_timeout"]
+            }
+          ],
+          "$ref": "#/$defs/dialFieldsWhenDetourNotSet"
+        }
+      ]
+    },
+    "tlsVersionValues": {
+      "enum": ["1.0", "1.1", "1.2", "1.3"]
+    },
+    "cipherSuitevalues": {
+      "enum": [
+        "TLS_RSA_WITH_AES_128_CBC_SHA",
+        "TLS_RSA_WITH_AES_256_CBC_SHA",
+        "TLS_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_AES_128_GCM_SHA256",
+        "TLS_AES_256_GCM_SHA384",
+        "TLS_CHACHA20_POLY1305_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+        "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+      ]
+    },
+    "inboundTlsOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable TLS."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "Used to verify the hostname on the returned certificates unless insecure is given.\nIt is also included in the client's handshake to support virtual hosting unless it is an IP address."
+        },
+        "alpn": {
+          "type": "array",
+          "description": "List of supported application level protocols, in order of preference.\nIf both peers support ALPN, the selected protocol will be one from this list, and the connection will fail if there is no mutually supported protocol.\nSee Application-Layer Protocol Negotiation."
+        },
+        "min_version": {
+          "type": "string",
+          "$ref": "#/$defs/tlsVersionValues",
+          "description": "The minimum TLS version that is acceptable.\nBy default, TLS 1.2 is currently used as the minimum when acting as a client, and TLS 1.0 when acting as a server."
+        },
+        "max_version": {
+          "type": "string",
+          "$ref": "#/$defs/tlsVersionValues",
+          "description": "The maximum TLS version that is acceptable.\nBy default, the maximum version is currently TLS 1.3."
+        },
+        "cipher_suites": {
+          "type": "array",
+          "$ref": "#/$defs/cipherSuitevalues",
+          "description": "The elliptic curves that will be used in an ECDHE handshake, in preference order.\nIf empty, the default will be used. The client will use the first preference as the type for its key share in TLS 1.3. This may change in the future."
+        },
+        "certificate": {
+          "type": "string",
+          "description": "The server certificate, in PEM format."
+        },
+        "certificate_path": {
+          "type": "string",
+          "description": "The path to the server certificate, in PEM format."
+        },
+        "key": {
+          "type": "string",
+          "description": "The server private key, in PEM format."
+        },
+        "key_path": {
+          "type": "string",
+          "description": "The path to the server private key, in PEM format."
+        },
+        "acme": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "array",
+              "description": "List of domain.\nACME will be disabled if empty."
+            },
+            "data_directory": {
+              "type": "string",
+              "description": "The directory to store ACME data.\n$XDG_DATA_HOME/certmagic|$HOME/.local/share/certmagic will be used if empty."
+            },
+            "default_server_name": {
+              "type": "string",
+              "description": "Server name to use when choosing a certificate if the ClientHello's ServerName field is empty."
+            },
+            "email": {
+              "type": "string",
+              "description": "The email address to use when creating or selecting an existing ACME server account"
+            },
+            "provider": {
+              "type": "string",
+              "description": "The ACME CA provider to use.",
+              "oneOf": [
+                {
+                  "const": "letsencrypt",
+                  "description": "Let's Encrypt"
+                },
+                {
+                  "const": "zerossl",
+                  "description": "ZeroSSL"
+                },
+                {
+                  "description": "Custom"
+                }
+              ]
+            },
+            "disable_http_challenge": {
+              "type": "boolean",
+              "description": "Disable all HTTP challenges."
+            },
+            "disable_tls_alpn_challenge": {
+              "type": "boolean",
+              "description": "Disable all TLS-ALPN challenges"
+            },
+            "alternative_http_port": {
+              "type": "integer",
+              "description": "The alternate port to use for the ACME HTTP challenge; if non-empty, this port will be used instead of 80 to spin up a listener for the HTTP challenge."
+            },
+            "alternative_tls_port": {
+              "type": "integer",
+              "description": "The alternate port to use for the ACME TLS-ALPN challenge; the system must forward 443 to this port for challenge to succeed."
+            },
+            "external_account": {
+              "type": "object",
+              "description": "EAB (External Account Binding) contains information necessary to bind or map an ACME account to some other account known by the CA.\nExternal account bindings are used to associate an ACME account with an existing account in a non-ACME system, such as a CA customer database.\nTo enable ACME account binding, the CA operating the ACME server needs to provide the ACME client with a MAC key and a key identifier, using some mechanism outside of ACME. §7.3.4",
+              "properties": {
+                "key_id": {
+                  "type": "string",
+                  "description": "The key identifier."
+                },
+                "mac_key": {
+                  "type": "string",
+                  "description": "The MAC key."
+                }
+              }
+            }
+          }
+        },
+        "ech": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "pq_signature_schemes_enabled": {
+              "type": "boolean",
+              "description": "Enable support for post-quantum peer certificate signature schemes.\nIt is recommended to match the parameters of sing-box generate ech-keypair."
+            },
+            "dynamic_record_sizing_disabled": {
+              "type": "boolean",
+              "description": "Disables adaptive sizing of TLS records.\nWhen true, the largest possible TLS record size is always used.\nWhen false, the size of TLS records may be adjusted in an attempt to improve latency."
+            },
+            "key": {
+              "$ref": "#/$defs/listableString",
+              "description": "ECH key line array, in PEM format."
+            },
+            "key_path": {
+              "type": "string",
+              "description": "The path to ECH key, in PEM format."
+            }
+          }
+        },
+        "reality": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "handshake": {
+              "type": "object",
+              "description": "Handshake server address and Dial options.",
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string"
+                    },
+                    "server_port": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            },
+            "private_key": {
+              "type": "string",
+              "description": "Private key, generated by sing-box generate reality-keypair."
+            },
+            "short_id": {
+              "type": "string",
+              "description": "A 8-bit hex string."
+            },
+            "max_time_difference": {
+              "type": "string",
+              "description": "The maximum time difference between the server and the client.\nCheck disabled if empty.",
+              "$ref": "#/$defs/durationStringPattern"
+            }
+          },
+          "required": ["handshake", "private_key", "short_id"]
+        }
+      }
+    },
+    "outboundTlsOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable TLS."
+        },
+        "disable_sni": {
+          "type": "boolean",
+          "description": "Do not send server name in ClientHello."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "Used to verify the hostname on the returned certificates unless insecure is given.\nIt is also included in the client's handshake to support virtual hosting unless it is an IP address."
+        },
+        "insecure": {
+          "type": "boolean",
+          "description": "Accepts any server certificate."
+        },
+        "alpn": {
+          "type": "array",
+          "description": "List of supported application level protocols, in order of preference.\nIf both peers support ALPN, the selected protocol will be one from this list, and the connection will fail if there is no mutually supported protocol.\nSee Application-Layer Protocol Negotiation."
+        },
+        "min_version": {
+          "type": "string",
+          "$ref": "#/$defs/tlsVersionValues",
+          "description": "The minimum TLS version that is acceptable.\nBy default, TLS 1.2 is currently used as the minimum when acting as a client, and TLS 1.0 when acting as a server."
+        },
+        "max_version": {
+          "type": "string",
+          "$ref": "#/$defs/tlsVersionValues",
+          "description": "The maximum TLS version that is acceptable.\nBy default, the maximum version is currently TLS 1.3."
+        },
+        "cipher_suites": {
+          "type": "array",
+          "$ref": "#/$defs/cipherSuitevalues",
+          "description": "The elliptic curves that will be used in an ECDHE handshake, in preference order.\nIf empty, the default will be used. The client will use the first preference as the type for its key share in TLS 1.3. This may change in the future."
+        },
+        "certificate": {
+          "type": "string",
+          "description": "The server certificate, in PEM format."
+        },
+        "certificate_path": {
+          "type": "string",
+          "description": "The path to the server certificate, in PEM format."
+        },
+        "ech": {
+          "type": "object",
+          "description": "ECH (Encrypted Client Hello) is a TLS extension that allows a client to encrypt the first part of its ClientHello message.\nIf you don't know how to fill in the other configuration, just set enabled.",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "pq_signature_schemes_enabled": {
+              "type": "boolean",
+              "description": "Enable support for post-quantum peer certificate signature schemes.\nIt is recommended to match the parameters of sing-box generate ech-keypair."
+            },
+            "dynamic_record_sizing_disabled": {
+              "type": "boolean",
+              "description": "Disables adaptive sizing of TLS records.\nWhen true, the largest possible TLS record size is always used.\nWhen false, the size of TLS records may be adjusted in an attempt to improve latency."
+            },
+            "config": {
+              "type": "string",
+              "description": "ECH key line array, in PEM format.\nIf empty, load from DNS will be attempted."
+            },
+            "config_path": {
+              "type": "string",
+              "description": "The path to ECH key, in PEM format.\nIf empty, load from DNS will be attempted."
+            }
+          }
+        },
+        "utls": {
+          "type": "object",
+          "description": "uTLS is a fork of \"crypto/tls\", which provides ClientHello fingerprinting resistance.",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "fingerprint": {
+              "type": "string",
+              "enum": [
+                "chrome",
+                "firefox",
+                "edge",
+                "safari",
+                "360",
+                "qq",
+                "ios",
+                "android",
+                "random",
+                "randomized"
+              ]
+            }
+          }
+        },
+        "reality": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "public_key": {
+              "type": "string",
+              "description": "Public key, generated by sing-box generate reality-keypair."
+            },
+            "short_id": {
+              "type": "string",
+              "description": "A 8-bit hex string."
+            }
+          },
+          "required": ["public_key", "short_id"]
+        }
+      }
+    },
+    "v2rayTransportOptions": {
+      "type": "object",
+      "allOf": [
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["http", "ws", "quic", "grpc", "httpupgrade"]
+            }
+          },
+          "required": ["type"]
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "http"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "host": {
+                "$ref": "#/$defs/listableString",
+                "description": "List of host domain.\nThe client will choose randomly and the server will verify if not empty."
+              },
+              "path": {
+                "type": "string",
+                "description": "Path of HTTP request.\nThe server will verify if not empty."
+              },
+              "method": {
+                "type": "string",
+                "description": "Method of HTTP request.\nThe server will verify if not empty."
+              },
+              "headers": {
+                "type": "object",
+                "description": "Extra headers of HTTP request.\nThe server will write in response if not empty."
+              },
+              "idle_timeout": {
+                "type": "string",
+                "$ref": "#/$defs/durationStringPattern",
+                "description": "In HTTP2 server:\nSpecifies the time until idle clients should be closed with a GOAWAY frame. PING frames are not considered as activity.\nIn HTTP2 client:\nSpecifies the period of time after which a health check will be performed using a ping frame if no frames have been received on the connection. Please note that a ping response is considered a received frame, so if there is no other traffic on the connection, the health check will be executed every interval. If the value is zero, no health check will be performed.\nZero is used by default."
+              },
+              "ping_timeout": {
+                "type": "string",
+                "$ref": "#/$defs/durationStringPattern",
+                "description": "In HTTP2 client:\nSpecifies the timeout duration after sending a PING frame, within which a response must be received. If a response to the PING frame is not received within the specified timeout duration, the connection will be closed. The default timeout duration is 15 seconds."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ws"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path of HTTP request.\nThe server will verify if not empty."
+              },
+              "headers": {
+                "type": "object",
+                "description": "Extra headers of HTTP request."
+              },
+              "max_early_data": {
+                "type": "number",
+                "description": "Allowed payload size is in the request. Enabled if not zero."
+              },
+              "early_data_header_name": {
+                "type": "string",
+                "description": "Early data is sent in path instead of header by default.\nTo be compatible with Xray-core, set this to Sec-WebSocket-Protocol.\nIt needs to be consistent with the server."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "quic"
+              }
+            }
+          },
+          "then": {}
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "grpc"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "service_name": {
+                "type": "string",
+                "description": "Service name of gRPC."
+              },
+              "idle_timeout": {
+                "type": "string",
+                "$ref": "#/$defs/durationStringPattern",
+                "description": "In standard gRPC server/client:\nIf the transport doesn't see any activity after a duration of this time, it pings the client to check if the connection is still active.\nIn default gRPC server/client:\nIt has the same behavior as the corresponding setting in HTTP transport."
+              },
+              "ping_timeout": {
+                "type": "string",
+                "$ref": "#/$defs/durationStringPattern",
+                "description": "In standard gRPC server/client:\nThe timeout that after performing a keepalive check, the client will wait for activity. If no activity is detected, the connection will be closed.\nIn default gRPC server/client:\nIt has the same behavior as the corresponding setting in HTTP transport."
+              },
+              "permit_without_stream": {
+                "type": "boolean",
+                "description": "In standard gRPC client:\nIf enabled, the client transport sends keepalive pings even with no active connections. If disabled, when there are no active connections, idle_timeout and ping_timeout will be ignored and no keepalive pings will be sent.\nDisabled by default."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "httpupgrade"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Host domain.\nThe server will verify if not empty."
+              },
+              "path": {
+                "type": "string",
+                "description": "Path of HTTP request.\nThe server will verify if not empty."
+              },
+              "headers": {
+                "type": "object",
+                "description": "Extra headers of HTTP request.\nThe server will write in response if not empty."
+              }
+            }
+          }
+        }
+      ]
+    },
+    "tcpBrutal": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable TCP Brutal congestion control algorithm。"
+        },
+        "up_mbps": {
+          "type": "integer",
+          "description": "Upload bandwidth, in Mbps."
+        },
+        "down_mbps": {
+          "type": "integer",
+          "description": "Download bandwidth, in Mbps."
+        }
+      }
+    },
+    "outboundMultiplexOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable multiplex."
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Multiplex protocol.",
+          "enum": ["smux", "yamux"]
+        },
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum connections.\nConflict with max_streams."
+        },
+        "min_streams": {
+          "type": "integer",
+          "description": "Minimum multiplexed streams in a connection before opening a new connection.\nConflict with max_streams."
+        },
+        "max_streams": {
+          "type": "integer",
+          "description": "Maximum multiplexed streams in a connection before opening a new connection.\nConflict with max_connections and min_streams."
+        },
+        "padding": {
+          "type": "boolean",
+          "description": "Requires sing-box server version 1.3-beta9 or later.\nEnable padding."
+        },
+        "brutal": {
+          "type": "object",
+          "$ref": "#/$defs/tcpBrutal"
+        }
+      }
+    },
+    "inboundMultiplexOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable multiplex support."
+        },
+        "padding": {
+          "type": "boolean",
+          "description": "If enabled, non-padded connections will be rejected."
+        },
+        "brutal": {
+          "type": "object",
+          "$ref": "#/$defs/tcpBrutal"
+        }
+      }
+    },
+    "logOptions": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "type": "boolean",
+          "description": "Disable logging, no output after start."
+        },
+        "level": {
+          "type": "string",
+          "description": "Log level.",
+          "enum": ["trace", "debug", "info", "warn", "error", "fatal", "panic"]
+        },
+        "output": {
+          "type": "string",
+          "description": "Output file path. Will not write log to console after enable."
+        },
+        "timestamp": {
+          "type": "boolean",
+          "description": "Add time to each line."
+        }
+      }
+    },
+    "dnsServer": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "The tag of the dns server."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "udp",
+            "tcp",
+            "tls",
+            "https",
+            "quic",
+            "h3",
+            "local",
+            "dhcp",
+            "fakeip",
+            "hosts",
+            "tailscale",
+            "resolved"
+          ]
+        },
+        "address": {
+          "type": "string",
+          "pattern": "local|\\d{1,3}(\\.\\d{1,3}){3}|((tcp|udp|)://\\d{1,3}(\\.\\d{1,3}){3})|(tls|https|quic|h3)://([a-z0-9.-]+)(/.*)?|(rcode://(success|format_error|server_failure|name_error|not_implemented|refused))|dhcp://(auto|en\\d+)|fakeip",
+          "description": "The address of the dns server. [Deprecated in sing-box 1.12.0] Use type and server instead.",
+          "deprecated": true
+        },
+        "server": {
+          "type": "string",
+          "description": "The server address."
+        },
+        "interface": {
+          "type": "string",
+          "description": "The network interface to detect DNS.\nOnly available when type is dhcp."
+        },
+        "inet4_range": {
+          "type": "string",
+          "description": "IPv4 prefix for FakeIP.\nOnly available when type is fakeip."
+        },
+        "inet6_range": {
+          "type": "string",
+          "description": "IPv6 prefix for FakeIP.\nOnly available when type is fakeip."
+        },
+        "address_resolver": {
+          "type": "string",
+          "description": "[Deprecated in sing-box 1.12.0] Required if address contains domain.Tag of a another server to resolve the domain name in the address.",
+          "deprecated": true
+        },
+        "domain_resolver": {
+          "type": "string",
+          "description": "Tag of a another server to resolve the domain name in the server address."
+        },
+        "address_strategy": {
+          "type": "string",
+          "description": "[Deprecated in sing-box 1.12.0] The domain strategy for resolving the domain name in the address.",
+          "deprecated": true,
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+        },
+        "strategy": {
+          "type": "string",
+          "description": "Default domain strategy for resolving the domain names.",
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+        },
+        "detour": {
+          "type": "string",
+          "description": "Tag of an outbound for connecting to the dns server."
+        },
+        "client_subnet": {
+          "type": "string",
+          "description": "The client subnet to use for EDNS Client Subnet."
+        },
+        "prefer_go": {
+          "type": "boolean",
+          "description": "Prefer Go implementation of the DNS server. Only available when type is local."
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Path to the hosts file. Only available when type is hosts."
+        },
+        "predefined": {
+          "type": "object",
+          "description": "Predefined hosts. Only available when type is hosts."
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Tailscale endpoint. Only available when type is tailscale."
+        },
+        "accept_default_resolvers": {
+          "type": "boolean",
+          "description": "Accept default resolvers. Only available when type is tailscale or resolved."
+        },
+        "service": {
+          "type": "string",
+          "description": "Resolved service tag. Only available when type is resolved."
+        },
+        "bind_interface": {
+          "type": "string",
+          "description": "The network interface to bind to. Only available when type is dhcp."
+        },
+        "inet4_bind_address": {
+          "type": "string",
+          "description": "The IPv4 address to bind to. Only available when type is dhcp."
+        },
+        "inet6_bind_address": {
+          "type": "string",
+          "description": "The IPv6 address to bind to. Only available when type is dhcp."
+        },
+        "routing_mark": {
+          "type": "number",
+          "description": "Only supported on Linux. Set netfilter routing mark. Only available when type is dhcp."
+        },
+        "reuse_addr": {
+          "type": "boolean",
+          "description": "Reuse listener address. Only available when type is dhcp."
+        },
+        "tcp_fast_open": {
+          "type": "boolean",
+          "description": "Enable TCP Fast Open. Only available when type is dhcp."
+        },
+        "udp_fragment": {
+          "type": "boolean",
+          "description": "Enable UDP fragmentation. Only available when type is dhcp."
+        },
+        "connect_timeout": {
+          "type": "string",
+          "description": "Connect timeout, in golang's Duration format. Only available when type is dhcp.",
+          "$ref": "#/$defs/durationStringPattern"
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "enum": ["udp", "tcp", "tls", "https", "quic", "h3"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "server_port": {
+            "type": "integer",
+            "description": "The server port."
+          }
+        }
+      }
+    },
+    "defaultDnsRule": {
+      "type": "object",
+      "properties": {
+        "inbound": {
+          "$ref": "#/$defs/listableString",
+          "description": "Tags of Inbound."
+        },
+        "ip_version": {
+          "type": "integer",
+          "enum": [4, 6]
+        },
+        "query_type": {
+          "description": "DNS query type. Values can be integers or type name strings.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "network": {
+          "type": "string",
+          "enum": ["tcp", "udp"]
+        },
+        "auth_user": {
+          "$ref": "#/$defs/listableString",
+          "description": "Username, see each inbound for details."
+        },
+        "protocol": {
+          "$ref": "#/$defs/listableString",
+          "description": "Sniffed protocol, see Sniff for details."
+        },
+        "domain": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match full domain."
+        },
+        "domain_suffix": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain suffix."
+        },
+        "domain_keyword": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain using keyword."
+        },
+        "domain_regex": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain using regular expression."
+        },
+        "geosite": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match geosite.",
+          "deprecated": true
+        },
+        "source_geoip": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match source geoip.",
+          "deprecated": true
+        },
+        "geoip": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match geoip.",
+          "deprecated": true
+        },
+        "source_ip_cidr": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match source ip cidr."
+        },
+        "source_ip_is_private": {
+          "type": "boolean",
+          "description": "Match non-public source IP."
+        },
+        "ip_cidr": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match ip cidr."
+        },
+        "ip_is_private": {
+          "type": "boolean",
+          "description": "Match non-public IP."
+        },
+        "ip_accept_any": {
+          "type": "boolean",
+          "description": "Match any IP."
+        },
+        "source_port": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/portNumber"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/portNumber"
+              }
+            }
+          ],
+          "description": "Match source port."
+        },
+        "source_port_range": {
+          "$ref": "#/$defs/listableString",
+          "description": ""
+        },
+        "port": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/portNumber"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/portNumber"
+              }
+            }
+          ],
+          "description": "Match port."
+        },
+        "port_range": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match port range."
+        },
+        "process_name": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux, Windows, and macOS. Match process name."
+        },
+        "process_path": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux, Windows, and macOS. Match process path."
+        },
+        "process_path_regex": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match process path using regular expression."
+        },
+        "package_name": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match android package name."
+        },
+        "user": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux. Match user name."
+        },
+        "user_id": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Only supported on Linux. Match user id."
+        },
+        "clash_mode": {
+          "type": "string",
+          "description": "Match Clash mode."
+        },
+        "network_type": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match network type."
+        },
+        "network_is_expensive": {
+          "type": "boolean",
+          "description": "Match expensive network."
+        },
+        "network_is_constrained": {
+          "type": "boolean",
+          "description": "Match constrained network."
+        },
+        "wifi_ssid": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported in graphical clients on Android and iOS.\nMatch WiFi SSID."
+        },
+        "wifi_bssid": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported in graphical clients on Android and iOS.\nMatch WiFi BSSID."
+        },
+        "interface_address": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/listableString"
+          },
+          "description": "Match interface address."
+        },
+        "network_interface_address": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/listableString"
+          },
+          "description": "Match network interface address."
+        },
+        "default_interface_address": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match default interface address."
+        },
+        "rule_set": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match Rule Set."
+        },
+        "rule_set_ip_cidr_match_source": {
+          "type": "boolean",
+          "description": "Match source IP CIDR in rule set."
+        },
+        "rule_set_ipcidr_match_source": {
+          "type": "boolean",
+          "description": "[Deprecated] Match source IP CIDR in rule set.",
+          "deprecated": true
+        },
+        "rule_set_ip_cidr_accept_empty": {
+          "type": "boolean",
+          "description": "Accept empty IP CIDR in rule set."
+        },
+        "invert": {
+          "type": "boolean",
+          "description": "Invert match result."
+        },
+        "outbound": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.12.0] Match outbound.",
+          "deprecated": true
+        },
+        "server": {
+          "type": "string",
+          "description": "Tag of the target dns server."
+        },
+        "disable_cache": {
+          "type": "boolean",
+          "description": "Disable cache and save cache in this query."
+        },
+        "rewrite_ttl": {
+          "type": "integer",
+          "description": "Rewrite TTL in DNS responses."
+        },
+        "client_subnet": {
+          "type": "string",
+          "description": "The client subnet to use for EDNS Client Subnet."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["route", "route-options", "reject", "predefined"],
+          "description": "The action of the rule."
+        },
+        "rcode": {
+          "type": "string",
+          "description": "The RCode to return when action is predefined."
+        }
+      },
+      "required": []
+    },
+    "logicalDnsRule": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["logical"]
+        },
+        "mode": {
+          "enum": ["and", "or"]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/defaultDnsRule"
+          },
+          "description": "Included rules."
+        },
+        "invert": {
+          "type": "boolean",
+          "description": "Invert match result."
+        },
+        "outbound": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.12.0] Match outbound.",
+          "deprecated": true
+        },
+        "server": {
+          "type": "string",
+          "description": "Tag of the target dns server."
+        },
+        "disable_cache": {
+          "type": "boolean",
+          "description": "Disable cache and save cache in this query."
+        },
+        "rewrite_ttl": {
+          "type": "integer",
+          "description": "Rewrite TTL in DNS responses."
+        },
+        "client_subnet": {
+          "type": "string",
+          "description": "The client subnet to use for EDNS Client Subnet."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["route", "route-options", "reject", "predefined"],
+          "description": "The action of the rule."
+        },
+        "rcode": {
+          "type": "string",
+          "description": "The RCode to return when action is predefined."
+        }
+      }
+    },
+    "fakeIP": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable FakeIP service."
+        },
+        "inet4_range": {
+          "type": "string",
+          "description": "IPv4 address range for FakeIP."
+        },
+        "inet6_range": {
+          "type": "string",
+          "description": "IPv6 address range for FakeIP."
+        }
+      }
+    },
+    "dnsOptions": {
+      "type": "object",
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dnsServer"
+          },
+          "description": "List of DNS Server"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/defaultDnsRule"
+              },
+              {
+                "$ref": "#/$defs/logicalDnsRule"
+              }
+            ]
+          },
+          "description": "List of DNS Rule"
+        },
+        "final": {
+          "type": "string",
+          "description": "Default dns server tag. The first server will be used if empty."
+        },
+        "strategy": {
+          "description": "Default domain strategy for resolving the domain names. Take no effect if server.strategy is set.",
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+        },
+        "disable_cache": {
+          "type": "boolean",
+          "description": "Disable dns cache."
+        },
+        "disable_expire": {
+          "type": "boolean",
+          "description": "Disable dns cache expire."
+        },
+        "independent_cache": {
+          "type": "boolean",
+          "description": "Make each DNS server's cache independent for special purposes. If enabled, will slightly degrade performance."
+        },
+        "cache_capacity": {
+          "type": "integer",
+          "description": "DNS cache capacity."
+        },
+        "reverse_mapping": {
+          "type": "boolean",
+          "description": "Stores a reverse mapping of IP addresses after responding to a DNS query in order to provide domain names when routing.\nSince this process relies on the act of resolving domain names by an application before making a request, it can be problematic in environments such as macOS, where DNS is proxied and cached by the system."
+        },
+        "client_subnet": {
+          "type": "string",
+          "description": "The client subnet to use for EDNS Client Subnet."
+        },
+        "fakeip": {
+          "$ref": "#/$defs/fakeIP"
+        }
+      }
+    },
+    "ntpOptions": {
+      "type": "object",
+      "allOf": [
+        {
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable NTP service."
+            },
+            "server": {
+              "type": "string",
+              "description": "NTP server address."
+            },
+            "server_port": {
+              "type": "integer",
+              "description": "NTP server port.\n123 is used by default."
+            },
+            "interval": {
+              "type": "string",
+              "description": "Time synchronization interval.\n30 minutes is used by default.",
+              "$ref": "#/$defs/durationStringPattern"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/dialFields"
+        }
+      ],
+      "required": ["server"]
+    },
+    "inboundsOptions": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "mixed",
+                  "socks",
+                  "http",
+                  "shadowsocks",
+                  "vmess",
+                  "trojan",
+                  "naive",
+                  "hysteria",
+                  "shadowtls",
+                  "tuic",
+                  "hysteria2",
+                  "vless",
+                  "tun",
+                  "redirect",
+                  "tproxy"
+                ]
+              },
+              "tag": {
+                "type": "string",
+                "description": "The tag of the inbound."
+              }
+            },
+            "required": ["type"]
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "direct"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "network": {
+                      "type": "string",
+                      "enum": ["", "tcp", "udp"],
+                      "description": "Listen network, one of tcp udp.\nBoth if empty."
+                    },
+                    "override_address": {
+                      "type": "string",
+                      "description": "Override the connection destination address."
+                    },
+                    "override_port": {
+                      "type": "integer",
+                      "description": "Override the connection destination port."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "mixed"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "object",
+                      "description": "SOCKS and HTTP users.\nNo authentication required if empty.",
+                      "properties": {
+                        "username": {
+                          "type": "string"
+                        },
+                        "password": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "set_system_proxy": {
+                      "type": "boolean",
+                      "description": "Only supported on Linux, Android, Windows, and macOS.\nAutomatically set system proxy configuration when start and clean up when stop."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "socks"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "object",
+                      "description": "SOCKS users.\nNo authentication required if empty.",
+                      "properties": {
+                        "username": {
+                          "type": "string"
+                        },
+                        "password": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "http"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "tls": {
+                      "type": "object",
+                      "description": "TLS configuration, see TLS.",
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    },
+                    "users": {
+                      "type": "object",
+                      "description": "HTTP users.\nNo authentication required if empty.",
+                      "properties": {
+                        "username": {
+                          "type": "string"
+                        },
+                        "password": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "set_system_proxy": {
+                      "type": "boolean",
+                      "description": "Only supported on Linux, Android, Windows, and macOS.\nAutomatically set system proxy configuration when start and clean up when stop."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "shadowsocks"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "network": {
+                      "type": "string",
+                      "enum": ["", "tcp", "udp"],
+                      "description": "Listen network, one of tcp udp.\nBoth if empty."
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "2022-blake3-aes-128-gcm",
+                        "2022-blake3-aes-256-gcm",
+                        "2022-blake3-chacha20-poly1305",
+                        "none",
+                        "aes-128-gcm",
+                        "aes-192-gcm",
+                        "aes-256-gcm",
+                        "chacha20-ietf-poly1305",
+                        "xchacha20-ietf-poly1305"
+                      ]
+                    },
+                    "password": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["method", "password"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "vmess"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "uuid": {
+                            "type": "string"
+                          },
+                          "alterId": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    },
+                    "transport": {
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["users"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "trojan"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    },
+                    "fallback": {
+                      "type": "object",
+                      "properties": {
+                        "server": {
+                          "type": "string"
+                        },
+                        "server_port": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "fallback_for_alpn": {
+                      "type": "object"
+                    },
+                    "transport": {
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["users"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "naive"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "network": {
+                      "type": "string",
+                      "enum": ["", "tcp", "udp"]
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "username": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    }
+                  },
+                  "required": ["users"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "hysteria"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "up": {
+                      "type": "string",
+                      "description": "Format: [Integer] [Unit] e.g. 100 Mbps, 640 KBps, 2 Gbps"
+                    },
+                    "down": {
+                      "type": "string",
+                      "description": "Format: [Integer] [Unit] e.g. 100 Mbps, 640 KBps, 2 Gbps"
+                    },
+                    "up_mbps": {
+                      "type": "number",
+                      "description": "up, down in Mbps."
+                    },
+                    "down_mbps": {
+                      "type": "number",
+                      "description": "up, down in Mbps."
+                    },
+                    "obfs": {
+                      "type": "string"
+                    },
+                    "users": {
+                      "type": "array",
+                      "description": "Hysteria users",
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "auth": {
+                            "type": "string",
+                            "description": "Authentication password, in base64."
+                          },
+                          "auth_str": {
+                            "type": "string",
+                            "description": "Authentication password."
+                          }
+                        }
+                      }
+                    },
+                    "recv_window_conn": {
+                      "type": "number",
+                      "description": "The QUIC stream-level flow control window for receiving data.\n15728640 (15 MB/s) will be used if empty."
+                    },
+                    "recv_window_client": {
+                      "type": "number",
+                      "description": "The QUIC connection-level flow control window for receiving data.\n67108864 (64 MB/s) will be used if empty."
+                    },
+                    "max_conn_client": {
+                      "type": "number",
+                      "description": "The maximum number of QUIC concurrent bidirectional streams that a peer is allowed to open.\n1024 will be used if empty."
+                    },
+                    "disable_mtu_discovery": {
+                      "type": "boolean",
+                      "description": "Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.\nForce enabled on for systems other than Linux and Windows (according to upstream)."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    }
+                  },
+                  "required": ["up", "down", "up_mbps", "down_mbps", "tls"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "shadowtls"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "version": {
+                      "type": "number"
+                    },
+                    "password": {
+                      "type": "string"
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "handshake": {
+                      "type": "object",
+                      "allOf": [
+                        {
+                          "properties": {
+                            "server": {
+                              "type": "string"
+                            },
+                            "server_port": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        {
+                          "$ref": "#/$defs/dialFields"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "tuic"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "description": "TUIC user uuid."
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "TUIC user password."
+                          }
+                        },
+                        "required": ["uuid"]
+                      },
+                      "description": "TUIC users."
+                    },
+                    "congestion_control": {
+                      "type": "string",
+                      "enum": ["cubic", "new_reno", "bbr"],
+                      "description": "QUIC congestion control algorithm.\nOne of: cubic, new_reno, bbr\ncubic is used by default."
+                    },
+                    "auth_timeout": {
+                      "type": "string",
+                      "$ref": "#/$defs/durationStringPattern",
+                      "description": "How long the server should wait for the client to send the authentication command.\n3s is used by default."
+                    },
+                    "zero_rtt_handshake": {
+                      "type": "boolean",
+                      "description": "Enable 0-RTT QUIC connection handshake on the client side.\nThis is not impacting much on the performance, as the protocol is fully multiplexed.\n\nDisabling this is highly recommended, as it is vulnerable to replay attacks. See Attack of the clones."
+                    },
+                    "heartbeat": {
+                      "type": "string",
+                      "$ref": "#/$defs/durationStringPattern",
+                      "description": "Interval for sending heartbeat packets for keeping the connection alive.\n10s is used by default."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    }
+                  },
+                  "required": ["users", "tls"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "hysteria2"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "up_mbps": {
+                      "type": "number",
+                      "description": "Max bandwidth, in Mbps.\nNot limited if empty.\nConflict with ignore_client_bandwidth."
+                    },
+                    "down_mbps": {
+                      "type": "number",
+                      "description": "Max bandwidth, in Mbps.\nNot limited if empty.\nConflict with ignore_client_bandwidth."
+                    },
+                    "obfs": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["salamander"],
+                          "description": "QUIC traffic obfuscator type, only available with salamander.\nDisabled if empty."
+                        },
+                        "password": {
+                          "type": "string",
+                          "description": "QUIC traffic obfuscator password."
+                        }
+                      }
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "Authentication password"
+                          }
+                        }
+                      },
+                      "description": "Hysteria2 users"
+                    },
+                    "ignore_client_bandwidth": {
+                      "type": "boolean",
+                      "description": "Commands the client to use the BBR flow control algorithm instead of Hysteria CC.\nConflict with up_mbps and down_mbps."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    },
+                    "masquerade": {
+                      "type": "string",
+                      "description": "HTTP3 server behavior when authentication fails.\nA 404 page will be returned if empty.",
+                      "pattern": "file:\\/\\/.*|https?:\\/\\/.*"
+                    },
+                    "brutal_debug": {
+                      "type": "boolean",
+                      "description": "Enable debug information logging for Hysteria Brutal CC."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "vless"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "description": "VLESS users.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "description": "VLESS user id."
+                          },
+                          "flow": {
+                            "type": "string",
+                            "description": "VLESS Sub-protocol.",
+                            "enum": ["", "xtls-rprx-vision"]
+                          }
+                        },
+                        "required": ["uuid"]
+                      }
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    },
+                    "transport": {
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["users"]
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "tun"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "interface_name": {
+                      "type": "string",
+                      "description": "Virtual device name, automatically selected if empty."
+                    },
+                    "address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4/IPv6 prefix for the tun interface."
+                    },
+                    "route_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Use custom routes instead of default when auto_route is enabled."
+                    },
+                    "route_exclude_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exclude routes."
+                    },
+                    "inet4_address": {
+                      "type": "string",
+                      "description": "[Deprecated in sing-box 1.10.0] IPv4 prefix for the tun interface.",
+                      "deprecated": true
+                    },
+                    "inet6_address": {
+                      "type": "string",
+                      "description": "[Deprecated in sing-box 1.10.0] IPv6 prefix for the tun interface.",
+                      "deprecated": true
+                    },
+                    "mtu": {
+                      "type": "number",
+                      "description": "The maximum transmission unit."
+                    },
+                    "auto_route": {
+                      "type": "boolean",
+                      "description": "Set the default route to the Tun."
+                    },
+                    "strict_route": {
+                      "type": "boolean",
+                      "description": "Enforce strict routing rules when auto_route is enabled:\n\nIn Linux:\n\nLet unsupported network unreachable\nRoute all connections to tun\nIt prevents address leaks and makes DNS hijacking work on Android and Linux with systemd-resolved, but your device will not be accessible by others.\n\nIn Windows:\n\nAdd firewall rules to prevent DNS leak caused by Windows' ordinary multihomed DNS resolution behavior\nIt may prevent some applications (such as VirtualBox) from working properly in certain situations."
+                    },
+                    "inet4_route_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "[Deprecated in sing-box 1.10.0] Use custom routes instead of default when auto_route is enabled.",
+                      "deprecated": true
+                    },
+                    "inet6_route_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "[Deprecated in sing-box 1.10.0] Use custom routes instead of default when auto_route is enabled.",
+                      "deprecated": true
+                    },
+                    "inet4_route_exclude_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "[Deprecated in sing-box 1.10.0] Exclude routes.",
+                      "deprecated": true
+                    },
+                    "inet6_route_exclude_address": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "[Deprecated in sing-box 1.10.0] Exclude routes.",
+                      "deprecated": true
+                    },
+                    "endpoint_independent_nat": {
+                      "type": "boolean",
+                      "description": "This item is only available on the gvisor stack, other stacks are endpoint-independent NAT by default.\n\nEnable endpoint-independent NAT.\n\nPerformance may degrade slightly, so it is not recommended to enable on when it is not needed."
+                    },
+                    "stack": {
+                      "type": "string",
+                      "description": "TCP/IP stack.",
+                      "enum": ["system", "gVisor", "LWIP"]
+                    },
+                    "include_uid": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "UID rules are only supported on Linux and require auto_route.\n\nLimit users in route. Not limited by default."
+                    },
+                    "include_uid_range": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Limit users in route, but in range."
+                    },
+                    "exclude_uid": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Exclude users in route."
+                    },
+                    "exclude_uid_range": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exclude users in route, but in range."
+                    },
+                    "include_android_user": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Android user and package rules are only supported on Android and require auto_route.\n\nLimit android users in route."
+                    },
+                    "include_package": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Limit android packages in route."
+                    },
+                    "exclude_package": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exclude android packages in route."
+                    },
+                    "platform": {
+                      "type": "object",
+                      "description": "Platform-specific settings, provided by client applications.",
+                      "properties": {
+                        "http_proxy": {
+                          "type": "object",
+                          "description": "System HTTP proxy settings.",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "server": {
+                              "type": "string"
+                            },
+                            "server_port": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "redirect"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "network": {
+                      "type": "string",
+                      "description": "Listen network, one of tcp udp.\n\nBoth if empty.",
+                      "enum": ["", "tcp", "udp"]
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "tproxy"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "network": {
+                      "type": "string",
+                      "enum": ["", "tcp", "udp"],
+                      "description": "Listen network, one of tcp udp.\n\nBoth if empty."
+                    },
+                    "bind_interface": {
+                      "type": "string",
+                      "description": "The network interface to bind to."
+                    },
+                    "routing_mark": {
+                      "type": "integer",
+                      "description": "Only supported on Linux. Set netfilter routing mark."
+                    },
+                    "reuse_addr": {
+                      "type": "boolean",
+                      "description": "Reuse listener address."
+                    },
+                    "netns": {
+                      "type": "string",
+                      "description": "The network namespace."
+                    },
+                    "disable_tcp_keep_alive": {
+                      "type": "boolean",
+                      "description": "Disable TCP keep-alive."
+                    },
+                    "tcp_keep_alive": {
+                      "type": "string",
+                      "description": "Determine the time that the connection must be idle before the first keepalive probe is sent.",
+                      "$ref": "#/$defs/durationStringPattern"
+                    },
+                    "tcp_keep_alive_interval": {
+                      "type": "string",
+                      "description": "Determine the time that the connection must be idle before the first keepalive probe is sent.",
+                      "$ref": "#/$defs/durationStringPattern"
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/listenFields"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "outboundsOptions": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Type of outbound. block, dns, wireguard are deprecated.",
+                "enum": [
+                  "direct",
+                  "block",
+                  "socks",
+                  "http",
+                  "shadowsocks",
+                  "vmess",
+                  "trojan",
+                  "wireguard",
+                  "hysteria",
+                  "shadowsocksr",
+                  "vless",
+                  "shadowtls",
+                  "tuic",
+                  "hysteria2",
+                  "tor",
+                  "ssh",
+                  "dns",
+                  "selector",
+                  "urltest"
+                ]
+              },
+              "tag": {
+                "type": "string",
+                "description": "The tag of the outbound."
+              }
+            },
+            "required": ["type"]
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "direct"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "override_address": {
+                      "type": "string",
+                      "description": "[Deprecated in sing-box 1.11.0] Override the connection destination address.",
+                      "deprecated": true
+                    },
+                    "override_port": {
+                      "type": "integer",
+                      "description": "[Deprecated in sing-box 1.11.0] Override the connection destination port.",
+                      "deprecated": true
+                    },
+                    "proxy_protocol": {
+                      "type": "integer",
+                      "enum": [0, 1, 2],
+                      "description": "Write Proxy Protocol in the connection header.\nProtocol value can be 1 or 2."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "block"
+                }
+              }
+            },
+            "then": {}
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "socks"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "The SOCKS version, one of 4 4a 5.\nOCKS5 used by default.",
+                      "enum": ["4", "4a", "5"],
+                      "username": {
+                        "type": "string",
+                        "description": "SOCKS username."
+                      },
+                      "password": {
+                        "type": "string",
+                        "description": "SOCKS5 password."
+                      },
+                      "network": {
+                        "type": "string",
+                        "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default.",
+                        "enum": ["tcp", "udp"]
+                      },
+                      "udp_over_tcp": {
+                        "type": "boolean",
+                        "description": "Enable the UDP over TCP protocol."
+                      }
+                    }
+                  },
+                  "required": ["server", "server_port"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "http"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "username": {
+                      "type": "string",
+                      "description": "Basic authorization username."
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "Basic authorization password."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    }
+                  },
+                  "required": ["server", "server_port"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "shadowsocks"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "2022-blake3-aes-128-gcm",
+                        "2022-blake3-aes-256-gcm",
+                        "2022-blake3-chacha20-poly1305",
+                        "none",
+                        "aes-128-gcm",
+                        "aes-192-gcm",
+                        "aes-256-gcm",
+                        "chacha20-ietf-poly1305",
+                        "xchacha20-ietf-poly1305",
+                        "aes-128-ctr",
+                        "aes-192-ctr",
+                        "aes-256-ctr",
+                        "aes-128-cfb",
+                        "aes-192-cfb",
+                        "aes-256-cfb",
+                        "rc4-md5",
+                        "chacha20-ietf",
+                        "xchacha20"
+                      ]
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "The shadowsocks password."
+                    },
+                    "plugin": {
+                      "type": "string",
+                      "enum": ["obfs-local", "v2ray-plugin"],
+                      "description": "Shadowsocks SIP003 plugin, implemented in internal. Only obfs-local and v2ray-plugin are supported."
+                    },
+                    "plugin_opts": {
+                      "type": "string",
+                      "description": "Shadowsocks SIP003 plugin options."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    },
+                    "udp_over_tcp": {
+                      "type": "boolean",
+                      "description": "Enable the UDP over TCP protocol.\nConflict with multiplex."
+                    },
+                    "multiplex": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundMultiplexOptions"
+                    }
+                  },
+                  "required": ["server", "server_port", "method", "password"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "vmess"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "description": "The VMess user id."
+                    },
+                    "security": {
+                      "type": "string",
+                      "enum": [
+                        "auto",
+                        "none",
+                        "zero",
+                        "aes-128-gcm",
+                        "chacha20-poly1305",
+                        "aes-128-ctr"
+                      ]
+                    },
+                    "alter_id": {
+                      "type": "number",
+                      "oneOf": [
+                        {
+                          "const": "0",
+                          "description": "Use AEAD protocol"
+                        },
+                        {
+                          "const": "1",
+                          "description": "Use legacy protocol"
+                        },
+                        {
+                          "exclusiveMinimum": 1,
+                          "description": "Unused, same as 1"
+                        }
+                      ]
+                    },
+                    "global_padding": {
+                      "type": "boolean",
+                      "description": "Protocol parameter. Will waste traffic randomly if enabled (enabled by default in v2ray and cannot be disabled)."
+                    },
+                    "authenticated_length": {
+                      "type": "boolean",
+                      "description": "Protocol parameter. Enable length block encryption."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    },
+                    "tls": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    },
+                    "packet_encoding": {
+                      "type": "string",
+                      "enum": ["none", "packetaddr", "xudp"],
+                      "description": "UDP packet encoding."
+                    },
+                    "multiplex": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundMultiplexOptions"
+                    },
+                    "transport": {
+                      "type": "object",
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["server", "server_port", "uuid"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "trojan"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "The Trojan password."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    },
+                    "tls": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    },
+                    "multiplex": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundMultiplexOptions"
+                    },
+                    "transport": {
+                      "type": "object",
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["server", "server_port", "password"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "wireguard"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "system_interface": {
+                      "type": "boolean",
+                      "description": "Use system tun support.\nRequires privilege and cannot conflict with system interfaces.\nForced if gVisor not included in the build."
+                    },
+                    "interface_name": {
+                      "type": "string",
+                      "description": "Custom device name when system_interface enabled."
+                    },
+                    "local_address": {
+                      "type": "array",
+                      "description": "List of IP (v4 or v6) address prefixes to be assigned to the interface.",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "private_key": {
+                      "type": "string",
+                      "description": "WireGuard requires base64-encoded public and private keys. These can be generated using the wg(8) utility:"
+                    },
+                    "peer_public_key": {
+                      "type": "string",
+                      "description": "WireGuard peer public key."
+                    },
+                    "pre_shared_key": {
+                      "type": "string",
+                      "description": "WireGuard pre-shared key."
+                    },
+                    "reserved": {
+                      "type": "array",
+                      "description": "WireGuard reserved field bytes."
+                    },
+                    "workers": {
+                      "type": "integer",
+                      "description": "WireGuard worker count.\nCPU count is used by default."
+                    },
+                    "mtu": {
+                      "type": "number",
+                      "description": "WireGuard MTU.\n1408 will be used if empty."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "server_port",
+                    "local_address",
+                    "private_key",
+                    "peer_public_key"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "hysteria"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "up": {
+                      "type": "string",
+                      "description": "Format: [Integer] [Unit] e.g. 100 Mbps, 640 KBps, 2 Gbps"
+                    },
+                    "down": {
+                      "type": "string",
+                      "description": "Format: [Integer] [Unit] e.g. 100 Mbps, 640 KBps, 2 Gbps"
+                    },
+                    "up_mbps": {
+                      "type": "number",
+                      "description": "up, down in Mbps."
+                    },
+                    "down_mbps": {
+                      "type": "number",
+                      "description": "up, down in Mbps."
+                    },
+                    "obfs": {
+                      "type": "string",
+                      "description": "Obfuscated password."
+                    },
+                    "auth": {
+                      "type": "string",
+                      "description": "Authentication password, in base64."
+                    },
+                    "auth_str": {
+                      "type": "string",
+                      "description": "Authentication password."
+                    },
+                    "recv_window_conn": {
+                      "type": "number",
+                      "description": "The QUIC stream-level flow control window for receiving data."
+                    },
+                    "recv_window": {
+                      "type": "number",
+                      "description": "The QUIC connection-level flow control window for receiving data."
+                    },
+                    "disable_mtu_discovery": {
+                      "type": "boolean",
+                      "description": "Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.\nForce enabled on for systems other than Linux and Windows (according to upstream)."
+                    },
+                    "network": {
+                      "type": "string",
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default.",
+                      "enum": ["tcp", "udp"]
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "server_port",
+                    "up",
+                    "down",
+                    "up_mbps",
+                    "down_mbps",
+                    "tls"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "shadowsocksr"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "aes-128-ctr",
+                        "aes-192-ctr",
+                        "aes-256-ctr",
+                        "aes-128-cfb",
+                        "aes-192-cfb",
+                        "aes-256-cfb",
+                        "rc4-md5",
+                        "chacha20-ietf",
+                        "xchacha20"
+                      ]
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "The shadowsocks password."
+                    },
+                    "obfs": {
+                      "type": "string",
+                      "enum": [
+                        "plain",
+                        "http_simple",
+                        "http_post",
+                        "random_head",
+                        "tls1.2_ticket_auth"
+                      ],
+                      "description": "The ShadowsocksR obfuscate."
+                    },
+                    "obfs_param": {
+                      "type": "string",
+                      "description": "The ShadowsocksR obfuscate parameter."
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "enum": [
+                        "origin",
+                        "verify_sha1",
+                        "auth_sha1_v4",
+                        "auth_aes128_md5",
+                        "auth_aes128_sha1",
+                        "auth_chain_a",
+                        "auth_chain_b"
+                      ],
+                      "description": "The ShadowsocksR protocol."
+                    },
+                    "protocol_param": {
+                      "type": "string",
+                      "description": "The ShadowsocksR protocol parameter."
+                    },
+                    "network": {
+                      "type": "string",
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default.",
+                      "enum": ["tcp", "udp"]
+                    }
+                  },
+                  "required": ["server", "server_port", "password", "method"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "vless"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "description": "VLESS user id."
+                    },
+                    "flow": {
+                      "type": "string",
+                      "enum": ["", "xtls-rprx-vision"],
+                      "description": "VLESS Sub-protocol."
+                    },
+                    "network": {
+                      "type": "string",
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default.",
+                      "enum": ["tcp", "udp"]
+                    },
+                    "tls": {
+                      "type": "object",
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    },
+                    "packet_encoding": {
+                      "type": "string",
+                      "enum": ["none", "packetaddr", "xudp"],
+                      "description": "UDP packet encoding."
+                    },
+                    "transport": {
+                      "type": "object",
+                      "$ref": "#/$defs/v2rayTransportOptions"
+                    }
+                  },
+                  "required": ["server", "server_port", "uuid"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "shadowtls"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "version": {
+                      "type": "number",
+                      "description": "ShadowTLS protocol version.",
+                      "enum": [1, 2, 3]
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "Set password.\nOnly available in the ShadowTLS v2/v3 protocol."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/inboundTlsOptions"
+                    }
+                  },
+                  "required": ["server", "server_port", "tls"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "tuic"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "description": "TUIC user uuid"
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "TUIC user password"
+                    },
+                    "congestion_control": {
+                      "type": "string",
+                      "enum": ["cubic", "new_reno", "bbr"],
+                      "description": "QUIC congestion control algorithm"
+                    },
+                    "udp_relay_mode": {
+                      "type": "string",
+                      "oneOf": [
+                        {
+                          "const": "native",
+                          "description": "native UDP characteristics"
+                        },
+                        {
+                          "const": "quic",
+                          "description": "lossless UDP relay using QUIC streams, additional overhead is introduced"
+                        }
+                      ],
+                      "description": "UDP packet relay mode\nConflict with udp_over_stream."
+                    },
+                    "udp_over_stream": {
+                      "type": "boolean",
+                      "description": "This is the TUIC port of the UDP over TCP protocol, designed to provide a QUIC stream based UDP relay mode that TUIC does not provide. Since it is an add-on protocol, you will need to use sing-box or another program compatible with the protocol as a server.\n\nThis mode has no positive effect in a proper UDP proxy scenario and should only be applied to relay streaming UDP traffic (basically QUIC streams).\n\nConflict with udp_relay_mode."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "server_port",
+                    "uuid",
+                    "password",
+                    "tls"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "hysteria2"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "The server port."
+                    },
+                    "up_mbps": {
+                      "type": "number",
+                      "description": "Max bandwidth, in Mbps.\nIf empty, the BBR congestion control algorithm will be used instead of Hysteria CC."
+                    },
+                    "down_mbps": {
+                      "type": "number",
+                      "description": "Max bandwidth, in Mbps.\nIf empty, the BBR congestion control algorithm will be used instead of Hysteria CC."
+                    },
+                    "obfs": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["salamander"],
+                          "description": "QUIC traffic obfuscator type, only available with salamander.\nDisabled if empty."
+                        },
+                        "password": {
+                          "type": "string",
+                          "description": "QUIC traffic obfuscator password."
+                        }
+                      }
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "Authentication password."
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": ["tcp", "udp"],
+                      "description": "Enabled network\nOne of tcp udp.\nBoth is enabled by default."
+                    },
+                    "tls": {
+                      "$ref": "#/$defs/outboundTlsOptions"
+                    },
+                    "brutal_debug": {
+                      "type": "boolean",
+                      "description": "Enable debug information logging for Hysteria Brutal CC."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "tor"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "executable_path": {
+                      "type": "string",
+                      "description": "The path to the Tor executable.\nEmbedded Tor will be ignored if set."
+                    },
+                    "extra_args": {
+                      "type": "array",
+                      "description": "List of extra arguments passed to the Tor instance when started."
+                    },
+                    "data_directory": {
+                      "type": "string",
+                      "description": "The data directory of Tor.\nEach start will be very slow if not specified."
+                    },
+                    "torrc": {
+                      "type": "object",
+                      "description": "Map of torrc options."
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "ssh"
+                }
+              }
+            },
+            "then": {
+              "allOf": [
+                {
+                  "properties": {
+                    "server": {
+                      "type": "string",
+                      "description": "The server address."
+                    },
+                    "server_port": {
+                      "type": "integer",
+                      "description": "Server port. 22 will be used if empty."
+                    },
+                    "user": {
+                      "type": "string",
+                      "description": "SSH user, root will be used if empty."
+                    },
+                    "password": {
+                      "type": "string",
+                      "description": "Password."
+                    },
+                    "private_key": {
+                      "type": "string",
+                      "description": "Private key."
+                    },
+                    "private_key_path": {
+                      "type": "string",
+                      "description": "Private key path."
+                    },
+                    "private_key_passphrase": {
+                      "type": "string",
+                      "description": "Private key passphrase."
+                    },
+                    "host_key": {
+                      "type": "array",
+                      "description": "Host key. Accept any if empty."
+                    },
+                    "host_key_algorithms": {
+                      "type": "array",
+                      "description": "Host key algorithms."
+                    },
+                    "client_version": {
+                      "type": "string",
+                      "description": "Client version. Random version will be used if empty."
+                    }
+                  },
+                  "required": ["server"]
+                },
+                {
+                  "$ref": "#/$defs/dialFields"
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "dns"
+                }
+              }
+            },
+            "then": {}
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "selector"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "outbounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of outbound tags to select."
+                },
+                "default": {
+                  "type": "string",
+                  "description": "The default outbound tag. The first outbound will be used if empty."
+                }
+              },
+              "required": ["outbounds"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "urltest"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "outbounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of outbound tags to test."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "The URL to test. http://www.gstatic.com/generate_204 will be used if empty."
+                },
+                "interval": {
+                  "type": "string",
+                  "description": "The test interval. 1m will be used if empty.",
+                  "$ref": "#/$defs/durationStringPattern"
+                },
+                "tolerance": {
+                  "type": "number",
+                  "description": "The test tolerance in milliseconds. 50 will be used if empty."
+                }
+              },
+              "required": ["outbounds"]
+            }
+          }
+        ]
+      }
+    },
+    "geoIPOptions": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path to the sing-geoip database.\ngeoip.db will be used if empty."
+        },
+        "download_url": {
+          "type": "string",
+          "description": "The download URL of the sing-geoip database.\nDefault is https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db."
+        },
+        "download_detour": {
+          "type": "string",
+          "description": "The tag of the outbound to download the database.\nDefault outbound will be used if empty."
+        }
+      }
+    },
+    "geositeOptions": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path to the sing-geosite database.\ngeosite.db will be used if empty."
+        },
+        "download_url": {
+          "type": "string",
+          "description": "The download URL of the sing-geoip database.\nDefault is https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db."
+        },
+        "download_detour": {
+          "type": "string",
+          "description": "The tag of the outbound to download the database.\nDefault outbound will be used if empty."
+        }
+      }
+    },
+    "defaultRouteRule": {
+      "type": "object",
+      "properties": {
+        "inbound": {
+          "$ref": "#/$defs/listableString",
+          "description": "Tags of Inbound."
+        },
+        "ip_version": {
+          "type": "integer",
+          "enum": [4, 6]
+        },
+        "network": {
+          "type": "string",
+          "enum": ["tcp", "udp"]
+        },
+        "auth_user": {
+          "$ref": "#/$defs/listableString",
+          "description": "Username, see each inbound for details."
+        },
+        "protocol": {
+          "$ref": "#/$defs/listableString",
+          "description": "Sniffed protocol, see Sniff for details."
+        },
+        "domain": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match full domain."
+        },
+        "domain_suffix": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain suffix."
+        },
+        "domain_keyword": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain using keyword."
+        },
+        "domain_regex": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match domain using regular expression."
+        },
+        "geosite": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match geosite.",
+          "deprecated": true
+        },
+        "source_geoip": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match source geoip.",
+          "deprecated": true
+        },
+        "geoip": {
+          "$ref": "#/$defs/listableString",
+          "description": "[Deprecated in sing-box 1.8.0] Match geoip.",
+          "deprecated": true
+        },
+        "source_ip_cidr": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match source ip cidr."
+        },
+        "source_ip_is_private": {
+          "type": "boolean",
+          "description": "Match non-public source IP."
+        },
+        "ip_cidr": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match ip cidr."
+        },
+        "ip_is_private": {
+          "type": "boolean",
+          "description": "Match non-public IP."
+        },
+        "source_port": {
+          "$ref": "#/$defs/portNumber",
+          "description": "Match source port."
+        },
+        "source_port_range": {
+          "$ref": "#/$defs/listableString",
+          "description": ""
+        },
+        "port": {
+          "$ref": "#/$defs/portNumber",
+          "description": "Match port."
+        },
+        "port_range": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match port range."
+        },
+        "process_name": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux, Windows, and macOS. Match process name."
+        },
+        "process_path": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux, Windows, and macOS. Match process path."
+        },
+        "package_name": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match android package name."
+        },
+        "user": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported on Linux. Match user name."
+        },
+        "user_id": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "description": "Only supported on Linux. Match user id."
+        },
+        "clash_mode": {
+          "type": "string",
+          "description": "Match Clash mode."
+        },
+        "wifi_ssid": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported in graphical clients on Android and iOS. Match wifi ssid."
+        },
+        "wifi_bssid": {
+          "$ref": "#/$defs/listableString",
+          "description": "Only supported in graphical clients on Android and iOS. Match wifi bssid."
+        },
+        "rule_set": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match rule set."
+        },
+        "invert": {
+          "type": "boolean",
+          "description": "Invert match result."
+        },
+        "outbound": {
+          "$ref": "#/$defs/listableString",
+          "description": "Match outbound."
+        },
+        "action": {
+          "type": "string",
+          "description": "The action of the rule.",
+          "enum": [
+            "route",
+            "route-options",
+            "reject",
+            "hijack-dns",
+            "resolve",
+            "sniff"
+          ]
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"],
+          "description": "Domain strategy for resolve action."
+        },
+        "timeout": {
+          "type": "string",
+          "$ref": "#/$defs/durationStringPattern",
+          "description": "Sniff timeout for sniff action."
+        },
+        "override_address": {
+          "type": "string",
+          "description": "Override address for route-options action."
+        },
+        "override_port": {
+          "type": "integer",
+          "description": "Override port for route-options action."
+        }
+      }
+    },
+    "logicalRouteRule": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["logical"]
+        },
+        "mode": {
+          "enum": ["and", "or"]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/defaultRouteRule"
+          },
+          "description": "Included default rules."
+        },
+        "invert": {
+          "type": "boolean",
+          "description": "Invert match result."
+        },
+        "outbound": {
+          "type": "string",
+          "description": "Tag of the target outbound."
+        }
+      },
+      "required": ["outbound"]
+    },
+    "ruleSet": {
+      "type": "object",
+      "allOf": [
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["local", "remote"],
+              "description": "Type of Rule Set, local or remote"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Tag of Rule Set"
+            },
+            "format": {
+              "type": "string",
+              "description": "Format of Rule Set, source or binary.",
+              "enum": ["source", "binary"]
+            }
+          },
+          "required": ["type", "tag", "format"]
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "local"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "File path of Rule Set."
+              }
+            },
+            "required": ["path"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "remote"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Download URL of Rule Set."
+              },
+              "download_detour": {
+                "type": "string",
+                "description": "Tag of the outbound to download rule-set.\nDefault outbound will be used if empty"
+              },
+              "update_interval": {
+                "type": "string",
+                "description": "Update interval of Rule Set.\n1d will be used if empty."
+              }
+            },
+            "required": ["url"]
+          }
+        }
+      ]
+    },
+    "routeOptions": {
+      "type": "object",
+      "properties": {
+        "geoip": {
+          "$ref": "#/$defs/geoIPOptions",
+          "description": "[Deprecated in sing-box 1.8.0]",
+          "deprecated": true
+        },
+        "geosite": {
+          "$ref": "#/$defs/geositeOptions",
+          "description": "[Deprecated in sing-box 1.8.0]",
+          "deprecated": true
+        },
+        "default_domain_resolver": {
+          "description": "Default Domain Resolver.",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Tag of the DNS server."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "Tag of the DNS server."
+                },
+                "rewrite_ttl": {
+                  "type": "integer",
+                  "description": "Rewrite TTL."
+                },
+                "client_subnet": {
+                  "type": "string",
+                  "description": "Client Subnet."
+                }
+              }
+            }
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/defaultRouteRule"
+              },
+              {
+                "$ref": "#/$defs/logicalRouteRule"
+              }
+            ]
+          }
+        },
+        "rule_set": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/ruleSet"
+          }
+        },
+        "final": {
+          "type": "string",
+          "description": "Default outbound tag. the first outbound will be used if empty."
+        },
+        "auto_detect_interface": {
+          "type": "boolean",
+          "description": "Only supported on Linux, Windows and macOS.\nBind outbound connections to the default NIC by default to prevent routing loops under tun.\nTakes no effect if outbound.bind_interface is set."
+        },
+        "override_android_vpn": {
+          "type": "boolean",
+          "description": "Only supported on Android.\nAccept Android VPN as upstream NIC when auto_detect_interface enabled."
+        },
+        "default_interface": {
+          "type": "string",
+          "description": "Only supported on Linux, Windows and macOS.\nBind outbound connections to the specified NIC by default to prevent routing loops under tun.\nTakes no effect if auto_detect_interface is set."
+        },
+        "default_mark": {
+          "type": "number",
+          "description": "Only supported on Linux.\nSet routing mark by default.\nTakes no effect if outbound.routing_mark is set."
+        }
+      }
+    },
+    "experimentalOptions": {
+      "type": "object",
+      "properties": {
+        "cache_file": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable cache file."
+            },
+            "path": {
+              "type": "string",
+              "description": "Path to the cache file.\ncache.db will be used if empty."
+            },
+            "cache_id": {
+              "type": "string",
+              "description": "Identifier in cache file.\nIf not empty, configuration specified data will use a separate store keyed by it."
+            },
+            "store_fakeip": {
+              "type": "boolean",
+              "description": "Store fakeip in cache file."
+            }
+          }
+        },
+        "clash_api": {
+          "external_controller": {
+            "type": "string",
+            "description": "RESTful web API listening address. Clash API will be disabled if empty."
+          },
+          "external_ui": {
+            "type": "string",
+            "description": "A relative path to the configuration directory or an absolute path to a directory in which you put some static web resource. sing-box will then serve it at http://{{external-controller}}/ui."
+          },
+          "external_ui_download_url": {
+            "type": "string",
+            "description": "ZIP download URL for the external UI, will be used if the specified external_ui directory is empty.\nhttps://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip will be used if empty."
+          },
+          "external_ui_download_detour": {
+            "type": "string",
+            "description": "The tag of the outbound to download the external UI.\nDefault outbound will be used if empty."
+          },
+          "secret": {
+            "type": "string",
+            "description": "Secret for the RESTful API (optional) Authenticate by spedifying HTTP header Authorization: Bearer ${secret} ALWAYS set a secret if RESTful API is listening on 0.0.0.0"
+          },
+          "default_mode": {
+            "type": "string",
+            "description": "Default mode in clash, rule will be used if empty.\nThis setting has no direct effect, but can be used in routing and DNS rules via the clash_mode rule item."
+          },
+          "store_mode": {
+            "type": "boolean",
+            "description": "[Deprecated in sing-box 1.8.0] Store mode in cache file. Store Clash mode in cache file.",
+            "deprecated": true
+          },
+          "store_selected": {
+            "type": "boolean",
+            "description": "[Deprecated in sing-box 1.8.0] The tag must be set for target outbounds.\nStore selected outbound for the Selector outbound in cache file.",
+            "deprecated": true
+          },
+          "cache_file": {
+            "type": "string",
+            "description": "[Deprecated in sing-box 1.8.0] Cache file path, cache.db will be used if empty.",
+            "deprecated": true
+          }
+        },
+        "v2ray_api": {
+          "listen": {
+            "type": "string",
+            "description": "gRPC API listening address. V2Ray API will be disabled if empty."
+          },
+          "stats": {
+            "type": "object",
+            "description": "Traffic statistics service settings.",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Enable statistics service."
+              },
+              "inbounds": {
+                "type": "array",
+                "description": "Inbound list to count traffic."
+              },
+              "outbounds": {
+                "type": "array",
+                "description": "Outbound list to count traffic."
+              },
+              "users": {
+                "type": "array",
+                "description": "User list to count traffic."
+              }
+            }
+          }
+        }
+      }
+    },
+    "endpointsOptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["wireguard"]
+          },
+          "tag": {
+            "type": "string"
+          },
+          "system": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mtu": {
+            "type": "integer"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "private_key": {
+            "type": "string"
+          },
+          "listen_port": {
+            "type": "integer"
+          },
+          "peers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "integer"
+                },
+                "public_key": {
+                  "type": "string"
+                },
+                "pre_shared_key": {
+                  "type": "string"
+                },
+                "allowed_ips": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "persistent_keepalive_interval": {
+                  "type": "integer"
+                },
+                "reserved": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": ["type", "tag"]
+      }
+    }
+  },
+  "properties": {
+    "log": {
+      "$ref": "#/$defs/logOptions"
+    },
+    "dns": {
+      "$ref": "#/$defs/dnsOptions"
+    },
+    "ntp": {
+      "$ref": "#/$defs/ntpOptions"
+    },
+    "endpoints": {
+      "$ref": "#/$defs/endpointsOptions"
+    },
+    "inbounds": {
+      "$ref": "#/$defs/inboundsOptions"
+    },
+    "outbounds": {
+      "$ref": "#/$defs/outboundsOptions"
+    },
+    "route": {
+      "$ref": "#/$defs/routeOptions"
+    },
+    "experimental": {
+      "$ref": "#/$defs/experimentalOptions"
+    }
+  }
+}
