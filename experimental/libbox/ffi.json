@@ -1,10 +1,19 @@
 {
   "version": 1,
+  "variables": {
+    "VERSION": "$(go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest)",
+    "WORKSPACE_ROOT": "../../..",
+    "DEPLOY_ANDROID": "${WORKSPACE_ROOT}/sing-box-for-android/app/libs",
+    "DEPLOY_APPLE": "${WORKSPACE_ROOT}/sing-box-for-apple",
+    "DEPLOY_WINDOWS": "${WORKSPACE_ROOT}/sing-box-for-windows/local-packages"
+  },
   "packages": [
     {
       "id": "libbox",
       "path": ".",
       "java_package": "io.nekohasekai.libbox",
+      "csharp_namespace": "SagerNet",
+      "csharp_entrypoint": "Libbox",
       "apple_prefix": "Libbox"
     }
   ],
@@ -36,7 +45,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       }
     },
@@ -66,7 +75,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       }
     },
@@ -99,7 +108,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=$(CGO_ENABLED=0 go run github.com/sagernet/sing-box/cmd/internal/read_tag@latest) -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       },
       "overrides": [
@@ -112,6 +121,38 @@
           "tags_append": ["with_low_memory"]
         }
       ]
+    },
+    {
+      "id": "windows",
+      "packages": ["libbox"],
+      "default": {
+        "tags": [
+          "with_gvisor",
+          "with_quic",
+          "with_wireguard",
+          "with_utls",
+          "with_naive_outbound",
+          "with_purego",
+          "with_clash_api",
+          "with_conntrack",
+          "badlinkname",
+          "tfogo_checklinkname0",
+          "with_tailscale",
+          "ts_omit_logtail",
+          "ts_omit_ssh",
+          "ts_omit_drive",
+          "ts_omit_taildrop",
+          "ts_omit_webclient",
+          "ts_omit_doctor",
+          "ts_omit_capture",
+          "ts_omit_kube",
+          "ts_omit_aws",
+          "ts_omit_synology",
+          "ts_omit_bird"
+        ],
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "trimpath": true
+      }
     }
   ],
   "platforms": [
@@ -119,12 +160,19 @@
       "type": "android",
       "build": "android-main",
       "min_sdk": 23,
+      "ndk_version": "28.0.13004108",
       "lib_name": "box",
       "languages": [{ "type": "java" }],
       "artifacts": [
         {
           "type": "aar",
-          "output_path": "libbox.aar"
+          "output_path": "libbox.aar",
+          "execute_after": [
+            "if [ -d \"${DEPLOY_ANDROID}\" ]; then",
+            "  rm -f \"${DEPLOY_ANDROID}/$$(basename \"${OUTPUT_PATH}\")\"",
+            "  mv \"${OUTPUT_PATH}\" \"${DEPLOY_ANDROID}/\"",
+            "fi"
+          ]
         }
       ]
     },
@@ -132,12 +180,19 @@
       "type": "android",
       "build": "android-legacy",
       "min_sdk": 21,
+      "ndk_version": "28.0.13004108",
       "lib_name": "box",
       "languages": [{ "type": "java" }],
       "artifacts": [
         {
           "type": "aar",
-          "output_path": "libbox-legacy.aar"
+          "output_path": "libbox-legacy.aar",
+          "execute_after": [
+            "if [ -d \"${DEPLOY_ANDROID}\" ]; then",
+            "  rm -f \"${DEPLOY_ANDROID}/$$(basename \"${OUTPUT_PATH}\")\"",
+            "  mv \"${OUTPUT_PATH}\" \"${DEPLOY_ANDROID}/\"",
+            "fi"
+          ]
         }
       ]
     },
@@ -159,7 +214,46 @@
         {
           "type": "xcframework",
           "module_name": "Libbox",
-          "output_path": "Libbox.xcframework"
+          "execute_after": [
+            "if [ -d \"${DEPLOY_APPLE}\" ]; then",
+            "  rm -rf \"${DEPLOY_APPLE}/${MODULE_NAME}.xcframework\"",
+            "  mv \"${OUTPUT_PATH}\" \"${DEPLOY_APPLE}/\"",
+            "fi"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "csharp",
+      "build": "windows",
+      "targets": [
+        "windows/amd64"
+      ],
+      "languages": [{ "type": "csharp" }],
+      "artifacts": [
+        {
+          "type": "nuget",
+          "package_id": "SagerNet.Libbox",
+          "package_version": "0.0.0-local",
+          "execute_after": {
+            "windows": [
+              "$$deployPath = '${DEPLOY_WINDOWS}'",
+              "if (Test-Path $$deployPath) {",
+              "  Remove-Item \"$$deployPath\\${PACKAGE_ID}.*.nupkg\" -ErrorAction SilentlyContinue",
+              "  Move-Item -Force '${OUTPUT_PATH}' \"$$deployPath\\\"",
+              "  $$cachePath = if ($$env:NUGET_PACKAGES) { $$env:NUGET_PACKAGES } else { \"$$env:USERPROFILE\\.nuget\\packages\" }",
+              "  Remove-Item -Recurse -Force \"$$cachePath\\sagernet.libbox\\${PACKAGE_VERSION}\" -ErrorAction SilentlyContinue",
+              "}"
+            ],
+            "default": [
+              "if [ -d \"${DEPLOY_WINDOWS}\" ]; then",
+              "  rm -f \"${DEPLOY_WINDOWS}/${PACKAGE_ID}.*.nupkg\"",
+              "  mv \"${OUTPUT_PATH}\" \"${DEPLOY_WINDOWS}/\"",
+              "  cache_path=\"$${NUGET_PACKAGES:-$${HOME}/.nuget/packages}\"",
+              "  rm -rf \"$${cache_path}/sagernet.libbox/${PACKAGE_VERSION}\"",
+              "fi"
+            ]
+          }
         }
       ]
     }

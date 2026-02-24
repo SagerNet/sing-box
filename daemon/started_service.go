@@ -207,6 +207,14 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 	return nil
 }
 
+func (s *StartedService) Close() {
+	s.serviceStatusSubscriber.Close()
+	s.logSubscriber.Close()
+	s.urlTestSubscriber.Close()
+	s.clashModeSubscriber.Close()
+	s.connectionEventSubscriber.Close()
+}
+
 func (s *StartedService) CloseService() error {
 	s.serviceAccess.Lock()
 	switch s.serviceStatus.Status {

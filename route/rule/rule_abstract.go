@@ -107,9 +107,7 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 	}
 
 	for _, item := range r.items {
-		if _, isRuleSet := item.(*RuleSetItem); !isRuleSet {
-			metadata.DidMatch = true
-		}
+		metadata.DidMatch = true
 		if !item.Match(metadata) {
 			return r.invert
 		}
