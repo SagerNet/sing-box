@@ -2,9 +2,9 @@
 icon: material/alert-decagram
 ---
 
-#### 1.13.0-rc.6
+#### 1.13.0-rc.7
 
-* Fixes and improvements
+* Add advertise tags support for Tailscale endpoint
 
 Important changes since 1.12:
 
@@ -136,6 +136,7 @@ See [Dial Fields](/configuration/shared/dial/#bind_address_no_port).
 
 Tailscale endpoint can now create a system TUN interface to handle traffic directly.
 New `relay_server_port` and `relay_server_static_endpoints` options for incoming relay connections.
+New `advertise_tags` option for ACL tag advertisement.
 
 See [Tailscale endpoint](/configuration/endpoint/tailscale/).
 
