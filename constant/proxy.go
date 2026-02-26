@@ -30,6 +30,7 @@ const (
 	TypeSSMAPI       = "ssm-api"
 	TypeCCM          = "ccm"
 	TypeOCM          = "ocm"
+	TypeOOMKiller    = "oom-killer"
 )
 
 const (

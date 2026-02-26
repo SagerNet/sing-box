@@ -60,6 +60,7 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		Handler:     (*platformHandler)(server),
 		Debug:       sDebug,
 		LogMaxLines: sLogMaxLines,
+		OOMKiller:   memoryLimitEnabled,
 		// WorkingDirectory: sWorkingPath,
 		// TempDirectory:    sTempPath,
 		// UserID:           sUserID,

@@ -44,14 +44,50 @@ func (m *ConnectionManager) Start(stage adapter.StartStage) error {
 	return nil
 }
 
-func (m *ConnectionManager) Close() error {
+func (m *ConnectionManager) Count() int {
+	return m.connections.Len()
+}
+
+func (m *ConnectionManager) CloseAll() {
 	m.access.Lock()
-	defer m.access.Unlock()
-	for element := m.connections.Front(); element != nil; element = element.Next() {
-		common.Close(element.Value)
+	var closers []io.Closer
+	for element := m.connections.Front(); element != nil; {
+		nextElement := element.Next()
+		closers = append(closers, element.Value)
+		m.connections.Remove(element)
+		element = nextElement
 	}
-	m.connections.Init()
+	m.access.Unlock()
+	for _, closer := range closers {
+		common.Close(closer)
+	}
+}
+
+func (m *ConnectionManager) Close() error {
+	m.CloseAll()
 	return nil
+}
+
+func (m *ConnectionManager) TrackConn(conn net.Conn) net.Conn {
+	m.access.Lock()
+	element := m.connections.PushBack(conn)
+	m.access.Unlock()
+	return &trackedConn{
+		Conn:    conn,
+		manager: m,
+		element: element,
+	}
+}
+
+func (m *ConnectionManager) TrackPacketConn(conn net.PacketConn) net.PacketConn {
+	m.access.Lock()
+	element := m.connections.PushBack(conn)
+	m.access.Unlock()
+	return &trackedPacketConn{
+		PacketConn: conn,
+		manager:    m,
+		element:    element,
+	}
 }
 
 func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -92,14 +128,6 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 	if metadata.TLSFragment || metadata.TLSRecordFragment {
 		remoteConn = tf.NewConn(remoteConn, ctx, metadata.TLSFragment, metadata.TLSRecordFragment, metadata.TLSFragmentFallbackDelay)
 	}
-	m.access.Lock()
-	element := m.connections.PushBack(conn)
-	m.access.Unlock()
-	onClose = N.AppendClose(onClose, func(it error) {
-		m.access.Lock()
-		defer m.access.Unlock()
-		m.connections.Remove(element)
-	})
 	var done atomic.Bool
 	if m.kickWriteHandshake(ctx, conn, remoteConn, false, &done, onClose) {
 		return
@@ -216,14 +244,6 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		ctx, conn = canceler.NewPacketConn(ctx, conn, udpTimeout)
 	}
 	destination := bufio.NewPacketConn(remotePacketConn)
-	m.access.Lock()
-	element := m.connections.PushBack(conn)
-	m.access.Unlock()
-	onClose = N.AppendClose(onClose, func(it error) {
-		m.access.Lock()
-		defer m.access.Unlock()
-		m.connections.Remove(element)
-	})
 	var done atomic.Bool
 	go m.packetConnectionCopy(ctx, conn, destination, false, &done, onClose)
 	go m.packetConnectionCopy(ctx, destination, conn, true, &done, onClose)
@@ -242,7 +262,9 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 		destination.Close()
 	}
 	if done.Swap(true) {
-		onClose(err)
+		if onClose != nil {
+			onClose(err)
+		}
 		common.Close(source, destination)
 	}
 	if !direction {
@@ -303,7 +325,9 @@ func (m *ConnectionManager) kickWriteHandshake(ctx context.Context, source net.C
 		return false
 	}
 	if !done.Swap(true) {
-		onClose(err)
+		if onClose != nil {
+			onClose(err)
+		}
 	}
 	common.Close(source, destination)
 	if !direction {
@@ -334,7 +358,59 @@ func (m *ConnectionManager) packetConnectionCopy(ctx context.Context, source N.P
 		}
 	}
 	if !done.Swap(true) {
-		onClose(err)
+		if onClose != nil {
+			onClose(err)
+		}
 	}
 	common.Close(source, destination)
+}
+
+type trackedConn struct {
+	net.Conn
+	manager *ConnectionManager
+	element *list.Element[io.Closer]
+}
+
+func (c *trackedConn) Close() error {
+	c.manager.access.Lock()
+	c.manager.connections.Remove(c.element)
+	c.manager.access.Unlock()
+	return c.Conn.Close()
+}
+
+func (c *trackedConn) Upstream() any {
+	return c.Conn
+}
+
+func (c *trackedConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *trackedConn) WriterReplaceable() bool {
+	return true
+}
+
+type trackedPacketConn struct {
+	net.PacketConn
+	manager *ConnectionManager
+	element *list.Element[io.Closer]
+}
+
+func (c *trackedPacketConn) Close() error {
+	c.manager.access.Lock()
+	c.manager.connections.Remove(c.element)
+	c.manager.access.Unlock()
+	return c.PacketConn.Close()
+}
+
+func (c *trackedPacketConn) Upstream() any {
+	return bufio.NewPacketConn(c.PacketConn)
+}
+
+func (c *trackedPacketConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *trackedPacketConn) WriterReplaceable() bool {
+	return true
 }
