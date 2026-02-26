@@ -210,10 +210,11 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		UserLogf: func(format string, args ...any) {
 			logger.Debug(fmt.Sprintf(format, args...))
 		},
-		Ephemeral:  options.Ephemeral,
-		AuthKey:    options.AuthKey,
-		ControlURL: options.ControlURL,
-		Dialer:     &endpointDialer{Dialer: outboundDialer, logger: logger},
+		Ephemeral:     options.Ephemeral,
+		AuthKey:       options.AuthKey,
+		ControlURL:    options.ControlURL,
+		AdvertiseTags: options.AdvertiseTags,
+		Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
 		LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
 			return dnsRouter.Lookup(ctx, host, outboundDialer.(dialer.ResolveDialer).QueryOptions())
 		},
@@ -363,12 +364,10 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 		Prefs: ipn.Prefs{
 			RouteAll:        t.acceptRoutes,
 			AdvertiseRoutes: t.advertiseRoutes,
-			AdvertiseTags:   t.advertiseTags,
 		},
 		RouteAllSet:                   true,
 		ExitNodeIPSet:                 true,
 		AdvertiseRoutesSet:            true,
-		AdvertiseTagsSet:              true,
 		RelayServerPortSet:            true,
 		RelayServerStaticEndpointsSet: true,
 	}
