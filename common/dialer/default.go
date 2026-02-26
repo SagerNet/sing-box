@@ -90,7 +90,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 
 	if networkManager != nil {
 		defaultOptions := networkManager.DefaultOptions()
-		if defaultOptions.BindInterface != "" {
+		if defaultOptions.BindInterface != "" && !disableDefaultBind {
 			bindFunc := control.BindToInterface(networkManager.InterfaceFinder(), defaultOptions.BindInterface, -1)
 			dialer.Control = control.Append(dialer.Control, bindFunc)
 			listener.Control = control.Append(listener.Control, bindFunc)
