@@ -243,7 +243,7 @@ jobs:
           sudo gem install fpm
           sudo apt-get update
           sudo apt-get install -y libarchive-tools
-          cp .fpm_systemd .fpm
+          cp .fpm_pacman .fpm
           fpm -t pacman \
             -v "$PKG_VERSION" \
             -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.pacman }}.pkg.tar.zst" \
