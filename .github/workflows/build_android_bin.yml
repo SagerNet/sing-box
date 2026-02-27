@@ -59,6 +59,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build pkg-config curl xz-utils
 
+      - name: Cache Cronet Build
+        if: matrix.naive
+        id: cache-cronet
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
+            ~/cronet-go/naiveproxy/src/out/
+            ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/
+          key: cronet-${{ matrix.arch }}-${{ hashFiles('.github/CRONET_GO_VERSION') }}
+          restore-keys: |
+            cronet-${{ matrix.arch }}-
+
       - name: Clone and Build Cronet
         if: matrix.naive
         run: |
@@ -72,8 +85,9 @@ jobs:
           
           go run ./cmd/build-naive build --target=android/${{ matrix.arch }}
           
-          mkdir -p $GITHUB_WORKSPACE/dist
-          go run ./cmd/build-naive extract-lib --target=android/${{ matrix.arch }} -o $GITHUB_WORKSPACE/dist
+          LIB_PATH=$(find ~/cronet-go -name "libcronet_static.a" | head -n 1)
+          echo "CRONET_LIB_DIR=$(dirname $LIB_PATH)" >> $GITHUB_ENV
+          echo "找到了静态库: $LIB_PATH"
 
       - name: Set Build Tags
         run: |
@@ -87,11 +101,16 @@ jobs:
         run: |
           set -xeuo pipefail
           go install -v ./cmd/internal/build
+          
+          # NDK 工具链配置
           NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
           TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
           export CC="$TOOLCHAIN/${{ matrix.ndk_target }}-clang"
           export CXX="$TOOLCHAIN/${{ matrix.ndk_target }}-clang++"
           
+          export CGO_LDFLAGS="-L${{ env.CRONET_LIB_DIR }} -lcronet_static -lc++"
+          
+          mkdir -p dist
           CGO_ENABLED=1 GOOS=android GOARCH=${{ matrix.arch }} \
           build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
           -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0" \
