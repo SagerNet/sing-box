@@ -8,7 +8,7 @@ require (
 	github.com/caddyserver/certmagic v0.25.0
 	github.com/coder/websocket v1.8.14
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go/v2 v2.3.1
+	github.com/database64128/tfo-go/v2 v2.3.2
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/render v1.0.3
 	github.com/godbus/dbus/v5 v5.2.1
@@ -54,7 +54,7 @@ require (
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/mod v0.31.0
 	golang.org/x/net v0.48.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.41.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.11
