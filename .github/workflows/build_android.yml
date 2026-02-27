@@ -176,6 +176,16 @@ jobs:
             TAGS="${TAGS},with_musl"
           fi
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
+      - name: Check libcronet.a architecture
+        if: matrix.os == 'android' && matrix.naive
+        run: |
+          file /home/runner/go/pkg/mod/github.com/sagernet/cronet-go/lib/android_arm64@v*/libcronet.a
+          ar t /home/runner/go/pkg/mod/github.com/sagernet/cronet-go/lib/android_arm64@v*/libcronet.a | head -1 | xargs -I{} sh -c "ar p /home/runner/go/pkg/mod/github.com/sagernet/cronet-go/lib/android_arm64@v*/libcronet.a {} > /tmp/test.o && file /tmp/test.o"
+      - name: Build cronet from source
+        if: matrix.os == 'android' && matrix.naive
+        run: |
+          cd ~/cronet-go
+          go run -v ./cmd/build-naive --target=android/${{ matrix.arch }} --build
       - name: Build (purego)
         if: matrix.variant == 'purego'
         run: |
