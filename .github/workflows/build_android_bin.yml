@@ -1,0 +1,105 @@
+name: Build Android Binary
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name"
+        required: true
+        type: string
+
+jobs:
+  calculate_version:
+    name: Calculate version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.outputs.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set version
+        id: outputs
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # 自动读取逻辑
+            go run -v ./cmd/internal/read_tag --ci --nightly
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
+
+  build_android_bin:
+    name: Build Android Binary
+    runs-on: ubuntu-latest
+    needs: calculate_version
+    strategy:
+      matrix:
+        include:
+          - { arch: arm64, ndk: "aarch64-linux-android23", naive: true }
+          - { arch: arm, ndk: "armv7a-linux-androideabi23", naive: true }
+          - { arch: amd64, ndk: "x86_64-linux-android23", naive: true }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.25.7
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+
+      - name: Clone cronet-go
+        if: matrix.naive
+        run: |
+          CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION || echo "main")
+          git clone --depth=1 https://github.com/sagernet/cronet-go.git ~/cronet-go
+          cd ~/cronet-go && git submodule update --init --recursive --depth=1
+
+      - name: Build Cronet Library
+        if: matrix.naive
+        run: |
+          cd ~/cronet-go
+          go run ./cmd/build-naive build-lib --target=android/${{ matrix.arch }}
+
+      - name: Set Build Tags
+        run: |
+          TAGS='with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0'
+          if [[ "${{ matrix.naive }}" == "true" ]]; then
+            TAGS="${TAGS},with_naive_outbound"
+          fi
+          echo "BUILD_TAGS=${TAGS}" >> $GITHUB_ENV
+
+      - name: Build Binary
+        run: |
+          set -xeuo pipefail
+          go install -v ./cmd/internal/build
+          
+          # 设置 NDK 交叉编译工具链
+          export CC='${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.ndk }}-clang'
+          export CXX="${CC}++"
+          
+          mkdir -p dist
+          # 执行编译
+          CGO_ENABLED=1 GOOS=android GOARCH=${{ matrix.arch }} \
+          build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-s -w -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0" \
+          ./cmd/sing-box
+
+      - name: Extract libcronet.so (If Naive)
+        if: matrix.naive
+        run: |
+          cd ~/cronet-go
+          go run -v ./cmd/build-naive extract-lib --target android/${{ matrix.arch }} -o $GITHUB_WORKSPACE/dist
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box-android-${{ matrix.arch }}
+          path: dist/
