@@ -150,7 +150,7 @@ jobs:
             go run ./cmd/build-naive --target=linux/${{ matrix.arch }} download-toolchain
           fi
       - name: Set Chromium toolchain environment
-        if: matrix.naive
+        if: matrix.naive && matrix.os != 'android'
         run: |
           set -xeuo pipefail
           cd ~/cronet-go
