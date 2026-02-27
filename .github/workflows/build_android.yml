@@ -158,11 +158,6 @@ jobs:
             go run ./cmd/build-naive --target=linux/${{ matrix.arch }} --libc=musl env >> $GITHUB_ENV
           else
             go run ./cmd/build-naive --target=linux/${{ matrix.arch }} env >> $GITHUB_ENV
-            if [[ "${{ matrix.os }}" == "android" ]]; then
-              SYSROOT="$HOME/cronet-go/naiveproxy/src/out/sysroot-build/bullseye/bullseye_armhf_staging"
-              echo "CGO_CFLAGS=-I${SYSROOT}/usr/include/arm-linux-gnueabihf" >> $GITHUB_ENV
-              echo "CGO_CXXFLAGS=-I${SYSROOT}/usr/include/arm-linux-gnueabihf" >> $GITHUB_ENV
-            fi
           fi
       - name: Set tag
         run: |-
