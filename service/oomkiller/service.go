@@ -57,37 +57,72 @@ var (
 
 type Service struct {
 	boxService.Adapter
-	logger log.ContextLogger
-	router adapter.Router
+	logger        log.ContextLogger
+	router        adapter.Router
+	memoryLimit   uint64
+	hasTimerMode  bool
+	useAvailable  bool
+	timerConfig   timerConfig
+	adaptiveTimer *adaptiveTimer
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.OOMKillerServiceOptions) (adapter.Service, error) {
-	return &Service{
+	s := &Service{
 		Adapter: boxService.NewAdapter(boxConstant.TypeOOMKiller, tag),
 		logger:  logger,
 		router:  service.FromContext[adapter.Router](ctx),
-	}, nil
+	}
+
+	if options.MemoryLimit != nil {
+		s.memoryLimit = options.MemoryLimit.Value()
+		if s.memoryLimit > 0 {
+			s.hasTimerMode = true
+		}
+	}
+
+	config, err := buildTimerConfig(options, s.memoryLimit, s.useAvailable)
+	if err != nil {
+		return nil, err
+	}
+	s.timerConfig = config
+
+	return s, nil
 }
 
 func (s *Service) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+
+	if s.hasTimerMode {
+		s.adaptiveTimer = newAdaptiveTimer(s.logger, s.router, s.timerConfig)
+		if s.memoryLimit > 0 {
+			s.logger.Info("started memory monitor with limit: ", s.memoryLimit/(1024*1024), " MiB")
+		} else {
+			s.logger.Info("started memory monitor with available memory detection")
+		}
+	} else {
+		s.logger.Info("started memory pressure monitor")
+	}
+
 	globalAccess.Lock()
 	isFirst := len(globalServices) == 0
 	globalServices = append(globalServices, s)
 	globalAccess.Unlock()
+
 	if isFirst {
 		C.startMemoryPressureMonitor()
 	}
-	s.logger.Info("started memory pressure monitor")
 	return nil
 }
 
 func (s *Service) Close() error {
+	if s.adaptiveTimer != nil {
+		s.adaptiveTimer.stop()
+	}
 	globalAccess.Lock()
-	for i, service := range globalServices {
-		if service == s {
+	for i, svc := range globalServices {
+		if svc == s {
 			globalServices = append(globalServices[:i], globalServices[i+1:]...)
 			break
 		}
@@ -122,17 +157,36 @@ func goMemoryPressureCallback(status C.ulong) {
 	default:
 		level = "normal"
 	}
+	var freeOSMemory bool
 	for _, s := range services {
-		if isCritical {
-			s.logger.Error("memory pressure: ", level, ", usage: ", memory.Total()/(1024*1024), " MiB, resetting network")
-			s.router.ResetNetwork()
-		} else if isWarning {
-			s.logger.Warn("memory pressure: ", level, ", usage: ", memory.Total()/(1024*1024), " MiB")
+		usage := memory.Total()
+		if s.hasTimerMode {
+			if isCritical {
+				s.logger.Warn("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
+				if s.adaptiveTimer != nil {
+					s.adaptiveTimer.startNow()
+				}
+			} else if isWarning {
+				s.logger.Warn("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
+			} else {
+				s.logger.Debug("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
+				if s.adaptiveTimer != nil {
+					s.adaptiveTimer.stop()
+				}
+			}
 		} else {
-			s.logger.Debug("memory pressure: ", level, ", usage: ", memory.Total()/(1024*1024), " MiB")
+			if isCritical {
+				s.logger.Error("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB, resetting network")
+				s.router.ResetNetwork()
+				freeOSMemory = true
+			} else if isWarning {
+				s.logger.Warn("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
+			} else {
+				s.logger.Debug("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
+			}
 		}
 	}
-	if isCritical {
+	if freeOSMemory {
 		runtimeDebug.FreeOSMemory()
 	}
 }

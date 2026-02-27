@@ -409,7 +409,7 @@ func (s *StartedService) SubscribeStatus(request *SubscribeStatusRequest, server
 
 func (s *StartedService) readStatus() *Status {
 	var status Status
-	status.Memory = memory.Inuse()
+	status.Memory = memory.Total()
 	status.Goroutines = int32(runtime.NumGoroutine())
 	s.serviceAccess.RLock()
 	nowService := s.instance
