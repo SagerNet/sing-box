@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
@@ -63,6 +64,9 @@ func dnsReadConfig(ctx context.Context, _ string) *dnsConfig {
 					continue
 				}
 				dnsServerAddr = netip.AddrFrom16(sockaddr.Addr)
+				if sockaddr.ZoneId != 0 {
+					dnsServerAddr = dnsServerAddr.WithZone(strconv.FormatInt(int64(sockaddr.ZoneId), 10))
+				}
 			default:
 				// Unexpected type.
 				continue
