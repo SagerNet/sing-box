@@ -185,7 +185,7 @@ jobs:
         if: matrix.os == 'android' && matrix.naive
         run: |
           cd ~/cronet-go
-          go run -v ./cmd/build-naive --target=android/${{ matrix.arch }} --build
+          go build -v ./cmd/build-naive --target=android/${{ matrix.arch }}
       - name: Build (purego)
         if: matrix.variant == 'purego'
         run: |
