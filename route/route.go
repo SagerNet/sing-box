@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
@@ -80,7 +79,6 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		injectable.NewConnectionEx(ctx, conn, metadata, onClose)
 		return nil
 	}
-	conntrack.KillerCheck()
 	metadata.Network = N.NetworkTCP
 	switch metadata.Destination.Fqdn {
 	case mux.Destination.Fqdn:
@@ -216,8 +214,6 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		injectable.NewPacketConnectionEx(ctx, conn, metadata, onClose)
 		return nil
 	}
-	conntrack.KillerCheck()
-
 	// TODO: move to UoT
 	metadata.Network = N.NetworkUDP
 

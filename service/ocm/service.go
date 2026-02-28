@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -69,6 +70,57 @@ func isHopByHopHeader(header string) bool {
 	default:
 		return false
 	}
+}
+
+func normalizeRateLimitIdentifier(limitIdentifier string) string {
+	trimmedIdentifier := strings.TrimSpace(strings.ToLower(limitIdentifier))
+	if trimmedIdentifier == "" {
+		return ""
+	}
+	return strings.ReplaceAll(trimmedIdentifier, "_", "-")
+}
+
+func parseInt64Header(headers http.Header, headerName string) (int64, bool) {
+	headerValue := strings.TrimSpace(headers.Get(headerName))
+	if headerValue == "" {
+		return 0, false
+	}
+	parsedValue, parseError := strconv.ParseInt(headerValue, 10, 64)
+	if parseError != nil {
+		return 0, false
+	}
+	return parsedValue, true
+}
+
+func weeklyCycleHintForLimit(headers http.Header, limitIdentifier string) *WeeklyCycleHint {
+	normalizedLimitIdentifier := normalizeRateLimitIdentifier(limitIdentifier)
+	if normalizedLimitIdentifier == "" {
+		return nil
+	}
+
+	windowHeader := "x-" + normalizedLimitIdentifier + "-secondary-window-minutes"
+	resetHeader := "x-" + normalizedLimitIdentifier + "-secondary-reset-at"
+
+	windowMinutes, hasWindowMinutes := parseInt64Header(headers, windowHeader)
+	resetAtUnix, hasResetAt := parseInt64Header(headers, resetHeader)
+	if !hasWindowMinutes || !hasResetAt || windowMinutes <= 0 || resetAtUnix <= 0 {
+		return nil
+	}
+
+	return &WeeklyCycleHint{
+		WindowMinutes: windowMinutes,
+		ResetAt:       time.Unix(resetAtUnix, 0).UTC(),
+	}
+}
+
+func extractWeeklyCycleHint(headers http.Header) *WeeklyCycleHint {
+	activeLimitIdentifier := normalizeRateLimitIdentifier(headers.Get("x-codex-active-limit"))
+	if activeLimitIdentifier != "" {
+		if activeHint := weeklyCycleHintForLimit(headers, activeLimitIdentifier); activeHint != nil {
+			return activeHint
+		}
+	}
+	return weeklyCycleHintForLimit(headers, "codex")
 }
 
 type Service struct {
@@ -404,9 +456,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, path string, requestModel string, username string) {
 	isChatCompletions := path == "/v1/chat/completions"
+	weeklyCycleHint := extractWeeklyCycleHint(response.Header)
 	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	isStreaming := err == nil && mediaType == "text/event-stream"
-
+	if !isStreaming && !isChatCompletions && response.Header.Get("Content-Type") == "" {
+		isStreaming = true
+	}
 	if !isStreaming {
 		bodyBytes, err := io.ReadAll(response.Body)
 		if err != nil {
@@ -414,13 +469,14 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			return
 		}
 
-		var responseModel string
+		var responseModel, serviceTier string
 		var inputTokens, outputTokens, cachedTokens int64
 
 		if isChatCompletions {
 			var chatCompletion openai.ChatCompletion
 			if json.Unmarshal(bodyBytes, &chatCompletion) == nil {
 				responseModel = chatCompletion.Model
+				serviceTier = string(chatCompletion.ServiceTier)
 				inputTokens = chatCompletion.Usage.PromptTokens
 				outputTokens = chatCompletion.Usage.CompletionTokens
 				cachedTokens = chatCompletion.Usage.PromptTokensDetails.CachedTokens
@@ -429,6 +485,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			var responsesResponse responses.Response
 			if json.Unmarshal(bodyBytes, &responsesResponse) == nil {
 				responseModel = string(responsesResponse.Model)
+				serviceTier = string(responsesResponse.ServiceTier)
 				inputTokens = responsesResponse.Usage.InputTokens
 				outputTokens = responsesResponse.Usage.OutputTokens
 				cachedTokens = responsesResponse.Usage.InputTokensDetails.CachedTokens
@@ -440,7 +497,16 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 				responseModel = requestModel
 			}
 			if responseModel != "" {
-				s.usageTracker.AddUsage(responseModel, inputTokens, outputTokens, cachedTokens, username)
+				s.usageTracker.AddUsageWithCycleHint(
+					responseModel,
+					inputTokens,
+					outputTokens,
+					cachedTokens,
+					serviceTier,
+					username,
+					time.Now(),
+					weeklyCycleHint,
+				)
 			}
 		}
 
@@ -455,7 +521,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 	}
 
 	var inputTokens, outputTokens, cachedTokens int64
-	var responseModel string
+	var responseModel, serviceTier string
 	buffer := make([]byte, buf.BufferSize)
 	var leftover []byte
 
@@ -490,6 +556,9 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 							if chatChunk.Model != "" {
 								responseModel = chatChunk.Model
 							}
+							if chatChunk.ServiceTier != "" {
+								serviceTier = string(chatChunk.ServiceTier)
+							}
 							if chatChunk.Usage.PromptTokens > 0 {
 								inputTokens = chatChunk.Usage.PromptTokens
 								cachedTokens = chatChunk.Usage.PromptTokensDetails.CachedTokens
@@ -505,6 +574,9 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 								completedEvent := streamEvent.AsResponseCompleted()
 								if string(completedEvent.Response.Model) != "" {
 									responseModel = string(completedEvent.Response.Model)
+								}
+								if completedEvent.Response.ServiceTier != "" {
+									serviceTier = string(completedEvent.Response.ServiceTier)
 								}
 								if completedEvent.Response.Usage.InputTokens > 0 {
 									inputTokens = completedEvent.Response.Usage.InputTokens
@@ -534,7 +606,16 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 
 			if inputTokens > 0 || outputTokens > 0 {
 				if responseModel != "" {
-					s.usageTracker.AddUsage(responseModel, inputTokens, outputTokens, cachedTokens, username)
+					s.usageTracker.AddUsageWithCycleHint(
+						responseModel,
+						inputTokens,
+						outputTokens,
+						cachedTokens,
+						serviceTier,
+						username,
+						time.Now(),
+						weeklyCycleHint,
+					)
 				}
 			}
 			return
