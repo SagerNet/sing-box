@@ -165,7 +165,7 @@ See [Protocol Sniff](/configuration/route/sniff/) for details.
 
 Override the connection destination address with the sniffed domain.
 
-If the domain name is invalid (like tor), this will not work.
+If the domain name is invalid (like Tor dialing without using bridge), connection expectations may be broken.
 
 #### sniff_timeout
 
