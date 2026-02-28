@@ -31,12 +31,13 @@ type DNSClient interface {
 }
 
 type DNSQueryOptions struct {
-	Transport      DNSTransport
-	Strategy       C.DomainStrategy
-	LookupStrategy C.DomainStrategy
-	DisableCache   bool
-	RewriteTTL     *uint32
-	ClientSubnet   netip.Prefix
+	Transport       DNSTransport
+	Strategy        C.DomainStrategy
+	LookupStrategy  C.DomainStrategy
+	DisableCache    bool
+	RewriteTTL      *uint32
+	ClientSubnet    netip.Prefix
+	CnameFlattening bool
 }
 
 func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptions) (*DNSQueryOptions, error) {
