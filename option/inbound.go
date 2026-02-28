@@ -55,7 +55,6 @@ type InboundOptions struct {
 	SniffTimeout              badoption.Duration `json:"sniff_timeout,omitempty"`
 	DomainStrategy            DomainStrategy     `json:"domain_strategy,omitempty"`
 	UDPDisableDomainUnmapping bool               `json:"udp_disable_domain_unmapping,omitempty"`
-	Detour                    string             `json:"detour,omitempty"`
 }
 
 type ListenOptions struct {
@@ -73,6 +72,7 @@ type ListenOptions struct {
 	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault   bool               `json:"-"`
 	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
+	Detour               string             `json:"detour,omitempty"`
 
 	// Deprecated: removed
 	ProxyProtocol bool `json:"proxy_protocol,omitempty"`

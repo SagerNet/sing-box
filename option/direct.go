@@ -3,7 +3,7 @@ package option
 import (
 	"context"
 
-	"github.com/sagernet/sing-box/experimental/deprecated"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 )
 
@@ -31,8 +31,9 @@ func (d *DirectOutboundOptions) UnmarshalJSONContext(ctx context.Context, conten
 	if err != nil {
 		return err
 	}
+	//nolint:staticcheck
 	if d.OverrideAddress != "" || d.OverridePort != 0 {
-		deprecated.Report(ctx, deprecated.OptionDestinationOverrideFields)
+		return E.New("destination override fields in direct outbound are deprecated in sing-box 1.11.0 and removed in sing-box 1.13.0, use route options instead")
 	}
 	return nil
 }

@@ -32,9 +32,6 @@ func TestTUICDomainUDP(t *testing.T) {
 					ListenOptions: option.ListenOptions{
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
-						InboundOptions: option.InboundOptions{
-							DomainStrategy: option.DomainStrategy(C.DomainStrategyIPv6Only),
-						},
 					},
 					Users: []option.TUICUser{{
 						UUID: uuid.Nil.String(),

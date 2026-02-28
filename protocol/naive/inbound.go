@@ -209,7 +209,6 @@ func (n *Inbound) newConnection(ctx context.Context, waitForClose bool, conn net
 	//nolint:staticcheck
 	metadata.InboundDetour = n.listener.ListenOptions().Detour
 	//nolint:staticcheck
-	metadata.InboundOptions = n.listener.ListenOptions().InboundOptions
 	metadata.Source = source
 	metadata.Destination = destination
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()

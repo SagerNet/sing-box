@@ -99,8 +99,6 @@ func (l *Listener) loopTCPIn() {
 		}
 		//nolint:staticcheck
 		metadata.InboundDetour = l.listenOptions.Detour
-		//nolint:staticcheck
-		metadata.InboundOptions = l.listenOptions.InboundOptions
 		metadata.Source = M.SocksaddrFromNet(conn.RemoteAddr()).Unwrap()
 		metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 		ctx := log.ContextWithNewID(l.ctx)
