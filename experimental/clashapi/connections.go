@@ -38,6 +38,7 @@ func getConnections(ctx context.Context, trafficManager *trafficontrol.Manager) 
 		if err != nil {
 			return
 		}
+		defer conn.Close()
 
 		intervalStr := r.URL.Query().Get("interval")
 		interval := 1000
