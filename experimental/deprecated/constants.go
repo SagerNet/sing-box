@@ -57,42 +57,6 @@ func (n Note) MessageWithLink() string {
 	}
 }
 
-var OptionBadMatchSource = Note{
-	Name:              "bad-match-source",
-	Description:       "legacy match source rule item",
-	DeprecatedVersion: "1.10.0",
-	ScheduledVersion:  "1.11.0",
-	EnvName:           "BAD_MATCH_SOURCE",
-	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#match-source-rule-items-are-renamed",
-}
-
-var OptionGEOIP = Note{
-	Name:              "geoip",
-	Description:       "geoip database",
-	DeprecatedVersion: "1.8.0",
-	ScheduledVersion:  "1.12.0",
-	EnvName:           "GEOIP",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-geoip-to-rule-sets",
-}
-
-var OptionGEOSITE = Note{
-	Name:              "geosite",
-	Description:       "geosite database",
-	DeprecatedVersion: "1.8.0",
-	ScheduledVersion:  "1.12.0",
-	EnvName:           "GEOSITE",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-geosite-to-rule-sets",
-}
-
-var OptionTUNAddressX = Note{
-	Name:              "tun-address-x",
-	Description:       "legacy tun address fields",
-	DeprecatedVersion: "1.10.0",
-	ScheduledVersion:  "1.12.0",
-	EnvName:           "TUN_ADDRESS_X",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#tun-address-fields-are-merged",
-}
-
 var OptionSpecialOutbounds = Note{
 	Name:              "special-outbounds",
 	Description:       "legacy special outbounds",
@@ -136,15 +100,6 @@ var OptionWireGuardGSO = Note{
 	ScheduledVersion:  "1.13.0",
 	EnvName:           "WIREGUARD_GSO",
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-wireguard-outbound-to-endpoint",
-}
-
-var OptionTUNGSO = Note{
-	Name:              "tun-gso",
-	Description:       "GSO option in tun",
-	DeprecatedVersion: "1.11.0",
-	ScheduledVersion:  "1.12.0",
-	EnvName:           "TUN_GSO",
-	MigrationLink:     "https://sing-box.sagernet.org/deprecated/#gso-option-in-tun",
 }
 
 var OptionLegacyDNSTransport = Note{
@@ -202,16 +157,11 @@ var OptionLegacyDomainStrategyOptions = Note{
 }
 
 var Options = []Note{
-	OptionBadMatchSource,
-	OptionGEOIP,
-	OptionGEOSITE,
-	OptionTUNAddressX,
 	OptionSpecialOutbounds,
 	OptionInboundOptions,
 	OptionDestinationOverrideFields,
 	OptionWireGuardOutbound,
 	OptionWireGuardGSO,
-	OptionTUNGSO,
 	OptionLegacyDNSTransport,
 	OptionLegacyDNSFakeIPOptions,
 	OptionOutboundDNSRuleItem,

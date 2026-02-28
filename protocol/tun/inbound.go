@@ -14,7 +14,6 @@ import (
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
@@ -60,20 +59,18 @@ type Inbound struct {
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (adapter.Inbound, error) {
+	//nolint:staticcheck
+	if len(options.Inet4Address) > 0 || len(options.Inet6Address) > 0 ||
+		len(options.Inet4RouteAddress) > 0 || len(options.Inet6RouteAddress) > 0 ||
+		len(options.Inet4RouteExcludeAddress) > 0 || len(options.Inet6RouteExcludeAddress) > 0 {
+		return nil, E.New("legacy tun address fields are deprecated in sing-box 1.10.0 and removed in sing-box 1.12.0")
+	}
+	//nolint:staticcheck
+	if options.GSO {
+		return nil, E.New("GSO option in tun is deprecated in sing-box 1.11.0 and removed in sing-box 1.12.0")
+	}
+
 	address := options.Address
-	var deprecatedAddressUsed bool
-
-	//nolint:staticcheck
-	if len(options.Inet4Address) > 0 {
-		address = append(address, options.Inet4Address...)
-		deprecatedAddressUsed = true
-	}
-
-	//nolint:staticcheck
-	if len(options.Inet6Address) > 0 {
-		address = append(address, options.Inet6Address...)
-		deprecatedAddressUsed = true
-	}
 	inet4Address := common.Filter(address, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
 	})
@@ -82,18 +79,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	routeAddress := options.RouteAddress
-
-	//nolint:staticcheck
-	if len(options.Inet4RouteAddress) > 0 {
-		routeAddress = append(routeAddress, options.Inet4RouteAddress...)
-		deprecatedAddressUsed = true
-	}
-
-	//nolint:staticcheck
-	if len(options.Inet6RouteAddress) > 0 {
-		routeAddress = append(routeAddress, options.Inet6RouteAddress...)
-		deprecatedAddressUsed = true
-	}
 	inet4RouteAddress := common.Filter(routeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
 	})
@@ -102,33 +87,12 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	routeExcludeAddress := options.RouteExcludeAddress
-
-	//nolint:staticcheck
-	if len(options.Inet4RouteExcludeAddress) > 0 {
-		routeExcludeAddress = append(routeExcludeAddress, options.Inet4RouteExcludeAddress...)
-		deprecatedAddressUsed = true
-	}
-
-	//nolint:staticcheck
-	if len(options.Inet6RouteExcludeAddress) > 0 {
-		routeExcludeAddress = append(routeExcludeAddress, options.Inet6RouteExcludeAddress...)
-		deprecatedAddressUsed = true
-	}
 	inet4RouteExcludeAddress := common.Filter(routeExcludeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
 	})
 	inet6RouteExcludeAddress := common.Filter(routeExcludeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is6()
 	})
-
-	if deprecatedAddressUsed {
-		deprecated.Report(ctx, deprecated.OptionTUNAddressX)
-	}
-
-	//nolint:staticcheck
-	if options.GSO {
-		deprecated.Report(ctx, deprecated.OptionTUNGSO)
-	}
 
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 	tunMTU := options.MTU
