@@ -259,8 +259,8 @@ publish_docs:
 	venv/bin/mkdocs gh-deploy -m "Update" --force --ignore-version --no-history
 
 docs_install:
-	python -m venv venv
-	source ./venv/bin/activate && pip install --force-reinstall mkdocs-material=="9.*" mkdocs-static-i18n=="1.2.*"
+	python3 -m venv venv
+	source ./venv/bin/activate && pip install --force-reinstall mkdocs-material=="9.7.2" mkdocs-static-i18n=="1.2.*"
 
 clean:
 	rm -rf bin dist sing-box
