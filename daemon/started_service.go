@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
@@ -36,6 +35,7 @@ type StartedService struct {
 	handler     PlatformHandler
 	debug       bool
 	logMaxLines int
+	oomKiller   bool
 	// workingDirectory string
 	// tempDirectory    string
 	// userID           int
@@ -67,6 +67,7 @@ type ServiceOptions struct {
 	Handler     PlatformHandler
 	Debug       bool
 	LogMaxLines int
+	OOMKiller   bool
 	// WorkingDirectory   string
 	// TempDirectory      string
 	// UserID             int
@@ -81,6 +82,7 @@ func NewStartedService(options ServiceOptions) *StartedService {
 		handler:     options.Handler,
 		debug:       options.Debug,
 		logMaxLines: options.LogMaxLines,
+		oomKiller:   options.OOMKiller,
 		// workingDirectory: options.WorkingDirectory,
 		// tempDirectory:    options.TempDirectory,
 		// userID:           options.UserID,
@@ -205,6 +207,14 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 	s.serviceAccess.Unlock()
 	runtime.GC()
 	return nil
+}
+
+func (s *StartedService) Close() {
+	s.serviceStatusSubscriber.Close()
+	s.logSubscriber.Close()
+	s.urlTestSubscriber.Close()
+	s.clashModeSubscriber.Close()
+	s.connectionEventSubscriber.Close()
 }
 
 func (s *StartedService) CloseService() error {
@@ -399,12 +409,14 @@ func (s *StartedService) SubscribeStatus(request *SubscribeStatusRequest, server
 
 func (s *StartedService) readStatus() *Status {
 	var status Status
-	status.Memory = memory.Inuse()
+	status.Memory = memory.Total()
 	status.Goroutines = int32(runtime.NumGoroutine())
-	status.ConnectionsOut = int32(conntrack.Count())
 	s.serviceAccess.RLock()
 	nowService := s.instance
 	s.serviceAccess.RUnlock()
+	if nowService != nil && nowService.connectionManager != nil {
+		status.ConnectionsOut = int32(nowService.connectionManager.Count())
+	}
 	if nowService != nil {
 		if clashServer := nowService.clashServer; clashServer != nil {
 			status.TrafficAvailable = true
@@ -985,7 +997,12 @@ func (s *StartedService) CloseConnection(ctx context.Context, request *CloseConn
 }
 
 func (s *StartedService) CloseAllConnections(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	conntrack.Close()
+	s.serviceAccess.RLock()
+	nowService := s.instance
+	s.serviceAccess.RUnlock()
+	if nowService != nil && nowService.connectionManager != nil {
+		nowService.connectionManager.CloseAll()
+	}
 	return &emptypb.Empty{}, nil
 }
 

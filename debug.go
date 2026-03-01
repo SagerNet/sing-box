@@ -3,11 +3,11 @@ package box
 import (
 	"runtime/debug"
 
-	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func applyDebugOptions(options option.DebugOptions) {
+func applyDebugOptions(options option.DebugOptions) error {
 	applyDebugListenOption(options)
 	if options.GCPercent != nil {
 		debug.SetGCPercent(*options.GCPercent)
@@ -26,9 +26,9 @@ func applyDebugOptions(options option.DebugOptions) {
 	}
 	if options.MemoryLimit.Value() != 0 {
 		debug.SetMemoryLimit(int64(float64(options.MemoryLimit.Value()) / 1.5))
-		conntrack.MemoryLimit = options.MemoryLimit.Value()
 	}
 	if options.OOMKiller != nil {
-		conntrack.KillerEnabled = *options.OOMKiller
+		return E.New("legacy oom_killer in debug options is removed, use oom-killer service instead")
 	}
+	return nil
 }

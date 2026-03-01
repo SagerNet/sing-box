@@ -123,7 +123,6 @@ func testUDPSessionIdleTimeout(t *testing.T, proxyPort uint16, echoPort uint16, 
 
 	packetConn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	n, _, err = packetConn.ReadFrom(buffer)
-
 	if err != nil {
 		t.Logf("Read after timeout correctly failed: %v", err)
 		return

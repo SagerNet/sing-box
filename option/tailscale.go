@@ -12,22 +12,23 @@ import (
 
 type TailscaleEndpointOptions struct {
 	DialerOptions
-	StateDirectory             string           `json:"state_directory,omitempty"`
-	AuthKey                    string           `json:"auth_key,omitempty"`
-	ControlURL                 string           `json:"control_url,omitempty"`
-	Ephemeral                  bool             `json:"ephemeral,omitempty"`
-	Hostname                   string           `json:"hostname,omitempty"`
-	AcceptRoutes               bool             `json:"accept_routes,omitempty"`
-	ExitNode                   string           `json:"exit_node,omitempty"`
-	ExitNodeAllowLANAccess     bool             `json:"exit_node_allow_lan_access,omitempty"`
-	AdvertiseRoutes            []netip.Prefix   `json:"advertise_routes,omitempty"`
-	AdvertiseExitNode          bool             `json:"advertise_exit_node,omitempty"`
-	RelayServerPort            *uint16          `json:"relay_server_port,omitempty"`
-	RelayServerStaticEndpoints []netip.AddrPort `json:"relay_server_static_endpoints,omitempty"`
-	SystemInterface            bool             `json:"system_interface,omitempty"`
-	SystemInterfaceName        string           `json:"system_interface_name,omitempty"`
-	SystemInterfaceMTU         uint32           `json:"system_interface_mtu,omitempty"`
-	UDPTimeout                 UDPTimeoutCompat `json:"udp_timeout,omitempty"`
+	StateDirectory             string                     `json:"state_directory,omitempty"`
+	AuthKey                    string                     `json:"auth_key,omitempty"`
+	ControlURL                 string                     `json:"control_url,omitempty"`
+	Ephemeral                  bool                       `json:"ephemeral,omitempty"`
+	Hostname                   string                     `json:"hostname,omitempty"`
+	AcceptRoutes               bool                       `json:"accept_routes,omitempty"`
+	ExitNode                   string                     `json:"exit_node,omitempty"`
+	ExitNodeAllowLANAccess     bool                       `json:"exit_node_allow_lan_access,omitempty"`
+	AdvertiseRoutes            []netip.Prefix             `json:"advertise_routes,omitempty"`
+	AdvertiseExitNode          bool                       `json:"advertise_exit_node,omitempty"`
+	AdvertiseTags              badoption.Listable[string] `json:"advertise_tags,omitempty"`
+	RelayServerPort            *uint16                    `json:"relay_server_port,omitempty"`
+	RelayServerStaticEndpoints []netip.AddrPort           `json:"relay_server_static_endpoints,omitempty"`
+	SystemInterface            bool                       `json:"system_interface,omitempty"`
+	SystemInterfaceName        string                     `json:"system_interface_name,omitempty"`
+	SystemInterfaceMTU         uint32                     `json:"system_interface_mtu,omitempty"`
+	UDPTimeout                 UDPTimeoutCompat           `json:"udp_timeout,omitempty"`
 }
 
 type TailscaleDNSServerOptions struct {

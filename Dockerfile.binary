@@ -1,8 +1,14 @@
-FROM alpine
+ARG BASE_IMAGE=alpine
+FROM ${BASE_IMAGE}
 ARG TARGETARCH
 ARG TARGETVARIANT
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 RUN set -ex \
-    && apk add --no-cache --upgrade bash tzdata ca-certificates nftables
+    && if command -v apk > /dev/null; then \
+        apk add --no-cache --upgrade bash tzdata ca-certificates nftables; \
+    else \
+        apt-get update && apt-get install -y --no-install-recommends bash tzdata ca-certificates nftables \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 COPY sing-box-${TARGETARCH}${TARGETVARIANT} /usr/local/bin/sing-box
 ENTRYPOINT ["sing-box"]
