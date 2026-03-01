@@ -115,8 +115,8 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	chiRouter.Group(func(r chi.Router) {
 		r.Use(authentication(options.Secret))
 		r.Get("/", hello(options.ExternalUI != ""))
-		r.Get("/logs", getLogs(logFactory))
-		r.Get("/traffic", traffic(s.ctx, trafficManager))
+		r.Get("/logs", getLogs(s.ctx, logFactory))
+		r.Get("/traffic", traffic(trafficManager))
 		r.Get("/version", version)
 		r.Mount("/configs", configRouter(s, logFactory))
 		r.Mount("/proxies", proxyRouter(s, s.router))
@@ -360,7 +360,7 @@ type Log struct {
 	Payload string `json:"payload"`
 }
 
-func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *http.Request) {
+func getLogs(ctx context.Context, logFactory log.ObservableFactory) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		levelText := r.URL.Query().Get("level")
 		if levelText == "" {
@@ -399,6 +399,8 @@ func getLogs(logFactory log.ObservableFactory) func(w http.ResponseWriter, r *ht
 		var logEntry log.Entry
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-done:
 				return
 			case logEntry = <-subscription:
