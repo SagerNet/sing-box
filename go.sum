@@ -40,8 +40,8 @@ github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1 h1:CaO/zOnF8VvUfEbhRatPcwKVWamvbY
 github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1/go.mod h1:+hnT3ywWDTAFrW5aE+u2Sa/wT555ZqwoCS+pk3p6ry4=
 github.com/dnaeon/go-vcr v1.2.0 h1:zHCHvJYTMh1N7xnV7zf1m1GPBF9Ad0Jk/whtQ1663qI=
 github.com/dnaeon/go-vcr v1.2.0/go.mod h1:R4UdLID7HZT3taECzJs4YgbbH6PIGXB6W/sc5OLb6RQ=
-github.com/dyhkwong/sing-juicity v0.1.0-beta.3 h1:vK9G7X00qe47hHGGHoioBlWT0IYS28cL5zkSIedxMe8=
-github.com/dyhkwong/sing-juicity v0.1.0-beta.3/go.mod h1:q7cHrIwLIV8nO4F4kxlPQeo3+uYKnxaOn2JaYuyRqtQ=
+github.com/dyhkwong/sing-juicity v0.1.0-beta.6 h1:viKT3TKSfI605k9hVrPwtPdf9lxB3issxn41v/h/59I=
+github.com/dyhkwong/sing-juicity v0.1.0-beta.6/go.mod h1:LNc++CLsfsfqKJLFOG0rJsM1VX9LmJhpw57Z1nll2CA=
 github.com/ebitengine/purego v0.9.1 h1:a/k2f2HQU3Pi399RPW1MOaZyhKJL9w/xFpKAg4q1s0A=
 github.com/ebitengine/purego v0.9.1/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/florianl/go-nfqueue/v2 v2.0.2 h1:FL5lQTeetgpCvac1TRwSfgaXUn0YSO7WzGvWNIp3JPE=

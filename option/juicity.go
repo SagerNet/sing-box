@@ -7,8 +7,6 @@ type JuicityInboundOptions struct {
 	Users       []JuicityUser      `json:"users,omitempty"`
 	AuthTimeout badoption.Duration `json:"auth_timeout,omitempty"`
 	InboundTLSOptionsContainer
-
-	SpeedTest string `json:"speed_test,omitempty"`
 }
 
 type JuicityUser struct {
