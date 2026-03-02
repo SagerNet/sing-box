@@ -11,7 +11,7 @@ INSTALL_CONFIG_PATH="/usr/local/etc/sing-box"
 INSTALL_DATA_PATH="/var/lib/sing-box"
 SYSTEMD_SERVICE_PATH="/etc/systemd/system"
 
-DEFAULT_BUILD_TAGS="with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,badlinkname,tfogo_checklinkname0"
+DEFAULT_BUILD_TAGS="$(cat "$PROJECT_DIR/release/DEFAULT_BUILD_TAGS_OTHERS")"
 
 setup_environment() {
     if [ -d /usr/local/go ]; then
@@ -44,7 +44,9 @@ get_version() {
 get_ldflags() {
     local version
     version=$(get_version)
-    echo "-X 'github.com/sagernet/sing-box/constant.Version=${version}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -s -w -buildid= -checklinkname=0"
+    local shared_ldflags
+    shared_ldflags=$(cat "$PROJECT_DIR/release/LDFLAGS")
+    echo "-X 'github.com/sagernet/sing-box/constant.Version=${version}' ${shared_ldflags} -s -w -buildid="
 }
 
 build_sing_box() {
