@@ -1,0 +1,1 @@
+-X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0

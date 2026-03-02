@@ -9,6 +9,11 @@ run:
     - with_utls
     - with_acme
     - with_clash_api
+    - with_tailscale
+    - with_ccm
+    - with_ocm
+    - badlinkname
+    - tfogo_checklinkname0
 linters:
   default: none
   enable:
