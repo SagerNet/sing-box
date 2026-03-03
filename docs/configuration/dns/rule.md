@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [source_mac_address](#source_mac_address)  
+    :material-plus: [source_hostname](#source_hostname)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [interface_address](#interface_address)  
@@ -148,6 +153,12 @@ icon: material/alert-decagram
         },
         "default_interface_address": [
           "2000::/3"
+        ],
+        "source_mac_address": [
+          "00:11:22:33:44:55"
+        ],
+        "source_hostname": [
+          "my-device"
         ],
         "wifi_ssid": [
           "My WIFI"
@@ -407,6 +418,26 @@ Matches network interface (same values as `network_type`) address.
     Only supported on Linux, Windows, and macOS.
 
 Match default interface address.
+
+#### source_mac_address
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux with `route.find_neighbor` enabled.
+
+Match source device MAC address.
+
+#### source_hostname
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux with `route.find_neighbor` enabled.
+
+Match source device hostname from DHCP leases.
 
 #### wifi_ssid
 
