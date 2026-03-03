@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [source_mac_address](#source_mac_address)  
+    :material-plus: [source_hostname](#source_hostname)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [interface_address](#interface_address)  
@@ -148,6 +153,12 @@ icon: material/alert-decagram
         },
         "default_interface_address": [
           "2000::/3"
+        ],
+        "source_mac_address": [
+          "00:11:22:33:44:55"
+        ],
+        "source_hostname": [
+          "my-device"
         ],
         "wifi_ssid": [
           "My WIFI"
@@ -406,6 +417,26 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
     仅支持 Linux、Windows 和 macOS.
 
 匹配默认接口地址。
+
+#### source_mac_address
+
+!!! question "自 sing-box 1.14.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要 `route.find_neighbor` 已启用。
+
+匹配源设备 MAC 地址。
+
+#### source_hostname
+
+!!! question "自 sing-box 1.14.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要 `route.find_neighbor` 已启用。
+
+匹配源设备从 DHCP 租约获取的主机名。
 
 #### wifi_ssid
 
