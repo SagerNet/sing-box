@@ -439,6 +439,23 @@ func (r *Router) matchRule(
 			metadata.ProcessInfo = processInfo
 		}
 	}
+	if r.neighborResolver != nil && metadata.SourceMACAddress == nil && metadata.Source.Addr.IsValid() {
+		mac, macFound := r.neighborResolver.LookupMAC(metadata.Source.Addr)
+		if macFound {
+			metadata.SourceMACAddress = mac
+		}
+		hostname, hostnameFound := r.neighborResolver.LookupHostname(metadata.Source.Addr)
+		if hostnameFound {
+			metadata.SourceHostname = hostname
+			if macFound {
+				r.logger.InfoContext(ctx, "found neighbor: ", mac, ", hostname: ", hostname)
+			} else {
+				r.logger.InfoContext(ctx, "found neighbor hostname: ", hostname)
+			}
+		} else if macFound {
+			r.logger.InfoContext(ctx, "found neighbor: ", mac)
+		}
+	}
 	if metadata.Destination.Addr.IsValid() && r.dnsTransport.FakeIP() != nil && r.dnsTransport.FakeIP().Store().Contains(metadata.Destination.Addr) {
 		domain, loaded := r.dnsTransport.FakeIP().Store().Lookup(metadata.Destination.Addr)
 		if !loaded {
