@@ -240,8 +240,10 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	if responseChecker != nil {
 		var rejected bool
 		// TODO: add accept_any rule and support to check response instead of addresses
-		if response.Rcode != dns.RcodeSuccess || len(response.Answer) == 0 {
+		if response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError {
 			rejected = true
+		} else if len(response.Answer) == 0 {
+			rejected = !responseChecker(nil)
 		} else {
 			rejected = !responseChecker(MessageToAddresses(response))
 		}
