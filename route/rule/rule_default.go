@@ -260,6 +260,16 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.SourceMACAddress) > 0 {
+		item := NewSourceMACAddressItem(options.SourceMACAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.SourceHostname) > 0 {
+		item := NewSourceHostnameItem(options.SourceHostname)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.PreferredBy) > 0 {
 		item := NewPreferredByItem(ctx, options.PreferredBy)
 		rule.items = append(rule.items, item)
