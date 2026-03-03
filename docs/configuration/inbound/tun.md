@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [include_mac_address](#include_mac_address)
+    :material-plus: [exclude_mac_address](#exclude_mac_address)
+
 !!! quote "Changes in sing-box 1.13.3"
 
     :material-alert: [strict_route](#strict_route)
@@ -128,6 +133,12 @@ icon: material/new-box
   ],
   "exclude_package": [
     "com.android.captiveportallogin"
+  ],
+  "include_mac_address": [
+    "00:11:22:33:44:55"
+  ],
+  "exclude_mac_address": [
+    "66:77:88:99:aa:bb"
   ],
   "platform": {
     "http_proxy": {
@@ -554,6 +565,30 @@ Limit android packages in route.
 #### exclude_package
 
 Exclude android packages in route.
+
+#### include_mac_address
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux with `auto_route` and `auto_redirect` enabled.
+
+Limit MAC addresses in route. Not limited by default.
+
+Conflict with `exclude_mac_address`.
+
+#### exclude_mac_address
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux with `auto_route` and `auto_redirect` enabled.
+
+Exclude MAC addresses in route.
+
+Conflict with `include_mac_address`.
 
 #### platform
 

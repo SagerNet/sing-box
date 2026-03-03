@@ -156,6 +156,22 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if nfQueue == 0 {
 		nfQueue = tun.DefaultAutoRedirectNFQueue
 	}
+	var includeMACAddress []net.HardwareAddr
+	for i, macString := range options.IncludeMACAddress {
+		mac, macErr := net.ParseMAC(macString)
+		if macErr != nil {
+			return nil, E.Cause(macErr, "parse include_mac_address[", i, "]")
+		}
+		includeMACAddress = append(includeMACAddress, mac)
+	}
+	var excludeMACAddress []net.HardwareAddr
+	for i, macString := range options.ExcludeMACAddress {
+		mac, macErr := net.ParseMAC(macString)
+		if macErr != nil {
+			return nil, E.Cause(macErr, "parse exclude_mac_address[", i, "]")
+		}
+		excludeMACAddress = append(excludeMACAddress, mac)
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && options.MTU <= 9000))
 	inbound := &Inbound{
@@ -193,6 +209,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IncludeAndroidUser:                    options.IncludeAndroidUser,
 			IncludePackage:                        options.IncludePackage,
 			ExcludePackage:                        options.ExcludePackage,
+			IncludeMACAddress:                     includeMACAddress,
+			ExcludeMACAddress:                     excludeMACAddress,
 			InterfaceMonitor:                      networkManager.InterfaceMonitor(),
 			EXP_MultiPendingPackets:               multiPendingPackets,
 		},
