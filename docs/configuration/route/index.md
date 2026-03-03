@@ -4,6 +4,11 @@ icon: material/alert-decagram
 
 # Route
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [find_neighbor](#find_neighbor)  
+    :material-plus: [dhcp_lease_files](#dhcp_lease_files)
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [default_domain_resolver](#default_domain_resolver)  
@@ -35,6 +40,8 @@ icon: material/alert-decagram
     "override_android_vpn": false,
     "default_interface": "",
     "default_mark": 0,
+    "find_neighbor": false,
+    "dhcp_lease_files": [],
     "default_domain_resolver": "", // or {}
     "default_network_strategy": "",
     "default_network_type": [],
@@ -106,6 +113,30 @@ Takes no effect if `auto_detect_interface` is set.
 Set routing mark by default.
 
 Takes no effect if `outbound.routing_mark` is set.
+
+#### find_neighbor
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Enable neighbor resolution for source MAC address and hostname lookup.
+
+Required for `source_mac_address` and `source_hostname` rule items.
+
+#### dhcp_lease_files
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Custom DHCP lease file paths for hostname and MAC address resolution.
+
+Automatically detected from common DHCP servers (dnsmasq, odhcpd, ISC dhcpd, Kea) if empty.
 
 #### default_domain_resolver
 
