@@ -220,6 +220,43 @@ func (w *platformInterfaceWrapper) SendNotification(notification *adapter.Notifi
 	return w.iif.SendNotification((*Notification)(notification))
 }
 
+func (w *platformInterfaceWrapper) UsePlatformNeighborResolver() bool {
+	return true
+}
+
+func (w *platformInterfaceWrapper) StartNeighborMonitor(listener adapter.NeighborUpdateListener) error {
+	return w.iif.StartNeighborMonitor(&neighborUpdateListenerWrapper{listener: listener})
+}
+
+func (w *platformInterfaceWrapper) CloseNeighborMonitor(listener adapter.NeighborUpdateListener) error {
+	return w.iif.CloseNeighborMonitor(nil)
+}
+
+type neighborUpdateListenerWrapper struct {
+	listener adapter.NeighborUpdateListener
+}
+
+func (w *neighborUpdateListenerWrapper) UpdateNeighborTable(entries NeighborEntryIterator) {
+	var result []adapter.NeighborEntry
+	for entries.HasNext() {
+		entry := entries.Next()
+		address, err := netip.ParseAddr(entry.Address)
+		if err != nil {
+			continue
+		}
+		macAddress, err := net.ParseMAC(entry.MACAddress)
+		if err != nil {
+			continue
+		}
+		result = append(result, adapter.NeighborEntry{
+			Address:    address,
+			MACAddress: macAddress,
+			Hostname:   entry.Hostname,
+		})
+	}
+	w.listener.UpdateNeighborTable(result)
+}
+
 func AvailablePort(startPort int32) (int32, error) {
 	for port := int(startPort); ; port++ {
 		if port > 65535 {
