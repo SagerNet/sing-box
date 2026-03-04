@@ -21,6 +21,12 @@ type PlatformInterface interface {
 	SystemCertificates() StringIterator
 	ClearDNSCache()
 	SendNotification(notification *Notification) error
+	StartNeighborMonitor(listener NeighborUpdateListener) error
+	CloseNeighborMonitor(listener NeighborUpdateListener) error
+}
+
+type NeighborUpdateListener interface {
+	UpdateNeighborTable(entries NeighborEntryIterator)
 }
 
 type ConnectionOwner struct {
