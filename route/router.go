@@ -159,19 +159,32 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		}
 		r.needFindNeighbor = needFindNeighbor
 		if needFindNeighbor {
-			monitor.Start("initialize neighbor resolver")
-			resolver, err := newNeighborResolver(r.logger, r.leaseFiles)
-			monitor.Finish()
-			if err != nil {
-				if err != os.ErrInvalid {
-					r.logger.Warn(E.Cause(err, "create neighbor resolver"))
-				}
-			} else {
-				err = resolver.Start()
+			if r.platformInterface != nil && r.platformInterface.UsePlatformNeighborResolver() {
+				monitor.Start("initialize neighbor resolver")
+				resolver := newPlatformNeighborResolver(r.logger, r.platformInterface)
+				err := resolver.Start()
+				monitor.Finish()
 				if err != nil {
-					r.logger.Warn(E.Cause(err, "start neighbor resolver"))
+					r.logger.Error(E.Cause(err, "start neighbor resolver"))
 				} else {
 					r.neighborResolver = resolver
+				}
+			}
+			if r.neighborResolver == nil {
+				monitor.Start("initialize neighbor resolver")
+				resolver, err := newNeighborResolver(r.logger, r.leaseFiles)
+				monitor.Finish()
+				if err != nil {
+					if err != os.ErrInvalid {
+						r.logger.Error(E.Cause(err, "create neighbor resolver"))
+					}
+				} else {
+					err = resolver.Start()
+					if err != nil {
+						r.logger.Error(E.Cause(err, "start neighbor resolver"))
+					} else {
+						r.neighborResolver = resolver
+					}
 				}
 			}
 		}
