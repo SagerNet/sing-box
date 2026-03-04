@@ -40,6 +40,10 @@ type PlatformInterface interface {
 	SendNotification(notification *Notification) error
 
 	MyInterfaceAddress() []netip.Addr
+
+	UsePlatformNeighborResolver() bool
+	StartNeighborMonitor(listener NeighborUpdateListener) error
+	CloseNeighborMonitor(listener NeighborUpdateListener) error
 }
 
 type FindConnectionOwnerRequest struct {
