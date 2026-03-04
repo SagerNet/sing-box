@@ -4,7 +4,6 @@ package route
 
 import (
 	"bufio"
-	"encoding/binary"
 	"encoding/hex"
 	"net"
 	"net/netip"
@@ -204,43 +203,17 @@ func (r *neighborResolver) subscribeNeighborUpdates() {
 			continue
 		}
 		for _, message := range messages {
-			switch message.Header.Type {
-			case unix.RTM_NEWNEIGH:
-				var neighMessage rtnetlink.NeighMessage
-				unmarshalErr := neighMessage.UnmarshalBinary(message.Data)
-				if unmarshalErr != nil {
-					continue
-				}
-				if neighMessage.Attributes == nil {
-					continue
-				}
-				if neighMessage.Attributes.LLAddress == nil || len(neighMessage.Attributes.Address) == 0 {
-					continue
-				}
-				address, ok := netip.AddrFromSlice(neighMessage.Attributes.Address)
-				if !ok {
-					continue
-				}
-				r.access.Lock()
-				r.neighborIPToMAC[address] = slices.Clone(neighMessage.Attributes.LLAddress)
-				r.access.Unlock()
-			case unix.RTM_DELNEIGH:
-				var neighMessage rtnetlink.NeighMessage
-				unmarshalErr := neighMessage.UnmarshalBinary(message.Data)
-				if unmarshalErr != nil {
-					continue
-				}
-				if neighMessage.Attributes == nil || len(neighMessage.Attributes.Address) == 0 {
-					continue
-				}
-				address, ok := netip.AddrFromSlice(neighMessage.Attributes.Address)
-				if !ok {
-					continue
-				}
-				r.access.Lock()
-				delete(r.neighborIPToMAC, address)
-				r.access.Unlock()
+			address, mac, isDelete, ok := ParseNeighborMessage(message)
+			if !ok {
+				continue
 			}
+			r.access.Lock()
+			if isDelete {
+				delete(r.neighborIPToMAC, address)
+			} else {
+				r.neighborIPToMAC[address] = mac
+			}
+			r.access.Unlock()
 		}
 	}
 }
@@ -553,44 +526,4 @@ func (r *neighborResolver) parseKeaCSV6(file *os.File, ipToMAC map[netip.Addr]ne
 			}
 		}
 	}
-}
-
-func extractMACFromDUID(duid []byte) (net.HardwareAddr, bool) {
-	if len(duid) < 4 {
-		return nil, false
-	}
-	duidType := binary.BigEndian.Uint16(duid[0:2])
-	hwType := binary.BigEndian.Uint16(duid[2:4])
-	if hwType != 1 {
-		return nil, false
-	}
-	switch duidType {
-	case 1:
-		if len(duid) < 14 {
-			return nil, false
-		}
-		return net.HardwareAddr(slices.Clone(duid[8:14])), true
-	case 3:
-		if len(duid) < 10 {
-			return nil, false
-		}
-		return net.HardwareAddr(slices.Clone(duid[4:10])), true
-	}
-	return nil, false
-}
-
-func extractMACFromEUI64(address netip.Addr) (net.HardwareAddr, bool) {
-	if !address.Is6() {
-		return nil, false
-	}
-	b := address.As16()
-	if b[11] != 0xff || b[12] != 0xfe {
-		return nil, false
-	}
-	return net.HardwareAddr{b[8] ^ 0x02, b[9], b[10], b[13], b[14], b[15]}, true
-}
-
-func parseDUID(s string) ([]byte, error) {
-	cleaned := strings.ReplaceAll(s, ":", "")
-	return hex.DecodeString(cleaned)
 }
