@@ -85,6 +85,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	request.Header.Set("Connection", "Upgrade")
 	request.Header.Set("Upgrade", "websocket")
+	request = request.WithContext(ctx)
 	err = request.Write(conn)
 	if err != nil {
 		return nil, err
