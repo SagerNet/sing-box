@@ -44,6 +44,7 @@ type Client struct {
 	cacheLock          compatible.Map[dns.Question, chan struct{}]
 	transportCache     freelru.Cache[transportCacheKey, *dns.Msg]
 	transportCacheLock compatible.Map[dns.Question, chan struct{}]
+	cnameFlattening    bool
 }
 
 type ClientOptions struct {
@@ -53,6 +54,7 @@ type ClientOptions struct {
 	IndependentCache bool
 	CacheCapacity    uint32
 	ClientSubnet     netip.Prefix
+	CnameFlattening  bool
 	RDRC             func() adapter.RDRCStore
 	Logger           logger.ContextLogger
 }
@@ -64,6 +66,7 @@ func NewClient(options ClientOptions) *Client {
 		disableExpire:    options.DisableExpire,
 		independentCache: options.IndependentCache,
 		clientSubnet:     options.ClientSubnet,
+		cnameFlattening:  options.CnameFlattening,
 		initRDRCFunc:     options.RDRC,
 		logger:           options.Logger,
 	}
@@ -201,41 +204,41 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return nil, err
 		}
 	}
-	/*if question.Qtype == dns.TypeA || question.Qtype == dns.TypeAAAA {
-		validResponse := response
-	loop:
-		for {
-			var (
-				addresses  int
-				queryCNAME string
-			)
-			for _, rawRR := range validResponse.Answer {
-				switch rr := rawRR.(type) {
-				case *dns.A:
-					break loop
-				case *dns.AAAA:
-					break loop
-				case *dns.CNAME:
-					queryCNAME = rr.Target
+	if c.cnameFlattening || options.CnameFlattening {
+		if question.Qtype == dns.TypeA || question.Qtype == dns.TypeAAAA {
+			validResponse := response
+		loop:
+			for {
+				var queryCNAME string
+				for _, rawRR := range validResponse.Answer {
+					switch rr := rawRR.(type) {
+					case *dns.A:
+						break loop
+					case *dns.AAAA:
+						break loop
+					case *dns.CNAME:
+						queryCNAME = rr.Target
+					}
+				}
+				if queryCNAME == "" {
+					break
+				}
+				exMessage := *message
+				exMessage.Question = []dns.Question{{
+					Name:   queryCNAME,
+					Qtype:  question.Qtype,
+					Qclass: question.Qclass,
+				}}
+				validResponse, err = c.Exchange(ctx, transport, &exMessage, options, responseChecker)
+				if err != nil {
+					return nil, err
 				}
 			}
-			if queryCNAME == "" {
-				break
-			}
-			exMessage := *message
-			exMessage.Question = []dns.Question{{
-				Name:  queryCNAME,
-				Qtype: question.Qtype,
-			}}
-			validResponse, err = c.Exchange(ctx, transport, &exMessage, options, responseChecker)
-			if err != nil {
-				return nil, err
+			if validResponse != response {
+				response.Answer = append(response.Answer, validResponse.Answer...)
 			}
 		}
-		if validResponse != response {
-			response.Answer = append(response.Answer, validResponse.Answer...)
-		}
-	}*/
+	}
 	disableCache = disableCache || (response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError)
 	if responseChecker != nil {
 		var rejected bool
