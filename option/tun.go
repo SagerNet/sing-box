@@ -41,6 +41,7 @@ type TunInboundOptions struct {
 	ExcludePackage                badoption.Listable[string]       `json:"exclude_package,omitempty"`
 	UDPTimeout                    UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
 	Stack                         string                           `json:"stack,omitempty"`
+	DisableDNSHijack              bool                             `json:"disable_dnshijack,omitempty"`
 	Platform                      *TunPlatformOptions              `json:"platform,omitempty"`
 	InboundOptions
 
