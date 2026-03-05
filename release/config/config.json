@@ -1,11 +1,19 @@
 {
   "log": {
-    "level": "info"
+    "level": "info",
+    "timestamp": true
   },
   "dns": {
     "servers": [
       {
-        "address": "tls://8.8.8.8"
+        "type": "tls",
+        "tag": "google",
+        "server": "8.8.8.8"
+      },
+      {
+        "type": "udp",
+        "tag": "local",
+        "server": "223.5.5.5"
       }
     ]
   },
@@ -25,19 +33,24 @@
   ],
   "outbounds": [
     {
-      "type": "direct"
-    },
-    {
-      "type": "dns",
-      "tag": "dns-out"
+      "type": "direct",
+      "tag": "direct"
     }
   ],
   "route": {
     "rules": [
       {
-        "port": 53,
-        "outbound": "dns-out"
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
       }
-    ]
+    ],
+    "default_domain_resolver": "local"
   }
 }
