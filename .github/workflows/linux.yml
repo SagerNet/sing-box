@@ -3,8 +3,8 @@ name: Build Linux Packages
 on:
   #push:
   #  branches:
-  #    - main-next
-  #    - dev-next
+  #    - stable
+  #    - testing
   workflow_dispatch:
     inputs:
       version:
@@ -23,6 +23,7 @@ on:
 jobs:
   calculate_version:
     name: Calculate version
+    if: github.event_name != 'release' || github.event.release.target_commitish != 'oldstable'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.outputs.outputs.version }}

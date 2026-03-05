@@ -3,8 +3,8 @@ name: Publish Docker Images
 on:
   #push:
   #  branches:
-  #    - main-next
-  #    - dev-next
+  #    - stable
+  #    - testing
   release:
     types:
       - published
@@ -19,6 +19,7 @@ env:
 jobs:
   build_binary:
     name: Build binary
+    if: github.event_name != 'release' || github.event.release.target_commitish != 'oldstable'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

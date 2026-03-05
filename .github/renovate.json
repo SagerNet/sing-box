@@ -6,7 +6,7 @@
     ":disableRateLimiting"
   ],
   "baseBranches": [
-    "dev-next"
+    "unstable"
   ],
   "golang": {
     "enabled": false
