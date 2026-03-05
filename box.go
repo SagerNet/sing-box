@@ -382,6 +382,14 @@ func New(options Options) (*Box, error) {
 		timeService.TimeService = ntpService
 		internalServices = append(internalServices, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
+	if routeOptions.IdleTimeout > 0 {
+		activityTracker := route.NewActivityTracker(
+			logFactory.NewLogger("activity"),
+			time.Duration(routeOptions.IdleTimeout),
+		)
+		router.AppendTracker(activityTracker)
+		internalServices = append(internalServices, adapter.NewLifecycleService(activityTracker, "activity tracker"))
+	}
 	return &Box{
 		network:         networkManager,
 		endpoint:        endpointManager,
