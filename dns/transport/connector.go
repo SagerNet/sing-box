@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 )
 
 type ConnectorCallbacks[T any] struct {
@@ -16,10 +17,11 @@ type Connector[T any] struct {
 	dial      func(ctx context.Context) (T, error)
 	callbacks ConnectorCallbacks[T]
 
-	access        sync.Mutex
-	connection    T
-	hasConnection bool
-	connecting    chan struct{}
+	access           sync.Mutex
+	connection       T
+	hasConnection    bool
+	connectionCancel context.CancelFunc
+	connecting       chan struct{}
 
 	closeCtx context.Context
 	closed   bool
@@ -47,8 +49,15 @@ func NewSingleflightConnector(closeCtx context.Context, dial func(context.Contex
 	})
 }
 
+type contextKeyConnecting struct{}
+
 func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 	var zero T
+	if ctx.Value(contextKeyConnecting{}) != nil {
+		connection, _, err := c.dialWithCancellation(ctx)
+		return connection, err
+	}
+	ctx = context.WithValue(ctx, contextKeyConnecting{}, true)
 	for {
 		c.access.Lock()
 
@@ -64,6 +73,10 @@ func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 		}
 
 		c.hasConnection = false
+		if c.connectionCancel != nil {
+			c.connectionCancel()
+			c.connectionCancel = nil
+		}
 
 		if c.connecting != nil {
 			connecting := c.connecting
@@ -82,7 +95,7 @@ func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 		c.connecting = make(chan struct{})
 		c.access.Unlock()
 
-		connection, err := c.dialWithCancellation(ctx)
+		connection, cancel, err := c.dialWithCancellation(ctx)
 
 		c.access.Lock()
 		close(c.connecting)
@@ -94,6 +107,7 @@ func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 		}
 
 		if c.closed {
+			cancel()
 			c.callbacks.Close(connection)
 			c.access.Unlock()
 			return zero, ErrTransportClosed
@@ -101,6 +115,7 @@ func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 
 		c.connection = connection
 		c.hasConnection = true
+		c.connectionCancel = cancel
 		result := c.connection
 		c.access.Unlock()
 
@@ -108,19 +123,39 @@ func (c *Connector[T]) Get(ctx context.Context) (T, error) {
 	}
 }
 
-func (c *Connector[T]) dialWithCancellation(ctx context.Context) (T, error) {
-	dialCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func (c *Connector[T]) dialWithCancellation(ctx context.Context) (T, context.CancelFunc, error) {
+	var zero T
+	connCtx, cancel := context.WithCancel(c.closeCtx)
 
+	dialDone := make(chan struct{})
 	go func() {
 		select {
-		case <-c.closeCtx.Done():
+		case <-ctx.Done():
 			cancel()
-		case <-dialCtx.Done():
+		case <-dialDone:
 		}
 	}()
 
-	return c.dial(dialCtx)
+	connection, err := c.dial(valueContext{connCtx, ctx})
+	close(dialDone)
+	if err != nil {
+		cancel()
+		return zero, nil, err
+	}
+	return connection, cancel, nil
+}
+
+type valueContext struct {
+	context.Context
+	parent context.Context
+}
+
+func (v valueContext) Value(key any) any {
+	return v.parent.Value(key)
+}
+
+func (v valueContext) Deadline() (time.Time, bool) {
+	return v.parent.Deadline()
 }
 
 func (c *Connector[T]) Close() error {
@@ -132,6 +167,10 @@ func (c *Connector[T]) Close() error {
 	}
 	c.closed = true
 
+	if c.connectionCancel != nil {
+		c.connectionCancel()
+		c.connectionCancel = nil
+	}
 	if c.hasConnection {
 		c.callbacks.Close(c.connection)
 		c.hasConnection = false
@@ -144,6 +183,10 @@ func (c *Connector[T]) Reset() {
 	c.access.Lock()
 	defer c.access.Unlock()
 
+	if c.connectionCancel != nil {
+		c.connectionCancel()
+		c.connectionCancel = nil
+	}
 	if c.hasConnection {
 		c.callbacks.Reset(c.connection)
 		c.hasConnection = false
