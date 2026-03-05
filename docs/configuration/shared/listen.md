@@ -37,6 +37,7 @@ icon: material/new-box
   "disable_tcp_keep_alive": false,
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
   "udp_fragment": false,
   "udp_timeout": "",
   "detour": "",
@@ -130,6 +131,12 @@ TCP keep alive initial period.
 TCP keep alive interval.
 
 `75s` will be used by default.
+
+#### tcp_keep_alive_count
+
+TCP keep alive probe count.
+
+The system default will be used by default.
 
 #### udp_fragment
 
