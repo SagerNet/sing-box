@@ -1,6 +1,7 @@
 package v2raygrpc
 
 import (
+	"context"
 	"net"
 	"os"
 	"time"
@@ -14,16 +15,18 @@ var _ net.Conn = (*GRPCConn)(nil)
 
 type GRPCConn struct {
 	GunService
-	cache []byte
+	cache  []byte
+	cancel context.CancelCauseFunc
 }
 
-func NewGRPCConn(service GunService) *GRPCConn {
+func NewGRPCConn(service GunService, cancel context.CancelCauseFunc) *GRPCConn {
 	//nolint:staticcheck
 	if client, isClient := service.(GunService_TunClient); isClient {
 		service = &clientConnWrapper{client}
 	}
 	return &GRPCConn{
 		GunService: service,
+		cancel:     cancel,
 	}
 }
 
@@ -54,6 +57,9 @@ func (c *GRPCConn) Write(b []byte) (n int, err error) {
 }
 
 func (c *GRPCConn) Close() error {
+	if c.cancel != nil {
+		c.cancel(nil)
+	}
 	return nil
 }
 
