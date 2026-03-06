@@ -466,7 +466,7 @@ Match specified outbounds' preferred routes.
 
 !!! quote ""
 
-    Only supported on Linux with `route.find_neighbor` enabled.
+    Only supported on Linux, macOS, or in graphical clients on Android and macOS. See [Neighbor Resolution](/configuration/shared/neighbor/) for setup.
 
 Match source device MAC address.
 
@@ -476,7 +476,7 @@ Match source device MAC address.
 
 !!! quote ""
 
-    Only supported on Linux with `route.find_neighbor` enabled.
+    Only supported on Linux, macOS, or in graphical clients on Android and macOS. See [Neighbor Resolution](/configuration/shared/neighbor/) for setup.
 
 Match source device hostname from DHCP leases.
 
