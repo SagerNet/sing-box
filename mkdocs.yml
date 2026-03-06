@@ -129,6 +129,7 @@ nav:
           - UDP over TCP: configuration/shared/udp-over-tcp.md
           - TCP Brutal: configuration/shared/tcp-brutal.md
           - Wi-Fi State: configuration/shared/wifi-state.md
+          - Neighbor Resolution: configuration/shared/neighbor.md
       - Endpoint:
           - configuration/endpoint/index.md
           - WireGuard: configuration/endpoint/wireguard.md
