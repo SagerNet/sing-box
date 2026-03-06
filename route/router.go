@@ -169,8 +169,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 				} else {
 					r.neighborResolver = resolver
 				}
-			}
-			if r.neighborResolver == nil {
+			} else {
 				monitor.Start("initialize neighbor resolver")
 				resolver, err := newNeighborResolver(r.logger, r.leaseFiles)
 				monitor.Finish()
