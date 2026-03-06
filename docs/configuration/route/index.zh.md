@@ -42,6 +42,7 @@ icon: material/alert-decagram
     "override_android_vpn": false,
     "default_interface": "",
     "default_mark": 0,
+    "find_process": false,
     "find_neighbor": false,
     "dhcp_lease_files": [],
     "default_network_strategy": "",
@@ -113,17 +114,25 @@ icon: material/alert-decagram
 
 如果设置了 `outbound.routing_mark` 设置，则不生效。
 
+#### find_process
+
+!!! quote ""
+
+    仅支持 Linux、Windows 和 macOS。
+
+在没有 `process_name`、`process_path`、`package_name`、`user` 或 `user_id` 规则时启用进程搜索以输出日志。
+
 #### find_neighbor
 
 !!! question "自 sing-box 1.14.0 起"
 
 !!! quote ""
 
-    仅支持 Linux。
+    仅支持 Linux 和 macOS。
 
-启用邻居解析以查找源 MAC 地址和主机名。
+在没有 `source_mac_address` 或 `source_hostname` 规则时启用邻居解析以输出日志。
 
-`source_mac_address` 和 `source_hostname` 规则项需要此选项。
+参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
 
 #### dhcp_lease_files
 
@@ -131,7 +140,7 @@ icon: material/alert-decagram
 
 !!! quote ""
 
-    仅支持 Linux。
+    仅支持 Linux 和 macOS。
 
 用于主机名和 MAC 地址解析的自定义 DHCP 租约文件路径。
 
