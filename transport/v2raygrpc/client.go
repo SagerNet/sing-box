@@ -106,7 +106,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		cancel(err)
 		return nil, err
 	}
-	return NewGRPCConn(stream), nil
+	return NewGRPCConn(stream, cancel), nil
 }
 
 func (c *Client) Close() error {
