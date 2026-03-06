@@ -78,6 +78,7 @@ func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformO
 	}
 	options.FileDescriptor = dupFd
 	w.myTunName = options.Name
+	w.iif.RegisterMyInterface(options.Name)
 	return tun.New(*options)
 }
 
@@ -240,11 +241,14 @@ func (w *neighborUpdateListenerWrapper) UpdateNeighborTable(entries NeighborEntr
 	var result []adapter.NeighborEntry
 	for entries.HasNext() {
 		entry := entries.Next()
+		if entry == nil {
+			continue
+		}
 		address, err := netip.ParseAddr(entry.Address)
 		if err != nil {
 			continue
 		}
-		macAddress, err := net.ParseMAC(entry.MACAddress)
+		macAddress, err := net.ParseMAC(entry.MacAddress)
 		if err != nil {
 			continue
 		}
