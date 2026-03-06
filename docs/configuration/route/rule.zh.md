@@ -464,7 +464,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅支持 Linux，且需要 `route.find_neighbor` 已启用。
+    仅支持 Linux、macOS，或在 Android 和 macOS 图形客户端中支持。参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
 
 匹配源设备 MAC 地址。
 
@@ -474,7 +474,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅支持 Linux，且需要 `route.find_neighbor` 已启用。
+    仅支持 Linux、macOS，或在 Android 和 macOS 图形客户端中支持。参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
 
 匹配源设备从 DHCP 租约获取的主机名。
 
