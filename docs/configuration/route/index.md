@@ -40,6 +40,7 @@ icon: material/alert-decagram
     "override_android_vpn": false,
     "default_interface": "",
     "default_mark": 0,
+    "find_process": false,
     "find_neighbor": false,
     "dhcp_lease_files": [],
     "default_domain_resolver": "", // or {}
@@ -114,17 +115,25 @@ Set routing mark by default.
 
 Takes no effect if `outbound.routing_mark` is set.
 
+#### find_process
+
+!!! quote ""
+
+    Only supported on Linux, Windows, and macOS.
+
+Enable process search for logging when no `process_name`, `process_path`, `package_name`, `user` or `user_id` rules exist.
+
 #### find_neighbor
 
 !!! question "Since sing-box 1.14.0"
 
 !!! quote ""
 
-    Only supported on Linux.
+    Only supported on Linux and macOS.
 
-Enable neighbor resolution for source MAC address and hostname lookup.
+Enable neighbor resolution for logging when no `source_mac_address` or `source_hostname` rules exist.
 
-Required for `source_mac_address` and `source_hostname` rule items.
+See [Neighbor Resolution](/configuration/shared/neighbor/) for setup.
 
 #### dhcp_lease_files
 
@@ -132,7 +141,7 @@ Required for `source_mac_address` and `source_hostname` rule items.
 
 !!! quote ""
 
-    Only supported on Linux.
+    Only supported on Linux and macOS.
 
 Custom DHCP lease file paths for hostname and MAC address resolution.
 
