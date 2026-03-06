@@ -47,6 +47,12 @@ elif command -v rpm >/dev/null 2>&1; then
   arch=$(uname -m)
   package_suffix=".rpm"
   package_install="rpm -i"
+elif command -v apk >/dev/null 2>&1 && [ -f /etc/os-release ] && grep -q OPENWRT_ARCH /etc/os-release; then
+  os="openwrt"
+  . /etc/os-release
+  arch="$OPENWRT_ARCH"
+  package_suffix=".apk"
+  package_install="apk add --allow-untrusted"
 elif command -v opkg >/dev/null 2>&1; then
   os="openwrt"
   . /etc/os-release

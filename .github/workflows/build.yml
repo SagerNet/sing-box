@@ -401,6 +401,21 @@ jobs:
             .github/deb2ipk.sh "$architecture" "dist/openwrt.deb" "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}.ipk"
           done
           rm "dist/openwrt.deb"
+      - name: Install apk-tools
+        if: matrix.openwrt != ''
+        run: |-
+          docker run --rm -v /usr/local/bin:/mnt alpine:edge sh -c "apk add --no-cache apk-tools-static && cp /sbin/apk.static /mnt/apk && chmod +x /mnt/apk"
+      - name: Package OpenWrt APK
+        if: matrix.openwrt != ''
+        run: |-
+          set -xeuo pipefail
+          for architecture in ${{ matrix.openwrt }}; do
+            .github/build_openwrt_apk.sh \
+              "$architecture" \
+              "${{ needs.calculate_version.outputs.version }}" \
+              "dist/sing-box" \
+              "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}.apk"
+          done
       - name: Archive
         run: |
           set -xeuo pipefail
