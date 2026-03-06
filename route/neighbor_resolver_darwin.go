@@ -1,4 +1,4 @@
-//go:build linux
+//go:build darwin
 
 package route
 
@@ -6,26 +6,22 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 
-	"github.com/jsimonetti/rtnetlink"
-	"github.com/mdlayher/netlink"
+	"golang.org/x/net/route"
 	"golang.org/x/sys/unix"
 )
 
 var defaultLeaseFiles = []string{
+	"/var/db/dhcpd_leases",
 	"/tmp/dhcp.leases",
-	"/var/lib/dhcp/dhcpd.leases",
-	"/var/lib/dhcpd/dhcpd.leases",
-	"/var/lib/kea/kea-leases4.csv",
-	"/var/lib/kea/kea-leases6.csv",
 }
 
 type neighborResolver struct {
@@ -138,54 +134,46 @@ func (r *neighborResolver) LookupHostname(address netip.Addr) (string, bool) {
 }
 
 func (r *neighborResolver) loadNeighborTable() error {
-	connection, err := rtnetlink.Dial(nil)
+	entries, err := ReadNeighborEntries()
 	if err != nil {
-		return E.Cause(err, "dial rtnetlink")
-	}
-	defer connection.Close()
-	neighbors, err := connection.Neigh.List()
-	if err != nil {
-		return E.Cause(err, "list neighbors")
+		return err
 	}
 	r.access.Lock()
 	defer r.access.Unlock()
-	for _, neigh := range neighbors {
-		if neigh.Attributes == nil {
-			continue
-		}
-		if neigh.Attributes.LLAddress == nil || len(neigh.Attributes.Address) == 0 {
-			continue
-		}
-		address, ok := netip.AddrFromSlice(neigh.Attributes.Address)
-		if !ok {
-			continue
-		}
-		r.neighborIPToMAC[address] = slices.Clone(neigh.Attributes.LLAddress)
+	for _, entry := range entries {
+		r.neighborIPToMAC[entry.Address] = entry.MACAddress
 	}
 	return nil
 }
 
 func (r *neighborResolver) subscribeNeighborUpdates() {
-	connection, err := netlink.Dial(unix.NETLINK_ROUTE, &netlink.Config{
-		Groups: 1 << (unix.RTNLGRP_NEIGH - 1),
-	})
+	routeSocket, err := unix.Socket(unix.AF_ROUTE, unix.SOCK_RAW, 0)
 	if err != nil {
 		r.logger.Warn(E.Cause(err, "subscribe neighbor updates"))
 		return
 	}
-	defer connection.Close()
+	err = unix.SetNonblock(routeSocket, true)
+	if err != nil {
+		unix.Close(routeSocket)
+		r.logger.Warn(E.Cause(err, "set route socket nonblock"))
+		return
+	}
+	routeSocketFile := os.NewFile(uintptr(routeSocket), "route")
+	defer routeSocketFile.Close()
+	buffer := buf.NewPacket()
+	defer buffer.Release()
 	for {
 		select {
 		case <-r.done:
 			return
 		default:
 		}
-		err = connection.SetReadDeadline(time.Now().Add(3 * time.Second))
+		err = setReadDeadline(routeSocketFile, 3*time.Second)
 		if err != nil {
-			r.logger.Warn(E.Cause(err, "set netlink read deadline"))
+			r.logger.Warn(E.Cause(err, "set route socket read deadline"))
 			return
 		}
-		messages, err := connection.Receive()
+		n, err := routeSocketFile.Read(buffer.FreeBytes())
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				continue
@@ -198,8 +186,19 @@ func (r *neighborResolver) subscribeNeighborUpdates() {
 			r.logger.Warn(E.Cause(err, "receive neighbor update"))
 			continue
 		}
+		messages, err := route.ParseRIB(route.RIBTypeRoute, buffer.FreeBytes()[:n])
+		if err != nil {
+			continue
+		}
 		for _, message := range messages {
-			address, mac, isDelete, ok := ParseNeighborMessage(message)
+			routeMessage, isRouteMessage := message.(*route.RouteMessage)
+			if !isRouteMessage {
+				continue
+			}
+			if routeMessage.Flags&unix.RTF_LLINFO == 0 {
+				continue
+			}
+			address, mac, isDelete, ok := ParseRouteNeighborMessage(routeMessage)
 			if !ok {
 				continue
 			}
@@ -221,4 +220,20 @@ func (r *neighborResolver) doReloadLeaseFiles() {
 	r.ipToHostname = ipToHostname
 	r.macToHostname = macToHostname
 	r.access.Unlock()
+}
+
+func setReadDeadline(file *os.File, timeout time.Duration) error {
+	rawConn, err := file.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var controlErr error
+	err = rawConn.Control(func(fd uintptr) {
+		tv := unix.NsecToTimeval(int64(timeout))
+		controlErr = unix.SetsockoptTimeval(int(fd), unix.SOL_SOCKET, unix.SO_RCVTIMEO, &tv)
+	})
+	if err != nil {
+		return err
+	}
+	return controlErr
 }
