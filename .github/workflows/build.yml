@@ -47,7 +47,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -124,7 +124,7 @@ jobs:
         if: ${{ ! (matrix.legacy_win7 || matrix.legacy_go124) }}
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Setup Go 1.24
         if: matrix.legacy_go124
         uses: actions/setup-go@v5
@@ -137,9 +137,11 @@ jobs:
         with:
           path: |
             ~/go/go_win7
-          key: go_win7_1255
+          key: go_win7_1258
       - name: Setup Go for Windows 7
         if: matrix.legacy_win7 && steps.cache-go-for-windows7.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |-
           .github/setup_go_for_windows7.sh
       - name: Setup Go for Windows 7
@@ -605,7 +607,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -695,7 +697,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -794,7 +796,7 @@ jobs:
         if: matrix.if
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Set tag
         if: matrix.if
         run: |-
