@@ -1,24 +1,9 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package libbox
 
 import "os"
 
-type NeighborEntry struct {
-	Address    string
-	MACAddress string
-	Hostname   string
-}
-
-type NeighborEntryIterator interface {
-	Next() *NeighborEntry
-	HasNext() bool
-}
-
-type NeighborSubscription struct{}
-
-func SubscribeNeighborTable(listener NeighborUpdateListener) (*NeighborSubscription, error) {
+func SubscribeNeighborTable(_ NeighborUpdateListener) (*NeighborSubscription, error) {
 	return nil, os.ErrInvalid
 }
-
-func (s *NeighborSubscription) Close() {}

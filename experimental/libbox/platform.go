@@ -23,6 +23,7 @@ type PlatformInterface interface {
 	SendNotification(notification *Notification) error
 	StartNeighborMonitor(listener NeighborUpdateListener) error
 	CloseNeighborMonitor(listener NeighborUpdateListener) error
+	RegisterMyInterface(name string)
 }
 
 type NeighborUpdateListener interface {
