@@ -376,6 +376,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	proxyRequest.Header.Set("Authorization", "Bearer "+accessToken)
 
+	// Strip Accept-Encoding so Go Transport adds it automatically
+	// and transparently decompresses the response for correct usage counting.
+	proxyRequest.Header.Del("Accept-Encoding")
+
 	response, err := s.httpClient.Do(proxyRequest)
 	if err != nil {
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", err.Error())
