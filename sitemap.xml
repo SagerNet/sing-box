@@ -1,0 +1,1641 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://sing-box.sagernet.org/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/changelog/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/changelog/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/changelog/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/deprecated/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/deprecated/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/deprecated/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/migration/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/migration/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/migration/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/sponsors/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/sponsors/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/sponsors/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/support/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/support/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/support/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/general/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/general/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/general/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/privacy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/privacy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/privacy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/android/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/android/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/android/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/android/features/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/android/features/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/android/features/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/apple/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/apple/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/apple/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/clients/apple/features/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/apple/features/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/apple/features/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/certificate/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/certificate/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/certificate/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/fakeip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/fakeip/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/fakeip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/rule/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/rule_action/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/rule_action/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/rule_action/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/dhcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/dhcp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/dhcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/fakeip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/fakeip/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/fakeip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/hosts/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/hosts/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/hosts/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/http3/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/http3/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/http3/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/https/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/https/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/https/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/legacy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/legacy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/legacy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/local/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/local/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/local/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/quic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/quic/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/quic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/resolved/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/resolved/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/resolved/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/tailscale/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tailscale/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tailscale/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/tcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tcp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/tls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/dns/server/udp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/udp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/udp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/endpoint/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/endpoint/tailscale/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/tailscale/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/tailscale/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/endpoint/wireguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/wireguard/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/wireguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/experimental/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/experimental/cache-file/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/cache-file/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/cache-file/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/experimental/clash-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/clash-api/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/clash-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/experimental/v2ray-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/v2ray-api/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/v2ray-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/anytls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/anytls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/anytls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/direct/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/direct/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/direct/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/http/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/http/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/http/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/hysteria/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/hysteria/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/mixed/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/mixed/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/mixed/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/naive/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/naive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/naive/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/redirect/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/redirect/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/redirect/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/shadowtls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/shadowtls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/shadowtls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/socks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/socks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/socks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/tproxy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tproxy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tproxy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/trojan/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/tuic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tuic/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tuic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/tun/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tun/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tun/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/vless/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/vless/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/vless/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/inbound/vmess/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/vmess/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/vmess/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/log/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/log/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/log/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/ntp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/ntp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/ntp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/anytls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/anytls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/anytls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/block/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/block/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/block/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/direct/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/direct/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/direct/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/dns/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/dns/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/dns/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/http/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/http/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/http/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/hysteria/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/hysteria/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/hysteria/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/naive/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/naive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/naive/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/selector/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/selector/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/selector/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/shadowtls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/shadowtls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/shadowtls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/socks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/socks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/socks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/ssh/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/ssh/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/ssh/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/tor/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/tor/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/tor/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/trojan/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/tuic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/tuic/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/tuic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/urltest/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/urltest/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/urltest/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/vless/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/vless/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/vless/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/vmess/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/vmess/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/vmess/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/outbound/wireguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/wireguard/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/wireguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/geoip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/geoip/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/geoip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/geosite/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/geosite/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/geosite/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/rule/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/rule_action/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/rule_action/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/rule_action/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/route/sniff/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/sniff/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/sniff/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/rule-set/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/rule-set/adguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/adguard/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/adguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/rule-set/headless-rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/headless-rule/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/headless-rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/rule-set/source-format/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/source-format/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/source-format/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/ccm/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ccm/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ccm/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/derp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/derp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/derp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/ocm/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ocm/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ocm/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/resolved/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/resolved/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/resolved/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/service/ssm-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ssm-api/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ssm-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/dial/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/dial/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/dial/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/dns01_challenge/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/dns01_challenge/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/dns01_challenge/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/listen/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/listen/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/listen/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/multiplex/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/multiplex/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/multiplex/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/neighbor/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/neighbor/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/neighbor/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/pre-match/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/pre-match/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/pre-match/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/tcp-brutal/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/tcp-brutal/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/tcp-brutal/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/tls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/tls/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/tls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/udp-over-tcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/udp-over-tcp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/udp-over-tcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/v2ray-transport/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/v2ray-transport/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/v2ray-transport/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/configuration/shared/wifi-state/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/wifi-state/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/wifi-state/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/installation/build-from-source/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/build-from-source/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/build-from-source/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/installation/docker/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/docker/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/docker/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/installation/package-manager/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/package-manager/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/package-manager/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/misc/tunnelvision/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/misc/tunnelvision/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/misc/tunnelvision/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/proxy/client/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy/client/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy/client/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/proxy/server/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy/server/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy/server/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/proxy-protocol/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/proxy-protocol/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/manual/proxy-protocol/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/trojan/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/changelog/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/changelog/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/changelog/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/deprecated/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/deprecated/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/deprecated/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/migration/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/migration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/migration/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/sponsors/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/sponsors/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/sponsors/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/support/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/support/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/support/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/general/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/general/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/general/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/privacy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/privacy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/privacy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/android/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/android/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/android/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/android/features/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/android/features/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/android/features/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/apple/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/apple/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/apple/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/clients/apple/features/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/clients/apple/features/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/clients/apple/features/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/certificate/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/certificate/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/certificate/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/fakeip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/fakeip/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/fakeip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/rule/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/rule_action/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/rule_action/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/rule_action/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/dhcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/dhcp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/dhcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/fakeip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/fakeip/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/fakeip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/hosts/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/hosts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/hosts/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/http3/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/http3/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/http3/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/https/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/https/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/https/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/legacy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/legacy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/legacy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/local/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/local/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/local/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/quic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/quic/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/quic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/resolved/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/resolved/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/resolved/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/tailscale/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tailscale/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tailscale/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/tcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tcp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/tls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/tls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/tls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/dns/server/udp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/dns/server/udp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/dns/server/udp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/endpoint/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/endpoint/tailscale/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/tailscale/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/tailscale/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/endpoint/wireguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/endpoint/wireguard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/endpoint/wireguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/experimental/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/experimental/cache-file/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/cache-file/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/cache-file/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/experimental/clash-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/clash-api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/clash-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/experimental/v2ray-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/experimental/v2ray-api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/experimental/v2ray-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/anytls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/anytls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/anytls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/direct/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/direct/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/direct/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/http/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/http/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/http/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/hysteria/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/hysteria/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/mixed/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/mixed/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/mixed/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/naive/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/naive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/naive/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/redirect/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/redirect/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/redirect/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/shadowtls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/shadowtls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/shadowtls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/socks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/socks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/socks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/tproxy/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tproxy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tproxy/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/trojan/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/tuic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tuic/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tuic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/tun/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/tun/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/tun/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/vless/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/vless/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/vless/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/inbound/vmess/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/inbound/vmess/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/inbound/vmess/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/log/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/log/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/log/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/ntp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/ntp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/ntp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/anytls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/anytls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/anytls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/block/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/block/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/block/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/direct/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/direct/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/direct/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/dns/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/dns/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/dns/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/http/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/http/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/http/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/hysteria/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/hysteria/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/hysteria/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/naive/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/naive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/naive/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/selector/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/selector/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/selector/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/shadowtls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/shadowtls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/shadowtls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/socks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/socks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/socks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/ssh/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/ssh/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/ssh/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/tor/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/tor/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/tor/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/trojan/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/tuic/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/tuic/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/tuic/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/urltest/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/urltest/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/urltest/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/vless/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/vless/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/vless/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/vmess/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/vmess/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/vmess/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/outbound/wireguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/outbound/wireguard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/outbound/wireguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/geoip/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/geoip/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/geoip/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/geosite/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/geosite/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/geosite/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/rule/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/rule_action/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/rule_action/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/rule_action/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/route/sniff/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/route/sniff/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/route/sniff/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/rule-set/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/rule-set/adguard/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/adguard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/adguard/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/rule-set/headless-rule/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/headless-rule/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/headless-rule/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/rule-set/source-format/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/rule-set/source-format/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/rule-set/source-format/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/ccm/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ccm/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ccm/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/derp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/derp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/derp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/ocm/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ocm/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ocm/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/resolved/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/resolved/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/resolved/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/service/ssm-api/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/service/ssm-api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/service/ssm-api/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/dial/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/dial/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/dial/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/dns01_challenge/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/dns01_challenge/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/dns01_challenge/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/listen/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/listen/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/listen/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/multiplex/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/multiplex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/multiplex/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/neighbor/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/neighbor/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/neighbor/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/pre-match/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/pre-match/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/pre-match/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/tcp-brutal/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/tcp-brutal/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/tcp-brutal/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/tls/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/tls/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/tls/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/udp-over-tcp/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/udp-over-tcp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/udp-over-tcp/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/v2ray-transport/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/v2ray-transport/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/v2ray-transport/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/configuration/shared/wifi-state/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/configuration/shared/wifi-state/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/configuration/shared/wifi-state/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/installation/build-from-source/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/build-from-source/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/build-from-source/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/installation/docker/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/docker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/docker/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/installation/package-manager/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/installation/package-manager/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/installation/package-manager/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/misc/tunnelvision/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/misc/tunnelvision/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/misc/tunnelvision/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/proxy/client/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy/client/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy/client/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/proxy/server/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy/server/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy/server/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/proxy-protocol/hysteria2/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/hysteria2/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/hysteria2/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/proxy-protocol/shadowsocks/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/shadowsocks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/shadowsocks/"/>
+    </url>
+    <url>
+        <loc>https://sing-box.sagernet.org/zh/manual/proxy-protocol/trojan/</loc>
+        <lastmod>2026-03-07</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://sing-box.sagernet.org/zh/manual/proxy-protocol/trojan/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://sing-box.sagernet.org/manual/proxy-protocol/trojan/"/>
+    </url>
+</urlset>
