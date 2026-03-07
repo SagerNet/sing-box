@@ -2,12 +2,106 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.16
+
+* Add ACME profile support for IP address certificates
+* Fixes and improvements
+
 #### 1.13.10
 
 * Fix process searcher failure introduced in 1.13.9
 
+#### 1.14.0-alpha.15
+
+* Add search domain support for Tailscale DNS **1**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale DNS Server](/configuration/dns/server/tailscale/#accept_search_domain).
+
 #### 1.13.9
 
+* Fixes and improvements
+
+#### 1.14.0-alpha.13
+
+* Unify HTTP client **1**
+* Add Apple HTTP and TLS engines **2**
+* Unify HTTP/2 and QUIC parameters **3**
+* Add TLS spoof **4**
+* Fixes and improvements
+
+**1**:
+
+The new top-level [`http_clients`](/configuration/shared/http-client/)
+option defines reusable HTTP clients (engine, version, dialer, TLS,
+HTTP/2 and QUIC parameters). Components that make outbound HTTP requests
+— remote rule-sets, ACME and Cloudflare Origin CA certificate providers,
+DERP `verify_client_url`, and the Tailscale `control_http_client` — now
+accept an inline HTTP client object or the tag of an `http_clients`
+entry, replacing the dial and TLS fields previously inlined in each
+component. When the field is omitted, ACME, Cloudflare Origin CA, DERP
+and Tailscale dial direct (their existing default).
+
+Remote rule-sets are the only HTTP-using component whose default for an
+omitted `http_client` has historically resolved to the default outbound,
+not to direct, and a typical configuration contains many of them. To
+avoid repeating the same `http_client` block in every rule-set,
+[`route.default_http_client`](/configuration/route/#default_http_client)
+selects a default rule-set client by tag and is the only field that
+consults it. If `default_http_client` is empty and `http_clients` is
+non-empty, the first entry is used automatically. The legacy fallback
+(use the default outbound when `http_clients` is empty altogether) is
+preserved with a deprecation warning and will be removed in sing-box
+1.16.0, together with the legacy `download_detour` remote rule-set
+option and the legacy dialer fields on Tailscale endpoints.
+
+**2**:
+
+A new `apple` engine is available on Apple platforms in two independent
+places:
+
+* [HTTP client `engine`](/configuration/shared/http-client/#engine) —
+  routes HTTP requests through `NSURLSession`.
+* Outbound TLS [`engine`](/configuration/shared/tls/#engine) — routes
+  the TLS handshake through `Network.framework` for direct TCP TLS
+  client connections.
+
+The default remains `go`. Both engines come with additional CGO and
+framework memory overhead and platform restrictions documented on each
+field.
+
+**3**:
+
+[HTTP/2](/configuration/shared/http2/) and
+[QUIC](/configuration/shared/quic/) parameters
+(`idle_timeout`, `keep_alive_period`, `stream_receive_window`,
+`connection_receive_window`, `max_concurrent_streams`,
+`initial_packet_size`, `disable_path_mtu_discovery`) are now shared
+across QUIC-based outbounds
+([Hysteria](/configuration/outbound/hysteria/),
+[Hysteria2](/configuration/outbound/hysteria2/),
+[TUIC](/configuration/outbound/tuic/)) and HTTP clients running HTTP/2
+or HTTP/3.
+
+This deprecates the Hysteria v1 tuning fields `recv_window_conn`,
+`recv_window`, `recv_window_client`, `max_conn_client` and
+`disable_mtu_discovery`; they will be removed in sing-box 1.16.0.
+
+**4**:
+
+Added outbound TLS [`spoof`](/configuration/shared/tls/#spoof) and
+[`spoof_method`](/configuration/shared/tls/#spoof_method) fields. When
+enabled, a forged ClientHello carrying a whitelisted SNI is sent before
+the real handshake to fool SNI-filtering middleboxes. Requires
+`CAP_NET_RAW` + `CAP_NET_ADMIN` or root on Linux and macOS, and
+Administrator privileges on Windows (ARM64 is not supported). IP-literal
+server names are rejected.
+
+#### 1.14.0-alpha.12
+
+* Fix fake-ip DNS server should return SUCCESS when address type is not configured
 * Fixes and improvements
 
 #### 1.13.8
@@ -16,21 +110,127 @@ icon: material/alert-decagram
 * Fix fake-ip DNS server should return SUCCESS when address type is not configured
 * Fixes and improvements
 
+#### 1.14.0-alpha.11
+
+* Add optimistic DNS cache **1**
+* Update NaiveProxy to 147.0.7727.49
+* Fixes and improvements
+
+**1**:
+
+Optimistic DNS cache returns an expired cached response immediately while
+refreshing it in the background, reducing tail latency for repeated
+queries. Enabled via [`optimistic`](/configuration/dns/#optimistic)
+in DNS options, and can be persisted across restarts with the new
+[`store_dns`](/configuration/experimental/cache-file/#store_dns) cache
+file option. A per-query
+[`disable_optimistic_cache`](/configuration/dns/rule_action/#disable_optimistic_cache)
+field is also available on DNS rule actions and the `resolve` route rule
+action.
+
+This deprecates the `independent_cache` DNS option (the DNS cache now
+always keys by transport) and the `store_rdrc` cache file option
+(replaced by `store_dns`); both will be removed in sing-box 1.16.0.
+See [Migration](/migration/#migrate-independent-dns-cache).
+
+#### 1.14.0-alpha.10
+
+* Add `evaluate` DNS rule action and Response Match Fields **1**
+* `ip_version` and `query_type` now also take effect on internal DNS lookups **2**
+* Add `package_name_regex` route, DNS and headless rule item **3**
+* Add cloudflared inbound **4**
+* Fixes and improvements
+
+**1**:
+
+Response Match Fields
+([`response_rcode`](/configuration/dns/rule/#response_rcode),
+[`response_answer`](/configuration/dns/rule/#response_answer),
+[`response_ns`](/configuration/dns/rule/#response_ns),
+and [`response_extra`](/configuration/dns/rule/#response_extra))
+match the evaluated DNS response. They are gated by the new
+[`match_response`](/configuration/dns/rule/#match_response) field and
+populated by a preceding
+[`evaluate`](/configuration/dns/rule_action/#evaluate) DNS rule action;
+the evaluated response can also be returned directly by a
+[`respond`](/configuration/dns/rule_action/#respond) action.
+
+This deprecates the Legacy Address Filter Fields (`ip_cidr`,
+`ip_is_private` without `match_response`) in DNS rules, the Legacy
+`strategy` DNS rule action option, and the Legacy
+`rule_set_ip_cidr_accept_empty` DNS rule item; all three will be removed
+in sing-box 1.16.0.
+See [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
+
+**2**:
+
+`ip_version` and `query_type` in DNS rules, together with `query_type` in
+referenced rule-sets, now take effect on every DNS rule evaluation,
+including matches from internal domain resolutions that do not target a
+specific DNS server (for example a `resolve` route rule action without
+`server` set). In earlier versions they were silently ignored in that
+path. Combining these fields with any of the legacy DNS fields deprecated
+in **1** in the same DNS configuration is no longer supported and is
+rejected at startup.
+See [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).
+
+**3**:
+
+See [Route Rule](/configuration/route/rule/#package_name_regex),
+[DNS Rule](/configuration/dns/rule/#package_name_regex) and
+[Headless Rule](/configuration/rule-set/headless-rule/#package_name_regex).
+
+**4**:
+
+See [Cloudflared](/configuration/inbound/cloudflared/).
+
 #### 1.13.7
 
-* Fixes and improvements
+* Fixes and improvement
 
 #### 1.13.6
 
 * Fixes and improvements
 
+#### 1.14.0-alpha.8
+
+* Add BBR profile and hop interval randomization for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2 Inbound](/configuration/inbound/hysteria2/#bbr_profile) and [Hysteria2 Outbound](/configuration/outbound/hysteria2/#bbr_profile).
+
 #### 1.13.5
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.7
 
 * Fixes and improvements
 
 #### 1.13.4
 
 * Fixes and improvements
+
+#### 1.14.0-alpha.4
+
+* Refactor ACME support to certificate provider system **1**
+* Add Cloudflare Origin CA certificate provider **2**
+* Add Tailscale certificate provider **3**
+* Fixes and improvements
+
+**1**:
+
+See [Certificate Provider](/configuration/shared/certificate-provider/) and [Migration](/migration/#migrate-inline-acme-to-certificate-provider).
+
+**2**:
+
+See [Cloudflare Origin CA](/configuration/shared/certificate-provider/cloudflare-origin-ca).
+
+**3**:
+
+See [Tailscale](/configuration/shared/certificate-provider/tailscale).
 
 #### 1.13.3
 
@@ -55,6 +255,59 @@ from [SagerNet/go](https://github.com/SagerNet/go).
 **3**:
 
 See [OCM](/configuration/service/ocm).
+
+#### 1.12.24
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.2
+
+* Add OpenWrt and Alpine APK packages to release **1**
+* Backport to macOS 10.13 High Sierra **2**
+* OCM service: Add WebSocket support for Responses API **3**
+* Fixes and improvements
+
+**1**:
+
+Alpine APK files use `linux` in the filename to distinguish from OpenWrt APKs which use the `openwrt` prefix:
+
+- OpenWrt: `sing-box_{version}_openwrt_{architecture}.apk`
+- Alpine: `sing-box_{version}_linux_{architecture}.apk`
+
+**2**:
+
+Legacy macOS binaries (with `-legacy-macos-10.13` suffix) now support
+macOS 10.13 High Sierra, built using Go 1.25 with patches
+from [SagerNet/go](https://github.com/SagerNet/go).
+
+**3**:
+
+See [OCM](/configuration/service/ocm).
+
+#### 1.14.0-alpha.1
+
+* Add `source_mac_address` and `source_hostname` rule items **1**
+* Add `include_mac_address` and `exclude_mac_address` TUN options **2**
+* Update NaiveProxy to 145.0.7632.159 **3**
+* Fixes and improvements
+
+**1**:
+
+New rule items for matching LAN devices by MAC address and hostname via neighbor resolution.
+Supported on Linux, macOS, or in graphical clients on Android and macOS.
+
+See [Route Rule](/configuration/route/rule/#source_mac_address), [DNS Rule](/configuration/dns/rule/#source_mac_address) and [Neighbor Resolution](/configuration/shared/neighbor/).
+
+**2**:
+
+Limit or exclude devices from TUN routing by MAC address.
+Only supported on Linux with `auto_route` and `auto_redirect` enabled.
+
+See [TUN](/configuration/inbound/tun/#include_mac_address).
+
+**3**:
+
+This is not an official update from NaiveProxy. Instead, it's a Chromium codebase update maintained by Project S.
 
 #### 1.13.2
 
