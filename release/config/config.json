@@ -5,7 +5,9 @@
   "dns": {
     "servers": [
       {
-        "address": "tls://8.8.8.8"
+        "type": "tls",
+        "tag": "google",
+        "server": "8.8.8.8"
       }
     ]
   },
@@ -26,17 +28,13 @@
   "outbounds": [
     {
       "type": "direct"
-    },
-    {
-      "type": "dns",
-      "tag": "dns-out"
     }
   ],
   "route": {
     "rules": [
       {
         "port": 53,
-        "outbound": "dns-out"
+        "action": "hijack-dns"
       }
     ]
   }
