@@ -362,6 +362,13 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	serviceOverridesAcceptEncoding := len(s.httpHeaders.Values("Accept-Encoding")) > 0
+	if s.usageTracker != nil && !serviceOverridesAcceptEncoding {
+		// Strip Accept-Encoding so Go Transport adds it automatically
+		// and transparently decompresses the response for correct usage counting.
+		proxyRequest.Header.Del("Accept-Encoding")
+	}
+
 	anthropicBetaHeader := proxyRequest.Header.Get("anthropic-beta")
 	if anthropicBetaHeader != "" {
 		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue+","+anthropicBetaHeader)
