@@ -151,6 +151,7 @@ func ListenNetworkNamespace[T any](nameOrPath string, block func() (T, error)) (
 		if err != nil {
 			return common.DefaultValue[T](), E.Cause(err, "get current netns")
 		}
+		defer currentNs.Close()
 		defer netns.Set(currentNs)
 		var targetNs netns.NsHandle
 		if strings.HasPrefix(nameOrPath, "/") {
