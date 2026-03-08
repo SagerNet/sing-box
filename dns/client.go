@@ -324,16 +324,20 @@ func (c *Client) Lookup(ctx context.Context, transport adapter.DNSTransport, dom
 	} else {
 		strategy = options.Strategy
 	}
+	lookupOptions := options
+	if options.LookupStrategy != C.DomainStrategyAsIS {
+		lookupOptions.Strategy = strategy
+	}
 	if strategy == C.DomainStrategyIPv4Only {
-		return c.lookupToExchange(ctx, transport, dnsName, dns.TypeA, options, responseChecker)
+		return c.lookupToExchange(ctx, transport, dnsName, dns.TypeA, lookupOptions, responseChecker)
 	} else if strategy == C.DomainStrategyIPv6Only {
-		return c.lookupToExchange(ctx, transport, dnsName, dns.TypeAAAA, options, responseChecker)
+		return c.lookupToExchange(ctx, transport, dnsName, dns.TypeAAAA, lookupOptions, responseChecker)
 	}
 	var response4 []netip.Addr
 	var response6 []netip.Addr
 	var group task.Group
 	group.Append("exchange4", func(ctx context.Context) error {
-		response, err := c.lookupToExchange(ctx, transport, dnsName, dns.TypeA, options, responseChecker)
+		response, err := c.lookupToExchange(ctx, transport, dnsName, dns.TypeA, lookupOptions, responseChecker)
 		if err != nil {
 			return err
 		}
@@ -341,7 +345,7 @@ func (c *Client) Lookup(ctx context.Context, transport adapter.DNSTransport, dom
 		return nil
 	})
 	group.Append("exchange6", func(ctx context.Context) error {
-		response, err := c.lookupToExchange(ctx, transport, dnsName, dns.TypeAAAA, options, responseChecker)
+		response, err := c.lookupToExchange(ctx, transport, dnsName, dns.TypeAAAA, lookupOptions, responseChecker)
 		if err != nil {
 			return err
 		}
