@@ -195,7 +195,16 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 			}
 		}
 	}
-	return r.transport.Default(), nil, -1
+	transport := r.transport.Default()
+	if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
+		if options.Strategy == C.DomainStrategyAsIS {
+			options.Strategy = legacyTransport.LegacyStrategy()
+		}
+		if !options.ClientSubnet.IsValid() {
+			options.ClientSubnet = legacyTransport.LegacyClientSubnet()
+		}
+	}
+	return transport, nil, -1
 }
 
 func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
@@ -345,7 +354,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 		transport := options.Transport
 		if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
 			if options.Strategy == C.DomainStrategyAsIS {
-				options.Strategy = r.defaultDomainStrategy
+				options.Strategy = legacyTransport.LegacyStrategy()
 			}
 			if !options.ClientSubnet.IsValid() {
 				options.ClientSubnet = legacyTransport.LegacyClientSubnet()
