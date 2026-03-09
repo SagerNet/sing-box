@@ -121,15 +121,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: ${{ ! (matrix.legacy_win7 || matrix.legacy_go124) }}
+        if: ${{ ! matrix.legacy_win7 }}
         uses: actions/setup-go@v5
         with:
           go-version: ~1.25.8
-      - name: Setup Go 1.24
-        if: matrix.legacy_go124
-        uses: actions/setup-go@v5
-        with:
-          go-version: ~1.24.10
       - name: Cache Go for Windows 7
         if: matrix.legacy_win7
         id: cache-go-for-windows7
@@ -436,22 +431,36 @@ jobs:
         include:
           - { arch: amd64 }
           - { arch: arm64 }
-          - { arch: amd64, legacy_go124: true, legacy_name: "macos-11" }
+          - { arch: amd64, legacy_osx: true, legacy_name: "macos-10.13" }
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
-        if: ${{ ! matrix.legacy_go124 }}
+        if: ${{ ! matrix.legacy_osx }}
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.3
-      - name: Setup Go 1.24
-        if: matrix.legacy_go124
-        uses: actions/setup-go@v5
+      - name: Cache Go for macOS 10.13
+        if: matrix.legacy_osx
+        id: cache-go-for-macos1013
+        uses: actions/cache@v4
         with:
-          go-version: ~1.24.6
+          path: |
+            ~/go/go_osx
+          key: go_osx_1258
+      - name: Setup Go for macOS 10.13
+        if: matrix.legacy_osx && steps.cache-go-for-macos1013.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |-
+          .github/setup_go_for_macos1013.sh
+      - name: Setup Go for macOS 10.13
+        if: matrix.legacy_osx
+        run: |-
+          echo "PATH=$HOME/go/go_osx/bin:$PATH" >> $GITHUB_ENV
+          echo "GOROOT=$HOME/go/go_osx" >> $GITHUB_ENV
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
@@ -459,7 +468,7 @@ jobs:
       - name: Set build tags
         run: |
           set -xeuo pipefail
-          if [[ "${{ matrix.legacy_go124 }}" != "true" ]]; then
+          if [[ "${{ matrix.legacy_osx }}" != "true" ]]; then
             TAGS=$(cat release/DEFAULT_BUILD_TAGS)
           else
             TAGS=$(cat release/DEFAULT_BUILD_TAGS_OTHERS)
@@ -479,6 +488,7 @@ jobs:
           CGO_ENABLED: "1"
           GOOS: darwin
           GOARCH: ${{ matrix.arch }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.legacy_osx && '10.13' || '' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set name
         run: |-
