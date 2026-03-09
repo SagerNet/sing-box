@@ -144,7 +144,7 @@ func (t *Endpoint) registerNetstackHandlers() {
 			ctx := log.ContextWithNewID(t.ctx)
 			source := M.SocksaddrFrom(src.Addr(), src.Port())
 			destination := M.SocksaddrFrom(dst.Addr(), dst.Port())
-			packetConn := bufio.NewPacketConn(conn)
+			packetConn := bufio.NewUnbindPacketConnWithAddr(conn, destination)
 			t.NewPacketConnectionEx(ctx, packetConn, source, destination, nil)
 		}, true
 	}
