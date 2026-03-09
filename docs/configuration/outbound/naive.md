@@ -34,10 +34,12 @@ icon: material/new-box
 
     | Build Variant | Platforms | Description |
     |---------------|-----------|-------------|
-    | (default)     | Linux amd64/arm64 | purego build with `libcronet.so` included |
-    | `-glibc`      | Linux 386/amd64/arm/arm64 | CGO build dynamically linked with glibc, requires glibc >= 2.31 |
-    | `-musl`       | Linux 386/amd64/arm/arm64 | CGO build statically linked with musl, no system requirements |
-    | (default)     | Windows amd64/arm64 | purego build with `libcronet.dll` included |
+    | (no suffix) | Linux amd64/arm64 | purego build, `libcronet.so` included |
+    | `-glibc` | Linux 386/amd64/arm/arm64/mipsle/mips64le/riscv64/loong64 | CGO build, dynamically linked with glibc, requires glibc >= 2.31 (loong64: >= 2.36) |
+    | `-musl` | Linux 386/amd64/arm/arm64/mipsle/riscv64/loong64 | CGO build, statically linked with musl |
+    | (no suffix) | Windows amd64/arm64 | purego build, `libcronet.dll` included |
+
+    For Linux, choose the glibc or musl variant based on your distribution's libc type.
 
     **Runtime Requirements:**
 

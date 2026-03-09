@@ -32,12 +32,14 @@ icon: material/new-box
 
     **官方发布版本区别：**
 
-    | 构建变体      | 平台                     | 说明                                       |
-    |-----------|------------------------|------------------------------------------|
-    | (默认)      | Linux amd64/arm64      | purego 构建，包含 `libcronet.so`              |
-    | `-glibc`  | Linux 386/amd64/arm/arm64 | CGO 构建，动态链接 glibc，要求 glibc >= 2.31       |
-    | `-musl`   | Linux 386/amd64/arm/arm64 | CGO 构建，静态链接 musl，无系统要求                   |
-    | (默认)      | Windows amd64/arm64 | purego 构建，包含 `libcronet.dll`             |
+    | 构建变体 | 平台 | 说明 |
+    |---|---|---|
+    | (无后缀) | Linux amd64/arm64 | purego 构建，包含 `libcronet.so` |
+    | `-glibc` | Linux 386/amd64/arm/arm64/mipsle/mips64le/riscv64/loong64 | CGO 构建，动态链接 glibc，要求 glibc >= 2.31（loong64: >= 2.36） |
+    | `-musl` | Linux 386/amd64/arm/arm64/mipsle/riscv64/loong64 | CGO 构建，静态链接 musl |
+    | (无后缀) | Windows amd64/arm64 | purego 构建，包含 `libcronet.dll` |
+
+    对于 Linux，请根据发行版的 libc 类型选择 glibc 或 musl 变体。
 
     **运行时要求：**
 

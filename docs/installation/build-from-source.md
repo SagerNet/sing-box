@@ -92,14 +92,14 @@ NaiveProxy outbound requires special build configurations depending on your targ
 
 ### Supported Platforms
 
-| Platform        | Architectures          | Mode   | Requirements                                      |
-|-----------------|------------------------|--------|---------------------------------------------------|
-| Linux           | amd64, arm64           | purego | None (library included in official releases)      |
-| Linux           | 386, amd64, arm, arm64 | CGO    | Chromium toolchain, glibc >= 2.31 at runtime      |
-| Linux (musl)    | 386, amd64, arm, arm64 | CGO    | Chromium toolchain                                |
-| Windows         | amd64, arm64           | purego | None (library included in official releases)      |
-| Apple platforms | *                      | CGO    | Xcode                                             |
-| Android         | *                      | CGO    | Android NDK                                       |
+| Platform        | Architectures                                          | Mode   | Requirements                                                    |
+|-----------------|--------------------------------------------------------|--------|-----------------------------------------------------------------|
+| Linux           | amd64, arm64                                           | purego | None (library included in official releases)                    |
+| Linux           | 386, amd64, arm, arm64, mipsle, mips64le, riscv64, loong64 | CGO    | Chromium toolchain, glibc >= 2.31 (loong64: >= 2.36) at runtime |
+| Linux (musl)    | 386, amd64, arm, arm64, mipsle, riscv64, loong64       | CGO    | Chromium toolchain                                              |
+| Windows         | amd64, arm64                                           | purego | None (library included in official releases)                    |
+| Apple platforms | *                                                      | CGO    | Xcode                                                           |
+| Android         | *                                                      | CGO    | Android NDK                                                     |
 
 ### Windows
 
