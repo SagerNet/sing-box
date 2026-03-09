@@ -6,4 +6,6 @@ const (
 	V2RayTransportTypeQUIC        = "quic"
 	V2RayTransportTypeGRPC        = "grpc"
 	V2RayTransportTypeHTTPUpgrade = "httpupgrade"
+	V2RayTransportTypeXHTTP       = "xhttp"
+	V2RayTransportTypeKCP         = "kcp"
 )

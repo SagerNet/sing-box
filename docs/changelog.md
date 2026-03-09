@@ -192,6 +192,7 @@ use NaiveProxy instead for TLS fingerprint resistance.
 
 * Fixes and improvements
 
+
 #### 1.13.0-rc.3
 
 * Fixes and improvements
