@@ -37,7 +37,9 @@ See [Listen Fields](/configuration/shared/listen/) for details.
 
 Path to the OpenAI OAuth credentials file.
 
-If not specified, defaults to `~/.codex/auth.json`.
+If not specified, defaults to:
+- `$CODEX_HOME/auth.json` if `CODEX_HOME` environment variable is set
+- `~/.codex/auth.json` otherwise
 
 Refreshed tokens are automatically written back to the same location.
 
@@ -111,6 +113,8 @@ TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
 Add to `~/.codex/config.toml`:
 
 ```toml
+# profile = "ocm"                # set as default profile
+
 [model_providers.ocm]
 name = "OCM Proxy"
 base_url = "http://127.0.0.1:8080/v1"
@@ -143,11 +147,11 @@ codex --profile ocm
       "users": [
         {
           "name": "alice",
-          "token": "sk-alice-secret-token"
+          "token": "sk-ocm-hello-world"
         },
         {
           "name": "bob",
-          "token": "sk-bob-secret-token"
+          "token": "sk-ocm-hello-bob"
         }
       ]
     }
@@ -160,11 +164,13 @@ codex --profile ocm
 Add to `~/.codex/config.toml`:
 
 ```toml
+# profile = "ocm"                # set as default profile
+
 [model_providers.ocm]
 name = "OCM Proxy"
 base_url = "http://127.0.0.1:8080/v1"
 supports_websockets = true
-experimental_bearer_token = "sk-alice-secret-token"
+experimental_bearer_token = "sk-ocm-hello-world"
 
 [profiles.ocm]
 model_provider = "ocm"

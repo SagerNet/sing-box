@@ -66,7 +66,19 @@ Claude Code OAuth 凭据文件的路径。
 
 如果为空，则不需要身份验证。
 
-Claude Code 通过设置 `ANTHROPIC_AUTH_TOKEN` 环境变量为其令牌值进行身份验证。
+对象格式：
+
+```json
+{
+  "name": "",
+  "token": ""
+}
+```
+
+对象字段：
+
+- `name`：用于跟踪的用户名标识符。
+- `token`：用于身份验证的 Bearer 令牌。Claude Code 通过设置 `ANTHROPIC_AUTH_TOKEN` 环境变量为其令牌值进行身份验证。
 
 #### headers
 
@@ -84,23 +96,36 @@ TLS 配置，参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
 
 ### 示例
 
+#### 服务端
+
 ```json
 {
   "services": [
     {
       "type": "ccm",
-      "listen": "127.0.0.1",
-      "listen_port": 8080
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "usages_path": "./claude-usages.json",
+      "users": [
+        {
+          "name": "alice",
+          "token": "ak-ccm-hello-world"
+        },
+        {
+          "name": "bob",
+          "token": "ak-ccm-hello-bob"
+        }
+      ]
     }
   ]
 }
 ```
 
-连接到 CCM 服务：
+#### 客户端
 
 ```bash
 export ANTHROPIC_BASE_URL="http://127.0.0.1:8080"
-export ANTHROPIC_AUTH_TOKEN="sk-ant-ccm-auth-token-not-required-in-this-context"
+export ANTHROPIC_AUTH_TOKEN="ak-ccm-hello-world"
 
 claude
 ```
