@@ -65,9 +65,10 @@ type CostCombinationJSON struct {
 }
 
 type CostsSummaryJSON struct {
-	TotalUSD float64            `json:"total_usd"`
-	ByUser   map[string]float64 `json:"by_user"`
-	ByWeek   map[string]float64 `json:"by_week,omitempty"`
+	TotalUSD      float64                       `json:"total_usd"`
+	ByUser        map[string]float64            `json:"by_user"`
+	ByWeek        map[string]float64            `json:"by_week,omitempty"`
+	ByUserAndWeek map[string]map[string]float64 `json:"by_user_and_week,omitempty"`
 }
 
 type AggregatedUsageJSON struct {
@@ -492,6 +493,31 @@ func buildByWeekCost(combinations []CostCombination) map[string]float64 {
 	return byWeek
 }
 
+func buildByUserAndWeekCost(combinations []CostCombination) map[string]map[string]float64 {
+	byUserAndWeek := make(map[string]map[string]float64)
+	for _, combination := range combinations {
+		if combination.WeekStartUnix <= 0 {
+			continue
+		}
+		weekStartAt := time.Unix(combination.WeekStartUnix, 0).UTC()
+		weekKey := formatWeekStartKey(weekStartAt)
+		for user, userStats := range combination.ByUser {
+			userWeeks, exists := byUserAndWeek[user]
+			if !exists {
+				userWeeks = make(map[string]float64)
+				byUserAndWeek[user] = userWeeks
+			}
+			userWeeks[weekKey] += calculateCost(userStats, combination.Model, combination.ContextWindow)
+		}
+	}
+	for _, weekCosts := range byUserAndWeek {
+		for weekKey, cost := range weekCosts {
+			weekCosts[weekKey] = roundCost(cost)
+		}
+	}
+	return byUserAndWeek
+}
+
 func deriveWeekStartUnix(cycleHint *WeeklyCycleHint) int64 {
 	if cycleHint == nil || cycleHint.WindowMinutes <= 0 || cycleHint.ResetAt.IsZero() {
 		return 0
@@ -520,6 +546,11 @@ func (u *AggregatedUsage) ToJSON() *AggregatedUsageJSON {
 
 	if len(result.Costs.ByWeek) == 0 {
 		result.Costs.ByWeek = nil
+	}
+
+	result.Costs.ByUserAndWeek = buildByUserAndWeekCost(u.Combinations)
+	if len(result.Costs.ByUserAndWeek) == 0 {
+		result.Costs.ByUserAndWeek = nil
 	}
 
 	for user, cost := range result.Costs.ByUser {
