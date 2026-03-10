@@ -114,14 +114,18 @@ Add to `~/.codex/config.toml`:
 [model_providers.ocm]
 name = "OCM Proxy"
 base_url = "http://127.0.0.1:8080/v1"
-wire_api = "responses"
-requires_openai_auth = false
+supports_websockets = true
+
+[profiles.ocm]
+model_provider = "ocm"
+# model = "gpt-5.4"              # if the latest model is not yet publicly released
+# model_reasoning_effort = "xhigh"
 ```
 
 Then run:
 
 ```bash
-codex --model-provider ocm
+codex --profile ocm
 ```
 
 ### Example with Authentication
@@ -159,13 +163,17 @@ Add to `~/.codex/config.toml`:
 [model_providers.ocm]
 name = "OCM Proxy"
 base_url = "http://127.0.0.1:8080/v1"
-wire_api = "responses"
-requires_openai_auth = false
+supports_websockets = true
 experimental_bearer_token = "sk-alice-secret-token"
+
+[profiles.ocm]
+model_provider = "ocm"
+# model = "gpt-5.4"              # if the latest model is not yet publicly released
+# model_reasoning_effort = "xhigh"
 ```
 
 Then run:
 
 ```bash
-codex --model-provider ocm
+codex --profile ocm
 ```

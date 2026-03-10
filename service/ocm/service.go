@@ -130,6 +130,7 @@ type Service struct {
 	credentialPath string
 	credentials    *oauthCredentials
 	users          []option.OCMUser
+	dialer         N.Dialer
 	httpClient     *http.Client
 	httpHeaders    http.Header
 	listener       *listener.Listener
@@ -187,6 +188,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		logger:         logger,
 		credentialPath: options.CredentialPath,
 		users:          options.Users,
+		dialer:         serviceDialer,
 		httpClient:     httpClient,
 		httpHeaders:    options.Headers.Build(),
 		listener: listener.New(listener.Options{
@@ -354,6 +356,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key")
 			return
 		}
+	}
+
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
+		s.handleWebSocket(w, r, proxyPath, username)
+		return
 	}
 
 	var requestModel string
