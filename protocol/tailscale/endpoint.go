@@ -48,6 +48,7 @@ import (
 	"github.com/sagernet/tailscale/ipn"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/net/netmon"
+	"github.com/sagernet/tailscale/net/netns"
 	"github.com/sagernet/tailscale/net/tsaddr"
 	tsTUN "github.com/sagernet/tailscale/net/tstun"
 	"github.com/sagernet/tailscale/tsnet"
@@ -288,9 +289,6 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 				}
 			}), nil
 		})
-		if runtime.GOOS == "android" {
-			setAndroidProtectFunc(t.platformInterface)
-		}
 	}
 	if t.systemInterface {
 		mtu := t.systemInterfaceMTU
@@ -336,8 +334,21 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 		t.systemDialer = systemDialer
 		t.server.TunDevice = wgTunDevice
 		t.server.RouterWrapper = func(inner router.Router) router.Router {
-			return &exitRouteFilteringRouter{Router: inner}
+			return &addressOnlyRouter{Router: inner}
 		}
+	}
+	if mark := t.network.AutoRedirectOutputMark(); mark > 0 {
+		controlFunc := t.network.AutoRedirectOutputMarkFunc()
+		if bindFunc := t.network.AutoDetectInterfaceFunc(); bindFunc != nil {
+			controlFunc = control.Append(controlFunc, bindFunc)
+		}
+		netns.SetControlFunc(controlFunc)
+	} else if runtime.GOOS == "android" && t.platformInterface != nil {
+		netns.SetControlFunc(func(network, address string, c syscall.RawConn) error {
+			return control.Raw(c, func(fd uintptr) error {
+				return t.platformInterface.AutoDetectInterfaceControl(int(fd))
+			})
+		})
 	}
 	err := t.server.Start()
 	if err != nil {
@@ -464,9 +475,7 @@ func (t *Endpoint) watchState() {
 
 func (t *Endpoint) Close() error {
 	netmon.RegisterInterfaceGetter(nil)
-	if runtime.GOOS == "android" {
-		setAndroidProtectFunc(nil)
-	}
+	netns.SetControlFunc(nil)
 	if t.fallbackTCPCloser != nil {
 		t.fallbackTCPCloser()
 		t.fallbackTCPCloser = nil
@@ -841,16 +850,15 @@ func (c *dnsConfigurtor) Close() error {
 	return nil
 }
 
-type exitRouteFilteringRouter struct {
+type addressOnlyRouter struct {
 	router.Router
 }
 
-func (r *exitRouteFilteringRouter) Set(config *router.Config) error {
+func (r *addressOnlyRouter) Set(config *router.Config) error {
 	if config != nil {
-		config = config.Clone()
-		config.Routes = common.Filter(config.Routes, func(prefix netip.Prefix) bool {
-			return !tsaddr.IsExitRoute(prefix)
-		})
+		config = &router.Config{
+			LocalAddrs: config.LocalAddrs,
+		}
 	}
 	return r.Router.Set(config)
 }
