@@ -138,6 +138,10 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode == http.StatusTooManyRequests {
+		body, _ := io.ReadAll(response.Body)
+		return nil, E.New("refresh rate limited: ", response.Status, " ", string(body))
+	}
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		return nil, E.New("refresh failed: ", response.Status, " ", string(body))

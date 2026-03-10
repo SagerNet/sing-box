@@ -1,12 +1,14 @@
 package ocm
 
 import (
+	"bufio"
 	"context"
 	stdTLS "crypto/tls"
 	"encoding/json"
 	"io"
 	"net"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"sync"
 	"time"
@@ -22,9 +24,10 @@ import (
 )
 
 type webSocketSession struct {
-	clientConn   net.Conn
-	upstreamConn net.Conn
-	closeOnce    sync.Once
+	clientConn    net.Conn
+	upstreamConn  net.Conn
+	credentialTag string
+	closeOnce     sync.Once
 }
 
 func (s *webSocketSession) Close() {
@@ -76,57 +79,113 @@ func isForwardableWebSocketRequestHeader(key string) bool {
 	}
 }
 
-func (s *Service) handleWebSocket(w http.ResponseWriter, r *http.Request, proxyPath string, username string) {
-	accessToken, err := s.getAccessToken()
-	if err != nil {
-		s.logger.Error("get access token for websocket: ", err)
-		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "authentication failed")
-		return
-	}
+func (s *Service) handleWebSocket(
+	w http.ResponseWriter,
+	r *http.Request,
+	path string,
+	username string,
+	sessionID string,
+	provider credentialProvider,
+	credential *defaultCredential,
+) {
+	var (
+		err                     error
+		upstreamConn            net.Conn
+		upstreamBufferedReader  *bufio.Reader
+		upstreamResponseHeaders http.Header
+		statusCode              int
+	)
 
-	upstreamURL := buildUpstreamWebSocketURL(s.getBaseURL(), proxyPath)
-	if r.URL.RawQuery != "" {
-		upstreamURL += "?" + r.URL.RawQuery
-	}
+	for {
+		accessToken, accessErr := credential.getAccessToken()
+		if accessErr != nil {
+			s.logger.Error("get access token for websocket: ", accessErr)
+			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "authentication failed")
+			return
+		}
 
-	upstreamHeaders := make(http.Header)
-	for key, values := range r.Header {
-		if isForwardableWebSocketRequestHeader(key) {
+		var proxyPath string
+		if credential.isAPIKeyMode() {
+			proxyPath = path
+		} else {
+			proxyPath = strings.TrimPrefix(path, "/v1")
+		}
+
+		upstreamURL := buildUpstreamWebSocketURL(credential.getBaseURL(), proxyPath)
+		if r.URL.RawQuery != "" {
+			upstreamURL += "?" + r.URL.RawQuery
+		}
+
+		upstreamHeaders := make(http.Header)
+		for key, values := range r.Header {
+			if isForwardableWebSocketRequestHeader(key) {
+				upstreamHeaders[key] = values
+			}
+		}
+		for key, values := range s.httpHeaders {
+			upstreamHeaders.Del(key)
 			upstreamHeaders[key] = values
 		}
-	}
-	for key, values := range s.httpHeaders {
-		upstreamHeaders.Del(key)
-		upstreamHeaders[key] = values
-	}
-	upstreamHeaders.Set("Authorization", "Bearer "+accessToken)
-	if accountID := s.getAccountID(); accountID != "" {
-		upstreamHeaders.Set("ChatGPT-Account-Id", accountID)
-	}
+		upstreamHeaders.Set("Authorization", "Bearer "+accessToken)
+		if accountID := credential.getAccountID(); accountID != "" {
+			upstreamHeaders.Set("ChatGPT-Account-Id", accountID)
+		}
 
-	upstreamResponseHeaders := make(http.Header)
-	upstreamDialer := ws.Dialer{
-		NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-		},
-		TLSConfig: &stdTLS.Config{
-			RootCAs: adapter.RootPoolFromContext(s.ctx),
-			Time:    ntp.TimeFuncFromContext(s.ctx),
-		},
-		Header: ws.HandshakeHeaderHTTP(upstreamHeaders),
-		OnHeader: func(key, value []byte) error {
-			upstreamResponseHeaders.Add(string(key), string(value))
-			return nil
-		},
-	}
+		upstreamResponseHeaders = make(http.Header)
+		statusCode = 0
+		upstreamDialer := ws.Dialer{
+			NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return credential.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSConfig: &stdTLS.Config{
+				RootCAs: adapter.RootPoolFromContext(s.ctx),
+				Time:    ntp.TimeFuncFromContext(s.ctx),
+			},
+			Header: ws.HandshakeHeaderHTTP(upstreamHeaders),
+			// gobwas/ws@v1.4.0: the response io.Reader is
+			// MultiReader(statusLine_without_CRLF, "\r\n", bufferedConn).
+			// ReadString('\n') consumes the status line, then ReadMIMEHeader
+			// parses the remaining headers.
+			OnStatusError: func(status int, reason []byte, response io.Reader) {
+				statusCode = status
+				bufferedResponse := bufio.NewReader(response)
+				_, readErr := bufferedResponse.ReadString('\n')
+				if readErr != nil {
+					return
+				}
+				mimeHeader, readErr := textproto.NewReader(bufferedResponse).ReadMIMEHeader()
+				if readErr == nil {
+					upstreamResponseHeaders = http.Header(mimeHeader)
+				}
+			},
+			OnHeader: func(key, value []byte) error {
+				upstreamResponseHeaders.Add(string(key), string(value))
+				return nil
+			},
+		}
 
-	upstreamConn, upstreamBufferedReader, _, err := upstreamDialer.Dial(r.Context(), upstreamURL)
-	if err != nil {
+		upstreamConn, upstreamBufferedReader, _, err = upstreamDialer.Dial(s.ctx, upstreamURL)
+		if err == nil {
+			break
+		}
+		if statusCode == http.StatusTooManyRequests {
+			resetAt := parseOCMRateLimitResetFromHeaders(upstreamResponseHeaders)
+			nextCredential := provider.onRateLimited(sessionID, credential, resetAt)
+			if nextCredential == nil {
+				credential.updateStateFromHeaders(upstreamResponseHeaders)
+				writeCredentialUnavailableError(w, r, provider, credential, "all credentials rate-limited")
+				return
+			}
+			s.logger.Info("retrying websocket with credential ", nextCredential.tag, " after 429 from ", credential.tag)
+			credential = nextCredential
+			continue
+		}
 		s.logger.Error("dial upstream websocket: ", err)
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", "upstream websocket connection failed")
 		return
 	}
 
+	credential.updateStateFromHeaders(upstreamResponseHeaders)
 	weeklyCycleHint := extractWeeklyCycleHint(upstreamResponseHeaders)
 
 	clientResponseHeaders := make(http.Header)
@@ -151,8 +210,9 @@ func (s *Service) handleWebSocket(w http.ResponseWriter, r *http.Request, proxyP
 		return
 	}
 	session := &webSocketSession{
-		clientConn:   clientConn,
-		upstreamConn: upstreamConn,
+		clientConn:    clientConn,
+		upstreamConn:  upstreamConn,
+		credentialTag: credential.tag,
 	}
 	if !s.registerWebSocketSession(session) {
 		session.Close()
@@ -177,17 +237,17 @@ func (s *Service) handleWebSocket(w http.ResponseWriter, r *http.Request, proxyP
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, modelChannel)
+		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, credential, modelChannel)
 	}()
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, modelChannel, username, weeklyCycleHint)
+		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, credential, modelChannel, username, weeklyCycleHint)
 	}()
 	waitGroup.Wait()
 }
 
-func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, modelChannel chan<- string) {
+func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, credential *defaultCredential, modelChannel chan<- string) {
 	for {
 		data, opCode, err := wsutil.ReadClientData(clientConn)
 		if err != nil {
@@ -197,7 +257,7 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 			return
 		}
 
-		if opCode == ws.OpText && s.usageTracker != nil {
+		if opCode == ws.OpText && credential.usageTracker != nil {
 			var request struct {
 				Type  string `json:"type"`
 				Model string `json:"model"`
@@ -220,7 +280,7 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 	}
 }
 
-func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, credential *defaultCredential, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
 	var requestModel string
 	for {
 		data, opCode, err := wsutil.ReadServerData(upstreamReadWriter)
@@ -231,7 +291,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 			return
 		}
 
-		if opCode == ws.OpText && s.usageTracker != nil {
+		if opCode == ws.OpText && credential.usageTracker != nil {
 			select {
 			case model := <-modelChannel:
 				requestModel = model
@@ -257,7 +317,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 						}
 						if responseModel != "" {
 							contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
-							s.usageTracker.AddUsageWithCycleHint(
+							credential.usageTracker.AddUsageWithCycleHint(
 								responseModel,
 								contextWindow,
 								inputTokens,

@@ -10,6 +10,11 @@ OCM (OpenAI Codex Multiplexer) service is a multiplexing service that allows you
 
 It handles OAuth authentication with OpenAI's API on your local machine while allowing remote clients to authenticate using custom tokens.
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [credentials](#credentials)  
+    :material-alert: [users](#users)
+
 ### Structure
 
 ```json
@@ -19,6 +24,7 @@ It handles OAuth authentication with OpenAI's API on your local machine while al
   ... // Listen Fields
 
   "credential_path": "",
+  "credentials": [],
   "usages_path": "",
   "users": [],
   "headers": {},
@@ -43,6 +49,73 @@ If not specified, defaults to:
 
 Refreshed tokens are automatically written back to the same location.
 
+Conflict with `credentials`.
+
+#### credentials
+
+!!! question "Since sing-box 1.14.0"
+
+List of credential configurations for multi-credential mode.
+
+When set, top-level `credential_path`, `usages_path`, and `detour` are forbidden. Each user must specify a `credential` tag.
+
+Each credential has a `type` field (`default`, `balancer`, or `fallback`) and a required `tag` field.
+
+##### Default Credential
+
+```json
+{
+  "tag": "a",
+  "credential_path": "/path/to/auth.json",
+  "usages_path": "/path/to/usages.json",
+  "detour": "",
+  "reserve_5h": 20,
+  "reserve_weekly": 20
+}
+```
+
+A single OAuth credential file. The `type` field can be omitted (defaults to `default`).
+
+- `credential_path`: Path to the credentials file. Same defaults as top-level `credential_path`.
+- `usages_path`: Optional usage tracking file for this credential.
+- `detour`: Outbound tag for connecting to the OpenAI API with this credential.
+- `reserve_5h`: Reserve threshold (1-99) for primary rate limit window. Credential pauses at (100-N)% utilization.
+- `reserve_weekly`: Reserve threshold (1-99) for secondary (weekly) rate limit window. Credential pauses at (100-N)% utilization.
+
+##### Balancer Credential
+
+```json
+{
+  "tag": "pool",
+  "type": "balancer",
+  "strategy": "",
+  "credentials": ["a", "b"],
+  "poll_interval": "60s"
+}
+```
+
+Assigns sessions to default credentials based on the selected strategy. Sessions are sticky until the assigned credential hits a rate limit.
+
+- `strategy`: Selection strategy. One of `least_used` `round_robin` `random`. `least_used` will be used by default.
+- `credentials`: ==Required== List of default credential tags.
+- `poll_interval`: How often to poll upstream usage API. Default `60s`.
+
+##### Fallback Credential
+
+```json
+{
+  "tag": "backup",
+  "type": "fallback",
+  "credentials": ["a", "b"],
+  "poll_interval": "30s"
+}
+```
+
+Uses credentials in order. Falls through to the next when the current one is exhausted.
+
+- `credentials`: ==Required== Ordered list of default credential tags.
+- `poll_interval`: How often to poll upstream usage API. Default `60s`.
+
 #### usages_path
 
 Path to the file for storing aggregated API usage statistics.
@@ -58,6 +131,8 @@ Statistics are organized by model and optionally by user when authentication is 
 
 The statistics file is automatically saved every minute and upon service shutdown.
 
+Conflict with `credentials`. In multi-credential mode, use `usages_path` on individual default credentials.
+
 #### users
 
 List of authorized users for token authentication.
@@ -69,7 +144,8 @@ Object format:
 ```json
 {
   "name": "",
-  "token": ""
+  "token": "",
+  "credential": ""
 }
 ```
 
@@ -77,6 +153,7 @@ Object fields:
 
 - `name`: Username identifier for tracking purposes.
 - `token`: Bearer token for authentication. Clients authenticate by setting the `Authorization: Bearer <token>` header.
+- `credential`: Credential tag to use for this user. ==Required== when `credentials` is set.
 
 #### headers
 
@@ -87,6 +164,8 @@ These headers will override any existing headers with the same name.
 #### detour
 
 Outbound tag for connecting to the OpenAI API.
+
+Conflict with `credentials`. In multi-credential mode, use `detour` on individual default credentials.
 
 #### tls
 
@@ -182,4 +261,53 @@ Then run:
 
 ```bash
 codex --profile ocm
+```
+
+### Example with Multiple Credentials
+
+#### Server
+
+```json
+{
+  "services": [
+    {
+      "type": "ocm",
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "credentials": [
+        {
+          "tag": "a",
+          "credential_path": "/home/user/.codex-a/auth.json",
+          "usages_path": "/data/usages-a.json",
+          "reserve_5h": 20,
+          "reserve_weekly": 20
+        },
+        {
+          "tag": "b",
+          "credential_path": "/home/user/.codex-b/auth.json",
+          "reserve_5h": 10,
+          "reserve_weekly": 10
+        },
+        {
+          "tag": "pool",
+          "type": "balancer",
+          "poll_interval": "60s",
+          "credentials": ["a", "b"]
+        }
+      ],
+      "users": [
+        {
+          "name": "alice",
+          "token": "sk-ocm-hello-world",
+          "credential": "pool"
+        },
+        {
+          "name": "bob",
+          "token": "sk-ocm-hello-bob",
+          "credential": "a"
+        }
+      ]
+    }
+  ]
+}
 ```

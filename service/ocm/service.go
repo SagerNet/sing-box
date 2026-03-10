@@ -3,12 +3,10 @@ package ocm
 import (
 	"bytes"
 	"context"
-	stdTLS "crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
-	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -26,9 +23,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 	aTLS "github.com/sagernet/sing/common/tls"
 
 	"github.com/go-chi/chi/v5"
@@ -52,15 +47,75 @@ type errorDetails struct {
 }
 
 func writeJSONError(w http.ResponseWriter, r *http.Request, statusCode int, errorType string, message string) {
+	writeJSONErrorWithCode(w, r, statusCode, errorType, "", message)
+}
+
+func writeJSONErrorWithCode(w http.ResponseWriter, r *http.Request, statusCode int, errorType string, errorCode string, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
 	json.NewEncoder(w).Encode(errorResponse{
 		Error: errorDetails{
 			Type:    errorType,
+			Code:    errorCode,
 			Message: message,
 		},
 	})
+}
+
+func writePlainTextError(w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(statusCode)
+	_, _ = io.WriteString(w, message)
+}
+
+const (
+	retryableUsageMessage = "current credential reached its usage limit; retry the request to use another credential"
+	retryableUsageCode    = "credential_usage_exhausted"
+)
+
+func hasAlternativeCredential(provider credentialProvider, currentCredential *defaultCredential) bool {
+	if provider == nil || currentCredential == nil {
+		return false
+	}
+	for _, credential := range provider.allDefaults() {
+		if credential == currentCredential {
+			continue
+		}
+		if credential.isUsable() {
+			return true
+		}
+	}
+	return false
+}
+
+func unavailableCredentialMessage(provider credentialProvider, fallback string) string {
+	if provider == nil {
+		return fallback
+	}
+	return allRateLimitedError(provider.allDefaults()).Error()
+}
+
+func writeRetryableUsageError(w http.ResponseWriter, r *http.Request) {
+	writeJSONErrorWithCode(w, r, http.StatusServiceUnavailable, "server_error", retryableUsageCode, retryableUsageMessage)
+}
+
+func writeNonRetryableCredentialError(w http.ResponseWriter, message string) {
+	writePlainTextError(w, http.StatusBadRequest, message)
+}
+
+func writeCredentialUnavailableError(
+	w http.ResponseWriter,
+	r *http.Request,
+	provider credentialProvider,
+	currentCredential *defaultCredential,
+	fallback string,
+) {
+	if hasAlternativeCredential(provider, currentCredential) {
+		writeRetryableUsageError(w, r)
+		return
+	}
+	writeNonRetryableCredentialError(w, unavailableCredentialMessage(provider, fallback))
 }
 
 func isHopByHopHeader(header string) bool {
@@ -127,72 +182,43 @@ type Service struct {
 	boxService.Adapter
 	ctx            context.Context
 	logger         log.ContextLogger
-	credentialPath string
-	credentials    *oauthCredentials
-	users          []option.OCMUser
-	dialer         N.Dialer
-	httpClient     *http.Client
+	options        option.OCMServiceOptions
 	httpHeaders    http.Header
 	listener       *listener.Listener
 	tlsConfig      tls.ServerConfig
 	httpServer     *http.Server
 	userManager    *UserManager
-	accessMutex    sync.RWMutex
-	usageTracker   *AggregatedUsage
 	webSocketMutex sync.Mutex
 	webSocketGroup sync.WaitGroup
 	webSocketConns map[*webSocketSession]struct{}
 	shuttingDown   bool
+
+	// Legacy mode
+	legacyCredential *defaultCredential
+	legacyProvider   credentialProvider
+
+	// Multi-credential mode
+	providers         map[string]credentialProvider
+	allDefaults       []*defaultCredential
+	userCredentialMap map[string]string
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.OCMServiceOptions) (adapter.Service, error) {
-	serviceDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context: ctx,
-		Options: option.DialerOptions{
-			Detour: options.Detour,
-		},
-		RemoteIsDomain: true,
-	})
+	err := validateOCMOptions(options)
 	if err != nil {
-		return nil, E.Cause(err, "create dialer")
-	}
-
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
-			TLSClientConfig: &stdTLS.Config{
-				RootCAs: adapter.RootPoolFromContext(ctx),
-				Time:    ntp.TimeFuncFromContext(ctx),
-			},
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return serviceDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-		},
+		return nil, E.Cause(err, "validate options")
 	}
 
 	userManager := &UserManager{
 		tokenMap: make(map[string]string),
 	}
 
-	var usageTracker *AggregatedUsage
-	if options.UsagesPath != "" {
-		usageTracker = &AggregatedUsage{
-			LastUpdated:  time.Now(),
-			Combinations: make([]CostCombination, 0),
-			filePath:     options.UsagesPath,
-			logger:       logger,
-		}
-	}
-
 	service := &Service{
-		Adapter:        boxService.NewAdapter(C.TypeOCM, tag),
-		ctx:            ctx,
-		logger:         logger,
-		credentialPath: options.CredentialPath,
-		users:          options.Users,
-		dialer:         serviceDialer,
-		httpClient:     httpClient,
-		httpHeaders:    options.Headers.Build(),
+		Adapter:     boxService.NewAdapter(C.TypeOCM, tag),
+		ctx:         ctx,
+		logger:      logger,
+		options:     options,
+		httpHeaders: options.Headers.Build(),
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
@@ -200,8 +226,34 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 			Listen:  options.ListenOptions,
 		}),
 		userManager:    userManager,
-		usageTracker:   usageTracker,
 		webSocketConns: make(map[*webSocketSession]struct{}),
+	}
+
+	if len(options.Credentials) > 0 {
+		providers, allDefaults, err := buildOCMCredentialProviders(ctx, options, logger)
+		if err != nil {
+			return nil, E.Cause(err, "build credential providers")
+		}
+		service.providers = providers
+		service.allDefaults = allDefaults
+
+		userCredentialMap := make(map[string]string)
+		for _, user := range options.Users {
+			userCredentialMap[user.Name] = user.Credential
+		}
+		service.userCredentialMap = userCredentialMap
+	} else {
+		credential, err := newDefaultCredential(ctx, "default", option.OCMDefaultCredentialOptions{
+			CredentialPath: options.CredentialPath,
+			UsagesPath:     options.UsagesPath,
+			Detour:         options.Detour,
+		}, logger)
+		if err != nil {
+			return nil, err
+		}
+		service.legacyCredential = credential
+		service.legacyProvider = &singleCredentialProvider{credential: credential}
+		service.allDefaults = []*defaultCredential{credential}
 	}
 
 	if options.TLS != nil {
@@ -220,18 +272,22 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		return nil
 	}
 
-	s.userManager.UpdateUsers(s.users)
+	s.userManager.UpdateUsers(s.options.Users)
 
-	credentials, err := platformReadCredentials(s.credentialPath)
-	if err != nil {
-		return E.Cause(err, "read credentials")
-	}
-	s.credentials = credentials
-
-	if s.usageTracker != nil {
-		err = s.usageTracker.Load()
+	for _, credential := range s.allDefaults {
+		err := credential.start()
 		if err != nil {
-			s.logger.Warn("load usage statistics: ", err)
+			return err
+		}
+		tag := credential.tag
+		credential.onBecameUnusable = func() {
+			s.interruptWebSocketSessionsForCredential(tag)
+		}
+	}
+	if len(s.options.Credentials) > 0 {
+		err := validateOCMCompositeCredentialModes(s.options, s.providers)
+		if err != nil {
+			return E.Cause(err, "validate loaded credentials")
 		}
 	}
 
@@ -241,7 +297,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	s.httpServer = &http.Server{Handler: router}
 
 	if s.tlsConfig != nil {
-		err = s.tlsConfig.Start()
+		err := s.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
@@ -269,54 +325,15 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	return nil
 }
 
-func (s *Service) getAccessToken() (string, error) {
-	s.accessMutex.RLock()
-	if !s.credentials.needsRefresh() {
-		token := s.credentials.getAccessToken()
-		s.accessMutex.RUnlock()
-		return token, nil
+func (s *Service) resolveCredentialProvider(username string) (credentialProvider, error) {
+	if len(s.options.Users) > 0 {
+		return credentialForUser(s.userCredentialMap, s.providers, s.legacyProvider, username)
 	}
-	s.accessMutex.RUnlock()
-
-	s.accessMutex.Lock()
-	defer s.accessMutex.Unlock()
-
-	if !s.credentials.needsRefresh() {
-		return s.credentials.getAccessToken(), nil
+	provider := noUserCredentialProvider(s.providers, s.legacyProvider, s.options)
+	if provider == nil {
+		return nil, E.New("no credential available")
 	}
-
-	newCredentials, err := refreshToken(s.httpClient, s.credentials)
-	if err != nil {
-		return "", err
-	}
-
-	s.credentials = newCredentials
-
-	err = platformWriteCredentials(newCredentials, s.credentialPath)
-	if err != nil {
-		s.logger.Warn("persist refreshed token: ", err)
-	}
-
-	return newCredentials.getAccessToken(), nil
-}
-
-func (s *Service) getAccountID() string {
-	s.accessMutex.RLock()
-	defer s.accessMutex.RUnlock()
-	return s.credentials.getAccountID()
-}
-
-func (s *Service) isAPIKeyMode() bool {
-	s.accessMutex.RLock()
-	defer s.accessMutex.RUnlock()
-	return s.credentials.isAPIKeyMode()
-}
-
-func (s *Service) getBaseURL() string {
-	if s.isAPIKeyMode() {
-		return openaiAPIBaseURL
-	}
-	return chatGPTBackendURL
+	return provider, nil
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -326,20 +343,8 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var proxyPath string
-	if s.isAPIKeyMode() {
-		proxyPath = path
-	} else {
-		if path == "/v1/chat/completions" {
-			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
-				"chat completions endpoint is only available in API key mode")
-			return
-		}
-		proxyPath = strings.TrimPrefix(path, "/v1")
-	}
-
 	var username string
-	if len(s.users) > 0 {
+	if len(s.options.Users) > 0 {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			s.logger.Warn("authentication failed for request from ", r.RemoteAddr, ": missing Authorization header")
@@ -361,39 +366,91 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
-		s.handleWebSocket(w, r, proxyPath, username)
+	sessionID := r.Header.Get("session_id")
+
+	// Resolve credential provider
+	provider, err := s.resolveCredentialProvider(username)
+	if err != nil {
+		s.logger.Error("resolve credential: ", err)
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error", err.Error())
 		return
 	}
 
-	var requestModel string
+	provider.pollIfStale(s.ctx)
 
-	if s.usageTracker != nil && r.Body != nil {
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err == nil {
-			var request struct {
-				Model string `json:"model"`
-			}
-			err := json.Unmarshal(bodyBytes, &request)
-			if err == nil {
-				requestModel = request.Model
-			}
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	credential, isNew, err := provider.selectCredential(sessionID)
+	if err != nil {
+		writeNonRetryableCredentialError(w, unavailableCredentialMessage(provider, err.Error()))
+		return
+	}
+	if isNew {
+		if username != "" {
+			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID, " by user ", username)
+		} else {
+			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID)
 		}
 	}
 
-	accessToken, err := s.getAccessToken()
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
+		s.handleWebSocket(w, r, path, username, sessionID, provider, credential)
+		return
+	}
+
+	var proxyPath string
+	if credential.isAPIKeyMode() {
+		proxyPath = path
+	} else {
+		if path == "/v1/chat/completions" {
+			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+				"chat completions endpoint is only available in API key mode")
+			return
+		}
+		proxyPath = strings.TrimPrefix(path, "/v1")
+	}
+
+	shouldTrackUsage := credential.usageTracker != nil &&
+		(path == "/v1/chat/completions" || strings.HasPrefix(path, "/v1/responses"))
+	canRetryRequest := len(provider.allDefaults()) > 1
+
+	// Read body for model extraction and retry buffer when JSON replay is useful.
+	var bodyBytes []byte
+	var requestModel string
+	if r.Body != nil && (shouldTrackUsage || canRetryRequest) {
+		mediaType, _, parseErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		isJSONRequest := parseErr == nil && (mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"))
+		if isJSONRequest {
+			bodyBytes, err = io.ReadAll(r.Body)
+			if err != nil {
+				s.logger.Error("read request body: ", err)
+				writeJSONError(w, r, http.StatusInternalServerError, "api_error", "failed to read request body")
+				return
+			}
+			var request struct {
+				Model string `json:"model"`
+			}
+			if json.Unmarshal(bodyBytes, &request) == nil {
+				requestModel = request.Model
+			}
+			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		}
+	}
+
+	accessToken, err := credential.getAccessToken()
 	if err != nil {
 		s.logger.Error("get access token: ", err)
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "Authentication failed")
 		return
 	}
 
-	proxyURL := s.getBaseURL() + proxyPath
+	proxyURL := credential.getBaseURL() + proxyPath
 	if r.URL.RawQuery != "" {
 		proxyURL += "?" + r.URL.RawQuery
 	}
-	proxyRequest, err := http.NewRequestWithContext(r.Context(), r.Method, proxyURL, r.Body)
+	requestContext := credential.wrapRequestContext(r.Context())
+	defer func() {
+		requestContext.cancelRequest()
+	}()
+	proxyRequest, err := http.NewRequestWithContext(requestContext, r.Method, proxyURL, r.Body)
 	if err != nil {
 		s.logger.Error("create proxy request: ", err)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "Internal server error")
@@ -413,16 +470,67 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	proxyRequest.Header.Set("Authorization", "Bearer "+accessToken)
 
-	if accountID := s.getAccountID(); accountID != "" {
+	if accountID := credential.getAccountID(); accountID != "" {
 		proxyRequest.Header.Set("ChatGPT-Account-Id", accountID)
 	}
 
-	response, err := s.httpClient.Do(proxyRequest)
+	response, err := credential.httpClient.Do(proxyRequest)
 	if err != nil {
+		if r.Context().Err() != nil {
+			return
+		}
+		if requestContext.Err() != nil {
+			writeCredentialUnavailableError(w, r, provider, credential, "credential became unavailable while processing the request")
+			return
+		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", err.Error())
 		return
 	}
+	requestContext.releaseCredentialInterrupt()
+
+	// Transparent 429 retry
+	for response.StatusCode == http.StatusTooManyRequests {
+		resetAt := parseOCMRateLimitResetFromHeaders(response.Header)
+		nextCredential := provider.onRateLimited(sessionID, credential, resetAt)
+		needsBodyReplay := r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodDelete
+		credential.updateStateFromHeaders(response.Header)
+		if (needsBodyReplay && bodyBytes == nil) || nextCredential == nil {
+			response.Body.Close()
+			writeCredentialUnavailableError(w, r, provider, credential, "all credentials rate-limited")
+			return
+		}
+		response.Body.Close()
+		s.logger.Info("retrying with credential ", nextCredential.tag, " after 429 from ", credential.tag)
+		requestContext.cancelRequest()
+		requestContext = nextCredential.wrapRequestContext(r.Context())
+		retryResponse, retryErr := retryOCMRequestWithBody(requestContext, r, bodyBytes, nextCredential, s.httpHeaders)
+		if retryErr != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			if requestContext.Err() != nil {
+				writeCredentialUnavailableError(w, r, provider, nextCredential, "credential became unavailable while retrying the request")
+				return
+			}
+			s.logger.Error("retry request: ", retryErr)
+			writeJSONError(w, r, http.StatusBadGateway, "api_error", retryErr.Error())
+			return
+		}
+		requestContext.releaseCredentialInterrupt()
+		response = retryResponse
+		credential = nextCredential
+	}
 	defer response.Body.Close()
+
+	credential.updateStateFromHeaders(response.Header)
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusTooManyRequests {
+		body, _ := io.ReadAll(response.Body)
+		s.logger.Error("upstream error from ", credential.tag, ": status ", response.StatusCode, " ", string(body))
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error",
+			"proxy request (status "+strconv.Itoa(response.StatusCode)+"): "+string(body))
+		return
+	}
 
 	for key, values := range response.Header {
 		if !isHopByHopHeader(key) {
@@ -431,10 +539,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(response.StatusCode)
 
-	trackUsage := s.usageTracker != nil && response.StatusCode == http.StatusOK &&
-		(path == "/v1/chat/completions" || strings.HasPrefix(path, "/v1/responses"))
-	if trackUsage {
-		s.handleResponseWithTracking(w, response, path, requestModel, username)
+	hasUsageTracker := credential.usageTracker != nil
+	if hasUsageTracker && response.StatusCode == http.StatusOK &&
+		(path == "/v1/chat/completions" || strings.HasPrefix(path, "/v1/responses")) {
+		s.handleResponseWithTracking(w, response, credential.usageTracker, path, requestModel, username)
 	} else {
 		mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 		if err == nil && mediaType != "text/event-stream" {
@@ -464,7 +572,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, path string, requestModel string, username string) {
+func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, usageTracker *AggregatedUsage, path string, requestModel string, username string) {
 	isChatCompletions := path == "/v1/chat/completions"
 	weeklyCycleHint := extractWeeklyCycleHint(response.Header)
 	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
@@ -508,7 +616,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			}
 			if responseModel != "" {
 				contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
-				s.usageTracker.AddUsageWithCycleHint(
+				usageTracker.AddUsageWithCycleHint(
 					responseModel,
 					contextWindow,
 					inputTokens,
@@ -619,7 +727,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			if inputTokens > 0 || outputTokens > 0 {
 				if responseModel != "" {
 					contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
-					s.usageTracker.AddUsageWithCycleHint(
+					usageTracker.AddUsageWithCycleHint(
 						responseModel,
 						contextWindow,
 						inputTokens,
@@ -650,12 +758,8 @@ func (s *Service) Close() error {
 	}
 	s.webSocketGroup.Wait()
 
-	if s.usageTracker != nil {
-		s.usageTracker.cancelPendingSave()
-		saveErr := s.usageTracker.Save()
-		if saveErr != nil {
-			s.logger.Error("save usage statistics: ", saveErr)
-		}
+	for _, credential := range s.allDefaults {
+		credential.close()
 	}
 
 	return err
@@ -691,6 +795,20 @@ func (s *Service) isShuttingDown() bool {
 	s.webSocketMutex.Lock()
 	defer s.webSocketMutex.Unlock()
 	return s.shuttingDown
+}
+
+func (s *Service) interruptWebSocketSessionsForCredential(tag string) {
+	s.webSocketMutex.Lock()
+	var toClose []*webSocketSession
+	for session := range s.webSocketConns {
+		if session.credentialTag == tag {
+			toClose = append(toClose, session)
+		}
+	}
+	s.webSocketMutex.Unlock()
+	for _, session := range toClose {
+		session.Close()
+	}
 }
 
 func (s *Service) startWebSocketShutdown() []*webSocketSession {

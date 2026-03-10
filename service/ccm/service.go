@@ -3,12 +3,10 @@ package ccm
 import (
 	"bytes"
 	"context"
-	stdTLS "crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
-	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -26,9 +23,7 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 	aTLS "github.com/sagernet/sing/common/tls"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -40,6 +35,7 @@ const (
 	contextWindowStandard   = 200000
 	contextWindowPremium    = 1000000
 	premiumContextThreshold = 200000
+	retryableUsageMessage   = "current credential reached its usage limit; retry the request to use another credential"
 )
 
 func RegisterService(registry *boxService.Registry) {
@@ -60,7 +56,6 @@ type errorDetails struct {
 func writeJSONError(w http.ResponseWriter, r *http.Request, statusCode int, errorType string, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-
 	json.NewEncoder(w).Encode(errorResponse{
 		Type: "error",
 		Error: errorDetails{
@@ -69,6 +64,50 @@ func writeJSONError(w http.ResponseWriter, r *http.Request, statusCode int, erro
 		},
 		RequestID: r.Header.Get("Request-Id"),
 	})
+}
+
+func hasAlternativeCredential(provider credentialProvider, currentCredential *defaultCredential) bool {
+	if provider == nil || currentCredential == nil {
+		return false
+	}
+	for _, credential := range provider.allDefaults() {
+		if credential == currentCredential {
+			continue
+		}
+		if credential.isUsable() {
+			return true
+		}
+	}
+	return false
+}
+
+func unavailableCredentialMessage(provider credentialProvider, fallback string) string {
+	if provider == nil {
+		return fallback
+	}
+	return allCredentialsUnavailableError(provider.allDefaults()).Error()
+}
+
+func writeRetryableUsageError(w http.ResponseWriter, r *http.Request) {
+	writeJSONError(w, r, http.StatusTooManyRequests, "rate_limit_error", retryableUsageMessage)
+}
+
+func writeNonRetryableCredentialError(w http.ResponseWriter, r *http.Request, message string) {
+	writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error", message)
+}
+
+func writeCredentialUnavailableError(
+	w http.ResponseWriter,
+	r *http.Request,
+	provider credentialProvider,
+	currentCredential *defaultCredential,
+	fallback string,
+) {
+	if hasAlternativeCredential(provider, currentCredential) {
+		writeRetryableUsageError(w, r)
+		return
+	}
+	writeNonRetryableCredentialError(w, r, unavailableCredentialMessage(provider, fallback))
 }
 
 func isHopByHopHeader(header string) bool {
@@ -111,78 +150,79 @@ func extractWeeklyCycleHint(headers http.Header) *WeeklyCycleHint {
 
 type Service struct {
 	boxService.Adapter
-	ctx            context.Context
-	logger         log.ContextLogger
-	credentialPath string
-	credentials    *oauthCredentials
-	users          []option.CCMUser
-	httpClient     *http.Client
-	httpHeaders    http.Header
-	listener       *listener.Listener
-	tlsConfig      tls.ServerConfig
-	httpServer     *http.Server
-	userManager    *UserManager
-	accessMutex    sync.RWMutex
-	usageTracker   *AggregatedUsage
-	trackingGroup  sync.WaitGroup
-	shuttingDown   bool
+	ctx           context.Context
+	logger        log.ContextLogger
+	options       option.CCMServiceOptions
+	httpHeaders   http.Header
+	listener      *listener.Listener
+	tlsConfig     tls.ServerConfig
+	httpServer    *http.Server
+	userManager   *UserManager
+	trackingGroup sync.WaitGroup
+	shuttingDown  bool
+
+	// Legacy mode (single credential)
+	legacyCredential *defaultCredential
+	legacyProvider   credentialProvider
+
+	// Multi-credential mode
+	providers         map[string]credentialProvider
+	allDefaults       []*defaultCredential
+	userCredentialMap map[string]string
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.CCMServiceOptions) (adapter.Service, error) {
-	serviceDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context: ctx,
-		Options: option.DialerOptions{
-			Detour: options.Detour,
-		},
-		RemoteIsDomain: true,
-	})
-	if err != nil {
-		return nil, E.Cause(err, "create dialer")
-	}
+	initCCMUserAgent(logger)
 
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
-			TLSClientConfig: &stdTLS.Config{
-				RootCAs: adapter.RootPoolFromContext(ctx),
-				Time:    ntp.TimeFuncFromContext(ctx),
-			},
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return serviceDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-		},
+	err := validateCCMOptions(options)
+	if err != nil {
+		return nil, E.Cause(err, "validate options")
 	}
 
 	userManager := &UserManager{
 		tokenMap: make(map[string]string),
 	}
 
-	var usageTracker *AggregatedUsage
-	if options.UsagesPath != "" {
-		usageTracker = &AggregatedUsage{
-			LastUpdated:  time.Now(),
-			Combinations: make([]CostCombination, 0),
-			filePath:     options.UsagesPath,
-			logger:       logger,
-		}
-	}
-
 	service := &Service{
-		Adapter:        boxService.NewAdapter(C.TypeCCM, tag),
-		ctx:            ctx,
-		logger:         logger,
-		credentialPath: options.CredentialPath,
-		users:          options.Users,
-		httpClient:     httpClient,
-		httpHeaders:    options.Headers.Build(),
+		Adapter:     boxService.NewAdapter(C.TypeCCM, tag),
+		ctx:         ctx,
+		logger:      logger,
+		options:     options,
+		httpHeaders: options.Headers.Build(),
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		userManager:  userManager,
-		usageTracker: usageTracker,
+		userManager: userManager,
+	}
+
+	if len(options.Credentials) > 0 {
+		providers, allDefaults, err := buildCredentialProviders(ctx, options, logger)
+		if err != nil {
+			return nil, E.Cause(err, "build credential providers")
+		}
+		service.providers = providers
+		service.allDefaults = allDefaults
+
+		userCredentialMap := make(map[string]string)
+		for _, user := range options.Users {
+			userCredentialMap[user.Name] = user.Credential
+		}
+		service.userCredentialMap = userCredentialMap
+	} else {
+		credential, err := newDefaultCredential(ctx, "default", option.CCMDefaultCredentialOptions{
+			CredentialPath: options.CredentialPath,
+			UsagesPath:     options.UsagesPath,
+			Detour:         options.Detour,
+		}, logger)
+		if err != nil {
+			return nil, err
+		}
+		service.legacyCredential = credential
+		service.legacyProvider = &singleCredentialProvider{credential: credential}
+		service.allDefaults = []*defaultCredential{credential}
 	}
 
 	if options.TLS != nil {
@@ -201,18 +241,12 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		return nil
 	}
 
-	s.userManager.UpdateUsers(s.users)
+	s.userManager.UpdateUsers(s.options.Users)
 
-	credentials, err := platformReadCredentials(s.credentialPath)
-	if err != nil {
-		return E.Cause(err, "read credentials")
-	}
-	s.credentials = credentials
-
-	if s.usageTracker != nil {
-		err = s.usageTracker.Load()
+	for _, credential := range s.allDefaults {
+		err := credential.start()
 		if err != nil {
-			s.logger.Warn("load usage statistics: ", err)
+			return err
 		}
 	}
 
@@ -222,7 +256,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	s.httpServer = &http.Server{Handler: router}
 
 	if s.tlsConfig != nil {
-		err = s.tlsConfig.Start()
+		err := s.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
@@ -250,44 +284,19 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	return nil
 }
 
-func (s *Service) getAccessToken() (string, error) {
-	s.accessMutex.RLock()
-	if !s.credentials.needsRefresh() {
-		token := s.credentials.AccessToken
-		s.accessMutex.RUnlock()
-		return token, nil
+func isExtendedContextRequest(betaHeader string) bool {
+	for _, feature := range strings.Split(betaHeader, ",") {
+		if strings.HasPrefix(strings.TrimSpace(feature), "context-1m") {
+			return true
+		}
 	}
-	s.accessMutex.RUnlock()
-
-	s.accessMutex.Lock()
-	defer s.accessMutex.Unlock()
-
-	if !s.credentials.needsRefresh() {
-		return s.credentials.AccessToken, nil
-	}
-
-	newCredentials, err := refreshToken(s.httpClient, s.credentials)
-	if err != nil {
-		return "", err
-	}
-
-	s.credentials = newCredentials
-
-	err = platformWriteCredentials(newCredentials, s.credentialPath)
-	if err != nil {
-		s.logger.Warn("persist refreshed token: ", err)
-	}
-
-	return newCredentials.AccessToken, nil
+	return false
 }
 
 func detectContextWindow(betaHeader string, totalInputTokens int64) int {
 	if totalInputTokens > premiumContextThreshold {
-		features := strings.Split(betaHeader, ",")
-		for _, feature := range features {
-			if strings.HasPrefix(strings.TrimSpace(feature), "context-1m") {
-				return contextWindowPremium
-			}
+		if isExtendedContextRequest(betaHeader) {
+			return contextWindowPremium
 		}
 	}
 	return contextWindowStandard
@@ -300,7 +309,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var username string
-	if len(s.users) > 0 {
+	if len(s.options.Users) > 0 {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			s.logger.Warn("authentication failed for request from ", r.RemoteAddr, ": missing Authorization header")
@@ -322,26 +331,78 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Always read body to extract model and session ID
+	var bodyBytes []byte
 	var requestModel string
 	var messagesCount int
+	var sessionID string
 
-	if s.usageTracker != nil && r.Body != nil {
-		bodyBytes, err := io.ReadAll(r.Body)
+	if r.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(r.Body)
+		if err != nil {
+			s.logger.Error("read request body: ", err)
+			writeJSONError(w, r, http.StatusInternalServerError, "api_error", "failed to read request body")
+			return
+		}
+
+		var request struct {
+			Model    string                   `json:"model"`
+			Messages []anthropic.MessageParam `json:"messages"`
+		}
+		err = json.Unmarshal(bodyBytes, &request)
 		if err == nil {
-			var request struct {
-				Model    string                   `json:"model"`
-				Messages []anthropic.MessageParam `json:"messages"`
-			}
-			err := json.Unmarshal(bodyBytes, &request)
-			if err == nil {
-				requestModel = request.Model
-				messagesCount = len(request.Messages)
-			}
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			requestModel = request.Model
+			messagesCount = len(request.Messages)
+		}
+
+		sessionID = extractCCMSessionID(bodyBytes)
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
+	// Resolve credential provider
+	var provider credentialProvider
+	if len(s.options.Users) > 0 {
+		var err error
+		provider, err = credentialForUser(s.userCredentialMap, s.providers, s.legacyProvider, username)
+		if err != nil {
+			s.logger.Error("resolve credential: ", err)
+			writeJSONError(w, r, http.StatusInternalServerError, "api_error", err.Error())
+			return
+		}
+	} else {
+		provider = noUserCredentialProvider(s.providers, s.legacyProvider, s.options)
+	}
+	if provider == nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "no credential available")
+		return
+	}
+
+	provider.pollIfStale(s.ctx)
+
+	anthropicBetaHeader := r.Header.Get("anthropic-beta")
+	if isExtendedContextRequest(anthropicBetaHeader) {
+		if _, isSingle := provider.(*singleCredentialProvider); !isSingle {
+			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+				"extended context (1m) requests will consume Extra usage, please use a default credential directly")
+			return
 		}
 	}
 
-	accessToken, err := s.getAccessToken()
+	credential, isNew, err := provider.selectCredential(sessionID)
+	if err != nil {
+		writeNonRetryableCredentialError(w, r, unavailableCredentialMessage(provider, err.Error()))
+		return
+	}
+	if isNew {
+		if username != "" {
+			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID, " by user ", username)
+		} else {
+			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID)
+		}
+	}
+
+	accessToken, err := credential.getAccessToken()
 	if err != nil {
 		s.logger.Error("get access token: ", err)
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "Authentication failed")
@@ -349,7 +410,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxyURL := claudeAPIBaseURL + r.URL.RequestURI()
-	proxyRequest, err := http.NewRequestWithContext(r.Context(), r.Method, proxyURL, r.Body)
+	requestContext := credential.wrapRequestContext(r.Context())
+	defer func() {
+		requestContext.cancelRequest()
+	}()
+	proxyRequest, err := http.NewRequestWithContext(requestContext, r.Method, proxyURL, r.Body)
 	if err != nil {
 		s.logger.Error("create proxy request: ", err)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "Internal server error")
@@ -362,14 +427,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	hasUsageTracker := credential.usageTracker != nil
 	serviceOverridesAcceptEncoding := len(s.httpHeaders.Values("Accept-Encoding")) > 0
-	if s.usageTracker != nil && !serviceOverridesAcceptEncoding {
-		// Strip Accept-Encoding so Go Transport adds it automatically
-		// and transparently decompresses the response for correct usage counting.
+	if hasUsageTracker && !serviceOverridesAcceptEncoding {
 		proxyRequest.Header.Del("Accept-Encoding")
 	}
 
-	anthropicBetaHeader := proxyRequest.Header.Get("anthropic-beta")
 	if anthropicBetaHeader != "" {
 		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue+","+anthropicBetaHeader)
 	} else {
@@ -383,12 +446,64 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	proxyRequest.Header.Set("Authorization", "Bearer "+accessToken)
 
-	response, err := s.httpClient.Do(proxyRequest)
+	response, err := credential.httpClient.Do(proxyRequest)
 	if err != nil {
+		if r.Context().Err() != nil {
+			return
+		}
+		if requestContext.Err() != nil {
+			writeCredentialUnavailableError(w, r, provider, credential, "credential became unavailable while processing the request")
+			return
+		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", err.Error())
 		return
 	}
+	requestContext.releaseCredentialInterrupt()
+
+	// Transparent 429 retry
+	for response.StatusCode == http.StatusTooManyRequests {
+		resetAt := parseRateLimitResetFromHeaders(response.Header)
+		nextCredential := provider.onRateLimited(sessionID, credential, resetAt)
+		credential.updateStateFromHeaders(response.Header)
+		if bodyBytes == nil || nextCredential == nil {
+			response.Body.Close()
+			writeCredentialUnavailableError(w, r, provider, credential, "all credentials rate-limited")
+			return
+		}
+		response.Body.Close()
+		s.logger.Info("retrying with credential ", nextCredential.tag, " after 429 from ", credential.tag)
+		requestContext.cancelRequest()
+		requestContext = nextCredential.wrapRequestContext(r.Context())
+		retryResponse, retryErr := retryRequestWithBody(requestContext, r, bodyBytes, nextCredential, s.httpHeaders)
+		if retryErr != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			if requestContext.Err() != nil {
+				writeCredentialUnavailableError(w, r, provider, nextCredential, "credential became unavailable while retrying the request")
+				return
+			}
+			s.logger.Error("retry request: ", retryErr)
+			writeJSONError(w, r, http.StatusBadGateway, "api_error", retryErr.Error())
+			return
+		}
+		requestContext.releaseCredentialInterrupt()
+		response = retryResponse
+		credential = nextCredential
+	}
 	defer response.Body.Close()
+
+	credential.updateStateFromHeaders(response.Header)
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusTooManyRequests {
+		body, _ := io.ReadAll(response.Body)
+		s.logger.Error("upstream error from ", credential.tag, ": status ", response.StatusCode, " ", string(body))
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error",
+			"proxy request (status "+strconv.Itoa(response.StatusCode)+"): "+string(body))
+		return
+	}
+
+	hasUsageTracker = credential.usageTracker != nil
 
 	for key, values := range response.Header {
 		if !isHopByHopHeader(key) {
@@ -397,8 +512,8 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(response.StatusCode)
 
-	if s.usageTracker != nil && response.StatusCode == http.StatusOK {
-		s.handleResponseWithTracking(w, response, requestModel, anthropicBetaHeader, messagesCount, username)
+	if hasUsageTracker && response.StatusCode == http.StatusOK {
+		s.handleResponseWithTracking(w, response, credential.usageTracker, requestModel, anthropicBetaHeader, messagesCount, username)
 	} else {
 		mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 		if err == nil && mediaType != "text/event-stream" {
@@ -428,7 +543,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, requestModel string, anthropicBetaHeader string, messagesCount int, username string) {
+func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, usageTracker *AggregatedUsage, requestModel string, anthropicBetaHeader string, messagesCount int, username string) {
 	weeklyCycleHint := extractWeeklyCycleHint(response.Header)
 	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	isStreaming := err == nil && mediaType == "text/event-stream"
@@ -456,7 +571,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			if responseModel != "" {
 				totalInputTokens := usage.InputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
 				contextWindow := detectContextWindow(anthropicBetaHeader, totalInputTokens)
-				s.usageTracker.AddUsageWithCycleHint(
+				usageTracker.AddUsageWithCycleHint(
 					responseModel,
 					contextWindow,
 					messagesCount,
@@ -557,7 +672,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 				if responseModel != "" {
 					totalInputTokens := accumulatedUsage.InputTokens + accumulatedUsage.CacheCreationInputTokens + accumulatedUsage.CacheReadInputTokens
 					contextWindow := detectContextWindow(anthropicBetaHeader, totalInputTokens)
-					s.usageTracker.AddUsageWithCycleHint(
+					usageTracker.AddUsageWithCycleHint(
 						responseModel,
 						contextWindow,
 						messagesCount,
@@ -585,12 +700,8 @@ func (s *Service) Close() error {
 		s.tlsConfig,
 	)
 
-	if s.usageTracker != nil {
-		s.usageTracker.cancelPendingSave()
-		saveErr := s.usageTracker.Save()
-		if saveErr != nil {
-			s.logger.Error("save usage statistics: ", saveErr)
-		}
+	for _, credential := range s.allDefaults {
+		credential.close()
 	}
 
 	return err

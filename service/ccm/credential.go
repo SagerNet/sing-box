@@ -8,8 +8,11 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
+	"sync"
 	"time"
 
+	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -20,6 +23,50 @@ const (
 	tokenRefreshBufferMs    = 60000
 	anthropicBetaOAuthValue = "oauth-2025-04-20"
 )
+
+const ccmUserAgentFallback = "claude-code/2.1.72"
+
+var (
+	ccmUserAgentOnce  sync.Once
+	ccmUserAgentValue string
+)
+
+func initCCMUserAgent(logger log.ContextLogger) {
+	ccmUserAgentOnce.Do(func() {
+		version, err := detectClaudeCodeVersion()
+		if err != nil {
+			logger.Error("detect Claude Code version: ", err)
+			ccmUserAgentValue = ccmUserAgentFallback
+			return
+		}
+		logger.Debug("detected Claude Code version: ", version)
+		ccmUserAgentValue = "claude-code/" + version
+	})
+}
+
+func detectClaudeCodeVersion() (string, error) {
+	userInfo, err := getRealUser()
+	if err != nil {
+		return "", E.Cause(err, "get user")
+	}
+	binaryName := "claude"
+	if runtime.GOOS == "windows" {
+		binaryName = "claude.exe"
+	}
+	linkPath := filepath.Join(userInfo.HomeDir, ".local", "bin", binaryName)
+	target, err := os.Readlink(linkPath)
+	if err != nil {
+		return "", E.Cause(err, "readlink ", linkPath)
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(linkPath), target)
+	}
+	parent := filepath.Base(filepath.Dir(target))
+	if parent != "versions" {
+		return "", E.New("unexpected symlink target: ", target)
+	}
+	return filepath.Base(target), nil
+}
 
 func getRealUser() (*user.User, error) {
 	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
@@ -106,6 +153,7 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", ccmUserAgentValue)
 
 	response, err := httpClient.Do(request)
 	if err != nil {
@@ -113,6 +161,10 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode == http.StatusTooManyRequests {
+		body, _ := io.ReadAll(response.Body)
+		return nil, E.New("refresh rate limited: ", response.Status, " ", string(body))
+	}
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		return nil, E.New("refresh failed: ", response.Status, " ", string(body))
