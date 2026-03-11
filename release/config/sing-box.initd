@@ -4,15 +4,41 @@ name=$RC_SVCNAME
 description="sing-box service"
 supervisor="supervise-daemon"
 command="/usr/bin/sing-box"
-command_args="-D /var/lib/sing-box -C /etc/sing-box run"
+extra_commands="checkconfig"
 extra_started_commands="reload"
+
+: ${SINGBOX_CONFIG:=${config:-"/etc/sing-box"}}
+
+if [ -d "$SINGBOX_CONFIG" ]; then
+	_config_opt="-C $SINGBOX_CONFIG"
+elif [ -z "$SINGBOX_CONFIG" ]; then
+	_config_opt=""
+else
+	_config_opt="-c $SINGBOX_CONFIG"
+fi
+
+_workdir=${SINGBOX_WORKDIR:-${workdir:-"/var/lib/sing-box"}}
+
+command_args="run --disable-color
+	-D $_workdir
+	$_config_opt"
 
 depend() {
 	after net dns
 }
 
+checkconfig() {
+	ebegin "Checking $RC_SVCNAME configuration"
+	sing-box check -D "$_workdir" $_config_opt
+	eend $?
+}
+
+start_pre() {
+	checkconfig
+}
+
 reload() {
 	ebegin "Reloading $RC_SVCNAME"
-        $supervisor "$RC_SVCNAME" --signal HUP
+	checkconfig && $supervisor "$RC_SVCNAME" --signal HUP
 	eend $?
 }

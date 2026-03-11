@@ -53,6 +53,11 @@ elif command -v apk >/dev/null 2>&1 && [ -f /etc/os-release ] && grep -q OPENWRT
   arch="$OPENWRT_ARCH"
   package_suffix=".apk"
   package_install="apk add --allow-untrusted"
+elif command -v apk >/dev/null 2>&1; then
+  os="linux"
+  arch=$(apk --print-arch)
+  package_suffix=".apk"
+  package_install="apk add --allow-untrusted"
 elif command -v opkg >/dev/null 2>&1; then
   os="openwrt"
   . /etc/os-release

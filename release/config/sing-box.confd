@@ -1,0 +1,6 @@
+# /etc/conf.d/sing-box: config file for /etc/init.d/sing-box
+
+# sing-box configuration path, could be file or directory
+# SINGBOX_CONFIG=/etc/sing-box
+
+# SINGBOX_WORKDIR=/var/lib/sing-box
