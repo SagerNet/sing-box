@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.13.3"
+
+    :material-alert: [strict_route](#strict_route)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [auto_redirect_reset_mark](#auto_redirect_reset_mark)  
@@ -348,6 +352,9 @@ Enforce strict routing rules when `auto_route` is enabled:
 
 * Let unsupported network unreachable
 * For legacy reasons, when neither `strict_route` nor `auto_redirect` are enabled, all ICMP traffic will not go through TUN.
+* When `auto_redirect` is enabled, `strict_route` also affects `SO_BINDTODEVICE` traffic:
+    * Enabled: `SO_BINDTODEVICE` traffic is redirected through sing-box.
+    * Disabled: `SO_BINDTODEVICE` traffic bypasses sing-box.
 
 *In Windows*:
 
