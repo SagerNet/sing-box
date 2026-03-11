@@ -2,6 +2,40 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.3-beta.1
+
+* Fix `auto_redirect` silently dropping `SO_BINDTODEVICE` traffic **1**
+* Add OpenWrt and Alpine APK packages to release **2**
+* Backport to macOS 10.13 High Sierra **3**
+* OCM service: Add WebSocket support for Responses API **4**
+* Fixes and improvements
+
+**1**:
+
+When `auto_redirect` is enabled, `SO_BINDTODEVICE` traffic (e.g. `curl --interface`, NetworkManager connectivity checks)
+was previously silently dropped. Now, `strict_route` controls the behavior:
+when enabled, such traffic is redirected through sing-box;
+when disabled, it bypasses sing-box and connects directly.
+
+See [TUN](/configuration/inbound/tun/#strict_route).
+
+**2**:
+
+Alpine APK files use `linux` in the filename to distinguish from OpenWrt APKs which use the `openwrt` prefix:
+
+- OpenWrt: `sing-box_{version}_openwrt_{architecture}.apk`
+- Alpine: `sing-box_{version}_linux_{architecture}.apk`
+
+**3**:
+
+Legacy macOS binaries (with `-legacy-macos-10.13` suffix) now support
+macOS 10.13 High Sierra, built using Go 1.25 with patches
+from [SagerNet/go](https://github.com/SagerNet/go).
+
+**4**:
+
+See [OCM](/configuration/service/ocm).
+
 #### 1.13.2
 
 * Fixes and improvements
