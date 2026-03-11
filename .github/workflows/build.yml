@@ -72,27 +72,27 @@ jobs:
         include:
           - { os: linux, arch: amd64, variant: purego, naive: true }
           - { os: linux, arch: amd64, variant: glibc, naive: true }
-          - { os: linux, arch: amd64, variant: musl, naive: true, debian: amd64, rpm: x86_64, pacman: x86_64, openwrt: "x86_64" }
+          - { os: linux, arch: amd64, variant: musl, naive: true, debian: amd64, rpm: x86_64, pacman: x86_64, alpine: x86_64, openwrt: "x86_64" }
 
           - { os: linux, arch: arm64, variant: purego, naive: true }
           - { os: linux, arch: arm64, variant: glibc, naive: true }
-          - { os: linux, arch: arm64, variant: musl, naive: true, debian: arm64, rpm: aarch64, pacman: aarch64, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
+          - { os: linux, arch: arm64, variant: musl, naive: true, debian: arm64, rpm: aarch64, pacman: aarch64, alpine: aarch64, openwrt: "aarch64_cortex-a53 aarch64_cortex-a72 aarch64_cortex-a76 aarch64_generic" }
 
           - { os: linux, arch: "386", go386: sse2 }
           - { os: linux, arch: "386", variant: glibc, naive: true, go386: sse2 }
-          - { os: linux, arch: "386", variant: musl, naive: true, go386: sse2, debian: i386, rpm: i386, openwrt: "i386_pentium4" }
+          - { os: linux, arch: "386", variant: musl, naive: true, go386: sse2, debian: i386, rpm: i386, alpine: x86, openwrt: "i386_pentium4" }
 
           - { os: linux, arch: arm, goarm: "7" }
           - { os: linux, arch: arm, variant: glibc, naive: true, goarm: "7" }
-          - { os: linux, arch: arm, variant: musl, naive: true, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl, openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
+          - { os: linux, arch: arm, variant: musl, naive: true, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7hl, alpine: armv7, openwrt: "arm_cortex-a5_vfpv4 arm_cortex-a7_neon-vfpv4 arm_cortex-a7_vfpv4 arm_cortex-a8_vfpv3 arm_cortex-a9_neon arm_cortex-a9_vfpv3-d16 arm_cortex-a15_neon-vfpv4" }
 
           - { os: linux, arch: mipsle, gomips: hardfloat, naive: true, variant: glibc }
           - { os: linux, arch: mipsle, gomips: softfloat, naive: true, variant: musl, debian: mipsel, rpm: mipsel, openwrt: "mipsel_24kc mipsel_74kc mipsel_mips32" }
           - { os: linux, arch: mips64le, gomips: hardfloat, naive: true, variant: glibc, debian: mips64el, rpm: mips64el }
           - { os: linux, arch: riscv64, naive: true, variant: glibc }
-          - { os: linux, arch: riscv64, naive: true, variant: musl, debian: riscv64, rpm: riscv64, openwrt: "riscv64_generic" }
+          - { os: linux, arch: riscv64, naive: true, variant: musl, debian: riscv64, rpm: riscv64, alpine: riscv64, openwrt: "riscv64_generic" }
           - { os: linux, arch: loong64, naive: true, variant: glibc }
-          - { os: linux, arch: loong64, naive: true, variant: musl, debian: loongarch64, rpm: loongarch64, openwrt: "loongarch64_generic" }
+          - { os: linux, arch: loong64, naive: true, variant: musl, debian: loongarch64, rpm: loongarch64, alpine: loongarch64, openwrt: "loongarch64_generic" }
 
           - { os: linux, arch: "386", go386: softfloat, openwrt: "i386_pentium-mmx" }
           - { os: linux, arch: arm, goarm: "5", openwrt: "arm_arm926ej-s arm_cortex-a7 arm_cortex-a9 arm_fa526 arm_xscale" }
@@ -397,7 +397,7 @@ jobs:
           done
           rm "dist/openwrt.deb"
       - name: Install apk-tools
-        if: matrix.openwrt != ''
+        if: matrix.openwrt != '' || matrix.alpine != ''
         run: |-
           docker run --rm -v /usr/local/bin:/mnt alpine:edge sh -c "apk add --no-cache apk-tools-static && cp /sbin/apk.static /mnt/apk && chmod +x /mnt/apk"
       - name: Package OpenWrt APK
@@ -411,6 +411,15 @@ jobs:
               "dist/sing-box" \
               "dist/sing-box_${{ needs.calculate_version.outputs.version }}_openwrt_${architecture}.apk"
           done
+      - name: Package Alpine APK
+        if: matrix.alpine != ''
+        run: |-
+          set -xeuo pipefail
+          .github/build_alpine_apk.sh \
+            "${{ matrix.alpine }}" \
+            "${{ needs.calculate_version.outputs.version }}" \
+            "dist/sing-box" \
+            "dist/sing-box_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.alpine }}.apk"
       - name: Archive
         run: |
           set -xeuo pipefail
