@@ -281,11 +281,11 @@ func (s *Service) getAccessToken() (string, error) {
 	return newCredentials.AccessToken, nil
 }
 
-func detectContextWindow(betaHeader string, inputTokens int64) int {
-	if inputTokens > premiumContextThreshold {
+func detectContextWindow(betaHeader string, totalInputTokens int64) int {
+	if totalInputTokens > premiumContextThreshold {
 		features := strings.Split(betaHeader, ",")
 		for _, feature := range features {
-			if strings.TrimSpace(feature) == "context-1m" {
+			if strings.HasPrefix(strings.TrimSpace(feature), "context-1m") {
 				return contextWindowPremium
 			}
 		}
@@ -454,7 +454,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 
 		if usage.InputTokens > 0 || usage.OutputTokens > 0 {
 			if responseModel != "" {
-				contextWindow := detectContextWindow(anthropicBetaHeader, usage.InputTokens)
+				totalInputTokens := usage.InputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
+				contextWindow := detectContextWindow(anthropicBetaHeader, totalInputTokens)
 				s.usageTracker.AddUsageWithCycleHint(
 					responseModel,
 					contextWindow,
@@ -554,7 +555,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 
 			if accumulatedUsage.InputTokens > 0 || accumulatedUsage.OutputTokens > 0 {
 				if responseModel != "" {
-					contextWindow := detectContextWindow(anthropicBetaHeader, accumulatedUsage.InputTokens)
+					totalInputTokens := accumulatedUsage.InputTokens + accumulatedUsage.CacheCreationInputTokens + accumulatedUsage.CacheReadInputTokens
+					contextWindow := detectContextWindow(anthropicBetaHeader, totalInputTokens)
 					s.usageTracker.AddUsageWithCycleHint(
 						responseModel,
 						contextWindow,
