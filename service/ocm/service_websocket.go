@@ -256,8 +256,10 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 							responseModel = requestModel
 						}
 						if responseModel != "" {
+							contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
 							s.usageTracker.AddUsageWithCycleHint(
 								responseModel,
+								contextWindow,
 								inputTokens,
 								outputTokens,
 								cachedTokens,
