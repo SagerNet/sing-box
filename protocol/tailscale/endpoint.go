@@ -333,9 +333,6 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 		t.systemTun = systemTun
 		t.systemDialer = systemDialer
 		t.server.TunDevice = wgTunDevice
-		t.server.RouterWrapper = func(inner router.Router) router.Router {
-			return &addressOnlyRouter{Router: inner}
-		}
 	}
 	if mark := t.network.AutoRedirectOutputMark(); mark > 0 {
 		controlFunc := t.network.AutoRedirectOutputMarkFunc()
@@ -480,11 +477,12 @@ func (t *Endpoint) Close() error {
 		t.fallbackTCPCloser()
 		t.fallbackTCPCloser = nil
 	}
+	err := common.Close(common.PtrOrNil(t.server))
 	if t.systemTun != nil {
-		_ = t.systemTun.Close()
+		t.systemTun.Close()
 		t.systemTun = nil
 	}
-	return common.Close(common.PtrOrNil(t.server))
+	return err
 }
 
 func (t *Endpoint) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -850,15 +848,3 @@ func (c *dnsConfigurtor) Close() error {
 	return nil
 }
 
-type addressOnlyRouter struct {
-	router.Router
-}
-
-func (r *addressOnlyRouter) Set(config *router.Config) error {
-	if config != nil {
-		config = &router.Config{
-			LocalAddrs: config.LocalAddrs,
-		}
-	}
-	return r.Router.Set(config)
-}
