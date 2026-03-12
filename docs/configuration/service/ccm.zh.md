@@ -51,6 +51,10 @@ Claude Code OAuth 凭据文件的路径。
 
 刷新的令牌会自动写回相同位置。
 
+当 `credential_path` 指向文件时，即使文件尚不存在，服务也可以启动。文件被创建或更新后，凭据会自动变为可用；如果文件之后被删除或变为无效，该凭据会立即变为不可用。
+
+在 macOS 上如果未显式设置 `credential_path`，不会监听钥匙串变化。自动重载只作用于凭据文件路径。
+
 与 `credentials` 冲突。
 
 #### credentials
@@ -76,7 +80,7 @@ Claude Code OAuth 凭据文件的路径。
 }
 ```
 
-单个 OAuth 凭据文件。`type` 字段可以省略（默认为 `default`）。
+单个 OAuth 凭据文件。`type` 字段可以省略（默认为 `default`）。即使文件尚不存在，服务也可以启动，并会自动重载文件更新。
 
 - `credential_path`：凭据文件的路径。默认值与顶层 `credential_path` 相同。
 - `usages_path`：此凭据的可选使用跟踪文件。

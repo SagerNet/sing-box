@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -188,4 +189,25 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 	newCredentials.ExpiresAt = time.Now().UnixMilli() + int64(tokenResponse.ExpiresIn)*1000
 
 	return &newCredentials, nil
+}
+
+func cloneCredentials(credentials *oauthCredentials) *oauthCredentials {
+	if credentials == nil {
+		return nil
+	}
+	cloned := *credentials
+	cloned.Scopes = append([]string(nil), credentials.Scopes...)
+	return &cloned
+}
+
+func credentialsEqual(left *oauthCredentials, right *oauthCredentials) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.AccessToken == right.AccessToken &&
+		left.RefreshToken == right.RefreshToken &&
+		left.ExpiresAt == right.ExpiresAt &&
+		slices.Equal(left.Scopes, right.Scopes) &&
+		left.SubscriptionType == right.SubscriptionType &&
+		left.IsMax == right.IsMax
 }

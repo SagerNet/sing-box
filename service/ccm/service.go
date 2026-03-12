@@ -88,7 +88,11 @@ func unavailableCredentialMessage(provider credentialProvider, fallback string) 
 	if provider == nil {
 		return fallback
 	}
-	return allCredentialsUnavailableError(provider.allCredentials()).Error()
+	message := allCredentialsUnavailableError(provider.allCredentials()).Error()
+	if message == "all credentials unavailable" && fallback != "" {
+		return fallback
+	}
+	return message
 }
 
 func writeRetryableUsageError(w http.ResponseWriter, r *http.Request) {
@@ -734,6 +738,9 @@ func (s *Service) computeAggregatedUtilization(provider credentialProvider, user
 	var totalFiveHour, totalWeekly float64
 	var count int
 	for _, cred := range provider.allCredentials() {
+		if !cred.isAvailable() {
+			continue
+		}
 		// Exclude the user's own external_credential (their contribution to us)
 		if userConfig.ExternalCredential != "" && cred.tagName() == userConfig.ExternalCredential {
 			continue

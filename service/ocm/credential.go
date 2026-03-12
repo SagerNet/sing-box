@@ -175,3 +175,41 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 
 	return &newCredentials, nil
 }
+
+func cloneCredentials(credentials *oauthCredentials) *oauthCredentials {
+	if credentials == nil {
+		return nil
+	}
+	cloned := *credentials
+	if credentials.Tokens != nil {
+		clonedTokens := *credentials.Tokens
+		cloned.Tokens = &clonedTokens
+	}
+	if credentials.LastRefresh != nil {
+		lastRefresh := *credentials.LastRefresh
+		cloned.LastRefresh = &lastRefresh
+	}
+	return &cloned
+}
+
+func credentialsEqual(left *oauthCredentials, right *oauthCredentials) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	if left.APIKey != right.APIKey {
+		return false
+	}
+	if (left.Tokens == nil) != (right.Tokens == nil) {
+		return false
+	}
+	if left.Tokens != nil && *left.Tokens != *right.Tokens {
+		return false
+	}
+	if (left.LastRefresh == nil) != (right.LastRefresh == nil) {
+		return false
+	}
+	if left.LastRefresh != nil && !left.LastRefresh.Equal(*right.LastRefresh) {
+		return false
+	}
+	return true
+}

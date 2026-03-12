@@ -51,6 +51,10 @@ On macOS, credentials are read from the system keychain first, then fall back to
 
 Refreshed tokens are automatically written back to the same location.
 
+When `credential_path` points to a file, the service can start before the file exists. The credential becomes available automatically after the file is created or updated, and becomes unavailable immediately if the file is later removed or becomes invalid.
+
+On macOS without an explicit `credential_path`, keychain changes are not watched. Automatic reload only applies to the credential file path.
+
 Conflict with `credentials`.
 
 #### credentials
@@ -76,7 +80,7 @@ Each credential has a `type` field (`default`, `balancer`, or `fallback`) and a 
 }
 ```
 
-A single OAuth credential file. The `type` field can be omitted (defaults to `default`).
+A single OAuth credential file. The `type` field can be omitted (defaults to `default`). The service can start before the file exists, and reloads file updates automatically.
 
 - `credential_path`: Path to the credentials file. Same defaults as top-level `credential_path`.
 - `usages_path`: Optional usage tracking file for this credential.

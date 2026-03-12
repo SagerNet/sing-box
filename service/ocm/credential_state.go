@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/log"
@@ -29,31 +30,39 @@ import (
 const defaultPollInterval = 60 * time.Minute
 
 type credentialState struct {
-	fiveHourUtilization     float64
-	fiveHourReset           time.Time
-	weeklyUtilization       float64
-	weeklyReset             time.Time
-	hardRateLimited         bool
-	rateLimitResetAt        time.Time
-	accountType             string
-	lastUpdated             time.Time
-	consecutivePollFailures int
+	fiveHourUtilization       float64
+	fiveHourReset             time.Time
+	weeklyUtilization         float64
+	weeklyReset               time.Time
+	hardRateLimited           bool
+	rateLimitResetAt          time.Time
+	accountType               string
+	lastUpdated               time.Time
+	consecutivePollFailures   int
+	unavailable               bool
+	lastCredentialLoadAttempt time.Time
+	lastCredentialLoadError   string
 }
 
 type defaultCredential struct {
-	tag            string
-	credentialPath string
-	credentials    *oauthCredentials
-	accessMutex    sync.RWMutex
-	state          credentialState
-	stateMutex     sync.RWMutex
-	pollAccess     sync.Mutex
-	reserve5h      uint8
-	reserveWeekly  uint8
-	usageTracker   *AggregatedUsage
-	dialer         N.Dialer
-	httpClient     *http.Client
-	logger         log.ContextLogger
+	tag                string
+	credentialPath     string
+	credentialFilePath string
+	credentials        *oauthCredentials
+	accessMutex        sync.RWMutex
+	state              credentialState
+	stateMutex         sync.RWMutex
+	pollAccess         sync.Mutex
+	reloadAccess       sync.Mutex
+	watcherAccess      sync.Mutex
+	reserve5h          uint8
+	reserveWeekly      uint8
+	usageTracker       *AggregatedUsage
+	dialer             N.Dialer
+	httpClient         *http.Client
+	logger             log.ContextLogger
+	watcher            *fswatch.Watcher
+	watcherRetryAt     time.Time
 
 	// Connection interruption
 	onBecameUnusable func()
@@ -84,12 +93,14 @@ func (c *credentialRequestContext) cancelRequest() {
 
 type credential interface {
 	tagName() string
+	isAvailable() bool
 	isUsable() bool
 	isExternal() bool
 	fiveHourUtilization() float64
 	weeklyUtilization() float64
 	markRateLimited(resetAt time.Time)
 	earliestReset() time.Time
+	unavailableError() error
 
 	getAccessToken() (string, error)
 	buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, serviceHeaders http.Header) (*http.Request, error)
@@ -169,11 +180,19 @@ func newDefaultCredential(ctx context.Context, tag string, options option.OCMDef
 }
 
 func (c *defaultCredential) start() error {
-	credentials, err := platformReadCredentials(c.credentialPath)
+	credentialFilePath, err := resolveCredentialFilePath(c.credentialPath)
 	if err != nil {
-		return E.Cause(err, "read credentials for ", c.tag)
+		return E.Cause(err, "resolve credential path for ", c.tag)
 	}
-	c.credentials = credentials
+	c.credentialFilePath = credentialFilePath
+	err = c.ensureCredentialWatcher()
+	if err != nil {
+		c.logger.Debug("start credential watcher for ", c.tag, ": ", err)
+	}
+	err = c.reloadCredentials(true)
+	if err != nil {
+		c.logger.Warn("initial credential load for ", c.tag, ": ", err)
+	}
 	if c.usageTracker != nil {
 		err = c.usageTracker.Load()
 		if err != nil {
@@ -184,27 +203,65 @@ func (c *defaultCredential) start() error {
 }
 
 func (c *defaultCredential) getAccessToken() (string, error) {
+	c.retryCredentialReloadIfNeeded()
+
 	c.accessMutex.RLock()
-	if !c.credentials.needsRefresh() {
+	if c.credentials != nil && !c.credentials.needsRefresh() {
 		token := c.credentials.getAccessToken()
 		c.accessMutex.RUnlock()
 		return token, nil
 	}
 	c.accessMutex.RUnlock()
 
+	err := c.reloadCredentials(true)
+	if err == nil {
+		c.accessMutex.RLock()
+		if c.credentials != nil && !c.credentials.needsRefresh() {
+			token := c.credentials.getAccessToken()
+			c.accessMutex.RUnlock()
+			return token, nil
+		}
+		c.accessMutex.RUnlock()
+	}
+
 	c.accessMutex.Lock()
 	defer c.accessMutex.Unlock()
 
+	if c.credentials == nil {
+		return "", c.unavailableError()
+	}
 	if !c.credentials.needsRefresh() {
 		return c.credentials.getAccessToken(), nil
 	}
 
+	baseCredentials := cloneCredentials(c.credentials)
 	newCredentials, err := refreshToken(c.httpClient, c.credentials)
 	if err != nil {
 		return "", err
 	}
 
+	latestCredentials, latestErr := platformReadCredentials(c.credentialPath)
+	if latestErr == nil && !credentialsEqual(latestCredentials, baseCredentials) {
+		c.credentials = latestCredentials
+		c.stateMutex.Lock()
+		c.state.unavailable = false
+		c.state.lastCredentialLoadAttempt = time.Now()
+		c.state.lastCredentialLoadError = ""
+		c.checkTransitionLocked()
+		c.stateMutex.Unlock()
+		if !latestCredentials.needsRefresh() {
+			return latestCredentials.getAccessToken(), nil
+		}
+		return "", E.New("credential ", c.tag, " changed while refreshing")
+	}
+
 	c.credentials = newCredentials
+	c.stateMutex.Lock()
+	c.state.unavailable = false
+	c.state.lastCredentialLoadAttempt = time.Now()
+	c.state.lastCredentialLoadError = ""
+	c.checkTransitionLocked()
+	c.stateMutex.Unlock()
 
 	err = platformWriteCredentials(newCredentials, c.credentialPath)
 	if err != nil {
@@ -217,12 +274,18 @@ func (c *defaultCredential) getAccessToken() (string, error) {
 func (c *defaultCredential) getAccountID() string {
 	c.accessMutex.RLock()
 	defer c.accessMutex.RUnlock()
+	if c.credentials == nil {
+		return ""
+	}
 	return c.credentials.getAccountID()
 }
 
 func (c *defaultCredential) isAPIKeyMode() bool {
 	c.accessMutex.RLock()
 	defer c.accessMutex.RUnlock()
+	if c.credentials == nil {
+		return false
+	}
 	return c.credentials.isAPIKeyMode()
 }
 
@@ -296,7 +359,13 @@ func (c *defaultCredential) markRateLimited(resetAt time.Time) {
 }
 
 func (c *defaultCredential) isUsable() bool {
+	c.retryCredentialReloadIfNeeded()
+
 	c.stateMutex.RLock()
+	if c.state.unavailable {
+		c.stateMutex.RUnlock()
+		return false
+	}
 	if c.state.hardRateLimited {
 		if time.Now().Before(c.state.rateLimitResetAt) {
 			c.stateMutex.RUnlock()
@@ -329,7 +398,7 @@ func (c *defaultCredential) checkReservesLocked() bool {
 // checkTransitionLocked detects usable→unusable transition.
 // Must be called with stateMutex write lock held.
 func (c *defaultCredential) checkTransitionLocked() bool {
-	unusable := c.state.hardRateLimited || !c.checkReservesLocked()
+	unusable := c.state.unavailable || c.state.hardRateLimited || !c.checkReservesLocked()
 	if unusable && !c.interrupted {
 		c.interrupted = true
 		return true
@@ -372,6 +441,26 @@ func (c *defaultCredential) weeklyUtilization() float64 {
 	return c.state.weeklyUtilization
 }
 
+func (c *defaultCredential) isAvailable() bool {
+	c.retryCredentialReloadIfNeeded()
+
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return !c.state.unavailable
+}
+
+func (c *defaultCredential) unavailableError() error {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	if !c.state.unavailable {
+		return nil
+	}
+	if c.state.lastCredentialLoadError == "" {
+		return E.New("credential ", c.tag, " is unavailable")
+	}
+	return E.New("credential ", c.tag, " is unavailable: ", c.state.lastCredentialLoadError)
+}
+
 func (c *defaultCredential) lastUpdatedTime() time.Time {
 	c.stateMutex.RLock()
 	defer c.stateMutex.RUnlock()
@@ -400,6 +489,9 @@ func (c *defaultCredential) pollBackoff(baseInterval time.Duration) time.Duratio
 func (c *defaultCredential) earliestReset() time.Time {
 	c.stateMutex.RLock()
 	defer c.stateMutex.RUnlock()
+	if c.state.unavailable {
+		return time.Time{}
+	}
 	if c.state.hardRateLimited {
 		return c.state.rateLimitResetAt
 	}
@@ -421,14 +513,19 @@ func isTimeoutError(err error) bool {
 }
 
 func (c *defaultCredential) pollUsage(ctx context.Context) {
-	if c.isAPIKeyMode() {
-		return
-	}
 	if !c.pollAccess.TryLock() {
 		return
 	}
 	defer c.pollAccess.Unlock()
 	defer c.markUsagePollAttempted()
+
+	c.retryCredentialReloadIfNeeded()
+	if !c.isAvailable() {
+		return
+	}
+	if c.isAPIKeyMode() {
+		return
+	}
 
 	accessToken, err := c.getAccessToken()
 	if err != nil {
@@ -546,6 +643,12 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 }
 
 func (c *defaultCredential) close() {
+	if c.watcher != nil {
+		err := c.watcher.Close()
+		if err != nil {
+			c.logger.Error("close credential watcher for ", c.tag, ": ", err)
+		}
+	}
 	if c.usageTracker != nil {
 		c.usageTracker.cancelPendingSave()
 		err := c.usageTracker.Save()
@@ -662,6 +765,9 @@ func (p *singleCredentialProvider) selectCredential(_ string, filter func(creden
 	if filter != nil && !filter(p.cred) {
 		return nil, false, E.New("credential ", p.cred.tagName(), " is filtered out")
 	}
+	if !p.cred.isAvailable() {
+		return nil, false, p.cred.unavailableError()
+	}
 	if !p.cred.isUsable() {
 		return nil, false, E.New("credential ", p.cred.tagName(), " is rate-limited")
 	}
@@ -702,6 +808,10 @@ type balancerProvider struct {
 	logger          log.ContextLogger
 }
 
+func compositeCredentialSelectable(cred credential) bool {
+	return !cred.ocmIsAPIKeyMode()
+}
+
 func newBalancerProvider(credentials []credential, strategy string, pollInterval time.Duration, logger log.ContextLogger) *balancerProvider {
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
@@ -722,7 +832,7 @@ func (p *balancerProvider) selectCredential(sessionID string, filter func(creden
 		p.sessionMutex.RUnlock()
 		if exists {
 			for _, cred := range p.credentials {
-				if cred.tagName() == entry.tag && (filter == nil || filter(cred)) && cred.isUsable() {
+				if cred.tagName() == entry.tag && compositeCredentialSelectable(cred) && (filter == nil || filter(cred)) && cred.isUsable() {
 					return cred, false, nil
 				}
 			}
@@ -781,6 +891,9 @@ func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credentia
 		if filter != nil && !filter(cred) {
 			continue
 		}
+		if !compositeCredentialSelectable(cred) {
+			continue
+		}
 		if !cred.isUsable() {
 			continue
 		}
@@ -801,6 +914,9 @@ func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credenti
 		if filter != nil && !filter(candidate) {
 			continue
 		}
+		if !compositeCredentialSelectable(candidate) {
+			continue
+		}
 		if candidate.isUsable() {
 			return candidate
 		}
@@ -812,6 +928,9 @@ func (p *balancerProvider) pickRandom(filter func(credential) bool) credential {
 	var usable []credential
 	for _, candidate := range p.credentials {
 		if filter != nil && !filter(candidate) {
+			continue
+		}
+		if !compositeCredentialSelectable(candidate) {
 			continue
 		}
 		if candidate.isUsable() {
@@ -869,6 +988,9 @@ func (p *fallbackProvider) selectCredential(_ string, filter func(credential) bo
 		if filter != nil && !filter(cred) {
 			continue
 		}
+		if !compositeCredentialSelectable(cred) {
+			continue
+		}
 		if cred.isUsable() {
 			return cred, false, nil
 		}
@@ -880,6 +1002,9 @@ func (p *fallbackProvider) onRateLimited(_ string, cred credential, resetAt time
 	cred.markRateLimited(resetAt)
 	for _, candidate := range p.credentials {
 		if filter != nil && !filter(candidate) {
+			continue
+		}
+		if !compositeCredentialSelectable(candidate) {
 			continue
 		}
 		if candidate.isUsable() {
@@ -904,12 +1029,20 @@ func (p *fallbackProvider) allCredentials() []credential {
 func (p *fallbackProvider) close() {}
 
 func allRateLimitedError(credentials []credential) error {
+	var hasUnavailable bool
 	var earliest time.Time
 	for _, cred := range credentials {
+		if cred.unavailableError() != nil {
+			hasUnavailable = true
+			continue
+		}
 		resetAt := cred.earliestReset()
 		if !resetAt.IsZero() && (earliest.IsZero() || resetAt.Before(earliest)) {
 			earliest = resetAt
 		}
+	}
+	if hasUnavailable {
+		return E.New("all credentials unavailable")
 	}
 	if earliest.IsZero() {
 		return E.New("all credentials rate-limited")
@@ -1090,6 +1223,9 @@ func validateOCMCompositeCredentialModes(
 		}
 
 		for _, subCred := range provider.allCredentials() {
+			if !subCred.isAvailable() {
+				continue
+			}
 			if subCred.ocmIsAPIKeyMode() {
 				return E.New(
 					"credential ", credOpt.Tag,

@@ -157,6 +157,10 @@ func (c *externalCredential) isExternal() bool {
 	return true
 }
 
+func (c *externalCredential) isAvailable() bool {
+	return true
+}
+
 func (c *externalCredential) isUsable() bool {
 	c.stateMutex.RLock()
 	if c.state.hardRateLimited {
@@ -213,6 +217,10 @@ func (c *externalCredential) earliestReset() time.Time {
 		earliest = c.state.weeklyReset
 	}
 	return earliest
+}
+
+func (c *externalCredential) unavailableError() error {
+	return nil
 }
 
 func (c *externalCredential) getAccessToken() (string, error) {
