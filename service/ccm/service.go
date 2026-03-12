@@ -128,6 +128,19 @@ func isHopByHopHeader(header string) bool {
 	}
 }
 
+func isReverseProxyHeader(header string) bool {
+	lowerHeader := strings.ToLower(header)
+	if strings.HasPrefix(lowerHeader, "cf-") {
+		return true
+	}
+	switch lowerHeader {
+	case "cdn-loop", "true-client-ip", "x-forwarded-for", "x-forwarded-proto", "x-real-ip":
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	weeklyWindowSeconds = 604800
 	weeklyWindowMinutes = weeklyWindowSeconds / 60

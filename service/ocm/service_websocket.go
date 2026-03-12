@@ -65,7 +65,7 @@ func isForwardableResponseHeader(key string) bool {
 }
 
 func isForwardableWebSocketRequestHeader(key string) bool {
-	if isHopByHopHeader(key) {
+	if isHopByHopHeader(key) || isReverseProxyHeader(key) {
 		return false
 	}
 

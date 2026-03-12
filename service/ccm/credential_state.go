@@ -674,7 +674,7 @@ func (c *defaultCredential) buildProxyRequest(ctx context.Context, original *htt
 	}
 
 	for key, values := range original.Header {
-		if !isHopByHopHeader(key) && key != "Authorization" {
+		if !isHopByHopHeader(key) && !isReverseProxyHeader(key) && key != "Authorization" {
 			proxyRequest.Header[key] = values
 		}
 	}
