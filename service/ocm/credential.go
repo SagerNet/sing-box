@@ -55,6 +55,14 @@ func readCredentialsFromFile(path string) (*oauthCredentials, error) {
 	return &credentials, nil
 }
 
+func checkCredentialFileWritable(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
 func writeCredentialsToFile(credentials *oauthCredentials, path string) error {
 	data, err := json.MarshalIndent(credentials, "", "  ")
 	if err != nil {

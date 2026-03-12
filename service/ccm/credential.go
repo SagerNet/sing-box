@@ -108,6 +108,14 @@ func readCredentialsFromFile(path string) (*oauthCredentials, error) {
 	return credentialsContainer.ClaudeAIAuth, nil
 }
 
+func checkCredentialFileWritable(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
 func writeCredentialsToFile(oauthCredentials *oauthCredentials, path string) error {
 	data, err := json.MarshalIndent(map[string]any{
 		"claudeAiOauth": oauthCredentials,

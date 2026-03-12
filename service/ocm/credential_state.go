@@ -234,6 +234,11 @@ func (c *defaultCredential) getAccessToken() (string, error) {
 		return c.credentials.getAccessToken(), nil
 	}
 
+	err = platformCanWriteCredentials(c.credentialPath)
+	if err != nil {
+		return "", E.Cause(err, "credential file not writable, refusing refresh to avoid invalidation")
+	}
+
 	baseCredentials := cloneCredentials(c.credentials)
 	newCredentials, err := refreshToken(c.httpClient, c.credentials)
 	if err != nil {
@@ -265,7 +270,7 @@ func (c *defaultCredential) getAccessToken() (string, error) {
 
 	err = platformWriteCredentials(newCredentials, c.credentialPath)
 	if err != nil {
-		c.logger.Warn("persist refreshed token for ", c.tag, ": ", err)
+		c.logger.Error("persist refreshed token for ", c.tag, ": ", err)
 	}
 
 	return newCredentials.getAccessToken(), nil
