@@ -30,6 +30,7 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/responses"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func RegisterService(registry *boxService.Registry) {
@@ -302,7 +303,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	router := chi.NewRouter()
 	router.Mount("/", s)
 
-	s.httpServer = &http.Server{Handler: router}
+	s.httpServer = &http.Server{Handler: h2c.NewHandler(router, &http2.Server{})}
 
 	if s.tlsConfig != nil {
 		err := s.tlsConfig.Start()

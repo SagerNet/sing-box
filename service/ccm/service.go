@@ -29,6 +29,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 const (
@@ -249,7 +250,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	router := chi.NewRouter()
 	router.Mount("/", s)
 
-	s.httpServer = &http.Server{Handler: router}
+	s.httpServer = &http.Server{Handler: h2c.NewHandler(router, &http2.Server{})}
 
 	if s.tlsConfig != nil {
 		err := s.tlsConfig.Start()
