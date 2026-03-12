@@ -19,15 +19,18 @@ type CCMServiceOptions struct {
 }
 
 type CCMUser struct {
-	Name       string `json:"name,omitempty"`
-	Token      string `json:"token,omitempty"`
-	Credential string `json:"credential,omitempty"`
+	Name               string `json:"name,omitempty"`
+	Token              string `json:"token,omitempty"`
+	Credential         string `json:"credential,omitempty"`
+	ExternalCredential string `json:"external_credential,omitempty"`
+	AllowExternalUsage bool   `json:"allow_external_usage,omitempty"`
 }
 
 type _CCMCredential struct {
 	Type            string                       `json:"type,omitempty"`
 	Tag             string                       `json:"tag"`
 	DefaultOptions  CCMDefaultCredentialOptions  `json:"-"`
+	ExternalOptions CCMExternalCredentialOptions `json:"-"`
 	BalancerOptions CCMBalancerCredentialOptions `json:"-"`
 	FallbackOptions CCMFallbackCredentialOptions `json:"-"`
 }
@@ -40,6 +43,8 @@ func (c CCMCredential) MarshalJSON() ([]byte, error) {
 	case "", "default":
 		c.Type = ""
 		v = c.DefaultOptions
+	case "external":
+		v = c.ExternalOptions
 	case "balancer":
 		v = c.BalancerOptions
 	case "fallback":
@@ -63,6 +68,8 @@ func (c *CCMCredential) UnmarshalJSON(bytes []byte) error {
 	case "", "default":
 		c.Type = "default"
 		v = &c.DefaultOptions
+	case "external":
+		v = &c.ExternalOptions
 	case "balancer":
 		v = &c.BalancerOptions
 	case "fallback":
@@ -85,6 +92,15 @@ type CCMBalancerCredentialOptions struct {
 	Strategy     string                     `json:"strategy,omitempty"`
 	Credentials  badoption.Listable[string] `json:"credentials"`
 	PollInterval badoption.Duration         `json:"poll_interval,omitempty"`
+}
+
+type CCMExternalCredentialOptions struct {
+	URL string `json:"url"`
+	ServerOptions
+	Token        string             `json:"token"`
+	Detour       string             `json:"detour,omitempty"`
+	UsagesPath   string             `json:"usages_path,omitempty"`
+	PollInterval badoption.Duration `json:"poll_interval,omitempty"`
 }
 
 type CCMFallbackCredentialOptions struct {

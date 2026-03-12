@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/ntp"
@@ -85,8 +86,10 @@ func (s *Service) handleWebSocket(
 	path string,
 	username string,
 	sessionID string,
+	userConfig *option.OCMUser,
 	provider credentialProvider,
-	credential *defaultCredential,
+	selectedCredential credential,
+	credentialFilter func(credential) bool,
 ) {
 	var (
 		err                     error
@@ -97,7 +100,7 @@ func (s *Service) handleWebSocket(
 	)
 
 	for {
-		accessToken, accessErr := credential.getAccessToken()
+		accessToken, accessErr := selectedCredential.getAccessToken()
 		if accessErr != nil {
 			s.logger.Error("get access token for websocket: ", accessErr)
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "authentication failed")
@@ -105,13 +108,13 @@ func (s *Service) handleWebSocket(
 		}
 
 		var proxyPath string
-		if credential.isAPIKeyMode() {
+		if selectedCredential.ocmIsAPIKeyMode() || selectedCredential.isExternal() {
 			proxyPath = path
 		} else {
 			proxyPath = strings.TrimPrefix(path, "/v1")
 		}
 
-		upstreamURL := buildUpstreamWebSocketURL(credential.getBaseURL(), proxyPath)
+		upstreamURL := buildUpstreamWebSocketURL(selectedCredential.ocmGetBaseURL(), proxyPath)
 		if r.URL.RawQuery != "" {
 			upstreamURL += "?" + r.URL.RawQuery
 		}
@@ -127,7 +130,7 @@ func (s *Service) handleWebSocket(
 			upstreamHeaders[key] = values
 		}
 		upstreamHeaders.Set("Authorization", "Bearer "+accessToken)
-		if accountID := credential.getAccountID(); accountID != "" {
+		if accountID := selectedCredential.ocmGetAccountID(); accountID != "" {
 			upstreamHeaders.Set("ChatGPT-Account-Id", accountID)
 		}
 
@@ -135,7 +138,7 @@ func (s *Service) handleWebSocket(
 		statusCode = 0
 		upstreamDialer := ws.Dialer{
 			NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return credential.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				return selectedCredential.ocmDialer().DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
 			TLSConfig: &stdTLS.Config{
 				RootCAs: adapter.RootPoolFromContext(s.ctx),
@@ -170,14 +173,14 @@ func (s *Service) handleWebSocket(
 		}
 		if statusCode == http.StatusTooManyRequests {
 			resetAt := parseOCMRateLimitResetFromHeaders(upstreamResponseHeaders)
-			nextCredential := provider.onRateLimited(sessionID, credential, resetAt)
+			nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
 			if nextCredential == nil {
-				credential.updateStateFromHeaders(upstreamResponseHeaders)
-				writeCredentialUnavailableError(w, r, provider, credential, "all credentials rate-limited")
+				selectedCredential.updateStateFromHeaders(upstreamResponseHeaders)
+				writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
 				return
 			}
-			s.logger.Info("retrying websocket with credential ", nextCredential.tag, " after 429 from ", credential.tag)
-			credential = nextCredential
+			s.logger.Info("retrying websocket with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
+			selectedCredential = nextCredential
 			continue
 		}
 		s.logger.Error("dial upstream websocket: ", err)
@@ -185,14 +188,17 @@ func (s *Service) handleWebSocket(
 		return
 	}
 
-	credential.updateStateFromHeaders(upstreamResponseHeaders)
+	selectedCredential.updateStateFromHeaders(upstreamResponseHeaders)
 	weeklyCycleHint := extractWeeklyCycleHint(upstreamResponseHeaders)
 
 	clientResponseHeaders := make(http.Header)
 	for key, values := range upstreamResponseHeaders {
 		if isForwardableResponseHeader(key) {
-			clientResponseHeaders[key] = values
+			clientResponseHeaders[key] = append([]string(nil), values...)
 		}
+	}
+	if userConfig != nil && userConfig.ExternalCredential != "" {
+		s.rewriteResponseHeadersForExternalUser(clientResponseHeaders, userConfig)
 	}
 
 	clientUpgrader := ws.HTTPUpgrader{
@@ -212,7 +218,7 @@ func (s *Service) handleWebSocket(
 	session := &webSocketSession{
 		clientConn:    clientConn,
 		upstreamConn:  upstreamConn,
-		credentialTag: credential.tag,
+		credentialTag: selectedCredential.tagName(),
 	}
 	if !s.registerWebSocketSession(session) {
 		session.Close()
@@ -237,17 +243,17 @@ func (s *Service) handleWebSocket(
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, credential, modelChannel)
+		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, selectedCredential, modelChannel)
 	}()
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, credential, modelChannel, username, weeklyCycleHint)
+		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, selectedCredential, modelChannel, username, weeklyCycleHint)
 	}()
 	waitGroup.Wait()
 }
 
-func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, credential *defaultCredential, modelChannel chan<- string) {
+func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string) {
 	for {
 		data, opCode, err := wsutil.ReadClientData(clientConn)
 		if err != nil {
@@ -257,7 +263,7 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 			return
 		}
 
-		if opCode == ws.OpText && credential.usageTracker != nil {
+		if opCode == ws.OpText && selectedCredential.usageTrackerOrNil() != nil {
 			var request struct {
 				Type  string `json:"type"`
 				Model string `json:"model"`
@@ -280,7 +286,8 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 	}
 }
 
-func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, credential *defaultCredential, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+	usageTracker := selectedCredential.usageTrackerOrNil()
 	var requestModel string
 	for {
 		data, opCode, err := wsutil.ReadServerData(upstreamReadWriter)
@@ -291,7 +298,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 			return
 		}
 
-		if opCode == ws.OpText && credential.usageTracker != nil {
+		if opCode == ws.OpText && usageTracker != nil {
 			select {
 			case model := <-modelChannel:
 				requestModel = model
@@ -317,7 +324,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 						}
 						if responseModel != "" {
 							contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
-							credential.usageTracker.AddUsageWithCycleHint(
+							usageTracker.AddUsageWithCycleHint(
 								responseModel,
 								contextWindow,
 								inputTokens,

@@ -66,15 +66,18 @@ func writeJSONError(w http.ResponseWriter, r *http.Request, statusCode int, erro
 	})
 }
 
-func hasAlternativeCredential(provider credentialProvider, currentCredential *defaultCredential) bool {
+func hasAlternativeCredential(provider credentialProvider, currentCredential credential, filter func(credential) bool) bool {
 	if provider == nil || currentCredential == nil {
 		return false
 	}
-	for _, credential := range provider.allDefaults() {
-		if credential == currentCredential {
+	for _, cred := range provider.allCredentials() {
+		if cred == currentCredential {
 			continue
 		}
-		if credential.isUsable() {
+		if filter != nil && !filter(cred) {
+			continue
+		}
+		if cred.isUsable() {
 			return true
 		}
 	}
@@ -85,7 +88,7 @@ func unavailableCredentialMessage(provider credentialProvider, fallback string) 
 	if provider == nil {
 		return fallback
 	}
-	return allCredentialsUnavailableError(provider.allDefaults()).Error()
+	return allCredentialsUnavailableError(provider.allCredentials()).Error()
 }
 
 func writeRetryableUsageError(w http.ResponseWriter, r *http.Request) {
@@ -100,10 +103,11 @@ func writeCredentialUnavailableError(
 	w http.ResponseWriter,
 	r *http.Request,
 	provider credentialProvider,
-	currentCredential *defaultCredential,
+	currentCredential credential,
+	filter func(credential) bool,
 	fallback string,
 ) {
-	if hasAlternativeCredential(provider, currentCredential) {
+	if hasAlternativeCredential(provider, currentCredential, filter) {
 		writeRetryableUsageError(w, r)
 		return
 	}
@@ -124,27 +128,15 @@ const (
 	weeklyWindowMinutes = weeklyWindowSeconds / 60
 )
 
-func parseInt64Header(headers http.Header, headerName string) (int64, bool) {
-	headerValue := strings.TrimSpace(headers.Get(headerName))
-	if headerValue == "" {
-		return 0, false
-	}
-	parsedValue, parseError := strconv.ParseInt(headerValue, 10, 64)
-	if parseError != nil {
-		return 0, false
-	}
-	return parsedValue, true
-}
-
 func extractWeeklyCycleHint(headers http.Header) *WeeklyCycleHint {
-	resetAtUnix, hasResetAt := parseInt64Header(headers, "anthropic-ratelimit-unified-7d-reset")
-	if !hasResetAt || resetAtUnix <= 0 {
+	resetAt, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset")
+	if !exists {
 		return nil
 	}
 
 	return &WeeklyCycleHint{
 		WindowMinutes: weeklyWindowMinutes,
-		ResetAt:       time.Unix(resetAtUnix, 0).UTC(),
+		ResetAt:       resetAt.UTC(),
 	}
 }
 
@@ -166,9 +158,9 @@ type Service struct {
 	legacyProvider   credentialProvider
 
 	// Multi-credential mode
-	providers         map[string]credentialProvider
-	allDefaults       []*defaultCredential
-	userCredentialMap map[string]string
+	providers      map[string]credentialProvider
+	allCredentials []credential
+	userConfigMap  map[string]*option.CCMUser
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.CCMServiceOptions) (adapter.Service, error) {
@@ -199,20 +191,20 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	}
 
 	if len(options.Credentials) > 0 {
-		providers, allDefaults, err := buildCredentialProviders(ctx, options, logger)
+		providers, allCredentials, err := buildCredentialProviders(ctx, options, logger)
 		if err != nil {
 			return nil, E.Cause(err, "build credential providers")
 		}
 		service.providers = providers
-		service.allDefaults = allDefaults
+		service.allCredentials = allCredentials
 
-		userCredentialMap := make(map[string]string)
-		for _, user := range options.Users {
-			userCredentialMap[user.Name] = user.Credential
+		userConfigMap := make(map[string]*option.CCMUser)
+		for i := range options.Users {
+			userConfigMap[options.Users[i].Name] = &options.Users[i]
 		}
-		service.userCredentialMap = userCredentialMap
+		service.userConfigMap = userConfigMap
 	} else {
-		credential, err := newDefaultCredential(ctx, "default", option.CCMDefaultCredentialOptions{
+		cred, err := newDefaultCredential(ctx, "default", option.CCMDefaultCredentialOptions{
 			CredentialPath: options.CredentialPath,
 			UsagesPath:     options.UsagesPath,
 			Detour:         options.Detour,
@@ -220,9 +212,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		if err != nil {
 			return nil, err
 		}
-		service.legacyCredential = credential
-		service.legacyProvider = &singleCredentialProvider{credential: credential}
-		service.allDefaults = []*defaultCredential{credential}
+		service.legacyCredential = cred
+		service.legacyProvider = &singleCredentialProvider{cred: cred}
+		service.allCredentials = []credential{cred}
 	}
 
 	if options.TLS != nil {
@@ -243,8 +235,8 @@ func (s *Service) Start(stage adapter.StartStage) error {
 
 	s.userManager.UpdateUsers(s.options.Users)
 
-	for _, credential := range s.allDefaults {
-		err := credential.start()
+	for _, cred := range s.allCredentials {
+		err := cred.start()
 		if err != nil {
 			return err
 		}
@@ -303,6 +295,11 @@ func detectContextWindow(betaHeader string, totalInputTokens int64) int {
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/ccm/v1/status" {
+		s.handleStatusEndpoint(w, r)
+		return
+	}
+
 	if !strings.HasPrefix(r.URL.Path, "/v1/") {
 		writeJSONError(w, r, http.StatusNotFound, "not_found_error", "Not found")
 		return
@@ -360,11 +357,13 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
-	// Resolve credential provider
+	// Resolve credential provider and user config
 	var provider credentialProvider
+	var userConfig *option.CCMUser
 	if len(s.options.Users) > 0 {
+		userConfig = s.userConfigMap[username]
 		var err error
-		provider, err = credentialForUser(s.userCredentialMap, s.providers, s.legacyProvider, username)
+		provider, err = credentialForUser(s.userConfigMap, s.providers, s.legacyProvider, username)
 		if err != nil {
 			s.logger.Error("resolve credential: ", err)
 			writeJSONError(w, r, http.StatusInternalServerError, "api_error", err.Error())
@@ -389,70 +388,48 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	credential, isNew, err := provider.selectCredential(sessionID)
+	var credentialFilter func(credential) bool
+	if userConfig != nil && !userConfig.AllowExternalUsage {
+		credentialFilter = func(c credential) bool { return !c.isExternal() }
+	}
+
+	selectedCredential, isNew, err := provider.selectCredential(sessionID, credentialFilter)
 	if err != nil {
 		writeNonRetryableCredentialError(w, r, unavailableCredentialMessage(provider, err.Error()))
 		return
 	}
 	if isNew {
 		if username != "" {
-			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID, " by user ", username)
+			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID, " by user ", username)
 		} else {
-			s.logger.Debug("assigned credential ", credential.tag, " for session ", sessionID)
+			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID)
 		}
 	}
 
-	accessToken, err := credential.getAccessToken()
-	if err != nil {
-		s.logger.Error("get access token: ", err)
-		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "Authentication failed")
+	if isExtendedContextRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+			"extended context (1m) requests cannot be proxied through external credentials")
 		return
 	}
 
-	proxyURL := claudeAPIBaseURL + r.URL.RequestURI()
-	requestContext := credential.wrapRequestContext(r.Context())
+	requestContext := selectedCredential.wrapRequestContext(r.Context())
 	defer func() {
 		requestContext.cancelRequest()
 	}()
-	proxyRequest, err := http.NewRequestWithContext(requestContext, r.Method, proxyURL, r.Body)
+	proxyRequest, err := selectedCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
 	if err != nil {
 		s.logger.Error("create proxy request: ", err)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "Internal server error")
 		return
 	}
 
-	for key, values := range r.Header {
-		if !isHopByHopHeader(key) && key != "Authorization" {
-			proxyRequest.Header[key] = values
-		}
-	}
-
-	hasUsageTracker := credential.usageTracker != nil
-	serviceOverridesAcceptEncoding := len(s.httpHeaders.Values("Accept-Encoding")) > 0
-	if hasUsageTracker && !serviceOverridesAcceptEncoding {
-		proxyRequest.Header.Del("Accept-Encoding")
-	}
-
-	if anthropicBetaHeader != "" {
-		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue+","+anthropicBetaHeader)
-	} else {
-		proxyRequest.Header.Set("anthropic-beta", anthropicBetaOAuthValue)
-	}
-
-	for key, values := range s.httpHeaders {
-		proxyRequest.Header.Del(key)
-		proxyRequest.Header[key] = values
-	}
-
-	proxyRequest.Header.Set("Authorization", "Bearer "+accessToken)
-
-	response, err := credential.httpClient.Do(proxyRequest)
+	response, err := selectedCredential.httpTransport().Do(proxyRequest)
 	if err != nil {
 		if r.Context().Err() != nil {
 			return
 		}
 		if requestContext.Err() != nil {
-			writeCredentialUnavailableError(w, r, provider, credential, "credential became unavailable while processing the request")
+			writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "credential became unavailable while processing the request")
 			return
 		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", err.Error())
@@ -463,24 +440,30 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Transparent 429 retry
 	for response.StatusCode == http.StatusTooManyRequests {
 		resetAt := parseRateLimitResetFromHeaders(response.Header)
-		nextCredential := provider.onRateLimited(sessionID, credential, resetAt)
-		credential.updateStateFromHeaders(response.Header)
+		nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
+		selectedCredential.updateStateFromHeaders(response.Header)
 		if bodyBytes == nil || nextCredential == nil {
 			response.Body.Close()
-			writeCredentialUnavailableError(w, r, provider, credential, "all credentials rate-limited")
+			writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
 			return
 		}
 		response.Body.Close()
-		s.logger.Info("retrying with credential ", nextCredential.tag, " after 429 from ", credential.tag)
+		s.logger.Info("retrying with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
 		requestContext.cancelRequest()
 		requestContext = nextCredential.wrapRequestContext(r.Context())
-		retryResponse, retryErr := retryRequestWithBody(requestContext, r, bodyBytes, nextCredential, s.httpHeaders)
+		retryRequest, buildErr := nextCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
+		if buildErr != nil {
+			s.logger.Error("retry request: ", buildErr)
+			writeJSONError(w, r, http.StatusBadGateway, "api_error", buildErr.Error())
+			return
+		}
+		retryResponse, retryErr := nextCredential.httpTransport().Do(retryRequest)
 		if retryErr != nil {
 			if r.Context().Err() != nil {
 				return
 			}
 			if requestContext.Err() != nil {
-				writeCredentialUnavailableError(w, r, provider, nextCredential, "credential became unavailable while retrying the request")
+				writeCredentialUnavailableError(w, r, provider, nextCredential, credentialFilter, "credential became unavailable while retrying the request")
 				return
 			}
 			s.logger.Error("retry request: ", retryErr)
@@ -489,21 +472,24 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		requestContext.releaseCredentialInterrupt()
 		response = retryResponse
-		credential = nextCredential
+		selectedCredential = nextCredential
 	}
 	defer response.Body.Close()
 
-	credential.updateStateFromHeaders(response.Header)
+	selectedCredential.updateStateFromHeaders(response.Header)
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusTooManyRequests {
 		body, _ := io.ReadAll(response.Body)
-		s.logger.Error("upstream error from ", credential.tag, ": status ", response.StatusCode, " ", string(body))
+		s.logger.Error("upstream error from ", selectedCredential.tagName(), ": status ", response.StatusCode, " ", string(body))
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error",
 			"proxy request (status "+strconv.Itoa(response.StatusCode)+"): "+string(body))
 		return
 	}
 
-	hasUsageTracker = credential.usageTracker != nil
+	// Rewrite response headers for external users
+	if userConfig != nil && userConfig.ExternalCredential != "" {
+		s.rewriteResponseHeadersForExternalUser(response.Header, userConfig)
+	}
 
 	for key, values := range response.Header {
 		if !isHopByHopHeader(key) {
@@ -512,8 +498,9 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(response.StatusCode)
 
-	if hasUsageTracker && response.StatusCode == http.StatusOK {
-		s.handleResponseWithTracking(w, response, credential.usageTracker, requestModel, anthropicBetaHeader, messagesCount, username)
+	usageTracker := selectedCredential.usageTrackerOrNil()
+	if usageTracker != nil && response.StatusCode == http.StatusOK {
+		s.handleResponseWithTracking(w, response, usageTracker, requestModel, anthropicBetaHeader, messagesCount, username)
 	} else {
 		mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 		if err == nil && mediaType != "text/event-stream" {
@@ -693,6 +680,91 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 	}
 }
 
+func (s *Service) handleStatusEndpoint(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSONError(w, r, http.StatusMethodNotAllowed, "invalid_request_error", "method not allowed")
+		return
+	}
+
+	if len(s.options.Users) == 0 {
+		writeJSONError(w, r, http.StatusForbidden, "authentication_error", "status endpoint requires user authentication")
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "missing api key")
+		return
+	}
+	clientToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if clientToken == authHeader {
+		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key format")
+		return
+	}
+	username, ok := s.userManager.Authenticate(clientToken)
+	if !ok {
+		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key")
+		return
+	}
+
+	userConfig := s.userConfigMap[username]
+	if userConfig == nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "user config not found")
+		return
+	}
+
+	provider, err := credentialForUser(s.userConfigMap, s.providers, s.legacyProvider, username)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "api_error", err.Error())
+		return
+	}
+
+	provider.pollIfStale(r.Context())
+	avgFiveHour, avgWeekly := s.computeAggregatedUtilization(provider, userConfig)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]float64{
+		"five_hour_utilization": avgFiveHour,
+		"weekly_utilization":    avgWeekly,
+	})
+}
+
+func (s *Service) computeAggregatedUtilization(provider credentialProvider, userConfig *option.CCMUser) (float64, float64) {
+	var totalFiveHour, totalWeekly float64
+	var count int
+	for _, cred := range provider.allCredentials() {
+		// Exclude the user's own external_credential (their contribution to us)
+		if userConfig.ExternalCredential != "" && cred.tagName() == userConfig.ExternalCredential {
+			continue
+		}
+		// If user doesn't allow external usage, exclude all external credentials
+		if !userConfig.AllowExternalUsage && cred.isExternal() {
+			continue
+		}
+		totalFiveHour += cred.fiveHourUtilization()
+		totalWeekly += cred.weeklyUtilization()
+		count++
+	}
+	if count == 0 {
+		return 100, 100
+	}
+	return totalFiveHour / float64(count), totalWeekly / float64(count)
+}
+
+func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, userConfig *option.CCMUser) {
+	provider, err := credentialForUser(s.userConfigMap, s.providers, s.legacyProvider, userConfig.Name)
+	if err != nil {
+		return
+	}
+
+	avgFiveHour, avgWeekly := s.computeAggregatedUtilization(provider, userConfig)
+
+	// Rewrite utilization headers to aggregated average (convert back to 0.0-1.0 range)
+	headers.Set("anthropic-ratelimit-unified-5h-utilization", strconv.FormatFloat(avgFiveHour/100, 'f', 6, 64))
+	headers.Set("anthropic-ratelimit-unified-7d-utilization", strconv.FormatFloat(avgWeekly/100, 'f', 6, 64))
+}
+
 func (s *Service) Close() error {
 	err := common.Close(
 		common.PtrOrNil(s.httpServer),
@@ -700,8 +772,8 @@ func (s *Service) Close() error {
 		s.tlsConfig,
 	)
 
-	for _, credential := range s.allDefaults {
-		credential.close()
+	for _, cred := range s.allCredentials {
+		cred.close()
 	}
 
 	return err

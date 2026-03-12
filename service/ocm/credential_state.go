@@ -82,6 +82,38 @@ func (c *credentialRequestContext) cancelRequest() {
 	c.cancelOnce.Do(c.cancelFunc)
 }
 
+type credential interface {
+	tagName() string
+	isUsable() bool
+	isExternal() bool
+	fiveHourUtilization() float64
+	weeklyUtilization() float64
+	markRateLimited(resetAt time.Time)
+	earliestReset() time.Time
+
+	getAccessToken() (string, error)
+	buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, serviceHeaders http.Header) (*http.Request, error)
+	updateStateFromHeaders(header http.Header)
+
+	wrapRequestContext(ctx context.Context) *credentialRequestContext
+	interruptConnections()
+
+	setOnBecameUnusable(fn func())
+	start() error
+	pollUsage(ctx context.Context)
+	lastUpdatedTime() time.Time
+	pollBackoff(base time.Duration) time.Duration
+	usageTrackerOrNil() *AggregatedUsage
+	httpTransport() *http.Client
+	close()
+
+	// OCM-specific
+	ocmDialer() N.Dialer
+	ocmIsAPIKeyMode() bool
+	ocmGetAccountID() string
+	ocmGetBaseURL() string
+}
+
 func newDefaultCredential(ctx context.Context, tag string, options option.OCMDefaultCredentialOptions, logger log.ContextLogger) (*defaultCredential, error) {
 	credentialDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context: ctx,
@@ -523,38 +555,132 @@ func (c *defaultCredential) close() {
 	}
 }
 
+func (c *defaultCredential) setOnBecameUnusable(fn func()) {
+	c.onBecameUnusable = fn
+}
+
+func (c *defaultCredential) tagName() string {
+	return c.tag
+}
+
+func (c *defaultCredential) isExternal() bool {
+	return false
+}
+
+func (c *defaultCredential) fiveHourUtilization() float64 {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return c.state.fiveHourUtilization
+}
+
+func (c *defaultCredential) usageTrackerOrNil() *AggregatedUsage {
+	return c.usageTracker
+}
+
+func (c *defaultCredential) httpTransport() *http.Client {
+	return c.httpClient
+}
+
+func (c *defaultCredential) ocmDialer() N.Dialer {
+	return c.dialer
+}
+
+func (c *defaultCredential) ocmIsAPIKeyMode() bool {
+	return c.isAPIKeyMode()
+}
+
+func (c *defaultCredential) ocmGetAccountID() string {
+	return c.getAccountID()
+}
+
+func (c *defaultCredential) ocmGetBaseURL() string {
+	return c.getBaseURL()
+}
+
+func (c *defaultCredential) buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, serviceHeaders http.Header) (*http.Request, error) {
+	accessToken, err := c.getAccessToken()
+	if err != nil {
+		return nil, E.Cause(err, "get access token for ", c.tag)
+	}
+
+	path := original.URL.Path
+	var proxyPath string
+	if c.isAPIKeyMode() {
+		proxyPath = path
+	} else {
+		proxyPath = strings.TrimPrefix(path, "/v1")
+	}
+
+	proxyURL := c.getBaseURL() + proxyPath
+	if original.URL.RawQuery != "" {
+		proxyURL += "?" + original.URL.RawQuery
+	}
+
+	var body io.Reader
+	if bodyBytes != nil {
+		body = bytes.NewReader(bodyBytes)
+	} else {
+		body = original.Body
+	}
+	proxyRequest, err := http.NewRequestWithContext(ctx, original.Method, proxyURL, body)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, values := range original.Header {
+		if !isHopByHopHeader(key) && key != "Authorization" {
+			proxyRequest.Header[key] = values
+		}
+	}
+
+	for key, values := range serviceHeaders {
+		proxyRequest.Header.Del(key)
+		proxyRequest.Header[key] = values
+	}
+	proxyRequest.Header.Set("Authorization", "Bearer "+accessToken)
+
+	if accountID := c.getAccountID(); accountID != "" {
+		proxyRequest.Header.Set("ChatGPT-Account-Id", accountID)
+	}
+
+	return proxyRequest, nil
+}
+
 type credentialProvider interface {
-	selectCredential(sessionID string) (*defaultCredential, bool, error)
-	onRateLimited(sessionID string, credential *defaultCredential, resetAt time.Time) *defaultCredential
+	selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error)
+	onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential
 	pollIfStale(ctx context.Context)
-	allDefaults() []*defaultCredential
+	allCredentials() []credential
 	close()
 }
 
 type singleCredentialProvider struct {
-	credential *defaultCredential
+	cred credential
 }
 
-func (p *singleCredentialProvider) selectCredential(_ string) (*defaultCredential, bool, error) {
-	if !p.credential.isUsable() {
-		return nil, false, E.New("credential ", p.credential.tag, " is rate-limited")
+func (p *singleCredentialProvider) selectCredential(_ string, filter func(credential) bool) (credential, bool, error) {
+	if filter != nil && !filter(p.cred) {
+		return nil, false, E.New("credential ", p.cred.tagName(), " is filtered out")
 	}
-	return p.credential, false, nil
+	if !p.cred.isUsable() {
+		return nil, false, E.New("credential ", p.cred.tagName(), " is rate-limited")
+	}
+	return p.cred, false, nil
 }
 
-func (p *singleCredentialProvider) onRateLimited(_ string, credential *defaultCredential, resetAt time.Time) *defaultCredential {
-	credential.markRateLimited(resetAt)
+func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, resetAt time.Time, _ func(credential) bool) credential {
+	cred.markRateLimited(resetAt)
 	return nil
 }
 
 func (p *singleCredentialProvider) pollIfStale(ctx context.Context) {
-	if time.Since(p.credential.lastUpdatedTime()) > p.credential.pollBackoff(defaultPollInterval) {
-		p.credential.pollUsage(ctx)
+	if time.Since(p.cred.lastUpdatedTime()) > p.cred.pollBackoff(defaultPollInterval) {
+		p.cred.pollUsage(ctx)
 	}
 }
 
-func (p *singleCredentialProvider) allDefaults() []*defaultCredential {
-	return []*defaultCredential{p.credential}
+func (p *singleCredentialProvider) allCredentials() []credential {
+	return []credential{p.cred}
 }
 
 func (p *singleCredentialProvider) close() {}
@@ -567,7 +693,7 @@ type sessionEntry struct {
 }
 
 type balancerProvider struct {
-	credentials     []*defaultCredential
+	credentials     []credential
 	strategy        string
 	roundRobinIndex atomic.Uint64
 	pollInterval    time.Duration
@@ -576,7 +702,7 @@ type balancerProvider struct {
 	logger          log.ContextLogger
 }
 
-func newBalancerProvider(credentials []*defaultCredential, strategy string, pollInterval time.Duration, logger log.ContextLogger) *balancerProvider {
+func newBalancerProvider(credentials []credential, strategy string, pollInterval time.Duration, logger log.ContextLogger) *balancerProvider {
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
 	}
@@ -589,15 +715,15 @@ func newBalancerProvider(credentials []*defaultCredential, strategy string, poll
 	}
 }
 
-func (p *balancerProvider) selectCredential(sessionID string) (*defaultCredential, bool, error) {
+func (p *balancerProvider) selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error) {
 	if sessionID != "" {
 		p.sessionMutex.RLock()
 		entry, exists := p.sessions[sessionID]
 		p.sessionMutex.RUnlock()
 		if exists {
-			for _, credential := range p.credentials {
-				if credential.tag == entry.tag && credential.isUsable() {
-					return credential, false, nil
+			for _, cred := range p.credentials {
+				if cred.tagName() == entry.tag && (filter == nil || filter(cred)) && cred.isUsable() {
+					return cred, false, nil
 				}
 			}
 			p.sessionMutex.Lock()
@@ -606,7 +732,7 @@ func (p *balancerProvider) selectCredential(sessionID string) (*defaultCredentia
 		}
 	}
 
-	best := p.pickCredential()
+	best := p.pickCredential(filter)
 	if best == nil {
 		return nil, false, allRateLimitedError(p.credentials)
 	}
@@ -614,61 +740,67 @@ func (p *balancerProvider) selectCredential(sessionID string) (*defaultCredentia
 	isNew := sessionID != ""
 	if isNew {
 		p.sessionMutex.Lock()
-		p.sessions[sessionID] = sessionEntry{tag: best.tag, createdAt: time.Now()}
+		p.sessions[sessionID] = sessionEntry{tag: best.tagName(), createdAt: time.Now()}
 		p.sessionMutex.Unlock()
 	}
 	return best, isNew, nil
 }
 
-func (p *balancerProvider) onRateLimited(sessionID string, credential *defaultCredential, resetAt time.Time) *defaultCredential {
-	credential.markRateLimited(resetAt)
+func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential {
+	cred.markRateLimited(resetAt)
 	if sessionID != "" {
 		p.sessionMutex.Lock()
 		delete(p.sessions, sessionID)
 		p.sessionMutex.Unlock()
 	}
 
-	best := p.pickCredential()
+	best := p.pickCredential(filter)
 	if best != nil && sessionID != "" {
 		p.sessionMutex.Lock()
-		p.sessions[sessionID] = sessionEntry{tag: best.tag, createdAt: time.Now()}
+		p.sessions[sessionID] = sessionEntry{tag: best.tagName(), createdAt: time.Now()}
 		p.sessionMutex.Unlock()
 	}
 	return best
 }
 
-func (p *balancerProvider) pickCredential() *defaultCredential {
+func (p *balancerProvider) pickCredential(filter func(credential) bool) credential {
 	switch p.strategy {
 	case "round_robin":
-		return p.pickRoundRobin()
+		return p.pickRoundRobin(filter)
 	case "random":
-		return p.pickRandom()
+		return p.pickRandom(filter)
 	default:
-		return p.pickLeastUsed()
+		return p.pickLeastUsed(filter)
 	}
 }
 
-func (p *balancerProvider) pickLeastUsed() *defaultCredential {
-	var best *defaultCredential
+func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
+	var best credential
 	bestUtilization := float64(101)
-	for _, credential := range p.credentials {
-		if !credential.isUsable() {
+	for _, cred := range p.credentials {
+		if filter != nil && !filter(cred) {
 			continue
 		}
-		utilization := credential.weeklyUtilization()
+		if !cred.isUsable() {
+			continue
+		}
+		utilization := cred.weeklyUtilization()
 		if utilization < bestUtilization {
 			bestUtilization = utilization
-			best = credential
+			best = cred
 		}
 	}
 	return best
 }
 
-func (p *balancerProvider) pickRoundRobin() *defaultCredential {
+func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credential {
 	start := int(p.roundRobinIndex.Add(1) - 1)
 	count := len(p.credentials)
 	for offset := range count {
 		candidate := p.credentials[(start+offset)%count]
+		if filter != nil && !filter(candidate) {
+			continue
+		}
 		if candidate.isUsable() {
 			return candidate
 		}
@@ -676,9 +808,12 @@ func (p *balancerProvider) pickRoundRobin() *defaultCredential {
 	return nil
 }
 
-func (p *balancerProvider) pickRandom() *defaultCredential {
-	var usable []*defaultCredential
+func (p *balancerProvider) pickRandom(filter func(credential) bool) credential {
+	var usable []credential
 	for _, candidate := range p.credentials {
+		if filter != nil && !filter(candidate) {
+			continue
+		}
 		if candidate.isUsable() {
 			usable = append(usable, candidate)
 		}
@@ -699,26 +834,26 @@ func (p *balancerProvider) pollIfStale(ctx context.Context) {
 	}
 	p.sessionMutex.Unlock()
 
-	for _, credential := range p.credentials {
-		if time.Since(credential.lastUpdatedTime()) > credential.pollBackoff(p.pollInterval) {
-			credential.pollUsage(ctx)
+	for _, cred := range p.credentials {
+		if time.Since(cred.lastUpdatedTime()) > cred.pollBackoff(p.pollInterval) {
+			cred.pollUsage(ctx)
 		}
 	}
 }
 
-func (p *balancerProvider) allDefaults() []*defaultCredential {
+func (p *balancerProvider) allCredentials() []credential {
 	return p.credentials
 }
 
 func (p *balancerProvider) close() {}
 
 type fallbackProvider struct {
-	credentials  []*defaultCredential
+	credentials  []credential
 	pollInterval time.Duration
 	logger       log.ContextLogger
 }
 
-func newFallbackProvider(credentials []*defaultCredential, pollInterval time.Duration, logger log.ContextLogger) *fallbackProvider {
+func newFallbackProvider(credentials []credential, pollInterval time.Duration, logger log.ContextLogger) *fallbackProvider {
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
 	}
@@ -729,18 +864,24 @@ func newFallbackProvider(credentials []*defaultCredential, pollInterval time.Dur
 	}
 }
 
-func (p *fallbackProvider) selectCredential(_ string) (*defaultCredential, bool, error) {
-	for _, credential := range p.credentials {
-		if credential.isUsable() {
-			return credential, false, nil
+func (p *fallbackProvider) selectCredential(_ string, filter func(credential) bool) (credential, bool, error) {
+	for _, cred := range p.credentials {
+		if filter != nil && !filter(cred) {
+			continue
+		}
+		if cred.isUsable() {
+			return cred, false, nil
 		}
 	}
 	return nil, false, allRateLimitedError(p.credentials)
 }
 
-func (p *fallbackProvider) onRateLimited(_ string, credential *defaultCredential, resetAt time.Time) *defaultCredential {
-	credential.markRateLimited(resetAt)
+func (p *fallbackProvider) onRateLimited(_ string, cred credential, resetAt time.Time, filter func(credential) bool) credential {
+	cred.markRateLimited(resetAt)
 	for _, candidate := range p.credentials {
+		if filter != nil && !filter(candidate) {
+			continue
+		}
 		if candidate.isUsable() {
 			return candidate
 		}
@@ -749,23 +890,23 @@ func (p *fallbackProvider) onRateLimited(_ string, credential *defaultCredential
 }
 
 func (p *fallbackProvider) pollIfStale(ctx context.Context) {
-	for _, credential := range p.credentials {
-		if time.Since(credential.lastUpdatedTime()) > credential.pollBackoff(p.pollInterval) {
-			credential.pollUsage(ctx)
+	for _, cred := range p.credentials {
+		if time.Since(cred.lastUpdatedTime()) > cred.pollBackoff(p.pollInterval) {
+			cred.pollUsage(ctx)
 		}
 	}
 }
 
-func (p *fallbackProvider) allDefaults() []*defaultCredential {
+func (p *fallbackProvider) allCredentials() []credential {
 	return p.credentials
 }
 
 func (p *fallbackProvider) close() {}
 
-func allRateLimitedError(credentials []*defaultCredential) error {
+func allRateLimitedError(credentials []credential) error {
 	var earliest time.Time
-	for _, credential := range credentials {
-		resetAt := credential.earliestReset()
+	for _, cred := range credentials {
+		resetAt := cred.earliestReset()
 		if !resetAt.IsZero() && (earliest.IsZero() || resetAt.Before(earliest)) {
 			earliest = resetAt
 		}
@@ -780,34 +921,44 @@ func buildOCMCredentialProviders(
 	ctx context.Context,
 	options option.OCMServiceOptions,
 	logger log.ContextLogger,
-) (map[string]credentialProvider, []*defaultCredential, error) {
-	defaultCredentials := make(map[string]*defaultCredential)
-	var allDefaults []*defaultCredential
+) (map[string]credentialProvider, []credential, error) {
+	allCredentialMap := make(map[string]credential)
+	var allCreds []credential
 	providers := make(map[string]credentialProvider)
 
+	// Pass 1: create default and external credentials
 	for _, credOpt := range options.Credentials {
 		switch credOpt.Type {
 		case "default":
-			credential, err := newDefaultCredential(ctx, credOpt.Tag, credOpt.DefaultOptions, logger)
+			cred, err := newDefaultCredential(ctx, credOpt.Tag, credOpt.DefaultOptions, logger)
 			if err != nil {
 				return nil, nil, err
 			}
-			defaultCredentials[credOpt.Tag] = credential
-			allDefaults = append(allDefaults, credential)
-			providers[credOpt.Tag] = &singleCredentialProvider{credential: credential}
+			allCredentialMap[credOpt.Tag] = cred
+			allCreds = append(allCreds, cred)
+			providers[credOpt.Tag] = &singleCredentialProvider{cred: cred}
+		case "external":
+			cred, err := newExternalCredential(ctx, credOpt.Tag, credOpt.ExternalOptions, logger)
+			if err != nil {
+				return nil, nil, err
+			}
+			allCredentialMap[credOpt.Tag] = cred
+			allCreds = append(allCreds, cred)
+			providers[credOpt.Tag] = &singleCredentialProvider{cred: cred}
 		}
 	}
 
+	// Pass 2: create balancer and fallback providers
 	for _, credOpt := range options.Credentials {
 		switch credOpt.Type {
 		case "balancer":
-			subCredentials, err := resolveCredentialTags(credOpt.BalancerOptions.Credentials, defaultCredentials, credOpt.Tag)
+			subCredentials, err := resolveCredentialTags(credOpt.BalancerOptions.Credentials, allCredentialMap, credOpt.Tag)
 			if err != nil {
 				return nil, nil, err
 			}
 			providers[credOpt.Tag] = newBalancerProvider(subCredentials, credOpt.BalancerOptions.Strategy, time.Duration(credOpt.BalancerOptions.PollInterval), logger)
 		case "fallback":
-			subCredentials, err := resolveCredentialTags(credOpt.FallbackOptions.Credentials, defaultCredentials, credOpt.Tag)
+			subCredentials, err := resolveCredentialTags(credOpt.FallbackOptions.Credentials, allCredentialMap, credOpt.Tag)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -815,17 +966,17 @@ func buildOCMCredentialProviders(
 		}
 	}
 
-	return providers, allDefaults, nil
+	return providers, allCreds, nil
 }
 
-func resolveCredentialTags(tags []string, defaults map[string]*defaultCredential, parentTag string) ([]*defaultCredential, error) {
-	credentials := make([]*defaultCredential, 0, len(tags))
+func resolveCredentialTags(tags []string, allCredentials map[string]credential, parentTag string) ([]credential, error) {
+	credentials := make([]credential, 0, len(tags))
 	for _, tag := range tags {
-		credential, exists := defaults[tag]
+		cred, exists := allCredentials[tag]
 		if !exists {
-			return nil, E.New("credential ", parentTag, " references unknown default credential: ", tag)
+			return nil, E.New("credential ", parentTag, " references unknown credential: ", tag)
 		}
-		credentials = append(credentials, credential)
+		credentials = append(credentials, cred)
 	}
 	if len(credentials) == 0 {
 		return nil, E.New("credential ", parentTag, " has no sub-credentials")
@@ -871,24 +1022,34 @@ func validateOCMOptions(options option.OCMServiceOptions) error {
 
 	if hasCredentials {
 		tags := make(map[string]bool)
-		for _, credential := range options.Credentials {
-			if tags[credential.Tag] {
-				return E.New("duplicate credential tag: ", credential.Tag)
+		credentialTypes := make(map[string]string)
+		for _, cred := range options.Credentials {
+			if tags[cred.Tag] {
+				return E.New("duplicate credential tag: ", cred.Tag)
 			}
-			tags[credential.Tag] = true
-			if credential.Type == "default" || credential.Type == "" {
-				if credential.DefaultOptions.Reserve5h > 99 {
-					return E.New("credential ", credential.Tag, ": reserve_5h must be at most 99")
+			tags[cred.Tag] = true
+			credentialTypes[cred.Tag] = cred.Type
+			if cred.Type == "default" || cred.Type == "" {
+				if cred.DefaultOptions.Reserve5h > 99 {
+					return E.New("credential ", cred.Tag, ": reserve_5h must be at most 99")
 				}
-				if credential.DefaultOptions.ReserveWeekly > 99 {
-					return E.New("credential ", credential.Tag, ": reserve_weekly must be at most 99")
+				if cred.DefaultOptions.ReserveWeekly > 99 {
+					return E.New("credential ", cred.Tag, ": reserve_weekly must be at most 99")
 				}
 			}
-			if credential.Type == "balancer" {
-				switch credential.BalancerOptions.Strategy {
+			if cred.Type == "external" {
+				if cred.ExternalOptions.URL == "" {
+					return E.New("credential ", cred.Tag, ": external credential requires url")
+				}
+				if cred.ExternalOptions.Token == "" {
+					return E.New("credential ", cred.Tag, ": external credential requires token")
+				}
+			}
+			if cred.Type == "balancer" {
+				switch cred.BalancerOptions.Strategy {
 				case "", "least_used", "round_robin", "random":
 				default:
-					return E.New("credential ", credential.Tag, ": unknown balancer strategy: ", credential.BalancerOptions.Strategy)
+					return E.New("credential ", cred.Tag, ": unknown balancer strategy: ", cred.BalancerOptions.Strategy)
 				}
 			}
 		}
@@ -900,6 +1061,14 @@ func validateOCMOptions(options option.OCMServiceOptions) error {
 			if !tags[user.Credential] {
 				return E.New("user ", user.Name, " references unknown credential: ", user.Credential)
 			}
+			if user.ExternalCredential != "" {
+				if !tags[user.ExternalCredential] {
+					return E.New("user ", user.Name, " references unknown external_credential: ", user.ExternalCredential)
+				}
+				if credentialTypes[user.ExternalCredential] != "external" {
+					return E.New("user ", user.Name, ": external_credential must reference an external type credential")
+				}
+			}
 		}
 	}
 
@@ -910,21 +1079,21 @@ func validateOCMCompositeCredentialModes(
 	options option.OCMServiceOptions,
 	providers map[string]credentialProvider,
 ) error {
-	for _, credential := range options.Credentials {
-		if credential.Type != "balancer" && credential.Type != "fallback" {
+	for _, credOpt := range options.Credentials {
+		if credOpt.Type != "balancer" && credOpt.Type != "fallback" {
 			continue
 		}
 
-		provider, exists := providers[credential.Tag]
+		provider, exists := providers[credOpt.Tag]
 		if !exists {
-			return E.New("unknown credential: ", credential.Tag)
+			return E.New("unknown credential: ", credOpt.Tag)
 		}
 
-		for _, subCredential := range provider.allDefaults() {
-			if subCredential.isAPIKeyMode() {
+		for _, subCred := range provider.allCredentials() {
+			if subCred.ocmIsAPIKeyMode() {
 				return E.New(
-					"credential ", credential.Tag,
-					" references API key default credential ", subCredential.tag,
+					"credential ", credOpt.Tag,
+					" references API key default credential ", subCred.tagName(),
 					"; balancer and fallback only support OAuth default credentials",
 				)
 			}
@@ -934,60 +1103,8 @@ func validateOCMCompositeCredentialModes(
 	return nil
 }
 
-func retryOCMRequestWithBody(
-	ctx context.Context,
-	originalRequest *http.Request,
-	bodyBytes []byte,
-	credential *defaultCredential,
-	httpHeaders http.Header,
-) (*http.Response, error) {
-	accessToken, err := credential.getAccessToken()
-	if err != nil {
-		return nil, E.Cause(err, "get access token for ", credential.tag)
-	}
-
-	baseURL := credential.getBaseURL()
-	path := originalRequest.URL.Path
-	var proxyPath string
-	if credential.isAPIKeyMode() {
-		proxyPath = path
-	} else {
-		proxyPath = strings.TrimPrefix(path, "/v1")
-	}
-
-	proxyURL := baseURL + proxyPath
-	if originalRequest.URL.RawQuery != "" {
-		proxyURL += "?" + originalRequest.URL.RawQuery
-	}
-
-	var body io.Reader
-	if bodyBytes != nil {
-		body = bytes.NewReader(bodyBytes)
-	}
-	retryRequest, err := http.NewRequestWithContext(ctx, originalRequest.Method, proxyURL, body)
-	if err != nil {
-		return nil, err
-	}
-
-	for key, values := range originalRequest.Header {
-		if !isHopByHopHeader(key) && key != "Authorization" {
-			retryRequest.Header[key] = values
-		}
-	}
-	for key, values := range httpHeaders {
-		retryRequest.Header.Del(key)
-		retryRequest.Header[key] = values
-	}
-	retryRequest.Header.Set("Authorization", "Bearer "+accessToken)
-	if accountID := credential.getAccountID(); accountID != "" {
-		retryRequest.Header.Set("ChatGPT-Account-Id", accountID)
-	}
-
-	return credential.httpClient.Do(retryRequest)
-}
-
 func credentialForUser(
-	userCredentialMap map[string]string,
+	userConfigMap map[string]*option.OCMUser,
 	providers map[string]credentialProvider,
 	legacyProvider credentialProvider,
 	username string,
@@ -995,13 +1112,13 @@ func credentialForUser(
 	if legacyProvider != nil {
 		return legacyProvider, nil
 	}
-	tag, exists := userCredentialMap[username]
+	userConfig, exists := userConfigMap[username]
 	if !exists {
 		return nil, E.New("no credential mapping for user: ", username)
 	}
-	provider, exists := providers[tag]
+	provider, exists := providers[userConfig.Credential]
 	if !exists {
-		return nil, E.New("unknown credential: ", tag)
+		return nil, E.New("unknown credential: ", userConfig.Credential)
 	}
 	return provider, nil
 }
