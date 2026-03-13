@@ -2,6 +2,7 @@ package ocm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -118,7 +119,7 @@ func (c *oauthCredentials) needsRefresh() bool {
 	return time.Since(*c.LastRefresh) >= time.Duration(tokenRefreshIntervalDays)*24*time.Hour
 }
 
-func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oauthCredentials, error) {
+func refreshToken(ctx context.Context, httpClient *http.Client, credentials *oauthCredentials) (*oauthCredentials, error) {
 	if credentials.Tokens == nil || credentials.Tokens.RefreshToken == "" {
 		return nil, E.New("refresh token is empty")
 	}
@@ -133,14 +134,15 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 		return nil, E.Cause(err, "marshal request")
 	}
 
-	request, err := http.NewRequest("POST", oauth2TokenURL, bytes.NewReader(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-
-	response, err := httpClient.Do(request)
+	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
+		request, err := http.NewRequest("POST", oauth2TokenURL, bytes.NewReader(requestBody))
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept", "application/json")
+		return request, nil
+	})
 	if err != nil {
 		return nil, err
 	}

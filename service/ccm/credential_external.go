@@ -449,14 +449,14 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		Timeout:   5 * time.Second,
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
-	if err != nil {
-		c.logger.Error("poll usage for ", c.tag, ": create request: ", err)
-		return
-	}
-	request.Header.Set("Authorization", "Bearer "+c.token)
-
-	response, err := httpClient.Do(request)
+	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Authorization", "Bearer "+c.token)
+		return request, nil
+	})
 	if err != nil {
 		c.logger.Error("poll usage for ", c.tag, ": ", err)
 		c.stateMutex.Lock()

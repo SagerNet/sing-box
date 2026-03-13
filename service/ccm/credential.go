@@ -2,6 +2,7 @@ package ccm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -142,7 +143,7 @@ func (c *oauthCredentials) needsRefresh() bool {
 	return time.Now().UnixMilli() >= c.ExpiresAt-tokenRefreshBufferMs
 }
 
-func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oauthCredentials, error) {
+func refreshToken(ctx context.Context, httpClient *http.Client, credentials *oauthCredentials) (*oauthCredentials, error) {
 	if credentials.RefreshToken == "" {
 		return nil, E.New("refresh token is empty")
 	}
@@ -156,15 +157,16 @@ func refreshToken(httpClient *http.Client, credentials *oauthCredentials) (*oaut
 		return nil, E.Cause(err, "marshal request")
 	}
 
-	request, err := http.NewRequest("POST", oauth2TokenURL, bytes.NewReader(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", ccmUserAgentValue)
-
-	response, err := httpClient.Do(request)
+	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
+		request, err := http.NewRequest("POST", oauth2TokenURL, bytes.NewReader(requestBody))
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept", "application/json")
+		request.Header.Set("User-Agent", ccmUserAgentValue)
+		return request, nil
+	})
 	if err != nil {
 		return nil, err
 	}
