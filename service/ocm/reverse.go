@@ -27,6 +27,15 @@ func reverseYamuxConfig() *yamux.Config {
 	return config
 }
 
+type bufferedConn struct {
+	reader *bufio.Reader
+	net.Conn
+}
+
+func (c *bufferedConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
 type yamuxNetListener struct {
 	session *yamux.Session
 }
@@ -219,7 +228,7 @@ func (c *externalCredential) connectorConnect(ctx context.Context) (time.Duratio
 		}
 	}
 
-	session, err := yamux.Server(conn, reverseYamuxConfig())
+	session, err := yamux.Server(&bufferedConn{reader: reader, Conn: conn}, reverseYamuxConfig())
 	if err != nil {
 		conn.Close()
 		return 0, E.Cause(err, "create yamux server")
