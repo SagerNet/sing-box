@@ -249,7 +249,7 @@ func (s *Service) handleWebSocket(
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, selectedCredential, modelChannel, username, weeklyCycleHint)
+		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, selectedCredential, userConfig, provider, modelChannel, username, weeklyCycleHint)
 	}()
 	waitGroup.Wait()
 }
@@ -287,7 +287,7 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 	}
 }
 
-func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, userConfig *option.OCMUser, provider credentialProvider, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
 	usageTracker := selectedCredential.usageTrackerOrNil()
 	var requestModel string
 	for {
@@ -308,6 +308,12 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 				switch event.Type {
 				case "codex.rate_limits":
 					s.handleWebSocketRateLimitsEvent(data, selectedCredential)
+					if userConfig != nil && userConfig.ExternalCredential != "" {
+						rewritten, rewriteErr := s.rewriteWebSocketRateLimitsForExternalUser(data, provider, userConfig)
+						if rewriteErr == nil {
+							data = rewritten
+						}
+					}
 				case "error":
 					if event.StatusCode == http.StatusTooManyRequests {
 						s.handleWebSocketErrorRateLimited(data, selectedCredential)
@@ -395,6 +401,38 @@ func (s *Service) handleWebSocketErrorRateLimited(data []byte, selectedCredentia
 	selectedCredential.updateStateFromHeaders(headers)
 	resetAt := parseOCMRateLimitResetFromHeaders(headers)
 	selectedCredential.markRateLimited(resetAt)
+}
+
+func (s *Service) rewriteWebSocketRateLimitsForExternalUser(data []byte, provider credentialProvider, userConfig *option.OCMUser) ([]byte, error) {
+	var event struct {
+		Type       string `json:"type"`
+		RateLimits struct {
+			Primary *struct {
+				UsedPercent   float64 `json:"used_percent"`
+				WindowMinutes int64   `json:"window_minutes,omitempty"`
+				ResetAt       int64   `json:"reset_at,omitempty"`
+			} `json:"primary,omitempty"`
+			Secondary *struct {
+				UsedPercent   float64 `json:"used_percent"`
+				WindowMinutes int64   `json:"window_minutes,omitempty"`
+				ResetAt       int64   `json:"reset_at,omitempty"`
+			} `json:"secondary,omitempty"`
+		} `json:"rate_limits"`
+		LimitName        string `json:"limit_name,omitempty"`
+		MeteredLimitName string `json:"metered_limit_name,omitempty"`
+	}
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		return nil, err
+	}
+	averageFiveHour, averageWeekly := s.computeAggregatedUtilization(provider, userConfig)
+	if event.RateLimits.Primary != nil {
+		event.RateLimits.Primary.UsedPercent = averageFiveHour
+	}
+	if event.RateLimits.Secondary != nil {
+		event.RateLimits.Secondary.UsedPercent = averageWeekly
+	}
+	return json.Marshal(event)
 }
 
 func (s *Service) handleWebSocketResponseCompleted(data []byte, usageTracker *AggregatedUsage, requestModel string, username string, weeklyCycleHint *WeeklyCycleHint) {
