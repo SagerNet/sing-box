@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -95,7 +96,7 @@ func (t *UDPTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *UDPTransport) Close() error {
-	return E.Errors(t.BaseTransport.Close(), t.connector.Close())
+	return E.Errors(t.connector.Close(), t.BaseTransport.Close())
 }
 
 func (t *UDPTransport) Reset() {
@@ -121,11 +122,17 @@ func (t *UDPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 	}
 	defer t.EndQuery()
 
+	ctx, cancel := t.ContextWithCancel(ctx)
+	defer cancel()
+
 	response, err := t.exchange(ctx, message)
 	if err != nil {
 		return nil, err
 	}
 	if response.Truncated {
+		if t.State() >= StateClosing {
+			return nil, ErrTransportClosed
+		}
 		t.Logger.InfoContext(ctx, "response truncated, retrying with TCP")
 		return t.exchangeTCP(ctx, message)
 	}
@@ -138,6 +145,13 @@ func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (*mDN
 		return nil, E.Cause(err, "dial TCP connection")
 	}
 	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(deadline)
+	}
+	stop := context.AfterFunc(ctx, func() {
+		conn.SetDeadline(time.Unix(0, 1))
+	})
+	defer stop()
 	err = WriteMessage(conn, message.Id, message)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
@@ -201,6 +215,14 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return nil, err
 	}
 
+	if deadline, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(deadline)
+	}
+	stop := context.AfterFunc(ctx, func() {
+		conn.SetDeadline(time.Unix(0, 1))
+	})
+	defer stop()
+
 	_, err = conn.Write(rawMessage)
 	if err != nil {
 		conn.CloseWithError(err)
@@ -213,8 +235,6 @@ func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return callback.response, nil
 	case <-conn.Done():
 		return nil, conn.CloseError()
-	case <-t.CloseContext().Done():
-		return nil, ErrTransportClosed
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

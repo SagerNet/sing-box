@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"sync"
-	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -150,51 +149,27 @@ func (c *Connector[T]) dialWithCancellation(ctx context.Context) (T, context.Can
 	}
 	connCtx, cancel := context.WithCancel(c.closeCtx)
 
-	var (
-		stateAccess  sync.Mutex
-		dialComplete bool
-	)
-	stopCancel := context.AfterFunc(ctx, func() {
-		stateAccess.Lock()
-		if !dialComplete {
-			cancel()
-		}
-		stateAccess.Unlock()
-	})
+	type result struct {
+		connection T
+		err        error
+	}
+	resultChan := make(chan result, 1)
+	go func() {
+		connection, err := c.dial(joinedContext{connCtx, ctx})
+		resultChan <- result{connection, err}
+	}()
+
 	select {
 	case <-ctx.Done():
-		stateAccess.Lock()
-		dialComplete = true
-		stateAccess.Unlock()
-		stopCancel()
 		cancel()
 		return zero, nil, ctx.Err()
-	default:
+	case r := <-resultChan:
+		if r.err != nil {
+			cancel()
+			return zero, nil, r.err
+		}
+		return r.connection, cancel, nil
 	}
-
-	connection, err := c.dial(valueContext{connCtx, ctx})
-	stateAccess.Lock()
-	dialComplete = true
-	stateAccess.Unlock()
-	stopCancel()
-	if err != nil {
-		cancel()
-		return zero, nil, err
-	}
-	return connection, cancel, nil
-}
-
-type valueContext struct {
-	context.Context
-	parent context.Context
-}
-
-func (v valueContext) Value(key any) any {
-	return v.parent.Value(key)
-}
-
-func (v valueContext) Deadline() (time.Time, bool) {
-	return v.parent.Deadline()
 }
 
 func (c *Connector[T]) Close() error {
