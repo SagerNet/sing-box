@@ -395,13 +395,6 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 		activeLimitIdentifier = "codex"
 	}
 
-	fiveHourPercent := headers.Get("x-" + activeLimitIdentifier + "-primary-used-percent")
-	if fiveHourPercent != "" {
-		value, err := strconv.ParseFloat(fiveHourPercent, 64)
-		if err == nil {
-			c.state.fiveHourUtilization = value
-		}
-	}
 	fiveHourResetAt := headers.Get("x-" + activeLimitIdentifier + "-primary-reset-at")
 	if fiveHourResetAt != "" {
 		value, err := strconv.ParseInt(fiveHourResetAt, 10, 64)
@@ -409,18 +402,26 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 			c.state.fiveHourReset = time.Unix(value, 0)
 		}
 	}
-	weeklyPercent := headers.Get("x-" + activeLimitIdentifier + "-secondary-used-percent")
-	if weeklyPercent != "" {
-		value, err := strconv.ParseFloat(weeklyPercent, 64)
+	fiveHourPercent := headers.Get("x-" + activeLimitIdentifier + "-primary-used-percent")
+	if fiveHourPercent != "" {
+		value, err := strconv.ParseFloat(fiveHourPercent, 64)
 		if err == nil {
-			c.state.weeklyUtilization = value
+			c.state.fiveHourUtilization = value
 		}
 	}
+
 	weeklyResetAt := headers.Get("x-" + activeLimitIdentifier + "-secondary-reset-at")
 	if weeklyResetAt != "" {
 		value, err := strconv.ParseInt(weeklyResetAt, 10, 64)
 		if err == nil {
 			c.state.weeklyReset = time.Unix(value, 0)
+		}
+	}
+	weeklyPercent := headers.Get("x-" + activeLimitIdentifier + "-secondary-used-percent")
+	if weeklyPercent != "" {
+		value, err := strconv.ParseFloat(weeklyPercent, 64)
+		if err == nil {
+			c.state.weeklyUtilization = value
 		}
 	}
 	c.state.lastUpdated = time.Now()

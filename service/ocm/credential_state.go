@@ -345,32 +345,47 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 		activeLimitIdentifier = "codex"
 	}
 
-	fiveHourPercent := headers.Get("x-" + activeLimitIdentifier + "-primary-used-percent")
-	if fiveHourPercent != "" {
-		value, err := strconv.ParseFloat(fiveHourPercent, 64)
-		if err == nil {
-			c.state.fiveHourUtilization = value
-		}
-	}
+	fiveHourResetChanged := false
 	fiveHourResetAt := headers.Get("x-" + activeLimitIdentifier + "-primary-reset-at")
 	if fiveHourResetAt != "" {
 		value, err := strconv.ParseInt(fiveHourResetAt, 10, 64)
 		if err == nil {
-			c.state.fiveHourReset = time.Unix(value, 0)
+			newReset := time.Unix(value, 0)
+			if newReset.After(c.state.fiveHourReset) {
+				fiveHourResetChanged = true
+				c.state.fiveHourReset = newReset
+			}
+		}
+	}
+	fiveHourPercent := headers.Get("x-" + activeLimitIdentifier + "-primary-used-percent")
+	if fiveHourPercent != "" {
+		value, err := strconv.ParseFloat(fiveHourPercent, 64)
+		if err == nil {
+			if value >= c.state.fiveHourUtilization || fiveHourResetChanged {
+				c.state.fiveHourUtilization = value
+			}
+		}
+	}
+
+	weeklyResetChanged := false
+	weeklyResetAt := headers.Get("x-" + activeLimitIdentifier + "-secondary-reset-at")
+	if weeklyResetAt != "" {
+		value, err := strconv.ParseInt(weeklyResetAt, 10, 64)
+		if err == nil {
+			newReset := time.Unix(value, 0)
+			if newReset.After(c.state.weeklyReset) {
+				weeklyResetChanged = true
+				c.state.weeklyReset = newReset
+			}
 		}
 	}
 	weeklyPercent := headers.Get("x-" + activeLimitIdentifier + "-secondary-used-percent")
 	if weeklyPercent != "" {
 		value, err := strconv.ParseFloat(weeklyPercent, 64)
 		if err == nil {
-			c.state.weeklyUtilization = value
-		}
-	}
-	weeklyResetAt := headers.Get("x-" + activeLimitIdentifier + "-secondary-reset-at")
-	if weeklyResetAt != "" {
-		value, err := strconv.ParseInt(weeklyResetAt, 10, 64)
-		if err == nil {
-			c.state.weeklyReset = time.Unix(value, 0)
+			if value >= c.state.weeklyUtilization || weeklyResetChanged {
+				c.state.weeklyUtilization = value
+			}
 		}
 	}
 	c.state.lastUpdated = time.Now()

@@ -338,31 +338,38 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
 
+	fiveHourResetChanged := false
+	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
+		if value.After(c.state.fiveHourReset) {
+			fiveHourResetChanged = true
+			c.state.fiveHourReset = value
+		}
+	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-5h-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
 			newValue := math.Ceil(value * 100)
-			if newValue < c.state.fiveHourUtilization {
-				c.logger.Error("header 5h utilization for ", c.tag, " is lower than current: ", newValue, " < ", c.state.fiveHourUtilization)
+			if newValue >= c.state.fiveHourUtilization || fiveHourResetChanged {
+				c.state.fiveHourUtilization = newValue
 			}
-			c.state.fiveHourUtilization = newValue
 		}
 	}
-	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
-		c.state.fiveHourReset = value
+
+	weeklyResetChanged := false
+	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
+		if value.After(c.state.weeklyReset) {
+			weeklyResetChanged = true
+			c.state.weeklyReset = value
+		}
 	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-7d-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
 			newValue := math.Ceil(value * 100)
-			if newValue < c.state.weeklyUtilization {
-				c.logger.Error("header weekly utilization for ", c.tag, " is lower than current: ", newValue, " < ", c.state.weeklyUtilization)
+			if newValue >= c.state.weeklyUtilization || weeklyResetChanged {
+				c.state.weeklyUtilization = newValue
 			}
-			c.state.weeklyUtilization = newValue
 		}
-	}
-	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
-		c.state.weeklyReset = value
 	}
 	c.state.lastUpdated = time.Now()
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {

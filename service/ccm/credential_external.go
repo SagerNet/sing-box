@@ -368,24 +368,24 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
 
+	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
+		c.state.fiveHourReset = value
+	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-5h-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
-			// Remote CCM writes aggregated utilization as 0.0-1.0; convert to percentage
 			c.state.fiveHourUtilization = value * 100
 		}
 	}
-	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
-		c.state.fiveHourReset = value
+
+	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
+		c.state.weeklyReset = value
 	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-7d-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
 			c.state.weeklyUtilization = value * 100
 		}
-	}
-	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
-		c.state.weeklyReset = value
 	}
 	c.state.lastUpdated = time.Now()
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
