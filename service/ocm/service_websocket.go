@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -174,8 +175,8 @@ func (s *Service) handleWebSocket(
 		if statusCode == http.StatusTooManyRequests {
 			resetAt := parseOCMRateLimitResetFromHeaders(upstreamResponseHeaders)
 			nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
+			selectedCredential.updateStateFromHeaders(upstreamResponseHeaders)
 			if nextCredential == nil {
-				selectedCredential.updateStateFromHeaders(upstreamResponseHeaders)
 				writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
 				return
 			}
@@ -298,44 +299,27 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 			return
 		}
 
-		if opCode == ws.OpText && usageTracker != nil {
-			select {
-			case model := <-modelChannel:
-				requestModel = model
-			default:
-			}
-
+		if opCode == ws.OpText {
 			var event struct {
-				Type string `json:"type"`
+				Type       string `json:"type"`
+				StatusCode int    `json:"status_code"`
 			}
-			if json.Unmarshal(data, &event) == nil && event.Type == "response.completed" {
-				var streamEvent responses.ResponseStreamEventUnion
-				if json.Unmarshal(data, &streamEvent) == nil {
-					completedEvent := streamEvent.AsResponseCompleted()
-					responseModel := string(completedEvent.Response.Model)
-					serviceTier := string(completedEvent.Response.ServiceTier)
-					inputTokens := completedEvent.Response.Usage.InputTokens
-					outputTokens := completedEvent.Response.Usage.OutputTokens
-					cachedTokens := completedEvent.Response.Usage.InputTokensDetails.CachedTokens
-
-					if inputTokens > 0 || outputTokens > 0 {
-						if responseModel == "" {
-							responseModel = requestModel
+			if json.Unmarshal(data, &event) == nil {
+				switch event.Type {
+				case "codex.rate_limits":
+					s.handleWebSocketRateLimitsEvent(data, selectedCredential)
+				case "error":
+					if event.StatusCode == http.StatusTooManyRequests {
+						s.handleWebSocketErrorRateLimited(data, selectedCredential)
+					}
+				case "response.completed":
+					if usageTracker != nil {
+						select {
+						case model := <-modelChannel:
+							requestModel = model
+						default:
 						}
-						if responseModel != "" {
-							contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
-							usageTracker.AddUsageWithCycleHint(
-								responseModel,
-								contextWindow,
-								inputTokens,
-								outputTokens,
-								cachedTokens,
-								serviceTier,
-								username,
-								time.Now(),
-								weeklyCycleHint,
-							)
-						}
+						s.handleWebSocketResponseCompleted(data, usageTracker, requestModel, username, weeklyCycleHint)
 					}
 				}
 			}
@@ -347,6 +331,101 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 				s.logger.Debug("write client websocket: ", err)
 			}
 			return
+		}
+	}
+}
+
+func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential credential) {
+	var rateLimitsEvent struct {
+		RateLimits struct {
+			Primary *struct {
+				UsedPercent float64 `json:"used_percent"`
+				ResetAt     int64   `json:"reset_at"`
+			} `json:"primary"`
+			Secondary *struct {
+				UsedPercent float64 `json:"used_percent"`
+				ResetAt     int64   `json:"reset_at"`
+			} `json:"secondary"`
+		} `json:"rate_limits"`
+		LimitName        string `json:"limit_name"`
+		MeteredLimitName string `json:"metered_limit_name"`
+	}
+	err := json.Unmarshal(data, &rateLimitsEvent)
+	if err != nil {
+		return
+	}
+	identifier := rateLimitsEvent.MeteredLimitName
+	if identifier == "" {
+		identifier = rateLimitsEvent.LimitName
+	}
+	if identifier == "" {
+		identifier = "codex"
+	}
+	identifier = normalizeRateLimitIdentifier(identifier)
+
+	headers := make(http.Header)
+	headers.Set("x-codex-active-limit", identifier)
+	if w := rateLimitsEvent.RateLimits.Primary; w != nil {
+		headers.Set("x-"+identifier+"-primary-used-percent", strconv.FormatFloat(w.UsedPercent, 'f', -1, 64))
+		if w.ResetAt > 0 {
+			headers.Set("x-"+identifier+"-primary-reset-at", strconv.FormatInt(w.ResetAt, 10))
+		}
+	}
+	if w := rateLimitsEvent.RateLimits.Secondary; w != nil {
+		headers.Set("x-"+identifier+"-secondary-used-percent", strconv.FormatFloat(w.UsedPercent, 'f', -1, 64))
+		if w.ResetAt > 0 {
+			headers.Set("x-"+identifier+"-secondary-reset-at", strconv.FormatInt(w.ResetAt, 10))
+		}
+	}
+	selectedCredential.updateStateFromHeaders(headers)
+}
+
+func (s *Service) handleWebSocketErrorRateLimited(data []byte, selectedCredential credential) {
+	var errorEvent struct {
+		Headers map[string]string `json:"headers"`
+	}
+	err := json.Unmarshal(data, &errorEvent)
+	if err != nil {
+		return
+	}
+	headers := make(http.Header)
+	for key, value := range errorEvent.Headers {
+		headers.Set(key, value)
+	}
+	selectedCredential.updateStateFromHeaders(headers)
+	resetAt := parseOCMRateLimitResetFromHeaders(headers)
+	selectedCredential.markRateLimited(resetAt)
+}
+
+func (s *Service) handleWebSocketResponseCompleted(data []byte, usageTracker *AggregatedUsage, requestModel string, username string, weeklyCycleHint *WeeklyCycleHint) {
+	var streamEvent responses.ResponseStreamEventUnion
+	if json.Unmarshal(data, &streamEvent) != nil {
+		return
+	}
+	completedEvent := streamEvent.AsResponseCompleted()
+	responseModel := string(completedEvent.Response.Model)
+	serviceTier := string(completedEvent.Response.ServiceTier)
+	inputTokens := completedEvent.Response.Usage.InputTokens
+	outputTokens := completedEvent.Response.Usage.OutputTokens
+	cachedTokens := completedEvent.Response.Usage.InputTokensDetails.CachedTokens
+
+	if inputTokens > 0 || outputTokens > 0 {
+		if responseModel == "" {
+			responseModel = requestModel
+		}
+		if responseModel != "" {
+			contextWindow := detectContextWindow(responseModel, serviceTier, inputTokens)
+			usageTracker.AddUsageWithCycleHint(
+				responseModel,
+				contextWindow,
+				inputTokens,
+				outputTokens,
+				cachedTokens,
+				serviceTier,
+				username,
+				time.Now(),
+				weeklyCycleHint,
+			)
 		}
 	}
 }

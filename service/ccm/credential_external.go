@@ -368,27 +368,34 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	isFirstUpdate := c.state.lastUpdated.IsZero()
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
+	hadData := false
 
 	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
+		hadData = true
 		c.state.fiveHourReset = value
 	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-5h-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
+			hadData = true
 			c.state.fiveHourUtilization = value * 100
 		}
 	}
 
 	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
+		hadData = true
 		c.state.weeklyReset = value
 	}
 	if utilization := headers.Get("anthropic-ratelimit-unified-7d-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
+			hadData = true
 			c.state.weeklyUtilization = value * 100
 		}
 	}
-	c.state.lastUpdated = time.Now()
+	if hadData {
+		c.state.lastUpdated = time.Now()
+	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
 		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
 	}

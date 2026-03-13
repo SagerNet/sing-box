@@ -337,9 +337,11 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 	isFirstUpdate := c.state.lastUpdated.IsZero()
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
+	hadData := false
 
 	fiveHourResetChanged := false
 	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-5h-reset"); exists {
+		hadData = true
 		if value.After(c.state.fiveHourReset) {
 			fiveHourResetChanged = true
 			c.state.fiveHourReset = value
@@ -348,6 +350,7 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 	if utilization := headers.Get("anthropic-ratelimit-unified-5h-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
+			hadData = true
 			newValue := math.Ceil(value * 100)
 			if newValue >= c.state.fiveHourUtilization || fiveHourResetChanged {
 				c.state.fiveHourUtilization = newValue
@@ -357,6 +360,7 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 
 	weeklyResetChanged := false
 	if value, exists := parseOptionalAnthropicResetHeader(headers, "anthropic-ratelimit-unified-7d-reset"); exists {
+		hadData = true
 		if value.After(c.state.weeklyReset) {
 			weeklyResetChanged = true
 			c.state.weeklyReset = value
@@ -365,13 +369,16 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 	if utilization := headers.Get("anthropic-ratelimit-unified-7d-utilization"); utilization != "" {
 		value, err := strconv.ParseFloat(utilization, 64)
 		if err == nil {
+			hadData = true
 			newValue := math.Ceil(value * 100)
 			if newValue >= c.state.weeklyUtilization || weeklyResetChanged {
 				c.state.weeklyUtilization = newValue
 			}
 		}
 	}
-	c.state.lastUpdated = time.Now()
+	if hadData {
+		c.state.lastUpdated = time.Now()
+	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
 		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
 	}

@@ -390,6 +390,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	isFirstUpdate := c.state.lastUpdated.IsZero()
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
+	hadData := false
 
 	activeLimitIdentifier := normalizeRateLimitIdentifier(headers.Get("x-codex-active-limit"))
 	if activeLimitIdentifier == "" {
@@ -400,6 +401,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	if fiveHourResetAt != "" {
 		value, err := strconv.ParseInt(fiveHourResetAt, 10, 64)
 		if err == nil {
+			hadData = true
 			c.state.fiveHourReset = time.Unix(value, 0)
 		}
 	}
@@ -407,6 +409,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	if fiveHourPercent != "" {
 		value, err := strconv.ParseFloat(fiveHourPercent, 64)
 		if err == nil {
+			hadData = true
 			c.state.fiveHourUtilization = value
 		}
 	}
@@ -415,6 +418,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	if weeklyResetAt != "" {
 		value, err := strconv.ParseInt(weeklyResetAt, 10, 64)
 		if err == nil {
+			hadData = true
 			c.state.weeklyReset = time.Unix(value, 0)
 		}
 	}
@@ -422,10 +426,13 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 	if weeklyPercent != "" {
 		value, err := strconv.ParseFloat(weeklyPercent, 64)
 		if err == nil {
+			hadData = true
 			c.state.weeklyUtilization = value
 		}
 	}
-	c.state.lastUpdated = time.Now()
+	if hadData {
+		c.state.lastUpdated = time.Now()
+	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
 		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
 	}
