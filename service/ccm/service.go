@@ -802,8 +802,7 @@ func (s *Service) InterfaceUpdated() {
 		}
 		if extCred.reverse && extCred.connectorURL != nil {
 			extCred.reverseService = s
-			extCred.reverseCancel()
-			extCred.reverseContext, extCred.reverseCancel = context.WithCancel(context.Background())
+			extCred.resetReverseContext()
 			go extCred.connectorLoop()
 		}
 	}

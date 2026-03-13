@@ -594,10 +594,10 @@ func (c *externalCredential) ocmGetBaseURL() string {
 }
 
 func (c *externalCredential) close() {
+	c.reverseAccess.Lock()
 	if c.reverseCancel != nil {
 		c.reverseCancel()
 	}
-	c.reverseAccess.Lock()
 	session := c.reverseSession
 	c.reverseSession = nil
 	c.reverseAccess.Unlock()
@@ -634,5 +634,18 @@ func (c *externalCredential) clearReverseSession(session *yamux.Session) {
 	if c.reverseSession == session {
 		c.reverseSession = nil
 	}
+	c.reverseAccess.Unlock()
+}
+
+func (c *externalCredential) getReverseContext() context.Context {
+	c.reverseAccess.RLock()
+	defer c.reverseAccess.RUnlock()
+	return c.reverseContext
+}
+
+func (c *externalCredential) resetReverseContext() {
+	c.reverseAccess.Lock()
+	c.reverseCancel()
+	c.reverseContext, c.reverseCancel = context.WithCancel(context.Background())
 	c.reverseAccess.Unlock()
 }

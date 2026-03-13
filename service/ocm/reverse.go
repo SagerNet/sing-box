@@ -2,6 +2,7 @@ package ocm
 
 import (
 	"bufio"
+	"context"
 	stdTLS "crypto/tls"
 	"errors"
 	"io"
@@ -125,15 +126,16 @@ func (s *Service) findReceiverCredential(token string) *externalCredential {
 
 func (c *externalCredential) connectorLoop() {
 	var consecutiveFailures int
+	ctx := c.getReverseContext()
 	for {
 		select {
-		case <-c.reverseContext.Done():
+		case <-ctx.Done():
 			return
 		default:
 		}
 
-		sessionLifetime, err := c.connectorConnect()
-		if c.reverseContext.Err() != nil {
+		sessionLifetime, err := c.connectorConnect(ctx)
+		if ctx.Err() != nil {
 			return
 		}
 		if sessionLifetime >= connectorBackoffResetThreshold {
@@ -144,7 +146,7 @@ func (c *externalCredential) connectorLoop() {
 		c.logger.Warn("reverse connection for ", c.tag, " lost: ", err, ", reconnecting in ", backoff)
 		select {
 		case <-time.After(backoff):
-		case <-c.reverseContext.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -164,19 +166,19 @@ func connectorBackoff(failures int) time.Duration {
 	return base + jitter
 }
 
-func (c *externalCredential) connectorConnect() (time.Duration, error) {
+func (c *externalCredential) connectorConnect(ctx context.Context) (time.Duration, error) {
 	if c.reverseService == nil {
 		return 0, E.New("reverse service not initialized")
 	}
 	destination := c.connectorResolveDestination()
-	conn, err := c.connectorDialer.DialContext(c.reverseContext, "tcp", destination)
+	conn, err := c.connectorDialer.DialContext(ctx, "tcp", destination)
 	if err != nil {
 		return 0, E.Cause(err, "dial")
 	}
 
 	if c.connectorTLS != nil {
 		tlsConn := stdTLS.Client(conn, c.connectorTLS.Clone())
-		err = tlsConn.HandshakeContext(c.reverseContext)
+		err = tlsConn.HandshakeContext(ctx)
 		if err != nil {
 			conn.Close()
 			return 0, E.Cause(err, "tls handshake")
@@ -234,7 +236,7 @@ func (c *externalCredential) connectorConnect() (time.Duration, error) {
 	}
 	err = httpServer.Serve(&yamuxNetListener{session: session})
 	sessionLifetime := time.Since(serveStart)
-	if err != nil && !errors.Is(err, http.ErrServerClosed) && c.reverseContext.Err() == nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) && ctx.Err() == nil {
 		return sessionLifetime, E.Cause(err, "serve")
 	}
 	return sessionLifetime, E.New("connection closed")
