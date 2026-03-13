@@ -160,6 +160,9 @@ func connectorBackoff(failures int) time.Duration {
 }
 
 func (c *externalCredential) connectorConnect() error {
+	if c.reverseService == nil {
+		return E.New("reverse service not initialized")
+	}
 	destination := c.connectorResolveDestination()
 	conn, err := c.connectorDialer.DialContext(c.reverseContext, "tcp", destination)
 	if err != nil {
@@ -176,7 +179,7 @@ func (c *externalCredential) connectorConnect() error {
 		conn = tlsConn
 	}
 
-	upgradeRequest := "GET /ocm/v1/reverse HTTP/1.1\r\n" +
+	upgradeRequest := "GET " + c.connectorRequestPath + " HTTP/1.1\r\n" +
 		"Host: " + c.connectorURL.Host + "\r\n" +
 		"Connection: Upgrade\r\n" +
 		"Upgrade: reverse-proxy\r\n" +
@@ -231,13 +234,5 @@ func (c *externalCredential) connectorConnect() error {
 }
 
 func (c *externalCredential) connectorResolveDestination() M.Socksaddr {
-	port := c.connectorURL.Port()
-	if port == "" {
-		if c.connectorURL.Scheme == "https" {
-			port = "443"
-		} else {
-			port = "80"
-		}
-	}
-	return M.ParseSocksaddr(net.JoinHostPort(c.connectorURL.Hostname(), port))
+	return c.connectorDestination
 }

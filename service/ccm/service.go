@@ -254,12 +254,12 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	s.userManager.UpdateUsers(s.options.Users)
 
 	for _, cred := range s.allCredentials {
+		if extCred, ok := cred.(*externalCredential); ok && extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseService = s
+		}
 		err := cred.start()
 		if err != nil {
 			return err
-		}
-		if extCred, ok := cred.(*externalCredential); ok && extCred.reverse && extCred.connectorURL != nil {
-			extCred.reverseService = s
 		}
 	}
 
@@ -801,6 +801,7 @@ func (s *Service) InterfaceUpdated() {
 			continue
 		}
 		if extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseService = s
 			extCred.reverseCancel()
 			extCred.reverseContext, extCred.reverseCancel = context.WithCancel(context.Background())
 			go extCred.connectorLoop()
