@@ -404,35 +404,66 @@ func (s *Service) handleWebSocketErrorRateLimited(data []byte, selectedCredentia
 }
 
 func (s *Service) rewriteWebSocketRateLimitsForExternalUser(data []byte, provider credentialProvider, userConfig *option.OCMUser) ([]byte, error) {
-	var event struct {
-		Type       string `json:"type"`
-		RateLimits struct {
-			Primary *struct {
-				UsedPercent   float64 `json:"used_percent"`
-				WindowMinutes int64   `json:"window_minutes,omitempty"`
-				ResetAt       int64   `json:"reset_at,omitempty"`
-			} `json:"primary,omitempty"`
-			Secondary *struct {
-				UsedPercent   float64 `json:"used_percent"`
-				WindowMinutes int64   `json:"window_minutes,omitempty"`
-				ResetAt       int64   `json:"reset_at,omitempty"`
-			} `json:"secondary,omitempty"`
-		} `json:"rate_limits"`
-		LimitName        string `json:"limit_name,omitempty"`
-		MeteredLimitName string `json:"metered_limit_name,omitempty"`
-	}
+	var event map[string]json.RawMessage
 	err := json.Unmarshal(data, &event)
 	if err != nil {
 		return nil, err
 	}
+
+	rateLimitsData, exists := event["rate_limits"]
+	if !exists || len(rateLimitsData) == 0 || string(rateLimitsData) == "null" {
+		return data, nil
+	}
+
+	var rateLimits map[string]json.RawMessage
+	err = json.Unmarshal(rateLimitsData, &rateLimits)
+	if err != nil {
+		return nil, err
+	}
+
 	averageFiveHour, averageWeekly := s.computeAggregatedUtilization(provider, userConfig)
-	if event.RateLimits.Primary != nil {
-		event.RateLimits.Primary.UsedPercent = averageFiveHour
+
+	primaryData, err := rewriteWebSocketRateLimitWindow(rateLimits["primary"], averageFiveHour)
+	if err != nil {
+		return nil, err
 	}
-	if event.RateLimits.Secondary != nil {
-		event.RateLimits.Secondary.UsedPercent = averageWeekly
+	if primaryData != nil {
+		rateLimits["primary"] = primaryData
 	}
+
+	secondaryData, err := rewriteWebSocketRateLimitWindow(rateLimits["secondary"], averageWeekly)
+	if err != nil {
+		return nil, err
+	}
+	if secondaryData != nil {
+		rateLimits["secondary"] = secondaryData
+	}
+
+	event["rate_limits"], err = json.Marshal(rateLimits)
+	if err != nil {
+		return nil, err
+	}
+
 	return json.Marshal(event)
+}
+
+func rewriteWebSocketRateLimitWindow(data json.RawMessage, usedPercent float64) (json.RawMessage, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return nil, nil
+	}
+
+	var window map[string]json.RawMessage
+	err := json.Unmarshal(data, &window)
+	if err != nil {
+		return nil, err
+	}
+
+	window["used_percent"], err = json.Marshal(usedPercent)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(window)
 }
 
 func (s *Service) handleWebSocketResponseCompleted(data []byte, usageTracker *AggregatedUsage, requestModel string, username string, weeklyCycleHint *WeeklyCycleHint) {
