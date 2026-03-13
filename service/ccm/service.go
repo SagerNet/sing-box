@@ -258,6 +258,9 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
+		if extCred, ok := cred.(*externalCredential); ok && extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseService = s
+		}
 	}
 
 	router := chi.NewRouter()
@@ -315,6 +318,11 @@ func detectContextWindow(betaHeader string, totalInputTokens int64) int {
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/ccm/v1/status" {
 		s.handleStatusEndpoint(w, r)
+		return
+	}
+
+	if r.URL.Path == "/ccm/v1/reverse" {
+		s.handleReverseConnect(w, r)
 		return
 	}
 
@@ -784,6 +792,20 @@ func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, use
 	// Rewrite utilization headers to aggregated average (convert back to 0.0-1.0 range)
 	headers.Set("anthropic-ratelimit-unified-5h-utilization", strconv.FormatFloat(avgFiveHour/100, 'f', 6, 64))
 	headers.Set("anthropic-ratelimit-unified-7d-utilization", strconv.FormatFloat(avgWeekly/100, 'f', 6, 64))
+}
+
+func (s *Service) InterfaceUpdated() {
+	for _, cred := range s.allCredentials {
+		extCred, ok := cred.(*externalCredential)
+		if !ok {
+			continue
+		}
+		if extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseCancel()
+			extCred.reverseContext, extCred.reverseCancel = context.WithCancel(context.Background())
+			go extCred.connectorLoop()
+		}
+	}
 }
 
 func (s *Service) Close() error {

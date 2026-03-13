@@ -95,9 +95,10 @@ type OCMBalancerCredentialOptions struct {
 }
 
 type OCMExternalCredentialOptions struct {
-	URL string `json:"url"`
+	URL string `json:"url,omitempty"`
 	ServerOptions
 	Token        string             `json:"token"`
+	Reverse      bool               `json:"reverse,omitempty"`
 	Detour       string             `json:"detour,omitempty"`
 	UsagesPath   string             `json:"usages_path,omitempty"`
 	PollInterval badoption.Duration `json:"poll_interval,omitempty"`

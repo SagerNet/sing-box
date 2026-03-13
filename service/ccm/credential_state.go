@@ -1117,11 +1117,11 @@ func validateCCMOptions(options option.CCMServiceOptions) error {
 				}
 			}
 			if cred.Type == "external" {
-				if cred.ExternalOptions.URL == "" {
-					return E.New("credential ", cred.Tag, ": external credential requires url")
-				}
 				if cred.ExternalOptions.Token == "" {
 					return E.New("credential ", cred.Tag, ": external credential requires token")
+				}
+				if cred.ExternalOptions.Reverse && cred.ExternalOptions.URL == "" {
+					return E.New("credential ", cred.Tag, ": reverse external credential requires url")
 				}
 			}
 			if cred.Type == "balancer" {

@@ -21,7 +21,11 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
+
+	"github.com/hashicorp/yamux"
 )
+
+const reverseProxyBaseURL = "http://reverse-proxy"
 
 type externalCredential struct {
 	tag          string
@@ -41,86 +45,135 @@ type externalCredential struct {
 	requestContext   context.Context
 	cancelRequests   context.CancelFunc
 	requestAccess    sync.Mutex
+
+	// Reverse proxy fields
+	reverse         bool
+	reverseSession  *yamux.Session
+	reverseAccess   sync.RWMutex
+	reverseContext  context.Context
+	reverseCancel   context.CancelFunc
+	connectorDialer N.Dialer
+	connectorURL    *url.URL
+	connectorTLS    *stdTLS.Config
+	reverseService  http.Handler
 }
 
 func newExternalCredential(ctx context.Context, tag string, options option.OCMExternalCredentialOptions, logger log.ContextLogger) (*externalCredential, error) {
-	parsedURL, err := url.Parse(options.URL)
-	if err != nil {
-		return nil, E.Cause(err, "parse url for credential ", tag)
-	}
-
-	credentialDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context: ctx,
-		Options: option.DialerOptions{
-			Detour: options.Detour,
-		},
-		RemoteIsDomain: true,
-	})
-	if err != nil {
-		return nil, E.Cause(err, "create dialer for credential ", tag)
-	}
-
-	transport := &http.Transport{
-		ForceAttemptHTTP2: true,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			if options.Server != "" {
-				serverPort := options.ServerPort
-				if serverPort == 0 {
-					portStr := parsedURL.Port()
-					if portStr != "" {
-						port, parseErr := strconv.ParseUint(portStr, 10, 16)
-						if parseErr == nil {
-							serverPort = uint16(port)
-						}
-					}
-					if serverPort == 0 {
-						if parsedURL.Scheme == "https" {
-							serverPort = 443
-						} else {
-							serverPort = 80
-						}
-					}
-				}
-				destination := M.ParseSocksaddrHostPort(options.Server, serverPort)
-				return credentialDialer.DialContext(ctx, network, destination)
-			}
-			return credentialDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-		},
-	}
-
-	if parsedURL.Scheme == "https" {
-		transport.TLSClientConfig = &stdTLS.Config{
-			ServerName: parsedURL.Hostname(),
-			RootCAs:    adapter.RootPoolFromContext(ctx),
-			Time:       ntp.TimeFuncFromContext(ctx),
-		}
-	}
-
-	baseURL := parsedURL.Scheme + "://" + parsedURL.Host
-	if parsedURL.Path != "" && parsedURL.Path != "/" {
-		baseURL += parsedURL.Path
-	}
-	if len(baseURL) > 0 && baseURL[len(baseURL)-1] == '/' {
-		baseURL = baseURL[:len(baseURL)-1]
-	}
-
 	pollInterval := time.Duration(options.PollInterval)
 	if pollInterval <= 0 {
 		pollInterval = 30 * time.Minute
 	}
 
 	requestContext, cancelRequests := context.WithCancel(context.Background())
+	reverseContext, reverseCancel := context.WithCancel(context.Background())
 
 	cred := &externalCredential{
 		tag:            tag,
-		baseURL:        baseURL,
 		token:          options.Token,
-		credDialer:     credentialDialer,
-		httpClient:     &http.Client{Transport: transport},
 		pollInterval:   pollInterval,
 		logger:         logger,
 		requestContext: requestContext,
 		cancelRequests: cancelRequests,
+		reverse:        options.Reverse,
+		reverseContext: reverseContext,
+		reverseCancel:  reverseCancel,
+	}
+
+	if options.URL == "" {
+		// Receiver mode: no URL, wait for reverse connection
+		cred.baseURL = reverseProxyBaseURL
+		cred.httpClient = &http.Client{
+			Transport: &http.Transport{
+				ForceAttemptHTTP2: false,
+				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+					session := cred.getReverseSession()
+					if session == nil || session.IsClosed() {
+						return nil, E.New("reverse connection not established for ", cred.tag)
+					}
+					return session.Open()
+				},
+			},
+		}
+	} else {
+		// Normal or connector mode: has URL
+		parsedURL, err := url.Parse(options.URL)
+		if err != nil {
+			return nil, E.Cause(err, "parse url for credential ", tag)
+		}
+
+		credentialDialer, err := dialer.NewWithOptions(dialer.Options{
+			Context: ctx,
+			Options: option.DialerOptions{
+				Detour: options.Detour,
+			},
+			RemoteIsDomain: true,
+		})
+		if err != nil {
+			return nil, E.Cause(err, "create dialer for credential ", tag)
+		}
+
+		transport := &http.Transport{
+			ForceAttemptHTTP2: true,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				if options.Server != "" {
+					serverPort := options.ServerPort
+					if serverPort == 0 {
+						portStr := parsedURL.Port()
+						if portStr != "" {
+							port, parseErr := strconv.ParseUint(portStr, 10, 16)
+							if parseErr == nil {
+								serverPort = uint16(port)
+							}
+						}
+						if serverPort == 0 {
+							if parsedURL.Scheme == "https" {
+								serverPort = 443
+							} else {
+								serverPort = 80
+							}
+						}
+					}
+					destination := M.ParseSocksaddrHostPort(options.Server, serverPort)
+					return credentialDialer.DialContext(ctx, network, destination)
+				}
+				return credentialDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+		}
+
+		if parsedURL.Scheme == "https" {
+			transport.TLSClientConfig = &stdTLS.Config{
+				ServerName: parsedURL.Hostname(),
+				RootCAs:    adapter.RootPoolFromContext(ctx),
+				Time:       ntp.TimeFuncFromContext(ctx),
+			}
+		}
+
+		baseURL := parsedURL.Scheme + "://" + parsedURL.Host
+		if parsedURL.Path != "" && parsedURL.Path != "/" {
+			baseURL += parsedURL.Path
+		}
+		if len(baseURL) > 0 && baseURL[len(baseURL)-1] == '/' {
+			baseURL = baseURL[:len(baseURL)-1]
+		}
+
+		cred.baseURL = baseURL
+
+		if options.Reverse {
+			// Connector mode: we dial out to serve, not to proxy
+			cred.connectorDialer = credentialDialer
+			cred.connectorURL = parsedURL
+			if parsedURL.Scheme == "https" {
+				cred.connectorTLS = &stdTLS.Config{
+					ServerName: parsedURL.Hostname(),
+					RootCAs:    adapter.RootPoolFromContext(ctx),
+					Time:       ntp.TimeFuncFromContext(ctx),
+				}
+			}
+		} else {
+			// Normal mode: standard HTTP client for proxying
+			cred.credDialer = credentialDialer
+			cred.httpClient = &http.Client{Transport: transport}
+		}
 	}
 
 	if options.UsagesPath != "" {
@@ -142,6 +195,9 @@ func (c *externalCredential) start() error {
 			c.logger.Warn("load usage statistics for ", c.tag, ": ", err)
 		}
 	}
+	if c.reverse && c.connectorURL != nil {
+		go c.connectorLoop()
+	}
 	return nil
 }
 
@@ -158,6 +214,14 @@ func (c *externalCredential) isExternal() bool {
 }
 
 func (c *externalCredential) isAvailable() bool {
+	if c.reverse && c.connectorURL != nil {
+		return false // connector mode: not for local proxying
+	}
+	if c.baseURL == reverseProxyBaseURL {
+		// receiver mode: only available when reverse connection active
+		session := c.getReverseSession()
+		return session != nil && !session.IsClosed()
+	}
 	return true
 }
 
@@ -461,6 +525,16 @@ func (c *externalCredential) ocmGetBaseURL() string {
 }
 
 func (c *externalCredential) close() {
+	if c.reverseCancel != nil {
+		c.reverseCancel()
+	}
+	c.reverseAccess.Lock()
+	session := c.reverseSession
+	c.reverseSession = nil
+	c.reverseAccess.Unlock()
+	if session != nil {
+		session.Close()
+	}
 	if c.usageTracker != nil {
 		c.usageTracker.cancelPendingSave()
 		err := c.usageTracker.Save()
@@ -468,4 +542,28 @@ func (c *externalCredential) close() {
 			c.logger.Error("save usage statistics for ", c.tag, ": ", err)
 		}
 	}
+}
+
+func (c *externalCredential) getReverseSession() *yamux.Session {
+	c.reverseAccess.RLock()
+	defer c.reverseAccess.RUnlock()
+	return c.reverseSession
+}
+
+func (c *externalCredential) setReverseSession(session *yamux.Session) {
+	c.reverseAccess.Lock()
+	old := c.reverseSession
+	c.reverseSession = session
+	c.reverseAccess.Unlock()
+	if old != nil {
+		old.Close()
+	}
+}
+
+func (c *externalCredential) clearReverseSession(session *yamux.Session) {
+	c.reverseAccess.Lock()
+	if c.reverseSession == session {
+		c.reverseSession = nil
+	}
+	c.reverseAccess.Unlock()
 }

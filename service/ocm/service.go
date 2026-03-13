@@ -305,6 +305,9 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		cred.setOnBecameUnusable(func() {
 			s.interruptWebSocketSessionsForCredential(tag)
 		})
+		if extCred, ok := cred.(*externalCredential); ok && extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseService = s
+		}
 	}
 	if len(s.options.Credentials) > 0 {
 		err := validateOCMCompositeCredentialModes(s.options, s.providers)
@@ -361,6 +364,11 @@ func (s *Service) resolveCredentialProvider(username string) (credentialProvider
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/ocm/v1/status" {
 		s.handleStatusEndpoint(w, r)
+		return
+	}
+
+	if r.URL.Path == "/ocm/v1/reverse" {
+		s.handleReverseConnect(w, r)
 		return
 	}
 
@@ -858,6 +866,20 @@ func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, use
 
 	headers.Set("x-"+activeLimitIdentifier+"-primary-used-percent", strconv.FormatFloat(avgFiveHour, 'f', 2, 64))
 	headers.Set("x-"+activeLimitIdentifier+"-secondary-used-percent", strconv.FormatFloat(avgWeekly, 'f', 2, 64))
+}
+
+func (s *Service) InterfaceUpdated() {
+	for _, cred := range s.allCredentials {
+		extCred, ok := cred.(*externalCredential)
+		if !ok {
+			continue
+		}
+		if extCred.reverse && extCred.connectorURL != nil {
+			extCred.reverseCancel()
+			extCred.reverseContext, extCred.reverseCancel = context.WithCancel(context.Background())
+			go extCred.connectorLoop()
+		}
+	}
 }
 
 func (s *Service) Close() error {
