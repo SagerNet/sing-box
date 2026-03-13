@@ -132,9 +132,12 @@ func (c *externalCredential) connectorLoop() {
 		default:
 		}
 
-		err := c.connectorConnect()
+		sessionLifetime, err := c.connectorConnect()
 		if c.reverseContext.Err() != nil {
 			return
+		}
+		if sessionLifetime >= connectorBackoffResetThreshold {
+			consecutiveFailures = 0
 		}
 		consecutiveFailures++
 		backoff := connectorBackoff(consecutiveFailures)
@@ -146,6 +149,8 @@ func (c *externalCredential) connectorLoop() {
 		}
 	}
 }
+
+const connectorBackoffResetThreshold = time.Minute
 
 func connectorBackoff(failures int) time.Duration {
 	if failures > 5 {
@@ -159,14 +164,14 @@ func connectorBackoff(failures int) time.Duration {
 	return base + jitter
 }
 
-func (c *externalCredential) connectorConnect() error {
+func (c *externalCredential) connectorConnect() (time.Duration, error) {
 	if c.reverseService == nil {
-		return E.New("reverse service not initialized")
+		return 0, E.New("reverse service not initialized")
 	}
 	destination := c.connectorResolveDestination()
 	conn, err := c.connectorDialer.DialContext(c.reverseContext, "tcp", destination)
 	if err != nil {
-		return E.Cause(err, "dial")
+		return 0, E.Cause(err, "dial")
 	}
 
 	if c.connectorTLS != nil {
@@ -174,7 +179,7 @@ func (c *externalCredential) connectorConnect() error {
 		err = tlsConn.HandshakeContext(c.reverseContext)
 		if err != nil {
 			conn.Close()
-			return E.Cause(err, "tls handshake")
+			return 0, E.Cause(err, "tls handshake")
 		}
 		conn = tlsConn
 	}
@@ -188,24 +193,24 @@ func (c *externalCredential) connectorConnect() error {
 	_, err = io.WriteString(conn, upgradeRequest)
 	if err != nil {
 		conn.Close()
-		return E.Cause(err, "write upgrade request")
+		return 0, E.Cause(err, "write upgrade request")
 	}
 
 	reader := bufio.NewReader(conn)
 	statusLine, err := reader.ReadString('\n')
 	if err != nil {
 		conn.Close()
-		return E.Cause(err, "read upgrade response")
+		return 0, E.Cause(err, "read upgrade response")
 	}
 	if !strings.HasPrefix(statusLine, "HTTP/1.1 101") {
 		conn.Close()
-		return E.New("unexpected upgrade response: ", strings.TrimSpace(statusLine))
+		return 0, E.New("unexpected upgrade response: ", strings.TrimSpace(statusLine))
 	}
 	for {
 		line, readErr := reader.ReadString('\n')
 		if readErr != nil {
 			conn.Close()
-			return E.Cause(readErr, "read upgrade headers")
+			return 0, E.Cause(readErr, "read upgrade headers")
 		}
 		if strings.TrimSpace(line) == "" {
 			break
@@ -215,22 +220,24 @@ func (c *externalCredential) connectorConnect() error {
 	session, err := yamux.Server(conn, reverseYamuxConfig())
 	if err != nil {
 		conn.Close()
-		return E.Cause(err, "create yamux server")
+		return 0, E.Cause(err, "create yamux server")
 	}
 	defer session.Close()
 
 	c.logger.Info("reverse connection established for ", c.tag)
 
+	serveStart := time.Now()
 	httpServer := &http.Server{
 		Handler:     c.reverseService,
 		ReadTimeout: 0,
 		IdleTimeout: 120 * time.Second,
 	}
 	err = httpServer.Serve(&yamuxNetListener{session: session})
+	sessionLifetime := time.Since(serveStart)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) && c.reverseContext.Err() == nil {
-		return E.Cause(err, "serve")
+		return sessionLifetime, E.Cause(err, "serve")
 	}
-	return E.New("connection closed")
+	return sessionLifetime, E.New("connection closed")
 }
 
 func (c *externalCredential) connectorResolveDestination() M.Socksaddr {
