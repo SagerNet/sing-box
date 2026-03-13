@@ -86,6 +86,8 @@ type CCMDefaultCredentialOptions struct {
 	Detour         string `json:"detour,omitempty"`
 	Reserve5h      uint8  `json:"reserve_5h"`
 	ReserveWeekly  uint8  `json:"reserve_weekly"`
+	Limit5h        uint8  `json:"limit_5h,omitempty"`
+	LimitWeekly    uint8  `json:"limit_weekly,omitempty"`
 }
 
 type CCMBalancerCredentialOptions struct {

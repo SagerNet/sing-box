@@ -293,6 +293,14 @@ func (c *externalCredential) weeklyUtilization() float64 {
 	return c.state.weeklyUtilization
 }
 
+func (c *externalCredential) fiveHourCap() float64 {
+	return 100
+}
+
+func (c *externalCredential) weeklyCap() float64 {
+	return 100
+}
+
 func (c *externalCredential) markRateLimited(resetAt time.Time) {
 	c.logger.Warn("rate limited for ", c.tag, ", reset in ", log.FormatDuration(time.Until(resetAt)))
 	c.stateMutex.Lock()
@@ -434,7 +442,11 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 		c.state.lastUpdated = time.Now()
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
-		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
+		resetSuffix := ""
+		if !c.state.weeklyReset.IsZero() {
+			resetSuffix = ", resets=" + log.FormatDuration(time.Until(c.state.weeklyReset))
+		}
+		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()
@@ -544,7 +556,11 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		c.state.hardRateLimited = false
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
-		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
+		resetSuffix := ""
+		if !c.state.weeklyReset.IsZero() {
+			resetSuffix = ", resets=" + log.FormatDuration(time.Until(c.state.weeklyReset))
+		}
+		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()

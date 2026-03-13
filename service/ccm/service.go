@@ -306,6 +306,15 @@ func isExtendedContextRequest(betaHeader string) bool {
 	return false
 }
 
+func isFastModeRequest(betaHeader string) bool {
+	for _, feature := range strings.Split(betaHeader, ",") {
+		if strings.HasPrefix(strings.TrimSpace(feature), "fast-mode") {
+			return true
+		}
+	}
+	return false
+}
+
 func detectContextWindow(betaHeader string, totalInputTokens int64) int {
 	if totalInputTokens > premiumContextThreshold {
 		if isExtendedContextRequest(betaHeader) {
@@ -414,6 +423,14 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if isFastModeRequest(anthropicBetaHeader) {
+		if _, isSingle := provider.(*singleCredentialProvider); !isSingle {
+			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+				"fast mode requests will consume Extra usage, please use a default credential directly")
+			return
+		}
+	}
+
 	var credentialFilter func(credential) bool
 	if userConfig != nil && !userConfig.AllowExternalUsage {
 		credentialFilter = func(c credential) bool { return !c.isExternal() }
@@ -424,13 +441,23 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeNonRetryableCredentialError(w, r, unavailableCredentialMessage(provider, err.Error()))
 		return
 	}
+	var logParts []any
 	if isNew {
-		if username != "" {
-			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID, " by user ", username)
-		} else {
-			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID)
-		}
+		logParts = append(logParts, "assigned credential ")
+	} else {
+		logParts = append(logParts, "credential ")
 	}
+	logParts = append(logParts, selectedCredential.tagName())
+	if sessionID != "" {
+		logParts = append(logParts, " for session ", sessionID)
+	}
+	if isNew && username != "" {
+		logParts = append(logParts, " by user ", username)
+	}
+	if requestModel != "" {
+		logParts = append(logParts, ", model=", requestModel)
+	}
+	s.logger.Debug(logParts...)
 
 	if isExtendedContextRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
 		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
@@ -771,8 +798,16 @@ func (s *Service) computeAggregatedUtilization(provider credentialProvider, user
 		if !userConfig.AllowExternalUsage && cred.isExternal() {
 			continue
 		}
-		totalFiveHour += cred.fiveHourUtilization()
-		totalWeekly += cred.weeklyUtilization()
+		scaledFiveHour := cred.fiveHourUtilization() / cred.fiveHourCap() * 100
+		if scaledFiveHour > 100 {
+			scaledFiveHour = 100
+		}
+		scaledWeekly := cred.weeklyUtilization() / cred.weeklyCap() * 100
+		if scaledWeekly > 100 {
+			scaledWeekly = 100
+		}
+		totalFiveHour += scaledFiveHour
+		totalWeekly += scaledWeekly
 		count++
 	}
 	if count == 0 {

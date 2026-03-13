@@ -89,6 +89,8 @@ type defaultCredential struct {
 	watcherAccess      sync.Mutex
 	reserve5h          uint8
 	reserveWeekly      uint8
+	cap5h              float64
+	capWeekly          float64
 	usageTracker       *AggregatedUsage
 	dialer             N.Dialer
 	httpClient         *http.Client
@@ -130,6 +132,8 @@ type credential interface {
 	isExternal() bool
 	fiveHourUtilization() float64
 	weeklyUtilization() float64
+	fiveHourCap() float64
+	weeklyCap() float64
 	markRateLimited(resetAt time.Time)
 	earliestReset() time.Time
 	unavailableError() error
@@ -188,6 +192,18 @@ func newDefaultCredential(ctx context.Context, tag string, options option.OCMDef
 	if reserveWeekly == 0 {
 		reserveWeekly = 10
 	}
+	var cap5h float64
+	if options.Limit5h > 0 {
+		cap5h = float64(options.Limit5h)
+	} else {
+		cap5h = float64(100 - reserve5h)
+	}
+	var capWeekly float64
+	if options.LimitWeekly > 0 {
+		capWeekly = float64(options.LimitWeekly)
+	} else {
+		capWeekly = float64(100 - reserveWeekly)
+	}
 	requestContext, cancelRequests := context.WithCancel(context.Background())
 	credential := &defaultCredential{
 		tag:            tag,
@@ -195,6 +211,8 @@ func newDefaultCredential(ctx context.Context, tag string, options option.OCMDef
 		credentialPath: options.CredentialPath,
 		reserve5h:      reserve5h,
 		reserveWeekly:  reserveWeekly,
+		cap5h:          cap5h,
+		capWeekly:      capWeekly,
 		dialer:         credentialDialer,
 		httpClient:     httpClient,
 		logger:         logger,
@@ -397,7 +415,11 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 		c.state.lastUpdated = time.Now()
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
-		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
+		resetSuffix := ""
+		if !c.state.weeklyReset.IsZero() {
+			resetSuffix = ", resets=" + log.FormatDuration(time.Until(c.state.weeklyReset))
+		}
+		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()
@@ -446,10 +468,10 @@ func (c *defaultCredential) isUsable() bool {
 }
 
 func (c *defaultCredential) checkReservesLocked() bool {
-	if c.state.fiveHourUtilization >= float64(100-c.reserve5h) {
+	if c.state.fiveHourUtilization >= c.cap5h {
 		return false
 	}
-	if c.state.weeklyUtilization >= float64(100-c.reserveWeekly) {
+	if c.state.weeklyUtilization >= c.capWeekly {
 		return false
 	}
 	return true
@@ -671,7 +693,11 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 		c.state.hardRateLimited = false
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
-		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%")
+		resetSuffix := ""
+		if !c.state.weeklyReset.IsZero() {
+			resetSuffix = ", resets=" + log.FormatDuration(time.Until(c.state.weeklyReset))
+		}
+		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()
@@ -712,6 +738,14 @@ func (c *defaultCredential) fiveHourUtilization() float64 {
 	c.stateMutex.RLock()
 	defer c.stateMutex.RUnlock()
 	return c.state.fiveHourUtilization
+}
+
+func (c *defaultCredential) fiveHourCap() float64 {
+	return c.cap5h
+}
+
+func (c *defaultCredential) weeklyCap() float64 {
+	return c.capWeekly
 }
 
 func (c *defaultCredential) usageTrackerOrNil() *AggregatedUsage {
@@ -796,10 +830,12 @@ type credentialProvider interface {
 }
 
 type singleCredentialProvider struct {
-	cred credential
+	cred          credential
+	sessionAccess sync.RWMutex
+	sessions      map[string]time.Time
 }
 
-func (p *singleCredentialProvider) selectCredential(_ string, filter func(credential) bool) (credential, bool, error) {
+func (p *singleCredentialProvider) selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error) {
 	if filter != nil && !filter(p.cred) {
 		return nil, false, E.New("credential ", p.cred.tagName(), " is filtered out")
 	}
@@ -809,7 +845,20 @@ func (p *singleCredentialProvider) selectCredential(_ string, filter func(creden
 	if !p.cred.isUsable() {
 		return nil, false, E.New("credential ", p.cred.tagName(), " is rate-limited")
 	}
-	return p.cred, false, nil
+	var isNew bool
+	if sessionID != "" {
+		p.sessionAccess.Lock()
+		if p.sessions == nil {
+			p.sessions = make(map[string]time.Time)
+		}
+		_, exists := p.sessions[sessionID]
+		if !exists {
+			p.sessions[sessionID] = time.Now()
+			isNew = true
+		}
+		p.sessionAccess.Unlock()
+	}
+	return p.cred, isNew, nil
 }
 
 func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, resetAt time.Time, _ func(credential) bool) credential {
@@ -818,6 +867,15 @@ func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, rese
 }
 
 func (p *singleCredentialProvider) pollIfStale(ctx context.Context) {
+	now := time.Now()
+	p.sessionAccess.Lock()
+	for id, createdAt := range p.sessions {
+		if now.Sub(createdAt) > sessionExpiry {
+			delete(p.sessions, id)
+		}
+	}
+	p.sessionAccess.Unlock()
+
 	if time.Since(p.cred.lastUpdatedTime()) > p.cred.pollBackoff(defaultPollInterval) {
 		p.cred.pollUsage(ctx)
 	}
@@ -924,7 +982,7 @@ func (p *balancerProvider) pickCredential(filter func(credential) bool) credenti
 
 func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
 	var best credential
-	bestUtilization := float64(101)
+	bestRemaining := float64(-1)
 	for _, cred := range p.credentials {
 		if filter != nil && !filter(cred) {
 			continue
@@ -935,9 +993,9 @@ func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credentia
 		if !cred.isUsable() {
 			continue
 		}
-		utilization := cred.weeklyUtilization()
-		if utilization < bestUtilization {
-			bestUtilization = utilization
+		remaining := cred.weeklyCap() - cred.weeklyUtilization()
+		if remaining > bestRemaining {
+			bestRemaining = remaining
 			best = cred
 		}
 	}
@@ -1206,6 +1264,18 @@ func validateOCMOptions(options option.OCMServiceOptions) error {
 				}
 				if cred.DefaultOptions.ReserveWeekly > 99 {
 					return E.New("credential ", cred.Tag, ": reserve_weekly must be at most 99")
+				}
+				if cred.DefaultOptions.Limit5h > 100 {
+					return E.New("credential ", cred.Tag, ": limit_5h must be at most 100")
+				}
+				if cred.DefaultOptions.LimitWeekly > 100 {
+					return E.New("credential ", cred.Tag, ": limit_weekly must be at most 100")
+				}
+				if cred.DefaultOptions.Reserve5h > 0 && cred.DefaultOptions.Limit5h > 0 {
+					return E.New("credential ", cred.Tag, ": reserve_5h and limit_5h are mutually exclusive")
+				}
+				if cred.DefaultOptions.ReserveWeekly > 0 && cred.DefaultOptions.LimitWeekly > 0 {
+					return E.New("credential ", cred.Tag, ": reserve_weekly and limit_weekly are mutually exclusive")
 				}
 			}
 			if cred.Type == "external" {

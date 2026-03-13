@@ -435,13 +435,6 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeNonRetryableCredentialError(w, unavailableCredentialMessage(provider, err.Error()))
 		return
 	}
-	if isNew {
-		if username != "" {
-			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID, " by user ", username)
-		} else {
-			s.logger.Debug("assigned credential ", selectedCredential.tagName(), " for session ", sessionID)
-		}
-	}
 
 	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
 		s.handleWebSocket(w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter)
@@ -465,6 +458,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Read body for model extraction and retry buffer when JSON replay is useful.
 	var bodyBytes []byte
 	var requestModel string
+	var requestServiceTier string
 	if r.Body != nil && (shouldTrackUsage || canRetryRequest) {
 		mediaType, _, parseErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		isJSONRequest := parseErr == nil && (mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"))
@@ -476,14 +470,37 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			var request struct {
-				Model string `json:"model"`
+				Model       string `json:"model"`
+				ServiceTier string `json:"service_tier"`
 			}
 			if json.Unmarshal(bodyBytes, &request) == nil {
 				requestModel = request.Model
+				requestServiceTier = request.ServiceTier
 			}
 			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
 	}
+
+	var logParts []any
+	if isNew {
+		logParts = append(logParts, "assigned credential ")
+	} else {
+		logParts = append(logParts, "credential ")
+	}
+	logParts = append(logParts, selectedCredential.tagName())
+	if sessionID != "" {
+		logParts = append(logParts, " for session ", sessionID)
+	}
+	if isNew && username != "" {
+		logParts = append(logParts, " by user ", username)
+	}
+	if requestModel != "" {
+		logParts = append(logParts, ", model=", requestModel)
+	}
+	if requestServiceTier == "priority" {
+		logParts = append(logParts, ", fast")
+	}
+	s.logger.Debug(logParts...)
 
 	requestContext := selectedCredential.wrapRequestContext(r.Context())
 	defer func() {
@@ -841,8 +858,16 @@ func (s *Service) computeAggregatedUtilization(provider credentialProvider, user
 		if !userConfig.AllowExternalUsage && cred.isExternal() {
 			continue
 		}
-		totalFiveHour += cred.fiveHourUtilization()
-		totalWeekly += cred.weeklyUtilization()
+		scaledFiveHour := cred.fiveHourUtilization() / cred.fiveHourCap() * 100
+		if scaledFiveHour > 100 {
+			scaledFiveHour = 100
+		}
+		scaledWeekly := cred.weeklyUtilization() / cred.weeklyCap() * 100
+		if scaledWeekly > 100 {
+			scaledWeekly = 100
+		}
+		totalFiveHour += scaledFiveHour
+		totalWeekly += scaledWeekly
 		count++
 	}
 	if count == 0 {
