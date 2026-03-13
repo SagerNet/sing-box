@@ -464,6 +464,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"extended context (1m) requests cannot be proxied through external credentials")
 		return
 	}
+	if isFastModeRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+			"fast mode requests cannot be proxied through external credentials")
+		return
+	}
 
 	requestContext := selectedCredential.wrapRequestContext(r.Context())
 	defer func() {
