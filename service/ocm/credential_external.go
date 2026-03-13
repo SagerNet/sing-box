@@ -52,6 +52,7 @@ type externalCredential struct {
 	reverse              bool
 	reverseSession       *yamux.Session
 	reverseAccess        sync.RWMutex
+	closed               bool
 	reverseContext       context.Context
 	reverseCancel        context.CancelFunc
 	connectorDialer      N.Dialer
@@ -595,12 +596,16 @@ func (c *externalCredential) ocmGetBaseURL() string {
 }
 
 func (c *externalCredential) close() {
+	var session *yamux.Session
 	c.reverseAccess.Lock()
-	if c.reverseCancel != nil {
-		c.reverseCancel()
+	if !c.closed {
+		c.closed = true
+		if c.reverseCancel != nil {
+			c.reverseCancel()
+		}
+		session = c.reverseSession
+		c.reverseSession = nil
 	}
-	session := c.reverseSession
-	c.reverseSession = nil
 	c.reverseAccess.Unlock()
 	if session != nil {
 		session.Close()
@@ -620,14 +625,19 @@ func (c *externalCredential) getReverseSession() *yamux.Session {
 	return c.reverseSession
 }
 
-func (c *externalCredential) setReverseSession(session *yamux.Session) {
+func (c *externalCredential) setReverseSession(session *yamux.Session) bool {
 	c.reverseAccess.Lock()
+	if c.closed {
+		c.reverseAccess.Unlock()
+		return false
+	}
 	old := c.reverseSession
 	c.reverseSession = session
 	c.reverseAccess.Unlock()
 	if old != nil {
 		old.Close()
 	}
+	return true
 }
 
 func (c *externalCredential) clearReverseSession(session *yamux.Session) {
@@ -646,6 +656,10 @@ func (c *externalCredential) getReverseContext() context.Context {
 
 func (c *externalCredential) resetReverseContext() {
 	c.reverseAccess.Lock()
+	if c.closed {
+		c.reverseAccess.Unlock()
+		return
+	}
 	c.reverseCancel()
 	c.reverseContext, c.reverseCancel = context.WithCancel(context.Background())
 	c.reverseAccess.Unlock()

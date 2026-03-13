@@ -110,7 +110,10 @@ func (s *Service) handleReverseConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiverCredential.setReverseSession(session)
+	if !receiverCredential.setReverseSession(session) {
+		session.Close()
+		return
+	}
 	s.logger.Info("reverse connection established for ", receiverCredential.tagName(), " from ", r.RemoteAddr)
 
 	go func() {
