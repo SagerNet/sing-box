@@ -87,8 +87,6 @@ type defaultCredential struct {
 	pollAccess         sync.Mutex
 	reloadAccess       sync.Mutex
 	watcherAccess      sync.Mutex
-	reserve5h          uint8
-	reserveWeekly      uint8
 	cap5h              float64
 	capWeekly          float64
 	usageTracker       *AggregatedUsage
@@ -182,7 +180,7 @@ func newDefaultCredential(ctx context.Context, tag string, options option.CCMDef
 	}
 	reserveWeekly := options.ReserveWeekly
 	if reserveWeekly == 0 {
-		reserveWeekly = 10
+		reserveWeekly = 1
 	}
 	var cap5h float64
 	if options.Limit5h > 0 {
@@ -201,8 +199,6 @@ func newDefaultCredential(ctx context.Context, tag string, options option.CCMDef
 		tag:            tag,
 		serviceContext: ctx,
 		credentialPath: options.CredentialPath,
-		reserve5h:      reserve5h,
-		reserveWeekly:  reserveWeekly,
 		cap5h:          cap5h,
 		capWeekly:      capWeekly,
 		httpClient:     httpClient,
