@@ -832,19 +832,19 @@ func (s *Service) handleStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider.pollIfStale(r.Context())
-	avgFiveHour, avgWeekly := s.computeAggregatedUtilization(provider, userConfig)
+	avgFiveHour, avgWeekly, totalWeight := s.computeAggregatedUtilization(provider, userConfig)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]float64{
 		"five_hour_utilization": avgFiveHour,
 		"weekly_utilization":    avgWeekly,
+		"plan_weight":           totalWeight,
 	})
 }
 
-func (s *Service) computeAggregatedUtilization(provider credentialProvider, userConfig *option.OCMUser) (float64, float64) {
-	var totalFiveHour, totalWeekly float64
-	var count int
+func (s *Service) computeAggregatedUtilization(provider credentialProvider, userConfig *option.OCMUser) (float64, float64, float64) {
+	var totalWeightedRemaining5h, totalWeightedRemainingWeekly, totalWeight float64
 	for _, cred := range provider.allCredentials() {
 		if !cred.isAvailable() {
 			continue
@@ -855,22 +855,25 @@ func (s *Service) computeAggregatedUtilization(provider credentialProvider, user
 		if !userConfig.AllowExternalUsage && cred.isExternal() {
 			continue
 		}
-		scaledFiveHour := cred.fiveHourUtilization() / cred.fiveHourCap() * 100
-		if scaledFiveHour > 100 {
-			scaledFiveHour = 100
+		weight := cred.planWeight()
+		remaining5h := cred.fiveHourCap() - cred.fiveHourUtilization()
+		if remaining5h < 0 {
+			remaining5h = 0
 		}
-		scaledWeekly := cred.weeklyUtilization() / cred.weeklyCap() * 100
-		if scaledWeekly > 100 {
-			scaledWeekly = 100
+		remainingWeekly := cred.weeklyCap() - cred.weeklyUtilization()
+		if remainingWeekly < 0 {
+			remainingWeekly = 0
 		}
-		totalFiveHour += scaledFiveHour
-		totalWeekly += scaledWeekly
-		count++
+		totalWeightedRemaining5h += remaining5h * weight
+		totalWeightedRemainingWeekly += remainingWeekly * weight
+		totalWeight += weight
 	}
-	if count == 0 {
-		return 100, 100
+	if totalWeight == 0 {
+		return 100, 100, 0
 	}
-	return totalFiveHour / float64(count), totalWeekly / float64(count)
+	return 100 - totalWeightedRemaining5h/totalWeight,
+		100 - totalWeightedRemainingWeekly/totalWeight,
+		totalWeight
 }
 
 func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, userConfig *option.OCMUser) {
@@ -879,7 +882,7 @@ func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, use
 		return
 	}
 
-	avgFiveHour, avgWeekly := s.computeAggregatedUtilization(provider, userConfig)
+	avgFiveHour, avgWeekly, totalWeight := s.computeAggregatedUtilization(provider, userConfig)
 
 	activeLimitIdentifier := normalizeRateLimitIdentifier(headers.Get("x-codex-active-limit"))
 	if activeLimitIdentifier == "" {
@@ -888,6 +891,9 @@ func (s *Service) rewriteResponseHeadersForExternalUser(headers http.Header, use
 
 	headers.Set("x-"+activeLimitIdentifier+"-primary-used-percent", strconv.FormatFloat(avgFiveHour, 'f', 2, 64))
 	headers.Set("x-"+activeLimitIdentifier+"-secondary-used-percent", strconv.FormatFloat(avgWeekly, 'f', 2, 64))
+	if totalWeight > 0 {
+		headers.Set("X-OCM-Plan-Weight", strconv.FormatFloat(totalWeight, 'f', -1, 64))
+	}
 }
 
 func (s *Service) InterfaceUpdated() {

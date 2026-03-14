@@ -368,8 +368,9 @@ func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential
 				ResetAt     int64   `json:"reset_at"`
 			} `json:"secondary"`
 		} `json:"rate_limits"`
-		LimitName        string `json:"limit_name"`
-		MeteredLimitName string `json:"metered_limit_name"`
+		LimitName        string  `json:"limit_name"`
+		MeteredLimitName string  `json:"metered_limit_name"`
+		PlanWeight       float64 `json:"plan_weight"`
 	}
 	err := json.Unmarshal(data, &rateLimitsEvent)
 	if err != nil {
@@ -397,6 +398,9 @@ func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential
 		if w.ResetAt > 0 {
 			headers.Set("x-"+identifier+"-secondary-reset-at", strconv.FormatInt(w.ResetAt, 10))
 		}
+	}
+	if rateLimitsEvent.PlanWeight > 0 {
+		headers.Set("X-OCM-Plan-Weight", strconv.FormatFloat(rateLimitsEvent.PlanWeight, 'f', -1, 64))
 	}
 	selectedCredential.updateStateFromHeaders(headers)
 }
@@ -436,7 +440,11 @@ func (s *Service) rewriteWebSocketRateLimitsForExternalUser(data []byte, provide
 		return nil, err
 	}
 
-	averageFiveHour, averageWeekly := s.computeAggregatedUtilization(provider, userConfig)
+	averageFiveHour, averageWeekly, totalWeight := s.computeAggregatedUtilization(provider, userConfig)
+
+	if totalWeight > 0 {
+		event["plan_weight"], _ = json.Marshal(totalWeight)
+	}
 
 	primaryData, err := rewriteWebSocketRateLimitWindow(rateLimits["primary"], averageFiveHour)
 	if err != nil {

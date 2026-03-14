@@ -102,7 +102,6 @@ type OCMExternalCredentialOptions struct {
 	Token        string             `json:"token"`
 	Reverse      bool               `json:"reverse,omitempty"`
 	Detour       string             `json:"detour,omitempty"`
-	PlanWeight   float64            `json:"plan_weight,omitempty"`
 	UsagesPath   string             `json:"usages_path,omitempty"`
 	PollInterval badoption.Duration `json:"poll_interval,omitempty"`
 }

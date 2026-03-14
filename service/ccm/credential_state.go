@@ -72,6 +72,7 @@ type credentialState struct {
 	rateLimitResetAt          time.Time
 	accountType               string
 	rateLimitTier             string
+	remotePlanWeight          float64
 	lastUpdated               time.Time
 	consecutivePollFailures   int
 	unavailable               bool

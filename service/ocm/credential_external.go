@@ -30,18 +30,17 @@ import (
 const reverseProxyBaseURL = "http://reverse-proxy"
 
 type externalCredential struct {
-	tag                  string
-	baseURL              string
-	token                string
-	credDialer           N.Dialer
-	httpClient           *http.Client
-	state                credentialState
-	stateMutex           sync.RWMutex
-	pollAccess           sync.Mutex
-	pollInterval         time.Duration
-	configuredPlanWeight float64
-	usageTracker         *AggregatedUsage
-	logger               log.ContextLogger
+	tag          string
+	baseURL      string
+	token        string
+	credDialer   N.Dialer
+	httpClient   *http.Client
+	state        credentialState
+	stateMutex   sync.RWMutex
+	pollAccess   sync.Mutex
+	pollInterval time.Duration
+	usageTracker *AggregatedUsage
+	logger       log.ContextLogger
 
 	onBecameUnusable func()
 	interrupted      bool
@@ -130,22 +129,16 @@ func newExternalCredential(ctx context.Context, tag string, options option.OCMEx
 	requestContext, cancelRequests := context.WithCancel(context.Background())
 	reverseContext, reverseCancel := context.WithCancel(context.Background())
 
-	configuredPlanWeight := options.PlanWeight
-	if configuredPlanWeight <= 0 {
-		configuredPlanWeight = 1
-	}
-
 	cred := &externalCredential{
-		tag:                  tag,
-		token:                options.Token,
-		pollInterval:         pollInterval,
-		configuredPlanWeight: configuredPlanWeight,
-		logger:               logger,
-		requestContext:       requestContext,
-		cancelRequests:       cancelRequests,
-		reverse:              options.Reverse,
-		reverseContext:       reverseContext,
-		reverseCancel:        reverseCancel,
+		tag:            tag,
+		token:          options.Token,
+		pollInterval:   pollInterval,
+		logger:         logger,
+		requestContext: requestContext,
+		cancelRequests: cancelRequests,
+		reverse:        options.Reverse,
+		reverseContext: reverseContext,
+		reverseCancel:  reverseCancel,
 	}
 
 	if options.URL == "" {
@@ -313,7 +306,12 @@ func (c *externalCredential) weeklyCap() float64 {
 }
 
 func (c *externalCredential) planWeight() float64 {
-	return c.configuredPlanWeight
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	if c.state.remotePlanWeight > 0 {
+		return c.state.remotePlanWeight
+	}
+	return 10
 }
 
 func (c *externalCredential) weeklyResetTime() time.Time {
@@ -459,6 +457,12 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 			c.state.weeklyUtilization = value
 		}
 	}
+	if planWeight := headers.Get("X-OCM-Plan-Weight"); planWeight != "" {
+		value, err := strconv.ParseFloat(planWeight, 64)
+		if err == nil && value > 0 {
+			c.state.remotePlanWeight = value
+		}
+	}
 	if hadData {
 		c.state.consecutivePollFailures = 0
 		c.state.lastUpdated = time.Now()
@@ -562,6 +566,7 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	var statusResponse struct {
 		FiveHourUtilization float64 `json:"five_hour_utilization"`
 		WeeklyUtilization   float64 `json:"weekly_utilization"`
+		PlanWeight          float64 `json:"plan_weight"`
 	}
 	err = json.NewDecoder(response.Body).Decode(&statusResponse)
 	if err != nil {
@@ -577,6 +582,9 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	c.state.consecutivePollFailures = 0
 	c.state.fiveHourUtilization = statusResponse.FiveHourUtilization
 	c.state.weeklyUtilization = statusResponse.WeeklyUtilization
+	if statusResponse.PlanWeight > 0 {
+		c.state.remotePlanWeight = statusResponse.PlanWeight
+	}
 	if c.state.hardRateLimited && time.Now().After(c.state.rateLimitResetAt) {
 		c.state.hardRateLimited = false
 	}
