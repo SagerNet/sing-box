@@ -49,8 +49,10 @@ type externalCredential struct {
 	requestAccess    sync.Mutex
 
 	// Reverse proxy fields
-	reverse              bool
-	reverseSession       *yamux.Session
+	reverse           bool
+	reverseHttpClient *http.Client
+	reverseCredDialer N.Dialer
+	reverseSession    *yamux.Session
 	reverseAccess        sync.RWMutex
 	closed               bool
 	reverseContext       context.Context
@@ -213,6 +215,15 @@ func newExternalCredential(ctx context.Context, tag string, options option.OCMEx
 			// Normal mode: standard HTTP client for proxying
 			cred.credDialer = credentialDialer
 			cred.httpClient = &http.Client{Transport: transport}
+			cred.reverseCredDialer = reverseSessionDialer{credential: cred}
+			cred.reverseHttpClient = &http.Client{
+				Transport: &http.Transport{
+					ForceAttemptHTTP2: false,
+					DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+						return cred.openReverseConnection(ctx)
+					},
+				},
+			}
 		}
 	}
 
@@ -363,7 +374,14 @@ func (c *externalCredential) getAccessToken() (string, error) {
 }
 
 func (c *externalCredential) buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, _ http.Header) (*http.Request, error) {
-	proxyURL := c.baseURL + original.URL.RequestURI()
+	baseURL := c.baseURL
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			baseURL = reverseProxyBaseURL
+		}
+	}
+	proxyURL := baseURL + original.URL.RequestURI()
 	var body io.Reader
 	if bodyBytes != nil {
 		body = bytes.NewReader(bodyBytes)
@@ -526,9 +544,18 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	defer c.pollAccess.Unlock()
 	defer c.markUsagePollAttempted()
 
-	statusURL := c.baseURL + "/ocm/v1/status"
+	activeBaseURL := c.baseURL
+	activeTransport := c.httpClient.Transport
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			activeBaseURL = reverseProxyBaseURL
+			activeTransport = c.reverseHttpClient.Transport
+		}
+	}
+	statusURL := activeBaseURL + "/ocm/v1/status"
 	httpClient := &http.Client{
-		Transport: c.httpClient.Transport,
+		Transport: activeTransport,
 		Timeout:   5 * time.Second,
 	}
 
@@ -639,10 +666,22 @@ func (c *externalCredential) usageTrackerOrNil() *AggregatedUsage {
 }
 
 func (c *externalCredential) httpTransport() *http.Client {
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			return c.reverseHttpClient
+		}
+	}
 	return c.httpClient
 }
 
 func (c *externalCredential) ocmDialer() N.Dialer {
+	if c.reverseCredDialer != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			return c.reverseCredDialer
+		}
+	}
 	return c.credDialer
 }
 
@@ -655,6 +694,12 @@ func (c *externalCredential) ocmGetAccountID() string {
 }
 
 func (c *externalCredential) ocmGetBaseURL() string {
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			return reverseProxyBaseURL
+		}
+	}
 	return c.baseURL
 }
 

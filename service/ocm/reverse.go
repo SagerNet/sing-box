@@ -126,10 +126,10 @@ func (s *Service) handleReverseConnect(ctx context.Context, w http.ResponseWrite
 func (s *Service) findReceiverCredential(token string) *externalCredential {
 	for _, cred := range s.allCredentials {
 		extCred, ok := cred.(*externalCredential)
-		if !ok {
+		if !ok || extCred.connectorURL != nil {
 			continue
 		}
-		if extCred.baseURL == reverseProxyBaseURL && extCred.token == token {
+		if extCred.token == token {
 			return extCred
 		}
 	}

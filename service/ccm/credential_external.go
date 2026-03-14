@@ -47,8 +47,9 @@ type externalCredential struct {
 	requestAccess    sync.Mutex
 
 	// Reverse proxy fields
-	reverse              bool
-	reverseSession       *yamux.Session
+	reverse           bool
+	reverseHttpClient *http.Client
+	reverseSession    *yamux.Session
 	reverseAccess        sync.RWMutex
 	closed               bool
 	reverseContext       context.Context
@@ -194,6 +195,14 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 		} else {
 			// Normal mode: standard HTTP client for proxying
 			cred.httpClient = &http.Client{Transport: transport}
+			cred.reverseHttpClient = &http.Client{
+				Transport: &http.Transport{
+					ForceAttemptHTTP2: false,
+					DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+						return cred.openReverseConnection(ctx)
+					},
+				},
+			}
 		}
 	}
 
@@ -341,7 +350,14 @@ func (c *externalCredential) getAccessToken() (string, error) {
 }
 
 func (c *externalCredential) buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, _ http.Header) (*http.Request, error) {
-	proxyURL := c.baseURL + original.URL.RequestURI()
+	baseURL := c.baseURL
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			baseURL = reverseProxyBaseURL
+		}
+	}
+	proxyURL := baseURL + original.URL.RequestURI()
 	var body io.Reader
 	if bodyBytes != nil {
 		body = bytes.NewReader(bodyBytes)
@@ -489,9 +505,18 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	defer c.pollAccess.Unlock()
 	defer c.markUsagePollAttempted()
 
-	statusURL := c.baseURL + "/ccm/v1/status"
+	activeBaseURL := c.baseURL
+	activeTransport := c.httpClient.Transport
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			activeBaseURL = reverseProxyBaseURL
+			activeTransport = c.reverseHttpClient.Transport
+		}
+	}
+	statusURL := activeBaseURL + "/ccm/v1/status"
 	httpClient := &http.Client{
-		Transport: c.httpClient.Transport,
+		Transport: activeTransport,
 		Timeout:   5 * time.Second,
 	}
 
@@ -602,6 +627,12 @@ func (c *externalCredential) usageTrackerOrNil() *AggregatedUsage {
 }
 
 func (c *externalCredential) httpTransport() *http.Client {
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			return c.reverseHttpClient
+		}
+	}
 	return c.httpClient
 }
 
