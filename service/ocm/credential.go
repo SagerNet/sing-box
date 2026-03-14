@@ -92,7 +92,7 @@ func (c *credentialRequestContext) cancelRequest() {
 	c.cancelOnce.Do(c.cancelFunc)
 }
 
-type credential interface {
+type Credential interface {
 	tagName() string
 	isAvailable() bool
 	isUsable() bool
@@ -139,11 +139,11 @@ const (
 
 type credentialSelection struct {
 	scope  credentialSelectionScope
-	filter func(credential) bool
+	filter func(Credential) bool
 }
 
-func (s credentialSelection) allows(cred credential) bool {
-	return s.filter == nil || s.filter(cred)
+func (s credentialSelection) allows(credential Credential) bool {
+	return s.filter == nil || s.filter(credential)
 }
 
 func (s credentialSelection) scopeOrDefault() credentialSelectionScope {

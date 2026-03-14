@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	stdTLS "crypto/tls"
-	"errors"
 	"io"
 	"math/rand/v2"
 	"net"
@@ -124,13 +123,13 @@ func (s *Service) handleReverseConnect(ctx context.Context, w http.ResponseWrite
 }
 
 func (s *Service) findReceiverCredential(token string) *externalCredential {
-	for _, cred := range s.allCredentials {
-		extCred, ok := cred.(*externalCredential)
-		if !ok || extCred.connectorURL != nil {
+	for _, credential := range s.allCredentials {
+		external, ok := credential.(*externalCredential)
+		if !ok || external.connectorURL != nil {
 			continue
 		}
-		if extCred.token == token {
-			return extCred
+		if external.token == token {
+			return external
 		}
 	}
 	return nil
@@ -248,7 +247,7 @@ func (c *externalCredential) connectorConnect(ctx context.Context) (time.Duratio
 	}
 	err = httpServer.Serve(&yamuxNetListener{session: session})
 	sessionLifetime := time.Since(serveStart)
-	if err != nil && !errors.Is(err, http.ErrServerClosed) && ctx.Err() == nil {
+	if err != nil && !E.IsClosed(err) && ctx.Err() == nil {
 		return sessionLifetime, E.Cause(err, "serve")
 	}
 	return sessionLifetime, E.New("connection closed")

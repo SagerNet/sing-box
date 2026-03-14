@@ -14,55 +14,55 @@ func buildCredentialProviders(
 	ctx context.Context,
 	options option.CCMServiceOptions,
 	logger log.ContextLogger,
-) (map[string]credentialProvider, []credential, error) {
-	allCredentialMap := make(map[string]credential)
-	var allCreds []credential
+) (map[string]credentialProvider, []Credential, error) {
+	allCredentialMap := make(map[string]Credential)
+	var allCredentials []Credential
 	providers := make(map[string]credentialProvider)
 
 	// Pass 1: create default and external credentials
-	for _, credOpt := range options.Credentials {
-		switch credOpt.Type {
+	for _, credentialOption := range options.Credentials {
+		switch credentialOption.Type {
 		case "default":
-			cred, err := newDefaultCredential(ctx, credOpt.Tag, credOpt.DefaultOptions, logger)
+			credential, err := newDefaultCredential(ctx, credentialOption.Tag, credentialOption.DefaultOptions, logger)
 			if err != nil {
 				return nil, nil, err
 			}
-			allCredentialMap[credOpt.Tag] = cred
-			allCreds = append(allCreds, cred)
-			providers[credOpt.Tag] = &singleCredentialProvider{cred: cred}
+			allCredentialMap[credentialOption.Tag] = credential
+			allCredentials = append(allCredentials, credential)
+			providers[credentialOption.Tag] = &singleCredentialProvider{credential: credential}
 		case "external":
-			cred, err := newExternalCredential(ctx, credOpt.Tag, credOpt.ExternalOptions, logger)
+			credential, err := newExternalCredential(ctx, credentialOption.Tag, credentialOption.ExternalOptions, logger)
 			if err != nil {
 				return nil, nil, err
 			}
-			allCredentialMap[credOpt.Tag] = cred
-			allCreds = append(allCreds, cred)
-			providers[credOpt.Tag] = &singleCredentialProvider{cred: cred}
+			allCredentialMap[credentialOption.Tag] = credential
+			allCredentials = append(allCredentials, credential)
+			providers[credentialOption.Tag] = &singleCredentialProvider{credential: credential}
 		}
 	}
 
 	// Pass 2: create balancer providers
-	for _, credOpt := range options.Credentials {
-		if credOpt.Type == "balancer" {
-			subCredentials, err := resolveCredentialTags(credOpt.BalancerOptions.Credentials, allCredentialMap, credOpt.Tag)
+	for _, credentialOption := range options.Credentials {
+		if credentialOption.Type == "balancer" {
+			subCredentials, err := resolveCredentialTags(credentialOption.BalancerOptions.Credentials, allCredentialMap, credentialOption.Tag)
 			if err != nil {
 				return nil, nil, err
 			}
-			providers[credOpt.Tag] = newBalancerProvider(subCredentials, credOpt.BalancerOptions.Strategy, time.Duration(credOpt.BalancerOptions.PollInterval), credOpt.BalancerOptions.RebalanceThreshold, logger)
+			providers[credentialOption.Tag] = newBalancerProvider(subCredentials, credentialOption.BalancerOptions.Strategy, time.Duration(credentialOption.BalancerOptions.PollInterval), credentialOption.BalancerOptions.RebalanceThreshold, logger)
 		}
 	}
 
-	return providers, allCreds, nil
+	return providers, allCredentials, nil
 }
 
-func resolveCredentialTags(tags []string, allCredentials map[string]credential, parentTag string) ([]credential, error) {
-	credentials := make([]credential, 0, len(tags))
+func resolveCredentialTags(tags []string, allCredentials map[string]Credential, parentTag string) ([]Credential, error) {
+	credentials := make([]Credential, 0, len(tags))
 	for _, tag := range tags {
-		cred, exists := allCredentials[tag]
+		credential, exists := allCredentials[tag]
 		if !exists {
 			return nil, E.New("credential ", parentTag, " references unknown credential: ", tag)
 		}
-		credentials = append(credentials, cred)
+		credentials = append(credentials, credential)
 	}
 	if len(credentials) == 0 {
 		return nil, E.New("credential ", parentTag, " has no sub-credentials")
@@ -89,48 +89,48 @@ func validateCCMOptions(options option.CCMServiceOptions) error {
 	if hasCredentials {
 		tags := make(map[string]bool)
 		credentialTypes := make(map[string]string)
-		for _, cred := range options.Credentials {
-			if tags[cred.Tag] {
-				return E.New("duplicate credential tag: ", cred.Tag)
+		for _, credential := range options.Credentials {
+			if tags[credential.Tag] {
+				return E.New("duplicate credential tag: ", credential.Tag)
 			}
-			tags[cred.Tag] = true
-			credentialTypes[cred.Tag] = cred.Type
-			if cred.Type == "default" || cred.Type == "" {
-				if cred.DefaultOptions.Reserve5h > 99 {
-					return E.New("credential ", cred.Tag, ": reserve_5h must be at most 99")
+			tags[credential.Tag] = true
+			credentialTypes[credential.Tag] = credential.Type
+			if credential.Type == "default" || credential.Type == "" {
+				if credential.DefaultOptions.Reserve5h > 99 {
+					return E.New("credential ", credential.Tag, ": reserve_5h must be at most 99")
 				}
-				if cred.DefaultOptions.ReserveWeekly > 99 {
-					return E.New("credential ", cred.Tag, ": reserve_weekly must be at most 99")
+				if credential.DefaultOptions.ReserveWeekly > 99 {
+					return E.New("credential ", credential.Tag, ": reserve_weekly must be at most 99")
 				}
-				if cred.DefaultOptions.Limit5h > 100 {
-					return E.New("credential ", cred.Tag, ": limit_5h must be at most 100")
+				if credential.DefaultOptions.Limit5h > 100 {
+					return E.New("credential ", credential.Tag, ": limit_5h must be at most 100")
 				}
-				if cred.DefaultOptions.LimitWeekly > 100 {
-					return E.New("credential ", cred.Tag, ": limit_weekly must be at most 100")
+				if credential.DefaultOptions.LimitWeekly > 100 {
+					return E.New("credential ", credential.Tag, ": limit_weekly must be at most 100")
 				}
-				if cred.DefaultOptions.Reserve5h > 0 && cred.DefaultOptions.Limit5h > 0 {
-					return E.New("credential ", cred.Tag, ": reserve_5h and limit_5h are mutually exclusive")
+				if credential.DefaultOptions.Reserve5h > 0 && credential.DefaultOptions.Limit5h > 0 {
+					return E.New("credential ", credential.Tag, ": reserve_5h and limit_5h are mutually exclusive")
 				}
-				if cred.DefaultOptions.ReserveWeekly > 0 && cred.DefaultOptions.LimitWeekly > 0 {
-					return E.New("credential ", cred.Tag, ": reserve_weekly and limit_weekly are mutually exclusive")
-				}
-			}
-			if cred.Type == "external" {
-				if cred.ExternalOptions.Token == "" {
-					return E.New("credential ", cred.Tag, ": external credential requires token")
-				}
-				if cred.ExternalOptions.Reverse && cred.ExternalOptions.URL == "" {
-					return E.New("credential ", cred.Tag, ": reverse external credential requires url")
+				if credential.DefaultOptions.ReserveWeekly > 0 && credential.DefaultOptions.LimitWeekly > 0 {
+					return E.New("credential ", credential.Tag, ": reserve_weekly and limit_weekly are mutually exclusive")
 				}
 			}
-			if cred.Type == "balancer" {
-				switch cred.BalancerOptions.Strategy {
+			if credential.Type == "external" {
+				if credential.ExternalOptions.Token == "" {
+					return E.New("credential ", credential.Tag, ": external credential requires token")
+				}
+				if credential.ExternalOptions.Reverse && credential.ExternalOptions.URL == "" {
+					return E.New("credential ", credential.Tag, ": reverse external credential requires url")
+				}
+			}
+			if credential.Type == "balancer" {
+				switch credential.BalancerOptions.Strategy {
 				case "", C.BalancerStrategyLeastUsed, C.BalancerStrategyRoundRobin, C.BalancerStrategyRandom, C.BalancerStrategyFallback:
 				default:
-					return E.New("credential ", cred.Tag, ": unknown balancer strategy: ", cred.BalancerOptions.Strategy)
+					return E.New("credential ", credential.Tag, ": unknown balancer strategy: ", credential.BalancerOptions.Strategy)
 				}
-				if cred.BalancerOptions.RebalanceThreshold < 0 {
-					return E.New("credential ", cred.Tag, ": rebalance_threshold must not be negative")
+				if credential.BalancerOptions.RebalanceThreshold < 0 {
+					return E.New("credential ", credential.Tag, ": rebalance_threshold must not be negative")
 				}
 			}
 		}

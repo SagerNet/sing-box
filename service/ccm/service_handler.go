@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -336,6 +337,9 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if n > 0 {
 				_, writeError := w.Write(buffer[:n])
 				if writeError != nil {
+					if E.IsClosedOrCanceled(writeError) {
+						return
+					}
 					s.logger.ErrorContext(ctx, "write streaming response: ", writeError)
 					return
 				}
@@ -462,6 +466,9 @@ func (s *Service) handleResponseWithTracking(ctx context.Context, writer http.Re
 
 			_, writeError := writer.Write(buffer[:n])
 			if writeError != nil {
+				if E.IsClosedOrCanceled(writeError) {
+					return
+				}
 				s.logger.ErrorContext(ctx, "write streaming response: ", writeError)
 				return
 			}

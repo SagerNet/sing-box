@@ -3,7 +3,6 @@ package ocm
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -68,18 +67,18 @@ const (
 	retryableUsageCode    = "credential_usage_exhausted"
 )
 
-func hasAlternativeCredential(provider credentialProvider, currentCredential credential, selection credentialSelection) bool {
+func hasAlternativeCredential(provider credentialProvider, currentCredential Credential, selection credentialSelection) bool {
 	if provider == nil || currentCredential == nil {
 		return false
 	}
-	for _, cred := range provider.allCredentials() {
-		if cred == currentCredential {
+	for _, credential := range provider.allCredentials() {
+		if credential == currentCredential {
 			continue
 		}
-		if !selection.allows(cred) {
+		if !selection.allows(credential) {
 			continue
 		}
-		if cred.isUsable() {
+		if credential.isUsable() {
 			return true
 		}
 	}
@@ -109,7 +108,7 @@ func writeCredentialUnavailableError(
 	w http.ResponseWriter,
 	r *http.Request,
 	provider credentialProvider,
-	currentCredential credential,
+	currentCredential Credential,
 	selection credentialSelection,
 	fallback string,
 ) {
@@ -124,8 +123,8 @@ func credentialSelectionForUser(userConfig *option.OCMUser) credentialSelection 
 	selection := credentialSelection{scope: credentialSelectionScopeAll}
 	if userConfig != nil && !userConfig.AllowExternalUsage {
 		selection.scope = credentialSelectionScopeNonExternal
-		selection.filter = func(cred credential) bool {
-			return !cred.isExternal()
+		selection.filter = func(credential Credential) bool {
+			return !credential.isExternal()
 		}
 	}
 	return selection
@@ -174,7 +173,7 @@ type Service struct {
 
 	// Multi-credential mode
 	providers      map[string]credentialProvider
-	allCredentials []credential
+	allCredentials []Credential
 	userConfigMap  map[string]*option.OCMUser
 }
 
@@ -218,7 +217,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		}
 		service.userConfigMap = userConfigMap
 	} else {
-		cred, err := newDefaultCredential(ctx, "default", option.OCMDefaultCredentialOptions{
+		credential, err := newDefaultCredential(ctx, "default", option.OCMDefaultCredentialOptions{
 			CredentialPath: options.CredentialPath,
 			UsagesPath:     options.UsagesPath,
 			Detour:         options.Detour,
@@ -226,9 +225,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		if err != nil {
 			return nil, err
 		}
-		service.legacyCredential = cred
-		service.legacyProvider = &singleCredentialProvider{cred: cred}
-		service.allCredentials = []credential{cred}
+		service.legacyCredential = credential
+		service.legacyProvider = &singleCredentialProvider{credential: credential}
+		service.allCredentials = []Credential{credential}
 	}
 
 	if options.TLS != nil {
@@ -249,16 +248,16 @@ func (s *Service) Start(stage adapter.StartStage) error {
 
 	s.userManager.UpdateUsers(s.options.Users)
 
-	for _, cred := range s.allCredentials {
-		if extCred, ok := cred.(*externalCredential); ok && extCred.reverse && extCred.connectorURL != nil {
-			extCred.reverseService = s
+	for _, credential := range s.allCredentials {
+		if external, ok := credential.(*externalCredential); ok && external.reverse && external.connectorURL != nil {
+			external.reverseService = s
 		}
-		err := cred.start()
+		err := credential.start()
 		if err != nil {
 			return err
 		}
-		tag := cred.tagName()
-		cred.setOnBecameUnusable(func() {
+		tag := credential.tagName()
+		credential.setOnBecameUnusable(func() {
 			s.interruptWebSocketSessionsForCredential(tag)
 		})
 	}
@@ -295,7 +294,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 
 	go func() {
 		serveErr := s.httpServer.Serve(tcpListener)
-		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+		if serveErr != nil && !E.IsClosed(serveErr) {
 			s.logger.Error("serve error: ", serveErr)
 		}
 	}()
@@ -304,15 +303,15 @@ func (s *Service) Start(stage adapter.StartStage) error {
 }
 
 func (s *Service) InterfaceUpdated() {
-	for _, cred := range s.allCredentials {
-		extCred, ok := cred.(*externalCredential)
+	for _, credential := range s.allCredentials {
+		external, ok := credential.(*externalCredential)
 		if !ok {
 			continue
 		}
-		if extCred.reverse && extCred.connectorURL != nil {
-			extCred.reverseService = s
-			extCred.resetReverseContext()
-			go extCred.connectorLoop()
+		if external.reverse && external.connectorURL != nil {
+			external.reverseService = s
+			external.resetReverseContext()
+			go external.connectorLoop()
 		}
 	}
 }
@@ -330,8 +329,8 @@ func (s *Service) Close() error {
 	}
 	s.webSocketGroup.Wait()
 
-	for _, cred := range s.allCredentials {
-		cred.close()
+	for _, credential := range s.allCredentials {
+		credential.close()
 	}
 
 	return err

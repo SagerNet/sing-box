@@ -98,7 +98,7 @@ func (s *Service) handleWebSocket(
 	sessionID string,
 	userConfig *option.OCMUser,
 	provider credentialProvider,
-	selectedCredential credential,
+	selectedCredential Credential,
 	selection credentialSelection,
 	isNew bool,
 ) {
@@ -307,7 +307,7 @@ func (s *Service) handleWebSocket(
 	waitGroup.Wait()
 }
 
-func (s *Service) proxyWebSocketClientToUpstream(ctx context.Context, clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string, isNew bool, username string, sessionID string) {
+func (s *Service) proxyWebSocketClientToUpstream(ctx context.Context, clientConn net.Conn, upstreamConn net.Conn, selectedCredential Credential, modelChannel chan<- string, isNew bool, username string, sessionID string) {
 	logged := false
 	for {
 		data, opCode, err := wsutil.ReadClientData(clientConn)
@@ -359,7 +359,7 @@ func (s *Service) proxyWebSocketClientToUpstream(ctx context.Context, clientConn
 	}
 }
 
-func (s *Service) proxyWebSocketUpstreamToClient(ctx context.Context, upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, userConfig *option.OCMUser, provider credentialProvider, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+func (s *Service) proxyWebSocketUpstreamToClient(ctx context.Context, upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential Credential, userConfig *option.OCMUser, provider credentialProvider, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
 	usageTracker := selectedCredential.usageTrackerOrNil()
 	var requestModel string
 	for {
@@ -413,7 +413,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(ctx context.Context, upstreamRe
 	}
 }
 
-func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential credential) {
+func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential Credential) {
 	var rateLimitsEvent struct {
 		RateLimits struct {
 			Primary *struct {
@@ -462,7 +462,7 @@ func (s *Service) handleWebSocketRateLimitsEvent(data []byte, selectedCredential
 	selectedCredential.updateStateFromHeaders(headers)
 }
 
-func (s *Service) handleWebSocketErrorRateLimited(data []byte, selectedCredential credential) {
+func (s *Service) handleWebSocketErrorRateLimited(data []byte, selectedCredential Credential) {
 	var errorEvent struct {
 		Headers map[string]string `json:"headers"`
 	}

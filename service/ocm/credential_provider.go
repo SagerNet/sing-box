@@ -13,29 +13,29 @@ import (
 )
 
 type credentialProvider interface {
-	selectCredential(sessionID string, selection credentialSelection) (credential, bool, error)
-	onRateLimited(sessionID string, cred credential, resetAt time.Time, selection credentialSelection) credential
-	linkProviderInterrupt(cred credential, selection credentialSelection, onInterrupt func()) func() bool
+	selectCredential(sessionID string, selection credentialSelection) (Credential, bool, error)
+	onRateLimited(sessionID string, credential Credential, resetAt time.Time, selection credentialSelection) Credential
+	linkProviderInterrupt(credential Credential, selection credentialSelection, onInterrupt func()) func() bool
 	pollIfStale(ctx context.Context)
-	allCredentials() []credential
+	allCredentials() []Credential
 	close()
 }
 
 type singleCredentialProvider struct {
-	cred          credential
+	credential    Credential
 	sessionAccess sync.RWMutex
 	sessions      map[string]time.Time
 }
 
-func (p *singleCredentialProvider) selectCredential(sessionID string, selection credentialSelection) (credential, bool, error) {
-	if !selection.allows(p.cred) {
-		return nil, false, E.New("credential ", p.cred.tagName(), " is filtered out")
+func (p *singleCredentialProvider) selectCredential(sessionID string, selection credentialSelection) (Credential, bool, error) {
+	if !selection.allows(p.credential) {
+		return nil, false, E.New("credential ", p.credential.tagName(), " is filtered out")
 	}
-	if !p.cred.isAvailable() {
-		return nil, false, p.cred.unavailableError()
+	if !p.credential.isAvailable() {
+		return nil, false, p.credential.unavailableError()
 	}
-	if !p.cred.isUsable() {
-		return nil, false, E.New("credential ", p.cred.tagName(), " is rate-limited")
+	if !p.credential.isUsable() {
+		return nil, false, E.New("credential ", p.credential.tagName(), " is rate-limited")
 	}
 	var isNew bool
 	if sessionID != "" {
@@ -50,11 +50,11 @@ func (p *singleCredentialProvider) selectCredential(sessionID string, selection 
 		}
 		p.sessionAccess.Unlock()
 	}
-	return p.cred, isNew, nil
+	return p.credential, isNew, nil
 }
 
-func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, resetAt time.Time, _ credentialSelection) credential {
-	cred.markRateLimited(resetAt)
+func (p *singleCredentialProvider) onRateLimited(_ string, credential Credential, resetAt time.Time, _ credentialSelection) Credential {
+	credential.markRateLimited(resetAt)
 	return nil
 }
 
@@ -68,16 +68,16 @@ func (p *singleCredentialProvider) pollIfStale(ctx context.Context) {
 	}
 	p.sessionAccess.Unlock()
 
-	if time.Since(p.cred.lastUpdatedTime()) > p.cred.pollBackoff(defaultPollInterval) {
-		p.cred.pollUsage(ctx)
+	if time.Since(p.credential.lastUpdatedTime()) > p.credential.pollBackoff(defaultPollInterval) {
+		p.credential.pollUsage(ctx)
 	}
 }
 
-func (p *singleCredentialProvider) allCredentials() []credential {
-	return []credential{p.cred}
+func (p *singleCredentialProvider) allCredentials() []Credential {
+	return []Credential{p.credential}
 }
 
-func (p *singleCredentialProvider) linkProviderInterrupt(_ credential, _ credentialSelection, _ func()) func() bool {
+func (p *singleCredentialProvider) linkProviderInterrupt(_ Credential, _ credentialSelection, _ func()) func() bool {
 	return func() bool {
 		return false
 	}
@@ -102,7 +102,7 @@ type credentialInterruptEntry struct {
 }
 
 type balancerProvider struct {
-	credentials          []credential
+	credentials          []Credential
 	strategy             string
 	roundRobinIndex      atomic.Uint64
 	pollInterval         time.Duration
@@ -114,11 +114,11 @@ type balancerProvider struct {
 	logger               log.ContextLogger
 }
 
-func compositeCredentialSelectable(cred credential) bool {
-	return !cred.ocmIsAPIKeyMode()
+func compositeCredentialSelectable(credential Credential) bool {
+	return !credential.ocmIsAPIKeyMode()
 }
 
-func newBalancerProvider(credentials []credential, strategy string, pollInterval time.Duration, rebalanceThreshold float64, logger log.ContextLogger) *balancerProvider {
+func newBalancerProvider(credentials []Credential, strategy string, pollInterval time.Duration, rebalanceThreshold float64, logger log.ContextLogger) *balancerProvider {
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
 	}
@@ -133,7 +133,7 @@ func newBalancerProvider(credentials []credential, strategy string, pollInterval
 	}
 }
 
-func (p *balancerProvider) selectCredential(sessionID string, selection credentialSelection) (credential, bool, error) {
+func (p *balancerProvider) selectCredential(sessionID string, selection credentialSelection) (Credential, bool, error) {
 	if p.strategy == C.BalancerStrategyFallback {
 		best := p.pickCredential(selection.filter)
 		if best == nil {
@@ -149,23 +149,23 @@ func (p *balancerProvider) selectCredential(sessionID string, selection credenti
 		p.sessionAccess.RUnlock()
 		if exists {
 			if entry.selectionScope == selectionScope {
-				for _, cred := range p.credentials {
-					if cred.tagName() == entry.tag && compositeCredentialSelectable(cred) && selection.allows(cred) && cred.isUsable() {
+				for _, credential := range p.credentials {
+					if credential.tagName() == entry.tag && compositeCredentialSelectable(credential) && selection.allows(credential) && credential.isUsable() {
 						if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == C.BalancerStrategyLeastUsed) {
 							better := p.pickLeastUsed(selection.filter)
-							if better != nil && better.tagName() != cred.tagName() {
-								effectiveThreshold := p.rebalanceThreshold / cred.planWeight()
-								delta := cred.weeklyUtilization() - better.weeklyUtilization()
+							if better != nil && better.tagName() != credential.tagName() {
+								effectiveThreshold := p.rebalanceThreshold / credential.planWeight()
+								delta := credential.weeklyUtilization() - better.weeklyUtilization()
 								if delta > effectiveThreshold {
-									p.logger.Info("rebalancing away from ", cred.tagName(),
+									p.logger.Info("rebalancing away from ", credential.tagName(),
 										": utilization delta ", delta, "% exceeds effective threshold ",
-										effectiveThreshold, "% (weight ", cred.planWeight(), ")")
-									p.rebalanceCredential(cred.tagName(), selectionScope)
+										effectiveThreshold, "% (weight ", credential.planWeight(), ")")
+									p.rebalanceCredential(credential.tagName(), selectionScope)
 									break
 								}
 							}
 						}
-						return cred, false, nil
+						return credential, false, nil
 					}
 				}
 			}
@@ -212,12 +212,12 @@ func (p *balancerProvider) rebalanceCredential(tag string, selectionScope creden
 	p.sessionAccess.Unlock()
 }
 
-func (p *balancerProvider) linkProviderInterrupt(cred credential, selection credentialSelection, onInterrupt func()) func() bool {
+func (p *balancerProvider) linkProviderInterrupt(credential Credential, selection credentialSelection, onInterrupt func()) func() bool {
 	if p.strategy == C.BalancerStrategyFallback {
 		return func() bool { return false }
 	}
 	key := credentialInterruptKey{
-		tag:            cred.tagName(),
+		tag:            credential.tagName(),
 		selectionScope: selection.scopeOrDefault(),
 	}
 	p.interruptAccess.Lock()
@@ -231,8 +231,8 @@ func (p *balancerProvider) linkProviderInterrupt(cred credential, selection cred
 	return context.AfterFunc(entry.context, onInterrupt)
 }
 
-func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, selection credentialSelection) credential {
-	cred.markRateLimited(resetAt)
+func (p *balancerProvider) onRateLimited(sessionID string, credential Credential, resetAt time.Time, selection credentialSelection) Credential {
+	credential.markRateLimited(resetAt)
 	if p.strategy == C.BalancerStrategyFallback {
 		return p.pickCredential(selection.filter)
 	}
@@ -255,7 +255,7 @@ func (p *balancerProvider) onRateLimited(sessionID string, cred credential, rese
 	return best
 }
 
-func (p *balancerProvider) pickCredential(filter func(credential) bool) credential {
+func (p *balancerProvider) pickCredential(filter func(Credential) bool) Credential {
 	switch p.strategy {
 	case C.BalancerStrategyRoundRobin:
 		return p.pickRoundRobin(filter)
@@ -268,16 +268,16 @@ func (p *balancerProvider) pickCredential(filter func(credential) bool) credenti
 	}
 }
 
-func (p *balancerProvider) pickFallback(filter func(credential) bool) credential {
-	for _, cred := range p.credentials {
-		if filter != nil && !filter(cred) {
+func (p *balancerProvider) pickFallback(filter func(Credential) bool) Credential {
+	for _, credential := range p.credentials {
+		if filter != nil && !filter(credential) {
 			continue
 		}
-		if !compositeCredentialSelectable(cred) {
+		if !compositeCredentialSelectable(credential) {
 			continue
 		}
-		if cred.isUsable() {
-			return cred
+		if credential.isUsable() {
+			return credential
 		}
 	}
 	return nil
@@ -285,23 +285,23 @@ func (p *balancerProvider) pickFallback(filter func(credential) bool) credential
 
 const weeklyWindowHours = 7 * 24
 
-func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
-	var best credential
+func (p *balancerProvider) pickLeastUsed(filter func(Credential) bool) Credential {
+	var best Credential
 	bestScore := float64(-1)
 	now := time.Now()
-	for _, cred := range p.credentials {
-		if filter != nil && !filter(cred) {
+	for _, credential := range p.credentials {
+		if filter != nil && !filter(credential) {
 			continue
 		}
-		if !compositeCredentialSelectable(cred) {
+		if !compositeCredentialSelectable(credential) {
 			continue
 		}
-		if !cred.isUsable() {
+		if !credential.isUsable() {
 			continue
 		}
-		remaining := cred.weeklyCap() - cred.weeklyUtilization()
-		score := remaining * cred.planWeight()
-		resetTime := cred.weeklyResetTime()
+		remaining := credential.weeklyCap() - credential.weeklyUtilization()
+		score := remaining * credential.planWeight()
+		resetTime := credential.weeklyResetTime()
 		if !resetTime.IsZero() {
 			timeUntilReset := resetTime.Sub(now)
 			if timeUntilReset < time.Hour {
@@ -311,7 +311,7 @@ func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credentia
 		}
 		if score > bestScore {
 			bestScore = score
-			best = cred
+			best = credential
 		}
 	}
 	return best
@@ -328,7 +328,7 @@ func ocmPlanWeight(accountType string) float64 {
 	}
 }
 
-func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credential {
+func (p *balancerProvider) pickRoundRobin(filter func(Credential) bool) Credential {
 	start := int(p.roundRobinIndex.Add(1) - 1)
 	count := len(p.credentials)
 	for offset := range count {
@@ -346,8 +346,8 @@ func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credenti
 	return nil
 }
 
-func (p *balancerProvider) pickRandom(filter func(credential) bool) credential {
-	var usable []credential
+func (p *balancerProvider) pickRandom(filter func(Credential) bool) Credential {
+	var usable []Credential
 	for _, candidate := range p.credentials {
 		if filter != nil && !filter(candidate) {
 			continue
@@ -375,28 +375,28 @@ func (p *balancerProvider) pollIfStale(ctx context.Context) {
 	}
 	p.sessionAccess.Unlock()
 
-	for _, cred := range p.credentials {
-		if time.Since(cred.lastUpdatedTime()) > cred.pollBackoff(p.pollInterval) {
-			cred.pollUsage(ctx)
+	for _, credential := range p.credentials {
+		if time.Since(credential.lastUpdatedTime()) > credential.pollBackoff(p.pollInterval) {
+			credential.pollUsage(ctx)
 		}
 	}
 }
 
-func (p *balancerProvider) allCredentials() []credential {
+func (p *balancerProvider) allCredentials() []Credential {
 	return p.credentials
 }
 
 func (p *balancerProvider) close() {}
 
-func allRateLimitedError(credentials []credential) error {
+func allRateLimitedError(credentials []Credential) error {
 	var hasUnavailable bool
 	var earliest time.Time
-	for _, cred := range credentials {
-		if cred.unavailableError() != nil {
+	for _, credential := range credentials {
+		if credential.unavailableError() != nil {
 			hasUnavailable = true
 			continue
 		}
-		resetAt := cred.earliestReset()
+		resetAt := credential.earliestReset()
 		if !resetAt.IsZero() && (earliest.IsZero() || resetAt.Before(earliest)) {
 			earliest = resetAt
 		}

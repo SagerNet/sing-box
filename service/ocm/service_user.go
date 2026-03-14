@@ -7,8 +7,8 @@ import (
 )
 
 type UserManager struct {
-	access sync.RWMutex
-	tokenMap    map[string]string
+	access   sync.RWMutex
+	tokenMap map[string]string
 }
 
 func (m *UserManager) UpdateUsers(users []option.OCMUser) {

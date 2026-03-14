@@ -48,7 +48,7 @@ type externalCredential struct {
 
 	// Reverse proxy fields
 	reverse              bool
-	reverseHttpClient    *http.Client
+	reverseHTTPClient    *http.Client
 	reverseSession       *yamux.Session
 	reverseAccess        sync.RWMutex
 	closed               bool
@@ -63,9 +63,9 @@ type externalCredential struct {
 }
 
 func externalCredentialURLPort(parsedURL *url.URL) uint16 {
-	portStr := parsedURL.Port()
-	if portStr != "" {
-		port, err := strconv.ParseUint(portStr, 10, 16)
+	portString := parsedURL.Port()
+	if portString != "" {
+		port, err := strconv.ParseUint(portString, 10, 16)
 		if err == nil {
 			return uint16(port)
 		}
@@ -113,7 +113,7 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 	requestContext, cancelRequests := context.WithCancel(context.Background())
 	reverseContext, reverseCancel := context.WithCancel(context.Background())
 
-	cred := &externalCredential{
+	credential := &externalCredential{
 		tag:            tag,
 		token:          options.Token,
 		pollInterval:   pollInterval,
@@ -127,12 +127,12 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 
 	if options.URL == "" {
 		// Receiver mode: no URL, wait for reverse connection
-		cred.baseURL = reverseProxyBaseURL
-		cred.forwardHTTPClient = &http.Client{
+		credential.baseURL = reverseProxyBaseURL
+		credential.forwardHTTPClient = &http.Client{
 			Transport: &http.Transport{
 				ForceAttemptHTTP2: false,
 				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-					return cred.openReverseConnection(ctx)
+					return credential.openReverseConnection(ctx)
 				},
 			},
 		}
@@ -173,34 +173,34 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 			}
 		}
 
-		cred.baseURL = externalCredentialBaseURL(parsedURL)
+		credential.baseURL = externalCredentialBaseURL(parsedURL)
 
 		if options.Reverse {
 			// Connector mode: we dial out to serve, not to proxy
-			cred.connectorDialer = credentialDialer
+			credential.connectorDialer = credentialDialer
 			if options.Server != "" {
-				cred.connectorDestination = M.ParseSocksaddrHostPort(options.Server, externalCredentialServerPort(parsedURL, options.ServerPort))
+				credential.connectorDestination = M.ParseSocksaddrHostPort(options.Server, externalCredentialServerPort(parsedURL, options.ServerPort))
 			} else {
-				cred.connectorDestination = M.ParseSocksaddrHostPort(parsedURL.Hostname(), externalCredentialURLPort(parsedURL))
+				credential.connectorDestination = M.ParseSocksaddrHostPort(parsedURL.Hostname(), externalCredentialURLPort(parsedURL))
 			}
-			cred.connectorRequestPath = externalCredentialReversePath(parsedURL, "/ccm/v1/reverse")
-			cred.connectorURL = parsedURL
+			credential.connectorRequestPath = externalCredentialReversePath(parsedURL, "/ccm/v1/reverse")
+			credential.connectorURL = parsedURL
 			if parsedURL.Scheme == "https" {
-				cred.connectorTLS = &stdTLS.Config{
+				credential.connectorTLS = &stdTLS.Config{
 					ServerName: parsedURL.Hostname(),
 					RootCAs:    adapter.RootPoolFromContext(ctx),
 					Time:       ntp.TimeFuncFromContext(ctx),
 				}
 			}
-			cred.forwardHTTPClient = &http.Client{Transport: transport}
+			credential.forwardHTTPClient = &http.Client{Transport: transport}
 		} else {
 			// Normal mode: standard HTTP client for proxying
-			cred.forwardHTTPClient = &http.Client{Transport: transport}
-			cred.reverseHttpClient = &http.Client{
+			credential.forwardHTTPClient = &http.Client{Transport: transport}
+			credential.reverseHTTPClient = &http.Client{
 				Transport: &http.Transport{
 					ForceAttemptHTTP2: false,
 					DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-						return cred.openReverseConnection(ctx)
+						return credential.openReverseConnection(ctx)
 					},
 				},
 			}
@@ -208,7 +208,7 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 	}
 
 	if options.UsagesPath != "" {
-		cred.usageTracker = &AggregatedUsage{
+		credential.usageTracker = &AggregatedUsage{
 			LastUpdated:  time.Now(),
 			Combinations: make([]CostCombination, 0),
 			filePath:     options.UsagesPath,
@@ -216,7 +216,7 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 		}
 	}
 
-	return cred, nil
+	return credential, nil
 }
 
 func (c *externalCredential) start() error {
@@ -352,7 +352,7 @@ func (c *externalCredential) getAccessToken() (string, error) {
 
 func (c *externalCredential) buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, _ http.Header) (*http.Request, error) {
 	baseURL := c.baseURL
-	if c.reverseHttpClient != nil {
+	if c.reverseHTTPClient != nil {
 		session := c.getReverseSession()
 		if session != nil && !session.IsClosed() {
 			baseURL = reverseProxyBaseURL
@@ -511,7 +511,7 @@ func (c *externalCredential) doPollUsageRequest(ctx context.Context) (*http.Resp
 		}
 	}
 	// Try reverse transport first (single attempt, no retry)
-	if c.reverseHttpClient != nil {
+	if c.reverseHTTPClient != nil {
 		session := c.getReverseSession()
 		if session != nil && !session.IsClosed() {
 			request, err := buildRequest(reverseProxyBaseURL)()
@@ -519,7 +519,7 @@ func (c *externalCredential) doPollUsageRequest(ctx context.Context) (*http.Resp
 				return nil, err
 			}
 			reverseClient := &http.Client{
-				Transport: c.reverseHttpClient.Transport,
+				Transport: c.reverseHTTPClient.Transport,
 				Timeout:   5 * time.Second,
 			}
 			response, err := reverseClient.Do(request)
@@ -660,10 +660,10 @@ func (c *externalCredential) usageTrackerOrNil() *AggregatedUsage {
 }
 
 func (c *externalCredential) httpClient() *http.Client {
-	if c.reverseHttpClient != nil {
+	if c.reverseHTTPClient != nil {
 		session := c.getReverseSession()
 		if session != nil && !session.IsClosed() {
-			return c.reverseHttpClient
+			return c.reverseHTTPClient
 		}
 	}
 	return c.forwardHTTPClient

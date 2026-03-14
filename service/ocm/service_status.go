@@ -62,22 +62,22 @@ func (s *Service) handleStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) computeAggregatedUtilization(provider credentialProvider, userConfig *option.OCMUser) (float64, float64, float64) {
 	var totalWeightedRemaining5h, totalWeightedRemainingWeekly, totalWeight float64
-	for _, cred := range provider.allCredentials() {
-		if !cred.isAvailable() {
+	for _, credential := range provider.allCredentials() {
+		if !credential.isAvailable() {
 			continue
 		}
-		if userConfig.ExternalCredential != "" && cred.tagName() == userConfig.ExternalCredential {
+		if userConfig.ExternalCredential != "" && credential.tagName() == userConfig.ExternalCredential {
 			continue
 		}
-		if !userConfig.AllowExternalUsage && cred.isExternal() {
+		if !userConfig.AllowExternalUsage && credential.isExternal() {
 			continue
 		}
-		weight := cred.planWeight()
-		remaining5h := cred.fiveHourCap() - cred.fiveHourUtilization()
+		weight := credential.planWeight()
+		remaining5h := credential.fiveHourCap() - credential.fiveHourUtilization()
 		if remaining5h < 0 {
 			remaining5h = 0
 		}
-		remainingWeekly := cred.weeklyCap() - cred.weeklyUtilization()
+		remainingWeekly := credential.weeklyCap() - credential.weeklyUtilization()
 		if remainingWeekly < 0 {
 			remainingWeekly = 0
 		}
