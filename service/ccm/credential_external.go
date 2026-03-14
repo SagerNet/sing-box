@@ -192,6 +192,7 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 					Time:       ntp.TimeFuncFromContext(ctx),
 				}
 			}
+			cred.httpClient = &http.Client{Transport: transport}
 		} else {
 			// Normal mode: standard HTTP client for proxying
 			cred.httpClient = &http.Client{Transport: transport}
@@ -498,6 +499,47 @@ func (c *externalCredential) interruptConnections() {
 	}
 }
 
+func (c *externalCredential) doPollUsageRequest(ctx context.Context) (*http.Response, error) {
+	buildRequest := func(baseURL string) func() (*http.Request, error) {
+		return func() (*http.Request, error) {
+			request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/ccm/v1/status", nil)
+			if err != nil {
+				return nil, err
+			}
+			request.Header.Set("Authorization", "Bearer "+c.token)
+			return request, nil
+		}
+	}
+	// Try reverse transport first (single attempt, no retry)
+	if c.reverseHttpClient != nil {
+		session := c.getReverseSession()
+		if session != nil && !session.IsClosed() {
+			request, err := buildRequest(reverseProxyBaseURL)()
+			if err != nil {
+				return nil, err
+			}
+			reverseClient := &http.Client{
+				Transport: c.reverseHttpClient.Transport,
+				Timeout:   5 * time.Second,
+			}
+			response, err := reverseClient.Do(request)
+			if err == nil {
+				return response, nil
+			}
+			// Reverse failed, fall through to forward if available
+		}
+	}
+	// Forward transport with retries
+	if c.httpClient != nil {
+		forwardClient := &http.Client{
+			Transport: c.httpClient.Transport,
+			Timeout:   5 * time.Second,
+		}
+		return doHTTPWithRetry(ctx, forwardClient, buildRequest(c.baseURL))
+	}
+	return nil, E.New("no transport available")
+}
+
 func (c *externalCredential) pollUsage(ctx context.Context) {
 	if !c.pollAccess.TryLock() {
 		return
@@ -505,29 +547,7 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	defer c.pollAccess.Unlock()
 	defer c.markUsagePollAttempted()
 
-	activeBaseURL := c.baseURL
-	activeTransport := c.httpClient.Transport
-	if c.reverseHttpClient != nil {
-		session := c.getReverseSession()
-		if session != nil && !session.IsClosed() {
-			activeBaseURL = reverseProxyBaseURL
-			activeTransport = c.reverseHttpClient.Transport
-		}
-	}
-	statusURL := activeBaseURL + "/ccm/v1/status"
-	httpClient := &http.Client{
-		Transport: activeTransport,
-		Timeout:   5 * time.Second,
-	}
-
-	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
-		if err != nil {
-			return nil, err
-		}
-		request.Header.Set("Authorization", "Bearer "+c.token)
-		return request, nil
-	})
+	response, err := c.doPollUsageRequest(ctx)
 	if err != nil {
 		if !c.isPollBackoffAtCap() {
 			c.logger.Error("poll usage for ", c.tag, ": ", err)
