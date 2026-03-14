@@ -139,6 +139,15 @@ func isReverseProxyHeader(header string) bool {
 	}
 }
 
+func isAPIKeyHeader(header string) bool {
+	switch strings.ToLower(header) {
+	case "x-api-key", "api-key":
+		return true
+	default:
+		return false
+	}
+}
+
 type Service struct {
 	boxService.Adapter
 	ctx           context.Context

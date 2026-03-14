@@ -82,6 +82,8 @@ func isForwardableWebSocketRequestHeader(key string) bool {
 	switch {
 	case lowerKey == "authorization":
 		return false
+	case lowerKey == "x-api-key" || lowerKey == "api-key":
+		return false
 	case strings.HasPrefix(lowerKey, "sec-websocket-"):
 		return false
 	default:

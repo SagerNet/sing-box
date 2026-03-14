@@ -104,6 +104,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Header.Get("X-Api-Key") != "" || r.Header.Get("Api-Key") != "" {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+			"API key authentication is not supported; use Authorization: Bearer with a CCM user token")
+		return
+	}
+
 	var username string
 	if len(s.options.Users) > 0 {
 		authHeader := r.Header.Get("Authorization")

@@ -57,6 +57,12 @@ func (s *Service) handleReverseConnect(ctx context.Context, w http.ResponseWrite
 		return
 	}
 
+	if r.Header.Get("X-Api-Key") != "" || r.Header.Get("Api-Key") != "" {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+			"API key authentication is not supported; use Authorization: Bearer with an OCM user token")
+		return
+	}
+
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "missing api key")

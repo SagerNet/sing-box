@@ -20,6 +20,12 @@ func (s *Service) handleStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Header.Get("X-Api-Key") != "" || r.Header.Get("Api-Key") != "" {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
+			"API key authentication is not supported; use Authorization: Bearer with a CCM user token")
+		return
+	}
+
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "missing api key")
