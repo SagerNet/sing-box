@@ -32,7 +32,6 @@ type _CCMCredential struct {
 	DefaultOptions  CCMDefaultCredentialOptions  `json:"-"`
 	ExternalOptions CCMExternalCredentialOptions `json:"-"`
 	BalancerOptions CCMBalancerCredentialOptions `json:"-"`
-	FallbackOptions CCMFallbackCredentialOptions `json:"-"`
 }
 
 type CCMCredential _CCMCredential
@@ -47,8 +46,6 @@ func (c CCMCredential) MarshalJSON() ([]byte, error) {
 		v = c.ExternalOptions
 	case "balancer":
 		v = c.BalancerOptions
-	case "fallback":
-		v = c.FallbackOptions
 	default:
 		return nil, E.New("unknown credential type: ", c.Type)
 	}
@@ -72,8 +69,6 @@ func (c *CCMCredential) UnmarshalJSON(bytes []byte) error {
 		v = &c.ExternalOptions
 	case "balancer":
 		v = &c.BalancerOptions
-	case "fallback":
-		v = &c.FallbackOptions
 	default:
 		return E.New("unknown credential type: ", c.Type)
 	}
@@ -105,9 +100,4 @@ type CCMExternalCredentialOptions struct {
 	Detour       string             `json:"detour,omitempty"`
 	UsagesPath   string             `json:"usages_path,omitempty"`
 	PollInterval badoption.Duration `json:"poll_interval,omitempty"`
-}
-
-type CCMFallbackCredentialOptions struct {
-	Credentials  badoption.Listable[string] `json:"credentials"`
-	PollInterval badoption.Duration         `json:"poll_interval,omitempty"`
 }

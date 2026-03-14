@@ -32,7 +32,6 @@ type _OCMCredential struct {
 	DefaultOptions  OCMDefaultCredentialOptions  `json:"-"`
 	ExternalOptions OCMExternalCredentialOptions `json:"-"`
 	BalancerOptions OCMBalancerCredentialOptions `json:"-"`
-	FallbackOptions OCMFallbackCredentialOptions `json:"-"`
 }
 
 type OCMCredential _OCMCredential
@@ -47,8 +46,6 @@ func (c OCMCredential) MarshalJSON() ([]byte, error) {
 		v = c.ExternalOptions
 	case "balancer":
 		v = c.BalancerOptions
-	case "fallback":
-		v = c.FallbackOptions
 	default:
 		return nil, E.New("unknown credential type: ", c.Type)
 	}
@@ -72,8 +69,6 @@ func (c *OCMCredential) UnmarshalJSON(bytes []byte) error {
 		v = &c.ExternalOptions
 	case "balancer":
 		v = &c.BalancerOptions
-	case "fallback":
-		v = &c.FallbackOptions
 	default:
 		return E.New("unknown credential type: ", c.Type)
 	}
@@ -105,9 +100,4 @@ type OCMExternalCredentialOptions struct {
 	Detour       string             `json:"detour,omitempty"`
 	UsagesPath   string             `json:"usages_path,omitempty"`
 	PollInterval badoption.Duration `json:"poll_interval,omitempty"`
-}
-
-type OCMFallbackCredentialOptions struct {
-	Credentials  badoption.Listable[string] `json:"credentials"`
-	PollInterval badoption.Duration         `json:"poll_interval,omitempty"`
 }

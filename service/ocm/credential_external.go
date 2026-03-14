@@ -49,10 +49,10 @@ type externalCredential struct {
 	requestAccess    sync.Mutex
 
 	// Reverse proxy fields
-	reverse           bool
-	reverseHttpClient *http.Client
-	reverseCredDialer N.Dialer
-	reverseSession    *yamux.Session
+	reverse              bool
+	reverseHttpClient    *http.Client
+	reverseCredDialer    N.Dialer
+	reverseSession       *yamux.Session
 	reverseAccess        sync.RWMutex
 	closed               bool
 	reverseContext       context.Context

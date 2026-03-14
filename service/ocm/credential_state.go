@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -1014,6 +1015,14 @@ func newBalancerProvider(credentials []credential, strategy string, pollInterval
 }
 
 func (p *balancerProvider) selectCredential(sessionID string, selection credentialSelection) (credential, bool, error) {
+	if p.strategy == C.BalancerStrategyFallback {
+		best := p.pickCredential(selection.filter)
+		if best == nil {
+			return nil, false, allRateLimitedError(p.credentials)
+		}
+		return best, false, nil
+	}
+
 	selectionScope := selection.scopeOrDefault()
 	if sessionID != "" {
 		p.sessionMutex.RLock()
@@ -1023,7 +1032,7 @@ func (p *balancerProvider) selectCredential(sessionID string, selection credenti
 			if entry.selectionScope == selectionScope {
 				for _, cred := range p.credentials {
 					if cred.tagName() == entry.tag && compositeCredentialSelectable(cred) && selection.allows(cred) && cred.isUsable() {
-						if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == "least_used") {
+						if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == C.BalancerStrategyLeastUsed) {
 							better := p.pickLeastUsed(selection.filter)
 							if better != nil && better.tagName() != cred.tagName() {
 								effectiveThreshold := p.rebalanceThreshold / cred.planWeight()
@@ -1085,6 +1094,9 @@ func (p *balancerProvider) rebalanceCredential(tag string, selectionScope creden
 }
 
 func (p *balancerProvider) linkProviderInterrupt(cred credential, selection credentialSelection, onInterrupt func()) func() bool {
+	if p.strategy == C.BalancerStrategyFallback {
+		return func() bool { return false }
+	}
 	key := credentialInterruptKey{
 		tag:            cred.tagName(),
 		selectionScope: selection.scopeOrDefault(),
@@ -1102,6 +1114,9 @@ func (p *balancerProvider) linkProviderInterrupt(cred credential, selection cred
 
 func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, selection credentialSelection) credential {
 	cred.markRateLimited(resetAt)
+	if p.strategy == C.BalancerStrategyFallback {
+		return p.pickCredential(selection.filter)
+	}
 	if sessionID != "" {
 		p.sessionMutex.Lock()
 		delete(p.sessions, sessionID)
@@ -1123,13 +1138,30 @@ func (p *balancerProvider) onRateLimited(sessionID string, cred credential, rese
 
 func (p *balancerProvider) pickCredential(filter func(credential) bool) credential {
 	switch p.strategy {
-	case "round_robin":
+	case C.BalancerStrategyRoundRobin:
 		return p.pickRoundRobin(filter)
-	case "random":
+	case C.BalancerStrategyRandom:
 		return p.pickRandom(filter)
+	case C.BalancerStrategyFallback:
+		return p.pickFallback(filter)
 	default:
 		return p.pickLeastUsed(filter)
 	}
+}
+
+func (p *balancerProvider) pickFallback(filter func(credential) bool) credential {
+	for _, cred := range p.credentials {
+		if filter != nil && !filter(cred) {
+			continue
+		}
+		if !compositeCredentialSelectable(cred) {
+			continue
+		}
+		if cred.isUsable() {
+			return cred
+		}
+	}
+	return nil
 }
 
 func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
@@ -1237,74 +1269,6 @@ func (p *balancerProvider) allCredentials() []credential {
 
 func (p *balancerProvider) close() {}
 
-type fallbackProvider struct {
-	credentials  []credential
-	pollInterval time.Duration
-	logger       log.ContextLogger
-}
-
-func newFallbackProvider(credentials []credential, pollInterval time.Duration, logger log.ContextLogger) *fallbackProvider {
-	if pollInterval <= 0 {
-		pollInterval = defaultPollInterval
-	}
-	return &fallbackProvider{
-		credentials:  credentials,
-		pollInterval: pollInterval,
-		logger:       logger,
-	}
-}
-
-func (p *fallbackProvider) selectCredential(_ string, selection credentialSelection) (credential, bool, error) {
-	for _, cred := range p.credentials {
-		if !selection.allows(cred) {
-			continue
-		}
-		if !compositeCredentialSelectable(cred) {
-			continue
-		}
-		if cred.isUsable() {
-			return cred, false, nil
-		}
-	}
-	return nil, false, allRateLimitedError(p.credentials)
-}
-
-func (p *fallbackProvider) onRateLimited(_ string, cred credential, resetAt time.Time, selection credentialSelection) credential {
-	cred.markRateLimited(resetAt)
-	for _, candidate := range p.credentials {
-		if !selection.allows(candidate) {
-			continue
-		}
-		if !compositeCredentialSelectable(candidate) {
-			continue
-		}
-		if candidate.isUsable() {
-			return candidate
-		}
-	}
-	return nil
-}
-
-func (p *fallbackProvider) pollIfStale(ctx context.Context) {
-	for _, cred := range p.credentials {
-		if time.Since(cred.lastUpdatedTime()) > cred.pollBackoff(p.pollInterval) {
-			cred.pollUsage(ctx)
-		}
-	}
-}
-
-func (p *fallbackProvider) allCredentials() []credential {
-	return p.credentials
-}
-
-func (p *fallbackProvider) linkProviderInterrupt(_ credential, _ credentialSelection, _ func()) func() bool {
-	return func() bool {
-		return false
-	}
-}
-
-func (p *fallbackProvider) close() {}
-
 func allRateLimitedError(credentials []credential) error {
 	var hasUnavailable bool
 	var earliest time.Time
@@ -1358,21 +1322,14 @@ func buildOCMCredentialProviders(
 		}
 	}
 
-	// Pass 2: create balancer and fallback providers
+	// Pass 2: create balancer providers
 	for _, credOpt := range options.Credentials {
-		switch credOpt.Type {
-		case "balancer":
+		if credOpt.Type == "balancer" {
 			subCredentials, err := resolveCredentialTags(credOpt.BalancerOptions.Credentials, allCredentialMap, credOpt.Tag)
 			if err != nil {
 				return nil, nil, err
 			}
 			providers[credOpt.Tag] = newBalancerProvider(subCredentials, credOpt.BalancerOptions.Strategy, time.Duration(credOpt.BalancerOptions.PollInterval), credOpt.BalancerOptions.RebalanceThreshold, logger)
-		case "fallback":
-			subCredentials, err := resolveCredentialTags(credOpt.FallbackOptions.Credentials, allCredentialMap, credOpt.Tag)
-			if err != nil {
-				return nil, nil, err
-			}
-			providers[credOpt.Tag] = newFallbackProvider(subCredentials, time.Duration(credOpt.FallbackOptions.PollInterval), logger)
 		}
 	}
 
@@ -1469,7 +1426,7 @@ func validateOCMOptions(options option.OCMServiceOptions) error {
 			}
 			if cred.Type == "balancer" {
 				switch cred.BalancerOptions.Strategy {
-				case "", "least_used", "round_robin", "random":
+				case "", C.BalancerStrategyLeastUsed, C.BalancerStrategyRoundRobin, C.BalancerStrategyRandom, C.BalancerStrategyFallback:
 				default:
 					return E.New("credential ", cred.Tag, ": unknown balancer strategy: ", cred.BalancerOptions.Strategy)
 				}
@@ -1505,7 +1462,7 @@ func validateOCMCompositeCredentialModes(
 	providers map[string]credentialProvider,
 ) error {
 	for _, credOpt := range options.Credentials {
-		if credOpt.Type != "balancer" && credOpt.Type != "fallback" {
+		if credOpt.Type != "balancer" {
 			continue
 		}
 
