@@ -25,8 +25,7 @@ var errInsecureUnused = E.New("tls: insecure unused")
 
 type managedCertificateProvider interface {
 	adapter.CertificateProvider
-	Start() error
-	Close() error
+	adapter.SimpleLifecycle
 }
 
 type acmeServiceCertificateProvider struct {
@@ -116,7 +115,7 @@ func (c *STDServerConfig) SetServerName(serverName string) {
 func (c *STDServerConfig) NextProtos() []string {
 	c.access.RLock()
 	defer c.access.RUnlock()
-	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
 		return c.config.NextProtos[1:]
 	}
 	return c.config.NextProtos
@@ -126,7 +125,7 @@ func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	c.access.Lock()
 	defer c.access.Unlock()
 	config := c.config.Clone()
-	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
 		config.NextProtos = append(c.config.NextProtos[:1], nextProto...)
 	} else {
 		config.NextProtos = nextProto
@@ -488,8 +487,8 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		echKeyPath:            echKeyPath,
 	}
 	serverConfig.config.GetConfigForClient = func(info *tls.ClientHelloInfo) (*tls.Config, error) {
-		serverConfig.access.Lock()
-		defer serverConfig.access.Unlock()
+		serverConfig.access.RLock()
+		defer serverConfig.access.RUnlock()
 		return serverConfig.config, nil
 	}
 	var config ServerConfig = serverConfig
