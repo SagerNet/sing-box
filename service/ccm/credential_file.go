@@ -114,6 +114,7 @@ func (c *defaultCredential) reloadCredentials(force bool) error {
 	c.state.unavailable = false
 	c.state.lastCredentialLoadError = ""
 	c.state.accountType = credentials.SubscriptionType
+	c.state.rateLimitTier = credentials.RateLimitTier
 	c.checkTransitionLocked()
 	c.stateMutex.Unlock()
 
@@ -130,6 +131,7 @@ func (c *defaultCredential) markCredentialsUnavailable(err error) error {
 	c.state.unavailable = true
 	c.state.lastCredentialLoadError = err.Error()
 	c.state.accountType = ""
+	c.state.rateLimitTier = ""
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()
 

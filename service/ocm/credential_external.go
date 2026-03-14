@@ -30,17 +30,18 @@ import (
 const reverseProxyBaseURL = "http://reverse-proxy"
 
 type externalCredential struct {
-	tag          string
-	baseURL      string
-	token        string
-	credDialer   N.Dialer
-	httpClient   *http.Client
-	state        credentialState
-	stateMutex   sync.RWMutex
-	pollAccess   sync.Mutex
-	pollInterval time.Duration
-	usageTracker *AggregatedUsage
-	logger       log.ContextLogger
+	tag                  string
+	baseURL              string
+	token                string
+	credDialer           N.Dialer
+	httpClient           *http.Client
+	state                credentialState
+	stateMutex           sync.RWMutex
+	pollAccess           sync.Mutex
+	pollInterval         time.Duration
+	configuredPlanWeight float64
+	usageTracker         *AggregatedUsage
+	logger               log.ContextLogger
 
 	onBecameUnusable func()
 	interrupted      bool
@@ -129,16 +130,22 @@ func newExternalCredential(ctx context.Context, tag string, options option.OCMEx
 	requestContext, cancelRequests := context.WithCancel(context.Background())
 	reverseContext, reverseCancel := context.WithCancel(context.Background())
 
+	configuredPlanWeight := options.PlanWeight
+	if configuredPlanWeight <= 0 {
+		configuredPlanWeight = 1
+	}
+
 	cred := &externalCredential{
-		tag:            tag,
-		token:          options.Token,
-		pollInterval:   pollInterval,
-		logger:         logger,
-		requestContext: requestContext,
-		cancelRequests: cancelRequests,
-		reverse:        options.Reverse,
-		reverseContext: reverseContext,
-		reverseCancel:  reverseCancel,
+		tag:                  tag,
+		token:                options.Token,
+		pollInterval:         pollInterval,
+		configuredPlanWeight: configuredPlanWeight,
+		logger:               logger,
+		requestContext:       requestContext,
+		cancelRequests:       cancelRequests,
+		reverse:              options.Reverse,
+		reverseContext:       reverseContext,
+		reverseCancel:        reverseCancel,
 	}
 
 	if options.URL == "" {
@@ -303,6 +310,16 @@ func (c *externalCredential) fiveHourCap() float64 {
 
 func (c *externalCredential) weeklyCap() float64 {
 	return 100
+}
+
+func (c *externalCredential) planWeight() float64 {
+	return c.configuredPlanWeight
+}
+
+func (c *externalCredential) weeklyResetTime() time.Time {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return c.state.weeklyReset
 }
 
 func (c *externalCredential) markRateLimited(resetAt time.Time) {

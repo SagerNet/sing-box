@@ -135,6 +135,8 @@ type credential interface {
 	weeklyUtilization() float64
 	fiveHourCap() float64
 	weeklyCap() float64
+	planWeight() float64
+	weeklyResetTime() time.Time
 	markRateLimited(resetAt time.Time)
 	earliestReset() time.Time
 	unavailableError() error
@@ -525,6 +527,18 @@ func (c *defaultCredential) weeklyUtilization() float64 {
 	c.stateMutex.RLock()
 	defer c.stateMutex.RUnlock()
 	return c.state.weeklyUtilization
+}
+
+func (c *defaultCredential) planWeight() float64 {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return ocmPlanWeight(c.state.accountType)
+}
+
+func (c *defaultCredential) weeklyResetTime() time.Time {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return c.state.weeklyReset
 }
 
 func (c *defaultCredential) isAvailable() bool {
@@ -991,7 +1005,8 @@ func (p *balancerProvider) pickCredential(filter func(credential) bool) credenti
 
 func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
 	var best credential
-	bestRemaining := float64(-1)
+	bestScore := float64(-1)
+	now := time.Now()
 	for _, cred := range p.credentials {
 		if filter != nil && !filter(cred) {
 			continue
@@ -1003,12 +1018,34 @@ func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credentia
 			continue
 		}
 		remaining := cred.weeklyCap() - cred.weeklyUtilization()
-		if remaining > bestRemaining {
-			bestRemaining = remaining
+		score := remaining * cred.planWeight()
+		resetTime := cred.weeklyResetTime()
+		if !resetTime.IsZero() {
+			timeUntilReset := resetTime.Sub(now)
+			if timeUntilReset < time.Hour {
+				timeUntilReset = time.Hour
+			}
+			score *= weeklyWindowDuration / timeUntilReset.Hours()
+		}
+		if score > bestScore {
+			bestScore = score
 			best = cred
 		}
 	}
 	return best
+}
+
+const weeklyWindowDuration = 7 * 24 // hours
+
+func ocmPlanWeight(accountType string) float64 {
+	switch accountType {
+	case "pro":
+		return 10
+	case "plus":
+		return 1
+	default:
+		return 1
+	}
 }
 
 func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credential {

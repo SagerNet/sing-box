@@ -133,6 +133,7 @@ type oauthCredentials struct {
 	ExpiresAt        int64    `json:"expiresAt"`
 	Scopes           []string `json:"scopes,omitempty"`
 	SubscriptionType string   `json:"subscriptionType,omitempty"`
+	RateLimitTier    string   `json:"rateLimitTier,omitempty"`
 	IsMax            bool     `json:"isMax,omitempty"`
 }
 
@@ -219,5 +220,6 @@ func credentialsEqual(left *oauthCredentials, right *oauthCredentials) bool {
 		left.ExpiresAt == right.ExpiresAt &&
 		slices.Equal(left.Scopes, right.Scopes) &&
 		left.SubscriptionType == right.SubscriptionType &&
+		left.RateLimitTier == right.RateLimitTier &&
 		left.IsMax == right.IsMax
 }

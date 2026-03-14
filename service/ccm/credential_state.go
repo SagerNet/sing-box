@@ -71,6 +71,7 @@ type credentialState struct {
 	hardRateLimited           bool
 	rateLimitResetAt          time.Time
 	accountType               string
+	rateLimitTier             string
 	lastUpdated               time.Time
 	consecutivePollFailures   int
 	unavailable               bool
@@ -134,6 +135,8 @@ type credential interface {
 	weeklyUtilization() float64
 	fiveHourCap() float64
 	weeklyCap() float64
+	planWeight() float64
+	weeklyResetTime() time.Time
 	markRateLimited(resetAt time.Time)
 	earliestReset() time.Time
 	unavailableError() error
@@ -294,6 +297,7 @@ func (c *defaultCredential) getAccessToken() (string, error) {
 		c.state.lastCredentialLoadAttempt = time.Now()
 		c.state.lastCredentialLoadError = ""
 		c.state.accountType = latestCredentials.SubscriptionType
+		c.state.rateLimitTier = latestCredentials.RateLimitTier
 		c.checkTransitionLocked()
 		c.stateMutex.Unlock()
 		if !latestCredentials.needsRefresh() {
@@ -308,6 +312,7 @@ func (c *defaultCredential) getAccessToken() (string, error) {
 	c.state.lastCredentialLoadAttempt = time.Now()
 	c.state.lastCredentialLoadError = ""
 	c.state.accountType = newCredentials.SubscriptionType
+	c.state.rateLimitTier = newCredentials.RateLimitTier
 	c.checkTransitionLocked()
 	c.stateMutex.Unlock()
 
@@ -510,6 +515,18 @@ func (c *defaultCredential) weeklyUtilization() float64 {
 	return c.state.weeklyUtilization
 }
 
+func (c *defaultCredential) planWeight() float64 {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return ccmPlanWeight(c.state.accountType, c.state.rateLimitTier)
+}
+
+func (c *defaultCredential) weeklyResetTime() time.Time {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	return c.state.weeklyReset
+}
+
 func (c *defaultCredential) isAvailable() bool {
 	c.retryCredentialReloadIfNeeded()
 
@@ -670,11 +687,72 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 		}
 		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
+	needsProfileFetch := c.state.rateLimitTier == ""
 	shouldInterrupt := c.checkTransitionLocked()
 	c.stateMutex.Unlock()
 	if shouldInterrupt {
 		c.interruptConnections()
 	}
+
+	if needsProfileFetch {
+		c.fetchProfile(ctx, httpClient, accessToken)
+	}
+}
+
+func (c *defaultCredential) fetchProfile(ctx context.Context, httpClient *http.Client, accessToken string) {
+	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, claudeAPIBaseURL+"/api/oauth/profile", nil)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("User-Agent", ccmUserAgentValue)
+		return request, nil
+	})
+	if err != nil {
+		c.logger.Debug("fetch profile for ", c.tag, ": ", err)
+		return
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return
+	}
+
+	var profileResponse struct {
+		Organization *struct {
+			OrganizationType string `json:"organization_type"`
+			RateLimitTier    string `json:"rate_limit_tier"`
+		} `json:"organization"`
+	}
+	err = json.NewDecoder(response.Body).Decode(&profileResponse)
+	if err != nil || profileResponse.Organization == nil {
+		return
+	}
+
+	accountType := ""
+	switch profileResponse.Organization.OrganizationType {
+	case "claude_pro":
+		accountType = "pro"
+	case "claude_max":
+		accountType = "max"
+	case "claude_team":
+		accountType = "team"
+	case "claude_enterprise":
+		accountType = "enterprise"
+	}
+	rateLimitTier := profileResponse.Organization.RateLimitTier
+
+	c.stateMutex.Lock()
+	if accountType != "" && c.state.accountType == "" {
+		c.state.accountType = accountType
+	}
+	if rateLimitTier != "" {
+		c.state.rateLimitTier = rateLimitTier
+	}
+	c.stateMutex.Unlock()
+	c.logger.Info("fetched profile for ", c.tag, ": type=", c.state.accountType, ", tier=", rateLimitTier, ", weight=", ccmPlanWeight(c.state.accountType, rateLimitTier))
 }
 
 func (c *defaultCredential) close() {
@@ -928,7 +1006,8 @@ func (p *balancerProvider) pickCredential(filter func(credential) bool) credenti
 
 func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credential {
 	var best credential
-	bestRemaining := float64(-1)
+	bestScore := float64(-1)
+	now := time.Now()
 	for _, cred := range p.credentials {
 		if filter != nil && !filter(cred) {
 			continue
@@ -937,12 +1016,44 @@ func (p *balancerProvider) pickLeastUsed(filter func(credential) bool) credentia
 			continue
 		}
 		remaining := cred.weeklyCap() - cred.weeklyUtilization()
-		if remaining > bestRemaining {
-			bestRemaining = remaining
+		score := remaining * cred.planWeight()
+		resetTime := cred.weeklyResetTime()
+		if !resetTime.IsZero() {
+			timeUntilReset := resetTime.Sub(now)
+			if timeUntilReset < time.Hour {
+				timeUntilReset = time.Hour
+			}
+			score *= weeklyWindowDuration / timeUntilReset.Hours()
+		}
+		if score > bestScore {
+			bestScore = score
 			best = cred
 		}
 	}
 	return best
+}
+
+const weeklyWindowDuration = 7 * 24 // hours
+
+func ccmPlanWeight(accountType string, rateLimitTier string) float64 {
+	switch accountType {
+	case "max":
+		switch rateLimitTier {
+		case "default_claude_max_20x":
+			return 10
+		case "default_claude_max_5x":
+			return 5
+		default:
+			return 5
+		}
+	case "team":
+		if rateLimitTier == "default_claude_max_5x" {
+			return 5
+		}
+		return 1
+	default:
+		return 1
+	}
 }
 
 func (p *balancerProvider) pickRoundRobin(filter func(credential) bool) credential {
