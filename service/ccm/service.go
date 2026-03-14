@@ -415,14 +415,6 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	provider.pollIfStale(s.ctx)
 
 	anthropicBetaHeader := r.Header.Get("anthropic-beta")
-	if isExtendedContextRequest(anthropicBetaHeader) {
-		if _, isSingle := provider.(*singleCredentialProvider); !isSingle {
-			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
-				"extended context (1m) requests will consume Extra usage, please use a default credential directly")
-			return
-		}
-	}
-
 	if isFastModeRequest(anthropicBetaHeader) {
 		if _, isSingle := provider.(*singleCredentialProvider); !isSingle {
 			writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
@@ -459,11 +451,6 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logger.Debug(logParts...)
 
-	if isExtendedContextRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
-		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
-			"extended context (1m) requests cannot be proxied through external credentials")
-		return
-	}
 	if isFastModeRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
 		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
 			"fast mode requests cannot be proxied through external credentials")
