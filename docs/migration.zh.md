@@ -2,6 +2,63 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.14.0
+
+### 迁移内联 ACME 到证书提供者
+
+TLS 中的内联 ACME 选项已废弃，且可以被 ACME 服务替代。
+
+!!! info "参考"
+
+    [TLS](/configuration/shared/tls/#certificate_provider) /
+    [ACME 服务](/zh/configuration/service/acme/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "acme": {
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": {
+              "type": "acme",
+              "service": "acme-service"
+            }
+          }
+        }
+      ],
+      "services": [
+        {
+          "type": "acme",
+          "tag": "acme-service",
+          "domain": ["example.com"],
+          "email": "admin@example.com"
+        }
+      ]
+    }
+    ```
+
 ## 1.12.0
 
 ### 迁移到新的 DNS 服务器格式

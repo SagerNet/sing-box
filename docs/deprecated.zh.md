@@ -4,6 +4,18 @@ icon: material/delete-alert
 
 # 废弃功能列表
 
+## 1.14.0
+
+#### TLS 中的内联 ACME 选项
+
+TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
+且可以通过证书提供者与 ACME 服务替代，
+参阅 [迁移指南](/migration/#migrate-inline-acme-to-certificate-provider)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+## 1.12.0
+
 #### 旧的 DNS 服务器格式
 
 DNS 服务器已重构，

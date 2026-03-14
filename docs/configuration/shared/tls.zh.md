@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [certificate_provider](#certificate_provider)  
+    :material-delete-clock: [acme](#acme)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [kernel_tx](#kernel_tx)  
@@ -49,6 +54,13 @@ icon: material/new-box
   "key_path": "",
   "kernel_tx": false,
   "kernel_rx": false,
+  "certificate_provider": {
+    "type": "acme",
+    "service": ""
+  },
+
+  // 废弃的
+
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -407,6 +419,14 @@ echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/
 
 启用内核 TLS 接收支持。
 
+#### certificate_provider
+
+!!! question "自 sing-box 1.14.0 起"
+
+==仅服务器==
+
+证书提供者配置，参阅 [证书提供者字段](/zh/configuration/shared/certificate-provider/)。
+
 ## 自定义 TLS 支持
 
 !!! info "QUIC 支持"
@@ -560,6 +580,11 @@ ECH 配置路径，PEM 格式。
 将 TLS 握手分段为多个 TLS 记录以绕过防火墙。
 
 ### ACME 字段
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    内联 ACME 选项已废弃，且可以通过证书提供者与 [ACME 服务](/zh/configuration/service/acme/) 替代，
+    参阅 [迁移指南](/migration/#migrate-inline-acme-to-certificate-provider)。
 
 #### domain
 

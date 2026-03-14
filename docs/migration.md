@@ -2,6 +2,63 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.14.0
+
+### Migrate inline ACME to certificate provider
+
+Inline ACME options in TLS are deprecated and can be replaced by ACME service.
+
+!!! info "References"
+
+    [TLS](/configuration/shared/tls/#certificate_provider) /
+    [ACME Service](/configuration/service/acme/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "acme": {
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": {
+              "type": "acme",
+              "service": "acme-service"
+            }
+          }
+        }
+      ],
+      "services": [
+        {
+          "type": "acme",
+          "tag": "acme-service",
+          "domain": ["example.com"],
+          "email": "admin@example.com"
+        }
+      ]
+    }
+    ```
+
 ## 1.12.0
 
 ### Migrate to new DNS server formats

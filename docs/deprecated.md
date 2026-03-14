@@ -4,6 +4,16 @@ icon: material/delete-alert
 
 # Deprecated Feature List
 
+## 1.14.0
+
+#### Inline ACME options in TLS
+
+Inline ACME options (`tls.acme`) are deprecated
+and can be replaced by certificate provider with an ACME service,
+check [Migration](../migration/#migrate-inline-acme-to-certificate-provider).
+
+Old fields will be removed in sing-box 1.16.0.
+
 ## 1.12.0
 
 #### Legacy DNS server formats

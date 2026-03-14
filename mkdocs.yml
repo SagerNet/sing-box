@@ -122,6 +122,7 @@ nav:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
+          - Certificate Provider Fields: configuration/shared/certificate-provider.md
           - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
           - Pre-match: configuration/shared/pre-match.md
           - Multiplex: configuration/shared/multiplex.md
@@ -177,6 +178,7 @@ nav:
           - URLTest: configuration/outbound/urltest.md
       - Service:
           - configuration/service/index.md
+          - ACME: configuration/service/acme.md
           - DERP: configuration/service/derp.md
           - Resolved: configuration/service/resolved.md
           - SSM API: configuration/service/ssm-api.md
@@ -273,6 +275,7 @@ plugins:
             Shared: 通用
             Listen Fields: 监听字段
             Dial Fields: 拨号字段
+            Certificate Provider Fields: 证书提供者字段
             DNS01 Challenge Fields: DNS01 验证字段
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层

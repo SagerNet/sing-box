@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [certificate_provider](#certificate_provider)  
+    :material-delete-clock: [acme](#acme)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [kernel_tx](#kernel_tx)  
@@ -49,6 +54,13 @@ icon: material/new-box
   "key_path": "",
   "kernel_tx": false,
   "kernel_rx": false,
+  "certificate_provider": {
+    "type": "acme",
+    "service": ""
+  },
+
+  // Deprecated
+
   "acme": {
     "domain": [],
     "data_directory": "",
@@ -408,6 +420,14 @@ Enable kernel TLS transmit support.
 
 Enable kernel TLS receive support.
 
+#### certificate_provider
+
+!!! question "Since sing-box 1.14.0"
+
+==Server only==
+
+Certificate provider configuration, see [Certificate Provider Fields](/configuration/shared/certificate-provider/).
+
 ## Custom TLS support
 
 !!! info "QUIC support"
@@ -565,6 +585,11 @@ The fallback value used when TLS segmentation cannot automatically determine the
 Fragment TLS handshake into multiple TLS records to bypass firewalls.
 
 ### ACME Fields
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Inline ACME options are deprecated and can be replaced by certificate provider with an [ACME service](/configuration/service/acme/),
+    check [Migration](/migration/#migrate-inline-acme-to-certificate-provider).
 
 #### domain
 
