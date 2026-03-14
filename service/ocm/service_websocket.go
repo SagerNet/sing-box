@@ -96,12 +96,18 @@ func (s *Service) handleWebSocket(
 ) {
 	var (
 		err                     error
+		requestContext          *credentialRequestContext
 		upstreamConn            net.Conn
 		upstreamBufferedReader  *bufio.Reader
 		upstreamResponseHeaders http.Header
 		statusCode              int
 		statusResponseBody      string
 	)
+	defer func() {
+		if requestContext != nil {
+			requestContext.cancelRequest()
+		}
+	}()
 
 	for {
 		accessToken, accessErr := selectedCredential.getAccessToken()
@@ -179,10 +185,15 @@ func (s *Service) handleWebSocket(
 			},
 		}
 
-		upstreamConn, upstreamBufferedReader, _, err = upstreamDialer.Dial(s.ctx, upstreamURL)
+		requestContext = selectedCredential.wrapRequestContext(ctx)
+		provider.wrapProviderInterrupt(selectedCredential, requestContext)
+		upstreamConn, upstreamBufferedReader, _, err = upstreamDialer.Dial(requestContext, upstreamURL)
 		if err == nil {
+			requestContext.releaseCredentialInterrupt()
 			break
 		}
+		requestContext.cancelRequest()
+		requestContext = nil
 		if statusCode == http.StatusTooManyRequests {
 			resetAt := parseOCMRateLimitResetFromHeaders(upstreamResponseHeaders)
 			nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
