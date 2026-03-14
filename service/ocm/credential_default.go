@@ -493,8 +493,12 @@ func (c *defaultCredential) incrementPollFailures() {
 func (c *defaultCredential) pollBackoff(baseInterval time.Duration) time.Duration {
 	c.stateAccess.RLock()
 	failures := c.state.consecutivePollFailures
+	retryDelay := c.state.usageAPIRetryDelay
 	c.stateAccess.RUnlock()
 	if failures <= 0 {
+		if retryDelay > 0 {
+			return retryDelay
+		}
 		return baseInterval
 	}
 	backoff := failedPollRetryInterval * time.Duration(1<<(failures-1))
@@ -618,7 +622,18 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 
 	if response.StatusCode != http.StatusOK {
 		if response.StatusCode == http.StatusTooManyRequests {
-			c.logger.Warn("poll usage for ", c.tag, ": rate limited")
+			retryDelay := time.Minute
+			if retryAfter := response.Header.Get("Retry-After"); retryAfter != "" {
+				seconds, err := strconv.ParseInt(retryAfter, 10, 64)
+				if err == nil && seconds > 0 {
+					retryDelay = time.Duration(seconds) * time.Second
+				}
+			}
+			c.logger.Warn("poll usage for ", c.tag, ": usage API rate limited, retry in ", log.FormatDuration(retryDelay))
+			c.stateAccess.Lock()
+			c.state.usageAPIRetryDelay = retryDelay
+			c.stateAccess.Unlock()
+			return
 		}
 		body, _ := io.ReadAll(response.Body)
 		c.logger.Debug("poll usage for ", c.tag, ": status ", response.StatusCode, " ", string(body))
@@ -649,6 +664,7 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
 	c.state.consecutivePollFailures = 0
+	c.state.usageAPIRetryDelay = 0
 	if usageResponse.RateLimit != nil {
 		if w := usageResponse.RateLimit.PrimaryWindow; w != nil {
 			c.state.fiveHourUtilization = w.UsedPercent

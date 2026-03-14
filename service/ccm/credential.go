@@ -60,6 +60,7 @@ type credentialState struct {
 	remotePlanWeight          float64
 	lastUpdated               time.Time
 	consecutivePollFailures   int
+	usageAPIRetryDelay        time.Duration
 	unavailable               bool
 	lastCredentialLoadAttempt time.Time
 	lastCredentialLoadError   string
