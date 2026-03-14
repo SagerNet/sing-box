@@ -437,7 +437,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
-		s.handleWebSocket(w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter)
+		s.handleWebSocket(w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter, isNew)
 		return
 	}
 
@@ -481,26 +481,22 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var logParts []any
 	if isNew {
-		logParts = append(logParts, "assigned credential ")
-	} else {
-		logParts = append(logParts, "credential ")
+		logParts := []any{"assigned credential ", selectedCredential.tagName()}
+		if sessionID != "" {
+			logParts = append(logParts, " for session ", sessionID)
+		}
+		if username != "" {
+			logParts = append(logParts, " by user ", username)
+		}
+		if requestModel != "" {
+			logParts = append(logParts, ", model=", requestModel)
+		}
+		if requestServiceTier == "priority" {
+			logParts = append(logParts, ", fast")
+		}
+		s.logger.Debug(logParts...)
 	}
-	logParts = append(logParts, selectedCredential.tagName())
-	if sessionID != "" {
-		logParts = append(logParts, " for session ", sessionID)
-	}
-	if isNew && username != "" {
-		logParts = append(logParts, " by user ", username)
-	}
-	if requestModel != "" {
-		logParts = append(logParts, ", model=", requestModel)
-	}
-	if requestServiceTier == "priority" {
-		logParts = append(logParts, ", fast")
-	}
-	s.logger.Debug(logParts...)
 
 	requestContext := selectedCredential.wrapRequestContext(r.Context())
 	defer func() {

@@ -91,7 +91,19 @@ func (s *Service) handleWebSocket(
 	provider credentialProvider,
 	selectedCredential credential,
 	credentialFilter func(credential) bool,
+	isNew bool,
 ) {
+	if isNew {
+		logParts := []any{"assigned credential ", selectedCredential.tagName()}
+		if sessionID != "" {
+			logParts = append(logParts, " for session ", sessionID)
+		}
+		if username != "" {
+			logParts = append(logParts, " by user ", username)
+		}
+		s.logger.Debug(logParts...)
+	}
+
 	var (
 		err                     error
 		upstreamConn            net.Conn
@@ -264,15 +276,18 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 			return
 		}
 
-		if opCode == ws.OpText && selectedCredential.usageTrackerOrNil() != nil {
+		if opCode == ws.OpText {
 			var request struct {
 				Type  string `json:"type"`
 				Model string `json:"model"`
 			}
 			if json.Unmarshal(data, &request) == nil && request.Type == "response.create" && request.Model != "" {
-				select {
-				case modelChannel <- request.Model:
-				default:
+				s.logger.Debug("model=", request.Model)
+				if selectedCredential.usageTrackerOrNil() != nil {
+					select {
+					case modelChannel <- request.Model:
+					default:
+					}
 				}
 			}
 		}
