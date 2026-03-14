@@ -433,23 +433,23 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeNonRetryableCredentialError(w, r, unavailableCredentialMessage(provider, err.Error()))
 		return
 	}
-	var logParts []any
 	if isNew {
-		logParts = append(logParts, "assigned credential ")
-	} else {
-		logParts = append(logParts, "credential ")
+		logParts := []any{"assigned credential ", selectedCredential.tagName()}
+		if sessionID != "" {
+			logParts = append(logParts, " for session ", sessionID)
+		}
+		if username != "" {
+			logParts = append(logParts, " by user ", username)
+		}
+		if requestModel != "" {
+			modelDisplay := requestModel
+			if isExtendedContextRequest(anthropicBetaHeader) {
+				modelDisplay += "[1m]"
+			}
+			logParts = append(logParts, ", model=", modelDisplay)
+		}
+		s.logger.Debug(logParts...)
 	}
-	logParts = append(logParts, selectedCredential.tagName())
-	if sessionID != "" {
-		logParts = append(logParts, " for session ", sessionID)
-	}
-	if isNew && username != "" {
-		logParts = append(logParts, " by user ", username)
-	}
-	if requestModel != "" {
-		logParts = append(logParts, ", model=", requestModel)
-	}
-	s.logger.Debug(logParts...)
 
 	if isFastModeRequest(anthropicBetaHeader) && selectedCredential.isExternal() {
 		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error",
