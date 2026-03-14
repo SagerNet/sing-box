@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"unsafe"
 )
 
 func (c *Conn) Read(b []byte) (int, error) {
@@ -229,7 +230,7 @@ func (c *Conn) readRawRecord() (typ uint8, data []byte, err error) {
 	record := c.rawConn.RawInput.Next(recordHeaderLen + n)
 	data, typ, err = c.rawConn.In.Decrypt(record)
 	if err != nil {
-		err = c.rawConn.In.SetErrorLocked(c.sendAlert(uint8(err.(tls.AlertError))))
+		err = c.rawConn.In.SetErrorLocked(c.sendAlert(*(*uint8)((*[2]unsafe.Pointer)(unsafe.Pointer(&err))[1])))
 		return
 	}
 	return
