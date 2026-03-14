@@ -538,7 +538,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for key, values := range response.Header {
-		if !isHopByHopHeader(key) {
+		if !isHopByHopHeader(key) && !isReverseProxyHeader(key) {
 			w.Header()[key] = values
 		}
 	}
