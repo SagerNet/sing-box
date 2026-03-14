@@ -572,6 +572,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusTooManyRequests {
 		body, _ := io.ReadAll(response.Body)
 		s.logger.Error("upstream error from ", selectedCredential.tagName(), ": status ", response.StatusCode, " ", string(body))
+		go selectedCredential.pollUsage(s.ctx)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error",
 			"proxy request (status "+strconv.Itoa(response.StatusCode)+"): "+string(body))
 		return

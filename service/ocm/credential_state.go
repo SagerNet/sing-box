@@ -26,7 +26,10 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 )
 
-const defaultPollInterval = 60 * time.Minute
+const (
+	defaultPollInterval     = 60 * time.Minute
+	failedPollRetryInterval = time.Minute
+)
 
 const (
 	httpRetryMaxAttempts  = 3
@@ -408,6 +411,7 @@ func (c *defaultCredential) updateStateFromHeaders(headers http.Header) {
 		}
 	}
 	if hadData {
+		c.state.consecutivePollFailures = 0
 		c.state.lastUpdated = time.Now()
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
@@ -444,6 +448,10 @@ func (c *defaultCredential) isUsable() bool {
 		c.stateMutex.RUnlock()
 		return false
 	}
+	if c.state.consecutivePollFailures > 0 {
+		c.stateMutex.RUnlock()
+		return false
+	}
 	if c.state.hardRateLimited {
 		if time.Now().Before(c.state.rateLimitResetAt) {
 			c.stateMutex.RUnlock()
@@ -476,7 +484,7 @@ func (c *defaultCredential) checkReservesLocked() bool {
 // checkTransitionLocked detects usable→unusable transition.
 // Must be called with stateMutex write lock held.
 func (c *defaultCredential) checkTransitionLocked() bool {
-	unusable := c.state.unavailable || c.state.hardRateLimited || !c.checkReservesLocked()
+	unusable := c.state.unavailable || c.state.hardRateLimited || !c.checkReservesLocked() || c.state.consecutivePollFailures > 0
 	if unusable && !c.interrupted {
 		c.interrupted = true
 		return true
@@ -551,6 +559,16 @@ func (c *defaultCredential) markUsagePollAttempted() {
 	c.state.lastUpdated = time.Now()
 }
 
+func (c *defaultCredential) incrementPollFailures() {
+	c.stateMutex.Lock()
+	c.state.consecutivePollFailures++
+	shouldInterrupt := c.checkTransitionLocked()
+	c.stateMutex.Unlock()
+	if shouldInterrupt {
+		c.interruptConnections()
+	}
+}
+
 func (c *defaultCredential) pollBackoff(baseInterval time.Duration) time.Duration {
 	c.stateMutex.RLock()
 	failures := c.state.consecutivePollFailures
@@ -558,10 +576,7 @@ func (c *defaultCredential) pollBackoff(baseInterval time.Duration) time.Duratio
 	if failures <= 0 {
 		return baseInterval
 	}
-	if failures > 4 {
-		failures = 4
-	}
-	return baseInterval * time.Duration(1<<failures)
+	return failedPollRetryInterval
 }
 
 func (c *defaultCredential) earliestReset() time.Time {
@@ -598,6 +613,7 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 	accessToken, err := c.getAccessToken()
 	if err != nil {
 		c.logger.Error("poll usage for ", c.tag, ": get token: ", err)
+		c.incrementPollFailures()
 		return
 	}
 
@@ -627,6 +643,7 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 	})
 	if err != nil {
 		c.logger.Error("poll usage for ", c.tag, ": ", err)
+		c.incrementPollFailures()
 		return
 	}
 	defer response.Body.Close()
@@ -636,10 +653,8 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 			c.logger.Warn("poll usage for ", c.tag, ": rate limited")
 		}
 		body, _ := io.ReadAll(response.Body)
-		c.stateMutex.Lock()
-		c.state.consecutivePollFailures++
-		c.stateMutex.Unlock()
 		c.logger.Debug("poll usage for ", c.tag, ": status ", response.StatusCode, " ", string(body))
+		c.incrementPollFailures()
 		return
 	}
 
@@ -656,10 +671,8 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 	}
 	err = json.NewDecoder(response.Body).Decode(&usageResponse)
 	if err != nil {
-		c.stateMutex.Lock()
-		c.state.consecutivePollFailures++
-		c.stateMutex.Unlock()
 		c.logger.Debug("poll usage for ", c.tag, ": decode: ", err)
+		c.incrementPollFailures()
 		return
 	}
 

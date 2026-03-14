@@ -239,6 +239,10 @@ func (c *externalCredential) isUsable() bool {
 		return false
 	}
 	c.stateMutex.RLock()
+	if c.state.consecutivePollFailures > 0 {
+		c.stateMutex.RUnlock()
+		return false
+	}
 	if c.state.hardRateLimited {
 		if time.Now().Before(c.state.rateLimitResetAt) {
 			c.stateMutex.RUnlock()
@@ -402,6 +406,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 		}
 	}
 	if hadData {
+		c.state.consecutivePollFailures = 0
 		c.state.lastUpdated = time.Now()
 	}
 	if isFirstUpdate || int(c.state.fiveHourUtilization*100) != int(oldFiveHour*100) || int(c.state.weeklyUtilization*100) != int(oldWeekly*100) {
@@ -419,7 +424,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 }
 
 func (c *externalCredential) checkTransitionLocked() bool {
-	unusable := c.state.hardRateLimited || c.state.fiveHourUtilization >= 100 || c.state.weeklyUtilization >= 100
+	unusable := c.state.hardRateLimited || c.state.fiveHourUtilization >= 100 || c.state.weeklyUtilization >= 100 || c.state.consecutivePollFailures > 0
 	if unusable && !c.interrupted {
 		c.interrupted = true
 		return true
@@ -479,19 +484,24 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	})
 	if err != nil {
 		c.logger.Error("poll usage for ", c.tag, ": ", err)
-		c.stateMutex.Lock()
-		c.state.consecutivePollFailures++
-		c.stateMutex.Unlock()
+		c.incrementPollFailures()
 		return
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
-		c.stateMutex.Lock()
-		c.state.consecutivePollFailures++
-		c.stateMutex.Unlock()
 		c.logger.Debug("poll usage for ", c.tag, ": status ", response.StatusCode, " ", string(body))
+		// 404 means the remote does not have a status endpoint yet;
+		// usage will be updated passively from response headers.
+		if response.StatusCode == http.StatusNotFound {
+			c.stateMutex.Lock()
+			c.state.consecutivePollFailures = 0
+			c.checkTransitionLocked()
+			c.stateMutex.Unlock()
+		} else {
+			c.incrementPollFailures()
+		}
 		return
 	}
 
@@ -501,10 +511,8 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 	}
 	err = json.NewDecoder(response.Body).Decode(&statusResponse)
 	if err != nil {
-		c.stateMutex.Lock()
-		c.state.consecutivePollFailures++
-		c.stateMutex.Unlock()
 		c.logger.Debug("poll usage for ", c.tag, ": decode: ", err)
+		c.incrementPollFailures()
 		return
 	}
 
@@ -551,10 +559,17 @@ func (c *externalCredential) pollBackoff(baseInterval time.Duration) time.Durati
 	if failures <= 0 {
 		return baseInterval
 	}
-	if failures > 4 {
-		failures = 4
+	return failedPollRetryInterval
+}
+
+func (c *externalCredential) incrementPollFailures() {
+	c.stateMutex.Lock()
+	c.state.consecutivePollFailures++
+	shouldInterrupt := c.checkTransitionLocked()
+	c.stateMutex.Unlock()
+	if shouldInterrupt {
+		c.interruptConnections()
 	}
-	return baseInterval * time.Duration(1<<failures)
 }
 
 func (c *externalCredential) usageTrackerOrNil() *AggregatedUsage {
