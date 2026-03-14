@@ -20,7 +20,7 @@ import (
 
 const (
 	oauth2ClientID          = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-	oauth2TokenURL          = "https://console.anthropic.com/v1/oauth/token"
+	oauth2TokenURL          = "https://platform.claude.com/v1/oauth/token"
 	claudeAPIBaseURL        = "https://api.anthropic.com"
 	tokenRefreshBufferMs    = 60000
 	anthropicBetaOAuthValue = "oauth-2025-04-20"
@@ -164,7 +164,6 @@ func refreshToken(ctx context.Context, httpClient *http.Client, credentials *oau
 			return nil, err
 		}
 		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Accept", "application/json")
 		request.Header.Set("User-Agent", ccmUserAgentValue)
 		return request, nil
 	})
