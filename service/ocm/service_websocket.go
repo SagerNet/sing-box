@@ -99,6 +99,7 @@ func (s *Service) handleWebSocket(
 		upstreamBufferedReader  *bufio.Reader
 		upstreamResponseHeaders http.Header
 		statusCode              int
+		statusResponseBody      string
 	)
 
 	for {
@@ -135,9 +136,13 @@ func (s *Service) handleWebSocket(
 		if accountID := selectedCredential.ocmGetAccountID(); accountID != "" {
 			upstreamHeaders.Set("ChatGPT-Account-Id", accountID)
 		}
+		if upstreamHeaders.Get("OpenAI-Beta") == "" {
+			upstreamHeaders.Set("OpenAI-Beta", "responses_websockets=2026-02-06")
+		}
 
 		upstreamResponseHeaders = make(http.Header)
 		statusCode = 0
+		statusResponseBody = ""
 		upstreamDialer := ws.Dialer{
 			NetDial: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return selectedCredential.ocmDialer().DialContext(ctx, network, M.ParseSocksaddr(addr))
@@ -162,6 +167,10 @@ func (s *Service) handleWebSocket(
 				if readErr == nil {
 					upstreamResponseHeaders = http.Header(mimeHeader)
 				}
+				body, readErr := io.ReadAll(io.LimitReader(bufferedResponse, 4096))
+				if readErr == nil && len(body) > 0 {
+					statusResponseBody = string(body)
+				}
 			},
 			OnHeader: func(key, value []byte) error {
 				upstreamResponseHeaders.Add(string(key), string(value))
@@ -185,7 +194,11 @@ func (s *Service) handleWebSocket(
 			selectedCredential = nextCredential
 			continue
 		}
-		s.logger.Error("dial upstream websocket: ", err)
+		if statusCode > 0 && statusResponseBody != "" {
+			s.logger.Error("dial upstream websocket: status ", statusCode, " body: ", statusResponseBody)
+		} else {
+			s.logger.Error("dial upstream websocket: ", err)
+		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", "upstream websocket connection failed")
 		return
 	}
