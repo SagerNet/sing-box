@@ -18,14 +18,77 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/service"
 )
 
 var errInsecureUnused = E.New("tls: insecure unused")
+
+type managedCertificateProvider interface {
+	adapter.CertificateProvider
+	Start() error
+	Close() error
+}
+
+type acmeServiceCertificateProvider struct {
+	ctx        context.Context
+	serviceTag string
+	once       sync.Once
+	provider   adapter.ACMECertificateProvider
+	resolveErr error
+}
+
+func (p *acmeServiceCertificateProvider) Start() error {
+	_, err := p.resolveProvider()
+	return err
+}
+
+func (p *acmeServiceCertificateProvider) Close() error {
+	return nil
+}
+
+func (p *acmeServiceCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	provider, err := p.resolveProvider()
+	if err != nil {
+		return nil, err
+	}
+	return provider.GetCertificate(hello)
+}
+
+func (p *acmeServiceCertificateProvider) GetACMENextProtos() []string {
+	provider, err := p.resolveProvider()
+	if err != nil {
+		return nil
+	}
+	return provider.GetACMENextProtos()
+}
+
+func (p *acmeServiceCertificateProvider) resolveProvider() (adapter.ACMECertificateProvider, error) {
+	p.once.Do(func() {
+		serviceManager := service.FromContext[adapter.ServiceManager](p.ctx)
+		if serviceManager == nil {
+			p.resolveErr = E.New("missing service manager in context")
+			return
+		}
+		providerService, found := serviceManager.Get(p.serviceTag)
+		if !found {
+			p.resolveErr = E.New("certificate provider service not found: ", p.serviceTag)
+			return
+		}
+		provider, ok := providerService.(adapter.ACMECertificateProvider)
+		if !ok {
+			p.resolveErr = E.New("service ", p.serviceTag, " is not an ACME certificate service")
+			return
+		}
+		p.provider = provider
+	})
+	return p.provider, p.resolveErr
+}
 
 type STDServerConfig struct {
 	access                sync.RWMutex
 	config                *tls.Config
 	logger                log.Logger
+	certificateProvider   managedCertificateProvider
 	acmeService           adapter.SimpleLifecycle
 	certificate           []byte
 	key                   []byte
@@ -53,23 +116,34 @@ func (c *STDServerConfig) SetServerName(serverName string) {
 func (c *STDServerConfig) NextProtos() []string {
 	c.access.RLock()
 	defer c.access.RUnlock()
-	if c.acmeService != nil && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
 		return c.config.NextProtos[1:]
-	} else {
-		return c.config.NextProtos
 	}
+	return c.config.NextProtos
 }
 
 func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	c.access.Lock()
 	defer c.access.Unlock()
 	config := c.config.Clone()
-	if c.acmeService != nil && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == ACMETLS1Protocol {
 		config.NextProtos = append(c.config.NextProtos[:1], nextProto...)
 	} else {
 		config.NextProtos = nextProto
 	}
 	c.config = config
+}
+
+func (c *STDServerConfig) hasACMEALPN() bool {
+	if c.acmeService != nil {
+		return true
+	}
+	if c.certificateProvider != nil {
+		if acmeProvider, isACME := c.certificateProvider.(adapter.ACMECertificateProvider); isACME {
+			return len(acmeProvider.GetACMENextProtos()) > 0
+		}
+	}
+	return false
 }
 
 func (c *STDServerConfig) STDConfig() (*STDConfig, error) {
@@ -91,15 +165,24 @@ func (c *STDServerConfig) Clone() Config {
 }
 
 func (c *STDServerConfig) Start() error {
-	if c.acmeService != nil {
-		return c.acmeService.Start()
-	} else {
-		err := c.startWatcher()
+	if c.certificateProvider != nil {
+		err := c.certificateProvider.Start()
 		if err != nil {
-			c.logger.Warn("create fsnotify watcher: ", err)
+			return err
 		}
-		return nil
+		c.updateProviderNextProtos()
 	}
+	if c.acmeService != nil {
+		err := c.acmeService.Start()
+		if err != nil {
+			return err
+		}
+	}
+	err := c.startWatcher()
+	if err != nil {
+		c.logger.Warn("create fsnotify watcher: ", err)
+	}
+	return nil
 }
 
 func (c *STDServerConfig) startWatcher() error {
@@ -203,23 +286,58 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 }
 
 func (c *STDServerConfig) Close() error {
-	if c.acmeService != nil {
-		return c.acmeService.Close()
+	return common.Close(c.certificateProvider, c.acmeService, c.watcher)
+}
+
+func (c *STDServerConfig) updateProviderNextProtos() {
+	if c.certificateProvider == nil {
+		return
 	}
-	if c.watcher != nil {
-		return c.watcher.Close()
+	acmeProvider, isACME := c.certificateProvider.(adapter.ACMECertificateProvider)
+	if !isACME {
+		return
 	}
-	return nil
+	nextProtos := acmeProvider.GetACMENextProtos()
+	if len(nextProtos) == 0 {
+		return
+	}
+	c.access.Lock()
+	defer c.access.Unlock()
+	config := c.config.Clone()
+	mergedNextProtos := append([]string{}, nextProtos...)
+	for _, nextProto := range config.NextProtos {
+		if !common.Contains(mergedNextProtos, nextProto) {
+			mergedNextProtos = append(mergedNextProtos, nextProto)
+		}
+	}
+	config.NextProtos = mergedNextProtos
+	c.config = config
 }
 
 func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
 	if !options.Enabled {
 		return nil, nil
 	}
+	if options.CertificateProvider != nil && options.ACME != nil {
+		return nil, E.New("certificate_provider and acme are mutually exclusive")
+	}
 	var tlsConfig *tls.Config
+	var certificateProvider managedCertificateProvider
 	var acmeService adapter.SimpleLifecycle
 	var err error
-	if options.ACME != nil && len(options.ACME.Domain) > 0 {
+	if options.CertificateProvider != nil {
+		certificateProvider, err = newCertificateProvider(ctx, options.CertificateProvider)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig = &tls.Config{
+			GetCertificate: certificateProvider.GetCertificate,
+		}
+		if options.Insecure {
+			return nil, errInsecureUnused
+		}
+	} else if options.ACME != nil && len(options.ACME.Domain) > 0 {
+		logger.Warn("inline acme configuration is deprecated, use certificate_provider with an ACME service instead")
 		//nolint:staticcheck
 		tlsConfig, acmeService, err = startACME(ctx, logger, common.PtrValueOrDefault(options.ACME))
 		if err != nil {
@@ -272,7 +390,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		certificate []byte
 		key         []byte
 	)
-	if acmeService == nil {
+	if certificateProvider == nil && acmeService == nil {
 		if len(options.Certificate) > 0 {
 			certificate = []byte(strings.Join(options.Certificate, "\n"))
 		} else if options.CertificatePath != "" {
@@ -360,6 +478,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	serverConfig := &STDServerConfig{
 		config:                tlsConfig,
 		logger:                logger,
+		certificateProvider:   certificateProvider,
 		acmeService:           acmeService,
 		certificate:           certificate,
 		key:                   key,
@@ -386,4 +505,20 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		}
 	}
 	return config, nil
+}
+
+func newCertificateProvider(ctx context.Context, options *option.CertificateProviderOptions) (managedCertificateProvider, error) {
+	switch options.Type {
+	case C.TypeACME:
+		serviceTag := options.ACMEOptions.Service
+		if serviceTag == "" {
+			return nil, E.New("missing ACME service tag in certificate_provider")
+		}
+		return &acmeServiceCertificateProvider{
+			ctx:        ctx,
+			serviceTag: serviceTag,
+		}, nil
+	default:
+		return nil, E.New("unknown certificate provider type: ", options.Type)
+	}
 }

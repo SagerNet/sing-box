@@ -130,6 +130,7 @@ func ServiceRegistry() *service.Registry {
 
 	resolved.RegisterService(registry)
 	ssmapi.RegisterService(registry)
+	registerACMEService(registry)
 
 	registerDERPService(registry)
 	registerCCMService(registry)
