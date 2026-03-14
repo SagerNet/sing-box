@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"sync"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -29,12 +30,12 @@ type BaseTransport struct {
 	dns.TransportAdapter
 	Logger logger.ContextLogger
 
-	mutex           sync.Mutex
-	state           TransportState
-	inFlight        int32
-	queriesComplete chan struct{}
-	closeCtx        context.Context
-	closeCancel     context.CancelFunc
+	mutex       sync.Mutex
+	state       TransportState
+	inFlight    int
+	closeCtx    context.Context
+	closeCancel context.CancelFunc
+	drainSignal chan struct{}
 }
 
 func NewBaseTransport(adapter dns.TransportAdapter, logger logger.ContextLogger) *BaseTransport {
@@ -80,14 +81,14 @@ func (t *BaseTransport) BeginQuery() bool {
 
 func (t *BaseTransport) EndQuery() {
 	t.mutex.Lock()
+	defer t.mutex.Unlock()
 	if t.inFlight > 0 {
 		t.inFlight--
 	}
-	if t.inFlight == 0 && t.queriesComplete != nil {
-		close(t.queriesComplete)
-		t.queriesComplete = nil
+	if t.inFlight == 0 && t.drainSignal != nil {
+		close(t.drainSignal)
+		t.drainSignal = nil
 	}
-	t.mutex.Unlock()
 }
 
 func (t *BaseTransport) CloseContext() context.Context {
@@ -97,9 +98,23 @@ func (t *BaseTransport) CloseContext() context.Context {
 func (t *BaseTransport) Shutdown(ctx context.Context) error {
 	t.mutex.Lock()
 
-	if t.state >= StateClosing {
+	if t.state == StateClosed {
 		t.mutex.Unlock()
 		return nil
+	}
+
+	if t.state == StateClosing {
+		sig := t.drainSignal
+		t.mutex.Unlock()
+		if sig == nil {
+			return nil
+		}
+		select {
+		case <-sig:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 
 	if t.state == StateNew {
@@ -110,22 +125,22 @@ func (t *BaseTransport) Shutdown(ctx context.Context) error {
 	}
 
 	t.state = StateClosing
+	t.closeCancel()
 
 	if t.inFlight == 0 {
 		t.state = StateClosed
 		t.mutex.Unlock()
-		t.closeCancel()
 		return nil
 	}
 
-	t.queriesComplete = make(chan struct{})
-	queriesComplete := t.queriesComplete
+	if t.drainSignal == nil {
+		t.drainSignal = make(chan struct{})
+	}
+	sig := t.drainSignal
 	t.mutex.Unlock()
 
-	t.closeCancel()
-
 	select {
-	case <-queriesComplete:
+	case <-sig:
 		t.mutex.Lock()
 		t.state = StateClosed
 		t.mutex.Unlock()
@@ -133,13 +148,44 @@ func (t *BaseTransport) Shutdown(ctx context.Context) error {
 	case <-ctx.Done():
 		t.mutex.Lock()
 		t.state = StateClosed
+		inFlight := t.inFlight
 		t.mutex.Unlock()
-		return ctx.Err()
+		if inFlight > 0 {
+			t.Logger.WarnContext(ctx, "shutdown timed out while waiting for ", inFlight, " in-flight queries to drain")
+		}
+		return nil
 	}
 }
 
 func (t *BaseTransport) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), C.TCPTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), C.StopTimeout)
 	defer cancel()
 	return t.Shutdown(ctx)
+}
+
+func (t *BaseTransport) ContextWithCancel(ctx context.Context) (context.Context, context.CancelFunc) {
+	connCtx, cancel := context.WithCancel(t.closeCtx)
+	stop := context.AfterFunc(ctx, func() {
+		cancel()
+	})
+	return joinedContext{connCtx, ctx}, func() {
+		stop()
+		cancel()
+	}
+}
+
+// joinedContext wraps a background context (providing cancellation)
+// with a parent context (providing values and deadlines).
+// This decouples the IO timeout/cancellation source from the metadata.
+type joinedContext struct {
+	context.Context
+	parent context.Context
+}
+
+func (v joinedContext) Value(key any) any {
+	return v.parent.Value(key)
+}
+
+func (v joinedContext) Deadline() (time.Time, bool) {
+	return v.parent.Deadline()
 }

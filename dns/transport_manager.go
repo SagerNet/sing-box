@@ -146,7 +146,6 @@ func (m *TransportManager) startTransports(transports []adapter.DNSTransport) er
 }
 
 func (m *TransportManager) Close() error {
-	monitor := taskmonitor.New(m.logger, C.StopTimeout)
 	m.access.Lock()
 	if !m.started {
 		m.access.Unlock()
@@ -156,17 +155,34 @@ func (m *TransportManager) Close() error {
 	transports := m.transports
 	m.transports = nil
 	m.access.Unlock()
-	var err error
+	var (
+		err error
+		mu  sync.Mutex
+		wg  sync.WaitGroup
+	)
 	for _, transport := range transports {
-		if closer, isCloser := transport.(io.Closer); isCloser {
-			monitor.Start("close server/", transport.Type(), "[", transport.Tag(), "]")
-			err = E.Append(err, closer.Close(), func(err error) error {
-				return E.Cause(err, "close server/", transport.Type(), "[", transport.Tag(), "]")
-			})
-			monitor.Finish()
+		closer, ok := transport.(io.Closer)
+		if !ok {
+			continue
 		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			monitor := taskmonitor.New(m.logger, C.StopTimeout)
+			monitor.Start("close server/", transport.Type(), "[", transport.Tag(), "]")
+			closeErr := closer.Close()
+			monitor.Finish()
+			if closeErr != nil {
+				mu.Lock()
+				defer mu.Unlock()
+				err = E.Append(err, closeErr, func(err error) error {
+					return E.Cause(err, "close server/", transport.Type(), "[", transport.Tag(), "]")
+				})
+			}
+		}()
 	}
-	return nil
+	wg.Wait()
+	return err
 }
 
 func (m *TransportManager) Transports() []adapter.DNSTransport {
