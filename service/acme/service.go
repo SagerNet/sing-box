@@ -1,6 +1,6 @@
 //go:build with_acme
 
-package tls
+package acme
 
 import (
 	"context"
@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	boxService "github.com/sagernet/sing-box/adapter/service"
+	boxtls "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/logger"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/libdns/acmedns"
@@ -22,23 +24,23 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type acmeWrapper struct {
-	ctx    context.Context
-	cfg    *certmagic.Config
-	cache  *certmagic.Cache
-	domain []string
+func RegisterService(registry *boxService.Registry) {
+	boxService.Register[option.ACMEServiceOptions](registry, C.TypeACME, NewService)
 }
 
-func (w *acmeWrapper) Start() error {
-	return w.cfg.ManageSync(w.ctx, w.domain)
+var _ adapter.ACMECertificateProvider = (*Service)(nil)
+
+type Service struct {
+	boxService.Adapter
+	ctx        context.Context
+	logger     log.ContextLogger
+	config     *certmagic.Config
+	cache      *certmagic.Cache
+	domain     []string
+	nextProtos []string
 }
 
-func (w *acmeWrapper) Close() error {
-	w.cache.Stop()
-	return nil
-}
-
-func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.SimpleLifecycle, error) {
+func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMEServiceOptions) (adapter.Service, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":
@@ -47,7 +49,7 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		acmeServer = certmagic.ZeroSSLProductionCA
 	default:
 		if !strings.HasPrefix(options.Provider, "https://") {
-			return nil, nil, E.New("unsupported acme provider: " + options.Provider)
+			return nil, E.New("unsupported ACME provider: ", options.Provider)
 		}
 		acmeServer = options.Provider
 	}
@@ -60,8 +62,8 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		storage = certmagic.Default.Storage
 	}
 	zapLogger := zap.New(zapcore.NewCore(
-		zapcore.NewConsoleEncoder(ACMEEncoderConfig()),
-		&ACMELogWriter{Logger: logger},
+		zapcore.NewConsoleEncoder(boxtls.ACMEEncoderConfig()),
+		&boxtls.ACMELogWriter{Logger: logger},
 		zap.DebugLevel,
 	))
 	config := &certmagic.Config{
@@ -69,7 +71,7 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		Storage:           storage,
 		Logger:            zapLogger,
 	}
-	acmeConfig := certmagic.ACMEIssuer{
+	acmeIssuer := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
 		Email:                   options.Email,
 		Agreed:                  true,
@@ -104,14 +106,14 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 				ServerURL: dnsOptions.ACMEDNSOptions.ServerURL,
 			}
 		default:
-			return nil, nil, E.New("unsupported ACME DNS01 provider type: " + dnsOptions.Provider)
+			return nil, E.New("unsupported ACME DNS01 provider type: ", dnsOptions.Provider)
 		}
-		acmeConfig.DNS01Solver = &solver
+		acmeIssuer.DNS01Solver = &solver
 	}
 	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
-		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
+		acmeIssuer.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
 	}
-	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeConfig)}
+	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeIssuer)}
 	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
 			return config, nil
@@ -119,16 +121,39 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		Logger: zapLogger,
 	})
 	config = certmagic.New(cache, *config)
-	var tlsConfig *tls.Config
-	if acmeConfig.DisableTLSALPNChallenge || acmeConfig.DNS01Solver != nil {
-		tlsConfig = &tls.Config{
-			GetCertificate: config.GetCertificate,
-		}
-	} else {
-		tlsConfig = &tls.Config{
-			GetCertificate: config.GetCertificate,
-			NextProtos:     []string{C.ACMETLS1Protocol},
-		}
+	var nextProtos []string
+	if !acmeIssuer.DisableTLSALPNChallenge && acmeIssuer.DNS01Solver == nil {
+		nextProtos = []string{C.ACMETLS1Protocol}
 	}
-	return tlsConfig, &acmeWrapper{ctx: ctx, cfg: config, cache: cache, domain: options.Domain}, nil
+	return &Service{
+		Adapter:    boxService.NewAdapter(C.TypeACME, tag),
+		ctx:        ctx,
+		logger:     logger,
+		config:     config,
+		cache:      cache,
+		domain:     options.Domain,
+		nextProtos: nextProtos,
+	}, nil
+}
+
+func (s *Service) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateStart {
+		return nil
+	}
+	return s.config.ManageAsync(s.ctx, s.domain)
+}
+
+func (s *Service) Close() error {
+	if s.cache != nil {
+		s.cache.Stop()
+	}
+	return nil
+}
+
+func (s *Service) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return s.config.GetCertificate(hello)
+}
+
+func (s *Service) GetACMENextProtos() []string {
+	return s.nextProtos
 }

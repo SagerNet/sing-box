@@ -31,6 +31,7 @@ const (
 	TypeCCM          = "ccm"
 	TypeOCM          = "ocm"
 	TypeOOMKiller    = "oom-killer"
+	TypeACME         = "acme"
 )
 
 const (

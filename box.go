@@ -272,6 +272,24 @@ func New(options Options) (*Box, error) {
 			return nil, E.Cause(err, "initialize inbound[", i, "]")
 		}
 	}
+	for i, serviceOptions := range options.Services {
+		var tag string
+		if serviceOptions.Tag != "" {
+			tag = serviceOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		err = serviceManager.Create(
+			ctx,
+			logFactory.NewLogger(F.ToString("service/", serviceOptions.Type, "[", tag, "]")),
+			tag,
+			serviceOptions.Type,
+			serviceOptions.Options,
+		)
+		if err != nil {
+			return nil, E.Cause(err, "initialize service[", i, "]")
+		}
+	}
 	for i, outboundOptions := range options.Outbounds {
 		var tag string
 		if outboundOptions.Tag != "" {
@@ -296,24 +314,6 @@ func New(options Options) (*Box, error) {
 		)
 		if err != nil {
 			return nil, E.Cause(err, "initialize outbound[", i, "]")
-		}
-	}
-	for i, serviceOptions := range options.Services {
-		var tag string
-		if serviceOptions.Tag != "" {
-			tag = serviceOptions.Tag
-		} else {
-			tag = F.ToString(i)
-		}
-		err = serviceManager.Create(
-			ctx,
-			logFactory.NewLogger(F.ToString("service/", serviceOptions.Type, "[", tag, "]")),
-			tag,
-			serviceOptions.Type,
-			serviceOptions.Options,
-		)
-		if err != nil {
-			return nil, E.Cause(err, "initialize service[", i, "]")
 		}
 	}
 	outboundManager.Initialize(func() (adapter.Outbound, error) {
