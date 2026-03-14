@@ -91,9 +91,10 @@ type OCMDefaultCredentialOptions struct {
 }
 
 type OCMBalancerCredentialOptions struct {
-	Strategy     string                     `json:"strategy,omitempty"`
-	Credentials  badoption.Listable[string] `json:"credentials"`
-	PollInterval badoption.Duration         `json:"poll_interval,omitempty"`
+	Strategy           string                     `json:"strategy,omitempty"`
+	Credentials        badoption.Listable[string] `json:"credentials"`
+	PollInterval       badoption.Duration         `json:"poll_interval,omitempty"`
+	RebalanceThreshold float64                    `json:"rebalance_threshold,omitempty"`
 }
 
 type OCMExternalCredentialOptions struct {

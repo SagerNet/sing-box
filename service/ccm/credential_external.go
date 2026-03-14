@@ -465,9 +465,9 @@ func (c *externalCredential) wrapRequestContext(parent context.Context) *credent
 		cancel()
 	})
 	return &credentialRequestContext{
-		Context:     derived,
-		releaseFunc: stop,
-		cancelFunc:  cancel,
+		Context:      derived,
+		releaseFuncs: []func() bool{stop},
+		cancelFunc:   cancel,
 	}
 }
 

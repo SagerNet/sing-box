@@ -459,6 +459,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestContext := selectedCredential.wrapRequestContext(r.Context())
+	provider.wrapProviderInterrupt(selectedCredential, requestContext)
 	defer func() {
 		requestContext.cancelRequest()
 	}()
@@ -497,6 +498,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.logger.InfoContext(ctx, "retrying with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
 		requestContext.cancelRequest()
 		requestContext = nextCredential.wrapRequestContext(r.Context())
+		provider.wrapProviderInterrupt(nextCredential, requestContext)
 		retryRequest, buildErr := nextCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
 		if buildErr != nil {
 			s.logger.ErrorContext(ctx, "retry request: ", buildErr)

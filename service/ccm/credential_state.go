@@ -110,15 +110,21 @@ type defaultCredential struct {
 
 type credentialRequestContext struct {
 	context.Context
-	releaseOnce sync.Once
-	cancelOnce  sync.Once
-	releaseFunc func() bool
-	cancelFunc  context.CancelFunc
+	releaseOnce  sync.Once
+	cancelOnce   sync.Once
+	releaseFuncs []func() bool
+	cancelFunc   context.CancelFunc
+}
+
+func (c *credentialRequestContext) addInterruptLink(stop func() bool) {
+	c.releaseFuncs = append(c.releaseFuncs, stop)
 }
 
 func (c *credentialRequestContext) releaseCredentialInterrupt() {
 	c.releaseOnce.Do(func() {
-		c.releaseFunc()
+		for _, f := range c.releaseFuncs {
+			f()
+		}
 	})
 }
 
@@ -504,9 +510,9 @@ func (c *defaultCredential) wrapRequestContext(parent context.Context) *credenti
 		cancel()
 	})
 	return &credentialRequestContext{
-		Context:     derived,
-		releaseFunc: stop,
-		cancelFunc:  cancel,
+		Context:      derived,
+		releaseFuncs: []func() bool{stop},
+		cancelFunc:   cancel,
 	}
 }
 
@@ -851,6 +857,7 @@ func (c *defaultCredential) buildProxyRequest(ctx context.Context, original *htt
 type credentialProvider interface {
 	selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error)
 	onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential
+	wrapProviderInterrupt(cred credential, requestContext *credentialRequestContext)
 	pollIfStale(ctx context.Context)
 	allCredentials() []credential
 	close()
@@ -913,6 +920,8 @@ func (p *singleCredentialProvider) allCredentials() []credential {
 	return []credential{p.cred}
 }
 
+func (p *singleCredentialProvider) wrapProviderInterrupt(_ credential, _ *credentialRequestContext) {}
+
 func (p *singleCredentialProvider) close() {}
 
 const sessionExpiry = 24 * time.Hour
@@ -922,27 +931,37 @@ type sessionEntry struct {
 	createdAt time.Time
 }
 
-// balancerProvider assigns sessions to credentials based on a configurable strategy.
-type balancerProvider struct {
-	credentials     []credential
-	strategy        string
-	roundRobinIndex atomic.Uint64
-	pollInterval    time.Duration
-	sessionMutex    sync.RWMutex
-	sessions        map[string]sessionEntry
-	logger          log.ContextLogger
+type credentialInterruptEntry struct {
+	context context.Context
+	cancel  context.CancelFunc
 }
 
-func newBalancerProvider(credentials []credential, strategy string, pollInterval time.Duration, logger log.ContextLogger) *balancerProvider {
+// balancerProvider assigns sessions to credentials based on a configurable strategy.
+type balancerProvider struct {
+	credentials          []credential
+	strategy             string
+	roundRobinIndex      atomic.Uint64
+	pollInterval         time.Duration
+	rebalanceThreshold   float64
+	sessionMutex         sync.RWMutex
+	sessions             map[string]sessionEntry
+	interruptAccess      sync.Mutex
+	credentialInterrupts map[string]credentialInterruptEntry
+	logger               log.ContextLogger
+}
+
+func newBalancerProvider(credentials []credential, strategy string, pollInterval time.Duration, rebalanceThreshold float64, logger log.ContextLogger) *balancerProvider {
 	if pollInterval <= 0 {
 		pollInterval = defaultPollInterval
 	}
 	return &balancerProvider{
-		credentials:  credentials,
-		strategy:     strategy,
-		pollInterval: pollInterval,
-		sessions:     make(map[string]sessionEntry),
-		logger:       logger,
+		credentials:          credentials,
+		strategy:             strategy,
+		pollInterval:         pollInterval,
+		rebalanceThreshold:   rebalanceThreshold,
+		sessions:             make(map[string]sessionEntry),
+		credentialInterrupts: make(map[string]credentialInterruptEntry),
+		logger:               logger,
 	}
 }
 
@@ -954,6 +973,20 @@ func (p *balancerProvider) selectCredential(sessionID string, filter func(creden
 		if exists {
 			for _, cred := range p.credentials {
 				if cred.tagName() == entry.tag && (filter == nil || filter(cred)) && cred.isUsable() {
+					if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == "least_used") {
+						better := p.pickLeastUsed(filter)
+						if better != nil && better.tagName() != cred.tagName() {
+							effectiveThreshold := p.rebalanceThreshold / cred.planWeight()
+							delta := cred.weeklyUtilization() - better.weeklyUtilization()
+							if delta > effectiveThreshold {
+								p.logger.Info("rebalancing away from ", cred.tagName(),
+									": utilization delta ", delta, "% exceeds effective threshold ",
+									effectiveThreshold, "% (weight ", cred.planWeight(), ")")
+								p.rebalanceCredential(cred.tagName())
+								break
+							}
+						}
+					}
 					return cred, false, nil
 				}
 			}
@@ -975,6 +1008,40 @@ func (p *balancerProvider) selectCredential(sessionID string, filter func(creden
 		p.sessionMutex.Unlock()
 	}
 	return best, isNew, nil
+}
+
+func (p *balancerProvider) rebalanceCredential(tag string) {
+	p.interruptAccess.Lock()
+	if entry, loaded := p.credentialInterrupts[tag]; loaded {
+		entry.cancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	p.credentialInterrupts[tag] = credentialInterruptEntry{context: ctx, cancel: cancel}
+	p.interruptAccess.Unlock()
+
+	p.sessionMutex.Lock()
+	for id, entry := range p.sessions {
+		if entry.tag == tag {
+			delete(p.sessions, id)
+		}
+	}
+	p.sessionMutex.Unlock()
+}
+
+func (p *balancerProvider) wrapProviderInterrupt(cred credential, requestContext *credentialRequestContext) {
+	tag := cred.tagName()
+	p.interruptAccess.Lock()
+	entry, loaded := p.credentialInterrupts[tag]
+	if !loaded {
+		ctx, cancel := context.WithCancel(context.Background())
+		entry = credentialInterruptEntry{context: ctx, cancel: cancel}
+		p.credentialInterrupts[tag] = entry
+	}
+	p.interruptAccess.Unlock()
+	stop := context.AfterFunc(entry.context, func() {
+		requestContext.cancelOnce.Do(requestContext.cancelFunc)
+	})
+	requestContext.addInterruptLink(stop)
 }
 
 func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential {
@@ -1166,6 +1233,8 @@ func (p *fallbackProvider) allCredentials() []credential {
 	return p.credentials
 }
 
+func (p *fallbackProvider) wrapProviderInterrupt(_ credential, _ *credentialRequestContext) {}
+
 func (p *fallbackProvider) close() {}
 
 func allCredentialsUnavailableError(credentials []credential) error {
@@ -1247,7 +1316,7 @@ func buildCredentialProviders(
 			if err != nil {
 				return nil, nil, err
 			}
-			providers[credOpt.Tag] = newBalancerProvider(subCredentials, credOpt.BalancerOptions.Strategy, time.Duration(credOpt.BalancerOptions.PollInterval), logger)
+			providers[credOpt.Tag] = newBalancerProvider(subCredentials, credOpt.BalancerOptions.Strategy, time.Duration(credOpt.BalancerOptions.PollInterval), credOpt.BalancerOptions.RebalanceThreshold, logger)
 		case "fallback":
 			subCredentials, err := resolveCredentialTags(credOpt.FallbackOptions.Credentials, allCredentialMap, credOpt.Tag)
 			if err != nil {
@@ -1345,6 +1414,9 @@ func validateCCMOptions(options option.CCMServiceOptions) error {
 				case "", "least_used", "round_robin", "random":
 				default:
 					return E.New("credential ", cred.Tag, ": unknown balancer strategy: ", cred.BalancerOptions.Strategy)
+				}
+				if cred.BalancerOptions.RebalanceThreshold < 0 {
+					return E.New("credential ", cred.Tag, ": rebalance_threshold must not be negative")
 				}
 			}
 		}
