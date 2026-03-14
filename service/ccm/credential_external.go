@@ -529,7 +529,9 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		return request, nil
 	})
 	if err != nil {
-		c.logger.Error("poll usage for ", c.tag, ": ", err)
+		if !c.isPollBackoffAtCap() {
+			c.logger.Error("poll usage for ", c.tag, ": ", err)
+		}
 		c.incrementPollFailures()
 		return
 	}
@@ -609,7 +611,18 @@ func (c *externalCredential) pollBackoff(baseInterval time.Duration) time.Durati
 	if failures <= 0 {
 		return baseInterval
 	}
-	return failedPollRetryInterval
+	backoff := failedPollRetryInterval * time.Duration(1<<(failures-1))
+	if backoff > httpRetryMaxBackoff {
+		return httpRetryMaxBackoff
+	}
+	return backoff
+}
+
+func (c *externalCredential) isPollBackoffAtCap() bool {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	failures := c.state.consecutivePollFailures
+	return failures > 0 && failedPollRetryInterval*time.Duration(1<<(failures-1)) >= httpRetryMaxBackoff
 }
 
 func (c *externalCredential) incrementPollFailures() {

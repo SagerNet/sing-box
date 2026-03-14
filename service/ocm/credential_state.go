@@ -29,6 +29,7 @@ import (
 const (
 	defaultPollInterval     = 60 * time.Minute
 	failedPollRetryInterval = time.Minute
+	httpRetryMaxBackoff     = 5 * time.Minute
 )
 
 const (
@@ -597,7 +598,18 @@ func (c *defaultCredential) pollBackoff(baseInterval time.Duration) time.Duratio
 	if failures <= 0 {
 		return baseInterval
 	}
-	return failedPollRetryInterval
+	backoff := failedPollRetryInterval * time.Duration(1<<(failures-1))
+	if backoff > httpRetryMaxBackoff {
+		return httpRetryMaxBackoff
+	}
+	return backoff
+}
+
+func (c *defaultCredential) isPollBackoffAtCap() bool {
+	c.stateMutex.RLock()
+	defer c.stateMutex.RUnlock()
+	failures := c.state.consecutivePollFailures
+	return failures > 0 && failedPollRetryInterval*time.Duration(1<<(failures-1)) >= httpRetryMaxBackoff
 }
 
 func (c *defaultCredential) earliestReset() time.Time {
@@ -633,7 +645,9 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 
 	accessToken, err := c.getAccessToken()
 	if err != nil {
-		c.logger.Error("poll usage for ", c.tag, ": get token: ", err)
+		if !c.isPollBackoffAtCap() {
+			c.logger.Error("poll usage for ", c.tag, ": get token: ", err)
+		}
 		c.incrementPollFailures()
 		return
 	}
@@ -663,7 +677,9 @@ func (c *defaultCredential) pollUsage(ctx context.Context) {
 		return request, nil
 	})
 	if err != nil {
-		c.logger.Error("poll usage for ", c.tag, ": ", err)
+		if !c.isPollBackoffAtCap() {
+			c.logger.Error("poll usage for ", c.tag, ": ", err)
+		}
 		c.incrementPollFailures()
 		return
 	}
