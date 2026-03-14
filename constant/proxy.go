@@ -38,6 +38,13 @@ const (
 	TypeURLTest  = "urltest"
 )
 
+const (
+	BalancerStrategyLeastUsed  = "least-used"
+	BalancerStrategyRoundRobin = "round-robin"
+	BalancerStrategyRandom     = "random"
+	BalancerStrategyFallback   = "fallback"
+)
+
 func ProxyDisplayName(proxyType string) string {
 	switch proxyType {
 	case TypeTun:

@@ -35,13 +35,13 @@ type CostCombination struct {
 type AggregatedUsage struct {
 	LastUpdated  time.Time         `json:"last_updated"`
 	Combinations []CostCombination `json:"combinations"`
-	mutex        sync.Mutex
+	access       sync.Mutex
 	filePath     string
 	logger       log.ContextLogger
 	lastSaveTime time.Time
 	pendingSave  bool
 	saveTimer    *time.Timer
-	saveMutex    sync.Mutex
+	saveAccess   sync.Mutex
 }
 
 type UsageStatsJSON struct {
@@ -527,8 +527,8 @@ func deriveWeekStartUnix(cycleHint *WeeklyCycleHint) int64 {
 }
 
 func (u *AggregatedUsage) ToJSON() *AggregatedUsageJSON {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
+	u.access.Lock()
+	defer u.access.Unlock()
 
 	result := &AggregatedUsageJSON{
 		LastUpdated: u.LastUpdated,
@@ -561,8 +561,8 @@ func (u *AggregatedUsage) ToJSON() *AggregatedUsageJSON {
 }
 
 func (u *AggregatedUsage) Load() error {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
+	u.access.Lock()
+	defer u.access.Unlock()
 
 	u.LastUpdated = time.Time{}
 	u.Combinations = nil
@@ -608,9 +608,9 @@ func (u *AggregatedUsage) Save() error {
 	defer os.Remove(tmpFile)
 	err = os.Rename(tmpFile, u.filePath)
 	if err == nil {
-		u.saveMutex.Lock()
+		u.saveAccess.Lock()
 		u.lastSaveTime = time.Now()
-		u.saveMutex.Unlock()
+		u.saveAccess.Unlock()
 	}
 	return err
 }
@@ -644,8 +644,8 @@ func (u *AggregatedUsage) AddUsageWithCycleHint(
 		observedAt = time.Now()
 	}
 
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
+	u.access.Lock()
+	defer u.access.Unlock()
 
 	u.LastUpdated = observedAt
 	weekStartUnix := deriveWeekStartUnix(cycleHint)
@@ -660,8 +660,8 @@ func (u *AggregatedUsage) AddUsageWithCycleHint(
 func (u *AggregatedUsage) scheduleSave() {
 	const saveInterval = time.Minute
 
-	u.saveMutex.Lock()
-	defer u.saveMutex.Unlock()
+	u.saveAccess.Lock()
+	defer u.saveAccess.Unlock()
 
 	timeSinceLastSave := time.Since(u.lastSaveTime)
 
@@ -678,9 +678,9 @@ func (u *AggregatedUsage) scheduleSave() {
 	remainingTime := saveInterval - timeSinceLastSave
 
 	u.saveTimer = time.AfterFunc(remainingTime, func() {
-		u.saveMutex.Lock()
+		u.saveAccess.Lock()
 		u.pendingSave = false
-		u.saveMutex.Unlock()
+		u.saveAccess.Unlock()
 		u.saveAsync()
 	})
 }
@@ -695,8 +695,8 @@ func (u *AggregatedUsage) saveAsync() {
 }
 
 func (u *AggregatedUsage) cancelPendingSave() {
-	u.saveMutex.Lock()
-	defer u.saveMutex.Unlock()
+	u.saveAccess.Lock()
+	defer u.saveAccess.Unlock()
 
 	if u.saveTimer != nil {
 		u.saveTimer.Stop()
