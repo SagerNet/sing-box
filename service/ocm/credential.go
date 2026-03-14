@@ -1,225 +1,194 @@
 package ocm
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
-	"os"
-	"os/user"
-	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
-	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 )
 
 const (
-	oauth2ClientID           = "app_EMoamEEZ73f0CkXaXp7hrann"
-	oauth2TokenURL           = "https://auth.openai.com/oauth/token"
-	openaiAPIBaseURL         = "https://api.openai.com"
-	chatGPTBackendURL        = "https://chatgpt.com/backend-api/codex"
-	tokenRefreshIntervalDays = 8
+	defaultPollInterval     = 60 * time.Minute
+	failedPollRetryInterval = time.Minute
+	httpRetryMaxBackoff     = 5 * time.Minute
 )
 
-func getRealUser() (*user.User, error) {
-	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-		sudoUserInfo, err := user.Lookup(sudoUser)
-		if err == nil {
-			return sudoUserInfo, nil
+const (
+	httpRetryMaxAttempts  = 3
+	httpRetryInitialDelay = 200 * time.Millisecond
+)
+
+const sessionExpiry = 24 * time.Hour
+
+func doHTTPWithRetry(ctx context.Context, client *http.Client, buildRequest func() (*http.Request, error)) (*http.Response, error) {
+	var lastError error
+	for attempt := range httpRetryMaxAttempts {
+		if attempt > 0 {
+			delay := httpRetryInitialDelay * time.Duration(1<<(attempt-1))
+			select {
+			case <-ctx.Done():
+				return nil, lastError
+			case <-time.After(delay):
+			}
 		}
-	}
-	return user.Current()
-}
-
-func getDefaultCredentialsPath() (string, error) {
-	if codexHome := os.Getenv("CODEX_HOME"); codexHome != "" {
-		return filepath.Join(codexHome, "auth.json"), nil
-	}
-	userInfo, err := getRealUser()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(userInfo.HomeDir, ".codex", "auth.json"), nil
-}
-
-func readCredentialsFromFile(path string) (*oauthCredentials, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var credentials oauthCredentials
-	err = json.Unmarshal(data, &credentials)
-	if err != nil {
-		return nil, err
-	}
-	return &credentials, nil
-}
-
-func checkCredentialFileWritable(path string) error {
-	file, err := os.OpenFile(path, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	return file.Close()
-}
-
-func writeCredentialsToFile(credentials *oauthCredentials, path string) error {
-	data, err := json.MarshalIndent(credentials, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
-}
-
-type oauthCredentials struct {
-	APIKey      string     `json:"OPENAI_API_KEY,omitempty"`
-	Tokens      *tokenData `json:"tokens,omitempty"`
-	LastRefresh *time.Time `json:"last_refresh,omitempty"`
-}
-
-type tokenData struct {
-	IDToken      string `json:"id_token,omitempty"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	AccountID    string `json:"account_id,omitempty"`
-}
-
-func (c *oauthCredentials) isAPIKeyMode() bool {
-	return c.APIKey != ""
-}
-
-func (c *oauthCredentials) getAccessToken() string {
-	if c.APIKey != "" {
-		return c.APIKey
-	}
-	if c.Tokens != nil {
-		return c.Tokens.AccessToken
-	}
-	return ""
-}
-
-func (c *oauthCredentials) getAccountID() string {
-	if c.Tokens != nil {
-		return c.Tokens.AccountID
-	}
-	return ""
-}
-
-func (c *oauthCredentials) needsRefresh() bool {
-	if c.APIKey != "" {
-		return false
-	}
-	if c.Tokens == nil || c.Tokens.RefreshToken == "" {
-		return false
-	}
-	if c.LastRefresh == nil {
-		return true
-	}
-	return time.Since(*c.LastRefresh) >= time.Duration(tokenRefreshIntervalDays)*24*time.Hour
-}
-
-func refreshToken(ctx context.Context, httpClient *http.Client, credentials *oauthCredentials) (*oauthCredentials, error) {
-	if credentials.Tokens == nil || credentials.Tokens.RefreshToken == "" {
-		return nil, E.New("refresh token is empty")
-	}
-
-	requestBody, err := json.Marshal(map[string]string{
-		"grant_type":    "refresh_token",
-		"refresh_token": credentials.Tokens.RefreshToken,
-		"client_id":     oauth2ClientID,
-		"scope":         "openid profile email",
-	})
-	if err != nil {
-		return nil, E.Cause(err, "marshal request")
-	}
-
-	response, err := doHTTPWithRetry(ctx, httpClient, func() (*http.Request, error) {
-		request, err := http.NewRequest("POST", oauth2TokenURL, bytes.NewReader(requestBody))
+		request, err := buildRequest()
 		if err != nil {
 			return nil, err
 		}
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Accept", "application/json")
-		return request, nil
+		response, err := client.Do(request)
+		if err == nil {
+			return response, nil
+		}
+		lastError = err
+		if ctx.Err() != nil {
+			return nil, lastError
+		}
+	}
+	return nil, lastError
+}
+
+type credentialState struct {
+	fiveHourUtilization       float64
+	fiveHourReset             time.Time
+	weeklyUtilization         float64
+	weeklyReset               time.Time
+	hardRateLimited           bool
+	rateLimitResetAt          time.Time
+	accountType               string
+	remotePlanWeight          float64
+	lastUpdated               time.Time
+	consecutivePollFailures   int
+	unavailable               bool
+	lastCredentialLoadAttempt time.Time
+	lastCredentialLoadError   string
+}
+
+type credentialRequestContext struct {
+	context.Context
+	releaseOnce  sync.Once
+	cancelOnce   sync.Once
+	releaseFuncs []func() bool
+	cancelFunc   context.CancelFunc
+}
+
+func (c *credentialRequestContext) addInterruptLink(stop func() bool) {
+	c.releaseFuncs = append(c.releaseFuncs, stop)
+}
+
+func (c *credentialRequestContext) releaseCredentialInterrupt() {
+	c.releaseOnce.Do(func() {
+		for _, f := range c.releaseFuncs {
+			f()
+		}
 	})
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode == http.StatusTooManyRequests {
-		body, _ := io.ReadAll(response.Body)
-		return nil, E.New("refresh rate limited: ", response.Status, " ", string(body))
-	}
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		return nil, E.New("refresh failed: ", response.Status, " ", string(body))
-	}
-
-	var tokenResponse struct {
-		IDToken      string `json:"id_token"`
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	err = json.NewDecoder(response.Body).Decode(&tokenResponse)
-	if err != nil {
-		return nil, E.Cause(err, "decode response")
-	}
-
-	newCredentials := *credentials
-	if newCredentials.Tokens == nil {
-		newCredentials.Tokens = &tokenData{}
-	}
-	if tokenResponse.IDToken != "" {
-		newCredentials.Tokens.IDToken = tokenResponse.IDToken
-	}
-	if tokenResponse.AccessToken != "" {
-		newCredentials.Tokens.AccessToken = tokenResponse.AccessToken
-	}
-	if tokenResponse.RefreshToken != "" {
-		newCredentials.Tokens.RefreshToken = tokenResponse.RefreshToken
-	}
-	now := time.Now()
-	newCredentials.LastRefresh = &now
-
-	return &newCredentials, nil
 }
 
-func cloneCredentials(credentials *oauthCredentials) *oauthCredentials {
-	if credentials == nil {
-		return nil
-	}
-	cloned := *credentials
-	if credentials.Tokens != nil {
-		clonedTokens := *credentials.Tokens
-		cloned.Tokens = &clonedTokens
-	}
-	if credentials.LastRefresh != nil {
-		lastRefresh := *credentials.LastRefresh
-		cloned.LastRefresh = &lastRefresh
-	}
-	return &cloned
+func (c *credentialRequestContext) cancelRequest() {
+	c.releaseCredentialInterrupt()
+	c.cancelOnce.Do(c.cancelFunc)
 }
 
-func credentialsEqual(left *oauthCredentials, right *oauthCredentials) bool {
-	if left == nil || right == nil {
-		return left == right
+type credential interface {
+	tagName() string
+	isAvailable() bool
+	isUsable() bool
+	isExternal() bool
+	fiveHourUtilization() float64
+	weeklyUtilization() float64
+	fiveHourCap() float64
+	weeklyCap() float64
+	planWeight() float64
+	weeklyResetTime() time.Time
+	markRateLimited(resetAt time.Time)
+	earliestReset() time.Time
+	unavailableError() error
+
+	getAccessToken() (string, error)
+	buildProxyRequest(ctx context.Context, original *http.Request, bodyBytes []byte, serviceHeaders http.Header) (*http.Request, error)
+	updateStateFromHeaders(header http.Header)
+
+	wrapRequestContext(ctx context.Context) *credentialRequestContext
+	interruptConnections()
+
+	setOnBecameUnusable(fn func())
+	start() error
+	pollUsage(ctx context.Context)
+	lastUpdatedTime() time.Time
+	pollBackoff(base time.Duration) time.Duration
+	usageTrackerOrNil() *AggregatedUsage
+	httpClient() *http.Client
+	close()
+
+	// OCM-specific
+	ocmDialer() N.Dialer
+	ocmIsAPIKeyMode() bool
+	ocmGetAccountID() string
+	ocmGetBaseURL() string
+}
+
+type credentialSelectionScope string
+
+const (
+	credentialSelectionScopeAll         credentialSelectionScope = "all"
+	credentialSelectionScopeNonExternal credentialSelectionScope = "non_external"
+)
+
+type credentialSelection struct {
+	scope  credentialSelectionScope
+	filter func(credential) bool
+}
+
+func (s credentialSelection) allows(cred credential) bool {
+	return s.filter == nil || s.filter(cred)
+}
+
+func (s credentialSelection) scopeOrDefault() credentialSelectionScope {
+	if s.scope == "" {
+		return credentialSelectionScopeAll
 	}
-	if left.APIKey != right.APIKey {
-		return false
+	return s.scope
+}
+
+func normalizeRateLimitIdentifier(limitIdentifier string) string {
+	trimmedIdentifier := strings.TrimSpace(strings.ToLower(limitIdentifier))
+	if trimmedIdentifier == "" {
+		return ""
 	}
-	if (left.Tokens == nil) != (right.Tokens == nil) {
-		return false
+	return strings.ReplaceAll(trimmedIdentifier, "_", "-")
+}
+
+func parseInt64Header(headers http.Header, headerName string) (int64, bool) {
+	headerValue := strings.TrimSpace(headers.Get(headerName))
+	if headerValue == "" {
+		return 0, false
 	}
-	if left.Tokens != nil && *left.Tokens != *right.Tokens {
-		return false
+	parsedValue, parseError := strconv.ParseInt(headerValue, 10, 64)
+	if parseError != nil {
+		return 0, false
 	}
-	if (left.LastRefresh == nil) != (right.LastRefresh == nil) {
-		return false
+	return parsedValue, true
+}
+
+func parseOCMRateLimitResetFromHeaders(headers http.Header) time.Time {
+	activeLimitIdentifier := normalizeRateLimitIdentifier(headers.Get("x-codex-active-limit"))
+	if activeLimitIdentifier != "" {
+		resetHeader := "x-" + activeLimitIdentifier + "-primary-reset-at"
+		if resetStr := headers.Get(resetHeader); resetStr != "" {
+			value, err := strconv.ParseInt(resetStr, 10, 64)
+			if err == nil {
+				return time.Unix(value, 0)
+			}
+		}
 	}
-	if left.LastRefresh != nil && !left.LastRefresh.Equal(*right.LastRefresh) {
-		return false
+	if retryAfter := headers.Get("Retry-After"); retryAfter != "" {
+		seconds, err := strconv.ParseInt(retryAfter, 10, 64)
+		if err == nil {
+			return time.Now().Add(time.Duration(seconds) * time.Second)
+		}
 	}
-	return true
+	return time.Now().Add(5 * time.Minute)
 }

@@ -62,10 +62,10 @@ func (c *defaultCredential) ensureCredentialWatcher() error {
 }
 
 func (c *defaultCredential) retryCredentialReloadIfNeeded() {
-	c.stateMutex.RLock()
+	c.stateAccess.RLock()
 	unavailable := c.state.unavailable
 	lastAttempt := c.state.lastCredentialLoadAttempt
-	c.stateMutex.RUnlock()
+	c.stateAccess.RUnlock()
 	if !unavailable {
 		return
 	}
@@ -84,10 +84,10 @@ func (c *defaultCredential) reloadCredentials(force bool) error {
 	c.reloadAccess.Lock()
 	defer c.reloadAccess.Unlock()
 
-	c.stateMutex.RLock()
+	c.stateAccess.RLock()
 	unavailable := c.state.unavailable
 	lastAttempt := c.state.lastCredentialLoadAttempt
-	c.stateMutex.RUnlock()
+	c.stateAccess.RUnlock()
 	if !force {
 		if !unavailable {
 			return nil
@@ -97,39 +97,39 @@ func (c *defaultCredential) reloadCredentials(force bool) error {
 		}
 	}
 
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	c.state.lastCredentialLoadAttempt = time.Now()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 
 	credentials, err := platformReadCredentials(c.credentialPath)
 	if err != nil {
 		return c.markCredentialsUnavailable(E.Cause(err, "read credentials"))
 	}
 
-	c.accessMutex.Lock()
+	c.access.Lock()
 	c.credentials = credentials
-	c.accessMutex.Unlock()
+	c.access.Unlock()
 
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	c.state.unavailable = false
 	c.state.lastCredentialLoadError = ""
 	c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 
 	return nil
 }
 
 func (c *defaultCredential) markCredentialsUnavailable(err error) error {
-	c.accessMutex.Lock()
+	c.access.Lock()
 	hadCredentials := c.credentials != nil
 	c.credentials = nil
-	c.accessMutex.Unlock()
+	c.access.Unlock()
 
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	c.state.unavailable = true
 	c.state.lastCredentialLoadError = err.Error()
 	shouldInterrupt := c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 
 	if shouldInterrupt && hadCredentials {
 		c.interruptConnections()

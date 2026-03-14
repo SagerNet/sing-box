@@ -29,16 +29,16 @@ import (
 const reverseProxyBaseURL = "http://reverse-proxy"
 
 type externalCredential struct {
-	tag          string
-	baseURL      string
-	token        string
-	httpClient   *http.Client
-	state        credentialState
-	stateMutex   sync.RWMutex
-	pollAccess   sync.Mutex
-	pollInterval time.Duration
-	usageTracker *AggregatedUsage
-	logger       log.ContextLogger
+	tag               string
+	baseURL           string
+	token             string
+	forwardHTTPClient *http.Client
+	state             credentialState
+	stateAccess       sync.RWMutex
+	pollAccess        sync.Mutex
+	pollInterval      time.Duration
+	usageTracker      *AggregatedUsage
+	logger            log.ContextLogger
 
 	onBecameUnusable func()
 	interrupted      bool
@@ -128,7 +128,7 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 	if options.URL == "" {
 		// Receiver mode: no URL, wait for reverse connection
 		cred.baseURL = reverseProxyBaseURL
-		cred.httpClient = &http.Client{
+		cred.forwardHTTPClient = &http.Client{
 			Transport: &http.Transport{
 				ForceAttemptHTTP2: false,
 				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -192,10 +192,10 @@ func newExternalCredential(ctx context.Context, tag string, options option.CCMEx
 					Time:       ntp.TimeFuncFromContext(ctx),
 				}
 			}
-			cred.httpClient = &http.Client{Transport: transport}
+			cred.forwardHTTPClient = &http.Client{Transport: transport}
 		} else {
 			// Normal mode: standard HTTP client for proxying
-			cred.httpClient = &http.Client{Transport: transport}
+			cred.forwardHTTPClient = &http.Client{Transport: transport}
 			cred.reverseHttpClient = &http.Client{
 				Transport: &http.Transport{
 					ForceAttemptHTTP2: false,
@@ -248,40 +248,40 @@ func (c *externalCredential) isUsable() bool {
 	if !c.isAvailable() {
 		return false
 	}
-	c.stateMutex.RLock()
+	c.stateAccess.RLock()
 	if c.state.consecutivePollFailures > 0 {
-		c.stateMutex.RUnlock()
+		c.stateAccess.RUnlock()
 		return false
 	}
 	if c.state.hardRateLimited {
 		if time.Now().Before(c.state.rateLimitResetAt) {
-			c.stateMutex.RUnlock()
+			c.stateAccess.RUnlock()
 			return false
 		}
-		c.stateMutex.RUnlock()
-		c.stateMutex.Lock()
+		c.stateAccess.RUnlock()
+		c.stateAccess.Lock()
 		if c.state.hardRateLimited && !time.Now().Before(c.state.rateLimitResetAt) {
 			c.state.hardRateLimited = false
 		}
 		// No reserve for external: only 100% is unusable
 		usable := c.state.fiveHourUtilization < 100 && c.state.weeklyUtilization < 100
-		c.stateMutex.Unlock()
+		c.stateAccess.Unlock()
 		return usable
 	}
 	usable := c.state.fiveHourUtilization < 100 && c.state.weeklyUtilization < 100
-	c.stateMutex.RUnlock()
+	c.stateAccess.RUnlock()
 	return usable
 }
 
 func (c *externalCredential) fiveHourUtilization() float64 {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	return c.state.fiveHourUtilization
 }
 
 func (c *externalCredential) weeklyUtilization() float64 {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	return c.state.weeklyUtilization
 }
 
@@ -294,8 +294,8 @@ func (c *externalCredential) weeklyCap() float64 {
 }
 
 func (c *externalCredential) planWeight() float64 {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	if c.state.remotePlanWeight > 0 {
 		return c.state.remotePlanWeight
 	}
@@ -303,26 +303,26 @@ func (c *externalCredential) planWeight() float64 {
 }
 
 func (c *externalCredential) weeklyResetTime() time.Time {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	return c.state.weeklyReset
 }
 
 func (c *externalCredential) markRateLimited(resetAt time.Time) {
 	c.logger.Warn("rate limited for ", c.tag, ", reset in ", log.FormatDuration(time.Until(resetAt)))
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	c.state.hardRateLimited = true
 	c.state.rateLimitResetAt = resetAt
 	shouldInterrupt := c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 	if shouldInterrupt {
 		c.interruptConnections()
 	}
 }
 
 func (c *externalCredential) earliestReset() time.Time {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	if c.state.hardRateLimited {
 		return c.state.rateLimitResetAt
 	}
@@ -408,7 +408,7 @@ func (c *externalCredential) openReverseConnection(ctx context.Context) (net.Con
 }
 
 func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	isFirstUpdate := c.state.lastUpdated.IsZero()
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
@@ -455,7 +455,7 @@ func (c *externalCredential) updateStateFromHeaders(headers http.Header) {
 		c.logger.Debug("usage update for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 	if shouldInterrupt {
 		c.interruptConnections()
 	}
@@ -530,9 +530,9 @@ func (c *externalCredential) doPollUsageRequest(ctx context.Context) (*http.Resp
 		}
 	}
 	// Forward transport with retries
-	if c.httpClient != nil {
+	if c.forwardHTTPClient != nil {
 		forwardClient := &http.Client{
-			Transport: c.httpClient.Transport,
+			Transport: c.forwardHTTPClient.Transport,
 			Timeout:   5 * time.Second,
 		}
 		return doHTTPWithRetry(ctx, forwardClient, buildRequest(c.baseURL))
@@ -563,10 +563,10 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		// 404 means the remote does not have a status endpoint yet;
 		// usage will be updated passively from response headers.
 		if response.StatusCode == http.StatusNotFound {
-			c.stateMutex.Lock()
+			c.stateAccess.Lock()
 			c.state.consecutivePollFailures = 0
 			c.checkTransitionLocked()
-			c.stateMutex.Unlock()
+			c.stateAccess.Unlock()
 		} else {
 			c.incrementPollFailures()
 		}
@@ -585,7 +585,7 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		return
 	}
 
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	isFirstUpdate := c.state.lastUpdated.IsZero()
 	oldFiveHour := c.state.fiveHourUtilization
 	oldWeekly := c.state.weeklyUtilization
@@ -606,28 +606,28 @@ func (c *externalCredential) pollUsage(ctx context.Context) {
 		c.logger.Debug("poll usage for ", c.tag, ": 5h=", c.state.fiveHourUtilization, "%, weekly=", c.state.weeklyUtilization, "%", resetSuffix)
 	}
 	shouldInterrupt := c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 	if shouldInterrupt {
 		c.interruptConnections()
 	}
 }
 
 func (c *externalCredential) lastUpdatedTime() time.Time {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	return c.state.lastUpdated
 }
 
 func (c *externalCredential) markUsagePollAttempted() {
-	c.stateMutex.Lock()
-	defer c.stateMutex.Unlock()
+	c.stateAccess.Lock()
+	defer c.stateAccess.Unlock()
 	c.state.lastUpdated = time.Now()
 }
 
 func (c *externalCredential) pollBackoff(baseInterval time.Duration) time.Duration {
-	c.stateMutex.RLock()
+	c.stateAccess.RLock()
 	failures := c.state.consecutivePollFailures
-	c.stateMutex.RUnlock()
+	c.stateAccess.RUnlock()
 	if failures <= 0 {
 		return baseInterval
 	}
@@ -639,17 +639,17 @@ func (c *externalCredential) pollBackoff(baseInterval time.Duration) time.Durati
 }
 
 func (c *externalCredential) isPollBackoffAtCap() bool {
-	c.stateMutex.RLock()
-	defer c.stateMutex.RUnlock()
+	c.stateAccess.RLock()
+	defer c.stateAccess.RUnlock()
 	failures := c.state.consecutivePollFailures
 	return failures > 0 && failedPollRetryInterval*time.Duration(1<<(failures-1)) >= httpRetryMaxBackoff
 }
 
 func (c *externalCredential) incrementPollFailures() {
-	c.stateMutex.Lock()
+	c.stateAccess.Lock()
 	c.state.consecutivePollFailures++
 	shouldInterrupt := c.checkTransitionLocked()
-	c.stateMutex.Unlock()
+	c.stateAccess.Unlock()
 	if shouldInterrupt {
 		c.interruptConnections()
 	}
@@ -659,14 +659,14 @@ func (c *externalCredential) usageTrackerOrNil() *AggregatedUsage {
 	return c.usageTracker
 }
 
-func (c *externalCredential) httpTransport() *http.Client {
+func (c *externalCredential) httpClient() *http.Client {
 	if c.reverseHttpClient != nil {
 		session := c.getReverseSession()
 		if session != nil && !session.IsClosed() {
 			return c.reverseHttpClient
 		}
 	}
-	return c.httpClient
+	return c.forwardHTTPClient
 }
 
 func (c *externalCredential) close() {

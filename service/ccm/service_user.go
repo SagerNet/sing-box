@@ -7,13 +7,13 @@ import (
 )
 
 type UserManager struct {
-	accessMutex sync.RWMutex
+	access sync.RWMutex
 	tokenMap    map[string]string
 }
 
 func (m *UserManager) UpdateUsers(users []option.CCMUser) {
-	m.accessMutex.Lock()
-	defer m.accessMutex.Unlock()
+	m.access.Lock()
+	defer m.access.Unlock()
 	tokenMap := make(map[string]string, len(users))
 	for _, user := range users {
 		tokenMap[user.Token] = user.Name
@@ -22,8 +22,8 @@ func (m *UserManager) UpdateUsers(users []option.CCMUser) {
 }
 
 func (m *UserManager) Authenticate(token string) (string, bool) {
-	m.accessMutex.RLock()
+	m.access.RLock()
 	username, found := m.tokenMap[token]
-	m.accessMutex.RUnlock()
+	m.access.RUnlock()
 	return username, found
 }
