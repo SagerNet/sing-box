@@ -93,17 +93,6 @@ func (s *Service) handleWebSocket(
 	credentialFilter func(credential) bool,
 	isNew bool,
 ) {
-	if isNew {
-		logParts := []any{"assigned credential ", selectedCredential.tagName()}
-		if sessionID != "" {
-			logParts = append(logParts, " for session ", sessionID)
-		}
-		if username != "" {
-			logParts = append(logParts, " by user ", username)
-		}
-		s.logger.Debug(logParts...)
-	}
-
 	var (
 		err                     error
 		upstreamConn            net.Conn
@@ -256,7 +245,7 @@ func (s *Service) handleWebSocket(
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, selectedCredential, modelChannel)
+		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, selectedCredential, modelChannel, isNew, username, sessionID)
 	}()
 	go func() {
 		defer waitGroup.Done()
@@ -266,7 +255,8 @@ func (s *Service) handleWebSocket(
 	waitGroup.Wait()
 }
 
-func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string) {
+func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string, isNew bool, username string, sessionID string) {
+	logged := false
 	for {
 		data, opCode, err := wsutil.ReadClientData(clientConn)
 		if err != nil {
@@ -278,11 +268,26 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 
 		if opCode == ws.OpText {
 			var request struct {
-				Type  string `json:"type"`
-				Model string `json:"model"`
+				Type        string `json:"type"`
+				Model       string `json:"model"`
+				ServiceTier string `json:"service_tier"`
 			}
 			if json.Unmarshal(data, &request) == nil && request.Type == "response.create" && request.Model != "" {
-				s.logger.Debug("model=", request.Model)
+				if isNew && !logged {
+					logged = true
+					logParts := []any{"assigned credential ", selectedCredential.tagName()}
+					if sessionID != "" {
+						logParts = append(logParts, " for session ", sessionID)
+					}
+					if username != "" {
+						logParts = append(logParts, " by user ", username)
+					}
+					logParts = append(logParts, ", model=", request.Model)
+					if request.ServiceTier == "priority" {
+						logParts = append(logParts, ", fast")
+					}
+					s.logger.Debug(logParts...)
+				}
 				if selectedCredential.usageTrackerOrNil() != nil {
 					select {
 					case modelChannel <- request.Model:
