@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
+	boxtls "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -61,8 +62,8 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		storage = certmagic.Default.Storage
 	}
 	zapLogger := zap.New(zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig()),
-		&logWriter{logger: logger},
+		zapcore.NewConsoleEncoder(boxtls.ACMEEncoderConfig()),
+		&boxtls.ACMELogWriter{Logger: logger},
 		zap.DebugLevel,
 	))
 	config := &certmagic.Config{

@@ -1,6 +1,4 @@
-//go:build with_acme
-
-package acme
+package tls
 
 import (
 	"strings"
@@ -11,32 +9,32 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type logWriter struct {
-	logger logger.Logger
+type ACMELogWriter struct {
+	Logger logger.Logger
 }
 
-func (w *logWriter) Write(p []byte) (n int, err error) {
+func (w *ACMELogWriter) Write(p []byte) (n int, err error) {
 	logLine := strings.ReplaceAll(string(p), "	", ": ")
 	switch {
 	case strings.HasPrefix(logLine, "error: "):
-		w.logger.Error(logLine[7:])
+		w.Logger.Error(logLine[7:])
 	case strings.HasPrefix(logLine, "warn: "):
-		w.logger.Warn(logLine[6:])
+		w.Logger.Warn(logLine[6:])
 	case strings.HasPrefix(logLine, "info: "):
-		w.logger.Info(logLine[6:])
+		w.Logger.Info(logLine[6:])
 	case strings.HasPrefix(logLine, "debug: "):
-		w.logger.Debug(logLine[7:])
+		w.Logger.Debug(logLine[7:])
 	default:
-		w.logger.Debug(logLine)
+		w.Logger.Debug(logLine)
 	}
 	return len(p), nil
 }
 
-func (w *logWriter) Sync() error {
+func (w *ACMELogWriter) Sync() error {
 	return nil
 }
 
-func encoderConfig() zapcore.EncoderConfig {
+func ACMEEncoderConfig() zapcore.EncoderConfig {
 	config := zap.NewProductionEncoderConfig()
 	config.TimeKey = zapcore.OmitKey
 	return config
