@@ -1,3 +1,5 @@
 package tls
 
-const ACMETLS1Protocol = "acme-tls/1"
+import C "github.com/sagernet/sing-box/constant"
+
+const ACMETLS1Protocol = C.ACMETLS1Protocol
