@@ -26,16 +26,24 @@ import (
 )
 
 type webSocketSession struct {
-	clientConn    net.Conn
-	upstreamConn  net.Conn
-	credentialTag string
-	closeOnce     sync.Once
+	clientConn               net.Conn
+	upstreamConn             net.Conn
+	credentialTag            string
+	releaseProviderInterrupt func()
+	closeOnce                sync.Once
 }
 
 func (s *webSocketSession) Close() {
 	s.closeOnce.Do(func() {
-		s.clientConn.Close()
-		s.upstreamConn.Close()
+		if s.releaseProviderInterrupt != nil {
+			s.releaseProviderInterrupt()
+		}
+		if s.clientConn != nil {
+			s.clientConn.Close()
+		}
+		if s.upstreamConn != nil {
+			s.upstreamConn.Close()
+		}
 	})
 }
 
@@ -91,12 +99,14 @@ func (s *Service) handleWebSocket(
 	userConfig *option.OCMUser,
 	provider credentialProvider,
 	selectedCredential credential,
-	credentialFilter func(credential) bool,
+	selection credentialSelection,
 	isNew bool,
 ) {
 	var (
 		err                     error
 		requestContext          *credentialRequestContext
+		clientConn              net.Conn
+		session                 *webSocketSession
 		upstreamConn            net.Conn
 		upstreamBufferedReader  *bufio.Reader
 		upstreamResponseHeaders http.Header
@@ -186,20 +196,36 @@ func (s *Service) handleWebSocket(
 		}
 
 		requestContext = selectedCredential.wrapRequestContext(ctx)
-		provider.wrapProviderInterrupt(selectedCredential, requestContext)
+		{
+			currentRequestContext := requestContext
+			requestContext.addInterruptLink(provider.linkProviderInterrupt(selectedCredential, selection, func() {
+				currentRequestContext.cancelOnce.Do(currentRequestContext.cancelFunc)
+				if session != nil {
+					session.Close()
+					return
+				}
+				if clientConn != nil {
+					clientConn.Close()
+				}
+				if upstreamConn != nil {
+					upstreamConn.Close()
+				}
+			}))
+		}
 		upstreamConn, upstreamBufferedReader, _, err = upstreamDialer.Dial(requestContext, upstreamURL)
 		if err == nil {
-			requestContext.releaseCredentialInterrupt()
 			break
 		}
 		requestContext.cancelRequest()
 		requestContext = nil
+		upstreamConn = nil
+		clientConn = nil
 		if statusCode == http.StatusTooManyRequests {
 			resetAt := parseOCMRateLimitResetFromHeaders(upstreamResponseHeaders)
-			nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
+			nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, selection)
 			selectedCredential.updateStateFromHeaders(upstreamResponseHeaders)
 			if nextCredential == nil {
-				writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
+				writeCredentialUnavailableError(w, r, provider, selectedCredential, selection, "all credentials rate-limited")
 				return
 			}
 			s.logger.InfoContext(ctx, "retrying websocket with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
@@ -236,16 +262,17 @@ func (s *Service) handleWebSocket(
 		writeJSONError(w, r, http.StatusServiceUnavailable, "api_error", "service is shutting down")
 		return
 	}
-	clientConn, _, _, err := clientUpgrader.Upgrade(r, w)
+	clientConn, _, _, err = clientUpgrader.Upgrade(r, w)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "upgrade client websocket: ", err)
 		upstreamConn.Close()
 		return
 	}
-	session := &webSocketSession{
-		clientConn:    clientConn,
-		upstreamConn:  upstreamConn,
-		credentialTag: selectedCredential.tagName(),
+	session = &webSocketSession{
+		clientConn:               clientConn,
+		upstreamConn:             upstreamConn,
+		credentialTag:            selectedCredential.tagName(),
+		releaseProviderInterrupt: requestContext.releaseCredentialInterrupt,
 	}
 	if !s.registerWebSocketSession(session) {
 		session.Close()

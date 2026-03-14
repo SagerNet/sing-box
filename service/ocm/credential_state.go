@@ -852,12 +852,35 @@ func (c *defaultCredential) buildProxyRequest(ctx context.Context, original *htt
 }
 
 type credentialProvider interface {
-	selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error)
-	onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential
-	wrapProviderInterrupt(cred credential, requestContext *credentialRequestContext)
+	selectCredential(sessionID string, selection credentialSelection) (credential, bool, error)
+	onRateLimited(sessionID string, cred credential, resetAt time.Time, selection credentialSelection) credential
+	linkProviderInterrupt(cred credential, selection credentialSelection, onInterrupt func()) func() bool
 	pollIfStale(ctx context.Context)
 	allCredentials() []credential
 	close()
+}
+
+type credentialSelectionScope string
+
+const (
+	credentialSelectionScopeAll         credentialSelectionScope = "all"
+	credentialSelectionScopeNonExternal credentialSelectionScope = "non_external"
+)
+
+type credentialSelection struct {
+	scope  credentialSelectionScope
+	filter func(credential) bool
+}
+
+func (s credentialSelection) allows(cred credential) bool {
+	return s.filter == nil || s.filter(cred)
+}
+
+func (s credentialSelection) scopeOrDefault() credentialSelectionScope {
+	if s.scope == "" {
+		return credentialSelectionScopeAll
+	}
+	return s.scope
 }
 
 type singleCredentialProvider struct {
@@ -866,8 +889,8 @@ type singleCredentialProvider struct {
 	sessions      map[string]time.Time
 }
 
-func (p *singleCredentialProvider) selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error) {
-	if filter != nil && !filter(p.cred) {
+func (p *singleCredentialProvider) selectCredential(sessionID string, selection credentialSelection) (credential, bool, error) {
+	if !selection.allows(p.cred) {
 		return nil, false, E.New("credential ", p.cred.tagName(), " is filtered out")
 	}
 	if !p.cred.isAvailable() {
@@ -892,7 +915,7 @@ func (p *singleCredentialProvider) selectCredential(sessionID string, filter fun
 	return p.cred, isNew, nil
 }
 
-func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, resetAt time.Time, _ func(credential) bool) credential {
+func (p *singleCredentialProvider) onRateLimited(_ string, cred credential, resetAt time.Time, _ credentialSelection) credential {
 	cred.markRateLimited(resetAt)
 	return nil
 }
@@ -916,15 +939,25 @@ func (p *singleCredentialProvider) allCredentials() []credential {
 	return []credential{p.cred}
 }
 
-func (p *singleCredentialProvider) wrapProviderInterrupt(_ credential, _ *credentialRequestContext) {}
+func (p *singleCredentialProvider) linkProviderInterrupt(_ credential, _ credentialSelection, _ func()) func() bool {
+	return func() bool {
+		return false
+	}
+}
 
 func (p *singleCredentialProvider) close() {}
 
 const sessionExpiry = 24 * time.Hour
 
 type sessionEntry struct {
-	tag       string
-	createdAt time.Time
+	tag            string
+	selectionScope credentialSelectionScope
+	createdAt      time.Time
+}
+
+type credentialInterruptKey struct {
+	tag            string
+	selectionScope credentialSelectionScope
 }
 
 type credentialInterruptEntry struct {
@@ -941,7 +974,7 @@ type balancerProvider struct {
 	sessionMutex         sync.RWMutex
 	sessions             map[string]sessionEntry
 	interruptAccess      sync.Mutex
-	credentialInterrupts map[string]credentialInterruptEntry
+	credentialInterrupts map[credentialInterruptKey]credentialInterruptEntry
 	logger               log.ContextLogger
 }
 
@@ -959,34 +992,37 @@ func newBalancerProvider(credentials []credential, strategy string, pollInterval
 		pollInterval:         pollInterval,
 		rebalanceThreshold:   rebalanceThreshold,
 		sessions:             make(map[string]sessionEntry),
-		credentialInterrupts: make(map[string]credentialInterruptEntry),
+		credentialInterrupts: make(map[credentialInterruptKey]credentialInterruptEntry),
 		logger:               logger,
 	}
 }
 
-func (p *balancerProvider) selectCredential(sessionID string, filter func(credential) bool) (credential, bool, error) {
+func (p *balancerProvider) selectCredential(sessionID string, selection credentialSelection) (credential, bool, error) {
+	selectionScope := selection.scopeOrDefault()
 	if sessionID != "" {
 		p.sessionMutex.RLock()
 		entry, exists := p.sessions[sessionID]
 		p.sessionMutex.RUnlock()
 		if exists {
-			for _, cred := range p.credentials {
-				if cred.tagName() == entry.tag && compositeCredentialSelectable(cred) && (filter == nil || filter(cred)) && cred.isUsable() {
-					if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == "least_used") {
-						better := p.pickLeastUsed(filter)
-						if better != nil && better.tagName() != cred.tagName() {
-							effectiveThreshold := p.rebalanceThreshold / cred.planWeight()
-							delta := cred.weeklyUtilization() - better.weeklyUtilization()
-							if delta > effectiveThreshold {
-								p.logger.Info("rebalancing away from ", cred.tagName(),
-									": utilization delta ", delta, "% exceeds effective threshold ",
-									effectiveThreshold, "% (weight ", cred.planWeight(), ")")
-								p.rebalanceCredential(cred.tagName())
-								break
+			if entry.selectionScope == selectionScope {
+				for _, cred := range p.credentials {
+					if cred.tagName() == entry.tag && compositeCredentialSelectable(cred) && selection.allows(cred) && cred.isUsable() {
+						if p.rebalanceThreshold > 0 && (p.strategy == "" || p.strategy == "least_used") {
+							better := p.pickLeastUsed(selection.filter)
+							if better != nil && better.tagName() != cred.tagName() {
+								effectiveThreshold := p.rebalanceThreshold / cred.planWeight()
+								delta := cred.weeklyUtilization() - better.weeklyUtilization()
+								if delta > effectiveThreshold {
+									p.logger.Info("rebalancing away from ", cred.tagName(),
+										": utilization delta ", delta, "% exceeds effective threshold ",
+										effectiveThreshold, "% (weight ", cred.planWeight(), ")")
+									p.rebalanceCredential(cred.tagName(), selectionScope)
+									break
+								}
 							}
 						}
+						return cred, false, nil
 					}
-					return cred, false, nil
 				}
 			}
 			p.sessionMutex.Lock()
@@ -995,7 +1031,7 @@ func (p *balancerProvider) selectCredential(sessionID string, filter func(creden
 		}
 	}
 
-	best := p.pickCredential(filter)
+	best := p.pickCredential(selection.filter)
 	if best == nil {
 		return nil, false, allRateLimitedError(p.credentials)
 	}
@@ -1003,47 +1039,52 @@ func (p *balancerProvider) selectCredential(sessionID string, filter func(creden
 	isNew := sessionID != ""
 	if isNew {
 		p.sessionMutex.Lock()
-		p.sessions[sessionID] = sessionEntry{tag: best.tagName(), createdAt: time.Now()}
+		p.sessions[sessionID] = sessionEntry{
+			tag:            best.tagName(),
+			selectionScope: selectionScope,
+			createdAt:      time.Now(),
+		}
 		p.sessionMutex.Unlock()
 	}
 	return best, isNew, nil
 }
 
-func (p *balancerProvider) rebalanceCredential(tag string) {
+func (p *balancerProvider) rebalanceCredential(tag string, selectionScope credentialSelectionScope) {
+	key := credentialInterruptKey{tag: tag, selectionScope: selectionScope}
 	p.interruptAccess.Lock()
-	if entry, loaded := p.credentialInterrupts[tag]; loaded {
+	if entry, loaded := p.credentialInterrupts[key]; loaded {
 		entry.cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	p.credentialInterrupts[tag] = credentialInterruptEntry{context: ctx, cancel: cancel}
+	p.credentialInterrupts[key] = credentialInterruptEntry{context: ctx, cancel: cancel}
 	p.interruptAccess.Unlock()
 
 	p.sessionMutex.Lock()
 	for id, entry := range p.sessions {
-		if entry.tag == tag {
+		if entry.tag == tag && entry.selectionScope == selectionScope {
 			delete(p.sessions, id)
 		}
 	}
 	p.sessionMutex.Unlock()
 }
 
-func (p *balancerProvider) wrapProviderInterrupt(cred credential, requestContext *credentialRequestContext) {
-	tag := cred.tagName()
+func (p *balancerProvider) linkProviderInterrupt(cred credential, selection credentialSelection, onInterrupt func()) func() bool {
+	key := credentialInterruptKey{
+		tag:            cred.tagName(),
+		selectionScope: selection.scopeOrDefault(),
+	}
 	p.interruptAccess.Lock()
-	entry, loaded := p.credentialInterrupts[tag]
+	entry, loaded := p.credentialInterrupts[key]
 	if !loaded {
 		ctx, cancel := context.WithCancel(context.Background())
 		entry = credentialInterruptEntry{context: ctx, cancel: cancel}
-		p.credentialInterrupts[tag] = entry
+		p.credentialInterrupts[key] = entry
 	}
 	p.interruptAccess.Unlock()
-	stop := context.AfterFunc(entry.context, func() {
-		requestContext.cancelOnce.Do(requestContext.cancelFunc)
-	})
-	requestContext.addInterruptLink(stop)
+	return context.AfterFunc(entry.context, onInterrupt)
 }
 
-func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, filter func(credential) bool) credential {
+func (p *balancerProvider) onRateLimited(sessionID string, cred credential, resetAt time.Time, selection credentialSelection) credential {
 	cred.markRateLimited(resetAt)
 	if sessionID != "" {
 		p.sessionMutex.Lock()
@@ -1051,10 +1092,14 @@ func (p *balancerProvider) onRateLimited(sessionID string, cred credential, rese
 		p.sessionMutex.Unlock()
 	}
 
-	best := p.pickCredential(filter)
+	best := p.pickCredential(selection.filter)
 	if best != nil && sessionID != "" {
 		p.sessionMutex.Lock()
-		p.sessions[sessionID] = sessionEntry{tag: best.tagName(), createdAt: time.Now()}
+		p.sessions[sessionID] = sessionEntry{
+			tag:            best.tagName(),
+			selectionScope: selection.scopeOrDefault(),
+			createdAt:      time.Now(),
+		}
 		p.sessionMutex.Unlock()
 	}
 	return best
@@ -1193,9 +1238,9 @@ func newFallbackProvider(credentials []credential, pollInterval time.Duration, l
 	}
 }
 
-func (p *fallbackProvider) selectCredential(_ string, filter func(credential) bool) (credential, bool, error) {
+func (p *fallbackProvider) selectCredential(_ string, selection credentialSelection) (credential, bool, error) {
 	for _, cred := range p.credentials {
-		if filter != nil && !filter(cred) {
+		if !selection.allows(cred) {
 			continue
 		}
 		if !compositeCredentialSelectable(cred) {
@@ -1208,10 +1253,10 @@ func (p *fallbackProvider) selectCredential(_ string, filter func(credential) bo
 	return nil, false, allRateLimitedError(p.credentials)
 }
 
-func (p *fallbackProvider) onRateLimited(_ string, cred credential, resetAt time.Time, filter func(credential) bool) credential {
+func (p *fallbackProvider) onRateLimited(_ string, cred credential, resetAt time.Time, selection credentialSelection) credential {
 	cred.markRateLimited(resetAt)
 	for _, candidate := range p.credentials {
-		if filter != nil && !filter(candidate) {
+		if !selection.allows(candidate) {
 			continue
 		}
 		if !compositeCredentialSelectable(candidate) {
@@ -1236,7 +1281,11 @@ func (p *fallbackProvider) allCredentials() []credential {
 	return p.credentials
 }
 
-func (p *fallbackProvider) wrapProviderInterrupt(_ credential, _ *credentialRequestContext) {}
+func (p *fallbackProvider) linkProviderInterrupt(_ credential, _ credentialSelection, _ func()) func() bool {
+	return func() bool {
+		return false
+	}
+}
 
 func (p *fallbackProvider) close() {}
 

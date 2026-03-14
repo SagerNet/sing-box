@@ -75,7 +75,7 @@ const (
 	retryableUsageCode    = "credential_usage_exhausted"
 )
 
-func hasAlternativeCredential(provider credentialProvider, currentCredential credential, filter func(credential) bool) bool {
+func hasAlternativeCredential(provider credentialProvider, currentCredential credential, selection credentialSelection) bool {
 	if provider == nil || currentCredential == nil {
 		return false
 	}
@@ -83,7 +83,7 @@ func hasAlternativeCredential(provider credentialProvider, currentCredential cre
 		if cred == currentCredential {
 			continue
 		}
-		if filter != nil && !filter(cred) {
+		if !selection.allows(cred) {
 			continue
 		}
 		if cred.isUsable() {
@@ -117,14 +117,25 @@ func writeCredentialUnavailableError(
 	r *http.Request,
 	provider credentialProvider,
 	currentCredential credential,
-	filter func(credential) bool,
+	selection credentialSelection,
 	fallback string,
 ) {
-	if hasAlternativeCredential(provider, currentCredential, filter) {
+	if hasAlternativeCredential(provider, currentCredential, selection) {
 		writeRetryableUsageError(w, r)
 		return
 	}
 	writeNonRetryableCredentialError(w, unavailableCredentialMessage(provider, fallback))
+}
+
+func credentialSelectionForUser(userConfig *option.OCMUser) credentialSelection {
+	selection := credentialSelection{scope: credentialSelectionScopeAll}
+	if userConfig != nil && !userConfig.AllowExternalUsage {
+		selection.scope = credentialSelectionScopeNonExternal
+		selection.filter = func(cred credential) bool {
+			return !cred.isExternal()
+		}
+	}
+	return selection
 }
 
 func isHopByHopHeader(header string) bool {
@@ -426,19 +437,16 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	provider.pollIfStale(s.ctx)
 
-	var credentialFilter func(credential) bool
-	if userConfig != nil && !userConfig.AllowExternalUsage {
-		credentialFilter = func(c credential) bool { return !c.isExternal() }
-	}
+	selection := credentialSelectionForUser(userConfig)
 
-	selectedCredential, isNew, err := provider.selectCredential(sessionID, credentialFilter)
+	selectedCredential, isNew, err := provider.selectCredential(sessionID, selection)
 	if err != nil {
 		writeNonRetryableCredentialError(w, unavailableCredentialMessage(provider, err.Error()))
 		return
 	}
 
 	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
-		s.handleWebSocket(ctx, w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter, isNew)
+		s.handleWebSocket(ctx, w, r, path, username, sessionID, userConfig, provider, selectedCredential, selection, isNew)
 		return
 	}
 
@@ -500,7 +508,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestContext := selectedCredential.wrapRequestContext(ctx)
-	provider.wrapProviderInterrupt(selectedCredential, requestContext)
+	{
+		currentRequestContext := requestContext
+		requestContext.addInterruptLink(provider.linkProviderInterrupt(selectedCredential, selection, func() {
+			currentRequestContext.cancelOnce.Do(currentRequestContext.cancelFunc)
+		}))
+	}
 	defer func() {
 		requestContext.cancelRequest()
 	}()
@@ -517,7 +530,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if requestContext.Err() != nil {
-			writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "credential became unavailable while processing the request")
+			writeCredentialUnavailableError(w, r, provider, selectedCredential, selection, "credential became unavailable while processing the request")
 			return
 		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", err.Error())
@@ -528,19 +541,24 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Transparent 429 retry
 	for response.StatusCode == http.StatusTooManyRequests {
 		resetAt := parseOCMRateLimitResetFromHeaders(response.Header)
-		nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, credentialFilter)
+		nextCredential := provider.onRateLimited(sessionID, selectedCredential, resetAt, selection)
 		needsBodyReplay := r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodDelete
 		selectedCredential.updateStateFromHeaders(response.Header)
 		if (needsBodyReplay && bodyBytes == nil) || nextCredential == nil {
 			response.Body.Close()
-			writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
+			writeCredentialUnavailableError(w, r, provider, selectedCredential, selection, "all credentials rate-limited")
 			return
 		}
 		response.Body.Close()
 		s.logger.InfoContext(ctx, "retrying with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
 		requestContext.cancelRequest()
 		requestContext = nextCredential.wrapRequestContext(ctx)
-		provider.wrapProviderInterrupt(nextCredential, requestContext)
+		{
+			currentRequestContext := requestContext
+			requestContext.addInterruptLink(provider.linkProviderInterrupt(nextCredential, selection, func() {
+				currentRequestContext.cancelOnce.Do(currentRequestContext.cancelFunc)
+			}))
+		}
 		retryRequest, buildErr := nextCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
 		if buildErr != nil {
 			s.logger.ErrorContext(ctx, "retry request: ", buildErr)
@@ -553,7 +571,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if requestContext.Err() != nil {
-				writeCredentialUnavailableError(w, r, provider, nextCredential, credentialFilter, "credential became unavailable while retrying the request")
+				writeCredentialUnavailableError(w, r, provider, nextCredential, selection, "credential became unavailable while retrying the request")
 				return
 			}
 			s.logger.ErrorContext(ctx, "retry request: ", retryErr)
