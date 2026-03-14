@@ -52,7 +52,7 @@ func (l *yamuxNetListener) Addr() net.Addr {
 	return l.session.Addr()
 }
 
-func (s *Service) handleReverseConnect(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleReverseConnect(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Upgrade") != "reverse-proxy" {
 		writeJSONError(w, r, http.StatusBadRequest, "invalid_request_error", "missing Upgrade header")
 		return
@@ -71,21 +71,21 @@ func (s *Service) handleReverseConnect(w http.ResponseWriter, r *http.Request) {
 
 	receiverCredential := s.findReceiverCredential(clientToken)
 	if receiverCredential == nil {
-		s.logger.Warn("reverse connect failed from ", r.RemoteAddr, ": no matching receiver credential")
+		s.logger.WarnContext(ctx, "reverse connect failed from ", r.RemoteAddr, ": no matching receiver credential")
 		writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid reverse token")
 		return
 	}
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		s.logger.Error("reverse connect: hijack not supported")
+		s.logger.ErrorContext(ctx, "reverse connect: hijack not supported")
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "hijack not supported")
 		return
 	}
 
 	conn, bufferedReadWriter, err := hijacker.Hijack()
 	if err != nil {
-		s.logger.Error("reverse connect: hijack: ", err)
+		s.logger.ErrorContext(ctx, "reverse connect: hijack: ", err)
 		return
 	}
 
@@ -93,20 +93,20 @@ func (s *Service) handleReverseConnect(w http.ResponseWriter, r *http.Request) {
 	_, err = bufferedReadWriter.WriteString(response)
 	if err != nil {
 		conn.Close()
-		s.logger.Error("reverse connect: write upgrade response: ", err)
+		s.logger.ErrorContext(ctx, "reverse connect: write upgrade response: ", err)
 		return
 	}
 	err = bufferedReadWriter.Flush()
 	if err != nil {
 		conn.Close()
-		s.logger.Error("reverse connect: flush upgrade response: ", err)
+		s.logger.ErrorContext(ctx, "reverse connect: flush upgrade response: ", err)
 		return
 	}
 
 	session, err := yamux.Client(conn, reverseYamuxConfig())
 	if err != nil {
 		conn.Close()
-		s.logger.Error("reverse connect: create yamux client for ", receiverCredential.tagName(), ": ", err)
+		s.logger.ErrorContext(ctx, "reverse connect: create yamux client for ", receiverCredential.tagName(), ": ", err)
 		return
 	}
 
@@ -114,12 +114,12 @@ func (s *Service) handleReverseConnect(w http.ResponseWriter, r *http.Request) {
 		session.Close()
 		return
 	}
-	s.logger.Info("reverse connection established for ", receiverCredential.tagName(), " from ", r.RemoteAddr)
+	s.logger.InfoContext(ctx, "reverse connection established for ", receiverCredential.tagName(), " from ", r.RemoteAddr)
 
 	go func() {
 		<-session.CloseChan()
 		receiverCredential.clearReverseSession(session)
-		s.logger.Warn("reverse connection lost for ", receiverCredential.tagName())
+		s.logger.WarnContext(ctx, "reverse connection lost for ", receiverCredential.tagName())
 	}()
 }
 

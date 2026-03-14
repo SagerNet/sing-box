@@ -362,13 +362,14 @@ func (s *Service) resolveCredentialProvider(username string) (credentialProvider
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := log.ContextWithNewID(r.Context())
 	if r.URL.Path == "/ocm/v1/status" {
 		s.handleStatusEndpoint(w, r)
 		return
 	}
 
 	if r.URL.Path == "/ocm/v1/reverse" {
-		s.handleReverseConnect(w, r)
+		s.handleReverseConnect(ctx, w, r)
 		return
 	}
 
@@ -382,20 +383,20 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(s.options.Users) > 0 {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			s.logger.Warn("authentication failed for request from ", r.RemoteAddr, ": missing Authorization header")
+			s.logger.WarnContext(ctx, "authentication failed for request from ", r.RemoteAddr, ": missing Authorization header")
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "missing api key")
 			return
 		}
 		clientToken := strings.TrimPrefix(authHeader, "Bearer ")
 		if clientToken == authHeader {
-			s.logger.Warn("authentication failed for request from ", r.RemoteAddr, ": invalid Authorization format")
+			s.logger.WarnContext(ctx, "authentication failed for request from ", r.RemoteAddr, ": invalid Authorization format")
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key format")
 			return
 		}
 		var ok bool
 		username, ok = s.userManager.Authenticate(clientToken)
 		if !ok {
-			s.logger.Warn("authentication failed for request from ", r.RemoteAddr, ": unknown key: ", clientToken)
+			s.logger.WarnContext(ctx, "authentication failed for request from ", r.RemoteAddr, ": unknown key: ", clientToken)
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key")
 			return
 		}
@@ -411,7 +412,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 		provider, err = credentialForUser(s.userConfigMap, s.providers, s.legacyProvider, username)
 		if err != nil {
-			s.logger.Error("resolve credential: ", err)
+			s.logger.ErrorContext(ctx, "resolve credential: ", err)
 			writeJSONError(w, r, http.StatusInternalServerError, "api_error", err.Error())
 			return
 		}
@@ -437,7 +438,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
-		s.handleWebSocket(w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter, isNew)
+		s.handleWebSocket(ctx, w, r, path, username, sessionID, userConfig, provider, selectedCredential, credentialFilter, isNew)
 		return
 	}
 
@@ -465,7 +466,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if isJSONRequest {
 			bodyBytes, err = io.ReadAll(r.Body)
 			if err != nil {
-				s.logger.Error("read request body: ", err)
+				s.logger.ErrorContext(ctx, "read request body: ", err)
 				writeJSONError(w, r, http.StatusInternalServerError, "api_error", "failed to read request body")
 				return
 			}
@@ -495,7 +496,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if requestServiceTier == "priority" {
 			logParts = append(logParts, ", fast")
 		}
-		s.logger.Debug(logParts...)
+		s.logger.DebugContext(ctx, logParts...)
 	}
 
 	requestContext := selectedCredential.wrapRequestContext(r.Context())
@@ -504,7 +505,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	proxyRequest, err := selectedCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
 	if err != nil {
-		s.logger.Error("create proxy request: ", err)
+		s.logger.ErrorContext(ctx, "create proxy request: ", err)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error", "Internal server error")
 		return
 	}
@@ -535,12 +536,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.Body.Close()
-		s.logger.Info("retrying with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
+		s.logger.InfoContext(ctx, "retrying with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
 		requestContext.cancelRequest()
 		requestContext = nextCredential.wrapRequestContext(r.Context())
 		retryRequest, buildErr := nextCredential.buildProxyRequest(requestContext, r, bodyBytes, s.httpHeaders)
 		if buildErr != nil {
-			s.logger.Error("retry request: ", buildErr)
+			s.logger.ErrorContext(ctx, "retry request: ", buildErr)
 			writeJSONError(w, r, http.StatusBadGateway, "api_error", buildErr.Error())
 			return
 		}
@@ -553,7 +554,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				writeCredentialUnavailableError(w, r, provider, nextCredential, credentialFilter, "credential became unavailable while retrying the request")
 				return
 			}
-			s.logger.Error("retry request: ", retryErr)
+			s.logger.ErrorContext(ctx, "retry request: ", retryErr)
 			writeJSONError(w, r, http.StatusBadGateway, "api_error", retryErr.Error())
 			return
 		}
@@ -567,7 +568,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusTooManyRequests {
 		body, _ := io.ReadAll(response.Body)
-		s.logger.Error("upstream error from ", selectedCredential.tagName(), ": status ", response.StatusCode, " ", string(body))
+		s.logger.ErrorContext(ctx, "upstream error from ", selectedCredential.tagName(), ": status ", response.StatusCode, " ", string(body))
 		go selectedCredential.pollUsage(s.ctx)
 		writeJSONError(w, r, http.StatusInternalServerError, "api_error",
 			"proxy request (status "+strconv.Itoa(response.StatusCode)+"): "+string(body))
@@ -589,7 +590,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	usageTracker := selectedCredential.usageTrackerOrNil()
 	if usageTracker != nil && response.StatusCode == http.StatusOK &&
 		(path == "/v1/chat/completions" || strings.HasPrefix(path, "/v1/responses")) {
-		s.handleResponseWithTracking(w, response, usageTracker, path, requestModel, username)
+		s.handleResponseWithTracking(ctx, w, response, usageTracker, path, requestModel, username)
 	} else {
 		mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 		if err == nil && mediaType != "text/event-stream" {
@@ -598,7 +599,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			s.logger.Error("streaming not supported")
+			s.logger.ErrorContext(ctx, "streaming not supported")
 			return
 		}
 		buffer := make([]byte, buf.BufferSize)
@@ -607,7 +608,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if n > 0 {
 				_, writeError := w.Write(buffer[:n])
 				if writeError != nil {
-					s.logger.Error("write streaming response: ", writeError)
+					s.logger.ErrorContext(ctx, "write streaming response: ", writeError)
 					return
 				}
 				flusher.Flush()
@@ -619,7 +620,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, response *http.Response, usageTracker *AggregatedUsage, path string, requestModel string, username string) {
+func (s *Service) handleResponseWithTracking(ctx context.Context, writer http.ResponseWriter, response *http.Response, usageTracker *AggregatedUsage, path string, requestModel string, username string) {
 	isChatCompletions := path == "/v1/chat/completions"
 	weeklyCycleHint := extractWeeklyCycleHint(response.Header)
 	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
@@ -630,7 +631,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 	if !isStreaming {
 		bodyBytes, err := io.ReadAll(response.Body)
 		if err != nil {
-			s.logger.Error("read response body: ", err)
+			s.logger.ErrorContext(ctx, "read response body: ", err)
 			return
 		}
 
@@ -683,7 +684,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 
 	flusher, ok := writer.(http.Flusher)
 	if !ok {
-		s.logger.Error("streaming not supported")
+		s.logger.ErrorContext(ctx, "streaming not supported")
 		return
 	}
 
@@ -760,7 +761,7 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 
 			_, writeError := writer.Write(buffer[:n])
 			if writeError != nil {
-				s.logger.Error("write streaming response: ", writeError)
+				s.logger.ErrorContext(ctx, "write streaming response: ", writeError)
 				return
 			}
 			flusher.Flush()

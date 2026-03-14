@@ -82,6 +82,7 @@ func isForwardableWebSocketRequestHeader(key string) bool {
 }
 
 func (s *Service) handleWebSocket(
+	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
 	path string,
@@ -105,7 +106,7 @@ func (s *Service) handleWebSocket(
 	for {
 		accessToken, accessErr := selectedCredential.getAccessToken()
 		if accessErr != nil {
-			s.logger.Error("get access token for websocket: ", accessErr)
+			s.logger.ErrorContext(ctx, "get access token for websocket: ", accessErr)
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "authentication failed")
 			return
 		}
@@ -190,14 +191,14 @@ func (s *Service) handleWebSocket(
 				writeCredentialUnavailableError(w, r, provider, selectedCredential, credentialFilter, "all credentials rate-limited")
 				return
 			}
-			s.logger.Info("retrying websocket with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
+			s.logger.InfoContext(ctx, "retrying websocket with credential ", nextCredential.tagName(), " after 429 from ", selectedCredential.tagName())
 			selectedCredential = nextCredential
 			continue
 		}
 		if statusCode > 0 && statusResponseBody != "" {
-			s.logger.Error("dial upstream websocket: status ", statusCode, " body: ", statusResponseBody)
+			s.logger.ErrorContext(ctx, "dial upstream websocket: status ", statusCode, " body: ", statusResponseBody)
 		} else {
-			s.logger.Error("dial upstream websocket: ", err)
+			s.logger.ErrorContext(ctx, "dial upstream websocket: ", err)
 		}
 		writeJSONError(w, r, http.StatusBadGateway, "api_error", "upstream websocket connection failed")
 		return
@@ -226,7 +227,7 @@ func (s *Service) handleWebSocket(
 	}
 	clientConn, _, _, err := clientUpgrader.Upgrade(r, w)
 	if err != nil {
-		s.logger.Error("upgrade client websocket: ", err)
+		s.logger.ErrorContext(ctx, "upgrade client websocket: ", err)
 		upstreamConn.Close()
 		return
 	}
@@ -258,23 +259,23 @@ func (s *Service) handleWebSocket(
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketClientToUpstream(clientConn, upstreamConn, selectedCredential, modelChannel, isNew, username, sessionID)
+		s.proxyWebSocketClientToUpstream(ctx, clientConn, upstreamConn, selectedCredential, modelChannel, isNew, username, sessionID)
 	}()
 	go func() {
 		defer waitGroup.Done()
 		defer session.Close()
-		s.proxyWebSocketUpstreamToClient(upstreamReadWriter, clientConn, selectedCredential, userConfig, provider, modelChannel, username, weeklyCycleHint)
+		s.proxyWebSocketUpstreamToClient(ctx, upstreamReadWriter, clientConn, selectedCredential, userConfig, provider, modelChannel, username, weeklyCycleHint)
 	}()
 	waitGroup.Wait()
 }
 
-func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string, isNew bool, username string, sessionID string) {
+func (s *Service) proxyWebSocketClientToUpstream(ctx context.Context, clientConn net.Conn, upstreamConn net.Conn, selectedCredential credential, modelChannel chan<- string, isNew bool, username string, sessionID string) {
 	logged := false
 	for {
 		data, opCode, err := wsutil.ReadClientData(clientConn)
 		if err != nil {
 			if !E.IsClosedOrCanceled(err) {
-				s.logger.Debug("read client websocket: ", err)
+				s.logger.DebugContext(ctx, "read client websocket: ", err)
 			}
 			return
 		}
@@ -299,7 +300,7 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 					if request.ServiceTier == "priority" {
 						logParts = append(logParts, ", fast")
 					}
-					s.logger.Debug(logParts...)
+					s.logger.DebugContext(ctx, logParts...)
 				}
 				if selectedCredential.usageTrackerOrNil() != nil {
 					select {
@@ -313,21 +314,21 @@ func (s *Service) proxyWebSocketClientToUpstream(clientConn net.Conn, upstreamCo
 		err = wsutil.WriteClientMessage(upstreamConn, opCode, data)
 		if err != nil {
 			if !E.IsClosedOrCanceled(err) {
-				s.logger.Debug("write upstream websocket: ", err)
+				s.logger.DebugContext(ctx, "write upstream websocket: ", err)
 			}
 			return
 		}
 	}
 }
 
-func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, userConfig *option.OCMUser, provider credentialProvider, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
+func (s *Service) proxyWebSocketUpstreamToClient(ctx context.Context, upstreamReadWriter io.ReadWriter, clientConn net.Conn, selectedCredential credential, userConfig *option.OCMUser, provider credentialProvider, modelChannel <-chan string, username string, weeklyCycleHint *WeeklyCycleHint) {
 	usageTracker := selectedCredential.usageTrackerOrNil()
 	var requestModel string
 	for {
 		data, opCode, err := wsutil.ReadServerData(upstreamReadWriter)
 		if err != nil {
 			if !E.IsClosedOrCanceled(err) {
-				s.logger.Debug("read upstream websocket: ", err)
+				s.logger.DebugContext(ctx, "read upstream websocket: ", err)
 			}
 			return
 		}
@@ -367,7 +368,7 @@ func (s *Service) proxyWebSocketUpstreamToClient(upstreamReadWriter io.ReadWrite
 		err = wsutil.WriteServerMessage(clientConn, opCode, data)
 		if err != nil {
 			if !E.IsClosedOrCanceled(err) {
-				s.logger.Debug("write client websocket: ", err)
+				s.logger.DebugContext(ctx, "write client websocket: ", err)
 			}
 			return
 		}
