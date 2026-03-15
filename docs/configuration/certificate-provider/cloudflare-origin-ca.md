@@ -48,6 +48,8 @@ If empty, sing-box uses the same default CertMagic data directory as the ACME ce
 
 Cloudflare API token used to create the certificate.
 
+Get or create one in [Cloudflare Dashboard > My Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens).
+
 Requires the `Zone / SSL and Certificates / Edit` permission.
 
 Mutually exclusive with `origin_ca_key`.
@@ -55,6 +57,8 @@ Mutually exclusive with `origin_ca_key`.
 #### origin_ca_key
 
 Cloudflare Origin CA key used as the `X-Auth-User-Service-Key` header.
+
+Get it in [Cloudflare Dashboard > My Profile > API Tokens > API Keys > Origin CA Key](https://dash.cloudflare.com/profile/api-tokens).
 
 Mutually exclusive with `api_token`.
 

@@ -47,6 +47,8 @@ Unicode 主机名会自动转换为 punycode。
 
 用于创建证书的 Cloudflare API Token。
 
+可在 [Cloudflare Dashboard > My Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens) 获取或创建。
+
 需要 `Zone / SSL and Certificates / Edit` 权限。
 
 与 `origin_ca_key` 互斥。
@@ -54,6 +56,8 @@ Unicode 主机名会自动转换为 punycode。
 #### origin_ca_key
 
 作为 `X-Auth-User-Service-Key` 请求头发送的 Cloudflare Origin CA Key。
+
+可在 [Cloudflare Dashboard > My Profile > API Tokens > API Keys > Origin CA Key](https://dash.cloudflare.com/profile/api-tokens) 获取。
 
 与 `api_token` 互斥。
 
