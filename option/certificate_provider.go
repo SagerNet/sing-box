@@ -41,11 +41,7 @@ func (o *CertificateProviderOptions) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown certificate provider type: ", o.Type)
 	}
-	err = badjson.UnmarshallExcluded(bytes, (*_CertificateProviderOptions)(o), v)
-	if err != nil {
-		return err
-	}
-	return nil
+	return badjson.UnmarshallExcluded(bytes, (*_CertificateProviderOptions)(o), v)
 }
 
 type CertificateProviderACMEOptions struct {

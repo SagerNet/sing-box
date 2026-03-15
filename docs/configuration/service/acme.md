@@ -22,15 +22,33 @@ icon: material/new-box
   "default_server_name": "",
   "email": "",
   "provider": "",
+  "test_ca": "",
+  "account_key": "",
+  "trusted_roots_pem_files": [],
+  "acme_timeout": "",
+  "profile": "",
+  "certificate_lifetime": "",
   "disable_http_challenge": false,
   "disable_tls_alpn_challenge": false,
   "alternative_http_port": 0,
   "alternative_tls_port": 0,
+  "bind_host": "",
   "external_account": {
     "key_id": "",
     "mac_key": ""
   },
-  "dns01_challenge": {}
+  "dns01_challenge": {},
+  "preferred_chains": {
+    "smallest": false,
+    "root_common_name": [],
+    "any_common_name": []
+  },
+  "key_type": "",
+  "reuse_private_keys": false,
+  "must_staple": false,
+  "renewal_window_ratio": 0.0,
+  "disable_ocsp_stapling": false,
+  "ocsp_overrides": {}
 }
 ```
 
@@ -66,6 +84,43 @@ The ACME CA provider to use.
 | `zerossl`               | ZeroSSL       |
 | `https://...`           | Custom        |
 
+When `provider` is `zerossl`, sing-box will automatically request ZeroSSL EAB credentials if `email` is set and
+`external_account` is empty.
+
+If both `email` and `external_account` are empty, certificate issuance will fail.
+
+#### test_ca
+
+The test ACME directory URL to use for retries.
+
+Must be `https://...` if set.
+
+#### account_key
+
+The PEM-encoded private key of an existing ACME account.
+
+#### trusted_roots_pem_files
+
+List of PEM files to trust when connecting to the ACME CA.
+
+Useful for private ACME deployments or custom test CAs.
+
+#### acme_timeout
+
+The maximum time allowed for an ACME obtain or renewal operation.
+
+#### profile
+
+The ACME profile name to request from the CA.
+
+Not all CAs support ACME profiles.
+
+#### certificate_lifetime
+
+The certificate lifetime to request from the CA.
+
+Not all CAs support custom certificate lifetimes.
+
 #### disable_http_challenge
 
 Disable all HTTP challenges.
@@ -83,6 +138,10 @@ listener for the HTTP challenge.
 
 The alternate port to use for the ACME TLS-ALPN challenge; the system must forward 443 to this port for challenge to
 succeed.
+
+#### bind_host
+
+The host to bind when starting HTTP-01 or TLS-ALPN challenge listeners.
 
 #### external_account
 
@@ -107,4 +166,86 @@ The MAC key.
 
 ACME DNS01 challenge field. If configured, other challenge methods will be disabled.
 
-See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/) for details.
+#### dns01_challenge.ttl
+
+The TTL of the temporary TXT record used for the DNS challenge.
+
+#### dns01_challenge.propagation_delay
+
+How long to wait after creating the challenge record before starting propagation checks.
+
+#### dns01_challenge.propagation_timeout
+
+The maximum time to wait for the challenge record to propagate.
+
+Set to `-1` to disable propagation checks.
+
+#### dns01_challenge.resolvers
+
+Preferred DNS resolvers to use for DNS propagation checks.
+
+#### dns01_challenge.override_domain
+
+Override the domain name used for the DNS challenge record.
+
+Useful when `_acme-challenge` is delegated to a different zone.
+
+For provider-specific fields, see [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/).
+
+#### preferred_chains
+
+Preferences for selecting alternate certificate chains offered by the CA.
+
+At least one of `smallest`, `root_common_name`, or `any_common_name` must be set.
+
+`root_common_name` and `any_common_name` are mutually exclusive.
+
+#### preferred_chains.smallest
+
+Prefer the smallest certificate chain.
+
+#### preferred_chains.root_common_name
+
+Prefer the first chain whose root issuer common name matches one of these values.
+
+#### preferred_chains.any_common_name
+
+Prefer the first chain whose issuer common name matches one of these values.
+
+#### key_type
+
+The private key type to generate for new certificates.
+
+| Value      | Type    |
+|------------|---------|
+| `ed25519`  | Ed25519 |
+| `p256`     | P-256   |
+| `p384`     | P-384   |
+| `rsa2048`  | RSA     |
+| `rsa4096`  | RSA     |
+
+#### reuse_private_keys
+
+Reuse existing private keys from storage when renewing certificates.
+
+#### must_staple
+
+Request certificates with the TLS Must-Staple extension.
+
+#### renewal_window_ratio
+
+The fraction of certificate lifetime remaining when renewal should begin.
+
+Must be greater than or equal to `0` and less than `1`.
+
+If empty, certmagic's default renewal window is used.
+
+#### disable_ocsp_stapling
+
+Disable automatic OCSP stapling.
+
+#### ocsp_overrides
+
+A map of OCSP responder URLs to replacement URLs.
+
+Set a replacement value to an empty string to disable querying that responder.

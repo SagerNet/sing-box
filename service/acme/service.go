@@ -5,7 +5,14 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"maps"
+	"net/http"
+	"net/url"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -16,6 +23,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/caddyserver/zerossl"
 	"github.com/libdns/acmedns"
 	"github.com/libdns/alidns"
 	"github.com/libdns/cloudflare"
@@ -33,7 +41,6 @@ var _ adapter.ACMECertificateProvider = (*Service)(nil)
 type Service struct {
 	boxService.Adapter
 	ctx        context.Context
-	logger     log.ContextLogger
 	config     *certmagic.Config
 	cache      *certmagic.Cache
 	domain     []string
@@ -41,78 +48,116 @@ type Service struct {
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMEServiceOptions) (adapter.Service, error) {
-	var acmeServer string
-	switch options.Provider {
-	case "", "letsencrypt":
-		acmeServer = certmagic.LetsEncryptProductionCA
-	case "zerossl":
-		acmeServer = certmagic.ZeroSSLProductionCA
-	default:
-		if !strings.HasPrefix(options.Provider, "https://") {
-			return nil, E.New("unsupported ACME provider: ", options.Provider)
-		}
-		acmeServer = options.Provider
+	acmeServer, err := resolveACMEServer(options.Provider)
+	if err != nil {
+		return nil, err
 	}
+	if options.TestCA != "" && !strings.HasPrefix(options.TestCA, "https://") {
+		return nil, E.New("unsupported ACME test CA: ", options.TestCA)
+	}
+	if options.ACMETimeout < 0 {
+		return nil, E.New("invalid ACME timeout: ", options.ACMETimeout)
+	}
+	if options.CertificateLifetime < 0 {
+		return nil, E.New("invalid certificate lifetime: ", options.CertificateLifetime)
+	}
+	if options.RenewalWindowRatio < 0 || options.RenewalWindowRatio >= 1 {
+		return nil, E.New("renewal_window_ratio must be in [0, 1)")
+	}
+	if acmeServer == certmagic.ZeroSSLProductionCA &&
+		(options.ExternalAccount == nil || options.ExternalAccount.KeyID == "") &&
+		strings.TrimSpace(options.Email) == "" {
+		return nil, E.New("email is required to use the ZeroSSL ACME endpoint without external_account")
+	}
+
 	var storage certmagic.Storage
 	if options.DataDirectory != "" {
-		storage = &certmagic.FileStorage{
-			Path: options.DataDirectory,
-		}
+		storage = &certmagic.FileStorage{Path: options.DataDirectory}
 	} else {
 		storage = certmagic.Default.Storage
 	}
+
 	zapLogger := zap.New(zapcore.NewCore(
 		zapcore.NewConsoleEncoder(boxtls.ACMEEncoderConfig()),
 		&boxtls.ACMELogWriter{Logger: logger},
 		zap.DebugLevel,
 	))
+
 	config := &certmagic.Config{
 		DefaultServerName: options.DefaultServerName,
 		Storage:           storage,
 		Logger:            zapLogger,
+		ReusePrivateKeys:  options.ReusePrivateKeys,
+		MustStaple:        options.MustStaple,
 	}
+	if options.RenewalWindowRatio > 0 {
+		config.RenewalWindowRatio = options.RenewalWindowRatio
+	}
+	if options.DisableOCSPStapling || len(options.OCSPOverrides) > 0 {
+		config.OCSP = certmagic.OCSPConfig{
+			DisableStapling:    options.DisableOCSPStapling,
+			ResponderOverrides: maps.Clone(options.OCSPOverrides),
+		}
+	}
+	if options.KeyType != "" {
+		keyGenerator, err := createKeyGenerator(options.KeyType)
+		if err != nil {
+			return nil, err
+		}
+		config.KeySource = keyGenerator
+	}
+
 	acmeIssuer := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
+		TestCA:                  options.TestCA,
 		Email:                   options.Email,
+		AccountKeyPEM:           options.AccountKey,
+		Profile:                 options.Profile,
+		NotAfter:                time.Duration(options.CertificateLifetime),
 		Agreed:                  true,
 		DisableHTTPChallenge:    options.DisableHTTPChallenge,
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
+		ListenHost:              options.BindHost,
+		CertObtainTimeout:       time.Duration(options.ACMETimeout),
 		Logger:                  zapLogger,
 	}
-	if dnsOptions := options.DNS01Challenge; dnsOptions != nil && dnsOptions.Provider != "" {
-		var solver certmagic.DNS01Solver
-		switch dnsOptions.Provider {
-		case C.DNSProviderAliDNS:
-			solver.DNSProvider = &alidns.Provider{
-				CredentialInfo: alidns.CredentialInfo{
-					AccessKeyID:     dnsOptions.AliDNSOptions.AccessKeyID,
-					AccessKeySecret: dnsOptions.AliDNSOptions.AccessKeySecret,
-					RegionID:        dnsOptions.AliDNSOptions.RegionID,
-					SecurityToken:   dnsOptions.AliDNSOptions.SecurityToken,
-				},
-			}
-		case C.DNSProviderCloudflare:
-			solver.DNSProvider = &cloudflare.Provider{
-				APIToken:  dnsOptions.CloudflareOptions.APIToken,
-				ZoneToken: dnsOptions.CloudflareOptions.ZoneToken,
-			}
-		case C.DNSProviderACMEDNS:
-			solver.DNSProvider = &acmedns.Provider{
-				Username:  dnsOptions.ACMEDNSOptions.Username,
-				Password:  dnsOptions.ACMEDNSOptions.Password,
-				Subdomain: dnsOptions.ACMEDNSOptions.Subdomain,
-				ServerURL: dnsOptions.ACMEDNSOptions.ServerURL,
-			}
-		default:
-			return nil, E.New("unsupported ACME DNS01 provider type: ", dnsOptions.Provider)
+	if len(options.TrustedRootsPEMFiles) > 0 {
+		rootPool, err := loadTrustedRoots(options.TrustedRootsPEMFiles)
+		if err != nil {
+			return nil, err
 		}
-		acmeIssuer.DNS01Solver = &solver
+		acmeIssuer.TrustedRoots = rootPool
+	}
+	dnsSolver, err := newDNSSolver(options.DNS01Challenge, zapLogger)
+	if err != nil {
+		return nil, err
+	}
+	if dnsSolver != nil {
+		acmeIssuer.DNS01Solver = dnsSolver
 	}
 	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
 		acmeIssuer.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
 	}
+	if options.PreferredChains != nil {
+		preferredChains, err := buildPreferredChains(options.PreferredChains)
+		if err != nil {
+			return nil, err
+		}
+		acmeIssuer.PreferredChains = preferredChains
+	}
+	if acmeServer == certmagic.ZeroSSLProductionCA {
+		acmeIssuer.NewAccountFunc = func(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account) (acme.Account, error) {
+			if acmeIssuer.ExternalAccount != nil {
+				return account, nil
+			}
+			var err error
+			acmeIssuer.ExternalAccount, account, err = createZeroSSLExternalAccountBinding(ctx, zapLogger, options.Email, account)
+			return account, err
+		}
+	}
+
 	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeIssuer)}
 	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
@@ -121,6 +166,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		Logger: zapLogger,
 	})
 	config = certmagic.New(cache, *config)
+
 	var nextProtos []string
 	if !acmeIssuer.DisableTLSALPNChallenge && acmeIssuer.DNS01Solver == nil {
 		nextProtos = []string{C.ACMETLS1Protocol}
@@ -128,7 +174,6 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	return &Service{
 		Adapter:    boxService.NewAdapter(C.TypeACME, tag),
 		ctx:        ctx,
-		logger:     logger,
 		config:     config,
 		cache:      cache,
 		domain:     options.Domain,
@@ -156,4 +201,168 @@ func (s *Service) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, 
 
 func (s *Service) GetACMENextProtos() []string {
 	return s.nextProtos
+}
+
+func resolveACMEServer(provider string) (string, error) {
+	switch provider {
+	case "", "letsencrypt":
+		return certmagic.LetsEncryptProductionCA, nil
+	case "zerossl":
+		return certmagic.ZeroSSLProductionCA, nil
+	default:
+		if !strings.HasPrefix(provider, "https://") {
+			return "", E.New("unsupported ACME provider: ", provider)
+		}
+		return provider, nil
+	}
+}
+
+func createKeyGenerator(keyType option.ACMEKeyType) (certmagic.StandardKeyGenerator, error) {
+	switch keyType {
+	case option.ACMEKeyTypeED25519:
+		return certmagic.StandardKeyGenerator{KeyType: certmagic.ED25519}, nil
+	case option.ACMEKeyTypeP256:
+		return certmagic.StandardKeyGenerator{KeyType: certmagic.P256}, nil
+	case option.ACMEKeyTypeP384:
+		return certmagic.StandardKeyGenerator{KeyType: certmagic.P384}, nil
+	case option.ACMEKeyTypeRSA2048:
+		return certmagic.StandardKeyGenerator{KeyType: certmagic.RSA2048}, nil
+	case option.ACMEKeyTypeRSA4096:
+		return certmagic.StandardKeyGenerator{KeyType: certmagic.RSA4096}, nil
+	default:
+		return certmagic.StandardKeyGenerator{}, E.New("unsupported ACME key type: ", keyType)
+	}
+}
+
+func newDNSSolver(dnsOptions *option.ACMEServiceDNS01ChallengeOptions, logger *zap.Logger) (*certmagic.DNS01Solver, error) {
+	if dnsOptions == nil || dnsOptions.Provider == "" {
+		return nil, nil
+	}
+	if dnsOptions.TTL < 0 {
+		return nil, E.New("invalid ACME DNS01 ttl: ", dnsOptions.TTL)
+	}
+	if dnsOptions.PropagationDelay < 0 {
+		return nil, E.New("invalid ACME DNS01 propagation_delay: ", dnsOptions.PropagationDelay)
+	}
+	if dnsOptions.PropagationTimeout < -1 {
+		return nil, E.New("invalid ACME DNS01 propagation_timeout: ", dnsOptions.PropagationTimeout)
+	}
+	solver := &certmagic.DNS01Solver{
+		DNSManager: certmagic.DNSManager{
+			TTL:                time.Duration(dnsOptions.TTL),
+			PropagationDelay:   time.Duration(dnsOptions.PropagationDelay),
+			PropagationTimeout: time.Duration(dnsOptions.PropagationTimeout),
+			Resolvers:          dnsOptions.Resolvers,
+			OverrideDomain:     dnsOptions.OverrideDomain,
+			Logger:             logger.Named("dns_manager"),
+		},
+	}
+	switch dnsOptions.Provider {
+	case C.DNSProviderAliDNS:
+		solver.DNSProvider = &alidns.Provider{
+			CredentialInfo: alidns.CredentialInfo{
+				AccessKeyID:     dnsOptions.AliDNSOptions.AccessKeyID,
+				AccessKeySecret: dnsOptions.AliDNSOptions.AccessKeySecret,
+				RegionID:        dnsOptions.AliDNSOptions.RegionID,
+				SecurityToken:   dnsOptions.AliDNSOptions.SecurityToken,
+			},
+		}
+	case C.DNSProviderCloudflare:
+		solver.DNSProvider = &cloudflare.Provider{
+			APIToken:  dnsOptions.CloudflareOptions.APIToken,
+			ZoneToken: dnsOptions.CloudflareOptions.ZoneToken,
+		}
+	case C.DNSProviderACMEDNS:
+		solver.DNSProvider = &acmedns.Provider{
+			Username:  dnsOptions.ACMEDNSOptions.Username,
+			Password:  dnsOptions.ACMEDNSOptions.Password,
+			Subdomain: dnsOptions.ACMEDNSOptions.Subdomain,
+			ServerURL: dnsOptions.ACMEDNSOptions.ServerURL,
+		}
+	default:
+		return nil, E.New("unsupported ACME DNS01 provider type: ", dnsOptions.Provider)
+	}
+	return solver, nil
+}
+
+func buildPreferredChains(options *option.ACMEPreferredChainsOptions) (certmagic.ChainPreference, error) {
+	if len(options.RootCommonName) > 0 && len(options.AnyCommonName) > 0 {
+		return certmagic.ChainPreference{}, E.New("preferred_chains.root_common_name and preferred_chains.any_common_name are mutually exclusive")
+	}
+	if !options.Smallest && len(options.RootCommonName) == 0 && len(options.AnyCommonName) == 0 {
+		return certmagic.ChainPreference{}, E.New("preferred_chains is empty")
+	}
+	preferredChains := certmagic.ChainPreference{
+		RootCommonName: options.RootCommonName,
+		AnyCommonName:  options.AnyCommonName,
+	}
+	if options.Smallest {
+		smallest := true
+		preferredChains.Smallest = &smallest
+	}
+	return preferredChains, nil
+}
+
+func loadTrustedRoots(pemFiles []string) (*x509.CertPool, error) {
+	rootPool := x509.NewCertPool()
+	for _, pemFile := range pemFiles {
+		pemContent, err := os.ReadFile(pemFile)
+		if err != nil {
+			return nil, E.Cause(err, "load trusted ACME root CA PEM file: ", pemFile)
+		}
+		if !rootPool.AppendCertsFromPEM(pemContent) {
+			return nil, E.New("invalid trusted ACME root CA PEM file: ", pemFile)
+		}
+	}
+	return rootPool, nil
+}
+
+func createZeroSSLExternalAccountBinding(ctx context.Context, logger *zap.Logger, email string, account acme.Account) (*acme.EAB, acme.Account, error) {
+	if strings.TrimSpace(email) == "" {
+		return nil, acme.Account{}, E.New("email is required to use the ZeroSSL ACME endpoint without external_account")
+	}
+	if len(account.Contact) == 0 {
+		account.Contact = []string{"mailto:" + email}
+	}
+
+	form := url.Values{"email": []string{email}}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, zerossl.BaseURL+"/acme/eab-credentials-email", strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, account, E.Cause(err, "create ZeroSSL EAB request")
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("User-Agent", certmagic.UserAgent)
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, account, E.Cause(err, "request ZeroSSL EAB")
+	}
+	defer response.Body.Close()
+
+	var result struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code int    `json:"code"`
+			Type string `json:"type"`
+		} `json:"error"`
+		EABKID     string `json:"eab_kid"`
+		EABHMACKey string `json:"eab_hmac_key"`
+	}
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		return nil, account, E.Cause(err, "decode ZeroSSL EAB response")
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, account, E.New("failed getting ZeroSSL EAB credentials: HTTP ", response.StatusCode)
+	}
+	if result.Error.Code != 0 {
+		return nil, account, E.New("failed getting ZeroSSL EAB credentials: ", result.Error.Type, " (code ", result.Error.Code, ")")
+	}
+
+	logger.Info("generated ZeroSSL EAB credentials", zap.String("key_id", result.EABKID))
+
+	return &acme.EAB{
+		KeyID:  result.EABKID,
+		MACKey: result.EABHMACKey,
+	}, account, nil
 }
