@@ -25,6 +25,7 @@ icon: material/new-box
 |--------|------------------|
 | `acme` | [ACME](./acme)   |
 | `tailscale` | [Tailscale](./tailscale) |
+| `cloudflare-origin-ca` | [Cloudflare Origin CA](./cloudflare-origin-ca) |
 
 #### tag
 

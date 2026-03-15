@@ -35,6 +35,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/tun"
 	"github.com/sagernet/sing-box/protocol/vless"
 	"github.com/sagernet/sing-box/protocol/vmess"
+	originca "github.com/sagernet/sing-box/service/origin_ca"
 	"github.com/sagernet/sing-box/service/resolved"
 	"github.com/sagernet/sing-box/service/ssmapi"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -145,6 +146,7 @@ func CertificateProviderRegistry() *certificate.Registry {
 
 	registerACMECertificateProvider(registry)
 	registerTailscaleCertificateProvider(registry)
+	originca.RegisterCertificateProvider(registry)
 
 	return registry
 }
