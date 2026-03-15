@@ -46,7 +46,7 @@ icon: material/new-box
   "key_type": "",
   "reuse_private_keys": false,
   "must_staple": false,
-  "renewal_window_ratio": 0.0,
+  "renewal_window_ratio": 0.33,
   "disable_ocsp_stapling": false,
   "ocsp_overrides": {}
 }
@@ -238,7 +238,7 @@ The fraction of certificate lifetime remaining when renewal should begin.
 
 Must be greater than or equal to `0` and less than `1`.
 
-If empty, certmagic's default renewal window is used.
+If empty, or set to `0`, certmagic's default renewal window is used.
 
 #### disable_ocsp_stapling
 

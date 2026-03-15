@@ -46,7 +46,7 @@ icon: material/new-box
   "key_type": "",
   "reuse_private_keys": false,
   "must_staple": false,
-  "renewal_window_ratio": 0.0,
+  "renewal_window_ratio": 0.33,
   "disable_ocsp_stapling": false,
   "ocsp_overrides": {}
 }
@@ -233,7 +233,7 @@ DNS 验证临时 TXT 记录的 TTL。
 
 必须大于等于 `0` 且小于 `1`。
 
-如果为空，则使用 certmagic 的默认续期窗口。
+如果为空，或者设为 `0`，则使用 certmagic 的默认续期窗口。
 
 #### disable_ocsp_stapling
 

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -66,8 +67,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	}
 	if acmeServer == certmagic.ZeroSSLProductionCA &&
 		(options.ExternalAccount == nil || options.ExternalAccount.KeyID == "") &&
-		strings.TrimSpace(options.Email) == "" {
-		return nil, E.New("email is required to use the ZeroSSL ACME endpoint without external_account")
+		strings.TrimSpace(options.Email) == "" &&
+		strings.TrimSpace(options.AccountKey) == "" {
+		return nil, E.New("email is required to use the ZeroSSL ACME endpoint without external_account or account_key")
 	}
 
 	var storage certmagic.Storage
@@ -153,7 +155,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 				return account, nil
 			}
 			var err error
-			acmeIssuer.ExternalAccount, account, err = createZeroSSLExternalAccountBinding(ctx, zapLogger, options.Email, account)
+			acmeIssuer.ExternalAccount, account, err = createZeroSSLExternalAccountBinding(ctx, acmeIssuer, account)
 			return account, err
 		}
 	}
@@ -317,12 +319,18 @@ func loadTrustedRoots(pemFiles []string) (*x509.CertPool, error) {
 	return rootPool, nil
 }
 
-func createZeroSSLExternalAccountBinding(ctx context.Context, logger *zap.Logger, email string, account acme.Account) (*acme.EAB, acme.Account, error) {
-	if strings.TrimSpace(email) == "" {
+func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account) (*acme.EAB, acme.Account, error) {
+	email := strings.TrimSpace(acmeIssuer.Email)
+	if email == "" {
 		return nil, acme.Account{}, E.New("email is required to use the ZeroSSL ACME endpoint without external_account")
 	}
 	if len(account.Contact) == 0 {
 		account.Contact = []string{"mailto:" + email}
+	}
+	if acmeIssuer.CertObtainTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, acmeIssuer.CertObtainTimeout)
+		defer cancel()
 	}
 
 	form := url.Values{"email": []string{email}}
@@ -333,7 +341,7 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, logger *zap.Logger
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("User-Agent", certmagic.UserAgent)
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := newACMEHTTPClient(acmeIssuer).Do(request)
 	if err != nil {
 		return nil, account, E.Cause(err, "request ZeroSSL EAB")
 	}
@@ -359,10 +367,48 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, logger *zap.Logger
 		return nil, account, E.New("failed getting ZeroSSL EAB credentials: ", result.Error.Type, " (code ", result.Error.Code, ")")
 	}
 
-	logger.Info("generated ZeroSSL EAB credentials", zap.String("key_id", result.EABKID))
+	acmeIssuer.Logger.Info("generated ZeroSSL EAB credentials", zap.String("key_id", result.EABKID))
 
 	return &acme.EAB{
 		KeyID:  result.EABKID,
 		MACKey: result.EABHMACKey,
 	}, account, nil
+}
+
+func newACMEHTTPClient(acmeIssuer *certmagic.ACMEIssuer) *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 2 * time.Minute,
+	}
+	if acmeIssuer.Resolver != "" {
+		dialer.Resolver = &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{
+					Timeout: 15 * time.Second,
+				}).DialContext(ctx, network, acmeIssuer.Resolver)
+			},
+		}
+	}
+	transport := &http.Transport{
+		Proxy:                 acmeIssuer.HTTPProxy,
+		DialContext:           dialer.DialContext,
+		TLSHandshakeTimeout:   30 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		ExpectContinueTimeout: 2 * time.Second,
+		ForceAttemptHTTP2:     true,
+	}
+	if acmeIssuer.TrustedRoots != nil {
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs: acmeIssuer.TrustedRoots,
+		}
+	}
+	httpTimeout := certmagic.HTTPTimeout
+	if acmeIssuer.CertObtainTimeout > 0 {
+		httpTimeout = acmeIssuer.CertObtainTimeout
+	}
+	return &http.Client{
+		Transport: transport,
+		Timeout:   httpTimeout,
+	}
 }
