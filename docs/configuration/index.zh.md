@@ -2,6 +2,10 @@
 
 sing-box 使用 JSON 作为配置文件格式。
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [certificate_providers](#certificate_providers)
+
 ### 结构
 
 ```json
@@ -35,6 +39,12 @@ sing-box 使用 JSON 作为配置文件格式。
 | `route`        | [路由](./route/)         |
 | `services`     | [服务](./service/)       |
 | `experimental` | [实验性](./experimental/) |
+
+#### certificate_providers
+
+!!! question "自 sing-box 1.14.0 起"
+
+共享[证书提供者](./certificate-provider/)列表。
 
 ### 检查
 

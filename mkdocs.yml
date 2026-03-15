@@ -179,6 +179,7 @@ nav:
       - Certificate Provider:
           - configuration/certificate-provider/index.md
           - ACME: configuration/certificate-provider/acme.md
+          - Tailscale: configuration/certificate-provider/tailscale.md
           - Cloudflare Origin CA: configuration/certificate-provider/cloudflare-origin-ca.md
       - Service:
           - configuration/service/index.md

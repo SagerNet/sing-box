@@ -2,6 +2,10 @@
 
 sing-box uses JSON for configuration files.
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [certificate_providers](#certificate_providers)
+
 ### Structure
 
 ```json
@@ -35,6 +39,12 @@ sing-box uses JSON for configuration files.
 | `route`        | [Route](./route/)               |
 | `services`     | [Service](./service/)           |
 | `experimental` | [Experimental](./experimental/) |
+
+#### certificate_providers
+
+!!! question "Since sing-box 1.14.0"
+
+List of shared [Certificate Providers](./certificate-provider/).
 
 ### Check
 

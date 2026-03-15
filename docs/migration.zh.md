@@ -8,9 +8,12 @@ icon: material/arrange-bring-forward
 
 TLS 中的内联 ACME 选项已废弃，且可以被证书提供者替代。
 
+`tls.acme` 的大多数字段都可以原样迁移到 ACME 证书提供者中。
+sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/certificate-provider/acme/) 页面。
+
 !!! info "参考"
 
-    [TLS](/configuration/shared/tls/#certificate_provider) /
+    [TLS](/zh/configuration/shared/tls/#certificate_provider) /
     [证书提供者](/zh/configuration/certificate-provider/acme/)
 
 === ":material-card-remove: 弃用的"

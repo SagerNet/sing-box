@@ -2,6 +2,8 @@
 icon: material/new-box
 ---
 
+!!! question "自 sing-box 1.14.0 起"
+
 # Cloudflare Origin CA
 
 ### 结构

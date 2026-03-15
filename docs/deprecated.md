@@ -9,7 +9,7 @@ icon: material/delete-alert
 #### Inline ACME options in TLS
 
 Inline ACME options (`tls.acme`) are deprecated
-and can be replaced by certificate provider with an ACME service,
+and can be replaced by the ACME certificate provider,
 check [Migration](../migration/#migrate-inline-acme-to-certificate-provider).
 
 Old fields will be removed in sing-box 1.16.0.
