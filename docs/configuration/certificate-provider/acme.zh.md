@@ -121,41 +121,7 @@ MAC 密钥。
 
 ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 
-#### dns01_challenge.ttl
-
-!!! question "自 sing-box 1.14.0 起"
-
-DNS 验证临时 TXT 记录的 TTL。
-
-#### dns01_challenge.propagation_delay
-
-!!! question "自 sing-box 1.14.0 起"
-
-创建验证记录后，在开始传播检查前要等待的时间。
-
-#### dns01_challenge.propagation_timeout
-
-!!! question "自 sing-box 1.14.0 起"
-
-等待验证记录传播完成的最长时间。
-
-设为 `-1` 可禁用传播检查。
-
-#### dns01_challenge.resolvers
-
-!!! question "自 sing-box 1.14.0 起"
-
-进行 DNS 传播检查时优先使用的 DNS 解析器。
-
-#### dns01_challenge.override_domain
-
-!!! question "自 sing-box 1.14.0 起"
-
-覆盖 DNS 验证记录使用的域名。
-
-适用于将 `_acme-challenge` 委托到其他 zone 的场景。
-
-提供商专有字段参阅 [DNS01 验证字段](/zh/configuration/shared/dns01_challenge/)。
+参阅 [DNS01 验证字段](/zh/configuration/shared/dns01_challenge/)。
 
 #### key_type
 

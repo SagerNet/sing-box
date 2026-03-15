@@ -126,41 +126,7 @@ The MAC key.
 
 ACME DNS01 challenge field. If configured, other challenge methods will be disabled.
 
-#### dns01_challenge.ttl
-
-!!! question "Since sing-box 1.14.0"
-
-The TTL of the temporary TXT record used for the DNS challenge.
-
-#### dns01_challenge.propagation_delay
-
-!!! question "Since sing-box 1.14.0"
-
-How long to wait after creating the challenge record before starting propagation checks.
-
-#### dns01_challenge.propagation_timeout
-
-!!! question "Since sing-box 1.14.0"
-
-The maximum time to wait for the challenge record to propagate.
-
-Set to `-1` to disable propagation checks.
-
-#### dns01_challenge.resolvers
-
-!!! question "Since sing-box 1.14.0"
-
-Preferred DNS resolvers to use for DNS propagation checks.
-
-#### dns01_challenge.override_domain
-
-!!! question "Since sing-box 1.14.0"
-
-Override the domain name used for the DNS challenge record.
-
-Useful when `_acme-challenge` is delegated to a different zone.
-
-For provider-specific fields, see [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/).
+See [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/) for details.
 
 #### key_type
 
