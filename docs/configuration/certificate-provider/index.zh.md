@@ -24,6 +24,7 @@ icon: material/new-box
 | 类型   | 格式             |
 |--------|------------------|
 | `acme` | [ACME](./acme)   |
+| `tailscale` | [Tailscale](./tailscale) |
 
 #### tag
 

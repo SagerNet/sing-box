@@ -144,6 +144,7 @@ func CertificateProviderRegistry() *certificate.Registry {
 	registry := certificate.NewRegistry()
 
 	registerACMECertificateProvider(registry)
+	registerTailscaleCertificateProvider(registry)
 
 	return registry
 }
