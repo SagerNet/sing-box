@@ -53,10 +53,7 @@ func (p *sharedCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (
 }
 
 func (p *sharedCertificateProvider) GetACMENextProtos() []string {
-	if acmeProvider, isACME := p.provider.(adapter.ACMECertificateProvider); isACME {
-		return acmeProvider.GetACMENextProtos()
-	}
-	return nil
+	return getACMENextProtos(p.provider)
 }
 
 type inlineCertificateProvider struct {
@@ -82,7 +79,11 @@ func (p *inlineCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (
 }
 
 func (p *inlineCertificateProvider) GetACMENextProtos() []string {
-	if acmeProvider, isACME := p.provider.(adapter.ACMECertificateProvider); isACME {
+	return getACMENextProtos(p.provider)
+}
+
+func getACMENextProtos(provider adapter.CertificateProvider) []string {
+	if acmeProvider, isACME := provider.(adapter.ACMECertificateProvider); isACME {
 		return acmeProvider.GetACMENextProtos()
 	}
 	return nil

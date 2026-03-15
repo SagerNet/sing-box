@@ -412,14 +412,14 @@ func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.
 }
 
 func (s *Service) loadCachedCertificate() (*tls.Certificate, *x509.Certificate, error) {
-	certResource, err := loadCertificateResource(s.ctx, s.storage, s.storageIssuerKey, s.storageNamesKey)
+	certificateResource, err := loadCertificateResource(s.ctx, s.storage, s.storageIssuerKey, s.storageNamesKey)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil, nil
 		}
 		return nil, nil, err
 	}
-	tlsCertificate, leaf, err := parseKeyPair(certResource.CertificatePEM, certResource.PrivateKeyPEM)
+	tlsCertificate, leaf, err := parseKeyPair(certificateResource.CertificatePEM, certificateResource.PrivateKeyPEM)
 	if err != nil {
 		return nil, nil, E.Cause(err, "parse cached key pair")
 	}
@@ -579,23 +579,23 @@ func createStorageLockKey(issuerKey string, namesKey string) string {
 	}, "/")
 }
 
-func storeCertificateResource(ctx context.Context, storage certmagic.Storage, issuerKey string, certResource certmagic.CertificateResource) error {
-	metaBytes, err := json.MarshalIndent(certResource, "", "\t")
+func storeCertificateResource(ctx context.Context, storage certmagic.Storage, issuerKey string, certificateResource certmagic.CertificateResource) error {
+	metaBytes, err := json.MarshalIndent(certificateResource, "", "\t")
 	if err != nil {
 		return err
 	}
-	namesKey := certResource.NamesKey()
+	namesKey := certificateResource.NamesKey()
 	keyValueList := []struct {
 		key   string
 		value []byte
 	}{
 		{
 			key:   certmagic.StorageKeys.SitePrivateKey(issuerKey, namesKey),
-			value: certResource.PrivateKeyPEM,
+			value: certificateResource.PrivateKeyPEM,
 		},
 		{
 			key:   certmagic.StorageKeys.SiteCert(issuerKey, namesKey),
-			value: certResource.CertificatePEM,
+			value: certificateResource.CertificatePEM,
 		},
 		{
 			key:   certmagic.StorageKeys.SiteMeta(issuerKey, namesKey),
@@ -627,14 +627,14 @@ func loadCertificateResource(ctx context.Context, storage certmagic.Storage, iss
 	if err != nil {
 		return certmagic.CertificateResource{}, err
 	}
-	var certResource certmagic.CertificateResource
-	err = json.Unmarshal(metaBytes, &certResource)
+	var certificateResource certmagic.CertificateResource
+	err = json.Unmarshal(metaBytes, &certificateResource)
 	if err != nil {
 		return certmagic.CertificateResource{}, E.Cause(err, "decode Cloudflare Origin CA certificate metadata")
 	}
-	certResource.PrivateKeyPEM = privateKeyPEM
-	certResource.CertificatePEM = certificatePEM
-	return certResource, nil
+	certificateResource.PrivateKeyPEM = privateKeyPEM
+	certificateResource.CertificatePEM = certificatePEM
+	return certificateResource, nil
 }
 
 func buildOriginCAError(statusCode int, responseErrors []originCAResponseError, responseBody []byte) error {
