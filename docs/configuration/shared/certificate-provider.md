@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-alert: [certificate_provider](#certificate_provider)
+    :material-plus: [certificate_provider](#certificate_provider)
 
 ### Structure
 

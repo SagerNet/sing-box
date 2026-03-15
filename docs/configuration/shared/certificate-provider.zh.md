@@ -4,7 +4,7 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-alert: [certificate_provider](#certificate_provider)
+    :material-plus: [certificate_provider](#certificate_provider)
 
 ### 结构
 

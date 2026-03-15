@@ -183,7 +183,6 @@ nav:
           - Cloudflare Origin CA: configuration/certificate-provider/cloudflare-origin-ca.md
       - Service:
           - configuration/service/index.md
-          - ACME: configuration/service/acme.md
           - DERP: configuration/service/derp.md
           - Resolved: configuration/service/resolved.md
           - SSM API: configuration/service/ssm-api.md

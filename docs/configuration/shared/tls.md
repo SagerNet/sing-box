@@ -5,7 +5,7 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [certificate_provider](#certificate_provider)  
-    :material-delete-clock: [acme](#acme)
+    :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
 

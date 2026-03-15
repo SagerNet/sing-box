@@ -13,7 +13,7 @@ sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/certificate-provider
 
 !!! info "参考"
 
-    [TLS](/zh/configuration/shared/tls/#certificate_provider) /
+    [TLS](/configuration/shared/tls/#certificate_provider) /
     [证书提供者](/zh/configuration/certificate-provider/acme/)
 
 === ":material-card-remove: 弃用的"

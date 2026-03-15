@@ -10,7 +10,7 @@ icon: material/delete-alert
 
 TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 且可以通过 ACME 证书提供者替代，
-参阅 [迁移指南](/zh/migration/#migrate-inline-acme-to-certificate-provider)。
+参阅 [迁移指南](/migration/#migrate-inline-acme-to-certificate-provider)。
 
 旧字段将在 sing-box 1.16.0 中被移除。
 

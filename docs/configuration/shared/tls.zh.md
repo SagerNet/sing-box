@@ -581,7 +581,7 @@ ECH 配置路径，PEM 格式。
 !!! failure "已在 sing-box 1.14.0 废弃"
 
     内联 ACME 选项已废弃，且可以通过 [ACME 证书提供者](/zh/configuration/certificate-provider/acme/) 替代，
-    参阅 [迁移指南](/zh/migration/#migrate-inline-acme-to-certificate-provider)。
+    参阅 [迁移指南](/migration/#migrate-inline-acme-to-certificate-provider)。
 
 #### domain
 
