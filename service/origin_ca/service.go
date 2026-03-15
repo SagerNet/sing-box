@@ -35,7 +35,6 @@ import (
 	"github.com/sagernet/sing/common/ntp"
 
 	"github.com/caddyserver/certmagic"
-	"golang.org/x/net/idna"
 )
 
 const (
@@ -487,17 +486,9 @@ func normalizeHostname(hostname string) (string, error) {
 		if strings.Count(suffix, ".") == 0 {
 			return "", E.New("wildcard hostname must cover a multi-label domain: ", hostname)
 		}
-		asciiSuffix, err := idna.Lookup.ToASCII(suffix)
-		if err != nil {
-			return "", E.Cause(err, "normalize hostname ", hostname)
-		}
-		return "*." + asciiSuffix, nil
+		return "*." + suffix, nil
 	}
-	asciiHostname, err := idna.Lookup.ToASCII(hostname)
-	if err != nil {
-		return "", E.Cause(err, "normalize hostname ", hostname)
-	}
-	return asciiHostname, nil
+	return hostname, nil
 }
 
 func generatePrivateKey(requestType option.CloudflareOriginCARequestType) (crypto.Signer, error) {

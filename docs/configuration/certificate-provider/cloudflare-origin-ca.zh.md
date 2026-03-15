@@ -32,8 +32,6 @@ icon: material/new-box
 
 要写入证书的域名或通配符域名列表。
 
-Unicode 域名会自动转换为 punycode。
-
 #### data_directory
 
 保存签发证书、私钥和元数据的根目录。

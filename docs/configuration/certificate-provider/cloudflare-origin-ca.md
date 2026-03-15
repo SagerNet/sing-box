@@ -33,8 +33,6 @@ certificate as a TLS certificate provider.
 
 List of domain names or wildcard domain names to include in the certificate.
 
-Unicode domain names are converted to punycode automatically.
-
 #### data_directory
 
 Root directory used to store the issued certificate, private key, and metadata.
