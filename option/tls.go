@@ -31,7 +31,8 @@ type InboundTLSOptions struct {
 	CertificateProvider              *CertificateProviderOptions         `json:"certificate_provider,omitempty"`
 
 	// Deprecated: use certificate_provider
-	ACME    *InboundACMEOptions    `json:"acme,omitempty"`
+	ACME *InboundACMEOptions `json:"acme,omitempty"`
+
 	ECH     *InboundECHOptions     `json:"ech,omitempty"`
 	Reality *InboundRealityOptions `json:"reality,omitempty"`
 }

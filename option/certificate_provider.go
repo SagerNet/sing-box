@@ -9,14 +9,10 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-// CertificateProviderOptionsRegistry is used by both root-level CertificateProvider
-// and TLS-level CertificateProviderOptions to resolve type-specific options.
 type CertificateProviderOptionsRegistry interface {
 	CreateOptions(providerType string) (any, bool)
 }
 
-// CertificateProvider is a root-level certificate provider entry.
-// JSON: {"type": "acme", "tag": "my-cert", ...provider options...}
 type _CertificateProvider struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
@@ -50,13 +46,6 @@ func (h *CertificateProvider) UnmarshalJSONContext(ctx context.Context, content 
 	return nil
 }
 
-// CertificateProviderOptions is the TLS-level field that accepts either:
-//   - a string: shared reference by tag (e.g. "my-cert")
-//   - an object: inline certificate provider (e.g. {"type": "acme", ...})
-//
-// When string: Tag is set, Type and Options are empty.
-// When object: Type and Options are set, Tag is empty.
-// Inline providers have NO tag — they are not addressable/shared.
 type CertificateProviderOptions struct {
 	Tag     string `json:"-"`
 	Type    string `json:"-"`
