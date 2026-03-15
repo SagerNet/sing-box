@@ -36,9 +36,12 @@ Unicode 主机名会自动转换为 punycode。
 
 #### data_directory
 
-保存签发证书和私钥的目录。
+保存签发证书、私钥和元数据的根目录。
 
-如果为空，证书只保存在内存中，重启后会重新签发。
+文件会按 CertMagic 的证书存储布局写入。
+
+如果为空，sing-box 会使用与 ACME 证书提供者相同的 CertMagic 默认数据目录：
+`$XDG_DATA_HOME/certmagic` 或 `$HOME/.local/share/certmagic`。
 
 #### api_token
 

@@ -37,9 +37,12 @@ Unicode hostnames are converted to punycode automatically.
 
 #### data_directory
 
-The directory to store the issued certificate and private key.
+Root directory used to store the issued certificate, private key, and metadata.
 
-If empty, the certificate is kept only in memory and will be re-issued after restart.
+Files are stored using CertMagic's certificate storage layout.
+
+If empty, sing-box uses the same default CertMagic data directory as the ACME certificate provider:
+`$XDG_DATA_HOME/certmagic` or `$HOME/.local/share/certmagic`.
 
 #### api_token
 

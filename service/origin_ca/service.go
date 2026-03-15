@@ -13,11 +13,11 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +34,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/ntp"
 
+	"github.com/caddyserver/certmagic"
 	"golang.org/x/net/idna"
 )
 
@@ -44,8 +45,7 @@ const (
 	defaultRenewBefore         = 30 * 24 * time.Hour
 	minimumRenewRetryDelay     = time.Minute
 	maximumRenewRetryDelay     = time.Hour
-	certificateFileName        = "certificate.pem"
-	privateKeyFileName         = "private_key.pem"
+	storageLockPrefix          = "cloudflare-origin-ca"
 )
 
 func RegisterCertificateProvider(registry *certificate.Registry) {
@@ -62,7 +62,10 @@ type Service struct {
 	done              chan struct{}
 	httpClient        *http.Client
 	requestTimeout    time.Duration
-	dataDirectory     string
+	storage           certmagic.Storage
+	storageIssuerKey  string
+	storageNamesKey   string
+	storageLockKey    string
 	apiToken          string
 	originCAKey       string
 	hostnames         []string
@@ -127,6 +130,14 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		cancel()
 		return nil, E.Cause(err, "create Cloudflare Origin CA dialer")
 	}
+	var storage certmagic.Storage
+	if options.DataDirectory != "" {
+		storage = &certmagic.FileStorage{Path: options.DataDirectory}
+	} else {
+		storage = certmagic.Default.Storage
+	}
+	storageIssuerKey := createStorageIssuerKey(requestType)
+	storageNamesKey := createStorageNamesKey(hostnames)
 	return &Service{
 		Adapter: certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
 		logger:  logger,
@@ -146,7 +157,10 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 			ForceAttemptHTTP2:     true,
 		}, Timeout: requestTimeout},
 		requestTimeout:    requestTimeout,
-		dataDirectory:     options.DataDirectory,
+		storage:           storage,
+		storageIssuerKey:  storageIssuerKey,
+		storageNamesKey:   storageNamesKey,
+		storageLockKey:    createStorageLockKey(storageIssuerKey, storageNamesKey),
 		apiToken:          apiToken,
 		originCAKey:       originCAKey,
 		hostnames:         hostnames,
@@ -281,6 +295,23 @@ func (s *Service) effectiveRenewBefore(leaf *x509.Certificate) time.Duration {
 }
 
 func (s *Service) issueAndStoreCertificate() error {
+	err := s.storage.Lock(s.ctx, s.storageLockKey)
+	if err != nil {
+		return E.Cause(err, "lock Cloudflare Origin CA certificate storage")
+	}
+	defer func() {
+		err = s.storage.Unlock(context.WithoutCancel(s.ctx), s.storageLockKey)
+		if err != nil {
+			s.logger.Warn(E.Cause(err, "unlock Cloudflare Origin CA certificate storage"))
+		}
+	}()
+	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate()
+	if err != nil {
+		s.logger.Warn(E.Cause(err, "load cached Cloudflare Origin CA certificate"))
+	} else if cachedCertificate != nil && !s.shouldRenew(cachedLeaf, time.Now()) {
+		s.setCurrentCertificate(cachedCertificate, cachedLeaf)
+		return nil
+	}
 	requestContext := s.ctx
 	if s.requestTimeout > 0 {
 		var cancel context.CancelFunc
@@ -291,15 +322,21 @@ func (s *Service) issueAndStoreCertificate() error {
 	if err != nil {
 		return err
 	}
-	if s.dataDirectory != "" {
-		err = writePEMFile(filepath.Join(s.dataDirectory, certificateFileName), certificatePEM)
-		if err != nil {
-			return E.Cause(err, "store Cloudflare Origin CA certificate")
-		}
-		err = writePEMFile(filepath.Join(s.dataDirectory, privateKeyFileName), privateKeyPEM)
-		if err != nil {
-			return E.Cause(err, "store Cloudflare Origin CA private key")
-		}
+	issuerData, err := json.Marshal(originCAIssuerData{
+		RequestType:       s.requestType,
+		RequestedValidity: s.requestedValidity,
+	})
+	if err != nil {
+		return E.Cause(err, "encode Cloudflare Origin CA certificate metadata")
+	}
+	err = storeCertificateResource(s.ctx, s.storage, s.storageIssuerKey, certmagic.CertificateResource{
+		SANs:           slices.Clone(s.hostnames),
+		CertificatePEM: certificatePEM,
+		PrivateKeyPEM:  privateKeyPEM,
+		IssuerData:     issuerData,
+	})
+	if err != nil {
+		return E.Cause(err, "store Cloudflare Origin CA certificate")
 	}
 	s.setCurrentCertificate(tlsCertificate, leaf)
 	s.logger.Info("updated Cloudflare Origin CA certificate, expires at ", leaf.NotAfter.Format(time.RFC3339))
@@ -375,26 +412,14 @@ func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.
 }
 
 func (s *Service) loadCachedCertificate() (*tls.Certificate, *x509.Certificate, error) {
-	if s.dataDirectory == "" {
-		return nil, nil, nil
-	}
-	certificatePath := filepath.Join(s.dataDirectory, certificateFileName)
-	privateKeyPath := filepath.Join(s.dataDirectory, privateKeyFileName)
-	certificatePEM, err := os.ReadFile(certificatePath)
+	certResource, err := loadCertificateResource(s.ctx, s.storage, s.storageIssuerKey, s.storageNamesKey)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil, nil
 		}
-		return nil, nil, E.Cause(err, "read ", certificatePath)
+		return nil, nil, err
 	}
-	privateKeyPEM, err := os.ReadFile(privateKeyPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil, nil
-		}
-		return nil, nil, E.Cause(err, "read ", privateKeyPath)
-	}
-	tlsCertificate, leaf, err := parseKeyPair(certificatePEM, privateKeyPEM)
+	tlsCertificate, leaf, err := parseKeyPair(certResource.CertificatePEM, certResource.PrivateKeyPEM)
 	if err != nil {
 		return nil, nil, E.Cause(err, "parse cached key pair")
 	}
@@ -538,17 +563,78 @@ func parseKeyPair(certificatePEM []byte, privateKeyPEM []byte) (*tls.Certificate
 	return &keyPair, leaf, nil
 }
 
-func writePEMFile(path string, content []byte) error {
-	err := os.MkdirAll(filepath.Dir(path), 0o700)
+func createStorageIssuerKey(requestType option.CloudflareOriginCARequestType) string {
+	return C.TypeCloudflareOriginCA + "-" + string(requestType)
+}
+
+func createStorageNamesKey(hostnames []string) string {
+	return (&certmagic.CertificateResource{SANs: slices.Clone(hostnames)}).NamesKey()
+}
+
+func createStorageLockKey(issuerKey string, namesKey string) string {
+	return strings.Join([]string{
+		storageLockPrefix,
+		certmagic.StorageKeys.Safe(issuerKey),
+		certmagic.StorageKeys.Safe(namesKey),
+	}, "/")
+}
+
+func storeCertificateResource(ctx context.Context, storage certmagic.Storage, issuerKey string, certResource certmagic.CertificateResource) error {
+	metaBytes, err := json.MarshalIndent(certResource, "", "\t")
 	if err != nil {
 		return err
 	}
-	tempPath := path + ".tmp"
-	err = os.WriteFile(tempPath, content, 0o600)
-	if err != nil {
-		return err
+	namesKey := certResource.NamesKey()
+	keyValueList := []struct {
+		key   string
+		value []byte
+	}{
+		{
+			key:   certmagic.StorageKeys.SitePrivateKey(issuerKey, namesKey),
+			value: certResource.PrivateKeyPEM,
+		},
+		{
+			key:   certmagic.StorageKeys.SiteCert(issuerKey, namesKey),
+			value: certResource.CertificatePEM,
+		},
+		{
+			key:   certmagic.StorageKeys.SiteMeta(issuerKey, namesKey),
+			value: metaBytes,
+		},
 	}
-	return os.Rename(tempPath, path)
+	for i, item := range keyValueList {
+		err = storage.Store(ctx, item.key, item.value)
+		if err != nil {
+			for j := i - 1; j >= 0; j-- {
+				storage.Delete(ctx, keyValueList[j].key)
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func loadCertificateResource(ctx context.Context, storage certmagic.Storage, issuerKey string, namesKey string) (certmagic.CertificateResource, error) {
+	privateKeyPEM, err := storage.Load(ctx, certmagic.StorageKeys.SitePrivateKey(issuerKey, namesKey))
+	if err != nil {
+		return certmagic.CertificateResource{}, err
+	}
+	certificatePEM, err := storage.Load(ctx, certmagic.StorageKeys.SiteCert(issuerKey, namesKey))
+	if err != nil {
+		return certmagic.CertificateResource{}, err
+	}
+	metaBytes, err := storage.Load(ctx, certmagic.StorageKeys.SiteMeta(issuerKey, namesKey))
+	if err != nil {
+		return certmagic.CertificateResource{}, err
+	}
+	var certResource certmagic.CertificateResource
+	err = json.Unmarshal(metaBytes, &certResource)
+	if err != nil {
+		return certmagic.CertificateResource{}, E.Cause(err, "decode Cloudflare Origin CA certificate metadata")
+	}
+	certResource.PrivateKeyPEM = privateKeyPEM
+	certResource.CertificatePEM = certificatePEM
+	return certResource, nil
 }
 
 func buildOriginCAError(statusCode int, responseErrors []originCAResponseError, responseBody []byte) error {
@@ -595,4 +681,9 @@ type originCAResponseError struct {
 
 type originCAResponseResult struct {
 	Certificate string `json:"certificate"`
+}
+
+type originCAIssuerData struct {
+	RequestType       option.CloudflareOriginCARequestType     `json:"request_type,omitempty"`
+	RequestedValidity option.CloudflareOriginCARequestValidity `json:"requested_validity,omitempty"`
 }
