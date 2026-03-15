@@ -3,6 +3,7 @@
 package acme
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,22 +13,27 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/certificate"
+	"github.com/sagernet/sing-box/common/dialer"
 	boxtls "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/ntp"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/caddyserver/zerossl"
-	"github.com/libdns/acmedns"
 	"github.com/libdns/alidns"
 	"github.com/libdns/cloudflare"
+	"github.com/libdns/libdns"
 	"github.com/mholt/acmez/v3/acme"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -135,7 +141,15 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		}
 		acmeIssuer.TrustedRoots = rootPool
 	}
-	dnsSolver, err := newDNSSolver(options.DNS01Challenge, zapLogger)
+	httpTimeout := certmagic.HTTPTimeout
+	if acmeIssuer.CertObtainTimeout > 0 {
+		httpTimeout = acmeIssuer.CertObtainTimeout
+	}
+	acmeHTTPClient, err := newACMEHTTPClient(ctx, httpTimeout, acmeIssuer.TrustedRoots)
+	if err != nil {
+		return nil, err
+	}
+	dnsSolver, err := newDNSSolver(options.DNS01Challenge, zapLogger, acmeHTTPClient)
 	if err != nil {
 		return nil, err
 	}
@@ -158,12 +172,17 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 				return account, nil
 			}
 			var err error
-			acmeIssuer.ExternalAccount, account, err = createZeroSSLExternalAccountBinding(ctx, acmeIssuer, account)
+			acmeIssuer.ExternalAccount, account, err = createZeroSSLExternalAccountBinding(ctx, acmeIssuer, account, acmeHTTPClient)
 			return account, err
 		}
 	}
 
-	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeIssuer)}
+	certmagicIssuer := certmagic.NewACMEIssuer(config, acmeIssuer)
+	err = overrideACMEIssuerHTTPClient(certmagicIssuer, acmeHTTPClient)
+	if err != nil {
+		return nil, err
+	}
+	config.Issuers = []certmagic.Issuer{certmagicIssuer}
 	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
 			return config, nil
@@ -239,7 +258,7 @@ func createKeyGenerator(keyType option.ACMEKeyType) (certmagic.StandardKeyGenera
 	}
 }
 
-func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *zap.Logger) (*certmagic.DNS01Solver, error) {
+func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *zap.Logger, httpClient *http.Client) (*certmagic.DNS01Solver, error) {
 	if dnsOptions == nil || dnsOptions.Provider == "" {
 		return nil, nil
 	}
@@ -274,15 +293,17 @@ func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *
 		}
 	case C.DNSProviderCloudflare:
 		solver.DNSProvider = &cloudflare.Provider{
-			APIToken:  dnsOptions.CloudflareOptions.APIToken,
-			ZoneToken: dnsOptions.CloudflareOptions.ZoneToken,
+			APIToken:   dnsOptions.CloudflareOptions.APIToken,
+			ZoneToken:  dnsOptions.CloudflareOptions.ZoneToken,
+			HTTPClient: httpClient,
 		}
 	case C.DNSProviderACMEDNS:
-		solver.DNSProvider = &acmedns.Provider{
-			Username:  dnsOptions.ACMEDNSOptions.Username,
-			Password:  dnsOptions.ACMEDNSOptions.Password,
-			Subdomain: dnsOptions.ACMEDNSOptions.Subdomain,
-			ServerURL: dnsOptions.ACMEDNSOptions.ServerURL,
+		solver.DNSProvider = &acmeDNSProvider{
+			username:   dnsOptions.ACMEDNSOptions.Username,
+			password:   dnsOptions.ACMEDNSOptions.Password,
+			subdomain:  dnsOptions.ACMEDNSOptions.Subdomain,
+			serverURL:  dnsOptions.ACMEDNSOptions.ServerURL,
+			httpClient: httpClient,
 		}
 	default:
 		return nil, E.New("unsupported ACME DNS01 provider type: ", dnsOptions.Provider)
@@ -322,7 +343,7 @@ func loadTrustedRoots(pemFiles []string) (*x509.CertPool, error) {
 	return rootPool, nil
 }
 
-func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account) (*acme.EAB, acme.Account, error) {
+func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account, httpClient *http.Client) (*acme.EAB, acme.Account, error) {
 	email := strings.TrimSpace(acmeIssuer.Email)
 	if email == "" {
 		return nil, acme.Account{}, E.New("email is required to use the ZeroSSL ACME endpoint without external_account")
@@ -344,7 +365,7 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certma
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("User-Agent", certmagic.UserAgent)
 
-	response, err := newACMEHTTPClient(acmeIssuer).Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, account, E.Cause(err, "request ZeroSSL EAB")
 	}
@@ -378,40 +399,112 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certma
 	}, account, nil
 }
 
-func newACMEHTTPClient(acmeIssuer *certmagic.ACMEIssuer) *http.Client {
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 2 * time.Minute,
+func newACMEHTTPClient(ctx context.Context, httpTimeout time.Duration, trustedRoots *x509.CertPool) (*http.Client, error) {
+	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:        ctx,
+		Options:        option.DialerOptions{},
+		RemoteIsDomain: true,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "create ACME provider dialer")
 	}
-	if acmeIssuer.Resolver != "" {
-		dialer.Resolver = &net.Resolver{
-			PreferGo: true,
-			Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-				return (&net.Dialer{
-					Timeout: 15 * time.Second,
-				}).DialContext(ctx, network, acmeIssuer.Resolver)
-			},
-		}
+	tlsConfig := &tls.Config{
+		RootCAs: adapter.RootPoolFromContext(ctx),
+		Time:    ntp.TimeFuncFromContext(ctx),
 	}
-	transport := &http.Transport{
-		Proxy:                 acmeIssuer.HTTPProxy,
-		DialContext:           dialer.DialContext,
-		TLSHandshakeTimeout:   30 * time.Second,
-		ResponseHeaderTimeout: 30 * time.Second,
-		ExpectContinueTimeout: 2 * time.Second,
-		ForceAttemptHTTP2:     true,
-	}
-	if acmeIssuer.TrustedRoots != nil {
-		transport.TLSClientConfig = &tls.Config{
-			RootCAs: acmeIssuer.TrustedRoots,
-		}
-	}
-	httpTimeout := certmagic.HTTPTimeout
-	if acmeIssuer.CertObtainTimeout > 0 {
-		httpTimeout = acmeIssuer.CertObtainTimeout
+	if trustedRoots != nil {
+		tlsConfig.RootCAs = trustedRoots
 	}
 	return &http.Client{
-		Transport: transport,
-		Timeout:   httpTimeout,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSClientConfig:       tlsConfig,
+			TLSHandshakeTimeout:   30 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+			ExpectContinueTimeout: 2 * time.Second,
+			ForceAttemptHTTP2:     true,
+		},
+		Timeout: httpTimeout,
+	}, nil
+}
+
+func overrideACMEIssuerHTTPClient(acmeIssuer *certmagic.ACMEIssuer, httpClient *http.Client) error {
+	httpClientField := reflect.ValueOf(acmeIssuer).Elem().FieldByName("httpClient")
+	if !httpClientField.IsValid() || !httpClientField.CanAddr() {
+		return E.New("certmagic ACME issuer HTTP client field is unavailable")
 	}
+	reflect.NewAt(httpClientField.Type(), unsafe.Pointer(httpClientField.UnsafeAddr())).Elem().Set(reflect.ValueOf(httpClient))
+	return nil
+}
+
+type acmeDNSProvider struct {
+	username   string
+	password   string
+	subdomain  string
+	serverURL  string
+	httpClient *http.Client
+}
+
+type acmeDNSRecord struct {
+	resourceRecord libdns.RR
+}
+
+func (r acmeDNSRecord) RR() libdns.RR {
+	return r.resourceRecord
+}
+
+func (p *acmeDNSProvider) AppendRecords(ctx context.Context, _ string, records []libdns.Record) ([]libdns.Record, error) {
+	if p.username == "" {
+		return nil, E.New("ACME-DNS username cannot be empty")
+	}
+	if p.password == "" {
+		return nil, E.New("ACME-DNS password cannot be empty")
+	}
+	if p.subdomain == "" {
+		return nil, E.New("ACME-DNS subdomain cannot be empty")
+	}
+	if p.serverURL == "" {
+		return nil, E.New("ACME-DNS server_url cannot be empty")
+	}
+	appendedRecords := make([]libdns.Record, 0, len(records))
+	for _, record := range records {
+		resourceRecord := record.RR()
+		if resourceRecord.Type != "TXT" {
+			return appendedRecords, E.New("ACME-DNS only supports adding TXT records")
+		}
+		requestBody, err := json.Marshal(map[string]string{
+			"subdomain": p.subdomain,
+			"txt":       resourceRecord.Data,
+		})
+		if err != nil {
+			return appendedRecords, E.Cause(err, "marshal ACME-DNS update request")
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, p.serverURL+"/update", bytes.NewReader(requestBody))
+		if err != nil {
+			return appendedRecords, E.Cause(err, "create ACME-DNS update request")
+		}
+		request.Header.Set("X-Api-User", p.username)
+		request.Header.Set("X-Api-Key", p.password)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := p.httpClient.Do(request)
+		if err != nil {
+			return appendedRecords, E.Cause(err, "update ACME-DNS record")
+		}
+		_ = response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			return appendedRecords, E.New("update ACME-DNS record: HTTP ", response.StatusCode)
+		}
+		appendedRecords = append(appendedRecords, acmeDNSRecord{resourceRecord: libdns.RR{
+			Type: "TXT",
+			Name: resourceRecord.Name,
+			Data: resourceRecord.Data,
+		}})
+	}
+	return appendedRecords, nil
+}
+
+func (p *acmeDNSProvider) DeleteRecords(context.Context, string, []libdns.Record) ([]libdns.Record, error) {
+	return nil, nil
 }

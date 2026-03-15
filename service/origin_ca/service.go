@@ -26,10 +26,13 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/certificate"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/ntp"
 
 	"golang.org/x/net/idna"
 )
@@ -115,9 +118,14 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		return nil, E.New("renew_before must be shorter than requested_validity")
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 2 * time.Minute,
+	serviceDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:        ctx,
+		Options:        option.DialerOptions{},
+		RemoteIsDomain: true,
+	})
+	if err != nil {
+		cancel()
+		return nil, E.Cause(err, "create Cloudflare Origin CA dialer")
 	}
 	return &Service{
 		Adapter: certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
@@ -125,8 +133,13 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		ctx:     ctx,
 		cancel:  cancel,
 		httpClient: &http.Client{Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialer.DialContext,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return serviceDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+			},
+			TLSClientConfig: &tls.Config{
+				RootCAs: adapter.RootPoolFromContext(ctx),
+				Time:    ntp.TimeFuncFromContext(ctx),
+			},
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: requestTimeout,
 			ExpectContinueTimeout: 2 * time.Second,
