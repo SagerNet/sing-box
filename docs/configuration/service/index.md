@@ -23,7 +23,6 @@ icon: material/new-box
 
 | Type       | Format                 |
 |------------|------------------------|
-| `acme`     | [ACME](./acme)         |
 | `ccm`      | [CCM](./ccm)           |
 | `derp`     | [DERP](./derp)         |
 | `ocm`      | [OCM](./ocm)           |

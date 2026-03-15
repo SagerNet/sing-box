@@ -10,35 +10,35 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
-type ACMEServiceOptions struct {
-	Domain                  badoption.Listable[string]        `json:"domain,omitempty"`
-	DataDirectory           string                            `json:"data_directory,omitempty"`
-	DefaultServerName       string                            `json:"default_server_name,omitempty"`
-	Email                   string                            `json:"email,omitempty"`
-	Provider                string                            `json:"provider,omitempty"`
-	TestCA                  string                            `json:"test_ca,omitempty"`
-	AccountKey              string                            `json:"account_key,omitempty"`
-	TrustedRootsPEMFiles    badoption.Listable[string]        `json:"trusted_roots_pem_files,omitempty"`
-	ACMETimeout             badoption.Duration                `json:"acme_timeout,omitempty"`
-	Profile                 string                            `json:"profile,omitempty"`
-	CertificateLifetime     badoption.Duration                `json:"certificate_lifetime,omitempty"`
-	DisableHTTPChallenge    bool                              `json:"disable_http_challenge,omitempty"`
-	DisableTLSALPNChallenge bool                              `json:"disable_tls_alpn_challenge,omitempty"`
-	AlternativeHTTPPort     uint16                            `json:"alternative_http_port,omitempty"`
-	AlternativeTLSPort      uint16                            `json:"alternative_tls_port,omitempty"`
-	BindHost                string                            `json:"bind_host,omitempty"`
-	ExternalAccount         *ACMEExternalAccountOptions       `json:"external_account,omitempty"`
-	DNS01Challenge          *ACMEServiceDNS01ChallengeOptions `json:"dns01_challenge,omitempty"`
-	PreferredChains         *ACMEPreferredChainsOptions       `json:"preferred_chains,omitempty"`
-	KeyType                 ACMEKeyType                       `json:"key_type,omitempty"`
-	ReusePrivateKeys        bool                              `json:"reuse_private_keys,omitempty"`
-	MustStaple              bool                              `json:"must_staple,omitempty"`
-	RenewalWindowRatio      float64                           `json:"renewal_window_ratio,omitempty"`
-	DisableOCSPStapling     bool                              `json:"disable_ocsp_stapling,omitempty"`
-	OCSPOverrides           map[string]string                 `json:"ocsp_overrides,omitempty"`
+type ACMECertificateProviderOptions struct {
+	Domain                  badoption.Listable[string]         `json:"domain,omitempty"`
+	DataDirectory           string                             `json:"data_directory,omitempty"`
+	DefaultServerName       string                             `json:"default_server_name,omitempty"`
+	Email                   string                             `json:"email,omitempty"`
+	Provider                string                             `json:"provider,omitempty"`
+	TestCA                  string                             `json:"test_ca,omitempty"`
+	AccountKey              string                             `json:"account_key,omitempty"`
+	TrustedRootsPEMFiles    badoption.Listable[string]         `json:"trusted_roots_pem_files,omitempty"`
+	ACMETimeout             badoption.Duration                 `json:"acme_timeout,omitempty"`
+	Profile                 string                             `json:"profile,omitempty"`
+	CertificateLifetime     badoption.Duration                 `json:"certificate_lifetime,omitempty"`
+	DisableHTTPChallenge    bool                               `json:"disable_http_challenge,omitempty"`
+	DisableTLSALPNChallenge bool                               `json:"disable_tls_alpn_challenge,omitempty"`
+	AlternativeHTTPPort     uint16                             `json:"alternative_http_port,omitempty"`
+	AlternativeTLSPort      uint16                             `json:"alternative_tls_port,omitempty"`
+	BindHost                string                             `json:"bind_host,omitempty"`
+	ExternalAccount         *ACMEExternalAccountOptions        `json:"external_account,omitempty"`
+	DNS01Challenge          *ACMEProviderDNS01ChallengeOptions `json:"dns01_challenge,omitempty"`
+	PreferredChains         *ACMEPreferredChainsOptions        `json:"preferred_chains,omitempty"`
+	KeyType                 ACMEKeyType                        `json:"key_type,omitempty"`
+	ReusePrivateKeys        bool                               `json:"reuse_private_keys,omitempty"`
+	MustStaple              bool                               `json:"must_staple,omitempty"`
+	RenewalWindowRatio      float64                            `json:"renewal_window_ratio,omitempty"`
+	DisableOCSPStapling     bool                               `json:"disable_ocsp_stapling,omitempty"`
+	OCSPOverrides           map[string]string                  `json:"ocsp_overrides,omitempty"`
 }
 
-type _ACMEServiceDNS01ChallengeOptions struct {
+type _ACMEProviderDNS01ChallengeOptions struct {
 	TTL                badoption.Duration         `json:"ttl,omitempty"`
 	PropagationDelay   badoption.Duration         `json:"propagation_delay,omitempty"`
 	PropagationTimeout badoption.Duration         `json:"propagation_timeout,omitempty"`
@@ -50,9 +50,9 @@ type _ACMEServiceDNS01ChallengeOptions struct {
 	ACMEDNSOptions     ACMEDNS01ACMEDNSOptions    `json:"-"`
 }
 
-type ACMEServiceDNS01ChallengeOptions _ACMEServiceDNS01ChallengeOptions
+type ACMEProviderDNS01ChallengeOptions _ACMEProviderDNS01ChallengeOptions
 
-func (o ACMEServiceDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
+func (o ACMEProviderDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.Provider {
 	case C.DNSProviderAliDNS:
@@ -66,11 +66,11 @@ func (o ACMEServiceDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown provider type: ", o.Provider)
 	}
-	return badjson.MarshallObjects((_ACMEServiceDNS01ChallengeOptions)(o), v)
+	return badjson.MarshallObjects((_ACMEProviderDNS01ChallengeOptions)(o), v)
 }
 
-func (o *ACMEServiceDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_ACMEServiceDNS01ChallengeOptions)(o))
+func (o *ACMEProviderDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_ACMEProviderDNS01ChallengeOptions)(o))
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (o *ACMEServiceDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown provider type: ", o.Provider)
 	}
-	return badjson.UnmarshallExcluded(bytes, (*_ACMEServiceDNS01ChallengeOptions)(o), v)
+	return badjson.UnmarshallExcluded(bytes, (*_ACMEProviderDNS01ChallengeOptions)(o), v)
 }
 
 type ACMEPreferredChainsOptions struct {

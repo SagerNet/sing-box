@@ -29,59 +29,63 @@ type managedCertificateProvider interface {
 	adapter.SimpleLifecycle
 }
 
-type acmeServiceCertificateProvider struct {
-	ctx        context.Context
-	serviceTag string
-	once       sync.Once
-	provider   adapter.ACMECertificateProvider
-	resolveErr error
+type sharedCertificateProvider struct {
+	tag      string
+	manager  adapter.CertificateProviderManager
+	provider adapter.CertificateProviderService
 }
 
-func (p *acmeServiceCertificateProvider) Start() error {
-	_, err := p.resolveProvider()
-	return err
-}
-
-func (p *acmeServiceCertificateProvider) Close() error {
+func (p *sharedCertificateProvider) Start() error {
+	provider, found := p.manager.Get(p.tag)
+	if !found {
+		return E.New("certificate provider not found: ", p.tag)
+	}
+	p.provider = provider
 	return nil
 }
 
-func (p *acmeServiceCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	provider, err := p.resolveProvider()
-	if err != nil {
-		return nil, err
-	}
-	return provider.GetCertificate(hello)
+func (p *sharedCertificateProvider) Close() error {
+	return nil
 }
 
-func (p *acmeServiceCertificateProvider) GetACMENextProtos() []string {
-	provider, err := p.resolveProvider()
-	if err != nil {
-		return nil
-	}
-	return provider.GetACMENextProtos()
+func (p *sharedCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return p.provider.GetCertificate(hello)
 }
 
-func (p *acmeServiceCertificateProvider) resolveProvider() (adapter.ACMECertificateProvider, error) {
-	p.once.Do(func() {
-		serviceManager := service.FromContext[adapter.ServiceManager](p.ctx)
-		if serviceManager == nil {
-			p.resolveErr = E.New("missing service manager in context")
-			return
+func (p *sharedCertificateProvider) GetACMENextProtos() []string {
+	if acmeProvider, isACME := p.provider.(adapter.ACMECertificateProvider); isACME {
+		return acmeProvider.GetACMENextProtos()
+	}
+	return nil
+}
+
+type inlineCertificateProvider struct {
+	provider adapter.CertificateProviderService
+}
+
+func (p *inlineCertificateProvider) Start() error {
+	for _, stage := range adapter.ListStartStages {
+		err := adapter.LegacyStart(p.provider, stage)
+		if err != nil {
+			return err
 		}
-		providerService, found := serviceManager.Get(p.serviceTag)
-		if !found {
-			p.resolveErr = E.New("certificate provider service not found: ", p.serviceTag)
-			return
-		}
-		provider, ok := providerService.(adapter.ACMECertificateProvider)
-		if !ok {
-			p.resolveErr = E.New("service ", p.serviceTag, " is not an ACME certificate service")
-			return
-		}
-		p.provider = provider
-	})
-	return p.provider, p.resolveErr
+	}
+	return nil
+}
+
+func (p *inlineCertificateProvider) Close() error {
+	return p.provider.Close()
+}
+
+func (p *inlineCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return p.provider.GetCertificate(hello)
+}
+
+func (p *inlineCertificateProvider) GetACMENextProtos() []string {
+	if acmeProvider, isACME := p.provider.(adapter.ACMECertificateProvider); isACME {
+		return acmeProvider.GetACMENextProtos()
+	}
+	return nil
 }
 
 type STDServerConfig struct {
@@ -326,7 +330,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	var acmeService adapter.SimpleLifecycle
 	var err error
 	if options.CertificateProvider != nil {
-		certificateProvider, err = newCertificateProvider(ctx, options.CertificateProvider)
+		certificateProvider, err = newCertificateProvider(ctx, logger, options.CertificateProvider)
 		if err != nil {
 			return nil, err
 		}
@@ -507,18 +511,26 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	return config, nil
 }
 
-func newCertificateProvider(ctx context.Context, options *option.CertificateProviderOptions) (managedCertificateProvider, error) {
-	switch options.Type {
-	case C.TypeACME:
-		serviceTag := options.ACMEOptions.Service
-		if serviceTag == "" {
-			return nil, E.New("missing ACME service tag in certificate_provider")
+func newCertificateProvider(ctx context.Context, logger log.ContextLogger, options *option.CertificateProviderOptions) (managedCertificateProvider, error) {
+	if options.IsShared() {
+		manager := service.FromContext[adapter.CertificateProviderManager](ctx)
+		if manager == nil {
+			return nil, E.New("missing certificate provider manager in context")
 		}
-		return &acmeServiceCertificateProvider{
-			ctx:        ctx,
-			serviceTag: serviceTag,
+		return &sharedCertificateProvider{
+			tag:     options.Tag,
+			manager: manager,
 		}, nil
-	default:
-		return nil, E.New("unknown certificate provider type: ", options.Type)
 	}
+	registry := service.FromContext[adapter.CertificateProviderRegistry](ctx)
+	if registry == nil {
+		return nil, E.New("missing certificate provider registry in context")
+	}
+	provider, err := registry.Create(ctx, logger, "", options.Type, options.Options)
+	if err != nil {
+		return nil, E.Cause(err, "create inline certificate provider")
+	}
+	return &inlineCertificateProvider{
+		provider: provider,
+	}, nil
 }

@@ -6,12 +6,12 @@ icon: material/arrange-bring-forward
 
 ### 迁移内联 ACME 到证书提供者
 
-TLS 中的内联 ACME 选项已废弃，且可以被 ACME 服务替代。
+TLS 中的内联 ACME 选项已废弃，且可以被证书提供者替代。
 
 !!! info "参考"
 
     [TLS](/configuration/shared/tls/#certificate_provider) /
-    [ACME 服务](/zh/configuration/service/acme/)
+    [证书提供者](/zh/configuration/certificate-provider/acme/)
 
 === ":material-card-remove: 弃用的"
 
@@ -32,7 +32,7 @@ TLS 中的内联 ACME 选项已废弃，且可以被 ACME 服务替代。
     }
     ```
 
-=== ":material-card-multiple: 新的"
+=== ":material-card-multiple: 内联"
 
     ```json
     {
@@ -43,17 +43,34 @@ TLS 中的内联 ACME 选项已废弃，且可以被 ACME 服务替代。
             "enabled": true,
             "certificate_provider": {
               "type": "acme",
-              "service": "acme-service"
+              "domain": ["example.com"],
+              "email": "admin@example.com"
             }
           }
         }
-      ],
-      "services": [
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 共享"
+
+    ```json
+    {
+      "certificate_providers": [
         {
           "type": "acme",
-          "tag": "acme-service",
+          "tag": "my-cert",
           "domain": ["example.com"],
           "email": "admin@example.com"
+        }
+      ],
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": "my-cert"
+          }
         }
       ]
     }

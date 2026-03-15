@@ -2,31 +2,36 @@
 icon: material/new-box
 ---
 
-!!! question "自 sing-box 1.14.0 起"
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-alert: [certificate_provider](#certificate_provider)
 
 ### 结构
 
 ```json
 {
-  "type": "",
-
-  ... // 提供者字段
+  "certificate_provider": "my-cert"
 }
 ```
 
-### 提供者字段
-
-#### ACME
+或
 
 ```json
 {
-  "type": "acme",
-  "service": ""
+  "certificate_provider": {
+    "type": "acme",
+
+    ... // 提供者字段
+  }
 }
 ```
 
-##### service
+### 字段
 
-==必填==
+#### certificate_provider
 
-要使用的 [ACME 服务](/zh/configuration/service/acme/) 的标签。
+字符串或对象。
+
+为字符串时，共享[证书提供者](/zh/configuration/certificate-provider/)的标签。
+
+为对象时，内联的证书提供者。可用类型和字段参阅[证书提供者](/zh/configuration/certificate-provider/)。

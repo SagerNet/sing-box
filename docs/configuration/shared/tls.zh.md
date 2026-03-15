@@ -54,10 +54,7 @@ icon: material/new-box
   "key_path": "",
   "kernel_tx": false,
   "kernel_rx": false,
-  "certificate_provider": {
-    "type": "acme",
-    "service": ""
-  },
+  "certificate_provider": "",
 
   // 废弃的
 

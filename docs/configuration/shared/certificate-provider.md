@@ -2,31 +2,36 @@
 icon: material/new-box
 ---
 
-!!! question "Since sing-box 1.14.0"
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-alert: [certificate_provider](#certificate_provider)
 
 ### Structure
 
 ```json
 {
-  "type": "",
-
-  ... // Provider Fields
+  "certificate_provider": "my-cert"
 }
 ```
 
-### Provider Fields
-
-#### ACME
+Or
 
 ```json
 {
-  "type": "acme",
-  "service": ""
+  "certificate_provider": {
+    "type": "acme",
+
+    ... // Provider Fields
+  }
 }
 ```
 
-##### service
+### Fields
 
-==Required==
+#### certificate_provider
 
-Tag of the [ACME service](/configuration/service/acme/) to use.
+A string or an object.
+
+When string, the tag of a shared [Certificate Provider](/configuration/certificate-provider/).
+
+When object, an inline certificate provider. See [Certificate Provider](/configuration/certificate-provider/) for available types and fields.

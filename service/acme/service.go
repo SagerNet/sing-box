@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	boxService "github.com/sagernet/sing-box/adapter/service"
+	"github.com/sagernet/sing-box/adapter/certificate"
 	boxtls "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -33,14 +33,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func RegisterService(registry *boxService.Registry) {
-	boxService.Register[option.ACMEServiceOptions](registry, C.TypeACME, NewService)
+func RegisterCertificateProvider(registry *certificate.Registry) {
+	certificate.Register[option.ACMECertificateProviderOptions](registry, C.TypeACME, NewCertificateProvider)
 }
 
-var _ adapter.ACMECertificateProvider = (*Service)(nil)
+var (
+	_ adapter.CertificateProviderService = (*Service)(nil)
+	_ adapter.ACMECertificateProvider    = (*Service)(nil)
+)
 
 type Service struct {
-	boxService.Adapter
+	certificate.Adapter
 	ctx        context.Context
 	config     *certmagic.Config
 	cache      *certmagic.Cache
@@ -48,7 +51,7 @@ type Service struct {
 	nextProtos []string
 }
 
-func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMEServiceOptions) (adapter.Service, error) {
+func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMECertificateProviderOptions) (adapter.CertificateProviderService, error) {
 	acmeServer, err := resolveACMEServer(options.Provider)
 	if err != nil {
 		return nil, err
@@ -174,7 +177,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		nextProtos = []string{C.ACMETLS1Protocol}
 	}
 	return &Service{
-		Adapter:    boxService.NewAdapter(C.TypeACME, tag),
+		Adapter:    certificate.NewAdapter(C.TypeACME, tag),
 		ctx:        ctx,
 		config:     config,
 		cache:      cache,
@@ -236,7 +239,7 @@ func createKeyGenerator(keyType option.ACMEKeyType) (certmagic.StandardKeyGenera
 	}
 }
 
-func newDNSSolver(dnsOptions *option.ACMEServiceDNS01ChallengeOptions, logger *zap.Logger) (*certmagic.DNS01Solver, error) {
+func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *zap.Logger) (*certmagic.DNS01Solver, error) {
 	if dnsOptions == nil || dnsOptions.Provider == "" {
 		return nil, nil
 	}

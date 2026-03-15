@@ -176,6 +176,9 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Certificate Provider:
+          - configuration/certificate-provider/index.md
+          - ACME: configuration/certificate-provider/acme.md
       - Service:
           - configuration/service/index.md
           - ACME: configuration/service/acme.md
@@ -284,6 +287,7 @@ plugins:
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
+            Certificate Provider: 证书提供者
 
             Manual: 手册
       reconfigure_material: true

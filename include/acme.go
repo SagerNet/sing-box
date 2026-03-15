@@ -3,10 +3,10 @@
 package include
 
 import (
-	"github.com/sagernet/sing-box/adapter/service"
+	"github.com/sagernet/sing-box/adapter/certificate"
 	"github.com/sagernet/sing-box/service/acme"
 )
 
-func registerACMEService(registry *service.Registry) {
-	acme.RegisterService(registry)
+func registerACMECertificateProvider(registry *certificate.Registry) {
+	acme.RegisterCertificateProvider(registry)
 }

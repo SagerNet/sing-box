@@ -6,12 +6,12 @@ icon: material/arrange-bring-forward
 
 ### Migrate inline ACME to certificate provider
 
-Inline ACME options in TLS are deprecated and can be replaced by ACME service.
+Inline ACME options in TLS are deprecated and can be replaced by certificate providers.
 
 !!! info "References"
 
     [TLS](/configuration/shared/tls/#certificate_provider) /
-    [ACME Service](/configuration/service/acme/)
+    [Certificate Provider](/configuration/certificate-provider/acme/)
 
 === ":material-card-remove: Deprecated"
 
@@ -32,7 +32,7 @@ Inline ACME options in TLS are deprecated and can be replaced by ACME service.
     }
     ```
 
-=== ":material-card-multiple: New"
+=== ":material-card-multiple: Inline"
 
     ```json
     {
@@ -43,17 +43,34 @@ Inline ACME options in TLS are deprecated and can be replaced by ACME service.
             "enabled": true,
             "certificate_provider": {
               "type": "acme",
-              "service": "acme-service"
+              "domain": ["example.com"],
+              "email": "admin@example.com"
             }
           }
         }
-      ],
-      "services": [
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: Shared"
+
+    ```json
+    {
+      "certificate_providers": [
         {
           "type": "acme",
-          "tag": "acme-service",
+          "tag": "my-cert",
           "domain": ["example.com"],
           "email": "admin@example.com"
+        }
+      ],
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": "my-cert"
+          }
         }
       ]
     }
