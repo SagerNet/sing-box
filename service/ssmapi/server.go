@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func RegisterService(registry *boxService.Registry) {
@@ -59,7 +60,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 			Listen:  options.ListenOptions,
 		}),
 		httpServer: &http.Server{
-			Handler: chiRouter,
+			Handler: h2c.NewHandler(chiRouter, &http2.Server{}),
 		},
 		traffics:  make(map[string]*TrafficManager),
 		users:     make(map[string]*UserManager),

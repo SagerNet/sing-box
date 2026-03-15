@@ -168,7 +168,11 @@ func FormatDuration(duration time.Duration) string {
 		return F.ToString(duration.Milliseconds(), "ms")
 	} else if duration < time.Minute {
 		return F.ToString(int64(duration.Seconds()), ".", int64(duration.Seconds()*100)%100, "s")
-	} else {
+	} else if duration < time.Hour {
 		return F.ToString(int64(duration.Minutes()), "m", int64(duration.Seconds())%60, "s")
+	} else if duration < 24*time.Hour {
+		return F.ToString(int64(duration.Hours()), "h", int64(duration.Minutes())%60, "m")
+	} else {
+		return F.ToString(int64(duration.Hours())/24, "d", int64(duration.Hours())%24, "h")
 	}
 }

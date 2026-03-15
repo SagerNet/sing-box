@@ -69,6 +69,13 @@ func platformReadCredentials(customPath string) (*oauthCredentials, error) {
 	return readCredentialsFromFile(defaultPath)
 }
 
+func platformCanWriteCredentials(customPath string) error {
+	if customPath == "" {
+		return nil
+	}
+	return checkCredentialFileWritable(customPath)
+}
+
 func platformWriteCredentials(oauthCredentials *oauthCredentials, customPath string) error {
 	if customPath != "" {
 		return writeCredentialsToFile(oauthCredentials, customPath)

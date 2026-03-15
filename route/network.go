@@ -51,6 +51,7 @@ type NetworkManager struct {
 	endpoint               adapter.EndpointManager
 	inbound                adapter.InboundManager
 	outbound               adapter.OutboundManager
+	serviceManager         adapter.ServiceManager
 	needWIFIState          bool
 	wifiMonitor            settings.WIFIMonitor
 	wifiState              adapter.WIFIState
@@ -94,6 +95,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options
 		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
+		serviceManager:    service.FromContext[adapter.ServiceManager](ctx),
 		needWIFIState:     hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
 	}
 	if options.DefaultNetworkStrategy != nil {
@@ -473,6 +475,15 @@ func (r *NetworkManager) ResetNetwork() {
 		listener, isListener := outbound.(adapter.InterfaceUpdateListener)
 		if isListener {
 			listener.InterfaceUpdated()
+		}
+	}
+
+	if r.serviceManager != nil {
+		for _, svc := range r.serviceManager.Services() {
+			listener, isListener := svc.(adapter.InterfaceUpdateListener)
+			if isListener {
+				listener.InterfaceUpdated()
+			}
 		}
 	}
 }
