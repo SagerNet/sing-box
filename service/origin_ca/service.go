@@ -61,7 +61,6 @@ type Service struct {
 	cancel            context.CancelFunc
 	done              chan struct{}
 	httpClient        *http.Client
-	requestTimeout    time.Duration
 	storage           certmagic.Storage
 	storageIssuerKey  string
 	storageNamesKey   string
@@ -101,9 +100,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	requestedValidity := options.RequestedValidity
 	if requestedValidity == 0 {
 		requestedValidity = defaultRequestedValidity
-	}
-	if !requestedValidity.IsKnown() {
-		return nil, E.New("unsupported Cloudflare Origin CA requested validity: ", requestedValidity)
 	}
 	requestTimeout := options.RequestTimeout.Build()
 	if requestTimeout < 0 {
@@ -156,7 +152,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 			ExpectContinueTimeout: 2 * time.Second,
 			ForceAttemptHTTP2:     true,
 		}, Timeout: requestTimeout},
-		requestTimeout:    requestTimeout,
 		storage:           storage,
 		storageIssuerKey:  storageIssuerKey,
 		storageNamesKey:   storageNamesKey,
@@ -312,13 +307,7 @@ func (s *Service) issueAndStoreCertificate() error {
 		s.setCurrentCertificate(cachedCertificate, cachedLeaf)
 		return nil
 	}
-	requestContext := s.ctx
-	if s.requestTimeout > 0 {
-		var cancel context.CancelFunc
-		requestContext, cancel = context.WithTimeout(s.ctx, s.requestTimeout)
-		defer cancel()
-	}
-	certificatePEM, privateKeyPEM, tlsCertificate, leaf, err := s.requestCertificate(requestContext)
+	certificatePEM, privateKeyPEM, tlsCertificate, leaf, err := s.requestCertificate(s.ctx)
 	if err != nil {
 		return err
 	}

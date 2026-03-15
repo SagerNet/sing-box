@@ -98,7 +98,7 @@ func (o *CertificateProviderOptions) UnmarshalJSONContext(ctx context.Context, c
 	if !loaded {
 		return E.New("unknown certificate provider type: ", o.Type)
 	}
-	err = badjson.UnmarshallExcluded(content, &inline, options)
+	err = badjson.UnmarshallExcludedContext(ctx, content, &inline, options)
 	if err != nil {
 		return err
 	}
