@@ -13,7 +13,7 @@ icon: material/new-box
   "type": "cloudflare-origin-ca",
   "tag": "",
 
-  "hostnames": [],
+  "domain": [],
   "data_directory": "",
   "api_token": "",
   "origin_ca_key": "",
@@ -28,11 +28,11 @@ icon: material/new-box
 
 ### 字段
 
-#### hostnames
+#### domain
 
-要写入证书的主机名或通配符主机名列表。
+要写入证书的域名或通配符域名列表。
 
-Unicode 主机名会自动转换为 punycode。
+Unicode 域名会自动转换为 punycode。
 
 #### data_directory
 

@@ -9,7 +9,7 @@ import (
 )
 
 type CloudflareOriginCACertificateProviderOptions struct {
-	Hostnames         badoption.Listable[string]        `json:"hostnames,omitempty"`
+	Domain            badoption.Listable[string]        `json:"domain,omitempty"`
 	DataDirectory     string                            `json:"data_directory,omitempty"`
 	APIToken          string                            `json:"api_token,omitempty"`
 	OriginCAKey       string                            `json:"origin_ca_key,omitempty"`

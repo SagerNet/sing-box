@@ -13,7 +13,7 @@ icon: material/new-box
   "type": "cloudflare-origin-ca",
   "tag": "",
 
-  "hostnames": [],
+  "domain": [],
   "data_directory": "",
   "api_token": "",
   "origin_ca_key": "",
@@ -29,11 +29,11 @@ certificate as a TLS certificate provider.
 
 ### Fields
 
-#### hostnames
+#### domain
 
-List of hostnames or wildcard hostnames to include in the certificate.
+List of domain names or wildcard domain names to include in the certificate.
 
-Unicode hostnames are converted to punycode automatically.
+Unicode domain names are converted to punycode automatically.
 
 #### data_directory
 

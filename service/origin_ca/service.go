@@ -67,7 +67,7 @@ type Service struct {
 	storageLockKey    string
 	apiToken          string
 	originCAKey       string
-	hostnames         []string
+	domain            []string
 	requestType       option.CloudflareOriginCARequestType
 	requestedValidity option.CloudflareOriginCARequestValidity
 	renewBefore       time.Duration
@@ -78,12 +78,12 @@ type Service struct {
 }
 
 func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag string, options option.CloudflareOriginCACertificateProviderOptions) (adapter.CertificateProviderService, error) {
-	hostnames, err := normalizeHostnames(options.Hostnames)
+	domain, err := normalizeHostnames(options.Domain)
 	if err != nil {
 		return nil, err
 	}
-	if len(hostnames) == 0 {
-		return nil, E.New("hostnames is empty")
+	if len(domain) == 0 {
+		return nil, E.New("missing domain")
 	}
 	apiToken := strings.TrimSpace(options.APIToken)
 	originCAKey := strings.TrimSpace(options.OriginCAKey)
@@ -133,7 +133,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		storage = certmagic.Default.Storage
 	}
 	storageIssuerKey := createStorageIssuerKey(requestType)
-	storageNamesKey := createStorageNamesKey(hostnames)
+	storageNamesKey := createStorageNamesKey(domain)
 	return &Service{
 		Adapter: certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
 		logger:  logger,
@@ -158,7 +158,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		storageLockKey:    createStorageLockKey(storageIssuerKey, storageNamesKey),
 		apiToken:          apiToken,
 		originCAKey:       originCAKey,
-		hostnames:         hostnames,
+		domain:            domain,
 		requestType:       requestType,
 		requestedValidity: requestedValidity,
 		renewBefore:       renewBefore,
@@ -319,7 +319,7 @@ func (s *Service) issueAndStoreCertificate() error {
 		return E.Cause(err, "encode Cloudflare Origin CA certificate metadata")
 	}
 	err = storeCertificateResource(s.ctx, s.storage, s.storageIssuerKey, certmagic.CertificateResource{
-		SANs:           slices.Clone(s.hostnames),
+		SANs:           slices.Clone(s.domain),
 		CertificatePEM: certificatePEM,
 		PrivateKeyPEM:  privateKeyPEM,
 		IssuerData:     issuerData,
@@ -341,13 +341,13 @@ func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.
 	if err != nil {
 		return nil, nil, nil, nil, E.Cause(err, "encode private key")
 	}
-	certificateRequestPEM, err := createCertificateRequest(privateKey, s.hostnames)
+	certificateRequestPEM, err := createCertificateRequest(privateKey, s.domain)
 	if err != nil {
 		return nil, nil, nil, nil, E.Cause(err, "create certificate request")
 	}
 	requestBody, err := json.Marshal(originCARequest{
 		CSR:               string(certificateRequestPEM),
-		Hostnames:         s.hostnames,
+		Hostnames:         s.domain,
 		RequestType:       string(s.requestType),
 		RequestedValidity: uint16(s.requestedValidity),
 	})
@@ -433,7 +433,7 @@ func (s *Service) matchesCertificate(leaf *x509.Certificate) bool {
 	if err != nil {
 		return false
 	}
-	if !slices.Equal(normalizedLeafHostnames, s.hostnames) {
+	if !slices.Equal(normalizedLeafHostnames, s.domain) {
 		return false
 	}
 	switch s.requestType {
