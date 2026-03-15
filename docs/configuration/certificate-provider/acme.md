@@ -28,33 +28,17 @@ icon: material/new-box
   "default_server_name": "",
   "email": "",
   "provider": "",
-  "test_ca": "",
   "account_key": "",
-  "trusted_roots_pem_files": [],
-  "acme_timeout": "",
-  "profile": "",
-  "certificate_lifetime": "",
   "disable_http_challenge": false,
   "disable_tls_alpn_challenge": false,
   "alternative_http_port": 0,
   "alternative_tls_port": 0,
-  "bind_host": "",
   "external_account": {
     "key_id": "",
     "mac_key": ""
   },
   "dns01_challenge": {},
-  "preferred_chains": {
-    "smallest": false,
-    "root_common_name": [],
-    "any_common_name": []
-  },
-  "key_type": "",
-  "reuse_private_keys": false,
-  "must_staple": false,
-  "renewal_window_ratio": 0.0,
-  "disable_ocsp_stapling": false,
-  "ocsp_overrides": {}
+  "key_type": ""
 }
 ```
 
@@ -95,49 +79,11 @@ When `provider` is `zerossl`, sing-box will automatically request ZeroSSL EAB cr
 
 When `provider` is `zerossl`, at least one of `external_account`, `email`, or `account_key` is required.
 
-#### test_ca
-
-!!! question "Since sing-box 1.14.0"
-
-The test ACME directory URL to use for retries.
-
-Must be `https://...` if set.
-
 #### account_key
 
 !!! question "Since sing-box 1.14.0"
 
 The PEM-encoded private key of an existing ACME account.
-
-#### trusted_roots_pem_files
-
-!!! question "Since sing-box 1.14.0"
-
-List of PEM files to trust when connecting to the ACME CA.
-
-Useful for private ACME deployments or custom test CAs.
-
-#### acme_timeout
-
-!!! question "Since sing-box 1.14.0"
-
-The maximum time allowed for an ACME obtain or renewal operation.
-
-#### profile
-
-!!! question "Since sing-box 1.14.0"
-
-The ACME profile name to request from the CA.
-
-Not all CAs support ACME profiles.
-
-#### certificate_lifetime
-
-!!! question "Since sing-box 1.14.0"
-
-The certificate lifetime to request from the CA.
-
-Not all CAs support custom certificate lifetimes.
 
 #### disable_http_challenge
 
@@ -156,12 +102,6 @@ listener for the HTTP challenge.
 
 The alternate port to use for the ACME TLS-ALPN challenge; the system must forward 443 to this port for challenge to
 succeed.
-
-#### bind_host
-
-!!! question "Since sing-box 1.14.0"
-
-The host to bind when starting HTTP-01 or TLS-ALPN challenge listeners.
 
 #### external_account
 
@@ -222,28 +162,6 @@ Useful when `_acme-challenge` is delegated to a different zone.
 
 For provider-specific fields, see [DNS01 Challenge Fields](/configuration/shared/dns01_challenge/).
 
-#### preferred_chains
-
-!!! question "Since sing-box 1.14.0"
-
-Preferences for selecting alternate certificate chains offered by the CA.
-
-At least one of `smallest`, `root_common_name`, or `any_common_name` must be set.
-
-`root_common_name` and `any_common_name` are mutually exclusive.
-
-#### preferred_chains.smallest
-
-Prefer the smallest certificate chain.
-
-#### preferred_chains.root_common_name
-
-Prefer the first chain whose root issuer common name matches one of these values.
-
-#### preferred_chains.any_common_name
-
-Prefer the first chain whose issuer common name matches one of these values.
-
 #### key_type
 
 !!! question "Since sing-box 1.14.0"
@@ -258,38 +176,3 @@ The private key type to generate for new certificates.
 | `rsa2048`  | RSA     |
 | `rsa4096`  | RSA     |
 
-#### reuse_private_keys
-
-!!! question "Since sing-box 1.14.0"
-
-Reuse existing private keys from storage when renewing certificates.
-
-#### must_staple
-
-!!! question "Since sing-box 1.14.0"
-
-Request certificates with the TLS Must-Staple extension.
-
-#### renewal_window_ratio
-
-!!! question "Since sing-box 1.14.0"
-
-The fraction of certificate lifetime remaining when renewal should begin.
-
-Must be greater than or equal to `0` and less than `1`.
-
-If empty, certmagic's default renewal window is used.
-
-#### disable_ocsp_stapling
-
-!!! question "Since sing-box 1.14.0"
-
-Disable automatic OCSP stapling.
-
-#### ocsp_overrides
-
-!!! question "Since sing-box 1.14.0"
-
-A map of OCSP responder URLs to replacement URLs.
-
-Set a replacement value to an empty string to disable querying that responder.

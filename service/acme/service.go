@@ -6,13 +6,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"maps"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -62,18 +59,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	if err != nil {
 		return nil, err
 	}
-	if options.TestCA != "" && !strings.HasPrefix(options.TestCA, "https://") {
-		return nil, E.New("unsupported ACME test CA: ", options.TestCA)
-	}
-	if options.ACMETimeout < 0 {
-		return nil, E.New("invalid ACME timeout: ", options.ACMETimeout)
-	}
-	if options.CertificateLifetime < 0 {
-		return nil, E.New("invalid certificate lifetime: ", options.CertificateLifetime)
-	}
-	if options.RenewalWindowRatio < 0 || options.RenewalWindowRatio >= 1 {
-		return nil, E.New("renewal_window_ratio must be in [0, 1)")
-	}
 	if acmeServer == certmagic.ZeroSSLProductionCA &&
 		(options.ExternalAccount == nil || options.ExternalAccount.KeyID == "") &&
 		strings.TrimSpace(options.Email) == "" &&
@@ -98,17 +83,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		DefaultServerName: options.DefaultServerName,
 		Storage:           storage,
 		Logger:            zapLogger,
-		ReusePrivateKeys:  options.ReusePrivateKeys,
-		MustStaple:        options.MustStaple,
-	}
-	if options.RenewalWindowRatio > 0 {
-		config.RenewalWindowRatio = options.RenewalWindowRatio
-	}
-	if options.DisableOCSPStapling || len(options.OCSPOverrides) > 0 {
-		config.OCSP = certmagic.OCSPConfig{
-			DisableStapling:    options.DisableOCSPStapling,
-			ResponderOverrides: maps.Clone(options.OCSPOverrides),
-		}
 	}
 	if options.KeyType != "" {
 		keyGenerator, err := createKeyGenerator(options.KeyType)
@@ -120,32 +94,16 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 
 	acmeIssuer := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
-		TestCA:                  options.TestCA,
 		Email:                   options.Email,
 		AccountKeyPEM:           options.AccountKey,
-		Profile:                 options.Profile,
-		NotAfter:                time.Duration(options.CertificateLifetime),
 		Agreed:                  true,
 		DisableHTTPChallenge:    options.DisableHTTPChallenge,
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
-		ListenHost:              options.BindHost,
-		CertObtainTimeout:       time.Duration(options.ACMETimeout),
 		Logger:                  zapLogger,
 	}
-	if len(options.TrustedRootsPEMFiles) > 0 {
-		rootPool, err := loadTrustedRoots(options.TrustedRootsPEMFiles)
-		if err != nil {
-			return nil, err
-		}
-		acmeIssuer.TrustedRoots = rootPool
-	}
-	httpTimeout := certmagic.HTTPTimeout
-	if acmeIssuer.CertObtainTimeout > 0 {
-		httpTimeout = acmeIssuer.CertObtainTimeout
-	}
-	acmeHTTPClient, err := newACMEHTTPClient(ctx, httpTimeout, acmeIssuer.TrustedRoots)
+	acmeHTTPClient, err := newACMEHTTPClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -158,13 +116,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 	if options.ExternalAccount != nil && options.ExternalAccount.KeyID != "" {
 		acmeIssuer.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
-	}
-	if options.PreferredChains != nil {
-		preferredChains, err := buildPreferredChains(options.PreferredChains)
-		if err != nil {
-			return nil, err
-		}
-		acmeIssuer.PreferredChains = preferredChains
 	}
 	if acmeServer == certmagic.ZeroSSLProductionCA {
 		acmeIssuer.NewAccountFunc = func(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account) (acme.Account, error) {
@@ -311,38 +262,6 @@ func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *
 	return solver, nil
 }
 
-func buildPreferredChains(options *option.ACMEPreferredChainsOptions) (certmagic.ChainPreference, error) {
-	if len(options.RootCommonName) > 0 && len(options.AnyCommonName) > 0 {
-		return certmagic.ChainPreference{}, E.New("preferred_chains.root_common_name and preferred_chains.any_common_name are mutually exclusive")
-	}
-	if !options.Smallest && len(options.RootCommonName) == 0 && len(options.AnyCommonName) == 0 {
-		return certmagic.ChainPreference{}, E.New("preferred_chains is empty")
-	}
-	preferredChains := certmagic.ChainPreference{
-		RootCommonName: options.RootCommonName,
-		AnyCommonName:  options.AnyCommonName,
-	}
-	if options.Smallest {
-		smallest := true
-		preferredChains.Smallest = &smallest
-	}
-	return preferredChains, nil
-}
-
-func loadTrustedRoots(pemFiles []string) (*x509.CertPool, error) {
-	rootPool := x509.NewCertPool()
-	for _, pemFile := range pemFiles {
-		pemContent, err := os.ReadFile(pemFile)
-		if err != nil {
-			return nil, E.Cause(err, "load trusted ACME root CA PEM file: ", pemFile)
-		}
-		if !rootPool.AppendCertsFromPEM(pemContent) {
-			return nil, E.New("invalid trusted ACME root CA PEM file: ", pemFile)
-		}
-	}
-	return rootPool, nil
-}
-
 func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certmagic.ACMEIssuer, account acme.Account, httpClient *http.Client) (*acme.EAB, acme.Account, error) {
 	email := strings.TrimSpace(acmeIssuer.Email)
 	if email == "" {
@@ -399,7 +318,7 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certma
 	}, account, nil
 }
 
-func newACMEHTTPClient(ctx context.Context, httpTimeout time.Duration, trustedRoots *x509.CertPool) (*http.Client, error) {
+func newACMEHTTPClient(ctx context.Context) (*http.Client, error) {
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context:        ctx,
 		Options:        option.DialerOptions{},
@@ -408,25 +327,21 @@ func newACMEHTTPClient(ctx context.Context, httpTimeout time.Duration, trustedRo
 	if err != nil {
 		return nil, E.Cause(err, "create ACME provider dialer")
 	}
-	tlsConfig := &tls.Config{
-		RootCAs: adapter.RootPoolFromContext(ctx),
-		Time:    ntp.TimeFuncFromContext(ctx),
-	}
-	if trustedRoots != nil {
-		tlsConfig.RootCAs = trustedRoots
-	}
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
-			TLSClientConfig:       tlsConfig,
+			TLSClientConfig: &tls.Config{
+				RootCAs: adapter.RootPoolFromContext(ctx),
+				Time:    ntp.TimeFuncFromContext(ctx),
+			},
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 			ExpectContinueTimeout: 2 * time.Second,
 			ForceAttemptHTTP2:     true,
 		},
-		Timeout: httpTimeout,
+		Timeout: certmagic.HTTPTimeout,
 	}, nil
 }
 

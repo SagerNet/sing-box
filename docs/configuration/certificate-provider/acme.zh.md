@@ -28,33 +28,17 @@ icon: material/new-box
   "default_server_name": "",
   "email": "",
   "provider": "",
-  "test_ca": "",
   "account_key": "",
-  "trusted_roots_pem_files": [],
-  "acme_timeout": "",
-  "profile": "",
-  "certificate_lifetime": "",
   "disable_http_challenge": false,
   "disable_tls_alpn_challenge": false,
   "alternative_http_port": 0,
   "alternative_tls_port": 0,
-  "bind_host": "",
   "external_account": {
     "key_id": "",
     "mac_key": ""
   },
   "dns01_challenge": {},
-  "preferred_chains": {
-    "smallest": false,
-    "root_common_name": [],
-    "any_common_name": []
-  },
-  "key_type": "",
-  "reuse_private_keys": false,
-  "must_staple": false,
-  "renewal_window_ratio": 0.0,
-  "disable_ocsp_stapling": false,
-  "ocsp_overrides": {}
+  "key_type": ""
 }
 ```
 
@@ -95,49 +79,11 @@ sing-box 会自动向 ZeroSSL 请求 EAB 凭据。
 
 当 `provider` 为 `zerossl` 时，必须至少设置 `external_account`、`email` 或 `account_key` 之一。
 
-#### test_ca
-
-!!! question "自 sing-box 1.14.0 起"
-
-重试时使用的测试 ACME directory URL。
-
-如果设置，必须为 `https://...`。
-
 #### account_key
 
 !!! question "自 sing-box 1.14.0 起"
 
 现有 ACME 帐户的 PEM 编码私钥。
-
-#### trusted_roots_pem_files
-
-!!! question "自 sing-box 1.14.0 起"
-
-连接 ACME CA 时要额外信任的 PEM 文件列表。
-
-适用于私有 ACME 部署或自定义测试 CA。
-
-#### acme_timeout
-
-!!! question "自 sing-box 1.14.0 起"
-
-一次 ACME 申请或续期操作允许的最长时间。
-
-#### profile
-
-!!! question "自 sing-box 1.14.0 起"
-
-要向 CA 请求的 ACME profile 名称。
-
-并非所有 CA 都支持 ACME profile。
-
-#### certificate_lifetime
-
-!!! question "自 sing-box 1.14.0 起"
-
-要向 CA 请求的证书有效期。
-
-并非所有 CA 都支持自定义证书有效期。
 
 #### disable_http_challenge
 
@@ -154,12 +100,6 @@ sing-box 会自动向 ZeroSSL 请求 EAB 凭据。
 #### alternative_tls_port
 
 用于 ACME TLS-ALPN 质询的备用端口； 系统必须将 443 转发到此端口以使质询成功。
-
-#### bind_host
-
-!!! question "自 sing-box 1.14.0 起"
-
-启动 HTTP-01 或 TLS-ALPN 质询监听器时要绑定的主机地址。
 
 #### external_account
 
@@ -217,28 +157,6 @@ DNS 验证临时 TXT 记录的 TTL。
 
 提供商专有字段参阅 [DNS01 验证字段](/zh/configuration/shared/dns01_challenge/)。
 
-#### preferred_chains
-
-!!! question "自 sing-box 1.14.0 起"
-
-用于选择 CA 提供的备用证书链的偏好设置。
-
-必须至少设置 `smallest`、`root_common_name` 或 `any_common_name` 之一。
-
-`root_common_name` 与 `any_common_name` 互斥。
-
-#### preferred_chains.smallest
-
-优先选择最小的证书链。
-
-#### preferred_chains.root_common_name
-
-优先选择根签发者通用名称匹配这些值之一的第一条证书链。
-
-#### preferred_chains.any_common_name
-
-优先选择签发者通用名称匹配这些值之一的第一条证书链。
-
 #### key_type
 
 !!! question "自 sing-box 1.14.0 起"
@@ -253,38 +171,3 @@ DNS 验证临时 TXT 记录的 TTL。
 | `rsa2048` | RSA     |
 | `rsa4096` | RSA     |
 
-#### reuse_private_keys
-
-!!! question "自 sing-box 1.14.0 起"
-
-续期证书时复用存储中的现有私钥。
-
-#### must_staple
-
-!!! question "自 sing-box 1.14.0 起"
-
-请求带有 TLS Must-Staple 扩展的证书。
-
-#### renewal_window_ratio
-
-!!! question "自 sing-box 1.14.0 起"
-
-证书剩余多大比例生命周期时开始续期。
-
-必须大于等于 `0` 且小于 `1`。
-
-如果为空，则使用 certmagic 的默认续期窗口。
-
-#### disable_ocsp_stapling
-
-!!! question "自 sing-box 1.14.0 起"
-
-禁用自动 OCSP stapling。
-
-#### ocsp_overrides
-
-!!! question "自 sing-box 1.14.0 起"
-
-OCSP responder URL 到替换 URL 的映射。
-
-将替换值设为空字符串可禁用对该 responder 的查询。
