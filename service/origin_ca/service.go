@@ -121,8 +121,13 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	if timeFunc == nil {
 		timeFunc = time.Now
 	}
-	storageIssuerKey := createStorageIssuerKey(requestType)
-	storageNamesKey := createStorageNamesKey(domain)
+	storageIssuerKey := C.TypeCloudflareOriginCA + "-" + string(requestType)
+	storageNamesKey := (&certmagic.CertificateResource{SANs: slices.Clone(domain)}).NamesKey()
+	storageLockKey := strings.Join([]string{
+		storageLockPrefix,
+		certmagic.StorageKeys.Safe(storageIssuerKey),
+		certmagic.StorageKeys.Safe(storageNamesKey),
+	}, "/")
 	return &Service{
 		Adapter:  certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
 		logger:   logger,
@@ -142,7 +147,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		storage:           storage,
 		storageIssuerKey:  storageIssuerKey,
 		storageNamesKey:   storageNamesKey,
-		storageLockKey:    createStorageLockKey(storageIssuerKey, storageNamesKey),
+		storageLockKey:    storageLockKey,
 		apiToken:          apiToken,
 		originCAKey:       originCAKey,
 		domain:            domain,
@@ -204,7 +209,18 @@ func (s *Service) refreshLoop() {
 	for {
 		waitDuration := retryDelay
 		if waitDuration == 0 {
-			waitDuration = s.nextRefreshDelay()
+			s.access.RLock()
+			leaf := s.currentLeaf
+			s.access.RUnlock()
+			if leaf == nil {
+				waitDuration = minimumRenewRetryDelay
+			} else {
+				refreshAt := leaf.NotAfter.Add(-s.effectiveRenewBefore(leaf))
+				waitDuration = refreshAt.Sub(s.timeFunc())
+				if waitDuration < minimumRenewRetryDelay {
+					waitDuration = minimumRenewRetryDelay
+				}
+			}
 		}
 		timer := time.NewTimer(waitDuration)
 		select {
@@ -221,43 +237,26 @@ func (s *Service) refreshLoop() {
 		err := s.issueAndStoreCertificate()
 		if err != nil {
 			s.logger.Error(E.Cause(err, "renew Cloudflare Origin CA certificate"))
-			retryDelay = s.nextRetryDelay()
+			s.access.RLock()
+			leaf := s.currentLeaf
+			s.access.RUnlock()
+			if leaf == nil {
+				retryDelay = minimumRenewRetryDelay
+			} else {
+				remaining := leaf.NotAfter.Sub(s.timeFunc())
+				switch {
+				case remaining <= minimumRenewRetryDelay:
+					retryDelay = minimumRenewRetryDelay
+				case remaining < maximumRenewRetryDelay:
+					retryDelay = max(remaining/2, minimumRenewRetryDelay)
+				default:
+					retryDelay = maximumRenewRetryDelay
+				}
+			}
 			continue
 		}
 		retryDelay = 0
 	}
-}
-
-func (s *Service) nextRefreshDelay() time.Duration {
-	s.access.RLock()
-	leaf := s.currentLeaf
-	s.access.RUnlock()
-	if leaf == nil {
-		return minimumRenewRetryDelay
-	}
-	refreshAt := leaf.NotAfter.Add(-s.effectiveRenewBefore(leaf))
-	delay := refreshAt.Sub(s.timeFunc())
-	if delay < minimumRenewRetryDelay {
-		return minimumRenewRetryDelay
-	}
-	return delay
-}
-
-func (s *Service) nextRetryDelay() time.Duration {
-	s.access.RLock()
-	leaf := s.currentLeaf
-	s.access.RUnlock()
-	if leaf == nil {
-		return minimumRenewRetryDelay
-	}
-	remaining := leaf.NotAfter.Sub(s.timeFunc())
-	if remaining <= minimumRenewRetryDelay {
-		return minimumRenewRetryDelay
-	}
-	if remaining < maximumRenewRetryDelay {
-		return max(remaining/2, minimumRenewRetryDelay)
-	}
-	return maximumRenewRetryDelay
 }
 
 func (s *Service) shouldRenew(leaf *x509.Certificate, now time.Time) bool {
@@ -316,18 +315,42 @@ func (s *Service) issueAndStoreCertificate() error {
 }
 
 func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.Certificate, *x509.Certificate, error) {
-	privateKey, err := generatePrivateKey(s.requestType)
-	if err != nil {
-		return nil, nil, nil, nil, err
+	var privateKey crypto.Signer
+	switch s.requestType {
+	case option.CloudflareOriginCARequestTypeOriginRSA:
+		rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		privateKey = rsaKey
+	case option.CloudflareOriginCARequestTypeOriginECC:
+		ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		privateKey = ecKey
+	default:
+		return nil, nil, nil, nil, E.New("unsupported Cloudflare Origin CA request type: ", s.requestType)
 	}
-	privateKeyPEM, err := encodePrivateKey(privateKey)
+	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		return nil, nil, nil, nil, E.Cause(err, "encode private key")
 	}
-	certificateRequestPEM, err := createCertificateRequest(privateKey, s.domain)
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privateKeyDER,
+	})
+	certificateRequestDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+		Subject:  pkix.Name{CommonName: s.domain[0]},
+		DNSNames: s.domain,
+	}, privateKey)
 	if err != nil {
 		return nil, nil, nil, nil, E.Cause(err, "create certificate request")
 	}
+	certificateRequestPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: certificateRequestDER,
+	})
 	requestBody, err := json.Marshal(originCARequest{
 		CSR:               string(certificateRequestPEM),
 		Hostnames:         s.domain,
@@ -440,9 +463,22 @@ func normalizeHostnames(hostnames []string) ([]string, error) {
 	normalizedHostnames := make([]string, 0, len(hostnames))
 	seen := make(map[string]struct{}, len(hostnames))
 	for _, hostname := range hostnames {
-		normalizedHostname, err := normalizeHostname(hostname)
-		if err != nil {
-			return nil, err
+		normalizedHostname := strings.ToLower(strings.TrimSpace(strings.TrimSuffix(hostname, ".")))
+		if normalizedHostname == "" {
+			return nil, E.New("hostname is empty")
+		}
+		if net.ParseIP(normalizedHostname) != nil {
+			return nil, E.New("hostname cannot be an IP address: ", normalizedHostname)
+		}
+		if strings.Contains(normalizedHostname, "*") {
+			if !strings.HasPrefix(normalizedHostname, "*.") || strings.Count(normalizedHostname, "*") != 1 {
+				return nil, E.New("invalid wildcard hostname: ", normalizedHostname)
+			}
+			suffix := strings.TrimPrefix(normalizedHostname, "*.")
+			if strings.Count(suffix, ".") == 0 {
+				return nil, E.New("wildcard hostname must cover a multi-label domain: ", normalizedHostname)
+			}
+			normalizedHostname = "*." + suffix
 		}
 		if _, loaded := seen[normalizedHostname]; loaded {
 			continue
@@ -452,63 +488,6 @@ func normalizeHostnames(hostnames []string) ([]string, error) {
 	}
 	slices.Sort(normalizedHostnames)
 	return normalizedHostnames, nil
-}
-
-func normalizeHostname(hostname string) (string, error) {
-	hostname = strings.ToLower(strings.TrimSpace(strings.TrimSuffix(hostname, ".")))
-	if hostname == "" {
-		return "", E.New("hostname is empty")
-	}
-	if net.ParseIP(hostname) != nil {
-		return "", E.New("hostname cannot be an IP address: ", hostname)
-	}
-	if strings.Contains(hostname, "*") {
-		if !strings.HasPrefix(hostname, "*.") || strings.Count(hostname, "*") != 1 {
-			return "", E.New("invalid wildcard hostname: ", hostname)
-		}
-		suffix := strings.TrimPrefix(hostname, "*.")
-		if strings.Count(suffix, ".") == 0 {
-			return "", E.New("wildcard hostname must cover a multi-label domain: ", hostname)
-		}
-		return "*." + suffix, nil
-	}
-	return hostname, nil
-}
-
-func generatePrivateKey(requestType option.CloudflareOriginCARequestType) (crypto.Signer, error) {
-	switch requestType {
-	case option.CloudflareOriginCARequestTypeOriginRSA:
-		return rsa.GenerateKey(rand.Reader, 2048)
-	case option.CloudflareOriginCARequestTypeOriginECC:
-		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	default:
-		return nil, E.New("unsupported Cloudflare Origin CA request type: ", requestType)
-	}
-}
-
-func encodePrivateKey(privateKey crypto.Signer) ([]byte, error) {
-	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return nil, err
-	}
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privateKeyDER,
-	}), nil
-}
-
-func createCertificateRequest(privateKey crypto.Signer, hostnames []string) ([]byte, error) {
-	certificateRequestDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-		Subject:  pkix.Name{CommonName: hostnames[0]},
-		DNSNames: hostnames,
-	}, privateKey)
-	if err != nil {
-		return nil, err
-	}
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE REQUEST",
-		Bytes: certificateRequestDER,
-	}), nil
 }
 
 func parseKeyPair(certificatePEM []byte, privateKeyPEM []byte) (*tls.Certificate, *x509.Certificate, error) {
@@ -525,22 +504,6 @@ func parseKeyPair(certificatePEM []byte, privateKeyPEM []byte) (*tls.Certificate
 	}
 	keyPair.Leaf = leaf
 	return &keyPair, leaf, nil
-}
-
-func createStorageIssuerKey(requestType option.CloudflareOriginCARequestType) string {
-	return C.TypeCloudflareOriginCA + "-" + string(requestType)
-}
-
-func createStorageNamesKey(hostnames []string) string {
-	return (&certmagic.CertificateResource{SANs: slices.Clone(hostnames)}).NamesKey()
-}
-
-func createStorageLockKey(issuerKey string, namesKey string) string {
-	return strings.Join([]string{
-		storageLockPrefix,
-		certmagic.StorageKeys.Safe(issuerKey),
-		certmagic.StorageKeys.Safe(namesKey),
-	}, "/")
 }
 
 func storeCertificateResource(ctx context.Context, storage certmagic.Storage, issuerKey string, certificateResource certmagic.CertificateResource) error {

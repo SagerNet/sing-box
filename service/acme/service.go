@@ -58,9 +58,17 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	if len(options.Domain) == 0 {
 		return nil, E.New("missing domain")
 	}
-	acmeServer, err := resolveACMEServer(options.Provider)
-	if err != nil {
-		return nil, err
+	var acmeServer string
+	switch options.Provider {
+	case "", "letsencrypt":
+		acmeServer = certmagic.LetsEncryptProductionCA
+	case "zerossl":
+		acmeServer = certmagic.ZeroSSLProductionCA
+	default:
+		if !strings.HasPrefix(options.Provider, "https://") {
+			return nil, E.New("unsupported ACME provider: ", options.Provider)
+		}
+		acmeServer = options.Provider
 	}
 	if acmeServer == certmagic.ZeroSSLProductionCA &&
 		(options.ExternalAccount == nil || options.ExternalAccount.KeyID == "") &&
@@ -88,11 +96,22 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		Logger:            zapLogger,
 	}
 	if options.KeyType != "" {
-		keyGenerator, err := createKeyGenerator(options.KeyType)
-		if err != nil {
-			return nil, err
+		var keyType certmagic.KeyType
+		switch options.KeyType {
+		case option.ACMEKeyTypeED25519:
+			keyType = certmagic.ED25519
+		case option.ACMEKeyTypeP256:
+			keyType = certmagic.P256
+		case option.ACMEKeyTypeP384:
+			keyType = certmagic.P384
+		case option.ACMEKeyTypeRSA2048:
+			keyType = certmagic.RSA2048
+		case option.ACMEKeyTypeRSA4096:
+			keyType = certmagic.RSA4096
+		default:
+			return nil, E.New("unsupported ACME key type: ", options.KeyType)
 		}
-		config.KeySource = keyGenerator
+		config.KeySource = certmagic.StandardKeyGenerator{KeyType: keyType}
 	}
 
 	acmeIssuer := certmagic.ACMEIssuer{
@@ -132,10 +151,11 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 
 	certmagicIssuer := certmagic.NewACMEIssuer(config, acmeIssuer)
-	err = overrideACMEIssuerHTTPClient(certmagicIssuer, acmeHTTPClient)
-	if err != nil {
-		return nil, err
+	httpClientField := reflect.ValueOf(certmagicIssuer).Elem().FieldByName("httpClient")
+	if !httpClientField.IsValid() || !httpClientField.CanAddr() {
+		return nil, E.New("certmagic ACME issuer HTTP client field is unavailable")
 	}
+	reflect.NewAt(httpClientField.Type(), unsafe.Pointer(httpClientField.UnsafeAddr())).Elem().Set(reflect.ValueOf(acmeHTTPClient))
 	config.Issuers = []certmagic.Issuer{certmagicIssuer}
 	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
@@ -179,37 +199,6 @@ func (s *Service) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, 
 
 func (s *Service) GetACMENextProtos() []string {
 	return s.nextProtos
-}
-
-func resolveACMEServer(provider string) (string, error) {
-	switch provider {
-	case "", "letsencrypt":
-		return certmagic.LetsEncryptProductionCA, nil
-	case "zerossl":
-		return certmagic.ZeroSSLProductionCA, nil
-	default:
-		if !strings.HasPrefix(provider, "https://") {
-			return "", E.New("unsupported ACME provider: ", provider)
-		}
-		return provider, nil
-	}
-}
-
-func createKeyGenerator(keyType option.ACMEKeyType) (certmagic.StandardKeyGenerator, error) {
-	switch keyType {
-	case option.ACMEKeyTypeED25519:
-		return certmagic.StandardKeyGenerator{KeyType: certmagic.ED25519}, nil
-	case option.ACMEKeyTypeP256:
-		return certmagic.StandardKeyGenerator{KeyType: certmagic.P256}, nil
-	case option.ACMEKeyTypeP384:
-		return certmagic.StandardKeyGenerator{KeyType: certmagic.P384}, nil
-	case option.ACMEKeyTypeRSA2048:
-		return certmagic.StandardKeyGenerator{KeyType: certmagic.RSA2048}, nil
-	case option.ACMEKeyTypeRSA4096:
-		return certmagic.StandardKeyGenerator{KeyType: certmagic.RSA4096}, nil
-	default:
-		return certmagic.StandardKeyGenerator{}, E.New("unsupported ACME key type: ", keyType)
-	}
 }
 
 func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *zap.Logger, httpClient *http.Client) (*certmagic.DNS01Solver, error) {
@@ -348,15 +337,6 @@ func newACMEHTTPClient(ctx context.Context, detour string) (*http.Client, error)
 		},
 		Timeout: certmagic.HTTPTimeout,
 	}, nil
-}
-
-func overrideACMEIssuerHTTPClient(acmeIssuer *certmagic.ACMEIssuer, httpClient *http.Client) error {
-	httpClientField := reflect.ValueOf(acmeIssuer).Elem().FieldByName("httpClient")
-	if !httpClientField.IsValid() || !httpClientField.CanAddr() {
-		return E.New("certmagic ACME issuer HTTP client field is unavailable")
-	}
-	reflect.NewAt(httpClientField.Type(), unsafe.Pointer(httpClientField.UnsafeAddr())).Elem().Set(reflect.ValueOf(httpClient))
-	return nil
 }
 
 type acmeDNSProvider struct {

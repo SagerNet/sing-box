@@ -175,7 +175,22 @@ func (c *STDServerConfig) Start() error {
 		if err != nil {
 			return err
 		}
-		c.updateProviderNextProtos()
+		if acmeProvider, isACME := c.certificateProvider.(adapter.ACMECertificateProvider); isACME {
+			nextProtos := acmeProvider.GetACMENextProtos()
+			if len(nextProtos) > 0 {
+				c.access.Lock()
+				config := c.config.Clone()
+				mergedNextProtos := append([]string{}, nextProtos...)
+				for _, nextProto := range config.NextProtos {
+					if !common.Contains(mergedNextProtos, nextProto) {
+						mergedNextProtos = append(mergedNextProtos, nextProto)
+					}
+				}
+				config.NextProtos = mergedNextProtos
+				c.config = config
+				c.access.Unlock()
+			}
+		}
 	}
 	if c.acmeService != nil {
 		err := c.acmeService.Start()
@@ -292,31 +307,6 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 
 func (c *STDServerConfig) Close() error {
 	return common.Close(c.certificateProvider, c.acmeService, c.watcher)
-}
-
-func (c *STDServerConfig) updateProviderNextProtos() {
-	if c.certificateProvider == nil {
-		return
-	}
-	acmeProvider, isACME := c.certificateProvider.(adapter.ACMECertificateProvider)
-	if !isACME {
-		return
-	}
-	nextProtos := acmeProvider.GetACMENextProtos()
-	if len(nextProtos) == 0 {
-		return
-	}
-	c.access.Lock()
-	defer c.access.Unlock()
-	config := c.config.Clone()
-	mergedNextProtos := append([]string{}, nextProtos...)
-	for _, nextProto := range config.NextProtos {
-		if !common.Contains(mergedNextProtos, nextProto) {
-			mergedNextProtos = append(mergedNextProtos, nextProto)
-		}
-	}
-	config.NextProtos = mergedNextProtos
-	c.config = config
 }
 
 func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {

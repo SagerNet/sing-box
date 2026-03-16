@@ -53,8 +53,13 @@ const (
 	CloudflareOriginCARequestValidity5475 = CloudflareOriginCARequestValidity(5475)
 )
 
-func (v CloudflareOriginCARequestValidity) IsKnown() bool {
-	switch v {
+func (v *CloudflareOriginCARequestValidity) UnmarshalJSON(data []byte) error {
+	var value uint16
+	err := json.Unmarshal(data, &value)
+	if err != nil {
+		return err
+	}
+	switch CloudflareOriginCARequestValidity(value) {
 	case CloudflareOriginCARequestValidity7,
 		CloudflareOriginCARequestValidity30,
 		CloudflareOriginCARequestValidity90,
@@ -62,20 +67,9 @@ func (v CloudflareOriginCARequestValidity) IsKnown() bool {
 		CloudflareOriginCARequestValidity730,
 		CloudflareOriginCARequestValidity1095,
 		CloudflareOriginCARequestValidity5475:
-		return true
-	}
-	return false
-}
-
-func (v *CloudflareOriginCARequestValidity) UnmarshalJSON(data []byte) error {
-	var value uint16
-	err := json.Unmarshal(data, &value)
-	if err != nil {
-		return err
-	}
-	if !CloudflareOriginCARequestValidity(value).IsKnown() {
+		*v = CloudflareOriginCARequestValidity(value)
+	default:
 		return E.New("unsupported Cloudflare Origin CA requested validity: ", value)
 	}
-	*v = CloudflareOriginCARequestValidity(value)
 	return nil
 }
