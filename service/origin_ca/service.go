@@ -40,10 +40,12 @@ import (
 const (
 	cloudflareOriginCAEndpoint = "https://api.cloudflare.com/client/v4/certificates"
 	defaultRequestedValidity   = option.CloudflareOriginCARequestValidity5475
-	defaultRenewBefore         = 30 * 24 * time.Hour
-	minimumRenewRetryDelay     = time.Minute
-	maximumRenewRetryDelay     = time.Hour
-	storageLockPrefix          = "cloudflare-origin-ca"
+	// min of 30 days and certmagic's 1/3 lifetime ratio (maintain.go)
+	defaultRenewBefore = 30 * 24 * time.Hour
+	// from certmagic retry backoff range (async.go)
+	minimumRenewRetryDelay = time.Minute
+	maximumRenewRetryDelay = time.Hour
+	storageLockPrefix      = "cloudflare-origin-ca"
 )
 
 func RegisterCertificateProvider(registry *certificate.Registry) {

@@ -330,6 +330,7 @@ func newACMEHTTPClient(ctx context.Context, detour string) (*http.Client, error)
 				RootCAs: adapter.RootPoolFromContext(ctx),
 				Time:    ntp.TimeFuncFromContext(ctx),
 			},
+			// from certmagic defaults (acmeissuer.go)
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 			ExpectContinueTimeout: 2 * time.Second,
