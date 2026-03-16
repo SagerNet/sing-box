@@ -585,7 +585,7 @@ Fragment TLS handshake into multiple TLS records to bypass firewalls.
 
 !!! failure "Deprecated in sing-box 1.14.0"
 
-    Inline ACME options are deprecated and can be replaced by the [ACME certificate provider](/configuration/certificate-provider/acme/),
+    Inline ACME options are deprecated and can be replaced by the [ACME certificate provider](/configuration/shared/certificate-provider/acme/),
     check [Migration](/migration/#migrate-inline-acme-to-certificate-provider).
 
 #### domain

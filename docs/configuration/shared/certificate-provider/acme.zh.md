@@ -2,19 +2,16 @@
 icon: material/new-box
 ---
 
-!!! question "自 sing-box 1.14.0 起"
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [account_key](#account_key)  
+    :material-plus: [key_type](#key_type)
 
 # ACME
 
 !!! quote ""
 
     需要 `with_acme` 构建标签。
-
-!!! info ""
-
-    该提供者用于替代已废弃的内联 `tls.acme` 选项。
-    下文中未标记版本的字段均从 `tls.acme` 迁移而来；
-    标记 `自 sing-box 1.14.0 起` 的字段为 1.14.0 新增字段。
 
 ### 结构
 

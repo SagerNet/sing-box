@@ -32,6 +32,6 @@ icon: material/new-box
 
 字符串或对象。
 
-为字符串时，共享[证书提供者](/zh/configuration/certificate-provider/)的标签。
+为字符串时，共享[证书提供者](/zh/configuration/shared/certificate-provider/)的标签。
 
-为对象时，内联的证书提供者。可用类型和字段参阅[证书提供者](/zh/configuration/certificate-provider/)。
+为对象时，内联的证书提供者。可用类型和字段参阅[证书提供者](/zh/configuration/shared/certificate-provider/)。

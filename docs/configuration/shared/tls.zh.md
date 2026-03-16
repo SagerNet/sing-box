@@ -5,7 +5,7 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [certificate_provider](#certificate_provider)  
-    :material-delete-clock: [acme](#acme)
+    :material-delete-clock: [acme](#acme-字段)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -580,7 +580,7 @@ ECH 配置路径，PEM 格式。
 
 !!! failure "已在 sing-box 1.14.0 废弃"
 
-    内联 ACME 选项已废弃，且可以通过 [ACME 证书提供者](/zh/configuration/certificate-provider/acme/) 替代，
+    内联 ACME 选项已废弃，且可以通过 [ACME 证书提供者](/zh/configuration/shared/certificate-provider/acme/) 替代，
     参阅 [迁移指南](/zh/migration/#迁移内联-acme-到证书提供者)。
 
 #### domain

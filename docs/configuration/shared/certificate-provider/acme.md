@@ -2,19 +2,16 @@
 icon: material/new-box
 ---
 
-!!! question "Since sing-box 1.14.0"
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [account_key](#account_key)  
+    :material-plus: [key_type](#key_type)
 
 # ACME
 
 !!! quote ""
 
     `with_acme` build tag required.
-
-!!! info ""
-
-    This provider replaces deprecated inline `tls.acme` options.
-    Fields without a version marker below are migrated from `tls.acme`;
-    fields marked `Since sing-box 1.14.0` are newly added.
 
 ### Structure
 

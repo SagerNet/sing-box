@@ -32,7 +32,7 @@ sing-box uses JSON for configuration files.
 | `dns`          | [DNS](./dns/)                   |
 | `ntp`          | [NTP](./ntp/)                   |
 | `certificate`  | [Certificate](./certificate/)   |
-| `certificate_providers` | [Certificate Provider](./certificate-provider/) |
+| `certificate_providers` | [Certificate Provider](./shared/certificate-provider/) |
 | `endpoints`    | [Endpoint](./endpoint/)         |
 | `inbounds`     | [Inbound](./inbound/)           |
 | `outbounds`    | [Outbound](./outbound/)         |
@@ -44,7 +44,7 @@ sing-box uses JSON for configuration files.
 
 !!! question "Since sing-box 1.14.0"
 
-List of shared [Certificate Providers](./certificate-provider/).
+List of shared [Certificate Providers](./shared/certificate-provider/).
 
 ### Check
 

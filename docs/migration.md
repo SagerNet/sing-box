@@ -9,12 +9,12 @@ icon: material/arrange-bring-forward
 Inline ACME options in TLS are deprecated and can be replaced by certificate providers.
 
 Most `tls.acme` fields can be moved into the ACME certificate provider unchanged.
-See [ACME](/configuration/certificate-provider/acme/) for fields newly added in sing-box 1.14.0.
+See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly added in sing-box 1.14.0.
 
 !!! info "References"
 
     [TLS](/configuration/shared/tls/#certificate_provider) /
-    [Certificate Provider](/configuration/certificate-provider/acme/)
+    [Certificate Provider](/configuration/shared/certificate-provider/)
 
 === ":material-card-remove: Deprecated"
 

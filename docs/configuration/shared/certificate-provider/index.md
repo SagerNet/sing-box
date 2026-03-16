@@ -27,9 +27,6 @@ icon: material/new-box
 | `tailscale` | [Tailscale](./tailscale) |
 | `cloudflare-origin-ca` | [Cloudflare Origin CA](./cloudflare-origin-ca) |
 
-The `acme` type migrates deprecated inline `tls.acme` options.
-See [ACME](./acme) for fields newly added in sing-box 1.14.0.
-
 #### tag
 
 The tag of the certificate provider.

@@ -32,7 +32,7 @@ sing-box 使用 JSON 作为配置文件格式。
 | `dns`          | [DNS](./dns/)          |
 | `ntp`          | [NTP](./ntp/)          |
 | `certificate`  | [证书](./certificate/)   |
-| `certificate_providers` | [证书提供者](./certificate-provider/) |
+| `certificate_providers` | [证书提供者](./shared/certificate-provider/) |
 | `endpoints`    | [端点](./endpoint/)      |
 | `inbounds`     | [入站](./inbound/)       |
 | `outbounds`    | [出站](./outbound/)      |
@@ -44,7 +44,7 @@ sing-box 使用 JSON 作为配置文件格式。
 
 !!! question "自 sing-box 1.14.0 起"
 
-共享[证书提供者](./certificate-provider/)列表。
+共享[证书提供者](./shared/certificate-provider/)列表。
 
 ### 检查
 

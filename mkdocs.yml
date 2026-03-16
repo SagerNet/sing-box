@@ -123,6 +123,11 @@ nav:
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
           - Certificate Provider Fields: configuration/shared/certificate-provider.md
+          - Certificate Provider:
+              - configuration/shared/certificate-provider/index.md
+              - ACME: configuration/shared/certificate-provider/acme.md
+              - Tailscale: configuration/shared/certificate-provider/tailscale.md
+              - Cloudflare Origin CA: configuration/shared/certificate-provider/cloudflare-origin-ca.md
           - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
           - Pre-match: configuration/shared/pre-match.md
           - Multiplex: configuration/shared/multiplex.md
@@ -176,11 +181,6 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
-      - Certificate Provider:
-          - configuration/certificate-provider/index.md
-          - ACME: configuration/certificate-provider/acme.md
-          - Tailscale: configuration/certificate-provider/tailscale.md
-          - Cloudflare Origin CA: configuration/certificate-provider/cloudflare-origin-ca.md
       - Service:
           - configuration/service/index.md
           - DERP: configuration/service/derp.md

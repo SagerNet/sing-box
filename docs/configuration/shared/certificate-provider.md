@@ -32,6 +32,6 @@ Or
 
 A string or an object.
 
-When string, the tag of a shared [Certificate Provider](/configuration/certificate-provider/).
+When string, the tag of a shared [Certificate Provider](/configuration/shared/certificate-provider/).
 
-When object, an inline certificate provider. See [Certificate Provider](/configuration/certificate-provider/) for available types and fields.
+When object, an inline certificate provider. See [Certificate Provider](/configuration/shared/certificate-provider/) for available types and fields.
