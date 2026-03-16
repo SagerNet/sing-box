@@ -20,7 +20,8 @@ icon: material/new-box
   "request_type": "",
   "requested_validity": 0,
   "renew_before": "",
-  "request_timeout": ""
+  "request_timeout": "",
+  "detour": ""
 }
 ```
 
@@ -87,3 +88,9 @@ If empty, the smaller of `30d` and one third of the certificate lifetime is used
 HTTP timeout for requests to the Cloudflare API.
 
 `30s` is used if empty.
+
+#### detour
+
+The tag of the upstream outbound.
+
+All provider HTTP requests will use this outbound.

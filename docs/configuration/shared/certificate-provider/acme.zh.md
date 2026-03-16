@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [account_key](#account_key)  
-    :material-plus: [key_type](#key_type)
+    :material-plus: [key_type](#key_type)  
+    :material-plus: [detour](#detour)
 
 # ACME
 
@@ -35,7 +36,8 @@ icon: material/new-box
     "mac_key": ""
   },
   "dns01_challenge": {},
-  "key_type": ""
+  "key_type": "",
+  "detour": ""
 }
 ```
 
@@ -133,3 +135,11 @@ ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 | `p384`    | P-384   |
 | `rsa2048` | RSA     |
 | `rsa4096` | RSA     |
+
+#### detour
+
+!!! question "自 sing-box 1.14.0 起"
+
+上游出站的标签。
+
+所有提供者 HTTP 请求将使用此出站。

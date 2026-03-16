@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [account_key](#account_key)  
-    :material-plus: [key_type](#key_type)
+    :material-plus: [key_type](#key_type)  
+    :material-plus: [detour](#detour)
 
 # ACME
 
@@ -35,7 +36,8 @@ icon: material/new-box
     "mac_key": ""
   },
   "dns01_challenge": {},
-  "key_type": ""
+  "key_type": "",
+  "detour": ""
 }
 ```
 
@@ -138,3 +140,11 @@ The private key type to generate for new certificates.
 | `p384`     | P-384   |
 | `rsa2048`  | RSA     |
 | `rsa4096`  | RSA     |
+
+#### detour
+
+!!! question "Since sing-box 1.14.0"
+
+The tag of the upstream outbound.
+
+All provider HTTP requests will use this outbound.

@@ -118,8 +118,10 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	serviceDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context:        ctx,
-		Options:        option.DialerOptions{},
+		Context: ctx,
+		Options: option.DialerOptions{
+			Detour: options.Detour,
+		},
 		RemoteIsDomain: true,
 	})
 	if err != nil {

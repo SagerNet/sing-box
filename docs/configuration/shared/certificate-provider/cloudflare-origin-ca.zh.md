@@ -20,7 +20,8 @@ icon: material/new-box
   "request_type": "",
   "requested_validity": 0,
   "renew_before": "",
-  "request_timeout": ""
+  "request_timeout": "",
+  "detour": ""
 }
 ```
 
@@ -87,3 +88,9 @@ sing-box 会在证书过期前多长时间开始请求新的证书。
 访问 Cloudflare API 的 HTTP 超时时间。
 
 如果为空，使用 `30s`。
+
+#### detour
+
+上游出站的标签。
+
+所有提供者 HTTP 请求将使用此出站。

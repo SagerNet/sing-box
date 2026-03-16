@@ -106,7 +106,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
 		Logger:                  zapLogger,
 	}
-	acmeHTTPClient, err := newACMEHTTPClient(ctx)
+	acmeHTTPClient, err := newACMEHTTPClient(ctx, options.Detour)
 	if err != nil {
 		return nil, err
 	}
@@ -321,10 +321,12 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certma
 	}, account, nil
 }
 
-func newACMEHTTPClient(ctx context.Context) (*http.Client, error) {
+func newACMEHTTPClient(ctx context.Context, detour string) (*http.Client, error) {
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context:        ctx,
-		Options:        option.DialerOptions{},
+		Context: ctx,
+		Options: option.DialerOptions{
+			Detour: detour,
+		},
 		RemoteIsDomain: true,
 	})
 	if err != nil {

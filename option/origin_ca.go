@@ -17,6 +17,7 @@ type CloudflareOriginCACertificateProviderOptions struct {
 	RequestedValidity CloudflareOriginCARequestValidity `json:"requested_validity,omitempty"`
 	RenewBefore       badoption.Duration                `json:"renew_before,omitempty"`
 	RequestTimeout    badoption.Duration                `json:"request_timeout,omitempty"`
+	Detour            string                            `json:"detour,omitempty"`
 }
 
 type CloudflareOriginCARequestType string
