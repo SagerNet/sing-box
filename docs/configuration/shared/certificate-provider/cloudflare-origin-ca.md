@@ -19,8 +19,6 @@ icon: material/new-box
   "origin_ca_key": "",
   "request_type": "",
   "requested_validity": 0,
-  "renew_before": "",
-  "request_timeout": "",
   "detour": ""
 }
 ```
@@ -75,19 +73,7 @@ The requested certificate validity in days.
 
 Available values: `7`, `30`, `90`, `365`, `730`, `1095`, `5475`.
 
-`5475` is used if empty.
-
-#### renew_before
-
-How long before expiration sing-box should request a replacement certificate.
-
-If empty, the smaller of `30d` and one third of the certificate lifetime is used.
-
-#### request_timeout
-
-HTTP timeout for requests to the Cloudflare API.
-
-`30s` is used if empty.
+`5475` days (15 years) is used if empty.
 
 #### detour
 

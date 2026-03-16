@@ -19,8 +19,6 @@ icon: material/new-box
   "origin_ca_key": "",
   "request_type": "",
   "requested_validity": 0,
-  "renew_before": "",
-  "request_timeout": "",
   "detour": ""
 }
 ```
@@ -75,19 +73,7 @@ Cloudflare Origin CA Key。
 
 可用值：`7`、`30`、`90`、`365`、`730`、`1095`、`5475`。
 
-如果为空，使用 `5475`。
-
-#### renew_before
-
-sing-box 会在证书过期前多长时间开始请求新的证书。
-
-如果为空，使用 `30d` 与证书生命周期三分之一中的较小值。
-
-#### request_timeout
-
-访问 Cloudflare API 的 HTTP 超时时间。
-
-如果为空，使用 `30s`。
+如果为空，使用 `5475` 天（15 年）。
 
 #### detour
 

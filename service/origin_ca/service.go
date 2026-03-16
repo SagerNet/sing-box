@@ -40,7 +40,6 @@ import (
 const (
 	cloudflareOriginCAEndpoint = "https://api.cloudflare.com/client/v4/certificates"
 	defaultRequestedValidity   = option.CloudflareOriginCARequestValidity5475
-	defaultRequestTimeout      = 30 * time.Second
 	defaultRenewBefore         = 30 * 24 * time.Hour
 	minimumRenewRetryDelay     = time.Minute
 	maximumRenewRetryDelay     = time.Hour
@@ -70,7 +69,6 @@ type Service struct {
 	domain            []string
 	requestType       option.CloudflareOriginCARequestType
 	requestedValidity option.CloudflareOriginCARequestValidity
-	renewBefore       time.Duration
 
 	access             sync.RWMutex
 	currentCertificate *tls.Certificate
@@ -100,21 +98,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	requestedValidity := options.RequestedValidity
 	if requestedValidity == 0 {
 		requestedValidity = defaultRequestedValidity
-	}
-	requestTimeout := options.RequestTimeout.Build()
-	if requestTimeout < 0 {
-		return nil, E.New("invalid request_timeout: ", time.Duration(options.RequestTimeout))
-	}
-	if requestTimeout == 0 {
-		requestTimeout = defaultRequestTimeout
-	}
-	renewBefore := options.RenewBefore.Build()
-	if renewBefore < 0 {
-		return nil, E.New("invalid renew_before: ", time.Duration(options.RenewBefore))
-	}
-	validityDuration := time.Duration(requestedValidity) * 24 * time.Hour
-	if renewBefore > 0 && renewBefore >= validityDuration {
-		return nil, E.New("renew_before must be shorter than requested_validity")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	serviceDialer, err := dialer.NewWithOptions(dialer.Options{
@@ -154,11 +137,8 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 				RootCAs: adapter.RootPoolFromContext(ctx),
 				Time:    timeFunc,
 			},
-			TLSHandshakeTimeout:   30 * time.Second,
-			ResponseHeaderTimeout: requestTimeout,
-			ExpectContinueTimeout: 2 * time.Second,
-			ForceAttemptHTTP2:     true,
-		}, Timeout: requestTimeout},
+			ForceAttemptHTTP2: true,
+		}},
 		storage:           storage,
 		storageIssuerKey:  storageIssuerKey,
 		storageNamesKey:   storageNamesKey,
@@ -168,7 +148,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		domain:            domain,
 		requestType:       requestType,
 		requestedValidity: requestedValidity,
-		renewBefore:       renewBefore,
 	}, nil
 }
 
@@ -286,9 +265,6 @@ func (s *Service) shouldRenew(leaf *x509.Certificate, now time.Time) bool {
 }
 
 func (s *Service) effectiveRenewBefore(leaf *x509.Certificate) time.Duration {
-	if s.renewBefore > 0 {
-		return s.renewBefore
-	}
 	lifetime := leaf.NotAfter.Sub(leaf.NotBefore)
 	if lifetime <= 0 {
 		return 0
