@@ -323,6 +323,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	if !options.Enabled {
 		return nil, nil
 	}
+	//nolint:staticcheck
 	if options.CertificateProvider != nil && options.ACME != nil {
 		return nil, E.New("certificate_provider and acme are mutually exclusive")
 	}
@@ -341,7 +342,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		if options.Insecure {
 			return nil, errInsecureUnused
 		}
-	} else if options.ACME != nil && len(options.ACME.Domain) > 0 {
+	} else if options.ACME != nil && len(options.ACME.Domain) > 0 { //nolint:staticcheck
 		deprecated.Report(ctx, deprecated.OptionInlineACME)
 		//nolint:staticcheck
 		tlsConfig, acmeService, err = startACME(ctx, logger, common.PtrValueOrDefault(options.ACME))
