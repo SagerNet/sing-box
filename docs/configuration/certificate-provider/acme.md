@@ -46,9 +46,9 @@ icon: material/new-box
 
 #### domain
 
-List of domain.
+==Required==
 
-Required for the certificate provider.
+List of domains.
 
 #### data_directory
 

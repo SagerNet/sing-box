@@ -24,12 +24,11 @@ icon: material/new-box
 }
 ```
 
-This provider generates a private key locally, submits a CSR to Cloudflare Origin CA, and serves the returned
-certificate as a TLS certificate provider.
-
 ### Fields
 
 #### domain
+
+==Required==
 
 List of domain names or wildcard domain names to include in the certificate.
 
@@ -37,9 +36,7 @@ List of domain names or wildcard domain names to include in the certificate.
 
 Root directory used to store the issued certificate, private key, and metadata.
 
-Files are stored using CertMagic's certificate storage layout.
-
-If empty, sing-box uses the same default CertMagic data directory as the ACME certificate provider:
+If empty, sing-box uses the same default data directory as the ACME certificate provider:
 `$XDG_DATA_HOME/certmagic` or `$HOME/.local/share/certmagic`.
 
 #### api_token
@@ -50,15 +47,15 @@ Get or create one in [Cloudflare Dashboard > My Profile > API Tokens](https://da
 
 Requires the `Zone / SSL and Certificates / Edit` permission.
 
-Mutually exclusive with `origin_ca_key`.
+Conflict with `origin_ca_key`.
 
 #### origin_ca_key
 
-Cloudflare Origin CA key used as the `X-Auth-User-Service-Key` header.
+Cloudflare Origin CA Key.
 
 Get it in [Cloudflare Dashboard > My Profile > API Tokens > API Keys > Origin CA Key](https://dash.cloudflare.com/profile/api-tokens).
 
-Mutually exclusive with `api_token`.
+Conflict with `api_token`.
 
 #### request_type
 

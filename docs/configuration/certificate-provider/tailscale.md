@@ -20,11 +20,8 @@ icon: material/new-box
 
 #### endpoint
 
+==Required==
+
 The tag of the [Tailscale endpoint](/configuration/endpoint/tailscale/) to reuse.
 
-The certificate provider uses the endpoint's embedded `tsnet` node and obtains
-certificates through Tailscale's local API, similar to `tsnet.ListenTLS`.
-
-The referenced endpoint must already be configured for the desired tailnet, and
-MagicDNS and HTTPS must be enabled in the Tailscale admin panel for certificate
-issuance to succeed.
+[MagicDNS and HTTPS](https://tailscale.com/kb/1153/enabling-https) must be enabled in the Tailscale admin console.

@@ -24,11 +24,11 @@ icon: material/new-box
 }
 ```
 
-该提供者会在本地生成私钥，向 Cloudflare Origin CA 提交 CSR，并将返回的证书作为 TLS 证书提供者使用。
-
 ### 字段
 
 #### domain
+
+==必填==
 
 要写入证书的域名或通配符域名列表。
 
@@ -36,9 +36,7 @@ icon: material/new-box
 
 保存签发证书、私钥和元数据的根目录。
 
-文件会按 CertMagic 的证书存储布局写入。
-
-如果为空，sing-box 会使用与 ACME 证书提供者相同的 CertMagic 默认数据目录：
+如果为空，sing-box 会使用与 ACME 证书提供者相同的默认数据目录：
 `$XDG_DATA_HOME/certmagic` 或 `$HOME/.local/share/certmagic`。
 
 #### api_token
@@ -49,15 +47,15 @@ icon: material/new-box
 
 需要 `Zone / SSL and Certificates / Edit` 权限。
 
-与 `origin_ca_key` 互斥。
+与 `origin_ca_key` 冲突。
 
 #### origin_ca_key
 
-作为 `X-Auth-User-Service-Key` 请求头发送的 Cloudflare Origin CA Key。
+Cloudflare Origin CA Key。
 
 可在 [Cloudflare Dashboard > My Profile > API Tokens > API Keys > Origin CA Key](https://dash.cloudflare.com/profile/api-tokens) 获取。
 
-与 `api_token` 互斥。
+与 `api_token` 冲突。
 
 #### request_type
 

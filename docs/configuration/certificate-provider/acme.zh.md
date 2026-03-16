@@ -46,9 +46,9 @@ icon: material/new-box
 
 #### domain
 
-域名列表。
+==必填==
 
-证书提供者模式下必填。
+域名列表。
 
 #### data_directory
 
