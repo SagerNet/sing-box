@@ -48,7 +48,7 @@ icon: material/new-box
 
 List of domain.
 
-ACME will be disabled if empty.
+Required for the certificate provider.
 
 #### data_directory
 
@@ -141,4 +141,3 @@ The private key type to generate for new certificates.
 | `p384`     | P-384   |
 | `rsa2048`  | RSA     |
 | `rsa4096`  | RSA     |
-

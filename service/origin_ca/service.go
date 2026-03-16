@@ -59,6 +59,7 @@ type Service struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	done              chan struct{}
+	timeFunc          func() time.Time
 	httpClient        *http.Client
 	storage           certmagic.Storage
 	storageIssuerKey  string
@@ -131,20 +132,25 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	} else {
 		storage = certmagic.Default.Storage
 	}
+	timeFunc := ntp.TimeFuncFromContext(ctx)
+	if timeFunc == nil {
+		timeFunc = time.Now
+	}
 	storageIssuerKey := createStorageIssuerKey(requestType)
 	storageNamesKey := createStorageNamesKey(domain)
 	return &Service{
-		Adapter: certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
-		logger:  logger,
-		ctx:     ctx,
-		cancel:  cancel,
+		Adapter:  certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
+		logger:   logger,
+		ctx:      ctx,
+		cancel:   cancel,
+		timeFunc: timeFunc,
 		httpClient: &http.Client{Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return serviceDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 			},
 			TLSClientConfig: &tls.Config{
 				RootCAs: adapter.RootPoolFromContext(ctx),
-				Time:    ntp.TimeFuncFromContext(ctx),
+				Time:    timeFunc,
 			},
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: requestTimeout,
@@ -179,7 +185,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
-	} else if s.shouldRenew(cachedLeaf, time.Now()) {
+	} else if s.shouldRenew(cachedLeaf, s.timeFunc()) {
 		err = s.issueAndStoreCertificate()
 		if err != nil {
 			s.logger.Warn(E.Cause(err, "renew cached Cloudflare Origin CA certificate"))
@@ -249,7 +255,7 @@ func (s *Service) nextRefreshDelay() time.Duration {
 		return minimumRenewRetryDelay
 	}
 	refreshAt := leaf.NotAfter.Add(-s.effectiveRenewBefore(leaf))
-	delay := time.Until(refreshAt)
+	delay := refreshAt.Sub(s.timeFunc())
 	if delay < minimumRenewRetryDelay {
 		return minimumRenewRetryDelay
 	}
@@ -263,7 +269,7 @@ func (s *Service) nextRetryDelay() time.Duration {
 	if leaf == nil {
 		return minimumRenewRetryDelay
 	}
-	remaining := time.Until(leaf.NotAfter)
+	remaining := leaf.NotAfter.Sub(s.timeFunc())
 	if remaining <= minimumRenewRetryDelay {
 		return minimumRenewRetryDelay
 	}
@@ -302,7 +308,7 @@ func (s *Service) issueAndStoreCertificate() error {
 	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate()
 	if err != nil {
 		s.logger.Warn(E.Cause(err, "load cached Cloudflare Origin CA certificate"))
-	} else if cachedCertificate != nil && !s.shouldRenew(cachedLeaf, time.Now()) {
+	} else if cachedCertificate != nil && !s.shouldRenew(cachedLeaf, s.timeFunc()) {
 		s.setCurrentCertificate(cachedCertificate, cachedLeaf)
 		return nil
 	}
@@ -411,7 +417,7 @@ func (s *Service) loadCachedCertificate() (*tls.Certificate, *x509.Certificate, 
 	if err != nil {
 		return nil, nil, E.Cause(err, "parse cached key pair")
 	}
-	if time.Now().After(leaf.NotAfter) {
+	if s.timeFunc().After(leaf.NotAfter) {
 		return nil, nil, nil
 	}
 	if !s.matchesCertificate(leaf) {

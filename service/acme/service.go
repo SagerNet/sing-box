@@ -55,6 +55,9 @@ type Service struct {
 }
 
 func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMECertificateProviderOptions) (adapter.CertificateProviderService, error) {
+	if len(options.Domain) == 0 {
+		return nil, E.New("missing domain")
+	}
 	acmeServer, err := resolveACMEServer(options.Provider)
 	if err != nil {
 		return nil, err

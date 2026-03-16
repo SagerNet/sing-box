@@ -48,7 +48,7 @@ icon: material/new-box
 
 域名列表。
 
-如果为空则禁用 ACME。
+证书提供者模式下必填。
 
 #### data_directory
 
@@ -136,4 +136,3 @@ ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 | `p384`    | P-384   |
 | `rsa2048` | RSA     |
 | `rsa4096` | RSA     |
-
