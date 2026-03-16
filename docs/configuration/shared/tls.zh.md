@@ -482,7 +482,7 @@ ECH 密钥和配置可以通过 `sing-box generate ech-keypair` 生成。
 
 !!! failure "已在 sing-box 1.12.0 废弃"
 
-    ECH 支持已在 sing-box 1.12.0 迁移至使用标准库，但标准库不支持后量子对等证书签名方案，因此 `pq_signature_schemes_enabled` 已被弃用且不再工作。
+    `pq_signature_schemes_enabled` 已在 sing-box 1.12.0 废弃且已在 sing-box 1.13.0 中被移除。
 
 启用对后量子对等证书签名方案的支持。
 
@@ -490,7 +490,7 @@ ECH 密钥和配置可以通过 `sing-box generate ech-keypair` 生成。
 
 !!! failure "已在 sing-box 1.12.0 废弃"
 
-    `dynamic_record_sizing_disabled` 与 ECH 无关，是错误添加的，现已弃用且不再工作。
+    `dynamic_record_sizing_disabled` 已在 sing-box 1.12.0 废弃且已在 sing-box 1.13.0 中被移除。
 
 禁用 TLS 记录的自适应大小调整。
 
@@ -580,8 +580,7 @@ ECH 配置路径，PEM 格式。
 
 !!! failure "已在 sing-box 1.14.0 废弃"
 
-    内联 ACME 选项已废弃，且可以通过 [ACME 证书提供者](/zh/configuration/shared/certificate-provider/acme/) 替代，
-    参阅 [迁移指南](/zh/migration/#迁移内联-acme-到证书提供者)。
+    内联 ACME 选项已在 sing-box 1.14.0 废弃且将在 sing-box 1.16.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移内联-acme-到证书提供者)。
 
 #### domain
 
