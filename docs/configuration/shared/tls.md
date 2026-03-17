@@ -423,7 +423,7 @@ Enable kernel TLS receive support.
 
 ==Server only==
 
-Certificate provider configuration, see [Certificate Provider Fields](/configuration/shared/certificate-provider/).
+Certificate provider configuration, see [Certificate Provider Fields](/configuration/shared/certificate-provider-fields/).
 
 ## Custom TLS support
 

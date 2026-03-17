@@ -23,9 +23,9 @@ icon: material/new-box
 
 | Type   | Format           |
 |--------|------------------|
-| `acme` | [ACME](./acme)   |
-| `tailscale` | [Tailscale](./tailscale) |
-| `cloudflare-origin-ca` | [Cloudflare Origin CA](./cloudflare-origin-ca) |
+| `acme` | [ACME](/configuration/shared/certificate-provider/acme)   |
+| `tailscale` | [Tailscale](/configuration/shared/certificate-provider/tailscale) |
+| `cloudflare-origin-ca` | [Cloudflare Origin CA](/configuration/shared/certificate-provider/cloudflare-origin-ca) |
 
 #### tag
 
