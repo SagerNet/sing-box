@@ -60,7 +60,8 @@ func (v *CloudflareOriginCARequestValidity) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch CloudflareOriginCARequestValidity(value) {
-	case CloudflareOriginCARequestValidity7,
+	case 0,
+		CloudflareOriginCARequestValidity7,
 		CloudflareOriginCARequestValidity30,
 		CloudflareOriginCARequestValidity90,
 		CloudflareOriginCARequestValidity365,
