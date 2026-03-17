@@ -65,9 +65,9 @@ ACME 数据存储目录。
 
 #### provider
 
-要使用的 ACME CA 供应商。
+要使用的 ACME CA 提供商。
 
-| 值                  | 供应商           |
+| 值                  | 提供商           |
 |--------------------|---------------|
 | `letsencrypt (默认)` | Let's Encrypt |
 | `zerossl`          | ZeroSSL       |
@@ -118,9 +118,9 @@ MAC 密钥。
 
 #### dns01_challenge
 
-ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
+ACME DNS01 质询字段。如果配置，将禁用其他质询方法。
 
-参阅 [DNS01 验证字段](/zh/configuration/shared/dns01_challenge/)。
+参阅 [DNS01 质询字段](/zh/configuration/shared/dns01_challenge/)。
 
 #### key_type
 

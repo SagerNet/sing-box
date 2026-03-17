@@ -37,19 +37,19 @@ icon: material/new-box
 
 !!! question "自 sing-box 1.14.0 起"
 
-DNS 验证临时 TXT 记录的 TTL。
+DNS 质询临时 TXT 记录的 TTL。
 
 #### propagation_delay
 
 !!! question "自 sing-box 1.14.0 起"
 
-创建验证记录后，在开始传播检查前要等待的时间。
+创建质询记录后，在开始传播检查前要等待的时间。
 
 #### propagation_timeout
 
 !!! question "自 sing-box 1.14.0 起"
 
-等待验证记录传播完成的最长时间。
+等待质询记录传播完成的最长时间。
 
 设为 `-1` 可禁用传播检查。
 
@@ -63,7 +63,7 @@ DNS 验证临时 TXT 记录的 TTL。
 
 !!! question "自 sing-box 1.14.0 起"
 
-覆盖 DNS 验证记录使用的域名。
+覆盖 DNS 质询记录使用的域名。
 
 适用于将 `_acme-challenge` 委托到其他 zone 的场景。
 
