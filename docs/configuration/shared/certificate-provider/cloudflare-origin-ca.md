@@ -18,6 +18,7 @@ icon: material/new-box
   "api_token": "",
   "origin_ca_key": "",
   "request_type": "",
+  "requested_validity": 0,
   "detour": ""
 }
 ```
