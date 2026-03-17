@@ -122,7 +122,6 @@ nav:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
-          - Certificate Provider Fields: configuration/shared/certificate-provider-fields.md
           - Certificate Provider:
               - configuration/shared/certificate-provider/index.md
               - ACME: configuration/shared/certificate-provider/acme.md

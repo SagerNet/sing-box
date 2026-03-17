@@ -422,7 +422,11 @@ echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/
 
 ==仅服务器==
 
-证书提供者配置，参阅 [证书提供者字段](/zh/configuration/shared/certificate-provider-fields/)。
+字符串或对象。
+
+为字符串时，共享[证书提供者](/zh/configuration/shared/certificate-provider/)的标签。
+
+为对象时，内联的证书提供者。可用类型和字段参阅[证书提供者](/zh/configuration/shared/certificate-provider/)。
 
 ## 自定义 TLS 支持
 
