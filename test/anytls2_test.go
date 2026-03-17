@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box"
+	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -28,8 +28,8 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/socks"
 
-	"golang.org/x/net/http2"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 func TestAnyTLS2Self(t *testing.T) {
