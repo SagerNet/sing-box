@@ -109,6 +109,9 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 	}
 	defer t.EndQuery()
 
+	ctx, cancel := t.ContextWithCancel(ctx)
+	defer cancel()
+
 	t.access.Lock()
 	conn := t.connections.PopFront()
 	t.access.Unlock()
@@ -130,6 +133,10 @@ func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tl
 	if deadline, ok := ctx.Deadline(); ok {
 		conn.SetDeadline(deadline)
 	}
+	stop := context.AfterFunc(ctx, func() {
+		conn.SetDeadline(time.Unix(0, 1))
+	})
+	defer stop()
 	conn.queryId++
 	err := WriteMessage(conn, conn.queryId, message)
 	if err != nil {

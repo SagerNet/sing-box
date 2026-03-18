@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"sync"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -137,7 +138,31 @@ func (t *BaseTransport) Shutdown(ctx context.Context) error {
 }
 
 func (t *BaseTransport) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), C.TCPTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), C.StopTimeout)
 	defer cancel()
 	return t.Shutdown(ctx)
+}
+
+func (t *BaseTransport) ContextWithCancel(ctx context.Context) (context.Context, context.CancelFunc) {
+	connCtx, cancel := context.WithCancel(t.closeCtx)
+	stop := context.AfterFunc(ctx, func() {
+		cancel()
+	})
+	return joinedContext{connCtx, ctx}, func() {
+		stop()
+		cancel()
+	}
+}
+
+type joinedContext struct {
+	context.Context
+	parent context.Context
+}
+
+func (v joinedContext) Value(key any) any {
+	return v.parent.Value(key)
+}
+
+func (v joinedContext) Deadline() (time.Time, bool) {
+	return v.parent.Deadline()
 }

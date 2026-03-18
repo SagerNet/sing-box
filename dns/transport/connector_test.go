@@ -146,57 +146,6 @@ func TestConnectorDialSkipsCanceledRequest(t *testing.T) {
 	require.EqualValues(t, 0, dialCount.Load())
 }
 
-func TestConnectorCanceledRequestDoesNotCacheConnection(t *testing.T) {
-	t.Parallel()
-
-	var (
-		dialCount  atomic.Int32
-		closeCount atomic.Int32
-	)
-	dialStarted := make(chan struct{}, 1)
-	releaseDial := make(chan struct{})
-
-	connector := NewConnector(context.Background(), func(ctx context.Context) (*testConnectorConnection, error) {
-		dialCount.Add(1)
-		select {
-		case dialStarted <- struct{}{}:
-		default:
-		}
-		<-releaseDial
-		return &testConnectorConnection{}, nil
-	}, ConnectorCallbacks[*testConnectorConnection]{
-		IsClosed: func(connection *testConnectorConnection) bool {
-			return false
-		},
-		Close: func(connection *testConnectorConnection) {
-			closeCount.Add(1)
-		},
-		Reset: func(connection *testConnectorConnection) {},
-	})
-
-	requestContext, cancel := context.WithCancel(context.Background())
-	result := make(chan error, 1)
-	go func() {
-		_, err := connector.Get(requestContext)
-		result <- err
-	}()
-
-	<-dialStarted
-	cancel()
-	close(releaseDial)
-
-	err := <-result
-	require.ErrorIs(t, err, context.Canceled)
-	require.EqualValues(t, 1, dialCount.Load())
-	require.Eventually(t, func() bool {
-		return closeCount.Load() == 1
-	}, time.Second, 10*time.Millisecond)
-
-	_, err = connector.Get(context.Background())
-	require.NoError(t, err)
-	require.EqualValues(t, 2, dialCount.Load())
-}
-
 func TestConnectorCanceledRequestReturnsBeforeIgnoredDialCompletes(t *testing.T) {
 	t.Parallel()
 

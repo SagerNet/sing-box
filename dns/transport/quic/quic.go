@@ -133,6 +133,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	}
 	defer t.EndQuery()
 
+	ctx, cancel := t.BaseTransport.ContextWithCancel(ctx)
+	defer cancel()
+
 	var (
 		conn     *quic.Conn
 		err      error
