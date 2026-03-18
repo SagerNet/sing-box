@@ -110,19 +110,17 @@ func (t *BaseTransport) Shutdown(ctx context.Context) error {
 	}
 
 	t.state = StateClosing
+	t.closeCancel()
 
 	if t.inFlight == 0 {
 		t.state = StateClosed
 		t.mutex.Unlock()
-		t.closeCancel()
 		return nil
 	}
 
 	t.queriesComplete = make(chan struct{})
 	queriesComplete := t.queriesComplete
 	t.mutex.Unlock()
-
-	t.closeCancel()
 
 	select {
 	case <-queriesComplete:
