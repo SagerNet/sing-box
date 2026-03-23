@@ -28,9 +28,13 @@ type InboundTLSOptions struct {
 	KeyPath                          string                              `json:"key_path,omitempty"`
 	KernelTx                         bool                                `json:"kernel_tx,omitempty"`
 	KernelRx                         bool                                `json:"kernel_rx,omitempty"`
-	ACME                             *InboundACMEOptions                 `json:"acme,omitempty"`
-	ECH                              *InboundECHOptions                  `json:"ech,omitempty"`
-	Reality                          *InboundRealityOptions              `json:"reality,omitempty"`
+	CertificateProvider              *CertificateProviderOptions         `json:"certificate_provider,omitempty"`
+
+	// Deprecated: use certificate_provider
+	ACME *InboundACMEOptions `json:"acme,omitempty"`
+
+	ECH     *InboundECHOptions     `json:"ech,omitempty"`
+	Reality *InboundRealityOptions `json:"reality,omitempty"`
 }
 
 type ClientAuthType tls.ClientAuthType

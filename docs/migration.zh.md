@@ -2,6 +2,83 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.14.0
+
+### 迁移内联 ACME 到证书提供者
+
+TLS 中的内联 ACME 选项已废弃，且可以被证书提供者替代。
+
+`tls.acme` 的大多数字段都可以原样迁移到 ACME 证书提供者中。
+sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/shared/certificate-provider/acme/) 页面。
+
+!!! info "参考"
+
+    [TLS](/zh/configuration/shared/tls/#certificate_provider) /
+    [证书提供者](/zh/configuration/shared/certificate-provider/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "acme": {
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 内联"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": {
+              "type": "acme",
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 共享"
+
+    ```json
+    {
+      "certificate_providers": [
+        {
+          "type": "acme",
+          "tag": "my-cert",
+          "domain": ["example.com"],
+          "email": "admin@example.com"
+        }
+      ],
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": "my-cert"
+          }
+        }
+      ]
+    }
+    ```
+
 ## 1.12.0
 
 ### 迁移到新的 DNS 服务器格式

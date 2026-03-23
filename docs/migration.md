@@ -2,6 +2,83 @@
 icon: material/arrange-bring-forward
 ---
 
+## 1.14.0
+
+### Migrate inline ACME to certificate provider
+
+Inline ACME options in TLS are deprecated and can be replaced by certificate providers.
+
+Most `tls.acme` fields can be moved into the ACME certificate provider unchanged.
+See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly added in sing-box 1.14.0.
+
+!!! info "References"
+
+    [TLS](/configuration/shared/tls/#certificate_provider) /
+    [Certificate Provider](/configuration/shared/certificate-provider/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "acme": {
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: Inline"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": {
+              "type": "acme",
+              "domain": ["example.com"],
+              "email": "admin@example.com"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: Shared"
+
+    ```json
+    {
+      "certificate_providers": [
+        {
+          "type": "acme",
+          "tag": "my-cert",
+          "domain": ["example.com"],
+          "email": "admin@example.com"
+        }
+      ],
+      "inbounds": [
+        {
+          "type": "trojan",
+          "tls": {
+            "enabled": true,
+            "certificate_provider": "my-cert"
+          }
+        }
+      ]
+    }
+    ```
+
 ## 1.12.0
 
 ### Migrate to new DNS server formats
