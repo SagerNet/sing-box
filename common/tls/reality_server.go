@@ -32,6 +32,10 @@ type RealityServerConfig struct {
 func NewRealityServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
 	var tlsConfig utls.RealityConfig
 
+	if options.CertificateProvider != nil {
+		return nil, E.New("certificate_provider is unavailable in reality")
+	}
+	//nolint:staticcheck
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
 		return nil, E.New("acme is unavailable in reality")
 	}

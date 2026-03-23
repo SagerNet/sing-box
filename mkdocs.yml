@@ -122,6 +122,11 @@ nav:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
+          - Certificate Provider:
+              - configuration/shared/certificate-provider/index.md
+              - ACME: configuration/shared/certificate-provider/acme.md
+              - Tailscale: configuration/shared/certificate-provider/tailscale.md
+              - Cloudflare Origin CA: configuration/shared/certificate-provider/cloudflare-origin-ca.md
           - DNS01 Challenge Fields: configuration/shared/dns01_challenge.md
           - Pre-match: configuration/shared/pre-match.md
           - Multiplex: configuration/shared/multiplex.md
@@ -273,6 +278,7 @@ plugins:
             Shared: 通用
             Listen Fields: 监听字段
             Dial Fields: 拨号字段
+            Certificate Provider Fields: 证书提供者字段
             DNS01 Challenge Fields: DNS01 验证字段
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层
@@ -281,6 +287,7 @@ plugins:
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
+            Certificate Provider: 证书提供者
 
             Manual: 手册
       reconfigure_material: true
