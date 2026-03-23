@@ -36,6 +36,10 @@ type TailscaleDNSServerOptions struct {
 	AcceptDefaultResolvers bool   `json:"accept_default_resolvers,omitempty"`
 }
 
+type TailscaleCertificateProviderOptions struct {
+	Endpoint string `json:"endpoint,omitempty"`
+}
+
 type DERPServiceOptions struct {
 	ListenOptions
 	InboundTLSOptionsContainer

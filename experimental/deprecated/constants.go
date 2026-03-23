@@ -102,10 +102,20 @@ var OptionLegacyDomainStrategyOptions = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-domain-strategy-options",
 }
 
+var OptionInlineACME = Note{
+	Name:              "inline-acme-options",
+	Description:       "inline ACME options in TLS",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "INLINE_ACME_OPTIONS",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-inline-acme-to-certificate-provider",
+}
+
 var Options = []Note{
 	OptionLegacyDNSTransport,
 	OptionLegacyDNSFakeIPOptions,
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
 	OptionLegacyDomainStrategyOptions,
+	OptionInlineACME,
 }
