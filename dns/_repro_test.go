@@ -1,0 +1,121 @@
+package dns
+
+import (
+    "context"
+    "errors"
+    "net/netip"
+    "testing"
+
+    "github.com/sagernet/sing-box/adapter"
+    C "github.com/sagernet/sing-box/constant"
+    "github.com/sagernet/sing-box/option"
+    "github.com/sagernet/sing/common/json/badoption"
+    mDNS "github.com/miekg/dns"
+    "github.com/stretchr/testify/require"
+)
+
+func TestReproLookupWithRulesIgnoresRouteStrategy(t *testing.T) {
+    defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+    router := newTestRouter(t, []option.DNSRule{
+        {
+            Type: C.RuleTypeDefault,
+            DefaultOptions: option.DefaultDNSRule{
+                RawDefaultDNSRule: option.RawDefaultDNSRule{
+                    Domain: badoption.Listable[string]{"example.com"},
+                },
+                DNSRuleAction: option.DNSRuleAction{
+                    Action: C.RuleActionTypeEvaluate,
+                    RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+                },
+            },
+        },
+        {
+            Type: C.RuleTypeDefault,
+            DefaultOptions: option.DefaultDNSRule{
+                RawDefaultDNSRule: option.RawDefaultDNSRule{
+                    MatchResponse: true,
+                },
+                DNSRuleAction: option.DNSRuleAction{
+                    Action: C.RuleActionTypeRoute,
+                    RouteOptions: option.DNSRouteActionOptions{Server: "selected", Strategy: C.DomainStrategyIPv4Only},
+                },
+            },
+        },
+    }, &fakeDNSTransportManager{
+        defaultTransport: defaultTransport,
+        transports: map[string]adapter.DNSTransport{
+            "default":  defaultTransport,
+            "selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+        },
+    }, &fakeDNSClient{
+        exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+            if transport.Tag() == "default" {
+                return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
+            }
+            switch message.Question[0].Qtype {
+            case mDNS.TypeA:
+                return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
+            case mDNS.TypeAAAA:
+                return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
+            default:
+                return nil, errors.New("unexpected qtype")
+            }
+        },
+    })
+
+    addrs, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
+    require.NoError(t, err)
+    require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addrs)
+}
+
+func TestReproLogicalMatchResponseIPCIDR(t *testing.T) {
+    transportManager := &fakeDNSTransportManager{
+        defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+        transports: map[string]adapter.DNSTransport{
+            "upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
+            "selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+            "default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+        },
+    }
+    client := &fakeDNSClient{
+        exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+            switch transport.Tag() {
+            case "upstream":
+                return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
+            case "selected":
+                return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("8.8.8.8")}, 60), nil
+            default:
+                return nil, errors.New("unexpected transport")
+            }
+        },
+    }
+    rules := []option.DNSRule{
+        {
+            Type: C.RuleTypeDefault,
+            DefaultOptions: option.DefaultDNSRule{
+                RawDefaultDNSRule: option.RawDefaultDNSRule{Domain: badoption.Listable[string]{"example.com"}},
+                DNSRuleAction: option.DNSRuleAction{Action: C.RuleActionTypeEvaluate, RouteOptions: option.DNSRouteActionOptions{Server: "upstream"}},
+            },
+        },
+        {
+            Type: C.RuleTypeLogical,
+            LogicalOptions: option.LogicalDNSRule{
+                RawLogicalDNSRule: option.RawLogicalDNSRule{
+                    Mode: C.LogicalTypeOr,
+                    Rules: []option.DNSRule{{
+                        Type: C.RuleTypeDefault,
+                        DefaultOptions: option.DefaultDNSRule{
+                            RawDefaultDNSRule: option.RawDefaultDNSRule{MatchResponse: true, IPCIDR: badoption.Listable[string]{"1.1.1.0/24"}},
+                        },
+                    }},
+                },
+                DNSRuleAction: option.DNSRuleAction{Action: C.RuleActionTypeRoute, RouteOptions: option.DNSRouteActionOptions{Server: "selected"}},
+            },
+        },
+    }
+    router := newTestRouter(t, rules, transportManager, client)
+
+    response, err := router.Exchange(context.Background(), &mDNS.Msg{Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)}}, adapter.DNSQueryOptions{})
+    require.NoError(t, err)
+    require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
+}
