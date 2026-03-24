@@ -65,9 +65,21 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 	}
 	if !dontUpgrade {
 		rcodeMap := make(map[string]int)
+		for _, server := range o.Servers {
+			if server.Type == C.DNSTypeLegacyRcode {
+				rcodeMap[server.Tag] = server.Options.(int)
+			}
+		}
+		if len(rcodeMap) > 0 {
+			for i := 0; i < len(o.Rules); i++ {
+				err = rejectEvaluateLegacyRcode(rcodeMap, o.Rules[i])
+				if err != nil {
+					return E.Cause(err, "dns rule[", i, "]")
+				}
+			}
+		}
 		o.Servers = common.Filter(o.Servers, func(it DNSServerOptions) bool {
 			if it.Type == C.DNSTypeLegacyRcode {
-				rcodeMap[it.Tag] = it.Options.(int)
 				return false
 			}
 			return true
@@ -77,6 +89,35 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 				rewriteRcode(rcodeMap, &o.Rules[i])
 			}
 		}
+	}
+	return nil
+}
+
+func rejectEvaluateLegacyRcode(rcodeMap map[string]int, rule DNSRule) error {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		return rejectEvaluateLegacyRcodeAction(rcodeMap, &rule.DefaultOptions.DNSRuleAction)
+	case C.RuleTypeLogical:
+		err := rejectEvaluateLegacyRcodeAction(rcodeMap, &rule.LogicalOptions.DNSRuleAction)
+		if err != nil {
+			return err
+		}
+		for i, subRule := range rule.LogicalOptions.Rules {
+			err = rejectEvaluateLegacyRcode(rcodeMap, subRule)
+			if err != nil {
+				return E.Cause(err, "sub rule[", i, "]")
+			}
+		}
+	}
+	return nil
+}
+
+func rejectEvaluateLegacyRcodeAction(rcodeMap map[string]int, ruleAction *DNSRuleAction) error {
+	if ruleAction.Action != C.RuleActionTypeEvaluate {
+		return nil
+	}
+	if _, loaded := rcodeMap[ruleAction.RouteOptions.Server]; loaded {
+		return E.New("evaluate action cannot reference legacy rcode server: ", ruleAction.RouteOptions.Server)
 	}
 	return nil
 }

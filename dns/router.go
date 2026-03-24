@@ -232,9 +232,11 @@ func (r *Router) applyTransportDefaults(transport adapter.DNSTransport, options 
 	}
 }
 
-func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOptions R.RuleActionDNSRouteOptions) {
+func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOptions R.RuleActionDNSRouteOptions) bool {
+	var strategyOverridden bool
 	if routeOptions.Strategy != C.DomainStrategyAsIS {
 		options.Strategy = routeOptions.Strategy
+		strategyOverridden = true
 	}
 	if routeOptions.DisableCache {
 		options.DisableCache = true
@@ -245,23 +247,32 @@ func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOpt
 	if routeOptions.ClientSubnet.IsValid() {
 		options.ClientSubnet = routeOptions.ClientSubnet
 	}
+	return strategyOverridden
 }
 
-func (r *Router) resolveDNSRoute(action *R.RuleActionDNSRoute, allowFakeIP bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, bool) {
+type dnsRouteStatus uint8
+
+const (
+	dnsRouteStatusMissing dnsRouteStatus = iota
+	dnsRouteStatusSkipped
+	dnsRouteStatusResolved
+)
+
+func (r *Router) resolveDNSRoute(action *R.RuleActionDNSRoute, allowFakeIP bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, dnsRouteStatus, bool) {
 	transport, loaded := r.transport.Transport(action.Server)
 	if !loaded {
-		return nil, false
+		return nil, dnsRouteStatusMissing, false
 	}
 	isFakeIP := transport.Type() == C.DNSTypeFakeIP
 	if isFakeIP && !allowFakeIP {
-		return transport, false
+		return transport, dnsRouteStatusSkipped, false
 	}
-	r.applyDNSRouteOptions(options, action.RuleActionDNSRouteOptions)
+	strategyOverridden := r.applyDNSRouteOptions(options, action.RuleActionDNSRouteOptions)
 	if isFakeIP {
 		options.DisableCache = true
 	}
 	r.applyTransportDefaults(transport, options)
-	return transport, true
+	return transport, dnsRouteStatusResolved, strategyOverridden
 }
 
 func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule adapter.DNSRule) {
@@ -276,12 +287,13 @@ func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule ad
 	}
 }
 
-func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) (*mDNS.Msg, adapter.DNSTransport, adapter.DNSQueryOptions, error) {
+func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) (*mDNS.Msg, adapter.DNSTransport, adapter.DNSQueryOptions, bool, error) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
 	}
 	effectiveOptions := options
+	effectiveStrategyOverridden := false
 	var savedResponse *mDNS.Msg
 	for currentRuleIndex, currentRule := range r.rules {
 		metadata.ResetRuleCache()
@@ -293,24 +305,26 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 		r.logRuleMatch(ctx, currentRuleIndex, currentRule)
 		switch action := currentRule.Action().(type) {
 		case *R.RuleActionDNSRouteOptions:
-			r.applyDNSRouteOptions(&effectiveOptions, *action)
+			effectiveStrategyOverridden = r.applyDNSRouteOptions(&effectiveOptions, *action) || effectiveStrategyOverridden
 		case *R.RuleActionEvaluate:
 			queryOptions := effectiveOptions
-			transport, loaded := r.resolveDNSRoute(&R.RuleActionDNSRoute{
+			transport, status, _ := r.resolveDNSRoute(&R.RuleActionDNSRoute{
 				Server:                    action.Server,
 				RuleActionDNSRouteOptions: action.RuleActionDNSRouteOptions,
 			}, allowFakeIP, &queryOptions)
-			if !loaded {
-				if transport == nil {
-					r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
-				}
+			switch status {
+			case dnsRouteStatusMissing:
+				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				savedResponse = nil
 				continue
+			case dnsRouteStatusSkipped:
+				continue
 			}
-			if queryOptions.Strategy == C.DomainStrategyAsIS {
-				queryOptions.Strategy = r.defaultDomainStrategy
+			exchangeOptions := queryOptions
+			if exchangeOptions.Strategy == C.DomainStrategyAsIS {
+				exchangeOptions.Strategy = r.defaultDomainStrategy
 			}
-			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, queryOptions, nil)
+			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
 			if err != nil {
 				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
 				savedResponse = nil
@@ -319,18 +333,20 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 			savedResponse = response
 		case *R.RuleActionDNSRoute:
 			queryOptions := effectiveOptions
-			transport, loaded := r.resolveDNSRoute(action, allowFakeIP, &queryOptions)
-			if !loaded {
-				if transport == nil {
-					r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
-				}
+			transport, status, strategyOverridden := r.resolveDNSRoute(action, allowFakeIP, &queryOptions)
+			switch status {
+			case dnsRouteStatusMissing:
+				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
+				continue
+			case dnsRouteStatusSkipped:
 				continue
 			}
-			if queryOptions.Strategy == C.DomainStrategyAsIS {
-				queryOptions.Strategy = r.defaultDomainStrategy
+			exchangeOptions := queryOptions
+			if exchangeOptions.Strategy == C.DomainStrategyAsIS {
+				exchangeOptions.Strategy = r.defaultDomainStrategy
 			}
-			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, queryOptions, nil)
-			return response, transport, queryOptions, err
+			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
+			return response, transport, queryOptions, effectiveStrategyOverridden || strategyOverridden, err
 		case *R.RuleActionReject:
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
@@ -341,27 +357,29 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 						Response: true,
 					},
 					Question: []mDNS.Question{message.Question[0]},
-				}, nil, effectiveOptions, nil
+				}, nil, effectiveOptions, effectiveStrategyOverridden, nil
 			case C.RuleActionRejectMethodDrop:
-				return nil, nil, effectiveOptions, tun.ErrDrop
+				return nil, nil, effectiveOptions, effectiveStrategyOverridden, tun.ErrDrop
 			}
 		case *R.RuleActionPredefined:
-			return action.Response(message), nil, effectiveOptions, nil
+			return action.Response(message), nil, effectiveOptions, effectiveStrategyOverridden, nil
 		}
 	}
 	queryOptions := effectiveOptions
 	transport := r.transport.Default()
 	r.applyTransportDefaults(transport, &queryOptions)
-	if queryOptions.Strategy == C.DomainStrategyAsIS {
-		queryOptions.Strategy = r.defaultDomainStrategy
+	exchangeOptions := queryOptions
+	if exchangeOptions.Strategy == C.DomainStrategyAsIS {
+		exchangeOptions.Strategy = r.defaultDomainStrategy
 	}
-	response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, queryOptions, nil)
-	return response, transport, queryOptions, err
+	response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
+	return response, transport, queryOptions, effectiveStrategyOverridden, err
 }
 
 type lookupWithRulesResponse struct {
-	addresses []netip.Addr
-	strategy  C.DomainStrategy
+	addresses        []netip.Addr
+	strategy         C.DomainStrategy
+	explicitStrategy C.DomainStrategy
 }
 
 func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions, strategies ...C.DomainStrategy) C.DomainStrategy {
@@ -388,6 +406,13 @@ func lookupStrategyAllowsQueryType(strategy C.DomainStrategy, qType uint16) bool
 	default:
 		return true
 	}
+}
+
+func lookupStrategyOverride(queryOptions adapter.DNSQueryOptions, strategyOverridden bool) C.DomainStrategy {
+	if !strategyOverridden {
+		return C.DomainStrategyAsIS
+	}
+	return queryOptions.Strategy
 }
 
 func (r *Router) lookupWithRules(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
@@ -419,7 +444,7 @@ func (r *Router) lookupWithRules(ctx context.Context, domain string, options ada
 		return err
 	})
 	err := group.Run(ctx)
-	strategy := r.resolveLookupStrategy(options, response4.strategy, response6.strategy)
+	strategy := r.resolveLookupStrategy(options, response4.explicitStrategy, response6.explicitStrategy)
 	if !lookupStrategyAllowsQueryType(strategy, mDNS.TypeA) {
 		response4.addresses = nil
 	}
@@ -443,9 +468,11 @@ func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType u
 			Qclass: mDNS.ClassINET,
 		}},
 	}
-	response, _, queryOptions, err := r.exchangeWithRules(adapter.OverrideContext(ctx), request, options, false)
+	response, _, queryOptions, strategyOverridden, err := r.exchangeWithRules(adapter.OverrideContext(ctx), request, options, false)
+	explicitStrategy := lookupStrategyOverride(queryOptions, strategyOverridden)
 	result := lookupWithRulesResponse{
-		strategy: r.resolveLookupStrategy(options, queryOptions.Strategy),
+		strategy:         r.resolveLookupStrategy(options, explicitStrategy),
+		explicitStrategy: explicitStrategy,
 	}
 	if err != nil {
 		return result, err
@@ -500,7 +527,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		}
 		response, err = r.client.Exchange(ctx, transport, message, options, nil)
 	} else if !r.legacyAddressFilterMode {
-		response, transport, _, err = r.exchangeWithRules(ctx, message, options, true)
+		response, transport, _, _, err = r.exchangeWithRules(ctx, message, options, true)
 	} else {
 		var (
 			rule      adapter.DNSRule
