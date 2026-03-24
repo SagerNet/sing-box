@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
+
+	"github.com/miekg/dns"
 )
 
 type Inbound interface {
@@ -80,6 +82,7 @@ type InboundContext struct {
 	FallbackDelay       time.Duration
 
 	DestinationAddresses []netip.Addr
+	DNSResponse          *dns.Msg
 	SourceGeoIPCode      string
 	GeoIPCode            string
 	ProcessInfo          *ConnectionOwner

@@ -84,6 +84,11 @@ type RawDefaultDNSRule struct {
 	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
 	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
 	IPAcceptAny              bool                                                                        `json:"ip_accept_any,omitempty"`
+	MatchResponse            bool                                                                        `json:"match_response,omitempty"`
+	ResponseRcode            *DNSRCode                                                                   `json:"response_rcode,omitempty"`
+	ResponseAnswer           badoption.Listable[DNSRecordOptions]                                        `json:"response_answer,omitempty"`
+	ResponseNs               badoption.Listable[DNSRecordOptions]                                        `json:"response_ns,omitempty"`
+	ResponseExtra            badoption.Listable[DNSRecordOptions]                                        `json:"response_extra,omitempty"`
 	SourceIPCIDR             badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty"`
 	SourceIPIsPrivate        bool                                                                        `json:"source_ip_is_private,omitempty"`
 	SourcePort               badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`

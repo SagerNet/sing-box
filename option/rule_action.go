@@ -115,6 +115,8 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 	case C.RuleActionTypeRoute:
 		r.Action = ""
 		v = r.RouteOptions
+	case C.RuleActionTypeEvaluate:
+		v = r.RouteOptions
 	case C.RuleActionTypeRouteOptions:
 		v = r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
@@ -136,6 +138,8 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 	switch r.Action {
 	case "", C.RuleActionTypeRoute:
 		r.Action = C.RuleActionTypeRoute
+		v = &r.RouteOptions
+	case C.RuleActionTypeEvaluate:
 		v = &r.RouteOptions
 	case C.RuleActionTypeRouteOptions:
 		v = &r.RouteOptionsOptions

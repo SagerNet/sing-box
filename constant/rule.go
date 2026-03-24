@@ -29,6 +29,7 @@ const (
 const (
 	RuleActionTypeRoute        = "route"
 	RuleActionTypeRouteOptions = "route-options"
+	RuleActionTypeEvaluate     = "evaluate"
 	RuleActionTypeDirect       = "direct"
 	RuleActionTypeBypass       = "bypass"
 	RuleActionTypeReject       = "reject"

@@ -5,6 +5,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -12,30 +13,36 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
+func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyAddressFilter bool) (adapter.DNSRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
+		if !checkServer && options.DefaultOptions.Action == C.RuleActionTypeEvaluate {
+			return nil, E.New(options.DefaultOptions.Action, " is only allowed on top-level DNS rules")
+		}
 		switch options.DefaultOptions.Action {
-		case "", C.RuleActionTypeRoute:
+		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions)
+		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions, legacyAddressFilter)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
+		if !checkServer && options.LogicalOptions.Action == C.RuleActionTypeEvaluate {
+			return nil, E.New(options.LogicalOptions.Action, " is only allowed on top-level DNS rules")
+		}
 		switch options.LogicalOptions.Action {
-		case "", C.RuleActionTypeRoute:
+		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.LogicalOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions)
+		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions, legacyAddressFilter)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -45,18 +52,20 @@ var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
 	abstractDefaultRule
+	matchResponse bool
 }
 
 func (r *DefaultDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatchStateSet {
 	return r.abstractDefaultRule.matchStates(metadata)
 }
 
-func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule, legacyAddressFilter bool) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
+		matchResponse: options.MatchResponse,
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -152,8 +161,33 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.allItems = append(rule.allItems, item)
 	}
 	if options.IPAcceptAny {
+		if legacyAddressFilter {
+			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
+		} else {
+			return nil, E.New("ip_accept_any is removed in DNS evaluate mode, use ip_cidr with match_response")
+		}
 		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.ResponseRcode != nil {
+		item := NewDNSResponseRCodeItem(int(*options.ResponseRcode))
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseAnswer) > 0 {
+		item := NewDNSResponseRecordItem("response_answer", options.ResponseAnswer, dnsResponseAnswers)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseNs) > 0 {
+		item := NewDNSResponseRecordItem("response_ns", options.ResponseNs, dnsResponseNS)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseExtra) > 0 {
+		item := NewDNSResponseRecordItem("response_extra", options.ResponseExtra, dnsResponseExtra)
+		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePort) > 0 {
@@ -284,6 +318,13 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		if options.RuleSetIPCIDRMatchSource {
 			matchSource = true
 		}
+		if options.RuleSetIPCIDRAcceptEmpty {
+			if legacyAddressFilter {
+				deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
+			} else {
+				return nil, E.New("rule_set_ip_cidr_accept_empty is removed in DNS evaluate mode")
+			}
+		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty)
 		rule.ruleSetItem = item
 		rule.allItems = append(rule.allItems, item)
@@ -309,6 +350,12 @@ func (r *DefaultDNSRule) WithAddressLimit() bool {
 }
 
 func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
+	if r.matchResponse {
+		if metadata.DNSResponse == nil {
+			return false
+		}
+		return r.abstractDefaultRule.Match(metadata)
+	}
 	metadata.IgnoreDestinationIPCIDRMatch = true
 	defer func() {
 		metadata.IgnoreDestinationIPCIDRMatch = false
@@ -330,7 +377,7 @@ func (r *LogicalDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 	return r.abstractLogicalRule.matchStates(metadata)
 }
 
-func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule, legacyAddressFilter bool) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
@@ -347,7 +394,7 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDNSRule(ctx, logger, subRule, false)
+		rule, err := NewDNSRule(ctx, logger, subRule, false, legacyAddressFilter)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
