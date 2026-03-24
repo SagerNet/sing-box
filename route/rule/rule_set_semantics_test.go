@@ -583,7 +583,7 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
 			addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
 		})
-		require.True(t, rule.MatchAddressLimit(&metadata))
+		require.True(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest(netip.MustParseAddr("203.0.113.1"))))
 	})
 	t.Run("dns keeps ruleset or semantics", func(t *testing.T) {
 		t.Parallel()
@@ -598,7 +598,7 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{emptyStateSet, destinationStateSet}})
 			addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
 		})
-		require.True(t, rule.MatchAddressLimit(&metadata))
+		require.True(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest(netip.MustParseAddr("203.0.113.1"))))
 	})
 	t.Run("ruleset ip cidr flags stay scoped", func(t *testing.T) {
 		t.Parallel()
@@ -612,7 +612,7 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 				ipCidrAcceptEmpty: true,
 			})
 		})
-		require.True(t, rule.MatchAddressLimit(&metadata))
+		require.True(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest()))
 		require.False(t, metadata.IPCIDRMatchSource)
 		require.False(t, metadata.IPCIDRAcceptEmpty)
 	})
@@ -637,6 +637,62 @@ func TestDNSMatchResponseRuleSetDestinationCIDRUsesDNSResponse(t *testing.T) {
 	unmatchedMetadata := testMetadata("lookup.example")
 	unmatchedMetadata.DNSResponse = dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))
 	require.False(t, rule.Match(&unmatchedMetadata))
+}
+
+func TestDNSAddressLimitIgnoresDestinationAddresses(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name              string
+		build             func(*testing.T, *abstractDefaultRule)
+		matchedResponse   *mDNS.Msg
+		unmatchedResponse *mDNS.Msg
+	}{
+		{
+			name: "ip_cidr",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("203.0.113.1")),
+			unmatchedResponse: dnsResponseForTest(netip.MustParseAddr("8.8.8.8")),
+		},
+		{
+			name: "ip_is_private",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPIsPrivateItem(rule)
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("10.0.0.1")),
+			unmatchedResponse: dnsResponseForTest(netip.MustParseAddr("8.8.8.8")),
+		},
+		{
+			name: "ip_accept_any",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPAcceptAnyItem(rule)
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("203.0.113.1")),
+			unmatchedResponse: dnsResponseForTest(),
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+				testCase.build(t, rule)
+			})
+
+			mismatchMetadata := testMetadata("lookup.example")
+			mismatchMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("203.0.113.1")}
+			require.False(t, rule.MatchAddressLimit(&mismatchMetadata, testCase.unmatchedResponse))
+
+			matchMetadata := testMetadata("lookup.example")
+			matchMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("8.8.8.8")}
+			require.True(t, rule.MatchAddressLimit(&matchMetadata, testCase.matchedResponse))
+		})
+	}
 }
 
 func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
@@ -688,11 +744,11 @@ func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
 
 			matchedMetadata := testMetadata("lookup.example")
 			matchedMetadata.DestinationAddresses = testCase.matchedAddrs
-			require.False(t, rule.MatchAddressLimit(&matchedMetadata))
+			require.False(t, rule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(testCase.matchedAddrs...)))
 
 			unmatchedMetadata := testMetadata("lookup.example")
 			unmatchedMetadata.DestinationAddresses = testCase.unmatchedAddrs
-			require.True(t, rule.MatchAddressLimit(&unmatchedMetadata))
+			require.True(t, rule.MatchAddressLimit(&unmatchedMetadata, dnsResponseForTest(testCase.unmatchedAddrs...)))
 		})
 	}
 	t.Run("mixed resolved and deferred fields keep old pre lookup false", func(t *testing.T) {

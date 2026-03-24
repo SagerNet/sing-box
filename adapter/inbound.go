@@ -4,11 +4,13 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/miekg/dns"
@@ -126,17 +128,27 @@ func (c *InboundContext) DestinationAddressesForMatch() []netip.Addr {
 	return c.DestinationAddresses
 }
 
+func (c *InboundContext) DNSResponseAddressesForMatch() []netip.Addr {
+	return DNSResponseAddresses(c.DNSResponse)
+}
+
 func DNSResponseAddresses(response *dns.Msg) []netip.Addr {
 	if response == nil || response.Rcode != dns.RcodeSuccess {
 		return nil
 	}
-	var addresses []netip.Addr
+	addresses := make([]netip.Addr, 0, len(response.Answer))
 	for _, rawRecord := range response.Answer {
 		switch record := rawRecord.(type) {
 		case *dns.A:
 			addresses = append(addresses, M.AddrFromIP(record.A))
 		case *dns.AAAA:
 			addresses = append(addresses, M.AddrFromIP(record.AAAA))
+		case *dns.HTTPS:
+			for _, value := range record.SVCB.Value {
+				if value.Key() == dns.SVCB_IPV4HINT || value.Key() == dns.SVCB_IPV6HINT {
+					addresses = append(addresses, common.Map(strings.Split(value.String(), ","), M.ParseAddr)...)
+				}
+			}
 		}
 	}
 	return addresses

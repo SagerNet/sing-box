@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"testing"
 
@@ -76,14 +77,14 @@ func (m *fakeDeprecatedManager) ReportDeprecated(feature deprecated.Note) {
 
 func (c *fakeDNSClient) Start() {}
 
-func (c *fakeDNSClient) Exchange(ctx context.Context, transport adapter.DNSTransport, message *mDNS.Msg, _ adapter.DNSQueryOptions, _ func([]netip.Addr) bool) (*mDNS.Msg, error) {
+func (c *fakeDNSClient) Exchange(ctx context.Context, transport adapter.DNSTransport, message *mDNS.Msg, _ adapter.DNSQueryOptions, _ func(*mDNS.Msg) bool) (*mDNS.Msg, error) {
 	if c.beforeExchange != nil {
 		c.beforeExchange(ctx, transport, message)
 	}
 	return c.exchange(transport, message)
 }
 
-func (c *fakeDNSClient) Lookup(context.Context, adapter.DNSTransport, string, adapter.DNSQueryOptions, func([]netip.Addr) bool) ([]netip.Addr, error) {
+func (c *fakeDNSClient) Lookup(context.Context, adapter.DNSTransport, string, adapter.DNSQueryOptions, func(*mDNS.Msg) bool) ([]netip.Addr, error) {
 	return nil, errors.New("unused client lookup")
 }
 
@@ -121,6 +122,49 @@ func mustRecord(t *testing.T, record string) option.DNSRecordOptions {
 	return value
 }
 
+func fixedHTTPSHintResponse(question mDNS.Question, addresses ...netip.Addr) *mDNS.Msg {
+	response := &mDNS.Msg{
+		MsgHdr: mDNS.MsgHdr{
+			Response: true,
+			Rcode:    mDNS.RcodeSuccess,
+		},
+		Question: []mDNS.Question{question},
+		Answer: []mDNS.RR{
+			&mDNS.HTTPS{
+				SVCB: mDNS.SVCB{
+					Hdr: mDNS.RR_Header{
+						Name:   question.Name,
+						Rrtype: mDNS.TypeHTTPS,
+						Class:  mDNS.ClassINET,
+						Ttl:    60,
+					},
+					Priority: 1,
+					Target:   ".",
+				},
+			},
+		},
+	}
+	https := response.Answer[0].(*mDNS.HTTPS)
+	var (
+		hints4 []net.IP
+		hints6 []net.IP
+	)
+	for _, address := range addresses {
+		if address.Is4() {
+			hints4 = append(hints4, net.IP(append([]byte(nil), address.AsSlice()...)))
+		} else {
+			hints6 = append(hints6, net.IP(append([]byte(nil), address.AsSlice()...)))
+		}
+	}
+	if len(hints4) > 0 {
+		https.SVCB.Value = append(https.SVCB.Value, &mDNS.SVCBIPv4Hint{Hint: hints4})
+	}
+	if len(hints6) > 0 {
+		https.SVCB.Value = append(https.SVCB.Value, &mDNS.SVCBIPv6Hint{Hint: hints6})
+	}
+	return response
+}
+
 func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 	t.Parallel()
 
@@ -139,6 +183,17 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 		},
 	}})
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestDNSResponseAddressesMatchesMessageToAddressesForHTTPSHints(t *testing.T) {
+	t.Parallel()
+
+	response := fixedHTTPSHintResponse(fixedQuestion("example.com", mDNS.TypeHTTPS),
+		netip.MustParseAddr("1.1.1.1"),
+		netip.MustParseAddr("2001:db8::1"),
+	)
+
+	require.Equal(t, MessageToAddresses(response), adapter.DNSResponseAddresses(response))
 }
 
 func TestExchangeNewModeEvaluateMatchResponseRoute(t *testing.T) {
@@ -254,6 +309,65 @@ func TestExchangeNewModeEvaluateMatchResponseRouteIgnoresTTL(t *testing.T) {
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
+	}, adapter.DNSQueryOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
+}
+
+func TestExchangeNewModeEvaluateMatchResponseRouteWithHTTPSHints(t *testing.T) {
+	t.Parallel()
+
+	transportManager := &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		},
+	}
+	client := &fakeDNSClient{
+		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+			switch transport.Tag() {
+			case "upstream":
+				return fixedHTTPSHintResponse(message.Question[0], netip.MustParseAddr("1.1.1.1")), nil
+			case "selected":
+				return fixedHTTPSHintResponse(message.Question[0], netip.MustParseAddr("8.8.8.8")), nil
+			default:
+				return nil, errors.New("unexpected transport")
+			}
+		},
+	}
+	rules := []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					Domain: badoption.Listable[string]{"example.com"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeEvaluate,
+					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					MatchResponse: true,
+					IPCIDR:        badoption.Listable[string]{"1.1.1.0/24"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	}
+	router := newTestRouter(t, rules, transportManager, client)
+
+	response, err := router.Exchange(context.Background(), &mDNS.Msg{
+		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeHTTPS)},
 	}, adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))

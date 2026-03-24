@@ -11,6 +11,8 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+
+	"github.com/miekg/dns"
 )
 
 func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyAddressFilter bool) (adapter.DNSRule, error) {
@@ -367,8 +369,11 @@ func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) r
 	return r.abstractDefaultRule.matchStates(&matchMetadata)
 }
 
-func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
-	return !r.matchStates(metadata).isEmpty()
+func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
+	matchMetadata := *metadata
+	matchMetadata.DNSResponse = response
+	matchMetadata.DestinationAddressMatchFromResponse = true
+	return !r.abstractDefaultRule.matchStates(&matchMetadata).isEmpty()
 }
 
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
@@ -477,6 +482,9 @@ func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
 	return !r.matchStatesForMatch(metadata).isEmpty()
 }
 
-func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
-	return !r.matchStates(metadata).isEmpty()
+func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
+	matchMetadata := *metadata
+	matchMetadata.DNSResponse = response
+	matchMetadata.DestinationAddressMatchFromResponse = true
+	return !r.abstractLogicalRule.matchStates(&matchMetadata).isEmpty()
 }

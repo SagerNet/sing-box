@@ -20,7 +20,7 @@ func (r *IPIsPrivateItem) Match(metadata *adapter.InboundContext) bool {
 		return !N.IsPublicAddr(metadata.Source.Addr)
 	}
 	if metadata.DestinationAddressMatchFromResponse {
-		for _, destinationAddress := range metadata.DestinationAddressesForMatch() {
+		for _, destinationAddress := range metadata.DNSResponseAddressesForMatch() {
 			if !N.IsPublicAddr(destinationAddress) {
 				return true
 			}
@@ -30,7 +30,7 @@ func (r *IPIsPrivateItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.Destination.Addr.IsValid() {
 		return !N.IsPublicAddr(metadata.Destination.Addr)
 	}
-	for _, destinationAddress := range metadata.DestinationAddressesForMatch() {
+	for _, destinationAddress := range metadata.DestinationAddresses {
 		if !N.IsPublicAddr(destinationAddress) {
 			return true
 		}

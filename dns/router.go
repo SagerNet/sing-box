@@ -145,6 +145,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 			continue
 		}
 		metadata.ResetRuleCache()
+		metadata.DestinationAddressMatchFromResponse = false
 		if currentRule.Match(metadata) {
 			displayRuleIndex := currentRuleIndex
 			if displayRuleIndex != -1 {
@@ -285,6 +286,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 	for currentRuleIndex, currentRule := range r.rules {
 		metadata.ResetRuleCache()
 		metadata.DNSResponse = savedResponse
+		metadata.DestinationAddressMatchFromResponse = false
 		if !currentRule.Match(metadata) {
 			continue
 		}
@@ -481,6 +483,8 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	ctx, metadata = adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
 	metadata.QueryType = message.Question[0].Qtype
+	metadata.DNSResponse = nil
+	metadata.DestinationAddressMatchFromResponse = false
 	switch metadata.QueryType {
 	case mDNS.TypeA:
 		metadata.IPVersion = 4
@@ -596,6 +600,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
 	metadata.Domain = FqdnToDomain(domain)
+	metadata.DNSResponse = nil
+	metadata.DestinationAddressMatchFromResponse = false
 	if options.Transport != nil {
 		transport := options.Transport
 		r.applyTransportDefaults(transport, &options)
@@ -666,15 +672,15 @@ func isAddressQuery(message *mDNS.Msg) bool {
 	return false
 }
 
-func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundContext) func(responseAddrs []netip.Addr) bool {
+func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundContext) func(response *mDNS.Msg) bool {
 	if rule == nil || !rule.WithAddressLimit() {
 		return nil
 	}
 	responseMetadata := *metadata
-	return func(responseAddrs []netip.Addr) bool {
+	return func(response *mDNS.Msg) bool {
 		checkMetadata := responseMetadata
-		checkMetadata.DestinationAddresses = responseAddrs
-		return rule.MatchAddressLimit(&checkMetadata)
+		checkMetadata.DNSResponse = response
+		return rule.MatchAddressLimit(&checkMetadata, response)
 	}
 }
 
