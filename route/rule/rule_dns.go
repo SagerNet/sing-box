@@ -358,7 +358,9 @@ func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) r
 		if metadata.DNSResponse == nil {
 			return 0
 		}
-		return r.abstractDefaultRule.matchStates(metadata)
+		matchMetadata := *metadata
+		matchMetadata.DestinationAddressMatchFromResponse = true
+		return r.abstractDefaultRule.matchStates(&matchMetadata)
 	}
 	matchMetadata := *metadata
 	matchMetadata.IgnoreDestinationIPCIDRMatch = true

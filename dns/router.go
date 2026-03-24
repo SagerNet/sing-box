@@ -285,7 +285,6 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 	for currentRuleIndex, currentRule := range r.rules {
 		metadata.ResetRuleCache()
 		metadata.DNSResponse = savedResponse
-		metadata.DestinationAddresses = MessageToAddresses(savedResponse)
 		if !currentRule.Match(metadata) {
 			continue
 		}
@@ -303,6 +302,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 				if transport == nil {
 					r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				}
+				savedResponse = nil
 				continue
 			}
 			if queryOptions.Strategy == C.DomainStrategyAsIS {

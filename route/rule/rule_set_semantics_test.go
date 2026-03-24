@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"net"
 	"net/netip"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
+	mDNS "github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 )
 
@@ -616,6 +618,27 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 	})
 }
 
+func TestDNSMatchResponseRuleSetDestinationCIDRUsesDNSResponse(t *testing.T) {
+	t.Parallel()
+
+	ruleSet := newLocalRuleSetForTest("dns-response-ipcidr", headlessDefaultRule(t, func(rule *abstractDefaultRule) {
+		addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
+	}))
+	rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+		addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
+	})
+	rule.matchResponse = true
+
+	matchedMetadata := testMetadata("lookup.example")
+	matchedMetadata.DNSResponse = dnsResponseForTest(netip.MustParseAddr("203.0.113.1"))
+	require.True(t, rule.Match(&matchedMetadata))
+	require.Empty(t, matchedMetadata.DestinationAddresses)
+
+	unmatchedMetadata := testMetadata("lookup.example")
+	unmatchedMetadata.DNSResponse = dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))
+	require.False(t, rule.Match(&unmatchedMetadata))
+}
+
 func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -761,6 +784,39 @@ func testMetadata(domain string) adapter.InboundContext {
 			Port: 443,
 		},
 	}
+}
+
+func dnsResponseForTest(addresses ...netip.Addr) *mDNS.Msg {
+	response := &mDNS.Msg{
+		MsgHdr: mDNS.MsgHdr{
+			Response: true,
+			Rcode:    mDNS.RcodeSuccess,
+		},
+	}
+	for _, address := range addresses {
+		if address.Is4() {
+			response.Answer = append(response.Answer, &mDNS.A{
+				Hdr: mDNS.RR_Header{
+					Name:   mDNS.Fqdn("lookup.example"),
+					Rrtype: mDNS.TypeA,
+					Class:  mDNS.ClassINET,
+					Ttl:    60,
+				},
+				A: net.IP(append([]byte(nil), address.AsSlice()...)),
+			})
+		} else {
+			response.Answer = append(response.Answer, &mDNS.AAAA{
+				Hdr: mDNS.RR_Header{
+					Name:   mDNS.Fqdn("lookup.example"),
+					Rrtype: mDNS.TypeAAAA,
+					Class:  mDNS.ClassINET,
+					Ttl:    60,
+				},
+				AAAA: net.IP(append([]byte(nil), address.AsSlice()...)),
+			})
+		}
+	}
+	return response
 }
 
 func addRuleSetItem(rule *abstractDefaultRule, item *RuleSetItem) {

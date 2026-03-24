@@ -81,15 +81,16 @@ type InboundContext struct {
 	FallbackNetworkType []C.InterfaceType
 	FallbackDelay       time.Duration
 
-	DestinationAddresses []netip.Addr
-	DNSResponse          *dns.Msg
-	SourceGeoIPCode      string
-	GeoIPCode            string
-	ProcessInfo          *ConnectionOwner
-	SourceMACAddress     net.HardwareAddr
-	SourceHostname       string
-	QueryType            uint16
-	FakeIP               bool
+	DestinationAddresses                []netip.Addr
+	DNSResponse                         *dns.Msg
+	DestinationAddressMatchFromResponse bool
+	SourceGeoIPCode                     string
+	GeoIPCode                           string
+	ProcessInfo                         *ConnectionOwner
+	SourceMACAddress                    net.HardwareAddr
+	SourceHostname                      string
+	QueryType                           uint16
+	FakeIP                              bool
 
 	// rule cache
 
@@ -116,6 +117,29 @@ func (c *InboundContext) ResetRuleMatchCache() {
 	c.DestinationAddressMatch = false
 	c.DestinationPortMatch = false
 	c.DidMatch = false
+}
+
+func (c *InboundContext) DestinationAddressesForMatch() []netip.Addr {
+	if c.DestinationAddressMatchFromResponse {
+		return DNSResponseAddresses(c.DNSResponse)
+	}
+	return c.DestinationAddresses
+}
+
+func DNSResponseAddresses(response *dns.Msg) []netip.Addr {
+	if response == nil || response.Rcode != dns.RcodeSuccess {
+		return nil
+	}
+	var addresses []netip.Addr
+	for _, rawRecord := range response.Answer {
+		switch record := rawRecord.(type) {
+		case *dns.A:
+			addresses = append(addresses, M.AddrFromIP(record.A))
+		case *dns.AAAA:
+			addresses = append(addresses, M.AddrFromIP(record.AAAA))
+		}
+	}
+	return addresses
 }
 
 type inboundContextKey struct{}
