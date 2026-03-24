@@ -350,17 +350,19 @@ func (r *DefaultDNSRule) WithAddressLimit() bool {
 }
 
 func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
+	return !r.matchStatesForMatch(metadata).isEmpty()
+}
+
+func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
 	if r.matchResponse {
 		if metadata.DNSResponse == nil {
-			return false
+			return 0
 		}
-		return r.abstractDefaultRule.Match(metadata)
+		return r.abstractDefaultRule.matchStates(metadata)
 	}
-	metadata.IgnoreDestinationIPCIDRMatch = true
-	defer func() {
-		metadata.IgnoreDestinationIPCIDRMatch = false
-	}()
-	return !r.matchStates(metadata).isEmpty()
+	matchMetadata := *metadata
+	matchMetadata.IgnoreDestinationIPCIDRMatch = true
+	return r.abstractDefaultRule.matchStates(&matchMetadata)
 }
 
 func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
@@ -375,6 +377,52 @@ type LogicalDNSRule struct {
 
 func (r *LogicalDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatchStateSet {
 	return r.abstractLogicalRule.matchStates(metadata)
+}
+
+func matchDNSHeadlessRuleStatesForMatch(rule adapter.HeadlessRule, metadata *adapter.InboundContext) ruleMatchStateSet {
+	switch rule := rule.(type) {
+	case *DefaultDNSRule:
+		return rule.matchStatesForMatch(metadata)
+	case *LogicalDNSRule:
+		return rule.matchStatesForMatch(metadata)
+	default:
+		return matchHeadlessRuleStates(rule, metadata)
+	}
+}
+
+func (r *LogicalDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
+	var stateSet ruleMatchStateSet
+	if r.mode == C.LogicalTypeAnd {
+		stateSet = emptyRuleMatchState()
+		for _, rule := range r.rules {
+			nestedMetadata := *metadata
+			nestedMetadata.ResetRuleCache()
+			nestedStateSet := matchDNSHeadlessRuleStatesForMatch(rule, &nestedMetadata)
+			if nestedStateSet.isEmpty() {
+				if r.invert {
+					return emptyRuleMatchState()
+				}
+				return 0
+			}
+			stateSet = stateSet.combine(nestedStateSet)
+		}
+	} else {
+		for _, rule := range r.rules {
+			nestedMetadata := *metadata
+			nestedMetadata.ResetRuleCache()
+			stateSet = stateSet.merge(matchDNSHeadlessRuleStatesForMatch(rule, &nestedMetadata))
+		}
+		if stateSet.isEmpty() {
+			if r.invert {
+				return emptyRuleMatchState()
+			}
+			return 0
+		}
+	}
+	if r.invert {
+		return 0
+	}
+	return stateSet
 }
 
 func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule, legacyAddressFilter bool) (*LogicalDNSRule, error) {
@@ -424,11 +472,7 @@ func (r *LogicalDNSRule) WithAddressLimit() bool {
 }
 
 func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
-	metadata.IgnoreDestinationIPCIDRMatch = true
-	defer func() {
-		metadata.IgnoreDestinationIPCIDRMatch = false
-	}()
-	return !r.matchStates(metadata).isEmpty()
+	return !r.matchStatesForMatch(metadata).isEmpty()
 }
 
 func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {

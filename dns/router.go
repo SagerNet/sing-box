@@ -275,7 +275,7 @@ func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule ad
 	}
 }
 
-func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) (*mDNS.Msg, adapter.DNSTransport, error) {
+func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) (*mDNS.Msg, adapter.DNSTransport, adapter.DNSQueryOptions, error) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
@@ -328,7 +328,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 				queryOptions.Strategy = r.defaultDomainStrategy
 			}
 			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, queryOptions, nil)
-			return response, transport, err
+			return response, transport, queryOptions, err
 		case *R.RuleActionReject:
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
@@ -339,12 +339,12 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 						Response: true,
 					},
 					Question: []mDNS.Question{message.Question[0]},
-				}, nil, nil
+				}, nil, effectiveOptions, nil
 			case C.RuleActionRejectMethodDrop:
-				return nil, nil, tun.ErrDrop
+				return nil, nil, effectiveOptions, tun.ErrDrop
 			}
 		case *R.RuleActionPredefined:
-			return action.Response(message), nil, nil
+			return action.Response(message), nil, effectiveOptions, nil
 		}
 	}
 	queryOptions := effectiveOptions
@@ -354,55 +354,83 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 		queryOptions.Strategy = r.defaultDomainStrategy
 	}
 	response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, queryOptions, nil)
-	return response, transport, err
+	return response, transport, queryOptions, err
+}
+
+type lookupWithRulesResponse struct {
+	addresses []netip.Addr
+	strategy  C.DomainStrategy
+}
+
+func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions, strategies ...C.DomainStrategy) C.DomainStrategy {
+	if options.LookupStrategy != C.DomainStrategyAsIS {
+		return options.LookupStrategy
+	}
+	for _, strategy := range strategies {
+		if strategy != C.DomainStrategyAsIS {
+			return strategy
+		}
+	}
+	if options.Strategy != C.DomainStrategyAsIS {
+		return options.Strategy
+	}
+	return r.defaultDomainStrategy
+}
+
+func lookupStrategyAllowsQueryType(strategy C.DomainStrategy, qType uint16) bool {
+	switch strategy {
+	case C.DomainStrategyIPv4Only:
+		return qType == mDNS.TypeA
+	case C.DomainStrategyIPv6Only:
+		return qType == mDNS.TypeAAAA
+	default:
+		return true
+	}
 }
 
 func (r *Router) lookupWithRules(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
-	var strategy C.DomainStrategy
-	if options.LookupStrategy != C.DomainStrategyAsIS {
-		strategy = options.LookupStrategy
-	} else {
-		strategy = options.Strategy
-	}
 	lookupOptions := options
 	if options.LookupStrategy != C.DomainStrategyAsIS {
-		lookupOptions.Strategy = strategy
+		lookupOptions.Strategy = options.LookupStrategy
 	}
-	if strategy == C.DomainStrategyIPv4Only {
-		return r.lookupWithRulesType(ctx, domain, mDNS.TypeA, lookupOptions)
+	if options.LookupStrategy == C.DomainStrategyIPv4Only {
+		response, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeA, lookupOptions)
+		return response.addresses, err
 	}
-	if strategy == C.DomainStrategyIPv6Only {
-		return r.lookupWithRulesType(ctx, domain, mDNS.TypeAAAA, lookupOptions)
+	if options.LookupStrategy == C.DomainStrategyIPv6Only {
+		response, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeAAAA, lookupOptions)
+		return response.addresses, err
 	}
 	var (
-		response4 []netip.Addr
-		response6 []netip.Addr
+		response4 lookupWithRulesResponse
+		response6 lookupWithRulesResponse
 	)
 	var group task.Group
 	group.Append("exchange4", func(ctx context.Context) error {
-		response, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeA, lookupOptions)
-		if err != nil {
-			return err
-		}
-		response4 = response
-		return nil
+		result, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeA, lookupOptions)
+		response4 = result
+		return err
 	})
 	group.Append("exchange6", func(ctx context.Context) error {
-		response, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeAAAA, lookupOptions)
-		if err != nil {
-			return err
-		}
-		response6 = response
-		return nil
+		result, err := r.lookupWithRulesType(ctx, domain, mDNS.TypeAAAA, lookupOptions)
+		response6 = result
+		return err
 	})
 	err := group.Run(ctx)
-	if len(response4) == 0 && len(response6) == 0 {
+	strategy := r.resolveLookupStrategy(options, response4.strategy, response6.strategy)
+	if !lookupStrategyAllowsQueryType(strategy, mDNS.TypeA) {
+		response4.addresses = nil
+	}
+	if !lookupStrategyAllowsQueryType(strategy, mDNS.TypeAAAA) {
+		response6.addresses = nil
+	}
+	if len(response4.addresses) == 0 && len(response6.addresses) == 0 {
 		return nil, err
 	}
-	return sortAddresses(response4, response6, strategy), nil
+	return sortAddresses(response4.addresses, response6.addresses, strategy), nil
 }
 
-func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType uint16, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
+func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType uint16, options adapter.DNSQueryOptions) (lookupWithRulesResponse, error) {
 	request := &mDNS.Msg{
 		MsgHdr: mDNS.MsgHdr{
 			RecursionDesired: true,
@@ -413,14 +441,21 @@ func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType u
 			Qclass: mDNS.ClassINET,
 		}},
 	}
-	response, _, err := r.exchangeWithRules(adapter.OverrideContext(ctx), request, options, false)
+	response, _, queryOptions, err := r.exchangeWithRules(adapter.OverrideContext(ctx), request, options, false)
+	result := lookupWithRulesResponse{
+		strategy: r.resolveLookupStrategy(options, queryOptions.Strategy),
+	}
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	if response.Rcode != mDNS.RcodeSuccess {
-		return nil, RcodeError(response.Rcode)
+		return result, RcodeError(response.Rcode)
 	}
-	return MessageToAddresses(response), nil
+	if !lookupStrategyAllowsQueryType(result.strategy, qType) {
+		return result, nil
+	}
+	result.addresses = MessageToAddresses(response)
+	return result, nil
 }
 
 func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
@@ -461,7 +496,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		}
 		response, err = r.client.Exchange(ctx, transport, message, options, nil)
 	} else if !r.legacyAddressFilterMode {
-		response, transport, err = r.exchangeWithRules(ctx, message, options, true)
+		response, transport, _, err = r.exchangeWithRules(ctx, message, options, true)
 	} else {
 		var (
 			rule      adapter.DNSRule
