@@ -56,11 +56,11 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 }
 
 func (r *abstractDefaultRule) destinationIPCIDRMatchesSource(metadata *adapter.InboundContext) bool {
-	return !metadata.IgnoreDestinationIPCIDRMatch && metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
+	return metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
 }
 
 func (r *abstractDefaultRule) destinationIPCIDRMatchesDestination(metadata *adapter.InboundContext) bool {
-	return !metadata.IgnoreDestinationIPCIDRMatch && !metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
+	return !metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
 }
 
 func (r *abstractDefaultRule) requiresSourceAddressMatch(metadata *adapter.InboundContext) bool {
@@ -156,10 +156,6 @@ func (r *abstractDefaultRule) matchStatesWithBase(metadata *adapter.InboundConte
 		return r.invertedFailure(inheritedBase)
 	}
 	if r.invert {
-		// DNS pre-lookup defers destination address-limit checks until the response phase.
-		if metadata.IgnoreDestinationIPCIDRMatch && stateSet == emptyRuleMatchState() && !metadata.DidMatch && len(r.destinationIPCIDRItems) > 0 {
-			return emptyRuleMatchState().withBase(inheritedBase)
-		}
 		return 0
 	}
 	return stateSet

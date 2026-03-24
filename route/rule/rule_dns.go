@@ -365,7 +365,6 @@ func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) r
 		return r.abstractDefaultRule.matchStates(&matchMetadata)
 	}
 	matchMetadata := *metadata
-	matchMetadata.IgnoreDestinationIPCIDRMatch = true
 	return r.abstractDefaultRule.matchStates(&matchMetadata)
 }
 
