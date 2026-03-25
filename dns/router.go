@@ -810,6 +810,11 @@ func validateNonLegacyAddressFilterDefaultRule(rule option.DefaultDNSRule) (bool
 	if (len(rule.IPCIDR) > 0 || rule.IPIsPrivate) && !rule.MatchResponse {
 		return false, E.New("ip_cidr and ip_is_private require match_response in DNS evaluate mode")
 	}
+	// Intentionally do not reject rule_set here. A referenced rule set may mix
+	// destination-IP predicates with pre-response predicates such as domain items.
+	// When match_response is false, those destination-IP branches fail closed during
+	// pre-response evaluation instead of consuming DNS response state, while sibling
+	// non-response branches remain matchable.
 	if rule.IPAcceptAny {
 		return false, E.New("ip_accept_any is removed in DNS evaluate mode, use ip_cidr with match_response")
 	}

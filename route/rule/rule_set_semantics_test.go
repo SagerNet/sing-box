@@ -625,6 +625,9 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
 			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
 		})
+		// This is accepted without match_response so mixed rule_set deployments keep
+		// working; the destination-IP-only branch simply cannot match before a DNS
+		// response is available.
 		require.False(t, rule.Match(&metadata))
 	})
 	t.Run("pre lookup ruleset destination cidr does not fall back to other predicates", func(t *testing.T) {
@@ -655,6 +658,9 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
 			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
 		})
+		// Destination-IP predicates inside rule_set fail closed before the DNS response,
+		// but they must not force validation errors or suppress sibling non-response
+		// branches.
 		require.True(t, rule.Match(&metadata))
 	})
 }
