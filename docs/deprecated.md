@@ -21,7 +21,7 @@ Old fields will be removed in sing-box 1.16.0.
 DNS servers are refactored,
 check [Migration](../migration/#migrate-to-new-dns-servers).
 
-Compatibility for old formats will be removed in sing-box 1.14.0.
+Old formats were removed in sing-box 1.14.0.
 
 #### `outbound` DNS rule item
 

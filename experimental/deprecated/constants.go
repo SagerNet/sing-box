@@ -57,24 +57,6 @@ func (n Note) MessageWithLink() string {
 	}
 }
 
-var OptionLegacyDNSTransport = Note{
-	Name:              "legacy-dns-transport",
-	Description:       "legacy DNS servers",
-	DeprecatedVersion: "1.12.0",
-	ScheduledVersion:  "1.14.0",
-	EnvName:           "LEGACY_DNS_SERVERS",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-to-new-dns-server-formats",
-}
-
-var OptionLegacyDNSFakeIPOptions = Note{
-	Name:              "legacy-dns-fakeip-options",
-	Description:       "legacy DNS fakeip options",
-	DeprecatedVersion: "1.12.0",
-	ScheduledVersion:  "1.14.0",
-	EnvName:           "LEGACY_DNS_FAKEIP_OPTIONS",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-to-new-dns-server-formats",
-}
-
 var OptionOutboundDNSRuleItem = Note{
 	Name:              "outbound-dns-rule-item",
 	Description:       "outbound DNS rule item",
@@ -136,8 +118,6 @@ var OptionLegacyDNSAddressFilter = Note{
 }
 
 var Options = []Note{
-	OptionLegacyDNSTransport,
-	OptionLegacyDNSFakeIPOptions,
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
 	OptionLegacyDomainStrategyOptions,

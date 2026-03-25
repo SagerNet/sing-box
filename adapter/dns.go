@@ -72,11 +72,6 @@ type DNSTransport interface {
 	Exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error)
 }
 
-type LegacyDNSTransport interface {
-	LegacyStrategy() C.DomainStrategy
-	LegacyClientSubnet() netip.Prefix
-}
-
 type DNSTransportRegistry interface {
 	option.DNSTransportOptionsRegistry
 	CreateDNSTransport(ctx context.Context, logger log.ContextLogger, tag string, transportType string, options any) (DNSTransport, error)

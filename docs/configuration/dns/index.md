@@ -39,7 +39,7 @@ icon: material/alert-decagram
 |----------|---------------------------------|
 | `server` | List of [DNS Server](./server/) |
 | `rules`  | List of [DNS Rule](./rule/)     |
-| `fakeip` | [FakeIP](./fakeip/)             |
+| `fakeip` | :material-note-remove: [FakeIP](./fakeip/) |
 
 #### final
 

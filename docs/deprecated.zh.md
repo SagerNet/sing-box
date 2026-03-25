@@ -21,7 +21,7 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 DNS 服务器已重构，
 参阅 [迁移指南](/zh/migration/#迁移到新的-dns-服务器格式).
 
-对旧格式的兼容性将在 sing-box 1.14.0 中被移除。
+旧格式已在 sing-box 1.14.0 中被移除。
 
 #### `outbound` DNS 规则项
 

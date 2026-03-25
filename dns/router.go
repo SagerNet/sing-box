@@ -180,14 +180,6 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 				if action.ClientSubnet.IsValid() {
 					options.ClientSubnet = action.ClientSubnet
 				}
-				if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
-					if options.Strategy == C.DomainStrategyAsIS {
-						options.Strategy = legacyTransport.LegacyStrategy()
-					}
-					if !options.ClientSubnet.IsValid() {
-						options.ClientSubnet = legacyTransport.LegacyClientSubnet()
-					}
-				}
 				return transport, currentRule, currentRuleIndex
 			case *R.RuleActionDNSRouteOptions:
 				if action.Strategy != C.DomainStrategyAsIS {
@@ -210,26 +202,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 		}
 	}
 	transport := r.transport.Default()
-	if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
-		if options.Strategy == C.DomainStrategyAsIS {
-			options.Strategy = legacyTransport.LegacyStrategy()
-		}
-		if !options.ClientSubnet.IsValid() {
-			options.ClientSubnet = legacyTransport.LegacyClientSubnet()
-		}
-	}
 	return transport, nil, -1
-}
-
-func (r *Router) applyTransportDefaults(transport adapter.DNSTransport, options *adapter.DNSQueryOptions) {
-	if legacyTransport, isLegacy := transport.(adapter.LegacyDNSTransport); isLegacy {
-		if options.Strategy == C.DomainStrategyAsIS {
-			options.Strategy = legacyTransport.LegacyStrategy()
-		}
-		if !options.ClientSubnet.IsValid() {
-			options.ClientSubnet = legacyTransport.LegacyClientSubnet()
-		}
-	}
 }
 
 func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOptions R.RuleActionDNSRouteOptions) bool {
@@ -271,7 +244,6 @@ func (r *Router) resolveDNSRoute(action *R.RuleActionDNSRoute, allowFakeIP bool,
 	if isFakeIP {
 		options.DisableCache = true
 	}
-	r.applyTransportDefaults(transport, options)
 	return transport, dnsRouteStatusResolved, strategyOverridden
 }
 
@@ -367,7 +339,6 @@ func (r *Router) exchangeWithRules(ctx context.Context, message *mDNS.Msg, optio
 	}
 	queryOptions := effectiveOptions
 	transport := r.transport.Default()
-	r.applyTransportDefaults(transport, &queryOptions)
 	exchangeOptions := queryOptions
 	if exchangeOptions.Strategy == C.DomainStrategyAsIS {
 		exchangeOptions.Strategy = r.defaultDomainStrategy
@@ -521,7 +492,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	metadata.Domain = FqdnToDomain(message.Question[0].Name)
 	if options.Transport != nil {
 		transport = options.Transport
-		r.applyTransportDefaults(transport, &options)
 		if options.Strategy == C.DomainStrategyAsIS {
 			options.Strategy = r.defaultDomainStrategy
 		}
@@ -631,7 +601,6 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 	metadata.DestinationAddressMatchFromResponse = false
 	if options.Transport != nil {
 		transport := options.Transport
-		r.applyTransportDefaults(transport, &options)
 		if options.Strategy == C.DomainStrategyAsIS {
 			options.Strategy = r.defaultDomainStrategy
 		}
