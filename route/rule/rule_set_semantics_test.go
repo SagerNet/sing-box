@@ -742,6 +742,110 @@ func TestDNSAddressLimitIgnoresDestinationAddresses(t *testing.T) {
 	}
 }
 
+func TestDNSLegacyAddressLimitPreLookupDefersDirectRules(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name              string
+		build             func(*testing.T, *abstractDefaultRule)
+		matchedResponse   *mDNS.Msg
+		unmatchedResponse *mDNS.Msg
+	}{
+		{
+			name: "ip_cidr",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("203.0.113.1")),
+			unmatchedResponse: dnsResponseForTest(netip.MustParseAddr("8.8.8.8")),
+		},
+		{
+			name: "ip_is_private",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPIsPrivateItem(rule)
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("10.0.0.1")),
+			unmatchedResponse: dnsResponseForTest(netip.MustParseAddr("8.8.8.8")),
+		},
+		{
+			name: "ip_accept_any",
+			build: func(t *testing.T, rule *abstractDefaultRule) {
+				t.Helper()
+				addDestinationIPAcceptAnyItem(rule)
+			},
+			matchedResponse:   dnsResponseForTest(netip.MustParseAddr("203.0.113.1")),
+			unmatchedResponse: dnsResponseForTest(),
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+				testCase.build(t, rule)
+			})
+			rule.legacyAddressFilter = true
+
+			preLookupMetadata := testMetadata("lookup.example")
+			require.True(t, rule.Match(&preLookupMetadata))
+
+			matchedMetadata := testMetadata("lookup.example")
+			require.True(t, rule.MatchAddressLimit(&matchedMetadata, testCase.matchedResponse))
+
+			unmatchedMetadata := testMetadata("lookup.example")
+			require.False(t, rule.MatchAddressLimit(&unmatchedMetadata, testCase.unmatchedResponse))
+		})
+	}
+}
+
+func TestDNSLegacyAddressLimitPreLookupDefersRuleSetDestinationCIDR(t *testing.T) {
+	t.Parallel()
+
+	ruleSet := newLocalRuleSetForTest("dns-legacy-ipcidr", headlessDefaultRule(t, func(rule *abstractDefaultRule) {
+		addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
+	}))
+	rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+		addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
+	})
+	rule.legacyAddressFilter = true
+
+	preLookupMetadata := testMetadata("lookup.example")
+	require.True(t, rule.Match(&preLookupMetadata))
+
+	matchedMetadata := testMetadata("lookup.example")
+	require.True(t, rule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(netip.MustParseAddr("203.0.113.1"))))
+
+	unmatchedMetadata := testMetadata("lookup.example")
+	require.False(t, rule.MatchAddressLimit(&unmatchedMetadata, dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))))
+}
+
+func TestDNSLegacyLogicalAddressLimitPreLookupDefersNestedRules(t *testing.T) {
+	t.Parallel()
+
+	nestedRule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+		addDestinationIPIsPrivateItem(rule)
+	})
+	logicalRule := &LogicalDNSRule{
+		abstractLogicalRule: abstractLogicalRule{
+			rules: []adapter.HeadlessRule{nestedRule},
+			mode:  C.LogicalTypeAnd,
+		},
+		legacyAddressFilter: true,
+	}
+
+	preLookupMetadata := testMetadata("lookup.example")
+	require.True(t, logicalRule.Match(&preLookupMetadata))
+
+	matchedMetadata := testMetadata("lookup.example")
+	require.True(t, logicalRule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(netip.MustParseAddr("10.0.0.1"))))
+
+	unmatchedMetadata := testMetadata("lookup.example")
+	require.False(t, logicalRule.MatchAddressLimit(&unmatchedMetadata, dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))))
+}
+
 func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

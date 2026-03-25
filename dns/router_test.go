@@ -65,6 +65,7 @@ func (m *fakeDNSTransportManager) Create(context.Context, log.ContextLogger, str
 type fakeDNSClient struct {
 	beforeExchange func(ctx context.Context, transport adapter.DNSTransport, message *mDNS.Msg)
 	exchange       func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error)
+	lookup         func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error)
 }
 
 type fakeDeprecatedManager struct {
@@ -84,8 +85,24 @@ func (c *fakeDNSClient) Exchange(ctx context.Context, transport adapter.DNSTrans
 	return c.exchange(transport, message)
 }
 
-func (c *fakeDNSClient) Lookup(context.Context, adapter.DNSTransport, string, adapter.DNSQueryOptions, func(*mDNS.Msg) bool) ([]netip.Addr, error) {
-	return nil, errors.New("unused client lookup")
+func (c *fakeDNSClient) Lookup(_ context.Context, transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions, responseChecker func(*mDNS.Msg) bool) ([]netip.Addr, error) {
+	if c.lookup == nil {
+		return nil, errors.New("unused client lookup")
+	}
+	addresses, response, err := c.lookup(transport, domain, options)
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		response = FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), addresses, 60)
+	}
+	if responseChecker != nil && !responseChecker(response) {
+		return nil, ErrResponseRejected
+	}
+	if addresses != nil {
+		return addresses, nil
+	}
+	return MessageToAddresses(response), nil
 }
 
 func (c *fakeDNSClient) ClearCache() {}
@@ -183,6 +200,102 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 		},
 	}})
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestLookupLegacyModeDefersDirectDestinationIPMatch(t *testing.T) {
+	t.Parallel()
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	privateTransport := &fakeDNSTransport{tag: "private", transportType: C.DNSTypeUDP}
+	client := &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			require.Equal(t, "example.com", domain)
+			require.Equal(t, C.DomainStrategyIPv4Only, options.LookupStrategy)
+			switch transport.Tag() {
+			case "private":
+				response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
+				return MessageToAddresses(response), response, nil
+			case "default":
+				t.Fatal("default transport should not be used when legacy rule matches after response")
+			}
+			return nil, nil, errors.New("unexpected transport")
+		},
+	}
+	router := newTestRouter(t, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				IPIsPrivate: true,
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "private"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+			"private": privateTransport,
+		},
+	}, client)
+
+	require.True(t, router.legacyAddressFilterMode)
+
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+		LookupStrategy: C.DomainStrategyIPv4Only,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
+}
+
+func TestLookupLegacyModeFallsBackAfterRejectedAddressLimitResponse(t *testing.T) {
+	t.Parallel()
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	privateTransport := &fakeDNSTransport{tag: "private", transportType: C.DNSTypeUDP}
+	var lookups []string
+	client := &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			require.Equal(t, "example.com", domain)
+			require.Equal(t, C.DomainStrategyIPv4Only, options.LookupStrategy)
+			lookups = append(lookups, transport.Tag())
+			switch transport.Tag() {
+			case "private":
+				response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("8.8.8.8")}, 60)
+				return MessageToAddresses(response), response, nil
+			case "default":
+				response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("9.9.9.9")}, 60)
+				return MessageToAddresses(response), response, nil
+			}
+			return nil, nil, errors.New("unexpected transport")
+		},
+	}
+	router := newTestRouter(t, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				IPIsPrivate: true,
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "private"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+			"private": privateTransport,
+		},
+	}, client)
+
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+		LookupStrategy: C.DomainStrategyIPv4Only,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("9.9.9.9")}, addresses)
+	require.Equal(t, []string{"private", "default"}, lookups)
 }
 
 func TestDNSResponseAddressesMatchesMessageToAddressesForHTTPSHints(t *testing.T) {

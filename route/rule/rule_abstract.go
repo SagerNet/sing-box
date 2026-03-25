@@ -60,7 +60,7 @@ func (r *abstractDefaultRule) destinationIPCIDRMatchesSource(metadata *adapter.I
 }
 
 func (r *abstractDefaultRule) destinationIPCIDRMatchesDestination(metadata *adapter.InboundContext) bool {
-	return !metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
+	return !metadata.IgnoreDestinationIPCIDRMatch && !metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
 }
 
 func (r *abstractDefaultRule) requiresSourceAddressMatch(metadata *adapter.InboundContext) bool {
