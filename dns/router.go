@@ -146,7 +146,7 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 		}
 		metadata.ResetRuleCache()
 		metadata.DestinationAddressMatchFromResponse = false
-		if currentRule.Match(metadata) {
+		if currentRule.LegacyPreMatch(metadata) {
 			displayRuleIndex := currentRuleIndex
 			if displayRuleIndex != -1 {
 				displayRuleIndex += displayRuleIndex + 1

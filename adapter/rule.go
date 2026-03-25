@@ -20,6 +20,7 @@ type Rule interface {
 
 type DNSRule interface {
 	Rule
+	LegacyPreMatch(metadata *InboundContext) bool
 	WithAddressLimit() bool
 	MatchAddressLimit(metadata *InboundContext, response *dns.Msg) bool
 }
