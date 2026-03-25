@@ -77,7 +77,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 }
 
 func (r *Router) Initialize(rules []option.DNSRule) error {
-	r.legacyAddressFilterMode = !hasNonLegacyAddressFilterItems(rules)
+	r.legacyAddressFilterMode = hasLegacyAddressFilterItems(rules)
 	if !r.legacyAddressFilterMode {
 		err := validateNonLegacyAddressFilterRules(rules)
 		if err != nil {
@@ -353,6 +353,13 @@ type lookupWithRulesResponse struct {
 	explicitStrategy C.DomainStrategy
 }
 
+func lookupInputStrategy(options adapter.DNSQueryOptions) C.DomainStrategy {
+	if options.LookupStrategy != C.DomainStrategyAsIS {
+		return options.LookupStrategy
+	}
+	return options.Strategy
+}
+
 func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions, strategies ...C.DomainStrategy) C.DomainStrategy {
 	if options.LookupStrategy != C.DomainStrategyAsIS {
 		return options.LookupStrategy
@@ -386,6 +393,66 @@ func lookupStrategyOverride(queryOptions adapter.DNSQueryOptions, strategyOverri
 	return queryOptions.Strategy
 }
 
+func isSingleFamilyLookupStrategy(strategy C.DomainStrategy) bool {
+	return strategy == C.DomainStrategyIPv4Only || strategy == C.DomainStrategyIPv6Only
+}
+
+func resolveExplicitLookupStrategy(strategies ...C.DomainStrategy) (C.DomainStrategy, bool) {
+	var resolvedStrategy C.DomainStrategy
+	for _, strategy := range strategies {
+		if strategy == C.DomainStrategyAsIS {
+			continue
+		}
+		if resolvedStrategy == C.DomainStrategyAsIS {
+			resolvedStrategy = strategy
+			continue
+		}
+		if resolvedStrategy != strategy {
+			return C.DomainStrategyAsIS, true
+		}
+	}
+	return resolvedStrategy, false
+}
+
+func (r *Router) resolveLookupOutputStrategies(options adapter.DNSQueryOptions, explicitStrategies ...C.DomainStrategy) (C.DomainStrategy, C.DomainStrategy) {
+	inputStrategy := lookupInputStrategy(options)
+	if inputStrategy != C.DomainStrategyAsIS {
+		return inputStrategy, inputStrategy
+	}
+	explicitStrategy, explicitConflict := resolveExplicitLookupStrategy(explicitStrategies...)
+	sortStrategy := r.defaultDomainStrategy
+	if !explicitConflict && explicitStrategy != C.DomainStrategyAsIS {
+		sortStrategy = explicitStrategy
+	}
+	filterStrategy := C.DomainStrategyAsIS
+	if explicitConflict {
+		return sortStrategy, filterStrategy
+	}
+	if explicitStrategy != C.DomainStrategyAsIS {
+		if isSingleFamilyLookupStrategy(explicitStrategy) {
+			filterStrategy = explicitStrategy
+		}
+		return sortStrategy, filterStrategy
+	}
+	if isSingleFamilyLookupStrategy(sortStrategy) {
+		filterStrategy = sortStrategy
+	}
+	return sortStrategy, filterStrategy
+}
+
+func withLookupQueryMetadata(ctx context.Context, qType uint16) context.Context {
+	ctx, metadata := adapter.ExtendContext(ctx)
+	metadata.QueryType = qType
+	metadata.IPVersion = 0
+	switch qType {
+	case mDNS.TypeA:
+		metadata.IPVersion = 4
+	case mDNS.TypeAAAA:
+		metadata.IPVersion = 6
+	}
+	return ctx
+}
+
 func (r *Router) lookupWithRules(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
 	lookupOptions := options
 	if options.LookupStrategy != C.DomainStrategyAsIS {
@@ -415,17 +482,17 @@ func (r *Router) lookupWithRules(ctx context.Context, domain string, options ada
 		return err
 	})
 	err := group.Run(ctx)
-	strategy := r.resolveLookupStrategy(options, response4.explicitStrategy, response6.explicitStrategy)
-	if !lookupStrategyAllowsQueryType(strategy, mDNS.TypeA) {
+	sortStrategy, filterStrategy := r.resolveLookupOutputStrategies(options, response4.explicitStrategy, response6.explicitStrategy)
+	if !lookupStrategyAllowsQueryType(filterStrategy, mDNS.TypeA) {
 		response4.addresses = nil
 	}
-	if !lookupStrategyAllowsQueryType(strategy, mDNS.TypeAAAA) {
+	if !lookupStrategyAllowsQueryType(filterStrategy, mDNS.TypeAAAA) {
 		response6.addresses = nil
 	}
 	if len(response4.addresses) == 0 && len(response6.addresses) == 0 {
 		return nil, err
 	}
-	return sortAddresses(response4.addresses, response6.addresses, strategy), nil
+	return sortAddresses(response4.addresses, response6.addresses, sortStrategy), nil
 }
 
 func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType uint16, options adapter.DNSQueryOptions) (lookupWithRulesResponse, error) {
@@ -439,7 +506,7 @@ func (r *Router) lookupWithRulesType(ctx context.Context, domain string, qType u
 			Qclass: mDNS.ClassINET,
 		}},
 	}
-	response, _, queryOptions, strategyOverridden, err := r.exchangeWithRules(adapter.OverrideContext(ctx), request, options, false)
+	response, _, queryOptions, strategyOverridden, err := r.exchangeWithRules(withLookupQueryMetadata(ctx, qType), request, options, false)
 	explicitStrategy := lookupStrategyOverride(queryOptions, strategyOverridden)
 	result := lookupWithRulesResponse{
 		strategy:         r.resolveLookupStrategy(options, explicitStrategy),
@@ -702,30 +769,26 @@ func (r *Router) ResetNetwork() {
 	}
 }
 
-func hasNonLegacyAddressFilterItems(rules []option.DNSRule) bool {
-	return common.Any(rules, hasNonLegacyAddressFilterItemsInRule)
+func hasLegacyAddressFilterItems(rules []option.DNSRule) bool {
+	return common.Any(rules, hasLegacyAddressFilterItemsInRule)
 }
 
-func hasNonLegacyAddressFilterItemsInRule(rule option.DNSRule) bool {
+func hasLegacyAddressFilterItemsInRule(rule option.DNSRule) bool {
 	switch rule.Type {
 	case "", C.RuleTypeDefault:
-		return hasNonLegacyAddressFilterItemsInDefaultRule(rule.DefaultOptions)
+		return hasLegacyAddressFilterItemsInDefaultRule(rule.DefaultOptions)
 	case C.RuleTypeLogical:
-		action := rule.LogicalOptions.Action
-		return action == C.RuleActionTypeEvaluate || common.Any(rule.LogicalOptions.Rules, hasNonLegacyAddressFilterItemsInRule)
+		return common.Any(rule.LogicalOptions.Rules, hasLegacyAddressFilterItemsInRule)
 	default:
 		return false
 	}
 }
 
-func hasNonLegacyAddressFilterItemsInDefaultRule(rule option.DefaultDNSRule) bool {
-	action := rule.Action
-	return action == C.RuleActionTypeEvaluate ||
-		rule.MatchResponse ||
-		rule.ResponseRcode != nil ||
-		len(rule.ResponseAnswer) > 0 ||
-		len(rule.ResponseNs) > 0 ||
-		len(rule.ResponseExtra) > 0
+func hasLegacyAddressFilterItemsInDefaultRule(rule option.DefaultDNSRule) bool {
+	if rule.IPAcceptAny || rule.RuleSetIPCIDRAcceptEmpty {
+		return true
+	}
+	return !rule.MatchResponse && (len(rule.IPCIDR) > 0 || rule.IPIsPrivate)
 }
 
 func validateNonLegacyAddressFilterRules(rules []option.DNSRule) error {
