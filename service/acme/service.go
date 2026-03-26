@@ -112,11 +112,22 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		config.KeySource = certmagic.StandardKeyGenerator{KeyType: keyType}
 	}
 
+	profile := options.Profile
+	if profile == "" && acmeServer == certmagic.LetsEncryptProductionCA {
+		for _, domain := range options.Domain {
+			if certmagic.SubjectIsIP(domain) {
+				profile = "shortlived"
+				break
+			}
+		}
+	}
+
 	acmeIssuer := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
 		Email:                   options.Email,
 		AccountKeyPEM:           options.AccountKey,
 		Agreed:                  true,
+		Profile:                 profile,
 		DisableHTTPChallenge:    options.DisableHTTPChallenge,
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),

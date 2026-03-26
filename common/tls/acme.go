@@ -69,10 +69,21 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		Storage:           storage,
 		Logger:            zapLogger,
 	}
+	profile := options.Profile
+	if profile == "" && acmeServer == certmagic.LetsEncryptProductionCA {
+		for _, domain := range options.Domain {
+			if certmagic.SubjectIsIP(domain) {
+				profile = "shortlived"
+				break
+			}
+		}
+	}
+
 	acmeConfig := certmagic.ACMEIssuer{
 		CA:                      acmeServer,
 		Email:                   options.Email,
 		Agreed:                  true,
+		Profile:                 profile,
 		DisableHTTPChallenge:    options.DisableHTTPChallenge,
 		DisableTLSALPNChallenge: options.DisableTLSALPNChallenge,
 		AltHTTPPort:             int(options.AlternativeHTTPPort),
