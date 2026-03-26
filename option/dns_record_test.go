@@ -14,16 +14,30 @@ func mustRecordOptions(t *testing.T, record string) DNSRecordOptions {
 	return value
 }
 
-func TestDNSRecordOptionsUnmarshalJSONAcceptsRelativeOwnerNames(t *testing.T) {
+func TestDNSRecordOptionsUnmarshalJSONAcceptsFullyQualifiedNames(t *testing.T) {
 	t.Parallel()
 
 	for _, record := range []string{
-		"example.com A 1.1.1.1",
-		"@ IN A 1.1.1.1",
-		"www IN CNAME @",
+		"example.com. A 1.1.1.1",
+		"www.example.com. IN CNAME example.com.",
 	} {
 		value := mustRecordOptions(t, record)
 		require.NotNil(t, value.RR)
+	}
+}
+
+func TestDNSRecordOptionsUnmarshalJSONRejectsRelativeNames(t *testing.T) {
+	t.Parallel()
+
+	for _, record := range []string{
+		"@ IN A 1.1.1.1",
+		"www IN CNAME example.com.",
+		"example.com. IN CNAME @",
+		"example.com. IN CNAME www",
+	} {
+		var value DNSRecordOptions
+		err := value.UnmarshalJSON([]byte(`"` + record + `"`))
+		require.Error(t, err)
 	}
 }
 

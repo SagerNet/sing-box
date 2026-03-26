@@ -50,6 +50,7 @@ type Router struct {
 	platformInterface       adapter.PlatformInterface
 	legacyAddressFilterMode bool
 	rulesAccess             sync.RWMutex
+	closing                 bool
 	ruleSetCallbacks        []dnsRuleSetCallback
 	runtimeRuleError        error
 	deprecatedReported      bool
@@ -126,15 +127,16 @@ func (r *Router) Start(stage adapter.StartStage) error {
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	r.rulesAccess.Lock()
+	r.closing = true
 	callbacks := r.ruleSetCallbacks
 	r.ruleSetCallbacks = nil
 	runtimeRules := r.rules
 	r.rules = nil
 	r.runtimeRuleError = nil
-	r.rulesAccess.Unlock()
 	for _, callback := range callbacks {
 		callback.ruleSet.UnregisterCallback(callback.element)
 	}
+	r.rulesAccess.Unlock()
 	var err error
 	for i, rule := range runtimeRules {
 		monitor.Start("close dns rule[", i, "]")
@@ -147,8 +149,14 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) rebuildRules(startRules bool) error {
+	if r.isClosing() {
+		return nil
+	}
 	newRules, legacyAddressFilterMode, err := r.buildRules(startRules)
 	if err != nil {
+		if r.isClosing() {
+			return nil
+		}
 		return err
 	}
 	shouldReportDeprecated := startRules &&
@@ -156,6 +164,11 @@ func (r *Router) rebuildRules(startRules bool) error {
 		!r.deprecatedReported &&
 		common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() })
 	r.rulesAccess.Lock()
+	if r.closing {
+		r.rulesAccess.Unlock()
+		closeRules(newRules)
+		return nil
+	}
 	oldRules := r.rules
 	r.rules = newRules
 	r.legacyAddressFilterMode = legacyAddressFilterMode
@@ -169,6 +182,12 @@ func (r *Router) rebuildRules(startRules bool) error {
 		deprecated.Report(r.ctx, deprecated.OptionLegacyDNSAddressFilter)
 	}
 	return nil
+}
+
+func (r *Router) isClosing() bool {
+	r.rulesAccess.RLock()
+	defer r.rulesAccess.RUnlock()
+	return r.closing
 }
 
 func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, error) {

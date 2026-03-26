@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -114,8 +115,9 @@ func (r *fakeRouter) AppendTracker(adapter.ConnectionTracker)    {}
 func (r *fakeRouter) ResetNetwork()                              {}
 
 type fakeRuleSet struct {
+	access    sync.Mutex
 	metadata  adapter.RuleSetMetadata
-	callbacks []adapter.RuleSetUpdateCallback
+	callbacks list.List[adapter.RuleSetUpdateCallback]
 }
 
 func (s *fakeRuleSet) Name() string                                                  { return "fake-rule-set" }
@@ -127,18 +129,32 @@ func (s *fakeRuleSet) IncRef()                                                  
 func (s *fakeRuleSet) DecRef()                                                       {}
 func (s *fakeRuleSet) Cleanup()                                                      {}
 func (s *fakeRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
-	s.callbacks = append(s.callbacks, callback)
-	return nil
+	s.access.Lock()
+	defer s.access.Unlock()
+	return s.callbacks.PushBack(callback)
 }
-func (s *fakeRuleSet) UnregisterCallback(*list.Element[adapter.RuleSetUpdateCallback]) {}
-func (s *fakeRuleSet) Close() error                                                    { return nil }
-func (s *fakeRuleSet) Match(*adapter.InboundContext) bool                              { return true }
-func (s *fakeRuleSet) String() string                                                  { return "fake-rule-set" }
+func (s *fakeRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.callbacks.Remove(element)
+}
+func (s *fakeRuleSet) Close() error                       { return nil }
+func (s *fakeRuleSet) Match(*adapter.InboundContext) bool { return true }
+func (s *fakeRuleSet) String() string                     { return "fake-rule-set" }
 func (s *fakeRuleSet) updateMetadata(metadata adapter.RuleSetMetadata) {
+	s.access.Lock()
 	s.metadata = metadata
-	for _, callback := range s.callbacks {
+	callbacks := s.callbacks.Array()
+	s.access.Unlock()
+	for _, callback := range callbacks {
 		callback(s)
 	}
+}
+
+func (s *fakeRuleSet) snapshotCallbacks() []adapter.RuleSetUpdateCallback {
+	s.access.Lock()
+	defer s.access.Unlock()
+	return s.callbacks.Array()
 }
 
 func (m *fakeDeprecatedManager) ReportDeprecated(feature deprecated.Note) {
@@ -481,6 +497,72 @@ func TestRuleSetUpdateSetsRuntimeErrorWhenRebuildFails(t *testing.T) {
 
 	_, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{}
+	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"dynamic-set": fakeSet,
+		},
+	})
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"dynamic-set"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					IPIsPrivate: true,
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+		},
+	}, &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
+			return MessageToAddresses(response), response, nil
+		},
+	})
+
+	callbacks := fakeSet.snapshotCallbacks()
+	require.Len(t, callbacks, 1)
+
+	require.NoError(t, router.Close())
+	require.Empty(t, fakeSet.snapshotCallbacks())
+
+	fakeSet.metadata = adapter.RuleSetMetadata{
+		ContainsDNSQueryTypeRule: true,
+	}
+	callbacks[0](fakeSet)
+
+	router.rulesAccess.RLock()
+	defer router.rulesAccess.RUnlock()
+	require.True(t, router.closing)
+	require.Nil(t, router.rules)
+	require.Empty(t, router.ruleSetCallbacks)
+	require.NoError(t, router.runtimeRuleError)
 }
 
 func TestLookupLegacyModeDefersDirectDestinationIPMatch(t *testing.T) {
