@@ -99,7 +99,6 @@ func parseDNSRecord(stringValue string) (dns.RR, error) {
 	}
 	parser := dns.NewZoneParser(strings.NewReader(stringValue), "", "")
 	parser.SetDefaultTTL(defaultDNSRecordTTL)
-	parser.SetIncludeAllowed(true)
 	record, _ := parser.Next()
 	return record, parser.Err()
 }

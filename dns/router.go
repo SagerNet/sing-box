@@ -296,15 +296,10 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 		metadata.ResetRuleCache()
 		metadata.DestinationAddressMatchFromResponse = false
 		if currentRule.LegacyPreMatch(metadata) {
-			displayRuleIndex := currentRuleIndex
-			if displayRuleIndex != -1 {
-				displayRuleIndex += displayRuleIndex + 1
-			}
-			ruleDescription := currentRule.String()
-			if ruleDescription != "" {
-				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+			if ruleDescription := currentRule.String(); ruleDescription != "" {
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
 			} else {
-				r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
+				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
 			}
 			switch action := currentRule.Action().(type) {
 			case *R.RuleActionDNSRoute:
@@ -397,14 +392,10 @@ func (r *Router) resolveDNSRoute(action *R.RuleActionDNSRoute, allowFakeIP bool,
 }
 
 func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule adapter.DNSRule) {
-	displayRuleIndex := ruleIndex
-	if displayRuleIndex != -1 {
-		displayRuleIndex += displayRuleIndex + 1
-	}
 	if ruleDescription := currentRule.String(); ruleDescription != "" {
-		r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] ", currentRule, " => ", currentRule.Action())
+		r.logger.DebugContext(ctx, "match[", ruleIndex, "] ", currentRule, " => ", currentRule.Action())
 	} else {
-		r.logger.DebugContext(ctx, "match[", displayRuleIndex, "] => ", currentRule.Action())
+		r.logger.DebugContext(ctx, "match[", ruleIndex, "] => ", currentRule.Action())
 	}
 }
 
