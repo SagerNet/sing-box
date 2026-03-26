@@ -6,6 +6,7 @@ icon: material/new-box
 
     :material-plus: [account_key](#account_key)  
     :material-plus: [key_type](#key_type)  
+    :material-plus: [profile](#profile)  
     :material-plus: [http_client](#http_client)
 
 # ACME
@@ -37,6 +38,7 @@ icon: material/new-box
   },
   "dns01_challenge": {},
   "key_type": "",
+  "profile": "",
   "http_client": "" // or {}
 }
 ```
@@ -140,6 +142,14 @@ The private key type to generate for new certificates.
 | `p384`     | P-384   |
 | `rsa2048`  | RSA     |
 | `rsa4096`  | RSA     |
+
+#### profile
+
+!!! question "Since sing-box 1.14.0"
+
+The ACME profile to use for certificate issuance.
+
+When empty and `provider` is Let's Encrypt, `shortlived` will be used automatically if any domain is an IP address.
 
 #### http_client
 
