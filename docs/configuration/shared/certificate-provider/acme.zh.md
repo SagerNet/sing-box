@@ -6,6 +6,7 @@ icon: material/new-box
 
     :material-plus: [account_key](#account_key)  
     :material-plus: [key_type](#key_type)  
+    :material-plus: [profile](#profile)  
     :material-plus: [http_client](#http_client)
 
 # ACME
@@ -37,6 +38,7 @@ icon: material/new-box
   },
   "dns01_challenge": {},
   "key_type": "",
+  "profile": "",
   "http_client": "" // 或 {}
 }
 ```
@@ -135,6 +137,14 @@ ACME DNS01 质询字段。如果配置，将禁用其他质询方法。
 | `p384`    | P-384   |
 | `rsa2048` | RSA     |
 | `rsa4096` | RSA     |
+
+#### profile
+
+!!! question "自 sing-box 1.14.0 起"
+
+用于证书签发的 ACME profile。
+
+当为空且 `provider` 为 Let's Encrypt 时，如果任意域名为 IP 地址，将自动使用 `shortlived`。
 
 #### http_client
 
