@@ -47,7 +47,12 @@ type legacyResponseConstraint struct {
 	forbiddenSet    *netipx.IPSet
 }
 
-type legacyRuleMatchStateSet [16]legacyResponseFormula
+const (
+	legacyRuleMatchDeferredDestinationAddress ruleMatchState = 1 << 4
+	legacyRuleMatchStateCount                                = 32
+)
+
+type legacyRuleMatchStateSet [legacyRuleMatchStateCount]legacyResponseFormula
 
 var (
 	legacyAllIPSet = func() *netipx.IPSet {
@@ -350,7 +355,7 @@ func (s legacyRuleMatchStateSet) isEmpty() bool {
 
 func (s legacyRuleMatchStateSet) merge(other legacyRuleMatchStateSet) legacyRuleMatchStateSet {
 	var merged legacyRuleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		merged[state] = s[state].or(other[state])
 	}
 	return merged
@@ -361,11 +366,11 @@ func (s legacyRuleMatchStateSet) combine(other legacyRuleMatchStateSet) legacyRu
 		return legacyRuleMatchStateSet{}
 	}
 	var combined legacyRuleMatchStateSet
-	for left := ruleMatchState(0); left < 16; left++ {
+	for left := ruleMatchState(0); left < legacyRuleMatchStateCount; left++ {
 		if s[left].isFalse() {
 			continue
 		}
-		for right := ruleMatchState(0); right < 16; right++ {
+		for right := ruleMatchState(0); right < legacyRuleMatchStateCount; right++ {
 			if other[right].isFalse() {
 				continue
 			}
@@ -380,7 +385,7 @@ func (s legacyRuleMatchStateSet) withBase(base ruleMatchState) legacyRuleMatchSt
 		return legacyRuleMatchStateSet{}
 	}
 	var withBase legacyRuleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		if s[state].isFalse() {
 			continue
 		}
@@ -391,7 +396,7 @@ func (s legacyRuleMatchStateSet) withBase(base ruleMatchState) legacyRuleMatchSt
 
 func (s legacyRuleMatchStateSet) filter(allowed func(ruleMatchState) bool) legacyRuleMatchStateSet {
 	var filtered legacyRuleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		if s[state].isFalse() {
 			continue
 		}
@@ -404,7 +409,7 @@ func (s legacyRuleMatchStateSet) filter(allowed func(ruleMatchState) bool) legac
 
 func (s legacyRuleMatchStateSet) addBit(bit ruleMatchState) legacyRuleMatchStateSet {
 	var withBit legacyRuleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		if s[state].isFalse() {
 			continue
 		}
@@ -422,7 +427,7 @@ func (s legacyRuleMatchStateSet) branchOnBit(bit ruleMatchState, condition legac
 	}
 	var branched legacyRuleMatchStateSet
 	conditionFalse := condition.not()
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		if s[state].isFalse() {
 			continue
 		}
@@ -444,7 +449,7 @@ func (s legacyRuleMatchStateSet) andFormula(formula legacyResponseFormula) legac
 		return s
 	}
 	var result legacyRuleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 		if s[state].isFalse() {
 			continue
 		}
@@ -588,7 +593,7 @@ func (r *abstractDefaultRule) legacyMatchStatesWithBase(metadata *adapter.Inboun
 	}
 	if r.legacyDestinationIPCIDRMatchesDestination(metadata) {
 		metadata.DidMatch = true
-		stateSet = stateSet.branchOnBit(ruleMatchDestinationAddress, legacyDestinationIPFormula(r.destinationIPCIDRItems, metadata))
+		stateSet = stateSet.branchOnBit(legacyRuleMatchDeferredDestinationAddress, legacyDestinationIPFormula(r.destinationIPCIDRItems, metadata))
 	}
 	if len(r.destinationPortItems) > 0 {
 		metadata.DidMatch = true
@@ -608,7 +613,7 @@ func (r *abstractDefaultRule) legacyMatchStatesWithBase(metadata *adapter.Inboun
 	if r.ruleSetItem != nil {
 		metadata.DidMatch = true
 		var merged legacyRuleMatchStateSet
-		for state := ruleMatchState(0); state < 16; state++ {
+		for state := ruleMatchState(0); state < legacyRuleMatchStateCount; state++ {
 			if stateSet[state].isFalse() {
 				continue
 			}
@@ -625,6 +630,9 @@ func (r *abstractDefaultRule) legacyMatchStatesWithBase(metadata *adapter.Inboun
 			return false
 		}
 		if r.legacyRequiresDestinationAddressMatch(metadata) && !state.has(ruleMatchDestinationAddress) {
+			return false
+		}
+		if r.legacyRequiresDeferredDestinationAddressMatch(metadata) && !state.has(legacyRuleMatchDeferredDestinationAddress) {
 			return false
 		}
 		if len(r.destinationPortItems) > 0 && !state.has(ruleMatchDestinationPort) {
@@ -647,7 +655,11 @@ func (r *abstractDefaultRule) legacyDestinationIPCIDRMatchesDestination(metadata
 }
 
 func (r *abstractDefaultRule) legacyRequiresDestinationAddressMatch(metadata *adapter.InboundContext) bool {
-	return len(r.destinationAddressItems) > 0 || r.legacyDestinationIPCIDRMatchesDestination(metadata)
+	return len(r.destinationAddressItems) > 0
+}
+
+func (r *abstractDefaultRule) legacyRequiresDeferredDestinationAddressMatch(metadata *adapter.InboundContext) bool {
+	return r.legacyDestinationIPCIDRMatchesDestination(metadata)
 }
 
 func (r *abstractLogicalRule) legacyMatchStates(metadata *adapter.InboundContext) legacyRuleMatchStateSet {

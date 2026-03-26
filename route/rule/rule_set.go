@@ -69,3 +69,7 @@ func isWIFIHeadlessRule(rule option.DefaultHeadlessRule) bool {
 func isIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {
 	return len(rule.IPCIDR) > 0 || rule.IPSet != nil
 }
+
+func isDNSQueryTypeHeadlessRule(rule option.DefaultHeadlessRule) bool {
+	return len(rule.QueryType) > 0
+}

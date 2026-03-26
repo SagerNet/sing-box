@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -21,6 +22,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/task"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/contrab/freelru"
 	"github.com/sagernet/sing/contrab/maphash"
 	"github.com/sagernet/sing/service"
@@ -30,17 +32,27 @@ import (
 
 var _ adapter.DNSRouter = (*Router)(nil)
 
+type dnsRuleSetCallback struct {
+	ruleSet adapter.RuleSet
+	element *list.Element[adapter.RuleSetUpdateCallback]
+}
+
 type Router struct {
 	ctx                     context.Context
 	logger                  logger.ContextLogger
 	transport               adapter.DNSTransportManager
 	outbound                adapter.OutboundManager
 	client                  adapter.DNSClient
+	rawRules                []option.DNSRule
 	rules                   []adapter.DNSRule
 	defaultDomainStrategy   C.DomainStrategy
 	dnsReverseMapping       freelru.Cache[netip.Addr, string]
 	platformInterface       adapter.PlatformInterface
 	legacyAddressFilterMode bool
+	rulesAccess             sync.RWMutex
+	ruleSetCallbacks        []dnsRuleSetCallback
+	runtimeRuleError        error
+	deprecatedReported      bool
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {
@@ -49,6 +61,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		logger:                logFactory.NewLogger("dns"),
 		transport:             service.FromContext[adapter.DNSTransportManager](ctx),
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
+		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
 	}
@@ -77,20 +90,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 }
 
 func (r *Router) Initialize(rules []option.DNSRule) error {
-	r.legacyAddressFilterMode = hasLegacyAddressFilterItems(rules)
-	if !r.legacyAddressFilterMode {
-		err := validateNonLegacyAddressFilterRules(rules)
-		if err != nil {
-			return err
-		}
-	}
-	for i, ruleOptions := range rules {
-		dnsRule, err := R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, r.legacyAddressFilterMode)
-		if err != nil {
-			return E.Cause(err, "parse dns rule[", i, "]")
-		}
-		r.rules = append(r.rules, dnsRule)
-	}
+	r.rawRules = append(r.rawRules[:0], rules...)
 	return nil
 }
 
@@ -102,16 +102,17 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		r.client.Start()
 		monitor.Finish()
 
-		for i, rule := range r.rules {
-			monitor.Start("initialize DNS rule[", i, "]")
-			err := rule.Start()
-			monitor.Finish()
-			if err != nil {
-				return E.Cause(err, "initialize DNS rule[", i, "]")
-			}
+		monitor.Start("initialize DNS rules")
+		err := r.rebuildRules(true)
+		monitor.Finish()
+		if err != nil {
+			return err
 		}
-		if r.legacyAddressFilterMode && common.Any(r.rules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() }) {
-			deprecated.Report(r.ctx, deprecated.OptionLegacyDNSAddressFilter)
+		monitor.Start("register DNS rule-set callbacks")
+		err = r.registerRuleSetCallbacks()
+		monitor.Finish()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -119,8 +120,18 @@ func (r *Router) Start(stage adapter.StartStage) error {
 
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
+	r.rulesAccess.Lock()
+	callbacks := r.ruleSetCallbacks
+	r.ruleSetCallbacks = nil
+	runtimeRules := r.rules
+	r.rules = nil
+	r.runtimeRuleError = nil
+	r.rulesAccess.Unlock()
+	for _, callback := range callbacks {
+		callback.ruleSet.UnregisterCallback(callback.element)
+	}
 	var err error
-	for i, rule := range r.rules {
+	for i, rule := range runtimeRules {
 		monitor.Start("close dns rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
 			return E.Cause(err, "close dns rule[", i, "]")
@@ -128,6 +139,111 @@ func (r *Router) Close() error {
 		monitor.Finish()
 	}
 	return err
+}
+
+func (r *Router) rebuildRules(startRules bool) error {
+	router := service.FromContext[adapter.Router](r.ctx)
+	legacyAddressFilterMode, err := resolveLegacyAddressFilterMode(router, r.rawRules)
+	if err != nil {
+		return err
+	}
+	if !legacyAddressFilterMode {
+		err = validateNonLegacyAddressFilterRules(r.rawRules)
+		if err != nil {
+			return err
+		}
+	}
+	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
+	for i, ruleOptions := range r.rawRules {
+		dnsRule, err := R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyAddressFilterMode)
+		if err != nil {
+			closeRules(newRules)
+			return E.Cause(err, "parse dns rule[", i, "]")
+		}
+		newRules = append(newRules, dnsRule)
+	}
+	if startRules {
+		for i, rule := range newRules {
+			err := rule.Start()
+			if err != nil {
+				closeRules(newRules)
+				return E.Cause(err, "initialize DNS rule[", i, "]")
+			}
+		}
+	}
+	r.rulesAccess.Lock()
+	oldRules := r.rules
+	r.rules = newRules
+	r.legacyAddressFilterMode = legacyAddressFilterMode
+	r.runtimeRuleError = nil
+	shouldReportDeprecated := legacyAddressFilterMode &&
+		!r.deprecatedReported &&
+		common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() })
+	if shouldReportDeprecated {
+		r.deprecatedReported = true
+	}
+	r.rulesAccess.Unlock()
+	closeRules(oldRules)
+	if shouldReportDeprecated {
+		deprecated.Report(r.ctx, deprecated.OptionLegacyDNSAddressFilter)
+	}
+	return nil
+}
+
+func closeRules(rules []adapter.DNSRule) {
+	for _, rule := range rules {
+		_ = rule.Close()
+	}
+}
+
+func (r *Router) registerRuleSetCallbacks() error {
+	tags := referencedDNSRuleSetTags(r.rawRules)
+	if len(tags) == 0 {
+		return nil
+	}
+	r.rulesAccess.RLock()
+	if len(r.ruleSetCallbacks) > 0 {
+		r.rulesAccess.RUnlock()
+		return nil
+	}
+	r.rulesAccess.RUnlock()
+	router := service.FromContext[adapter.Router](r.ctx)
+	if router == nil {
+		return E.New("router service not found")
+	}
+	callbacks := make([]dnsRuleSetCallback, 0, len(tags))
+	for _, tag := range tags {
+		ruleSet, loaded := router.RuleSet(tag)
+		if !loaded {
+			for _, callback := range callbacks {
+				callback.ruleSet.UnregisterCallback(callback.element)
+			}
+			return E.New("rule-set not found: ", tag)
+		}
+		element := ruleSet.RegisterCallback(func(adapter.RuleSet) {
+			err := r.rebuildRules(true)
+			if err != nil {
+				r.rulesAccess.Lock()
+				r.runtimeRuleError = err
+				r.rulesAccess.Unlock()
+				r.logger.Error(E.Cause(err, "rebuild DNS rules after rule-set update"))
+			}
+		})
+		callbacks = append(callbacks, dnsRuleSetCallback{
+			ruleSet: ruleSet,
+			element: element,
+		})
+	}
+	r.rulesAccess.Lock()
+	if len(r.ruleSetCallbacks) == 0 {
+		r.ruleSetCallbacks = callbacks
+		callbacks = nil
+	}
+	r.rulesAccess.Unlock()
+	for _, callback := range callbacks {
+		callback.ruleSet.UnregisterCallback(callback.element)
+	}
+	return nil
 }
 
 func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, isAddressQuery bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, adapter.DNSRule, int) {
@@ -538,6 +654,11 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		}
 		return &responseMessage, nil
 	}
+	r.rulesAccess.RLock()
+	defer r.rulesAccess.RUnlock()
+	if r.runtimeRuleError != nil {
+		return nil, r.runtimeRuleError
+	}
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	var (
 		response  *mDNS.Msg
@@ -639,6 +760,11 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
+	r.rulesAccess.RLock()
+	defer r.rulesAccess.RUnlock()
+	if r.runtimeRuleError != nil {
+		return nil, r.runtimeRuleError
+	}
 	var (
 		responseAddrs []netip.Addr
 		err           error
@@ -769,26 +895,122 @@ func (r *Router) ResetNetwork() {
 	}
 }
 
-func hasLegacyAddressFilterItems(rules []option.DNSRule) bool {
-	return common.Any(rules, hasLegacyAddressFilterItemsInRule)
-}
-
-func hasLegacyAddressFilterItemsInRule(rule option.DNSRule) bool {
-	switch rule.Type {
-	case "", C.RuleTypeDefault:
-		return hasLegacyAddressFilterItemsInDefaultRule(rule.DefaultOptions)
-	case C.RuleTypeLogical:
-		return common.Any(rule.LogicalOptions.Rules, hasLegacyAddressFilterItemsInRule)
-	default:
-		return false
-	}
-}
-
-func hasLegacyAddressFilterItemsInDefaultRule(rule option.DefaultDNSRule) bool {
+func hasDirectLegacyAddressFilterItemsInDefaultRule(rule option.DefaultDNSRule) bool {
 	if rule.IPAcceptAny || rule.RuleSetIPCIDRAcceptEmpty {
 		return true
 	}
 	return !rule.MatchResponse && (len(rule.IPCIDR) > 0 || rule.IPIsPrivate)
+}
+
+func hasResponseMatchFields(rule option.DefaultDNSRule) bool {
+	return rule.ResponseRcode != nil ||
+		len(rule.ResponseAnswer) > 0 ||
+		len(rule.ResponseNs) > 0 ||
+		len(rule.ResponseExtra) > 0
+}
+
+func defaultRuleForcesNewDNSPath(rule option.DefaultDNSRule) bool {
+	return rule.MatchResponse ||
+		hasResponseMatchFields(rule) ||
+		rule.Action == C.RuleActionTypeEvaluate ||
+		rule.IPVersion > 0 ||
+		len(rule.QueryType) > 0
+}
+
+func resolveLegacyAddressFilterMode(router adapter.Router, rules []option.DNSRule) (bool, error) {
+	forceNew, needsLegacy, err := dnsRuleModeRequirements(router, rules)
+	if err != nil {
+		return false, err
+	}
+	if forceNew {
+		return false, nil
+	}
+	return needsLegacy, nil
+}
+
+func dnsRuleModeRequirements(router adapter.Router, rules []option.DNSRule) (bool, bool, error) {
+	var forceNew bool
+	var needsLegacy bool
+	for i, rule := range rules {
+		ruleForceNew, ruleNeedsLegacy, err := dnsRuleModeRequirementsInRule(router, rule)
+		if err != nil {
+			return false, false, E.Cause(err, "dns rule[", i, "]")
+		}
+		forceNew = forceNew || ruleForceNew
+		needsLegacy = needsLegacy || ruleNeedsLegacy
+	}
+	return forceNew, needsLegacy, nil
+}
+
+func dnsRuleModeRequirementsInRule(router adapter.Router, rule option.DNSRule) (bool, bool, error) {
+	switch rule.Type {
+	case "", C.RuleTypeDefault:
+		return dnsRuleModeRequirementsInDefaultRule(router, rule.DefaultOptions)
+	case C.RuleTypeLogical:
+		forceNew := dnsRuleActionType(rule) == C.RuleActionTypeEvaluate
+		var needsLegacy bool
+		for i, subRule := range rule.LogicalOptions.Rules {
+			subForceNew, subNeedsLegacy, err := dnsRuleModeRequirementsInRule(router, subRule)
+			if err != nil {
+				return false, false, E.Cause(err, "sub rule[", i, "]")
+			}
+			forceNew = forceNew || subForceNew
+			needsLegacy = needsLegacy || subNeedsLegacy
+		}
+		return forceNew, needsLegacy, nil
+	default:
+		return false, false, nil
+	}
+}
+
+func dnsRuleModeRequirementsInDefaultRule(router adapter.Router, rule option.DefaultDNSRule) (bool, bool, error) {
+	forceNew := defaultRuleForcesNewDNSPath(rule)
+	needsLegacy := hasDirectLegacyAddressFilterItemsInDefaultRule(rule)
+	if len(rule.RuleSet) == 0 {
+		return forceNew, needsLegacy, nil
+	}
+	if router == nil {
+		return false, false, E.New("router service not found")
+	}
+	for _, tag := range rule.RuleSet {
+		ruleSet, loaded := router.RuleSet(tag)
+		if !loaded {
+			return false, false, E.New("rule-set not found: ", tag)
+		}
+		metadata := ruleSet.Metadata()
+		forceNew = forceNew || metadata.ContainsDNSQueryTypeRule
+		if !rule.RuleSetIPCIDRMatchSource && metadata.ContainsIPCIDRRule {
+			needsLegacy = true
+		}
+	}
+	return forceNew, needsLegacy, nil
+}
+
+func referencedDNSRuleSetTags(rules []option.DNSRule) []string {
+	tagMap := make(map[string]bool)
+	var walkRule func(rule option.DNSRule)
+	walkRule = func(rule option.DNSRule) {
+		switch rule.Type {
+		case "", C.RuleTypeDefault:
+			for _, tag := range rule.DefaultOptions.RuleSet {
+				tagMap[tag] = true
+			}
+		case C.RuleTypeLogical:
+			for _, subRule := range rule.LogicalOptions.Rules {
+				walkRule(subRule)
+			}
+		}
+	}
+	for _, rule := range rules {
+		walkRule(rule)
+	}
+	tags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		if tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
 }
 
 func validateNonLegacyAddressFilterRules(rules []option.DNSRule) error {
@@ -832,10 +1054,7 @@ func validateNonLegacyAddressFilterRuleTree(rule option.DNSRule) (bool, error) {
 }
 
 func validateNonLegacyAddressFilterDefaultRule(rule option.DefaultDNSRule) (bool, error) {
-	hasResponseRecords := rule.ResponseRcode != nil ||
-		len(rule.ResponseAnswer) > 0 ||
-		len(rule.ResponseNs) > 0 ||
-		len(rule.ResponseExtra) > 0
+	hasResponseRecords := hasResponseMatchFields(rule)
 	if hasResponseRecords && !rule.MatchResponse {
 		return false, E.New("response_* items require match_response")
 	}

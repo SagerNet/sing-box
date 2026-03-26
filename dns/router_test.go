@@ -6,17 +6,23 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	rulepkg "github.com/sagernet/sing-box/route/rule"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/json/badoption"
+	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
+	"go4.org/netipx"
 )
 
 type fakeDNSTransport struct {
@@ -72,6 +78,69 @@ type fakeDeprecatedManager struct {
 	features []deprecated.Note
 }
 
+type fakeRouter struct {
+	ruleSets map[string]adapter.RuleSet
+}
+
+func (r *fakeRouter) Start(adapter.StartStage) error { return nil }
+func (r *fakeRouter) Close() error                   { return nil }
+func (r *fakeRouter) PreMatch(metadata adapter.InboundContext, _ tun.DirectRouteContext, _ time.Duration, _ bool) (tun.DirectRouteDestination, error) {
+	return nil, nil
+}
+
+func (r *fakeRouter) RouteConnection(context.Context, net.Conn, adapter.InboundContext) error {
+	return nil
+}
+
+func (r *fakeRouter) RoutePacketConnection(context.Context, N.PacketConn, adapter.InboundContext) error {
+	return nil
+}
+
+func (r *fakeRouter) RouteConnectionEx(context.Context, net.Conn, adapter.InboundContext, N.CloseHandlerFunc) {
+}
+
+func (r *fakeRouter) RoutePacketConnectionEx(context.Context, N.PacketConn, adapter.InboundContext, N.CloseHandlerFunc) {
+}
+
+func (r *fakeRouter) RuleSet(tag string) (adapter.RuleSet, bool) {
+	ruleSet, loaded := r.ruleSets[tag]
+	return ruleSet, loaded
+}
+func (r *fakeRouter) Rules() []adapter.Rule                      { return nil }
+func (r *fakeRouter) NeedFindProcess() bool                      { return false }
+func (r *fakeRouter) NeedFindNeighbor() bool                     { return false }
+func (r *fakeRouter) NeighborResolver() adapter.NeighborResolver { return nil }
+func (r *fakeRouter) AppendTracker(adapter.ConnectionTracker)    {}
+func (r *fakeRouter) ResetNetwork()                              {}
+
+type fakeRuleSet struct {
+	metadata  adapter.RuleSetMetadata
+	callbacks []adapter.RuleSetUpdateCallback
+}
+
+func (s *fakeRuleSet) Name() string                                                  { return "fake-rule-set" }
+func (s *fakeRuleSet) StartContext(context.Context, *adapter.HTTPStartContext) error { return nil }
+func (s *fakeRuleSet) PostStart() error                                              { return nil }
+func (s *fakeRuleSet) Metadata() adapter.RuleSetMetadata                             { return s.metadata }
+func (s *fakeRuleSet) ExtractIPSet() []*netipx.IPSet                                 { return nil }
+func (s *fakeRuleSet) IncRef()                                                       {}
+func (s *fakeRuleSet) DecRef()                                                       {}
+func (s *fakeRuleSet) Cleanup()                                                      {}
+func (s *fakeRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
+	s.callbacks = append(s.callbacks, callback)
+	return nil
+}
+func (s *fakeRuleSet) UnregisterCallback(*list.Element[adapter.RuleSetUpdateCallback]) {}
+func (s *fakeRuleSet) Close() error                                                    { return nil }
+func (s *fakeRuleSet) Match(*adapter.InboundContext) bool                              { return true }
+func (s *fakeRuleSet) String() string                                                  { return "fake-rule-set" }
+func (s *fakeRuleSet) updateMetadata(metadata adapter.RuleSetMetadata) {
+	s.metadata = metadata
+	for _, callback := range s.callbacks {
+		callback(s)
+	}
+}
+
 func (m *fakeDeprecatedManager) ReportDeprecated(feature deprecated.Note) {
 	m.features = append(m.features, feature)
 }
@@ -108,17 +177,24 @@ func (c *fakeDNSClient) Lookup(_ context.Context, transport adapter.DNSTransport
 func (c *fakeDNSClient) ClearCache() {}
 
 func newTestRouter(t *testing.T, rules []option.DNSRule, transportManager *fakeDNSTransportManager, client *fakeDNSClient) *Router {
+	return newTestRouterWithContext(t, context.Background(), rules, transportManager, client)
+}
+
+func newTestRouterWithContext(t *testing.T, ctx context.Context, rules []option.DNSRule, transportManager *fakeDNSTransportManager, client *fakeDNSClient) *Router {
 	t.Helper()
 	router := &Router{
-		ctx:                   context.Background(),
+		ctx:                   ctx,
 		logger:                log.NewNOPFactory().NewLogger("dns"),
 		transport:             transportManager,
 		client:                client,
+		rawRules:              make([]option.DNSRule, 0, len(rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(rules)),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
 	if rules != nil {
 		err := router.Initialize(rules)
+		require.NoError(t, err)
+		err = router.Start(adapter.StartStateStart)
 		require.NoError(t, err)
 	}
 	return router
@@ -199,6 +275,187 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 			},
 		},
 	}})
+	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestStartNewModeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	ruleSet, err := rulepkg.NewRuleSet(ctx, log.NewNOPFactory().NewLogger("router"), option.RuleSet{
+		Type: C.RuleSetTypeInline,
+		Tag:  "query-set",
+		InlineOptions: option.PlainRuleSet{
+			Rules: []option.HeadlessRule{{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultHeadlessRule{
+					QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(mDNS.TypeA)},
+				},
+			}},
+		},
+	})
+	require.NoError(t, err)
+	ctx = service.ContextWith[adapter.Router](ctx, &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"query-set": ruleSet,
+		},
+	})
+
+	router := &Router{
+		ctx:                   ctx,
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 2),
+		rules:                 make([]adapter.DNSRule, 0, 2),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err = router.Initialize([]option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"query-set"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					IPIsPrivate: true,
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "private"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	err = router.Start(adapter.StartStateStart)
+	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestLookupLegacyModeDefersRuleSetDestinationIPMatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	ruleSet, err := rulepkg.NewRuleSet(ctx, log.NewNOPFactory().NewLogger("router"), option.RuleSet{
+		Type: C.RuleSetTypeInline,
+		Tag:  "legacy-ipcidr-set",
+		InlineOptions: option.PlainRuleSet{
+			Rules: []option.HeadlessRule{{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultHeadlessRule{
+					IPCIDR: badoption.Listable[string]{"10.0.0.0/8"},
+				},
+			}},
+		},
+	})
+	require.NoError(t, err)
+	ctx = service.ContextWith[adapter.Router](ctx, &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"legacy-ipcidr-set": ruleSet,
+		},
+	})
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	privateTransport := &fakeDNSTransport{tag: "private", transportType: C.DNSTypeUDP}
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				RuleSet: badoption.Listable[string]{"legacy-ipcidr-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "private"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+			"private": privateTransport,
+		},
+	}, &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			require.Equal(t, "example.com", domain)
+			require.Equal(t, "private", transport.Tag())
+			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
+			return MessageToAddresses(response), response, nil
+		},
+	})
+
+	require.True(t, router.legacyAddressFilterMode)
+
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+		LookupStrategy: C.DomainStrategyIPv4Only,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
+}
+
+func TestRuleSetUpdateSetsRuntimeErrorWhenRebuildFails(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{}
+	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"dynamic-set": fakeSet,
+		},
+	})
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"dynamic-set"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					IPIsPrivate: true,
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+		},
+	}, &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
+			return MessageToAddresses(response), response, nil
+		},
+	})
+
+	require.True(t, router.legacyAddressFilterMode)
+
+	fakeSet.updateMetadata(adapter.RuleSetMetadata{
+		ContainsDNSQueryTypeRule: true,
+	})
+
+	_, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
 }
 

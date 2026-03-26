@@ -67,9 +67,10 @@ type RuleSet interface {
 type RuleSetUpdateCallback func(it RuleSet)
 
 type RuleSetMetadata struct {
-	ContainsProcessRule bool
-	ContainsWIFIRule    bool
-	ContainsIPCIDRRule  bool
+	ContainsProcessRule      bool
+	ContainsWIFIRule         bool
+	ContainsIPCIDRRule       bool
+	ContainsDNSQueryTypeRule bool
 }
 type HTTPStartContext struct {
 	ctx             context.Context
