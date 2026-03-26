@@ -91,6 +91,11 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 
 func (r *Router) Initialize(rules []option.DNSRule) error {
 	r.rawRules = append(r.rawRules[:0], rules...)
+	newRules, _, err := r.buildRules(false)
+	if err != nil {
+		return err
+	}
+	closeRules(newRules)
 	return nil
 }
 
@@ -142,43 +147,19 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) rebuildRules(startRules bool) error {
-	router := service.FromContext[adapter.Router](r.ctx)
-	legacyAddressFilterMode, err := resolveLegacyAddressFilterMode(router, r.rawRules)
+	newRules, legacyAddressFilterMode, err := r.buildRules(startRules)
 	if err != nil {
 		return err
 	}
-	if !legacyAddressFilterMode {
-		err = validateNonLegacyAddressFilterRules(r.rawRules)
-		if err != nil {
-			return err
-		}
-	}
-	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
-	for i, ruleOptions := range r.rawRules {
-		dnsRule, err := R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyAddressFilterMode)
-		if err != nil {
-			closeRules(newRules)
-			return E.Cause(err, "parse dns rule[", i, "]")
-		}
-		newRules = append(newRules, dnsRule)
-	}
-	if startRules {
-		for i, rule := range newRules {
-			err := rule.Start()
-			if err != nil {
-				closeRules(newRules)
-				return E.Cause(err, "initialize DNS rule[", i, "]")
-			}
-		}
-	}
+	shouldReportDeprecated := startRules &&
+		legacyAddressFilterMode &&
+		!r.deprecatedReported &&
+		common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() })
 	r.rulesAccess.Lock()
 	oldRules := r.rules
 	r.rules = newRules
 	r.legacyAddressFilterMode = legacyAddressFilterMode
 	r.runtimeRuleError = nil
-	shouldReportDeprecated := legacyAddressFilterMode &&
-		!r.deprecatedReported &&
-		common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() })
 	if shouldReportDeprecated {
 		r.deprecatedReported = true
 	}
@@ -188,6 +169,39 @@ func (r *Router) rebuildRules(startRules bool) error {
 		deprecated.Report(r.ctx, deprecated.OptionLegacyDNSAddressFilter)
 	}
 	return nil
+}
+
+func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, error) {
+	router := service.FromContext[adapter.Router](r.ctx)
+	legacyAddressFilterMode, err := resolveLegacyAddressFilterMode(router, r.rawRules)
+	if err != nil {
+		return nil, false, err
+	}
+	if !legacyAddressFilterMode {
+		err = validateNonLegacyAddressFilterRules(r.rawRules)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
+	for i, ruleOptions := range r.rawRules {
+		dnsRule, err := R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyAddressFilterMode)
+		if err != nil {
+			closeRules(newRules)
+			return nil, false, E.Cause(err, "parse dns rule[", i, "]")
+		}
+		newRules = append(newRules, dnsRule)
+	}
+	if startRules {
+		for i, rule := range newRules {
+			err := rule.Start()
+			if err != nil {
+				closeRules(newRules)
+				return nil, false, E.Cause(err, "initialize DNS rule[", i, "]")
+			}
+		}
+	}
+	return newRules, legacyAddressFilterMode, nil
 }
 
 func closeRules(rules []adapter.DNSRule) {

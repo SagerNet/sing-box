@@ -278,7 +278,34 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
 }
 
-func TestStartNewModeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
+func TestInitializeRejectsInvalidDNSRuleParseError(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		rules:                 make([]adapter.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				DomainRegex: badoption.Listable[string]{"("},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "domain_regex")
+}
+
+func TestInitializeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -336,9 +363,6 @@ func TestStartNewModeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, err)
-
-	err = router.Start(adapter.StartStateStart)
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
 }
 
@@ -1074,6 +1098,75 @@ func TestLookupNewModeUsesQueryTypeRule(t *testing.T) {
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("9.9.9.9")}, addresses)
+}
+
+func TestLookupNewModeUsesRuleSetQueryTypeRule(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	ruleSet, err := rulepkg.NewRuleSet(ctx, log.NewNOPFactory().NewLogger("router"), option.RuleSet{
+		Type: C.RuleSetTypeInline,
+		Tag:  "query-set",
+		InlineOptions: option.PlainRuleSet{
+			Rules: []option.HeadlessRule{{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultHeadlessRule{
+					QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(mDNS.TypeA)},
+				},
+			}},
+		},
+	})
+	require.NoError(t, err)
+	ctx = service.ContextWith[adapter.Router](ctx, &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"query-set": ruleSet,
+		},
+	})
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				RuleSet: badoption.Listable[string]{"query-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "only-a"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+			"only-a":  &fakeDNSTransport{tag: "only-a", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{
+		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+			switch transport.Tag() {
+			case "default":
+				if message.Question[0].Qtype == mDNS.TypeA {
+					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("3.3.3.3")}, 60), nil
+				}
+				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::4")}, 60), nil
+			case "only-a":
+				if message.Question[0].Qtype == mDNS.TypeA {
+					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("9.9.9.9")}, 60), nil
+				}
+				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::9")}, 60), nil
+			default:
+				return nil, errors.New("unexpected transport")
+			}
+		},
+	})
+	require.False(t, router.legacyAddressFilterMode)
+
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{
+		netip.MustParseAddr("9.9.9.9"),
+		netip.MustParseAddr("2001:db8::4"),
+	}, addresses)
 }
 
 func TestLookupNewModeUsesIPVersionRule(t *testing.T) {
