@@ -115,6 +115,7 @@ func DNSTransportRegistry() *dns.TransportRegistry {
 	transport.RegisterUDP(registry)
 	transport.RegisterTLS(registry)
 	transport.RegisterHTTPS(registry)
+	transport.RegisterMDNS(registry)
 	hosts.RegisterTransport(registry)
 	local.RegisterTransport(registry)
 	fakeip.RegisterTransport(registry)

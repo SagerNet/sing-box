@@ -398,6 +398,10 @@ type RemoteHTTPSDNSServerOptions struct {
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
 }
 
+type MDNSDNSServerOptions struct {
+	Interface string `json:"interface,omitempty"`
+}
+
 type FakeIPDNSServerOptions struct {
 	Inet4Range *badoption.Prefix `json:"inet4_range,omitempty"`
 	Inet6Range *badoption.Prefix `json:"inet6_range,omitempty"`
