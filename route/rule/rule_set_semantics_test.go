@@ -612,6 +612,8 @@ func TestDNSRuleSetSemantics(t *testing.T) {
 				ipCidrAcceptEmpty: true,
 			})
 		})
+		require.True(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest(netip.MustParseAddr("203.0.113.1"))))
+		require.False(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))))
 		require.True(t, rule.MatchAddressLimit(&metadata, dnsResponseForTest()))
 		require.False(t, metadata.IPCIDRMatchSource)
 		require.False(t, metadata.IPCIDRAcceptEmpty)

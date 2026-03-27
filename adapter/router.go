@@ -66,6 +66,9 @@ type RuleSet interface {
 
 type RuleSetUpdateCallback func(it RuleSet)
 
+// Rule-set metadata only exposes headless-rule capabilities that outer routers
+// need before evaluating nested matches. Headless rules do not support
+// ip_version, so there is intentionally no ContainsIPVersionRule flag here.
 type RuleSetMetadata struct {
 	ContainsProcessRule      bool
 	ContainsWIFIRule         bool

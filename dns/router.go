@@ -1058,6 +1058,9 @@ func dnsRuleModeRequirementsInDefaultRule(router adapter.Router, rule option.Def
 			return false, false, E.New("rule-set not found: ", tag)
 		}
 		metadata := ruleSet.Metadata()
+		// Rule sets are built from headless rules, so query_type is the only
+		// per-query DNS predicate they can contribute here. ip_version is not a
+		// headless-rule item and is therefore intentionally absent from metadata.
 		forceNew = forceNew || metadata.ContainsDNSQueryTypeRule
 		if !rule.RuleSetIPCIDRMatchSource && metadata.ContainsIPCIDRRule {
 			needsLegacy = true

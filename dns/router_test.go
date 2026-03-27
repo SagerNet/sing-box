@@ -661,6 +661,88 @@ func TestLookupLegacyModeFallsBackAfterRejectedAddressLimitResponse(t *testing.T
 	require.Equal(t, []string{"private", "default"}, lookups)
 }
 
+func TestLookupLegacyModeRuleSetAcceptEmptyDoesNotTreatMismatchAsEmpty(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	ruleSet, err := rulepkg.NewRuleSet(ctx, log.NewNOPFactory().NewLogger("router"), option.RuleSet{
+		Type: C.RuleSetTypeInline,
+		Tag:  "legacy-ipcidr-set",
+		InlineOptions: option.PlainRuleSet{
+			Rules: []option.HeadlessRule{{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultHeadlessRule{
+					IPCIDR: badoption.Listable[string]{"10.0.0.0/8"},
+				},
+			}},
+		},
+	})
+	require.NoError(t, err)
+	ctx = service.ContextWith[adapter.Router](ctx, &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"legacy-ipcidr-set": ruleSet,
+		},
+	})
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	privateTransport := &fakeDNSTransport{tag: "private", transportType: C.DNSTypeUDP}
+	var lookups []string
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet:                  badoption.Listable[string]{"legacy-ipcidr-set"},
+					RuleSetIPCIDRAcceptEmpty: true,
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "private"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+			"private": privateTransport,
+		},
+	}, &fakeDNSClient{
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			require.Equal(t, "example.com", domain)
+			require.Equal(t, C.DomainStrategyIPv4Only, options.LookupStrategy)
+			lookups = append(lookups, transport.Tag())
+			switch transport.Tag() {
+			case "private":
+				response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("8.8.8.8")}, 60)
+				return MessageToAddresses(response), response, nil
+			case "default":
+				response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("9.9.9.9")}, 60)
+				return MessageToAddresses(response), response, nil
+			}
+			return nil, nil, errors.New("unexpected transport")
+		},
+	})
+
+	require.True(t, router.legacyAddressFilterMode)
+
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+		LookupStrategy: C.DomainStrategyIPv4Only,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("9.9.9.9")}, addresses)
+	require.Equal(t, []string{"private", "default"}, lookups)
+}
+
 func TestDNSResponseAddressesMatchesMessageToAddressesForHTTPSHints(t *testing.T) {
 	t.Parallel()
 

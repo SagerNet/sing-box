@@ -77,12 +77,18 @@ func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 		return r.ipSet.Contains(metadata.Source.Addr)
 	}
 	if metadata.DestinationAddressMatchFromResponse {
-		for _, address := range metadata.DNSResponseAddressesForMatch() {
+		addresses := metadata.DNSResponseAddressesForMatch()
+		if len(addresses) == 0 {
+			// Legacy rule_set_ip_cidr_accept_empty only applies when the DNS response
+			// does not expose any address answers for matching.
+			return metadata.IPCIDRAcceptEmpty
+		}
+		for _, address := range addresses {
 			if r.ipSet.Contains(address) {
 				return true
 			}
 		}
-		return metadata.IPCIDRAcceptEmpty
+		return false
 	}
 	if metadata.Destination.IsIP() {
 		return r.ipSet.Contains(metadata.Destination.Addr)
