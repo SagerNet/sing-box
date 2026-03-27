@@ -118,16 +118,32 @@ type fakeRuleSet struct {
 	access    sync.Mutex
 	metadata  adapter.RuleSetMetadata
 	callbacks list.List[adapter.RuleSetUpdateCallback]
+	refs      int
 }
 
 func (s *fakeRuleSet) Name() string                                                  { return "fake-rule-set" }
 func (s *fakeRuleSet) StartContext(context.Context, *adapter.HTTPStartContext) error { return nil }
 func (s *fakeRuleSet) PostStart() error                                              { return nil }
-func (s *fakeRuleSet) Metadata() adapter.RuleSetMetadata                             { return s.metadata }
-func (s *fakeRuleSet) ExtractIPSet() []*netipx.IPSet                                 { return nil }
-func (s *fakeRuleSet) IncRef()                                                       {}
-func (s *fakeRuleSet) DecRef()                                                       {}
-func (s *fakeRuleSet) Cleanup()                                                      {}
+func (s *fakeRuleSet) Metadata() adapter.RuleSetMetadata {
+	s.access.Lock()
+	defer s.access.Unlock()
+	return s.metadata
+}
+func (s *fakeRuleSet) ExtractIPSet() []*netipx.IPSet { return nil }
+func (s *fakeRuleSet) IncRef() {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.refs++
+}
+func (s *fakeRuleSet) DecRef() {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.refs--
+	if s.refs < 0 {
+		panic("rule-set: negative refs")
+	}
+}
+func (s *fakeRuleSet) Cleanup() {}
 func (s *fakeRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
 	s.access.Lock()
 	defer s.access.Unlock()
@@ -155,6 +171,12 @@ func (s *fakeRuleSet) snapshotCallbacks() []adapter.RuleSetUpdateCallback {
 	s.access.Lock()
 	defer s.access.Unlock()
 	return s.callbacks.Array()
+}
+
+func (s *fakeRuleSet) refCount() int {
+	s.access.Lock()
+	defer s.access.Unlock()
+	return s.refs
 }
 
 func (m *fakeDeprecatedManager) ReportDeprecated(feature deprecated.Note) {
@@ -292,6 +314,21 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 		},
 	}})
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+}
+
+func TestValidateNewDNSRules_AllowMatchResponseWithoutEvaluate(t *testing.T) {
+	t.Parallel()
+
+	err := validateNonLegacyAddressFilterRules([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				MatchResponse: true,
+				IPCIDR:        badoption.Listable[string]{"1.1.1.0/24"},
+			},
+		},
+	}})
+	require.NoError(t, err)
 }
 
 func TestInitializeRejectsInvalidDNSRuleParseError(t *testing.T) {
@@ -440,6 +477,46 @@ func TestLookupLegacyModeDefersRuleSetDestinationIPMatch(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
+}
+
+func TestRuleSetUpdateReleasesOldRuleSetRefs(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{}
+	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"dynamic-set": fakeSet,
+		},
+	})
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				RuleSet: badoption.Listable[string]{"dynamic-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: defaultTransport,
+		transports: map[string]adapter.DNSTransport{
+			"default": defaultTransport,
+		},
+	}, &fakeDNSClient{})
+
+	require.Equal(t, 1, fakeSet.refCount())
+
+	fakeSet.updateMetadata(adapter.RuleSetMetadata{})
+	require.Equal(t, 1, fakeSet.refCount())
+
+	fakeSet.updateMetadata(adapter.RuleSetMetadata{})
+	require.Equal(t, 1, fakeSet.refCount())
+
+	require.NoError(t, router.Close())
+	require.Zero(t, fakeSet.refCount())
 }
 
 func TestRuleSetUpdateSetsRuntimeErrorWhenRebuildFails(t *testing.T) {

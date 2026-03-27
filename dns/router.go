@@ -1097,7 +1097,6 @@ func referencedDNSRuleSetTags(rules []option.DNSRule) []string {
 }
 
 func validateNonLegacyAddressFilterRules(rules []option.DNSRule) error {
-	var seenEvaluate bool
 	for i, rule := range rules {
 		consumesResponse, err := validateNonLegacyAddressFilterRuleTree(rule)
 		if err != nil {
@@ -1106,12 +1105,6 @@ func validateNonLegacyAddressFilterRules(rules []option.DNSRule) error {
 		action := dnsRuleActionType(rule)
 		if action == C.RuleActionTypeEvaluate && consumesResponse {
 			return E.New("dns rule[", i, "]: evaluate rule cannot consume response state")
-		}
-		if consumesResponse && !seenEvaluate {
-			return E.New("dns rule[", i, "]: response matching requires a preceding top-level evaluate rule")
-		}
-		if action == C.RuleActionTypeEvaluate {
-			seenEvaluate = true
 		}
 	}
 	return nil
