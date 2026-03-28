@@ -117,6 +117,14 @@ var OptionLegacyDNSAddressFilter = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule/",
 }
 
+var OptionLegacyDNSRuleStrategy = Note{
+	Name:              "legacy-dns-rule-strategy",
+	Description:       "`strategy` in DNS rule actions",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule_action/",
+}
+
 var Options = []Note{
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
@@ -125,4 +133,5 @@ var Options = []Note{
 	OptionIPAcceptAny,
 	OptionRuleSetIPCIDRAcceptEmpty,
 	OptionLegacyDNSAddressFilter,
+	OptionLegacyDNSRuleStrategy,
 }

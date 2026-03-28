@@ -15,7 +15,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyAddressFilter bool) (adapter.DNSRule, error) {
+func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyDNSMode bool) (adapter.DNSRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
@@ -30,7 +30,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions, legacyAddressFilter)
+		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions, legacyDNSMode)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
@@ -44,7 +44,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions, legacyAddressFilter)
+		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions, legacyDNSMode)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
@@ -61,7 +61,7 @@ func (r *DefaultDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 	return r.abstractDefaultRule.matchStates(metadata)
 }
 
-func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule, legacyAddressFilter bool) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule, legacyDNSMode bool) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
 			invert: options.Invert,
@@ -163,10 +163,10 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.allItems = append(rule.allItems, item)
 	}
 	if options.IPAcceptAny {
-		if legacyAddressFilter {
+		if legacyDNSMode {
 			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
 		} else {
-			return nil, E.New("ip_accept_any is removed in DNS evaluate mode, use ip_cidr with match_response")
+			return nil, E.New("ip_accept_any is removed when legacyDNSMode is disabled, use ip_cidr with match_response")
 		}
 		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
@@ -321,10 +321,10 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 			matchSource = true
 		}
 		if options.RuleSetIPCIDRAcceptEmpty {
-			if legacyAddressFilter {
+			if legacyDNSMode {
 				deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
 			} else {
-				return nil, E.New("rule_set_ip_cidr_accept_empty is removed in DNS evaluate mode")
+				return nil, E.New("rule_set_ip_cidr_accept_empty is removed when legacyDNSMode is disabled")
 			}
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty)
@@ -450,7 +450,7 @@ func (r *LogicalDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) r
 	return stateSet
 }
 
-func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule, legacyAddressFilter bool) (*LogicalDNSRule, error) {
+func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule, legacyDNSMode bool) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
@@ -467,7 +467,7 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDNSRule(ctx, logger, subRule, false, legacyAddressFilter)
+		rule, err := NewDNSRule(ctx, logger, subRule, false, legacyDNSMode)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}

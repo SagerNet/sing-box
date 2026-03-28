@@ -14,6 +14,13 @@ check [Migration](../migration/#migrate-inline-acme-to-certificate-provider).
 
 Old fields will be removed in sing-box 1.16.0.
 
+#### `strategy` in DNS rule actions
+
+`strategy` in DNS rule actions is deprecated
+and only supported in `legacyDNSMode`.
+
+Old fields will be removed in sing-box 1.16.0.
+
 ## 1.12.0
 
 #### Legacy DNS server formats

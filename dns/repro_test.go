@@ -15,62 +15,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReproLookupWithRulesIgnoresRouteStrategy(t *testing.T) {
+func TestReproLookupWithRulesUsesRequestStrategy(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse: true,
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
-					},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
+	var qTypes []uint16
+	router := newTestRouter(t, nil, &fakeDNSTransportManager{
 		defaultTransport: defaultTransport,
 		transports: map[string]adapter.DNSTransport{
-			"default":  defaultTransport,
-			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{
 		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			if transport.Tag() == "default" {
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-			}
-			switch message.Question[0].Qtype {
-			case mDNS.TypeA:
+			qTypes = append(qTypes, message.Question[0].Qtype)
+			if message.Question[0].Qtype == mDNS.TypeA {
 				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-			case mDNS.TypeAAAA:
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
-			default:
-				return nil, errors.New("unexpected qtype")
 			}
+			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
 		},
 	})
 
-	addrs, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
+	addrs, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+		Strategy: C.DomainStrategyIPv4Only,
+	})
 	require.NoError(t, err)
+	require.Equal(t, []uint16{mDNS.TypeA}, qTypes)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addrs)
 }
 

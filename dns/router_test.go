@@ -296,10 +296,10 @@ func fixedHTTPSHintResponse(question mDNS.Question, addresses ...netip.Addr) *mD
 	return response
 }
 
-func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
+func TestValidateLegacyDNSModeDisabledRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 	t.Parallel()
 
-	err := validateNonLegacyAddressFilterRules([]option.DNSRule{{
+	err := validateLegacyDNSModeDisabledRules([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
 			RawDefaultDNSRule: option.RawDefaultDNSRule{
@@ -316,10 +316,10 @@ func TestValidateNewDNSRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
 }
 
-func TestValidateNewDNSRules_AllowMatchResponseWithoutEvaluate(t *testing.T) {
+func TestValidateLegacyDNSModeDisabledRules_AllowMatchResponseWithoutEvaluate(t *testing.T) {
 	t.Parallel()
 
-	err := validateNonLegacyAddressFilterRules([]option.DNSRule{{
+	err := validateLegacyDNSModeDisabledRules([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
 			RawDefaultDNSRule: option.RawDefaultDNSRule{
@@ -419,7 +419,7 @@ func TestInitializeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
 }
 
-func TestLookupLegacyModeDefersRuleSetDestinationIPMatch(t *testing.T) {
+func TestLookupLegacyDNSModeDefersRuleSetDestinationIPMatch(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -470,7 +470,7 @@ func TestLookupLegacyModeDefersRuleSetDestinationIPMatch(t *testing.T) {
 		},
 	})
 
-	require.True(t, router.legacyAddressFilterMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -566,7 +566,7 @@ func TestRuleSetUpdateSetsRuntimeErrorWhenRebuildFails(t *testing.T) {
 		},
 	})
 
-	require.True(t, router.legacyAddressFilterMode)
+	require.True(t, router.legacyDNSMode)
 
 	fakeSet.updateMetadata(adapter.RuleSetMetadata{
 		ContainsDNSQueryTypeRule: true,
@@ -642,7 +642,7 @@ func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
 	require.NoError(t, router.runtimeRuleError)
 }
 
-func TestLookupLegacyModeDefersDirectDestinationIPMatch(t *testing.T) {
+func TestLookupLegacyDNSModeDefersDirectDestinationIPMatch(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -680,7 +680,7 @@ func TestLookupLegacyModeDefersDirectDestinationIPMatch(t *testing.T) {
 		},
 	}, client)
 
-	require.True(t, router.legacyAddressFilterMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -689,7 +689,7 @@ func TestLookupLegacyModeDefersDirectDestinationIPMatch(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
 }
 
-func TestLookupLegacyModeFallsBackAfterRejectedAddressLimitResponse(t *testing.T) {
+func TestLookupLegacyDNSModeFallsBackAfterRejectedAddressLimitResponse(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -738,7 +738,7 @@ func TestLookupLegacyModeFallsBackAfterRejectedAddressLimitResponse(t *testing.T
 	require.Equal(t, []string{"private", "default"}, lookups)
 }
 
-func TestLookupLegacyModeRuleSetAcceptEmptyDoesNotTreatMismatchAsEmpty(t *testing.T) {
+func TestLookupLegacyDNSModeRuleSetAcceptEmptyDoesNotTreatMismatchAsEmpty(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -810,7 +810,7 @@ func TestLookupLegacyModeRuleSetAcceptEmptyDoesNotTreatMismatchAsEmpty(t *testin
 		},
 	})
 
-	require.True(t, router.legacyAddressFilterMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -831,7 +831,7 @@ func TestDNSResponseAddressesMatchesMessageToAddressesForHTTPSHints(t *testing.T
 	require.Equal(t, MessageToAddresses(response), adapter.DNSResponseAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateMatchResponseRoute(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateMatchResponseRoute(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -890,7 +890,7 @@ func TestExchangeNewModeEvaluateMatchResponseRoute(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateMatchResponseRouteIgnoresTTL(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateMatchResponseRouteIgnoresTTL(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -949,7 +949,7 @@ func TestExchangeNewModeEvaluateMatchResponseRouteIgnoresTTL(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateMatchResponseRouteWithHTTPSHints(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateMatchResponseRouteWithHTTPSHints(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -1008,7 +1008,7 @@ func TestExchangeNewModeEvaluateMatchResponseRouteWithHTTPSHints(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateDoesNotLeakAddressesToNextQuery(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateDoesNotLeakAddressesToNextQuery(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -1079,7 +1079,7 @@ func TestExchangeNewModeEvaluateDoesNotLeakAddressesToNextQuery(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateRouteResolutionFailureClearsResponse(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateRouteResolutionFailureClearsResponse(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -1152,7 +1152,7 @@ func TestExchangeNewModeEvaluateRouteResolutionFailureClearsResponse(t *testing.
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("4.4.4.4")}, MessageToAddresses(response))
 }
 
-func TestExchangeNewModeEvaluateExchangeFailureUsesMatchResponseBooleanSemantics(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledEvaluateExchangeFailureUsesMatchResponseBooleanSemantics(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -1235,7 +1235,7 @@ func TestExchangeNewModeEvaluateExchangeFailureUsesMatchResponseBooleanSemantics
 	}
 }
 
-func TestLookupNewModeAllowsPartialSuccess(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledAllowsPartialSuccess(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1257,14 +1257,14 @@ func TestLookupNewModeAllowsPartialSuccess(t *testing.T) {
 			}
 		},
 	})
-	router.legacyAddressFilterMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("1.1.1.1")}, addresses)
 }
 
-func TestLookupNewModeSkipsFakeIPRule(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledSkipsFakeIPRule(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1294,14 +1294,14 @@ func TestLookupNewModeSkipsFakeIPRule(t *testing.T) {
 			return FixedResponse(0, message.Question[0], nil, 60), nil
 		},
 	})
-	router.legacyAddressFilterMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestLookupNewModeEvaluateSkipFakeIPPreservesResponse(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledEvaluateSkipFakeIPPreservesResponse(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1374,14 +1374,14 @@ func TestLookupNewModeEvaluateSkipFakeIPPreservesResponse(t *testing.T) {
 			}
 		},
 	})
-	router.legacyAddressFilterMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestLookupNewModeUsesQueryTypeRule(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledUsesQueryTypeRule(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1417,14 +1417,14 @@ func TestLookupNewModeUsesQueryTypeRule(t *testing.T) {
 			}
 		},
 	})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("9.9.9.9")}, addresses)
 }
 
-func TestLookupNewModeUsesRuleSetQueryTypeRule(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledUsesRuleSetQueryTypeRule(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -1483,7 +1483,7 @@ func TestLookupNewModeUsesRuleSetQueryTypeRule(t *testing.T) {
 			}
 		},
 	})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -1493,7 +1493,7 @@ func TestLookupNewModeUsesRuleSetQueryTypeRule(t *testing.T) {
 	}, addresses)
 }
 
-func TestLookupNewModeUsesIPVersionRule(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledUsesIPVersionRule(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1532,73 +1532,113 @@ func TestLookupNewModeUsesIPVersionRule(t *testing.T) {
 			}
 		},
 	})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("3.3.3.3"), netip.MustParseAddr("2001:db8::9")}, addresses)
 }
 
-func TestLookupNewModeAppliesRouteStrategyAfterEvaluate(t *testing.T) {
+func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByEvaluate(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		rules:                 make([]adapter.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeEvaluate,
+				RouteOptions: option.DNSRouteActionOptions{
+					Server:   "default",
+					Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
+				},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "legacyDNSMode")
+}
+
+func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchResponse(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		rules:                 make([]adapter.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				MatchResponse: true,
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeRouteOptions,
+				RouteOptionsOptions: option.DNSRouteOptionsActionOptions{
+					Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
+				},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "legacyDNSMode")
+}
+
+func TestLookupLegacyDNSModeUsesRouteStrategy(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+	selectedTransport := &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP}
+	router := newTestRouter(t, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{
+					Server:   "selected",
+					Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
 				},
 			},
 		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse: true,
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
-					},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
+	}}, &fakeDNSTransportManager{
 		defaultTransport: defaultTransport,
 		transports: map[string]adapter.DNSTransport{
 			"default":  defaultTransport,
-			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"selected": selectedTransport,
 		},
 	}, &fakeDNSClient{
-		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			if transport.Tag() == "default" {
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-			}
-			switch message.Question[0].Qtype {
-			case mDNS.TypeA:
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-			case mDNS.TypeAAAA:
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
-			default:
-				return nil, errors.New("unexpected qtype")
-			}
+		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			require.Equal(t, "selected", transport.Tag())
+			require.Equal(t, C.DomainStrategyIPv4Only, options.Strategy)
+			return []netip.Addr{netip.MustParseAddr("2.2.2.2")}, nil, nil
 		},
 	})
+
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestLookupNewModeReturnsRejectedErrorForRejectAction(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledReturnsRejectedErrorForRejectAction(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1623,7 +1663,7 @@ func TestLookupNewModeReturnsRejectedErrorForRejectAction(t *testing.T) {
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.Nil(t, addresses)
@@ -1631,7 +1671,7 @@ func TestLookupNewModeReturnsRejectedErrorForRejectAction(t *testing.T) {
 	require.True(t, rulepkg.IsRejected(err))
 }
 
-func TestExchangeNewModeReturnsRefusedResponseForRejectAction(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledReturnsRefusedResponseForRejectAction(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1656,7 +1696,7 @@ func TestExchangeNewModeReturnsRefusedResponseForRejectAction(t *testing.T) {
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
@@ -1666,7 +1706,7 @@ func TestExchangeNewModeReturnsRefusedResponseForRejectAction(t *testing.T) {
 	require.Equal(t, []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)}, response.Question)
 }
 
-func TestLookupNewModeFiltersPerQueryTypeAddressesBeforeMerging(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledFiltersPerQueryTypeAddressesBeforeMerging(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -1694,7 +1734,7 @@ func TestLookupNewModeFiltersPerQueryTypeAddressesBeforeMerging(t *testing.T) {
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.legacyAddressFilterMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -1704,241 +1744,64 @@ func TestLookupNewModeFiltersPerQueryTypeAddressesBeforeMerging(t *testing.T) {
 	}, addresses)
 }
 
-func TestLookupNewModePrefersExplicitBranchStrategyOverDefault(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledUsesInputStrategy(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN AAAA 2001:db8::1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv6Only),
-					},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
+	var qTypes []uint16
+	router := newTestRouter(t, nil, &fakeDNSTransportManager{
 		defaultTransport: defaultTransport,
 		transports: map[string]adapter.DNSTransport{
-			"default":  defaultTransport,
-			"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
-			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{
 		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			switch transport.Tag() {
-			case "upstream":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
-			case "selected":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::2")}, 60), nil
-			case "default":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("4.4.4.4")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::4")}, 60), nil
-			default:
-				return nil, errors.New("unexpected transport")
-			}
-		},
-	})
-	router.defaultDomainStrategy = C.DomainStrategyIPv4Only
-
-	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("2001:db8::2")}, addresses)
-}
-
-func TestLookupNewModeKeepsExplicitBranchStrategyMatchingInput(t *testing.T) {
-	t.Parallel()
-
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected4",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
-					},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN AAAA 2001:db8::1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected6",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv6Only),
-					},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
-		transports: map[string]adapter.DNSTransport{
-			"default":   defaultTransport,
-			"upstream":  &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
-			"selected4": &fakeDNSTransport{tag: "selected4", transportType: C.DNSTypeUDP},
-			"selected6": &fakeDNSTransport{tag: "selected6", transportType: C.DNSTypeUDP},
-		},
-	}, &fakeDNSClient{
-		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			switch transport.Tag() {
-			case "upstream":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
-			case "selected4":
+			qTypes = append(qTypes, message.Question[0].Qtype)
+			if message.Question[0].Qtype == mDNS.TypeA {
 				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-			case "selected6":
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::2")}, 60), nil
-			default:
-				return nil, errors.New("unexpected transport")
 			}
+			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::2")}, 60), nil
 		},
 	})
-	router.legacyAddressFilterMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		Strategy: C.DomainStrategyIPv4Only,
 	})
 	require.NoError(t, err)
+	require.Equal(t, []uint16{mDNS.TypeA}, qTypes)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestLookupNewModeKeepsConflictingExplicitBranchStrategies(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledUsesDefaultStrategy(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected4",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
-					},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN AAAA 2001:db8::1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{
-						Server:   "selected6",
-						Strategy: option.DomainStrategy(C.DomainStrategyIPv6Only),
-					},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
+	var qTypes []uint16
+	router := newTestRouter(t, nil, &fakeDNSTransportManager{
 		defaultTransport: defaultTransport,
 		transports: map[string]adapter.DNSTransport{
-			"default":   defaultTransport,
-			"upstream":  &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
-			"selected4": &fakeDNSTransport{tag: "selected4", transportType: C.DNSTypeUDP},
-			"selected6": &fakeDNSTransport{tag: "selected6", transportType: C.DNSTypeUDP},
+			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{
 		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			switch transport.Tag() {
-			case "upstream":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::1")}, 60), nil
-			case "selected4":
+			qTypes = append(qTypes, message.Question[0].Qtype)
+			if message.Question[0].Qtype == mDNS.TypeA {
 				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-			case "selected6":
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::2")}, 60), nil
-			default:
-				return nil, errors.New("unexpected transport")
 			}
+			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2001:db8::2")}, 60), nil
 		},
 	})
-	router.legacyAddressFilterMode = false
+	router.defaultDomainStrategy = C.DomainStrategyIPv4Only
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2"), netip.MustParseAddr("2001:db8::2")}, addresses)
+	require.Equal(t, []uint16{mDNS.TypeA}, qTypes)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestExchangeNewModeLogicalMatchResponseIPCIDRFallsThrough(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledLogicalMatchResponseIPCIDRFallsThrough(t *testing.T) {
 	t.Parallel()
 
 	transportManager := &fakeDNSTransportManager{
@@ -2007,7 +1870,7 @@ func TestExchangeNewModeLogicalMatchResponseIPCIDRFallsThrough(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("4.4.4.4")}, MessageToAddresses(response))
 }
 
-func TestOldModeReportsLegacyAddressFilterDeprecation(t *testing.T) {
+func TestLegacyDNSModeReportsLegacyAddressFilterDeprecation(t *testing.T) {
 	t.Parallel()
 
 	manager := &fakeDeprecatedManager{}
@@ -2037,4 +1900,39 @@ func TestOldModeReportsLegacyAddressFilterDeprecation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, manager.features, 1)
 	require.Equal(t, deprecated.OptionLegacyDNSAddressFilter.Name, manager.features[0].Name)
+}
+
+func TestLegacyDNSModeReportsDNSRuleStrategyDeprecation(t *testing.T) {
+	t.Parallel()
+
+	manager := &fakeDeprecatedManager{}
+	ctx := service.ContextWith[deprecated.Manager](context.Background(), manager)
+	router := &Router{
+		ctx:                   ctx,
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		client:                &fakeDNSClient{},
+		rules:                 make([]adapter.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{
+					Server:   "default",
+					Strategy: option.DomainStrategy(C.DomainStrategyIPv4Only),
+				},
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	err = router.Start(adapter.StartStateStart)
+	require.NoError(t, err)
+	require.Len(t, manager.features, 1)
+	require.Equal(t, deprecated.OptionLegacyDNSRuleStrategy.Name, manager.features[0].Name)
 }

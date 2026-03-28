@@ -34,7 +34,11 @@ icon: material/new-box
 
 !!! question "自 sing-box 1.12.0 起"
 
-为此查询设置域名策略。
+!!! warning
+
+    `strategy` 已废弃，且仅在 `legacyDNSMode` 中可用。
+
+在 `legacyDNSMode` 中为此查询设置域名策略。
 
 可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
