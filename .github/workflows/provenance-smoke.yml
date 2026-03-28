@@ -1,0 +1,44 @@
+name: Provenance Smoke
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  attest:
+    name: Attestation smoke test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Prepare smoke artifact
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cat > dist/provenance-smoke.txt <<EOF
+          repository=${GITHUB_REPOSITORY}
+          ref=${GITHUB_REF}
+          sha=${GITHUB_SHA}
+          run_id=${GITHUB_RUN_ID}
+          run_attempt=${GITHUB_RUN_ATTEMPT}
+          generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/provenance-smoke.txt
+
+      - name: Upload smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-smoke
+          path: dist/provenance-smoke.txt
