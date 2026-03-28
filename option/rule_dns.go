@@ -35,7 +35,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *DNSRule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_DNSRule)(r))
+	err := json.UnmarshalContext(ctx, bytes, (*_DNSRule)(r))
 	if err != nil {
 		return err
 	}
@@ -135,11 +135,27 @@ func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
-	err := json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
+	rawAction, routeOptions, err := inspectDNSRuleAction(ctx, data)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	err = rejectNestedDNSRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+		r.DNSRuleAction = DNSRuleAction{}
+	}
+	return nil
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -164,11 +180,27 @@ func (r LogicalDNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *LogicalDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
-	err := json.Unmarshal(data, &r.RawLogicalDNSRule)
+	rawAction, routeOptions, err := inspectDNSRuleAction(ctx, data)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
+	err = rejectNestedDNSRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(nestedRuleChildContext(ctx), data, &r.RawLogicalDNSRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+		r.DNSRuleAction = DNSRuleAction{}
+	}
+	return nil
 }
 
 func (r *LogicalDNSRule) IsValid() bool {

@@ -202,6 +202,12 @@ func (r *Router) isClosing() bool {
 }
 
 func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, error) {
+	for i, ruleOptions := range r.rawRules {
+		err := R.ValidateNoNestedDNSRuleActions(ruleOptions)
+		if err != nil {
+			return nil, false, E.Cause(err, "parse dns rule[", i, "]")
+		}
+	}
 	router := service.FromContext[adapter.Router](r.ctx)
 	legacyDNSMode, err := resolveLegacyDNSMode(router, r.rawRules)
 	if err != nil {

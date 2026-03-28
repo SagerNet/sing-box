@@ -467,6 +467,10 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
+		err := validateNoNestedDNSRuleActions(subRule, true)
+		if err != nil {
+			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
 		rule, err := NewDNSRule(ctx, logger, subRule, false, legacyDNSMode)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")

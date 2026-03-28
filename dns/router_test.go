@@ -135,6 +135,7 @@ func (s *fakeRuleSet) IncRef() {
 	defer s.access.Unlock()
 	s.refs++
 }
+
 func (s *fakeRuleSet) DecRef() {
 	s.access.Lock()
 	defer s.access.Unlock()
@@ -149,6 +150,7 @@ func (s *fakeRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *
 	defer s.access.Unlock()
 	return s.callbacks.PushBack(callback)
 }
+
 func (s *fakeRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUpdateCallback]) {
 	s.access.Lock()
 	defer s.access.Unlock()
