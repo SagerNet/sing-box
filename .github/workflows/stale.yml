@@ -1,7 +1,8 @@
 name: Mark stale issues and pull requests
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: "30 1 * * *"
 
 jobs:
   stale:
