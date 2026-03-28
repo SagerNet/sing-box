@@ -1152,6 +1152,89 @@ func TestExchangeNewModeEvaluateRouteResolutionFailureClearsResponse(t *testing.
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("4.4.4.4")}, MessageToAddresses(response))
 }
 
+func TestExchangeNewModeEvaluateExchangeFailureUsesMatchResponseBooleanSemantics(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		invert       bool
+		expectedAddr netip.Addr
+	}{
+		{
+			name:         "plain match_response rule stays false",
+			expectedAddr: netip.MustParseAddr("4.4.4.4"),
+		},
+		{
+			name:         "invert match_response rule becomes true",
+			invert:       true,
+			expectedAddr: netip.MustParseAddr("8.8.8.8"),
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			transportManager := &fakeDNSTransportManager{
+				defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+				transports: map[string]adapter.DNSTransport{
+					"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
+					"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+					"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+				},
+			}
+			client := &fakeDNSClient{
+				exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+					switch transport.Tag() {
+					case "upstream":
+						return nil, errors.New("upstream exchange failed")
+					case "selected":
+						return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("8.8.8.8")}, 60), nil
+					case "default":
+						return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("4.4.4.4")}, 60), nil
+					default:
+						return nil, errors.New("unexpected transport")
+					}
+				},
+			}
+			rules := []option.DNSRule{
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultDNSRule{
+						RawDefaultDNSRule: option.RawDefaultDNSRule{
+							Domain: badoption.Listable[string]{"example.com"},
+						},
+						DNSRuleAction: option.DNSRuleAction{
+							Action:       C.RuleActionTypeEvaluate,
+							RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
+						},
+					},
+				},
+				{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultDNSRule{
+						RawDefaultDNSRule: option.RawDefaultDNSRule{
+							MatchResponse: true,
+							Invert:        testCase.invert,
+						},
+						DNSRuleAction: option.DNSRuleAction{
+							Action:       C.RuleActionTypeRoute,
+							RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+						},
+					},
+				},
+			}
+			router := newTestRouter(t, rules, transportManager, client)
+
+			response, err := router.Exchange(context.Background(), &mDNS.Msg{
+				Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
+			}, adapter.DNSQueryOptions{})
+			require.NoError(t, err)
+			require.Equal(t, []netip.Addr{testCase.expectedAddr}, MessageToAddresses(response))
+		})
+	}
+}
+
 func TestLookupNewModeAllowsPartialSuccess(t *testing.T) {
 	t.Parallel()
 

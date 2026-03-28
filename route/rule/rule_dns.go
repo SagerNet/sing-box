@@ -357,14 +357,25 @@ func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
 
 func (r *DefaultDNSRule) LegacyPreMatch(metadata *adapter.InboundContext) bool {
 	if r.matchResponse {
-		return !r.matchStatesForMatch(metadata).isEmpty()
+		return !r.legacyMatchStatesForMatch(metadata).isEmpty()
 	}
 	return !r.abstractDefaultRule.legacyMatchStates(metadata).isEmpty()
 }
 
 func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
+	return r.matchStatesForMatchWithMissingResponse(metadata, true)
+}
+
+func (r *DefaultDNSRule) legacyMatchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
+	return r.matchStatesForMatchWithMissingResponse(metadata, false)
+}
+
+func (r *DefaultDNSRule) matchStatesForMatchWithMissingResponse(metadata *adapter.InboundContext, ordinaryFailure bool) ruleMatchStateSet {
 	if r.matchResponse {
 		if metadata.DNSResponse == nil {
+			if ordinaryFailure {
+				return r.abstractDefaultRule.invertedFailure(0)
+			}
 			return 0
 		}
 		matchMetadata := *metadata

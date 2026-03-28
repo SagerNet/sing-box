@@ -688,6 +688,63 @@ func TestDNSMatchResponseRuleSetDestinationCIDRUsesDNSResponse(t *testing.T) {
 	require.False(t, rule.Match(&unmatchedMetadata))
 }
 
+func TestDNSMatchResponseMissingResponseUsesBooleanSemantics(t *testing.T) {
+	t.Parallel()
+
+	t.Run("plain rule remains false", func(t *testing.T) {
+		t.Parallel()
+
+		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {})
+		rule.matchResponse = true
+
+		metadata := testMetadata("lookup.example")
+		require.False(t, rule.Match(&metadata))
+	})
+
+	t.Run("invert rule becomes true", func(t *testing.T) {
+		t.Parallel()
+
+		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+			rule.invert = true
+		})
+		rule.matchResponse = true
+
+		metadata := testMetadata("lookup.example")
+		require.True(t, rule.Match(&metadata))
+	})
+
+	t.Run("logical wrapper respects inverted child", func(t *testing.T) {
+		t.Parallel()
+
+		nestedRule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+			rule.invert = true
+		})
+		nestedRule.matchResponse = true
+
+		logicalRule := &LogicalDNSRule{
+			abstractLogicalRule: abstractLogicalRule{
+				rules: []adapter.HeadlessRule{nestedRule},
+				mode:  C.LogicalTypeAnd,
+			},
+		}
+
+		metadata := testMetadata("lookup.example")
+		require.True(t, logicalRule.Match(&metadata))
+	})
+}
+
+func TestDNSLegacyMatchResponseMissingResponseStillFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
+		rule.invert = true
+	})
+	rule.matchResponse = true
+
+	metadata := testMetadata("lookup.example")
+	require.False(t, rule.LegacyPreMatch(&metadata))
+}
+
 func TestDNSAddressLimitIgnoresDestinationAddresses(t *testing.T) {
 	t.Parallel()
 
