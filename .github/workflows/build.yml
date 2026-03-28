@@ -65,6 +65,10 @@ jobs:
     name: Build binary
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     needs:
       - calculate_version
     strategy:
@@ -439,6 +443,10 @@ jobs:
           rm -r "${DIR_NAME}"
       - name: Cleanup
         run: rm -f dist/sing-box dist/libcronet.so
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/*"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -448,6 +456,10 @@ jobs:
     name: Build Darwin binaries
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
     runs-on: macos-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     needs:
       - calculate_version
     strategy:
@@ -532,6 +544,10 @@ jobs:
           rm -r "${DIR_NAME}"
       - name: Cleanup
         run: rm dist/sing-box
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/*"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -541,6 +557,10 @@ jobs:
     name: Build Windows binaries
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     needs:
       - calculate_version
     strategy:
@@ -621,6 +641,10 @@ jobs:
       - name: Cleanup
         if: ${{ !matrix.naive }}
         run: Remove-Item dist/sing-box.exe
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/*"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -630,6 +654,10 @@ jobs:
     name: Build Android
     if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android') && github.ref != 'refs/heads/oldstable'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     needs:
       - calculate_version
     steps:
@@ -711,6 +739,10 @@ jobs:
           }
           EOF
           cat dist/SFA-version-metadata.json
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/*"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
