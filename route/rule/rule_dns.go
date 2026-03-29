@@ -127,7 +127,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if len(options.Geosite) > 0 {
+	if len(options.Geosite) > 0 { //nolint:staticcheck
 		return nil, E.New("geosite database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
 	}
 	if len(options.SourceGeoIP) > 0 {
@@ -162,7 +162,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if options.IPAcceptAny {
+	if options.IPAcceptAny { //nolint:staticcheck
 		if legacyDNSMode {
 			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
 		} else {
@@ -320,14 +320,14 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		if options.RuleSetIPCIDRMatchSource {
 			matchSource = true
 		}
-		if options.RuleSetIPCIDRAcceptEmpty {
+		if options.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
 			if legacyDNSMode {
 				deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
 			} else {
 				return nil, E.New("rule_set_ip_cidr_accept_empty is removed when legacyDNSMode is disabled")
 			}
 		}
-		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty)
+		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty) //nolint:staticcheck
 		rule.ruleSetItem = item
 		rule.allItems = append(rule.allItems, item)
 	}

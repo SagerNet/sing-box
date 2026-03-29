@@ -896,7 +896,7 @@ func (r *Router) ResetNetwork() {
 }
 
 func defaultRuleNeedsLegacyDNSModeFromAddressFilter(rule option.DefaultDNSRule) bool {
-	if rule.IPAcceptAny || rule.RuleSetIPCIDRAcceptEmpty {
+	if rule.IPAcceptAny || rule.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
 		return true
 	}
 	return !rule.MatchResponse && (len(rule.IPCIDR) > 0 || rule.IPIsPrivate)
@@ -1070,10 +1070,10 @@ func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool,
 	// When match_response is false, those destination-IP branches fail closed during
 	// pre-response evaluation instead of consuming DNS response state, while sibling
 	// non-response branches remain matchable.
-	if rule.IPAcceptAny {
+	if rule.IPAcceptAny { //nolint:staticcheck
 		return false, E.New("ip_accept_any is removed when legacyDNSMode is disabled, use ip_cidr with match_response")
 	}
-	if rule.RuleSetIPCIDRAcceptEmpty {
+	if rule.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
 		return false, E.New("rule_set_ip_cidr_accept_empty is removed when legacyDNSMode is disabled")
 	}
 	return rule.MatchResponse, nil
