@@ -21,6 +21,29 @@ and only supported in `legacyDNSMode`.
 
 Old fields will be removed in sing-box 1.16.0.
 
+#### `ip_accept_any` in DNS rules
+
+`ip_accept_any` in DNS rules is deprecated
+and only supported in `legacyDNSMode`.
+Use `match_response` with response items instead.
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### `rule_set_ip_cidr_accept_empty` in DNS rules
+
+`rule_set_ip_cidr_accept_empty` in DNS rules is deprecated
+and only supported in `legacyDNSMode`.
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### Legacy address filter DNS rule items
+
+Legacy address filter DNS rule items (`ip_cidr`, `ip_is_private` without `match_response`)
+are deprecated and only supported in `legacyDNSMode`.
+Use `match_response` with the `evaluate` action instead.
+
+Old behavior will be removed in sing-box 1.16.0.
+
 ## 1.12.0
 
 #### Legacy DNS server formats

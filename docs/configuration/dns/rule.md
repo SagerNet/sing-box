@@ -4,8 +4,15 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.14.0"
 
+    :material-plus: [match_response](#match_response)  
+    :material-plus: [response_rcode](#response_rcode)  
+    :material-plus: [response_answer](#response_answer)  
+    :material-plus: [response_ns](#response_ns)  
+    :material-plus: [response_extra](#response_extra)  
     :material-plus: [source_mac_address](#source_mac_address)  
-    :material-plus: [source_hostname](#source_hostname)
+    :material-plus: [source_hostname](#source_hostname)  
+    :material-delete-clock: [ip_accept_any](#ip_accept_any)  
+    :material-delete-clock: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -94,12 +101,6 @@ icon: material/alert-decagram
           "192.168.0.1"
         ],
         "source_ip_is_private": false,
-        "ip_cidr": [
-          "10.0.0.0/24",
-          "192.168.0.1"
-        ],
-        "ip_is_private": false,
-        "ip_accept_any": false,
         "source_port": [
           12345
         ],
@@ -171,7 +172,16 @@ icon: material/alert-decagram
           "geosite-cn"
         ],
         "rule_set_ip_cidr_match_source": false,
-        "rule_set_ip_cidr_accept_empty": false,
+        "match_response": false,
+        "ip_cidr": [
+          "10.0.0.0/24",
+          "192.168.0.1"
+        ],
+        "ip_is_private": false,
+        "response_rcode": "",
+        "response_answer": [],
+        "response_ns": [],
+        "response_extra": [],
         "invert": false,
         "outbound": [
           "direct"
@@ -180,7 +190,9 @@ icon: material/alert-decagram
         "server": "local",
 
         // Deprecated
-        
+
+        "ip_accept_any": false,
+        "rule_set_ip_cidr_accept_empty": false,
         "rule_set_ipcidr_match_source": false,
         "geosite": [
           "cn"
@@ -477,6 +489,17 @@ Make `ip_cidr` rule items in rule-sets match the source IP.
 
 Make `ip_cidr` rule items in rule-sets match the source IP.
 
+#### match_response
+
+!!! question "Since sing-box 1.14.0"
+
+Enable response-based matching. When enabled, this rule matches against DNS response data
+(set by a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action)
+instead of only matching the original query.
+
+Required for `response_rcode`, `response_answer`, `response_ns`, `response_extra` fields.
+Also required for `ip_cidr` and `ip_is_private` when `legacyDNSMode` is disabled.
+
 #### invert
 
 Invert match result.
@@ -547,15 +570,24 @@ Match GeoIP with query response.
 
 Match IP CIDR with query response.
 
+When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
+
 #### ip_is_private
 
 !!! question "Since sing-box 1.9.0"
 
 Match private IP with query response.
 
+When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
+
 #### rule_set_ip_cidr_accept_empty
 
 !!! question "Since sing-box 1.10.0"
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    `rule_set_ip_cidr_accept_empty` is deprecated and will be removed in sing-box 1.16.0.
+    Only supported in `legacyDNSMode`.
 
 Make `ip_cidr` rules in rule-sets accept empty query response.
 
@@ -563,7 +595,43 @@ Make `ip_cidr` rules in rule-sets accept empty query response.
 
 !!! question "Since sing-box 1.12.0"
 
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    `ip_accept_any` is deprecated and will be removed in sing-box 1.16.0.
+    Only supported in `legacyDNSMode`. Use `match_response` with response items instead.
+
 Match any IP with query response.
+
+### Response Fields
+
+!!! question "Since sing-box 1.14.0"
+
+Match fields for DNS response data. Require `match_response` to be set to `true`
+and a preceding rule with [`evaluate`](/configuration/dns/rule_action/#evaluate) action to populate the response.
+
+#### response_rcode
+
+Match DNS response code.
+
+Accepted values are the same as in the [predefined action rcode](/configuration/dns/rule_action/#rcode).
+
+#### response_answer
+
+Match DNS answer records.
+
+Record format is the same as in [predefined action answer](/configuration/dns/rule_action/#answer).
+
+#### response_ns
+
+Match DNS name server records.
+
+Record format is the same as in [predefined action ns](/configuration/dns/rule_action/#ns).
+
+#### response_extra
+
+Match DNS extra records.
+
+Record format is the same as in [predefined action extra](/configuration/dns/rule_action/#extra).
 
 ### Logical Fields
 

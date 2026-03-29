@@ -14,6 +14,36 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
+#### DNS 规则动作中的 `strategy`
+
+DNS 规则动作中的 `strategy` 已废弃，
+且仅在 `legacyDNSMode` 中可用。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### DNS 规则中的 `ip_accept_any`
+
+DNS 规则中的 `ip_accept_any` 已废弃，
+且仅在 `legacyDNSMode` 中可用。
+请使用 `match_response` 和响应项替代。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### DNS 规则中的 `rule_set_ip_cidr_accept_empty`
+
+DNS 规则中的 `rule_set_ip_cidr_accept_empty` 已废弃，
+且仅在 `legacyDNSMode` 中可用。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### 旧的地址筛选 DNS 规则项
+
+旧的地址筛选 DNS 规则项（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
+且仅在 `legacyDNSMode` 中可用。
+请使用 `match_response` 和 `evaluate` 动作替代。
+
+旧行为将在 sing-box 1.16.0 中被移除。
+
 ## 1.12.0
 
 #### 旧的 DNS 服务器格式

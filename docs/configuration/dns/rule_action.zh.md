@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [evaluate](#evaluate)  
+    :material-delete-clock: [strategy](#strategy)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [strategy](#strategy)  
@@ -41,6 +46,46 @@ icon: material/new-box
 在 `legacyDNSMode` 中为此查询设置域名策略。
 
 可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
+
+#### disable_cache
+
+在此查询中禁用缓存。
+
+#### rewrite_ttl
+
+重写 DNS 回应中的 TTL。
+
+#### client_subnet
+
+默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
+
+如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
+
+将覆盖 `dns.client_subnet`.
+
+### evaluate
+
+!!! question "自 sing-box 1.14.0 起"
+
+```json
+{
+  "action": "evaluate",
+  "server": "",
+  "disable_cache": false,
+  "rewrite_ttl": null,
+  "client_subnet": null
+}
+```
+
+`evaluate` 向指定服务器发送 DNS 查询并保存响应，供后续规则通过 [`match_response`](/zh/configuration/dns/rule/#match_response) 和响应字段进行匹配。与 `route` 不同，它**不会**终止规则评估。
+
+仅允许在顶层 DNS 规则中使用（不可在逻辑子规则内部使用）。
+
+#### server
+
+==必填==
+
+目标 DNS 服务器的标签。
 
 #### disable_cache
 

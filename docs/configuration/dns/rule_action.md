@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [evaluate](#evaluate)  
+    :material-delete-clock: [strategy](#strategy)
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [strategy](#strategy)  
@@ -41,6 +46,48 @@ Tag of target server.
 Set domain strategy for this query in `legacyDNSMode`.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
+
+#### disable_cache
+
+Disable cache and save cache in this query.
+
+#### rewrite_ttl
+
+Rewrite TTL in DNS responses.
+
+#### client_subnet
+
+Append a `edns0-subnet` OPT extra record with the specified IP prefix to every query by default.
+
+If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
+
+Will overrides `dns.client_subnet`.
+
+### evaluate
+
+!!! question "Since sing-box 1.14.0"
+
+```json
+{
+  "action": "evaluate",
+  "server": "",
+  "disable_cache": false,
+  "rewrite_ttl": null,
+  "client_subnet": null
+}
+```
+
+`evaluate` sends a DNS query to the specified server and saves the response for subsequent rules
+to match against using [`match_response`](/configuration/dns/rule/#match_response) and response fields.
+Unlike `route`, it does **not** terminate rule evaluation.
+
+Only allowed on top-level DNS rules (not inside logical sub-rules).
+
+#### server
+
+==Required==
+
+Tag of target server.
 
 #### disable_cache
 
