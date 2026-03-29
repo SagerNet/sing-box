@@ -298,6 +298,26 @@ func fixedHTTPSHintResponse(question mDNS.Question, addresses ...netip.Addr) *mD
 	return response
 }
 
+func fixedHTTPSHintResponseWithRawHints(question mDNS.Question, ipv4Hints []net.IP, ipv6Hints []net.IP) *mDNS.Msg {
+	response := fixedHTTPSHintResponse(question)
+	https := response.Answer[0].(*mDNS.HTTPS)
+	if len(ipv4Hints) > 0 {
+		hints := make([]net.IP, 0, len(ipv4Hints))
+		for _, ip := range ipv4Hints {
+			hints = append(hints, net.IP(append([]byte(nil), ip...)))
+		}
+		https.SVCB.Value = append(https.SVCB.Value, &mDNS.SVCBIPv4Hint{Hint: hints})
+	}
+	if len(ipv6Hints) > 0 {
+		hints := make([]net.IP, 0, len(ipv6Hints))
+		for _, ip := range ipv6Hints {
+			hints = append(hints, net.IP(append([]byte(nil), ip...)))
+		}
+		https.SVCB.Value = append(https.SVCB.Value, &mDNS.SVCBIPv6Hint{Hint: hints})
+	}
+	return response
+}
+
 func TestValidateLegacyDNSModeDisabledRules_RequireMatchResponseForDirectIPCIDR(t *testing.T) {
 	t.Parallel()
 
@@ -967,6 +987,65 @@ func TestExchangeLegacyDNSModeDisabledEvaluateMatchResponseRouteWithHTTPSHints(t
 			switch transport.Tag() {
 			case "upstream":
 				return fixedHTTPSHintResponse(message.Question[0], netip.MustParseAddr("1.1.1.1")), nil
+			case "selected":
+				return fixedHTTPSHintResponse(message.Question[0], netip.MustParseAddr("8.8.8.8")), nil
+			default:
+				return nil, errors.New("unexpected transport")
+			}
+		},
+	}
+	rules := []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					Domain: badoption.Listable[string]{"example.com"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeEvaluate,
+					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					MatchResponse: true,
+					IPCIDR:        badoption.Listable[string]{"1.1.1.0/24"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	}
+	router := newTestRouter(t, rules, transportManager, client)
+
+	response, err := router.Exchange(context.Background(), &mDNS.Msg{
+		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeHTTPS)},
+	}, adapter.DNSQueryOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("8.8.8.8")}, MessageToAddresses(response))
+}
+
+func TestExchangeLegacyDNSModeDisabledEvaluateMatchResponseRouteWithMappedHTTPSIPv4Hints(t *testing.T) {
+	t.Parallel()
+
+	transportManager := &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		},
+	}
+	client := &fakeDNSClient{
+		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+			switch transport.Tag() {
+			case "upstream":
+				return fixedHTTPSHintResponseWithRawHints(message.Question[0], []net.IP{net.ParseIP("1.1.1.1")}, nil), nil
 			case "selected":
 				return fixedHTTPSHintResponse(message.Question[0], netip.MustParseAddr("8.8.8.8")), nil
 			default:

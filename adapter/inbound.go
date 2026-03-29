@@ -4,13 +4,11 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"strings"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/miekg/dns"
@@ -145,8 +143,15 @@ func DNSResponseAddresses(response *dns.Msg) []netip.Addr {
 			addresses = append(addresses, M.AddrFromIP(record.AAAA))
 		case *dns.HTTPS:
 			for _, value := range record.SVCB.Value {
-				if value.Key() == dns.SVCB_IPV4HINT || value.Key() == dns.SVCB_IPV6HINT {
-					addresses = append(addresses, common.Map(strings.Split(value.String(), ","), M.ParseAddr)...)
+				switch hint := value.(type) {
+				case *dns.SVCBIPv4Hint:
+					for _, ip := range hint.Hint {
+						addresses = append(addresses, M.AddrFromIP(ip).Unmap())
+					}
+				case *dns.SVCBIPv6Hint:
+					for _, ip := range hint.Hint {
+						addresses = append(addresses, M.AddrFromIP(ip))
+					}
 				}
 			}
 		}
