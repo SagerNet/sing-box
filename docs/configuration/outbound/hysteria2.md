@@ -1,3 +1,8 @@
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [hop_interval_max](#hop_interval_max)  
+    :material-plus: [bbr_profile](#bbr_profile)
+
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [server_ports](#server_ports)  
@@ -9,13 +14,14 @@
 {
   "type": "hysteria2",
   "tag": "hy2-out",
-  
+
   "server": "127.0.0.1",
   "server_port": 1080,
   "server_ports": [
     "2080:3000"
   ],
   "hop_interval": "",
+  "hop_interval_max": "",
   "up_mbps": 100,
   "down_mbps": 100,
   "obfs": {
@@ -25,8 +31,9 @@
   "password": "goofy_ahh_password",
   "network": "tcp",
   "tls": {},
+  "bbr_profile": "",
   "brutal_debug": false,
-  
+
   ... // Dial Fields
 }
 ```
@@ -75,6 +82,14 @@ Port hopping interval.
 
 `30s` is used by default.
 
+#### hop_interval_max
+
+!!! question "Since sing-box 1.14.0"
+
+Maximum port hopping interval, used for randomization.
+
+If set, the actual hop interval will be randomly chosen between `hop_interval` and `hop_interval_max`.
+
 #### up_mbps, down_mbps
 
 Max bandwidth, in Mbps.
@@ -108,6 +123,14 @@ Both is enabled by default.
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
+
+#### bbr_profile
+
+!!! question "Since sing-box 1.14.0"
+
+BBR congestion control algorithm profile, one of `conservative` `standard` `aggressive`.
+
+`standard` is used by default.
 
 #### brutal_debug
 
