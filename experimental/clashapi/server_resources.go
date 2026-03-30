@@ -101,11 +101,17 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 	}
 	defer reader.Close()
 	trimDir := zipIsInSingleDirectory(reader.File)
+
+	outputDir := filepath.Clean(output)
+	isOutside := func(rel string) bool {
+		return rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator))
+	}
 	for _, file := range reader.File {
 		if file.FileInfo().IsDir() {
 			continue
 		}
-		pathElements := strings.Split(file.Name, "/")
+		zipName := strings.ReplaceAll(file.Name, "\\", "/")
+		pathElements := strings.Split(zipName, "/")
 		if trimDir {
 			pathElements = pathElements[1:]
 		}
@@ -113,11 +119,20 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 		if len(pathElements) > 1 {
 			saveDirectory = filepath.Join(saveDirectory, filepath.Join(pathElements[:len(pathElements)-1]...))
 		}
-		err = os.MkdirAll(saveDirectory, 0o755)
+		savePath := filepath.Join(saveDirectory, pathElements[len(pathElements)-1])
+		savePath = filepath.Clean(savePath)
+		rel, relErr := filepath.Rel(outputDir, savePath)
+		if relErr != nil || isOutside(rel) {
+			baseName := filepath.Base(zipName)
+			if baseName == "" || baseName == "." || baseName == ".." || baseName == string(os.PathSeparator) {
+				continue
+			}
+			savePath = filepath.Join(outputDir, baseName)
+		}
+		err = os.MkdirAll(filepath.Dir(savePath), 0o755)
 		if err != nil {
 			return err
 		}
-		savePath := filepath.Join(saveDirectory, pathElements[len(pathElements)-1])
 		err = downloadZIPEntry(s.ctx, file, savePath)
 		if err != nil {
 			return err
