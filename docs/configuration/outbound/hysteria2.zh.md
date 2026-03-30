@@ -1,3 +1,8 @@
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [hop_interval_max](#hop_interval_max)  
+    :material-plus: [bbr_profile](#bbr_profile)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [server_ports](#server_ports)  
@@ -16,6 +21,7 @@
     "2080:3000"
   ],
   "hop_interval": "",
+  "hop_interval_max": "",
   "up_mbps": 100,
   "down_mbps": 100,
   "obfs": {
@@ -25,8 +31,9 @@
   "password": "goofy_ahh_password",
   "network": "tcp",
   "tls": {},
+  "bbr_profile": "",
   "brutal_debug": false,
-  
+
   ... // 拨号字段
 }
 ```
@@ -73,6 +80,14 @@
 
 默认使用 `30s`。
 
+#### hop_interval_max
+
+!!! question "自 sing-box 1.14.0 起"
+
+最大端口跳跃间隔，用于随机化。
+
+如果设置，实际跳跃间隔将在 `hop_interval` 和 `hop_interval_max` 之间随机选择。
+
 #### up_mbps, down_mbps
 
 最大带宽。
@@ -106,6 +121,14 @@ QUIC 流量混淆器密码.
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#出站)。
+
+#### bbr_profile
+
+!!! question "自 sing-box 1.14.0 起"
+
+BBR 拥塞控制算法配置，可选 `conservative` `standard` `aggressive`。
+
+默认使用 `standard`。
 
 #### brutal_debug
 

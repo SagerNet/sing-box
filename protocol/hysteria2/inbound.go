@@ -125,6 +125,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		UDPTimeout:            udpTimeout,
 		Handler:               inbound,
 		MasqueradeHandler:     masqueradeHandler,
+		BBRProfile:            options.BBRProfile,
 	})
 	if err != nil {
 		return nil, err
