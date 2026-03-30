@@ -73,12 +73,14 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		ServerAddress:      options.ServerOptions.Build(),
 		ServerPorts:        options.ServerPorts,
 		HopInterval:        time.Duration(options.HopInterval),
+		HopIntervalMax:     time.Duration(options.HopIntervalMax),
 		SendBPS:            uint64(options.UpMbps * hysteria.MbpsToBps),
 		ReceiveBPS:         uint64(options.DownMbps * hysteria.MbpsToBps),
 		SalamanderPassword: salamanderPassword,
 		Password:           options.Password,
 		TLSConfig:          tlsConfig,
 		UDPDisabled:        !common.Contains(networkList, N.NetworkUDP),
+		BBRProfile:         options.BBRProfile,
 	})
 	if err != nil {
 		return nil, err
