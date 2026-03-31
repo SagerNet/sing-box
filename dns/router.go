@@ -759,7 +759,9 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 						return nil, tun.ErrDrop
 					}
 				case *R.RuleActionPredefined:
-					return action.Response(message), nil
+					err = nil
+					response = action.Response(message)
+					goto done
 				}
 			}
 			responseCheck := addressLimitResponseCheck(rule, metadata)
@@ -787,6 +789,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 			break
 		}
 	}
+done:
 	if err != nil {
 		return nil, err
 	}
