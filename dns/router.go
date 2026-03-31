@@ -501,6 +501,9 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			}
 			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
 			if err != nil {
+				if E.IsClosedOrCanceled(err) {
+					return exchangeWithRulesResult{err: err}
+				}
 				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
 				savedResponse = nil
 				continue
