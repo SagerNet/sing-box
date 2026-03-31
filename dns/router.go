@@ -681,9 +681,6 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 	if exchangeResult.response.Rcode != mDNS.RcodeSuccess {
 		return result, RcodeError(exchangeResult.response.Rcode)
 	}
-	if !lookupStrategyAllowsQueryType(r.resolveLookupStrategy(options), qType) {
-		return result, nil
-	}
 	result.addresses = filterAddressesByQueryType(MessageToAddresses(exchangeResult.response), qType)
 	return result, nil
 }
