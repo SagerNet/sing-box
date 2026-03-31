@@ -544,6 +544,15 @@ See [DNS Rule Actions](../rule_action/) for details.
 
     Moved to [DNS Rule Action](../rule_action#route).
 
+### Legacy DNS Mode
+
+`legacyDNSMode` is an internal compatibility mode that is automatically detected from your DNS rule
+configuration. It is disabled when any rule uses features introduced in sing-box 1.14.0 such as
+`evaluate`, `match_response`, response fields (`response_rcode`, `response_answer`, etc.),
+`query_type`, or `ip_version`. When disabled, `ip_cidr` and `ip_is_private` require `match_response`
+to be set, and deprecated fields like `strategy`, `ip_accept_any`, and `rule_set_ip_cidr_accept_empty`
+are no longer accepted.
+
 ### Address Filter Fields
 
 Only takes effect for address requests (A/AAAA/HTTPS). When the query results do not match the address filtering rule items, the current rule will be skipped.

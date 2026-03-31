@@ -39,11 +39,11 @@ Tag of target server.
 
 !!! question "Since sing-box 1.12.0"
 
-!!! warning
+!!! failure "Deprecated in sing-box 1.14.0"
 
-    `strategy` is deprecated and only supported in `legacyDNSMode`.
+    `strategy` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0.
 
-Set domain strategy for this query in `legacyDNSMode`.
+Set domain strategy for this query. Only supported when `legacyDNSMode` is active.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
