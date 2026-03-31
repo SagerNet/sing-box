@@ -267,7 +267,8 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, error) {
 	}
 	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
 	for i, ruleOptions := range r.rawRules {
-		dnsRule, err := R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyDNSMode)
+		var dnsRule adapter.DNSRule
+		dnsRule, err = R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyDNSMode)
 		if err != nil {
 			closeRules(newRules)
 			return nil, false, E.Cause(err, "parse dns rule[", i, "]")
@@ -276,7 +277,7 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, error) {
 	}
 	if startRules {
 		for i, rule := range newRules {
-			err := rule.Start()
+			err = rule.Start()
 			if err != nil {
 				closeRules(newRules)
 				return nil, false, E.Cause(err, "initialize DNS rule[", i, "]")
