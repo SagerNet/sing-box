@@ -133,7 +133,7 @@ icon: material/new-box
 - `default`: 返回 REFUSED。
 - `drop`: 丢弃请求。
 
-默认使用 `defualt`。
+默认使用 `default`。
 
 #### no_drop
 
