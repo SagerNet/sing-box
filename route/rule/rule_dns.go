@@ -418,13 +418,13 @@ func (r *LogicalDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 }
 
 func matchDNSHeadlessRuleStatesForMatch(rule adapter.HeadlessRule, metadata *adapter.InboundContext) ruleMatchStateSet {
-	switch rule := rule.(type) {
+	switch typedRule := rule.(type) {
 	case *DefaultDNSRule:
-		return rule.matchStatesForMatch(metadata)
+		return typedRule.matchStatesForMatch(metadata)
 	case *LogicalDNSRule:
-		return rule.matchStatesForMatch(metadata)
+		return typedRule.matchStatesForMatch(metadata)
 	default:
-		return matchHeadlessRuleStates(rule, metadata)
+		return matchHeadlessRuleStates(typedRule, metadata)
 	}
 }
 
