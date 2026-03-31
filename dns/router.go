@@ -916,7 +916,6 @@ func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundCo
 	responseMetadata := *metadata
 	return func(response *mDNS.Msg) bool {
 		checkMetadata := responseMetadata
-		checkMetadata.DNSResponse = response
 		return rule.MatchAddressLimit(&checkMetadata, response)
 	}
 }
