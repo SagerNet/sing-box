@@ -584,17 +584,6 @@ func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions) C.Domain
 	return r.defaultDomainStrategy
 }
 
-func lookupStrategyAllowsQueryType(strategy C.DomainStrategy, qType uint16) bool {
-	switch strategy {
-	case C.DomainStrategyIPv4Only:
-		return qType == mDNS.TypeA
-	case C.DomainStrategyIPv6Only:
-		return qType == mDNS.TypeAAAA
-	default:
-		return true
-	}
-}
-
 func withLookupQueryMetadata(ctx context.Context, qType uint16) context.Context {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.QueryType = qType
