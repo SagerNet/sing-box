@@ -135,3 +135,23 @@ func TestNewDNSRuleRejectsNestedRuleAction(t *testing.T) {
 	}, true, false)
 	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
 }
+
+func TestNewDNSRuleRejectsReplyRejectMethod(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewDNSRule(context.Background(), log.NewNOPFactory().NewLogger("dns"), option.DNSRule{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: []string{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeReject,
+				RejectOptions: option.RejectActionOptions{
+					Method: C.RuleActionRejectMethodReply,
+				},
+			},
+		},
+	}, false, false)
+	require.ErrorContains(t, err, "reject method `reply` is not supported for DNS rules")
+}

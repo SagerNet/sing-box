@@ -24,6 +24,10 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		if !checkServer && options.DefaultOptions.Action == C.RuleActionTypeEvaluate {
 			return nil, E.New(options.DefaultOptions.Action, " is only allowed on top-level DNS rules")
 		}
+		err := validateDNSRuleAction(options.DefaultOptions.DNSRuleAction)
+		if err != nil {
+			return nil, err
+		}
 		switch options.DefaultOptions.Action {
 		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
@@ -38,6 +42,10 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		if !checkServer && options.LogicalOptions.Action == C.RuleActionTypeEvaluate {
 			return nil, E.New(options.LogicalOptions.Action, " is only allowed on top-level DNS rules")
 		}
+		err := validateDNSRuleAction(options.LogicalOptions.DNSRuleAction)
+		if err != nil {
+			return nil, err
+		}
 		switch options.LogicalOptions.Action {
 		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.LogicalOptions.RouteOptions.Server == "" && checkServer {
@@ -48,6 +56,13 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
+}
+
+func validateDNSRuleAction(action option.DNSRuleAction) error {
+	if action.Action == C.RuleActionTypeReject && action.RejectOptions.Method == C.RuleActionRejectMethodReply {
+		return E.New("reject method `reply` is not supported for DNS rules")
+	}
+	return nil
 }
 
 var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
