@@ -556,9 +556,8 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			}
 		}
 	}
-	queryOptions := effectiveOptions
 	transport := r.transport.Default()
-	exchangeOptions := queryOptions
+	exchangeOptions := effectiveOptions
 	if exchangeOptions.Strategy == C.DomainStrategyAsIS {
 		exchangeOptions.Strategy = r.defaultDomainStrategy
 	}
