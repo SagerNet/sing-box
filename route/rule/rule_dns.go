@@ -379,7 +379,6 @@ func (r *DefaultDNSRule) matchStatesForMatchWithMissingResponse(metadata *adapte
 			return 0
 		}
 		matchMetadata := *metadata
-		matchMetadata.IgnoreDestinationIPCIDRMatch = false
 		matchMetadata.DestinationAddressMatchFromResponse = true
 		return r.abstractDefaultRule.matchStates(&matchMetadata)
 	}
@@ -389,7 +388,6 @@ func (r *DefaultDNSRule) matchStatesForMatchWithMissingResponse(metadata *adapte
 func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
 	matchMetadata := *metadata
 	matchMetadata.DNSResponse = response
-	matchMetadata.IgnoreDestinationIPCIDRMatch = false
 	matchMetadata.DestinationAddressMatchFromResponse = true
 	return !r.abstractDefaultRule.matchStates(&matchMetadata).isEmpty()
 }
@@ -511,7 +509,6 @@ func (r *LogicalDNSRule) LegacyPreMatch(metadata *adapter.InboundContext) bool {
 func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
 	matchMetadata := *metadata
 	matchMetadata.DNSResponse = response
-	matchMetadata.IgnoreDestinationIPCIDRMatch = false
 	matchMetadata.DestinationAddressMatchFromResponse = true
 	return !r.abstractLogicalRule.matchStates(&matchMetadata).isEmpty()
 }

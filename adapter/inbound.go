@@ -99,10 +99,9 @@ type InboundContext struct {
 
 	SourceAddressMatch           bool
 	SourcePortMatch              bool
-	DestinationAddressMatch      bool
-	DestinationPortMatch         bool
-	DidMatch                     bool
-	IgnoreDestinationIPCIDRMatch bool
+	DestinationAddressMatch bool
+	DestinationPortMatch    bool
+	DidMatch                bool
 }
 
 func (c *InboundContext) ResetRuleCache() {
