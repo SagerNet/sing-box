@@ -70,3 +70,22 @@ func TestDNSOptionsAcceptsTypedServers(t *testing.T) {
 	require.Equal(t, "1.1.1.1", options.Servers[0].Options.(*RemoteDNSServerOptions).Server)
 	require.Equal(t, C.DNSTypeFakeIP, options.Servers[1].Type)
 }
+
+func TestDNSRuleActionEvaluateRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	action := DNSRuleAction{
+		Action: C.RuleActionTypeEvaluate,
+		RouteOptions: DNSRouteActionOptions{
+			Server: "default",
+		},
+	}
+
+	content, err := json.Marshal(action)
+	require.NoError(t, err)
+
+	var decoded DNSRuleAction
+	err = json.UnmarshalContext(context.Background(), content, &decoded)
+	require.NoError(t, err)
+	require.Equal(t, action, decoded)
+}
