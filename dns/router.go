@@ -50,9 +50,9 @@ type Router struct {
 	platformInterface               adapter.PlatformInterface
 	legacyDNSMode                   bool
 	rulesAccess                     sync.RWMutex
+	rebuildAccess                   sync.Mutex
 	closing                         bool
 	ruleSetCallbacks                []dnsRuleSetCallback
-	runtimeRuleError                error
 	addressFilterDeprecatedReported bool
 	ruleStrategyDeprecatedReported  bool
 }
@@ -116,10 +116,18 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			return err
 		}
 		monitor.Start("register DNS rule-set callbacks")
-		err = r.registerRuleSetCallbacks()
+		needsRulesRefresh, err := r.registerRuleSetCallbacks()
 		monitor.Finish()
 		if err != nil {
 			return err
+		}
+		if needsRulesRefresh {
+			monitor.Start("refresh DNS rules after callback registration")
+			err = r.rebuildRules(true)
+			monitor.Finish()
+			if err != nil {
+				r.logger.Error(E.Cause(err, "refresh DNS rules after callback registration"))
+			}
 		}
 	}
 	return nil
@@ -133,7 +141,6 @@ func (r *Router) Close() error {
 	r.ruleSetCallbacks = nil
 	runtimeRules := r.rules
 	r.rules = nil
-	r.runtimeRuleError = nil
 	for _, callback := range callbacks {
 		callback.ruleSet.UnregisterCallback(callback.element)
 	}
@@ -150,6 +157,8 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) rebuildRules(startRules bool) error {
+	r.rebuildAccess.Lock()
+	defer r.rebuildAccess.Unlock()
 	if r.isClosing() {
 		return nil
 	}
@@ -177,7 +186,6 @@ func (r *Router) rebuildRules(startRules bool) error {
 	oldRules := r.rules
 	r.rules = newRules
 	r.legacyDNSMode = legacyDNSMode
-	r.runtimeRuleError = nil
 	if shouldReportAddressFilterDeprecated {
 		r.addressFilterDeprecatedReported = true
 	}
@@ -246,20 +254,20 @@ func closeRules(rules []adapter.DNSRule) {
 	}
 }
 
-func (r *Router) registerRuleSetCallbacks() error {
+func (r *Router) registerRuleSetCallbacks() (bool, error) {
 	tags := referencedDNSRuleSetTags(r.rawRules)
 	if len(tags) == 0 {
-		return nil
+		return false, nil
 	}
 	r.rulesAccess.RLock()
 	if len(r.ruleSetCallbacks) > 0 {
 		r.rulesAccess.RUnlock()
-		return nil
+		return true, nil
 	}
 	r.rulesAccess.RUnlock()
 	router := service.FromContext[adapter.Router](r.ctx)
 	if router == nil {
-		return E.New("router service not found")
+		return false, E.New("router service not found")
 	}
 	callbacks := make([]dnsRuleSetCallback, 0, len(tags))
 	for _, tag := range tags {
@@ -268,14 +276,11 @@ func (r *Router) registerRuleSetCallbacks() error {
 			for _, callback := range callbacks {
 				callback.ruleSet.UnregisterCallback(callback.element)
 			}
-			return E.New("rule-set not found: ", tag)
+			return false, E.New("rule-set not found: ", tag)
 		}
 		element := ruleSet.RegisterCallback(func(adapter.RuleSet) {
 			err := r.rebuildRules(true)
 			if err != nil {
-				r.rulesAccess.Lock()
-				r.runtimeRuleError = err
-				r.rulesAccess.Unlock()
 				r.logger.Error(E.Cause(err, "rebuild DNS rules after rule-set update"))
 			}
 		})
@@ -293,7 +298,7 @@ func (r *Router) registerRuleSetCallbacks() error {
 	for _, callback := range callbacks {
 		callback.ruleSet.UnregisterCallback(callback.element)
 	}
-	return nil
+	return true, nil
 }
 
 func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, isAddressQuery bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, adapter.DNSRule, int) {
@@ -653,9 +658,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	}
 	r.rulesAccess.RLock()
 	defer r.rulesAccess.RUnlock()
-	if r.runtimeRuleError != nil {
-		return nil, r.runtimeRuleError
-	}
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	var (
 		response  *mDNS.Msg
@@ -760,9 +762,6 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
 	r.rulesAccess.RLock()
 	defer r.rulesAccess.RUnlock()
-	if r.runtimeRuleError != nil {
-		return nil, r.runtimeRuleError
-	}
 	var (
 		responseAddrs []netip.Addr
 		err           error
