@@ -24,6 +24,7 @@ icon: material/new-box
   "control_url": "",
   "ephemeral": false,
   "hostname": "",
+  "port": 0,
   "accept_routes": false,
   "exit_node": "",
   "exit_node_allow_lan_access": false,
@@ -77,6 +78,12 @@ The hostname of the node.
 System hostname is used by default.
 
 Example: `localhost`
+
+#### port
+
+The UDP port to listen on for WireGuard and peer-to-peer traffic.
+
+If not set or set to 0, a port is automatically selected.
 
 #### accept_routes
 

@@ -219,6 +219,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		AuthKey:       options.AuthKey,
 		ControlURL:    options.ControlURL,
 		AdvertiseTags: options.AdvertiseTags,
+		Port:          common.PtrValueOrDefault(options.Port),
 		Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
 		LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
 			return dnsRouter.Lookup(ctx, host, outboundDialer.(dialer.ResolveDialer).QueryOptions())
