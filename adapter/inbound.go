@@ -118,13 +118,6 @@ func (c *InboundContext) ResetRuleMatchCache() {
 	c.DidMatch = false
 }
 
-func (c *InboundContext) DestinationAddressesForMatch() []netip.Addr {
-	if c.DestinationAddressMatchFromResponse {
-		return DNSResponseAddresses(c.DNSResponse)
-	}
-	return c.DestinationAddresses
-}
-
 func (c *InboundContext) DNSResponseAddressesForMatch() []netip.Addr {
 	return DNSResponseAddresses(c.DNSResponse)
 }
