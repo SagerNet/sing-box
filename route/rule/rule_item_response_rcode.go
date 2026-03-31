@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"github.com/miekg/dns"
 	"github.com/sagernet/sing-box/adapter"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -20,5 +21,5 @@ func (r *DNSResponseRCodeItem) Match(metadata *adapter.InboundContext) bool {
 }
 
 func (r *DNSResponseRCodeItem) String() string {
-	return F.ToString("response_rcode=", r.rcode)
+	return F.ToString("response_rcode=", dns.RcodeToString[r.rcode])
 }

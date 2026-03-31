@@ -410,6 +410,9 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 }
 
 func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOptions R.RuleActionDNSRouteOptions) {
+	// Strategy is intentionally skipped here. A non-default DNS rule action strategy
+	// forces legacy mode via resolveLegacyDNSMode, so this path is only reachable
+	// when strategy remains at its default value.
 	if routeOptions.DisableCache {
 		options.DisableCache = true
 	}
@@ -658,7 +661,7 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 			RecursionDesired: true,
 		},
 		Question: []mDNS.Question{{
-			Name:   mDNS.Fqdn(FqdnToDomain(domain)),
+			Name:   mDNS.Fqdn(domain),
 			Qtype:  qType,
 			Qclass: mDNS.ClassINET,
 		}},
