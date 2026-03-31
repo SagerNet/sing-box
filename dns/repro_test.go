@@ -2,13 +2,13 @@ package dns
 
 import (
 	"context"
-	"errors"
 	"net/netip"
 	"testing"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
 
 	mDNS "github.com/miekg/dns"
@@ -35,12 +35,12 @@ func TestReproLookupWithRulesUsesRequestStrategy(t *testing.T) {
 		},
 	})
 
-	addrs, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
+	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		Strategy: C.DomainStrategyIPv4Only,
 	})
 	require.NoError(t, err)
 	require.Equal(t, []uint16{mDNS.TypeA}, qTypes)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addrs)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
 func TestReproLogicalMatchResponseIPCIDR(t *testing.T) {
@@ -62,7 +62,7 @@ func TestReproLogicalMatchResponseIPCIDR(t *testing.T) {
 			case "selected":
 				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("8.8.8.8")}, 60), nil
 			default:
-				return nil, errors.New("unexpected transport")
+				return nil, E.New("unexpected transport")
 			}
 		},
 	}
