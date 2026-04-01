@@ -1956,7 +1956,7 @@ func TestExchangeLegacyDNSModeDisabledEvaluateExchangeFailureUsesMatchResponseBo
 	}
 }
 
-func TestExchangeLegacyDNSModeDisabledRespondReturnsSavedResponse(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledRespondReturnsEvaluatedResponse(t *testing.T) {
 	t.Parallel()
 
 	var exchanges []string
@@ -2008,7 +2008,7 @@ func TestExchangeLegacyDNSModeDisabledRespondReturnsSavedResponse(t *testing.T) 
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("1.1.1.1")}, MessageToAddresses(response))
 }
 
-func TestLookupLegacyDNSModeDisabledRespondReturnsSavedResponse(t *testing.T) {
+func TestLookupLegacyDNSModeDisabledRespondReturnsEvaluatedResponse(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
@@ -2065,7 +2065,7 @@ func TestLookupLegacyDNSModeDisabledRespondReturnsSavedResponse(t *testing.T) {
 	}, addresses)
 }
 
-func TestExchangeLegacyDNSModeDisabledRespondWithoutSavedResponseReturnsError(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledRespondWithoutEvaluatedResponseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}

@@ -81,7 +81,7 @@ icon: material/new-box
 }
 ```
 
-`evaluate` 向指定服务器发送 DNS 查询并保存响应，供后续规则通过 [`match_response`](/zh/configuration/dns/rule/#match_response) 和响应字段进行匹配。与 `route` 不同，它**不会**终止规则评估。
+`evaluate` 向指定服务器发送 DNS 查询并保存已评估的响应，供后续规则通过 [`match_response`](/zh/configuration/dns/rule/#match_response) 和响应字段进行匹配。与 `route` 不同，它**不会**终止规则评估。
 
 仅允许在顶层 DNS 规则中使用（不可在逻辑子规则内部使用）。
 使用 [`match_response`](/zh/configuration/dns/rule/#match_response) 或响应匹配字段的规则，
@@ -120,11 +120,11 @@ icon: material/new-box
 }
 ```
 
-`respond` 会终止规则评估，并直接返回前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作保存的 DNS 响应。
+`respond` 会终止规则评估，并直接返回前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作保存的已评估的响应。
 
 此动作不会发起新的 DNS 查询，也没有额外选项。
 
-只能用于前面已有顶层 `evaluate` 规则的场景。如果运行时命中该动作时没有已保存的响应，则请求会直接返回错误，而不是继续匹配后续规则。
+只能用于前面已有顶层 `evaluate` 规则的场景。如果运行时命中该动作时没有已评估的响应，则请求会直接返回错误，而不是继续匹配后续规则。
 
 ### route-options
 

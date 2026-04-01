@@ -81,7 +81,7 @@ Will override `dns.client_subnet`.
 }
 ```
 
-`evaluate` sends a DNS query to the specified server and saves the response for subsequent rules
+`evaluate` sends a DNS query to the specified server and saves the evaluated response for subsequent rules
 to match against using [`match_response`](/configuration/dns/rule/#match_response) and response fields.
 Unlike `route`, it does **not** terminate rule evaluation.
 
@@ -126,7 +126,7 @@ Will override `dns.client_subnet`.
 
 This action does not send a new DNS query and has no extra options.
 
-Only allowed after a preceding top-level `evaluate` rule. If the action is reached without a saved response at runtime, the request fails with an error instead of falling through to later rules.
+Only allowed after a preceding top-level `evaluate` rule. If the action is reached without an evaluated response at runtime, the request fails with an error instead of falling through to later rules.
 
 ### route-options
 

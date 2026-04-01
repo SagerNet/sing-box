@@ -475,7 +475,7 @@ type exchangeWithRulesResult struct {
 	err          error
 }
 
-const dnsRespondMissingResponseMessage = "respond action requires a saved DNS response from a preceding evaluate action"
+const dnsRespondMissingResponseMessage = "respond action requires an evaluated response from a preceding evaluate action"
 
 func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) exchangeWithRulesResult {
 	metadata := adapter.ContextFrom(ctx)
@@ -483,11 +483,11 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 		panic("no context")
 	}
 	effectiveOptions := options
-	var savedResponse *mDNS.Msg
-	var savedTransport adapter.DNSTransport
+	var evaluatedResponse *mDNS.Msg
+	var evaluatedTransport adapter.DNSTransport
 	for currentRuleIndex, currentRule := range rules {
 		metadata.ResetRuleCache()
-		metadata.DNSResponse = savedResponse
+		metadata.DNSResponse = evaluatedResponse
 		metadata.DestinationAddressMatchFromResponse = false
 		if !currentRule.Match(metadata) {
 			continue
@@ -502,8 +502,8 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			switch status {
 			case dnsRouteStatusMissing:
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
-				savedResponse = nil
-				savedTransport = nil
+				evaluatedResponse = nil
+				evaluatedTransport = nil
 				continue
 			case dnsRouteStatusSkipped:
 				continue
@@ -518,21 +518,21 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 					return exchangeWithRulesResult{err: err}
 				}
 				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
-				savedResponse = nil
-				savedTransport = nil
+				evaluatedResponse = nil
+				evaluatedTransport = nil
 				continue
 			}
-			savedResponse = response
-			savedTransport = transport
+			evaluatedResponse = response
+			evaluatedTransport = transport
 		case *R.RuleActionRespond:
-			if savedResponse == nil {
+			if evaluatedResponse == nil {
 				return exchangeWithRulesResult{
 					err: E.New(dnsRespondMissingResponseMessage),
 				}
 			}
 			return exchangeWithRulesResult{
-				response:  savedResponse,
-				transport: savedTransport,
+				response:  evaluatedResponse,
+				transport: evaluatedTransport,
 			}
 		case *R.RuleActionDNSRoute:
 			queryOptions := effectiveOptions
