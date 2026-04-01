@@ -68,7 +68,7 @@ func TestNewRuleRejectsNestedRuleAction(t *testing.T) {
 			},
 		},
 	}, false)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, option.RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestNewDNSRulePreservesImplicitTopLevelDefaultAction(t *testing.T) {
@@ -133,7 +133,7 @@ func TestNewDNSRuleRejectsNestedRuleAction(t *testing.T) {
 			},
 		},
 	}, true, false)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, option.DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestNewDNSRuleRejectsReplyRejectMethod(t *testing.T) {

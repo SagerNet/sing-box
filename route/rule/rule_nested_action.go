@@ -8,11 +8,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-const (
-	routeRuleActionNestedUnsupportedMessage = "rule action is not supported in nested rules"
-	dnsRuleActionNestedUnsupportedMessage   = "DNS rule action is not supported in nested rules"
-)
-
 func ValidateNoNestedRuleActions(rule option.Rule) error {
 	return validateNoNestedRuleActions(rule, false)
 }
@@ -23,7 +18,7 @@ func ValidateNoNestedDNSRuleActions(rule option.DNSRule) error {
 
 func validateNoNestedRuleActions(rule option.Rule, nested bool) error {
 	if nested && ruleHasConfiguredAction(rule) {
-		return E.New(routeRuleActionNestedUnsupportedMessage)
+		return E.New(option.RouteRuleActionNestedUnsupportedMessage)
 	}
 	if rule.Type != C.RuleTypeLogical {
 		return nil
@@ -39,7 +34,7 @@ func validateNoNestedRuleActions(rule option.Rule, nested bool) error {
 
 func validateNoNestedDNSRuleActions(rule option.DNSRule, nested bool) error {
 	if nested && dnsRuleHasConfiguredAction(rule) {
-		return E.New(dnsRuleActionNestedUnsupportedMessage)
+		return E.New(option.DNSRuleActionNestedUnsupportedMessage)
 	}
 	if rule.Type != C.RuleTypeLogical {
 		return nil

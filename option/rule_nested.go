@@ -13,8 +13,8 @@ import (
 type nestedRuleDepthContextKey struct{}
 
 const (
-	routeRuleActionNestedUnsupportedMessage = "rule action is not supported in nested rules"
-	dnsRuleActionNestedUnsupportedMessage   = "DNS rule action is not supported in nested rules"
+	RouteRuleActionNestedUnsupportedMessage = "rule action is not supported in nested rules"
+	DNSRuleActionNestedUnsupportedMessage   = "DNS rule action is not supported in nested rules"
 )
 
 var (
@@ -27,11 +27,11 @@ func nestedRuleChildContext(ctx context.Context) context.Context {
 }
 
 func rejectNestedRouteRuleAction(ctx context.Context, content []byte) error {
-	return rejectNestedRuleAction(ctx, content, routeRuleActionKeys, routeRuleActionNestedUnsupportedMessage)
+	return rejectNestedRuleAction(ctx, content, routeRuleActionKeys, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func rejectNestedDNSRuleAction(ctx context.Context, content []byte) error {
-	return rejectNestedRuleAction(ctx, content, dnsRuleActionKeys, dnsRuleActionNestedUnsupportedMessage)
+	return rejectNestedRuleAction(ctx, content, dnsRuleActionKeys, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func nestedRuleDepth(ctx context.Context) int {

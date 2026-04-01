@@ -21,7 +21,7 @@ func TestRuleRejectsNestedDefaultRuleAction(t *testing.T) {
 			{"domain": "example.com", "outbound": "direct"}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleRejectsNestedLogicalRuleAction(t *testing.T) {
@@ -41,7 +41,7 @@ func TestRuleRejectsNestedLogicalRuleAction(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleRejectsNestedDefaultRuleZeroValueOutbound(t *testing.T) {
@@ -55,7 +55,7 @@ func TestRuleRejectsNestedDefaultRuleZeroValueOutbound(t *testing.T) {
 			{"domain": "example.com", "outbound": ""}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleRejectsNestedDefaultRuleZeroValueRouteOption(t *testing.T) {
@@ -69,7 +69,7 @@ func TestRuleRejectsNestedDefaultRuleZeroValueRouteOption(t *testing.T) {
 			{"domain": "example.com", "udp_connect": false}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleRejectsNestedLogicalRuleZeroValueAction(t *testing.T) {
@@ -88,7 +88,7 @@ func TestRuleRejectsNestedLogicalRuleZeroValueAction(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleRejectsNestedLogicalRuleZeroValueRouteOption(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRuleRejectsNestedLogicalRuleZeroValueRouteOption(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, routeRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestRuleAllowsTopLevelLogicalAction(t *testing.T) {
@@ -137,7 +137,7 @@ func TestRuleLeavesUnknownNestedKeysToNormalValidation(t *testing.T) {
 		]
 	}`), &rule)
 	require.ErrorContains(t, err, "unknown field")
-	require.NotContains(t, err.Error(), routeRuleActionNestedUnsupportedMessage)
+	require.NotContains(t, err.Error(), RouteRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedDefaultRuleAction(t *testing.T) {
@@ -151,7 +151,7 @@ func TestDNSRuleRejectsNestedDefaultRuleAction(t *testing.T) {
 			{"domain": "example.com", "server": "default"}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedLogicalRuleAction(t *testing.T) {
@@ -171,7 +171,7 @@ func TestDNSRuleRejectsNestedLogicalRuleAction(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedDefaultRuleZeroValueServer(t *testing.T) {
@@ -185,7 +185,7 @@ func TestDNSRuleRejectsNestedDefaultRuleZeroValueServer(t *testing.T) {
 			{"domain": "example.com", "server": ""}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedDefaultRuleZeroValueRouteOption(t *testing.T) {
@@ -199,7 +199,7 @@ func TestDNSRuleRejectsNestedDefaultRuleZeroValueRouteOption(t *testing.T) {
 			{"domain": "example.com", "disable_cache": false}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedLogicalRuleZeroValueAction(t *testing.T) {
@@ -218,7 +218,7 @@ func TestDNSRuleRejectsNestedLogicalRuleZeroValueAction(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleRejectsNestedLogicalRuleZeroValueRouteOption(t *testing.T) {
@@ -237,7 +237,7 @@ func TestDNSRuleRejectsNestedLogicalRuleZeroValueRouteOption(t *testing.T) {
 			}
 		]
 	}`), &rule)
-	require.ErrorContains(t, err, dnsRuleActionNestedUnsupportedMessage)
+	require.ErrorContains(t, err, DNSRuleActionNestedUnsupportedMessage)
 }
 
 func TestDNSRuleAllowsTopLevelLogicalAction(t *testing.T) {
@@ -267,5 +267,5 @@ func TestDNSRuleLeavesUnknownNestedKeysToNormalValidation(t *testing.T) {
 		]
 	}`), &rule)
 	require.ErrorContains(t, err, "unknown field")
-	require.NotContains(t, err.Error(), dnsRuleActionNestedUnsupportedMessage)
+	require.NotContains(t, err.Error(), DNSRuleActionNestedUnsupportedMessage)
 }

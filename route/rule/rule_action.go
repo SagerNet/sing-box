@@ -240,7 +240,7 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 		descriptions = append(descriptions, F.ToString("network-type=", strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
 	}
 	if r.FallbackNetworkType != nil {
-		descriptions = append(descriptions, F.ToString("fallback-network-type="+strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+		descriptions = append(descriptions, F.ToString("fallback-network-type=", strings.Join(common.Map(r.FallbackNetworkType, C.InterfaceType.String), ",")))
 	}
 	if r.FallbackDelay > 0 {
 		descriptions = append(descriptions, F.ToString("fallback-delay=", r.FallbackDelay.String()))
