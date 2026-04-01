@@ -117,6 +117,8 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 		v = r.RouteOptions
 	case C.RuleActionTypeEvaluate:
 		v = r.RouteOptions
+	case C.RuleActionTypeRespond:
+		v = nil
 	case C.RuleActionTypeRouteOptions:
 		v = r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
@@ -125,6 +127,9 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 		v = r.PredefinedOptions
 	default:
 		return nil, E.New("unknown DNS rule action: " + r.Action)
+	}
+	if v == nil {
+		return badjson.MarshallObjects((_DNSRuleAction)(r))
 	}
 	return badjson.MarshallObjects((_DNSRuleAction)(r), v)
 }
@@ -141,6 +146,8 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 		v = &r.RouteOptions
 	case C.RuleActionTypeEvaluate:
 		v = &r.RouteOptions
+	case C.RuleActionTypeRespond:
+		v = nil
 	case C.RuleActionTypeRouteOptions:
 		v = &r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
@@ -149,6 +156,9 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 		v = &r.PredefinedOptions
 	default:
 		return E.New("unknown DNS rule action: " + r.Action)
+	}
+	if v == nil {
+		return json.UnmarshalDisallowUnknownFields(data, &_DNSRuleAction{})
 	}
 	return badjson.UnmarshallExcludedContext(ctx, data, (*_DNSRuleAction)(r), v)
 }

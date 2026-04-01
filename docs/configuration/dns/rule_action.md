@@ -4,6 +4,10 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
+    :material-plus: [respond](#respond)
+
+!!! quote "Changes in sing-box 1.14.0"
+
     :material-plus: [evaluate](#evaluate)  
     :material-delete-clock: [strategy](#strategy)
 
@@ -107,6 +111,22 @@ Append a `edns0-subnet` OPT extra record with the specified IP prefix to every q
 If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
 Will override `dns.client_subnet`.
+
+### respond
+
+!!! question "Since sing-box 1.14.0"
+
+```json
+{
+  "action": "respond"
+}
+```
+
+`respond` terminates rule evaluation and returns the DNS response previously saved by a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action.
+
+This action does not send a new DNS query and has no extra options.
+
+Only allowed after a preceding top-level `evaluate` rule. If the action is reached without a saved response at runtime, the request fails with an error instead of falling through to later rules.
 
 ### route-options
 

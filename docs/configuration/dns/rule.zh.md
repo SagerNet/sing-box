@@ -495,6 +495,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 启用响应匹配。启用后，此规则将匹配 DNS 响应数据（由前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作设置），而不仅是匹配原始查询。
 
+该已保存的响应也可以被后续的 [`respond`](/zh/configuration/dns/rule_action/#respond) 动作直接返回。
+
 响应匹配字段（`response_rcode`、`response_answer`、`response_ns`、`response_extra`）需要此选项。
 当与 `evaluate` 或响应匹配字段一起使用时，`ip_cidr` 和 `ip_is_private` 也需要此选项。
 
@@ -614,6 +616,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 DNS 响应数据的匹配字段。需要将 `match_response` 设为 `true`，
 且需要前序规则使用 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作来填充响应。
+
+该已保存的响应也可以被后续的 [`respond`](/zh/configuration/dns/rule_action/#respond) 动作直接返回。
 
 #### response_rcode
 

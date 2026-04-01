@@ -497,6 +497,8 @@ Enable response-based matching. When enabled, this rule matches against DNS resp
 (set by a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action)
 instead of only matching the original query.
 
+The saved response can also be returned directly by a later [`respond`](/configuration/dns/rule_action/#respond) action.
+
 Required for Response Match Fields (`response_rcode`, `response_answer`, `response_ns`, `response_extra`).
 Also required for `ip_cidr` and `ip_is_private` when used with `evaluate` or Response Match Fields.
 
@@ -615,6 +617,8 @@ Match any IP with query response.
 
 Match fields for DNS response data. Require `match_response` to be set to `true`
 and a preceding rule with [`evaluate`](/configuration/dns/rule_action/#evaluate) action to populate the response.
+
+That saved response may also be returned directly by a later [`respond`](/configuration/dns/rule_action/#respond) action.
 
 #### response_rcode
 

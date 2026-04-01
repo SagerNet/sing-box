@@ -475,6 +475,8 @@ type exchangeWithRulesResult struct {
 	err          error
 }
 
+const dnsRespondMissingResponseMessage = "respond action requires a saved DNS response from a preceding evaluate action"
+
 func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) exchangeWithRulesResult {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
@@ -482,6 +484,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 	}
 	effectiveOptions := options
 	var savedResponse *mDNS.Msg
+	var savedTransport adapter.DNSTransport
 	for currentRuleIndex, currentRule := range rules {
 		metadata.ResetRuleCache()
 		metadata.DNSResponse = savedResponse
@@ -500,6 +503,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			case dnsRouteStatusMissing:
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				savedResponse = nil
+				savedTransport = nil
 				continue
 			case dnsRouteStatusSkipped:
 				continue
@@ -515,9 +519,21 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 				}
 				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
 				savedResponse = nil
+				savedTransport = nil
 				continue
 			}
 			savedResponse = response
+			savedTransport = transport
+		case *R.RuleActionRespond:
+			if savedResponse == nil {
+				return exchangeWithRulesResult{
+					err: E.New(dnsRespondMissingResponseMessage),
+				}
+			}
+			return exchangeWithRulesResult{
+				response:  savedResponse,
+				transport: savedTransport,
+			}
 		case *R.RuleActionDNSRoute:
 			queryOptions := effectiveOptions
 			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
@@ -946,6 +962,7 @@ func defaultRuleDisablesLegacyDNSMode(rule option.DefaultDNSRule) bool {
 	return rule.MatchResponse ||
 		hasResponseMatchFields(rule) ||
 		rule.Action == C.RuleActionTypeEvaluate ||
+		rule.Action == C.RuleActionTypeRespond ||
 		rule.IPVersion > 0 ||
 		len(rule.QueryType) > 0
 }
@@ -994,7 +1011,7 @@ func dnsRuleModeRequirementsInRule(router adapter.Router, rule option.DNSRule) (
 		return dnsRuleModeRequirementsInDefaultRule(router, rule.DefaultOptions)
 	case C.RuleTypeLogical:
 		flags := dnsRuleModeFlags{
-			disabled:           dnsRuleActionType(rule) == C.RuleActionTypeEvaluate,
+			disabled:           dnsRuleActionType(rule) == C.RuleActionTypeEvaluate || dnsRuleActionType(rule) == C.RuleActionTypeRespond,
 			neededFromStrategy: dnsRuleActionHasStrategy(rule.LogicalOptions.DNSRuleAction),
 		}
 		flags.needed = flags.neededFromStrategy
@@ -1108,7 +1125,7 @@ func validateLegacyDNSModeDisabledRuleTree(rule option.DNSRule) (bool, error) {
 	case "", C.RuleTypeDefault:
 		return validateLegacyDNSModeDisabledDefaultRule(rule.DefaultOptions)
 	case C.RuleTypeLogical:
-		var requiresPriorEvaluate bool
+		requiresPriorEvaluate := dnsRuleActionType(rule) == C.RuleActionTypeRespond
 		for i, subRule := range rule.LogicalOptions.Rules {
 			subRequiresPriorEvaluate, err := validateLegacyDNSModeDisabledRuleTree(subRule)
 			if err != nil {
@@ -1141,7 +1158,7 @@ func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool,
 	if rule.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
 		return false, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
 	}
-	return rule.MatchResponse, nil
+	return rule.MatchResponse || rule.Action == C.RuleActionTypeRespond, nil
 }
 
 func dnsRuleActionHasStrategy(action option.DNSRuleAction) bool {

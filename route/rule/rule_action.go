@@ -142,6 +142,8 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
 			},
 		}
+	case C.RuleActionTypeRespond:
+		return &RuleActionRespond{}
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
 			Strategy:     C.DomainStrategy(action.RouteOptionsOptions.Strategy),
@@ -290,6 +292,16 @@ func (r *RuleActionEvaluate) Type() string {
 
 func (r *RuleActionEvaluate) String() string {
 	return formatDNSRouteAction("evaluate", r.Server, r.RuleActionDNSRouteOptions)
+}
+
+type RuleActionRespond struct{}
+
+func (r *RuleActionRespond) Type() string {
+	return C.RuleActionTypeRespond
+}
+
+func (r *RuleActionRespond) String() string {
+	return "respond"
 }
 
 func formatDNSRouteAction(action string, server string, options RuleActionDNSRouteOptions) string {

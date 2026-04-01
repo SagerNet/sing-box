@@ -4,6 +4,10 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
+    :material-plus: [respond](#respond)
+
+!!! quote "sing-box 1.14.0 中的更改"
+
     :material-plus: [evaluate](#evaluate)  
     :material-delete-clock: [strategy](#strategy)
 
@@ -105,6 +109,22 @@ icon: material/new-box
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
 将覆盖 `dns.client_subnet`.
+
+### respond
+
+!!! question "自 sing-box 1.14.0 起"
+
+```json
+{
+  "action": "respond"
+}
+```
+
+`respond` 会终止规则评估，并直接返回前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作保存的 DNS 响应。
+
+此动作不会发起新的 DNS 查询，也没有额外选项。
+
+只能用于前面已有顶层 `evaluate` 规则的场景。如果运行时命中该动作时没有已保存的响应，则请求会直接返回错误，而不是继续匹配后续规则。
 
 ### route-options
 
