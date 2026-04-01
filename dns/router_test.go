@@ -2022,84 +2022,39 @@ func TestLookupLegacyDNSModeDisabledSkipsFakeIPRule(t *testing.T) {
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
 }
 
-func TestLookupLegacyDNSModeDisabledEvaluateSkipFakeIPPreservesResponse(t *testing.T) {
+func TestExchangeLegacyDNSModeDisabledAllowsRouteFakeIPRule(t *testing.T) {
 	t.Parallel()
 
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouter(t, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
-				},
+	fakeTransport := &fakeDNSTransport{tag: "fake", transportType: C.DNSTypeFakeIP}
+	router := newTestRouter(t, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "fake"},
 			},
 		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeEvaluate,
-					RouteOptions: option.DNSRouteActionOptions{Server: "fake"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					MatchResponse:  true,
-					ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
+	}}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
 		transports: map[string]adapter.DNSTransport{
-			"default":  defaultTransport,
-			"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
-			"fake":     &fakeDNSTransport{tag: "fake", transportType: C.DNSTypeFakeIP},
-			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"default": &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"fake":    fakeTransport,
 		},
 	}, &fakeDNSClient{
 		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			switch transport.Tag() {
-			case "upstream":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], nil, 60), nil
-			case "selected":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("2.2.2.2")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], nil, 60), nil
-			case "default":
-				if message.Question[0].Qtype == mDNS.TypeA {
-					return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("4.4.4.4")}, 60), nil
-				}
-				return FixedResponse(0, message.Question[0], nil, 60), nil
-			default:
-				return nil, E.New("unexpected transport")
-			}
+			require.Same(t, fakeTransport, transport)
+			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("198.18.0.1")}, 60), nil
 		},
 	})
-	router.currentRules.Load().legacyDNSMode = false
 
-	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
+	response, err := router.Exchange(context.Background(), &mDNS.Msg{
+		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
+	}, adapter.DNSQueryOptions{})
 	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("2.2.2.2")}, addresses)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("198.18.0.1")}, MessageToAddresses(response))
 }
 
 func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByEvaluate(t *testing.T) {
@@ -2131,6 +2086,70 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByEvaluate(t
 	}})
 	require.ErrorContains(t, err, "strategy")
 	require.ErrorContains(t, err, "deprecated")
+}
+
+func TestInitializeRejectsEvaluateFakeIPServerInDefaultRule(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{transports: map[string]adapter.DNSTransport{"fake": &fakeDNSTransport{tag: "fake", transportType: C.DNSTypeFakeIP}}},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeEvaluate,
+				RouteOptions: option.DNSRouteActionOptions{Server: "fake"},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "evaluate action cannot use fakeip server")
+	require.ErrorContains(t, err, "fake")
+}
+
+func TestInitializeRejectsEvaluateFakeIPServerInLogicalRule(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{transports: map[string]adapter.DNSTransport{"fake": &fakeDNSTransport{tag: "fake", transportType: C.DNSTypeFakeIP}}},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeLogical,
+		LogicalOptions: option.LogicalDNSRule{
+			RawLogicalDNSRule: option.RawLogicalDNSRule{
+				Mode: C.LogicalTypeOr,
+				Rules: []option.DNSRule{{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultDNSRule{
+						RawDefaultDNSRule: option.RawDefaultDNSRule{
+							Domain: badoption.Listable[string]{"example.com"},
+						},
+					},
+				}},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeEvaluate,
+				RouteOptions: option.DNSRouteActionOptions{Server: "fake"},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "evaluate action cannot use fakeip server")
+	require.ErrorContains(t, err, "fake")
 }
 
 func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchResponse(t *testing.T) {

@@ -272,6 +272,10 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, dnsRuleMo
 			return nil, false, dnsRuleModeFlags{}, err
 		}
 	}
+	err = validateEvaluateFakeIPRules(r.rawRules, r.transport)
+	if err != nil {
+		return nil, false, dnsRuleModeFlags{}, err
+	}
 	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
 	for i, ruleOptions := range r.rawRules {
 		var dnsRule adapter.DNSRule
@@ -1078,6 +1082,27 @@ func validateLegacyDNSModeDisabledRules(rules []option.DNSRule) error {
 	return nil
 }
 
+func validateEvaluateFakeIPRules(rules []option.DNSRule, transportManager adapter.DNSTransportManager) error {
+	if transportManager == nil {
+		return nil
+	}
+	for i, rule := range rules {
+		if dnsRuleActionType(rule) != C.RuleActionTypeEvaluate {
+			continue
+		}
+		server := dnsRuleActionServer(rule)
+		if server == "" {
+			continue
+		}
+		transport, loaded := transportManager.Transport(server)
+		if !loaded || transport.Type() != C.DNSTypeFakeIP {
+			continue
+		}
+		return E.New("dns rule[", i, "]: evaluate action cannot use fakeip server: ", server)
+	}
+	return nil
+}
+
 func validateLegacyDNSModeDisabledRuleTree(rule option.DNSRule) (bool, error) {
 	switch rule.Type {
 	case "", C.RuleTypeDefault:
@@ -1142,6 +1167,17 @@ func dnsRuleActionType(rule option.DNSRule) string {
 			return C.RuleActionTypeRoute
 		}
 		return rule.LogicalOptions.Action
+	default:
+		return ""
+	}
+}
+
+func dnsRuleActionServer(rule option.DNSRule) string {
+	switch rule.Type {
+	case "", C.RuleTypeDefault:
+		return rule.DefaultOptions.RouteOptions.Server
+	case C.RuleTypeLogical:
+		return rule.LogicalOptions.RouteOptions.Server
 	default:
 		return ""
 	}
