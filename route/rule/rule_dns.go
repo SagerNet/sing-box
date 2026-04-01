@@ -181,7 +181,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		if legacyDNSMode {
 			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
 		} else {
-			return nil, E.New("ip_accept_any is removed when legacyDNSMode is disabled, use ip_cidr with match_response")
+			return nil, E.New(deprecated.OptionIPAcceptAny.MessageWithLink())
 		}
 		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
@@ -339,7 +339,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 			if legacyDNSMode {
 				deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
 			} else {
-				return nil, E.New("rule_set_ip_cidr_accept_empty is removed when legacyDNSMode is disabled")
+				return nil, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
 			}
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty) //nolint:staticcheck

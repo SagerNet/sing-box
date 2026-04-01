@@ -383,7 +383,8 @@ func TestInitializeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 			},
 		},
 	})
-	require.ErrorContains(t, err, "ip_cidr and ip_is_private require match_response")
+	require.ErrorContains(t, err, "Address Filter Fields")
+	require.ErrorContains(t, err, "deprecated")
 }
 
 func TestLookupLegacyDNSModeDefersRuleSetDestinationIPMatch(t *testing.T) {
@@ -602,7 +603,7 @@ func TestRuleSetUpdateKeepsLastSuccessfullyCompiledRuleGraphWhenRebuildFails(t *
 		ContainsDNSQueryTypeRule: true,
 	})
 	rebuildErrorEntry := waitForLogMessageContaining(t, logEntries, logDone, "rebuild DNS rules after rule-set update")
-	require.Contains(t, rebuildErrorEntry.Message, "ip_cidr and ip_is_private require match_response")
+	require.Contains(t, rebuildErrorEntry.Message, "Address Filter Fields")
 	require.True(t, router.currentRules.Load().legacyDNSMode)
 	require.Equal(t, 1, callbackRuleSet.refCount())
 	require.Zero(t, rebuildTargetRuleSet.refCount())
@@ -2128,7 +2129,8 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByEvaluate(t
 			},
 		},
 	}})
-	require.ErrorContains(t, err, "legacyDNSMode")
+	require.ErrorContains(t, err, "strategy")
+	require.ErrorContains(t, err, "deprecated")
 }
 
 func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchResponse(t *testing.T) {
@@ -2157,7 +2159,8 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchRespo
 			},
 		},
 	}})
-	require.ErrorContains(t, err, "legacyDNSMode")
+	require.ErrorContains(t, err, "strategy")
+	require.ErrorContains(t, err, "deprecated")
 }
 
 func TestLookupLegacyDNSModeDisabledReturnsRejectedErrorForRejectAction(t *testing.T) {

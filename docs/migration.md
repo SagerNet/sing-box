@@ -79,6 +79,111 @@ See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly ad
     }
     ```
 
+### Migrate DNS rule action strategy to rule items
+
+`strategy` in DNS rule actions is deprecated.
+
+In sing-box 1.14.0, internal domain resolution (Lookup) now splits A and AAAA queries
+at the rule level, so each query type is evaluated independently through the full rule chain.
+Use `ip_version` or `query_type` rule items to control which query types a rule matches.
+
+!!! info "References"
+
+    [DNS Rule](/configuration/dns/rule/) /
+    [DNS Rule Action](/configuration/dns/rule_action/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            "domain_suffix": ".cn",
+            "action": "route",
+            "server": "local",
+            "strategy": "ipv4_only"
+          }
+        ]
+      }
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            "domain_suffix": ".cn",
+            "ip_version": 4,
+            "action": "route",
+            "server": "local"
+          }
+        ]
+      }
+    }
+    ```
+
+### Migrate address filter fields to response matching
+
+Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) are deprecated,
+along with `ip_accept_any` and `rule_set_ip_cidr_accept_empty`.
+
+In sing-box 1.14.0, use the [`evaluate`](/configuration/dns/rule_action/#evaluate) action
+to fetch a DNS response, then match against it explicitly with `match_response`.
+
+!!! info "References"
+
+    [DNS Rule](/configuration/dns/rule/) /
+    [DNS Rule Action](/configuration/dns/rule_action/#evaluate)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            "rule_set": "geoip-cn",
+            "action": "route",
+            "server": "local"
+          },
+          {
+            "action": "route",
+            "server": "remote"
+          }
+        ]
+      }
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "dns": {
+        "rules": [
+          {
+            "action": "evaluate",
+            "server": "remote"
+          },
+          {
+            "match_response": true,
+            "rule_set": "geoip-cn",
+            "action": "route",
+            "server": "local"
+          },
+          {
+            "action": "route",
+            "server": "remote"
+          }
+        ]
+      }
+    }
+    ```
+
 ## 1.12.0
 
 ### Migrate to new DNS server formats

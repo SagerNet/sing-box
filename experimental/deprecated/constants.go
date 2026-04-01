@@ -99,7 +99,7 @@ var OptionIPAcceptAny = Note{
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "DNS_RULE_IP_ACCEPT_ANY",
-	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule/",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-address-filter-fields-to-response-matching",
 }
 
 var OptionRuleSetIPCIDRAcceptEmpty = Note{
@@ -108,16 +108,16 @@ var OptionRuleSetIPCIDRAcceptEmpty = Note{
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "DNS_RULE_RULE_SET_IP_CIDR_ACCEPT_EMPTY",
-	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule/",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-address-filter-fields-to-response-matching",
 }
 
 var OptionLegacyDNSAddressFilter = Note{
 	Name:              "legacy-dns-address-filter",
-	Description:       "legacy address filter DNS rule items",
+	Description:       "Address Filter Fields in DNS rules",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "LEGACY_DNS_ADDRESS_FILTER",
-	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule/",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-address-filter-fields-to-response-matching",
 }
 
 var OptionLegacyDNSRuleStrategy = Note{
@@ -126,7 +126,7 @@ var OptionLegacyDNSRuleStrategy = Note{
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "LEGACY_DNS_RULE_STRATEGY",
-	MigrationLink:     "https://sing-box.sagernet.org/configuration/dns/rule_action/",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-dns-rule-action-strategy-to-rule-items",
 }
 
 var Options = []Note{

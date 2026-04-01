@@ -964,7 +964,7 @@ func resolveLegacyDNSMode(router adapter.Router, rules []option.DNSRule) (bool, 
 		return false, flags, err
 	}
 	if flags.disabled && flags.neededFromStrategy {
-		return false, flags, E.New("DNS rule action strategy is only supported in legacyDNSMode")
+		return false, flags, E.New(deprecated.OptionLegacyDNSRuleStrategy.MessageWithLink())
 	}
 	if flags.disabled {
 		return false, flags, nil
@@ -1069,7 +1069,7 @@ func validateLegacyDNSModeDisabledRules(rules []option.DNSRule) error {
 		}
 		action := dnsRuleActionType(rule)
 		if action == C.RuleActionTypeEvaluate && consumesResponse {
-			return E.New("dns rule[", i, "]: evaluate rule cannot consume response state")
+			return E.New("dns rule[", i, "]: evaluate action cannot be used with match_response in the same rule")
 		}
 	}
 	return nil
@@ -1097,10 +1097,10 @@ func validateLegacyDNSModeDisabledRuleTree(rule option.DNSRule) (bool, error) {
 func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool, error) {
 	hasResponseRecords := hasResponseMatchFields(rule)
 	if hasResponseRecords && !rule.MatchResponse {
-		return false, E.New("response_* items require match_response")
+		return false, E.New("Response Match Fields (response_rcode, response_answer, response_ns, response_extra) require match_response to be enabled")
 	}
 	if (len(rule.IPCIDR) > 0 || rule.IPIsPrivate) && !rule.MatchResponse {
-		return false, E.New("ip_cidr and ip_is_private require match_response when legacyDNSMode is disabled")
+		return false, E.New(deprecated.OptionLegacyDNSAddressFilter.MessageWithLink())
 	}
 	// Intentionally do not reject rule_set here. A referenced rule set may mix
 	// destination-IP predicates with pre-response predicates such as domain items.
@@ -1108,10 +1108,10 @@ func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool,
 	// pre-response evaluation instead of consuming DNS response state, while sibling
 	// non-response branches remain matchable.
 	if rule.IPAcceptAny { //nolint:staticcheck
-		return false, E.New("ip_accept_any is removed when legacyDNSMode is disabled, use ip_cidr with match_response")
+		return false, E.New(deprecated.OptionIPAcceptAny.MessageWithLink())
 	}
 	if rule.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
-		return false, E.New("rule_set_ip_cidr_accept_empty is removed when legacyDNSMode is disabled")
+		return false, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
 	}
 	return rule.MatchResponse, nil
 }

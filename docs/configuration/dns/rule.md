@@ -497,8 +497,8 @@ Enable response-based matching. When enabled, this rule matches against DNS resp
 (set by a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action)
 instead of only matching the original query.
 
-Required for `response_rcode`, `response_answer`, `response_ns`, `response_extra` fields.
-Also required for `ip_cidr` and `ip_is_private` when `legacyDNSMode` is disabled.
+Required for Response Match Fields (`response_rcode`, `response_answer`, `response_ns`, `response_extra`).
+Also required for `ip_cidr` and `ip_is_private` when used with `evaluate` or Response Match Fields.
 
 #### invert
 
@@ -544,16 +544,12 @@ See [DNS Rule Actions](../rule_action/) for details.
 
     Moved to [DNS Rule Action](../rule_action#route).
 
-### Legacy DNS Mode
-
-`legacyDNSMode` is an internal compatibility mode that is automatically detected from your DNS rule
-configuration. It is disabled when any rule uses features introduced in sing-box 1.14.0 such as
-`evaluate`, `match_response`, response fields (`response_rcode`, `response_answer`, etc.),
-`query_type`, or `ip_version`. When disabled, `ip_cidr` and `ip_is_private` require `match_response`
-to be set, and deprecated fields like `strategy`, `ip_accept_any`, and `rule_set_ip_cidr_accept_empty`
-are no longer accepted.
-
 ### Address Filter Fields
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Address Filter Fields are deprecated and will be removed in sing-box 1.16.0,
+    check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 Only takes effect for address requests (A/AAAA/HTTPS). When the query results do not match the address filtering rule items, the current rule will be skipped.
 
@@ -579,7 +575,8 @@ Match GeoIP with query response.
 
 Match IP CIDR with query response.
 
-When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
+As an Address Filter Field, deprecated. Use with `match_response` instead,
+check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 #### ip_is_private
 
@@ -587,7 +584,8 @@ When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
 
 Match private IP with query response.
 
-When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
+As an Address Filter Field, deprecated. Use with `match_response` instead,
+check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 #### rule_set_ip_cidr_accept_empty
 
@@ -595,8 +593,8 @@ When `legacyDNSMode` is disabled, `match_response` must be set to `true`.
 
 !!! failure "Deprecated in sing-box 1.14.0"
 
-    `rule_set_ip_cidr_accept_empty` is deprecated and will be removed in sing-box 1.16.0.
-    Only supported in `legacyDNSMode`.
+    `rule_set_ip_cidr_accept_empty` is deprecated and will be removed in sing-box 1.16.0,
+    check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 Make `ip_cidr` rules in rule-sets accept empty query response.
 
@@ -606,8 +604,8 @@ Make `ip_cidr` rules in rule-sets accept empty query response.
 
 !!! failure "Deprecated in sing-box 1.14.0"
 
-    `ip_accept_any` is deprecated and will be removed in sing-box 1.16.0.
-    Only supported in `legacyDNSMode`. Use `match_response` with response items instead.
+    `ip_accept_any` is deprecated and will be removed in sing-box 1.16.0,
+    check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 Match any IP with query response.
 

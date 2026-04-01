@@ -495,8 +495,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 启用响应匹配。启用后，此规则将匹配 DNS 响应数据（由前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作设置），而不仅是匹配原始查询。
 
-`response_rcode`、`response_answer`、`response_ns`、`response_extra` 字段需要此选项。
-当 `legacyDNSMode` 未启用时，`ip_cidr` 和 `ip_is_private` 也需要此选项。
+响应匹配字段（`response_rcode`、`response_answer`、`response_ns`、`response_extra`）需要此选项。
+当与 `evaluate` 或响应匹配字段一起使用时，`ip_cidr` 和 `ip_is_private` 也需要此选项。
 
 #### invert
 
@@ -542,15 +542,12 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
     已移动到 [DNS 规则动作](../rule_action#route).
 
-### Legacy DNS Mode
-
-`legacyDNSMode` 是一种内部兼容模式，会根据 DNS 规则配置自动检测。
-当任何规则使用了 sing-box 1.14.0 引入的特性（如 `evaluate`、`match_response`、
-响应字段（`response_rcode`、`response_answer` 等）、`query_type` 或 `ip_version`）时，
-该模式将被自动禁用。禁用后，`ip_cidr` 和 `ip_is_private` 需要设置 `match_response`，
-且已废弃的字段（如 `strategy`、`ip_accept_any`、`rule_set_ip_cidr_accept_empty`）将不再被接受。
-
 ### 地址筛选字段
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    地址筛选字段已废弃，且将在 sing-box 1.16.0 中被移除，
+    参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 仅对地址请求 (A/AAAA/HTTPS) 生效。 当查询结果与地址筛选规则项不匹配时，将跳过当前规则。
 
@@ -577,7 +574,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 与查询响应匹配 IP CIDR。
 
-当 `legacyDNSMode` 未启用时，`match_response` 必须设为 `true`。
+作为地址筛选字段已废弃。请改为配合 `match_response` 使用，
+参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 #### ip_is_private
 
@@ -585,7 +583,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 与查询响应匹配非公开 IP。
 
-当 `legacyDNSMode` 未启用时，`match_response` 必须设为 `true`。
+作为地址筛选字段已废弃。请改为配合 `match_response` 使用，
+参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 #### rule_set_ip_cidr_accept_empty
 
@@ -593,8 +592,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! failure "已在 sing-box 1.14.0 废弃"
 
-    `rule_set_ip_cidr_accept_empty` 已废弃且将在 sing-box 1.16.0 中被移除。
-    仅在 `legacyDNSMode` 中可用。
+    `rule_set_ip_cidr_accept_empty` 已废弃且将在 sing-box 1.16.0 中被移除，
+    参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 使规则集中的 `ip_cidr` 规则接受空查询响应。
 
@@ -604,8 +603,8 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! failure "已在 sing-box 1.14.0 废弃"
 
-    `ip_accept_any` 已废弃且将在 sing-box 1.16.0 中被移除。
-    仅在 `legacyDNSMode` 中可用。请使用 `match_response` 和响应项替代。
+    `ip_accept_any` 已废弃且将在 sing-box 1.16.0 中被移除，
+    参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 匹配任意 IP。
 

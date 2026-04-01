@@ -43,7 +43,7 @@ Tag of target server.
 
     `strategy` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0.
 
-Set domain strategy for this query. Only supported when `legacyDNSMode` is active.
+Set domain strategy for this query. Deprecated, check [Migration](/migration/#migrate-dns-rule-action-strategy-to-rule-items).
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
@@ -82,6 +82,8 @@ to match against using [`match_response`](/configuration/dns/rule/#match_respons
 Unlike `route`, it does **not** terminate rule evaluation.
 
 Only allowed on top-level DNS rules (not inside logical sub-rules).
+The rule itself must not use `match_response` or contain sub-rules with Response Match Fields,
+since `evaluate` populates the response for subsequent rules to consume.
 
 #### server
 

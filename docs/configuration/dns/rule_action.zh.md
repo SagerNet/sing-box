@@ -43,7 +43,7 @@ icon: material/new-box
 
     `strategy` 已在 sing-box 1.14.0 废弃，且将在 sing-box 1.16.0 中被移除。
 
-为此查询设置域名策略。仅在 `legacyDNSMode` 启用时可用。
+为此查询设置域名策略。已废弃，参阅[迁移指南](/zh/migration/#迁移-dns-规则动作-strategy-到规则项)。
 
 可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
@@ -80,6 +80,8 @@ icon: material/new-box
 `evaluate` 向指定服务器发送 DNS 查询并保存响应，供后续规则通过 [`match_response`](/zh/configuration/dns/rule/#match_response) 和响应字段进行匹配。与 `route` 不同，它**不会**终止规则评估。
 
 仅允许在顶层 DNS 规则中使用（不可在逻辑子规则内部使用）。
+该规则本身不可使用 `match_response` 或包含带有响应匹配字段的子规则，
+因为 `evaluate` 是为后续规则填充响应数据。
 
 #### server
 
