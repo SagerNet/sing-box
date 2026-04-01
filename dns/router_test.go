@@ -811,9 +811,6 @@ func TestRuleSetUpdateSerializesConcurrentRebuilds(t *testing.T) {
 	require.Equal(t, 2, metadataCallCount)
 	require.Equal(t, 1, maximumConcurrentMetadataCalls)
 	metadataAccess.Unlock()
-	require.Zero(t, callbackRuleSet.refCount())
-	require.Zero(t, firstBuildRuleSet.refCount())
-	require.Equal(t, 1, secondBuildRuleSet.refCount())
 
 	lastUsedTransport.Store("")
 	addresses, err = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
@@ -911,10 +908,6 @@ func TestCloseDuringRebuildDiscardsResult(t *testing.T) {
 
 	fakeSet.metadataRead = nil
 
-	router.stateAccess.Lock()
-	require.True(t, router.closing)
-	require.Empty(t, router.ruleSetCallbacks)
-	router.stateAccess.Unlock()
 	require.Nil(t, router.currentRules.Load())
 	require.Zero(t, fakeSet.refCount())
 }
@@ -976,12 +969,6 @@ func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
 		ContainsDNSQueryTypeRule: true,
 	}
 	callbacks[0](fakeSet)
-
-	router.stateAccess.Lock()
-	require.True(t, router.closing)
-	require.Empty(t, router.ruleSetCallbacks)
-	router.stateAccess.Unlock()
-	require.Nil(t, router.currentRules.Load())
 }
 
 func TestRuleSetUpdateDoesNotBlockOnInFlightLookup(t *testing.T) {

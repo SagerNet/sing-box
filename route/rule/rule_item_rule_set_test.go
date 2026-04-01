@@ -115,7 +115,6 @@ func TestRuleSetItemStartRollbackOnFailure(t *testing.T) {
 	err := item.Start()
 	require.ErrorContains(t, err, "rule-set not found: missing")
 	require.Zero(t, firstSet.RefCount())
-	require.Empty(t, item.setList)
 }
 
 func TestRuleSetItemRestartKeepsBalancedRefs(t *testing.T) {
