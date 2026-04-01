@@ -544,11 +544,11 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
     已移动到 [DNS 规则动作](../rule_action#route).
 
-### 地址筛选字段
+### 旧版地址筛选字段
 
 !!! failure "已在 sing-box 1.14.0 废弃"
 
-    地址筛选字段已废弃，且将在 sing-box 1.16.0 中被移除，
+    旧版地址筛选字段已废弃，且将在 sing-box 1.16.0 中被移除，
     参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 仅对地址请求 (A/AAAA/HTTPS) 生效。 当查询结果与地址筛选规则项不匹配时，将跳过当前规则。
@@ -576,7 +576,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 与查询响应匹配 IP CIDR。
 
-作为地址筛选字段已废弃。请改为配合 `match_response` 使用，
+作为旧版地址筛选字段已废弃。请改为配合 `match_response` 使用，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 #### ip_is_private
@@ -585,7 +585,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 与查询响应匹配非公开 IP。
 
-作为地址筛选字段已废弃。请改为配合 `match_response` 使用，
+作为旧版地址筛选字段已废弃。请改为配合 `match_response` 使用，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 #### rule_set_ip_cidr_accept_empty
@@ -610,7 +610,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 匹配任意 IP。
 
-### 响应字段
+### 响应匹配字段
 
 !!! question "自 sing-box 1.14.0 起"
 

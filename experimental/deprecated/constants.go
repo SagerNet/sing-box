@@ -95,7 +95,7 @@ var OptionInlineACME = Note{
 
 var OptionIPAcceptAny = Note{
 	Name:              "dns-rule-ip-accept-any",
-	Description:       "`ip_accept_any` in DNS rules",
+	Description:       "Legacy `ip_accept_any` DNS rule item",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "DNS_RULE_IP_ACCEPT_ANY",
@@ -104,7 +104,7 @@ var OptionIPAcceptAny = Note{
 
 var OptionRuleSetIPCIDRAcceptEmpty = Note{
 	Name:              "dns-rule-rule-set-ip-cidr-accept-empty",
-	Description:       "`rule_set_ip_cidr_accept_empty` in DNS rules",
+	Description:       "Legacy `rule_set_ip_cidr_accept_empty` DNS rule item",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "DNS_RULE_RULE_SET_IP_CIDR_ACCEPT_EMPTY",
@@ -113,7 +113,7 @@ var OptionRuleSetIPCIDRAcceptEmpty = Note{
 
 var OptionLegacyDNSAddressFilter = Note{
 	Name:              "legacy-dns-address-filter",
-	Description:       "Address Filter Fields in DNS rules",
+	Description:       "Legacy Address Filter Fields in DNS rules",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "LEGACY_DNS_ADDRESS_FILTER",
@@ -122,7 +122,7 @@ var OptionLegacyDNSAddressFilter = Note{
 
 var OptionLegacyDNSRuleStrategy = Note{
 	Name:              "legacy-dns-rule-strategy",
-	Description:       "`strategy` in DNS rule actions",
+	Description:       "Legacy `strategy` DNS rule action option",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "LEGACY_DNS_RULE_STRATEGY",

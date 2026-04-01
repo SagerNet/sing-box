@@ -14,31 +14,31 @@ check [Migration](../migration/#migrate-inline-acme-to-certificate-provider).
 
 Old fields will be removed in sing-box 1.16.0.
 
-#### `strategy` in DNS rule actions
+#### Legacy `strategy` DNS rule action option
 
-`strategy` in DNS rule actions is deprecated,
+Legacy `strategy` DNS rule action option is deprecated,
 check [Migration](../migration/#migrate-dns-rule-action-strategy-to-rule-items).
 
 Old fields will be removed in sing-box 1.16.0.
 
-#### `ip_accept_any` in DNS rules
+#### Legacy `ip_accept_any` DNS rule item
 
-`ip_accept_any` in DNS rules is deprecated,
+Legacy `ip_accept_any` DNS rule item is deprecated,
 check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
 
 Old fields will be removed in sing-box 1.16.0.
 
-#### `rule_set_ip_cidr_accept_empty` in DNS rules
+#### Legacy `rule_set_ip_cidr_accept_empty` DNS rule item
 
-`rule_set_ip_cidr_accept_empty` in DNS rules is deprecated,
+Legacy `rule_set_ip_cidr_accept_empty` DNS rule item is deprecated,
 check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
 
 Old fields will be removed in sing-box 1.16.0.
 
-#### Address Filter Fields in DNS rules
+#### Legacy Address Filter Fields in DNS rules
 
-Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`)
-are deprecated,
+Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`)
+in DNS rules are deprecated,
 check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
 
 Old behavior will be removed in sing-box 1.16.0.

@@ -546,11 +546,11 @@ See [DNS Rule Actions](../rule_action/) for details.
 
     Moved to [DNS Rule Action](../rule_action#route).
 
-### Address Filter Fields
+### Legacy Address Filter Fields
 
 !!! failure "Deprecated in sing-box 1.14.0"
 
-    Address Filter Fields are deprecated and will be removed in sing-box 1.16.0,
+    Legacy Address Filter Fields are deprecated and will be removed in sing-box 1.16.0,
     check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 Only takes effect for address requests (A/AAAA/HTTPS). When the query results do not match the address filtering rule items, the current rule will be skipped.
@@ -577,7 +577,7 @@ Match GeoIP with query response.
 
 Match IP CIDR with query response.
 
-As an Address Filter Field, deprecated. Use with `match_response` instead,
+As a Legacy Address Filter Field, deprecated. Use with `match_response` instead,
 check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 #### ip_is_private
@@ -586,7 +586,7 @@ check [Migration](/migration/#migrate-address-filter-fields-to-response-matching
 
 Match private IP with query response.
 
-As an Address Filter Field, deprecated. Use with `match_response` instead,
+As a Legacy Address Filter Field, deprecated. Use with `match_response` instead,
 check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 
 #### rule_set_ip_cidr_accept_empty
@@ -611,7 +611,7 @@ Make `ip_cidr` rules in rule-sets accept empty query response.
 
 Match any IP with query response.
 
-### Response Fields
+### Response Match Fields
 
 !!! question "Since sing-box 1.14.0"
 

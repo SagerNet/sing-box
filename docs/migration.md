@@ -81,7 +81,7 @@ See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly ad
 
 ### Migrate DNS rule action strategy to rule items
 
-`strategy` in DNS rule actions is deprecated.
+Legacy `strategy` DNS rule action option is deprecated.
 
 In sing-box 1.14.0, internal domain resolution (Lookup) now splits A and AAAA queries
 at the rule level, so each query type is evaluated independently through the full rule chain.
@@ -128,8 +128,8 @@ Use `ip_version` or `query_type` rule items to control which query types a rule 
 
 ### Migrate address filter fields to response matching
 
-Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) are deprecated,
-along with `ip_accept_any` and `rule_set_ip_cidr_accept_empty`.
+Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) in DNS rules are deprecated,
+along with Legacy `ip_accept_any` and Legacy `rule_set_ip_cidr_accept_empty` DNS rule items.
 
 In sing-box 1.14.0, use the [`evaluate`](/configuration/dns/rule_action/#evaluate) action
 to fetch a DNS response, then match against it explicitly with `match_response`.

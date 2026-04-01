@@ -2058,7 +2058,7 @@ See [Migration](/migration/#process_path-format-update-on-windows).
 The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
 if using this method.
 
-See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+See [Legacy Address Filter Fields](/configuration/dns/rule#legacy-address-filter-fields).
 
 [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
 
@@ -2072,7 +2072,7 @@ the [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users
 **5**:
 
 The new feature allows you to cache the check results of
-[Address filter DNS rule items](/configuration/dns/rule/#address-filter-fields) until expiration.
+[Legacy Address Filter Fields](/configuration/dns/rule/#legacy-address-filter-fields) until expiration.
 
 **6**:
 
@@ -2253,7 +2253,7 @@ See [TUN](/configuration/inbound/tun) inbound.
 **1**:
 
 The new feature allows you to cache the check results of
-[Address filter DNS rule items](/configuration/dns/rule/#address-filter-fields) until expiration.
+[Legacy Address Filter Fields](/configuration/dns/rule/#legacy-address-filter-fields) until expiration.
 
 #### 1.9.0-alpha.7
 
@@ -2300,7 +2300,7 @@ See [Migration](/migration/#process_path-format-update-on-windows).
 The new DNS feature allows you to more precisely bypass Chinese websites via **DNS leaks**. Do not use plain local DNS
 if using this method.
 
-See [Address Filter Fields](/configuration/dns/rule#address-filter-fields).
+See [Legacy Address Filter Fields](/configuration/dns/rule#legacy-address-filter-fields).
 
 [Client example](/manual/proxy/client#traffic-bypass-usage-for-chinese-users) updated.
 

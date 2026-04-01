@@ -14,30 +14,30 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
-#### DNS 规则动作中的 `strategy`
+#### 旧版 DNS 规则动作 `strategy` 选项
 
-DNS 规则动作中的 `strategy` 已废弃，
+旧版 DNS 规则动作 `strategy` 选项已废弃，
 参阅[迁移指南](/zh/migration/#迁移-dns-规则动作-strategy-到规则项)。
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
-#### DNS 规则中的 `ip_accept_any`
+#### 旧版 `ip_accept_any` DNS 规则项
 
-DNS 规则中的 `ip_accept_any` 已废弃，
+旧版 `ip_accept_any` DNS 规则项已废弃，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
-#### DNS 规则中的 `rule_set_ip_cidr_accept_empty`
+#### 旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项
 
-DNS 规则中的 `rule_set_ip_cidr_accept_empty` 已废弃，
+旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项已废弃，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
-#### 地址筛选 DNS 规则项
+#### 旧版地址筛选字段 (DNS 规则)
 
-地址筛选 DNS 规则项（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
+旧版地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 旧行为将在 sing-box 1.16.0 中被移除。

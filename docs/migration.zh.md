@@ -81,7 +81,7 @@ sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/shared/certificate-p
 
 ### 迁移 DNS 规则动作 strategy 到规则项
 
-DNS 规则动作中的 `strategy` 已废弃。
+旧版 DNS 规则动作 `strategy` 选项已废弃。
 
 在 sing-box 1.14.0 中，内部域名解析（Lookup）现在在规则层拆分 A 和 AAAA 查询，
 每种查询类型独立通过完整的规则链评估。
@@ -128,8 +128,8 @@ DNS 规则动作中的 `strategy` 已废弃。
 
 ### 迁移地址筛选字段到响应匹配
 
-地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
-`ip_accept_any` 和 `rule_set_ip_cidr_accept_empty` 也已废弃。
+旧版地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
+旧版 `ip_accept_any` 和旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项也已废弃。
 
 在 sing-box 1.14.0 中，请使用 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作
 获取 DNS 响应，然后通过 `match_response` 显式匹配。
