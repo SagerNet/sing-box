@@ -1,9 +1,10 @@
 package rule
 
 import (
-	"github.com/miekg/dns"
 	"github.com/sagernet/sing-box/adapter"
 	F "github.com/sagernet/sing/common/format"
+
+	"github.com/miekg/dns"
 )
 
 var _ RuleItem = (*DNSResponseRCodeItem)(nil)

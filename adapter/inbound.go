@@ -97,8 +97,8 @@ type InboundContext struct {
 	IPCIDRMatchSource bool
 	IPCIDRAcceptEmpty bool
 
-	SourceAddressMatch           bool
-	SourcePortMatch              bool
+	SourceAddressMatch      bool
+	SourcePortMatch         bool
 	DestinationAddressMatch bool
 	DestinationPortMatch    bool
 	DidMatch                bool
