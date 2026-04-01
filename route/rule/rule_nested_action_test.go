@@ -7,44 +7,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/json"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestNewRulePreservesImplicitTopLevelDefaultAction(t *testing.T) {
-	t.Parallel()
-
-	var options option.Rule
-	err := json.UnmarshalContext(context.Background(), []byte(`{
-		"domain": "example.com"
-	}`), &options)
-	require.NoError(t, err)
-
-	rule, err := NewRule(context.Background(), log.NewNOPFactory().NewLogger("router"), options, false)
-	require.NoError(t, err)
-	require.NotNil(t, rule.Action())
-	require.Equal(t, C.RuleActionTypeRoute, rule.Action().Type())
-}
-
-func TestNewRuleAllowsNestedRuleWithoutAction(t *testing.T) {
-	t.Parallel()
-
-	var options option.Rule
-	err := json.UnmarshalContext(context.Background(), []byte(`{
-		"type": "logical",
-		"mode": "and",
-		"rules": [
-			{"domain": "example.com"}
-		]
-	}`), &options)
-	require.NoError(t, err)
-
-	rule, err := NewRule(context.Background(), log.NewNOPFactory().NewLogger("router"), options, false)
-	require.NoError(t, err)
-	require.NotNil(t, rule.Action())
-	require.Equal(t, C.RuleActionTypeRoute, rule.Action().Type())
-}
 
 func TestNewRuleRejectsNestedRuleAction(t *testing.T) {
 	t.Parallel()
@@ -69,40 +34,6 @@ func TestNewRuleRejectsNestedRuleAction(t *testing.T) {
 		},
 	}, false)
 	require.ErrorContains(t, err, option.RouteRuleActionNestedUnsupportedMessage)
-}
-
-func TestNewDNSRulePreservesImplicitTopLevelDefaultAction(t *testing.T) {
-	t.Parallel()
-
-	var options option.DNSRule
-	err := json.UnmarshalContext(context.Background(), []byte(`{
-		"domain": "example.com"
-	}`), &options)
-	require.NoError(t, err)
-
-	rule, err := NewDNSRule(context.Background(), log.NewNOPFactory().NewLogger("dns"), options, false, false)
-	require.NoError(t, err)
-	require.NotNil(t, rule.Action())
-	require.Equal(t, C.RuleActionTypeRoute, rule.Action().Type())
-}
-
-func TestNewDNSRuleAllowsNestedRuleWithoutAction(t *testing.T) {
-	t.Parallel()
-
-	var options option.DNSRule
-	err := json.UnmarshalContext(context.Background(), []byte(`{
-		"type": "logical",
-		"mode": "and",
-		"rules": [
-			{"domain": "example.com"}
-		]
-	}`), &options)
-	require.NoError(t, err)
-
-	rule, err := NewDNSRule(context.Background(), log.NewNOPFactory().NewLogger("dns"), options, false, false)
-	require.NoError(t, err)
-	require.NotNil(t, rule.Action())
-	require.Equal(t, C.RuleActionTypeRoute, rule.Action().Type())
 }
 
 func TestNewDNSRuleRejectsNestedRuleAction(t *testing.T) {

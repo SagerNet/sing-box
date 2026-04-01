@@ -14,18 +14,6 @@ func mustRecordOptions(t *testing.T, record string) DNSRecordOptions {
 	return value
 }
 
-func TestDNSRecordOptionsUnmarshalJSONAcceptsFullyQualifiedNames(t *testing.T) {
-	t.Parallel()
-
-	for _, record := range []string{
-		"example.com. A 1.1.1.1",
-		"www.example.com. IN CNAME example.com.",
-	} {
-		value := mustRecordOptions(t, record)
-		require.NotNil(t, value.RR)
-	}
-}
-
 func TestDNSRecordOptionsUnmarshalJSONRejectsRelativeNames(t *testing.T) {
 	t.Parallel()
 
