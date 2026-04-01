@@ -66,6 +66,10 @@ type RuleSet interface {
 
 type RuleSetUpdateCallback func(it RuleSet)
 
+type DNSRuleSetUpdateValidator interface {
+	ValidateRuleSetMetadataUpdate(tag string, metadata RuleSetMetadata) error
+}
+
 // ip_version is not a headless-rule item, so ContainsIPVersionRule is intentionally absent.
 type RuleSetMetadata struct {
 	ContainsProcessRule      bool

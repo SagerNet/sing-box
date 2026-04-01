@@ -2,7 +2,6 @@ package dns
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/netip"
 	"strings"
@@ -17,7 +16,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	rulepkg "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
 	N "github.com/sagernet/sing/common/network"
@@ -75,6 +73,7 @@ func (m *fakeDNSTransportManager) Create(context.Context, log.ContextLogger, str
 type fakeDNSClient struct {
 	beforeExchange func(ctx context.Context, transport adapter.DNSTransport, message *mDNS.Msg)
 	exchange       func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error)
+	lookupWithCtx  func(ctx context.Context, transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error)
 	lookup         func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error)
 }
 
@@ -233,14 +232,47 @@ func (c *fakeDNSClient) Exchange(ctx context.Context, transport adapter.DNSTrans
 	if c.beforeExchange != nil {
 		c.beforeExchange(ctx, transport, message)
 	}
+	if c.exchange == nil {
+		if len(message.Question) != 1 {
+			return nil, E.New("unused client exchange")
+		}
+		var (
+			addresses []netip.Addr
+			response  *mDNS.Msg
+			err       error
+		)
+		if c.lookupWithCtx != nil {
+			addresses, response, err = c.lookupWithCtx(ctx, transport, FqdnToDomain(message.Question[0].Name), adapter.DNSQueryOptions{})
+		} else if c.lookup != nil {
+			addresses, response, err = c.lookup(transport, FqdnToDomain(message.Question[0].Name), adapter.DNSQueryOptions{})
+		} else {
+			return nil, E.New("unused client exchange")
+		}
+		if err != nil {
+			return nil, err
+		}
+		if response != nil {
+			return response, nil
+		}
+		return FixedResponse(0, message.Question[0], addresses, 60), nil
+	}
 	return c.exchange(transport, message)
 }
 
-func (c *fakeDNSClient) Lookup(_ context.Context, transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions, responseChecker func(*mDNS.Msg) bool) ([]netip.Addr, error) {
-	if c.lookup == nil {
+func (c *fakeDNSClient) Lookup(ctx context.Context, transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions, responseChecker func(*mDNS.Msg) bool) ([]netip.Addr, error) {
+	if c.lookup == nil && c.lookupWithCtx == nil {
 		return nil, E.New("unused client lookup")
 	}
-	addresses, response, err := c.lookup(transport, domain, options)
+	var (
+		addresses []netip.Addr
+		response  *mDNS.Msg
+		err       error
+	)
+	if c.lookupWithCtx != nil {
+		addresses, response, err = c.lookupWithCtx(ctx, transport, domain, options)
+	} else {
+		addresses, response, err = c.lookup(transport, domain, options)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -278,9 +310,9 @@ func newTestRouterWithContextAndLogger(t *testing.T, ctx context.Context, rules 
 		transport:             transportManager,
 		client:                client,
 		rawRules:              make([]option.DNSRule, 0, len(rules)),
+		rules:                 make([]adapter.DNSRule, 0, len(rules)),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, len(rules)), false))
 	if rules != nil {
 		err := router.Initialize(rules)
 		require.NoError(t, err)
@@ -356,7 +388,6 @@ func TestInitializeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 		rawRules:              make([]option.DNSRule, 0, 2),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 2), false))
 	err = router.Initialize([]option.DNSRule{
 		{
 			Type: C.RuleTypeDefault,
@@ -438,7 +469,7 @@ func TestLookupLegacyDNSModeDefersRuleSetDestinationIPMatch(t *testing.T) {
 		},
 	})
 
-	require.True(t, router.currentRules.Load().legacyDNSMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -487,45 +518,21 @@ func TestRuleSetUpdateReleasesOldRuleSetRefs(t *testing.T) {
 	require.Zero(t, fakeSet.refCount())
 }
 
-func TestRuleSetUpdateKeepsLastSuccessfullyCompiledRuleGraphWhenRebuildFails(t *testing.T) {
+func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldDisableLegacyDNSMode(t *testing.T) {
 	t.Parallel()
 
-	callbackRuleSet := &fakeRuleSet{
-		match: func(*adapter.InboundContext) bool {
-			return false
+	fakeSet := &fakeRuleSet{
+		metadata: adapter.RuleSetMetadata{
+			ContainsIPCIDRRule: true,
 		},
 	}
 	routerService := &fakeRouter{
 		ruleSets: map[string]adapter.RuleSet{
-			"dynamic-set": callbackRuleSet,
+			"dynamic-set": fakeSet,
 		},
 	}
 	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	preservedTransport := &fakeDNSTransport{tag: "preserved", transportType: C.DNSTypeUDP}
-	wouldBeNewTransport := &fakeDNSTransport{tag: "would-be-new", transportType: C.DNSTypeUDP}
-	loggerFactory := log.NewDefaultFactory(
-		context.Background(),
-		log.Formatter{
-			BaseTime:         time.Now(),
-			DisableColors:    true,
-			DisableTimestamp: true,
-		},
-		io.Discard,
-		"",
-		nil,
-		true,
-	)
-	loggerFactory.SetLevel(log.LevelError)
-	logEntries, logDone, err := loggerFactory.Subscribe()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		loggerFactory.UnSubscribe(logEntries)
-		closeErr := loggerFactory.Close()
-		require.NoError(t, closeErr)
-	})
-	var lastUsedTransport common.TypedValue[string]
-	router := newTestRouterWithContextAndLogger(t, ctx, []option.DNSRule{
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
 		{
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultDNSRule{
@@ -534,19 +541,7 @@ func TestRuleSetUpdateKeepsLastSuccessfullyCompiledRuleGraphWhenRebuildFails(t *
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "would-be-new"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "preserved"},
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
 				},
 			},
 		},
@@ -558,275 +553,30 @@ func TestRuleSetUpdateKeepsLastSuccessfullyCompiledRuleGraphWhenRebuildFails(t *
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "preserved"},
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
 				},
 			},
 		},
 	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
 		transports: map[string]adapter.DNSTransport{
-			"default":      defaultTransport,
-			"preserved":    preservedTransport,
-			"would-be-new": wouldBeNewTransport,
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
 		},
 	}, &fakeDNSClient{
-		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
-			lastUsedTransport.Store(transport.Tag())
-			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
-			return MessageToAddresses(response), response, nil
+		lookup: func(adapter.DNSTransport, string, adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			return []netip.Addr{netip.MustParseAddr("10.0.0.1")}, nil, nil
 		},
-	}, loggerFactory.NewLogger("dns"))
-	t.Cleanup(func() {
-		closeErr := router.Close()
-		require.NoError(t, closeErr)
 	})
+	require.True(t, router.legacyDNSMode)
 
-	require.True(t, router.currentRules.Load().legacyDNSMode)
-	require.Equal(t, 1, callbackRuleSet.refCount())
-
-	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Equal(t, "preserved", lastUsedTransport.Load())
-
-	rebuildTargetRuleSet := &fakeRuleSet{
-		metadata: adapter.RuleSetMetadata{
-			ContainsDNSQueryTypeRule: true,
-		},
-		match: func(*adapter.InboundContext) bool {
-			return true
-		},
-	}
-	routerService.setRuleSet("dynamic-set", rebuildTargetRuleSet)
-
-	callbackRuleSet.updateMetadata(adapter.RuleSetMetadata{
+	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
 		ContainsDNSQueryTypeRule: true,
 	})
-	rebuildErrorEntry := waitForLogMessageContaining(t, logEntries, logDone, "rebuild DNS rules after rule-set update")
-	require.Contains(t, rebuildErrorEntry.Message, "Address Filter Fields")
-	require.True(t, router.currentRules.Load().legacyDNSMode)
-	require.Equal(t, 1, callbackRuleSet.refCount())
-	require.Zero(t, rebuildTargetRuleSet.refCount())
-
-	lastUsedTransport.Store("")
-	addresses, err = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Equal(t, "preserved", lastUsedTransport.Load())
-	require.NotEqual(t, "would-be-new", lastUsedTransport.Load())
+	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
-func TestRuleSetUpdateSerializesConcurrentRebuilds(t *testing.T) {
-	t.Parallel()
-
-	callbackRuleSet := &fakeRuleSet{
-		match: func(*adapter.InboundContext) bool {
-			return false
-		},
-	}
-	routerService := &fakeRouter{
-		ruleSets: map[string]adapter.RuleSet{
-			"dynamic-set": callbackRuleSet,
-		},
-	}
-	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	firstTransport := &fakeDNSTransport{tag: "first", transportType: C.DNSTypeUDP}
-	secondTransport := &fakeDNSTransport{tag: "second", transportType: C.DNSTypeUDP}
-	var lastUsedTransport common.TypedValue[string]
-	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					RuleSet: badoption.Listable[string]{"dynamic-set"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "first"},
-				},
-			},
-		},
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					Domain: badoption.Listable[string]{"example.com"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "second"},
-				},
-			},
-		},
-	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
-		transports: map[string]adapter.DNSTransport{
-			"default": defaultTransport,
-			"first":   firstTransport,
-			"second":  secondTransport,
-		},
-	}, &fakeDNSClient{
-		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			lastUsedTransport.Store(transport.Tag())
-			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60), nil
-		},
-	})
-
-	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Equal(t, "second", lastUsedTransport.Load())
-
-	callbacks := callbackRuleSet.snapshotCallbacks()
-	require.Len(t, callbacks, 1)
-
-	firstMetadataEntered := make(chan struct{})
-	releaseFirstMetadata := make(chan struct{})
-	firstRuleSetStarted := make(chan struct{})
-	releaseFirstRuleSetStart := make(chan struct{})
-	secondMetadataEntered := make(chan struct{})
-	releaseSecondMetadata := make(chan struct{})
-
-	var metadataAccess sync.Mutex
-	var metadataCallCount int
-	var concurrentMetadataCalls int
-	var maximumConcurrentMetadataCalls int
-
-	recordMetadataEntry := func() func() {
-		metadataAccess.Lock()
-		metadataCallCount++
-		concurrentMetadataCalls++
-		if concurrentMetadataCalls > maximumConcurrentMetadataCalls {
-			maximumConcurrentMetadataCalls = concurrentMetadataCalls
-		}
-		metadataAccess.Unlock()
-		return func() {
-			metadataAccess.Lock()
-			concurrentMetadataCalls--
-			metadataAccess.Unlock()
-		}
-	}
-
-	firstBuildRuleSet := &fakeRuleSet{
-		match: func(*adapter.InboundContext) bool {
-			return true
-		},
-		metadataRead: func(metadata adapter.RuleSetMetadata) adapter.RuleSetMetadata {
-			metadataDone := recordMetadataEntry()
-			close(firstMetadataEntered)
-			<-releaseFirstMetadata
-			metadataDone()
-			return metadata
-		},
-		afterIncrementReference: func() {
-			close(firstRuleSetStarted)
-			<-releaseFirstRuleSetStart
-		},
-	}
-	secondBuildRuleSet := &fakeRuleSet{
-		match: func(*adapter.InboundContext) bool {
-			return false
-		},
-		metadataRead: func(metadata adapter.RuleSetMetadata) adapter.RuleSetMetadata {
-			metadataDone := recordMetadataEntry()
-			close(secondMetadataEntered)
-			<-releaseSecondMetadata
-			metadataDone()
-			return metadata
-		},
-	}
-
-	routerService.setRuleSet("dynamic-set", firstBuildRuleSet)
-
-	firstCallbackFinished := make(chan struct{})
-	go func() {
-		callbacks[0](callbackRuleSet)
-		close(firstCallbackFinished)
-	}()
-
-	select {
-	case <-firstMetadataEntered:
-	case <-time.After(time.Second):
-		t.Fatal("first rebuild did not reach rule-set metadata")
-	}
-
-	close(releaseFirstMetadata)
-
-	select {
-	case <-firstRuleSetStarted:
-	case <-time.After(time.Second):
-		t.Fatal("first rebuild did not reach rule-set start")
-	}
-
-	routerService.setRuleSet("dynamic-set", secondBuildRuleSet)
-
-	secondCallbackStarted := make(chan struct{})
-	secondCallbackFinished := make(chan struct{})
-	go func() {
-		close(secondCallbackStarted)
-		callbacks[0](callbackRuleSet)
-		close(secondCallbackFinished)
-	}()
-
-	select {
-	case <-secondCallbackStarted:
-	case <-time.After(time.Second):
-		t.Fatal("second rebuild did not start")
-	}
-
-	select {
-	case <-secondMetadataEntered:
-		t.Fatal("second rebuild entered rule-set metadata before the first rebuild completed")
-	default:
-	}
-
-	close(releaseFirstRuleSetStart)
-
-	select {
-	case <-firstCallbackFinished:
-	case <-time.After(time.Second):
-		t.Fatal("first rebuild callback did not finish")
-	}
-
-	select {
-	case <-secondMetadataEntered:
-	case <-time.After(time.Second):
-		t.Fatal("second rebuild did not enter rule-set metadata after the first rebuild finished")
-	}
-
-	addresses, err = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Equal(t, "first", lastUsedTransport.Load())
-
-	close(releaseSecondMetadata)
-
-	select {
-	case <-secondCallbackFinished:
-	case <-time.After(time.Second):
-		t.Fatal("second rebuild callback did not finish")
-	}
-
-	metadataAccess.Lock()
-	require.Equal(t, 2, metadataCallCount)
-	require.Equal(t, 1, maximumConcurrentMetadataCalls)
-	metadataAccess.Unlock()
-
-	lastUsedTransport.Store("")
-	addresses, err = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
-	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Equal(t, "second", lastUsedTransport.Load())
-
-	err = router.Close()
-	require.NoError(t, err)
-	require.Zero(t, callbackRuleSet.refCount())
-	require.Zero(t, firstBuildRuleSet.refCount())
-	require.Zero(t, secondBuildRuleSet.refCount())
-}
-
-func TestCloseDuringRebuildDiscardsResult(t *testing.T) {
+func TestValidateRuleSetMetadataUpdateRejectsRuleSetOnlyLegacyModeSwitchToNew(t *testing.T) {
 	t.Parallel()
 
 	fakeSet := &fakeRuleSet{
@@ -834,96 +584,63 @@ func TestCloseDuringRebuildDiscardsResult(t *testing.T) {
 			ContainsIPCIDRRule: true,
 		},
 	}
-	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+	routerService := &fakeRouter{
 		ruleSets: map[string]adapter.RuleSet{
 			"dynamic-set": fakeSet,
 		},
-	})
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
-		{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultDNSRule{
-				RawDefaultDNSRule: option.RawDefaultDNSRule{
-					RuleSet: badoption.Listable[string]{"dynamic-set"},
-				},
-				DNSRuleAction: option.DNSRuleAction{
-					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "installed"},
-				},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				RuleSet: badoption.Listable[string]{"dynamic-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
 			},
 		},
-	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
+	}}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
 		transports: map[string]adapter.DNSTransport{
-			"default":   defaultTransport,
-			"discarded": &fakeDNSTransport{tag: "discarded", transportType: C.DNSTypeUDP},
-			"installed": &fakeDNSTransport{tag: "installed", transportType: C.DNSTypeUDP},
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
 		},
 	}, &fakeDNSClient{
-		exchange: func(transport adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
-			switch transport.Tag() {
-			case "discarded", "installed", "default":
-				return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60), nil
-			default:
-				return nil, E.New("unexpected transport: ", transport.Tag())
-			}
+		lookup: func(adapter.DNSTransport, string, adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			return []netip.Addr{netip.MustParseAddr("10.0.0.1")}, nil, nil
 		},
 	})
-	require.True(t, router.currentRules.Load().legacyDNSMode)
-	require.Equal(t, 1, fakeSet.refCount())
+	require.True(t, router.legacyDNSMode)
 
-	callbacks := fakeSet.snapshotCallbacks()
-	require.Len(t, callbacks, 1)
-
-	firstMetadataEntered := make(chan struct{})
-	releaseFirstMetadata := make(chan struct{})
-	callbackFinished := make(chan struct{})
-	fakeSet.metadataRead = func(metadata adapter.RuleSetMetadata) adapter.RuleSetMetadata {
-		router.rawRules[0].DefaultOptions.RouteOptions.Server = "discarded"
-		close(firstMetadataEntered)
-		<-releaseFirstMetadata
-		return adapter.RuleSetMetadata{}
-	}
-
-	go func() {
-		callbacks[0](fakeSet)
-		close(callbackFinished)
-	}()
-
-	select {
-	case <-firstMetadataEntered:
-	case <-time.After(time.Second):
-		t.Fatal("rebuild did not reach rule-set metadata")
-	}
-
-	err := router.Close()
-	require.NoError(t, err)
-	close(releaseFirstMetadata)
-
-	select {
-	case <-callbackFinished:
-	case <-time.After(time.Second):
-		t.Fatal("rebuild callback did not finish after close")
-	}
-
-	fakeSet.metadataRead = nil
-
-	require.Nil(t, router.currentRules.Load())
-	require.Zero(t, fakeSet.refCount())
+	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
+		ContainsIPCIDRRule:       true,
+		ContainsDNSQueryTypeRule: true,
+	})
+	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
-func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
+func TestValidateRuleSetMetadataUpdateBeforeStartUsesStartupValidation(t *testing.T) {
 	t.Parallel()
 
 	fakeSet := &fakeRuleSet{}
-	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+	routerService := &fakeRouter{
 		ruleSets: map[string]adapter.RuleSet{
 			"dynamic-set": fakeSet,
 		},
-	})
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := &Router{
+		ctx:                   ctx,
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 2),
+		rules:                 make([]adapter.DNSRule, 0, 2),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{
 		{
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultDNSRule{
@@ -932,7 +649,7 @@ func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
 				},
 			},
 		},
@@ -944,143 +661,61 @@ func TestCloseIgnoresSnapshottedRuleSetCallback(t *testing.T) {
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action:       C.RuleActionTypeRoute,
-					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
 				},
 			},
 		},
-	}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
-		transports: map[string]adapter.DNSTransport{
-			"default": defaultTransport,
-		},
-	}, &fakeDNSClient{
-		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
-			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
-			return MessageToAddresses(response), response, nil
-		},
 	})
-
-	callbacks := fakeSet.snapshotCallbacks()
-	require.Len(t, callbacks, 1)
-
-	require.NoError(t, router.Close())
-	require.Empty(t, fakeSet.snapshotCallbacks())
-
-	fakeSet.metadata = adapter.RuleSetMetadata{
-		ContainsDNSQueryTypeRule: true,
-	}
-	callbacks[0](fakeSet)
-}
-
-func TestRuleSetUpdateDoesNotBlockOnInFlightLookup(t *testing.T) {
-	t.Parallel()
-
-	fakeSet := &fakeRuleSet{
-		metadata: adapter.RuleSetMetadata{
-			ContainsIPCIDRRule: true,
-		},
-	}
-	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
-		ruleSets: map[string]adapter.RuleSet{
-			"dynamic-set": fakeSet,
-		},
-	})
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	selectedTransport := &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP}
-	lookupStarted := make(chan struct{})
-	releaseLookup := make(chan struct{})
-	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
-		Type: C.RuleTypeDefault,
-		DefaultOptions: option.DefaultDNSRule{
-			RawDefaultDNSRule: option.RawDefaultDNSRule{
-				RuleSet: badoption.Listable[string]{"dynamic-set"},
-			},
-			DNSRuleAction: option.DNSRuleAction{
-				Action:       C.RuleActionTypeRoute,
-				RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
-			},
-		},
-	}}, &fakeDNSTransportManager{
-		defaultTransport: defaultTransport,
-		transports: map[string]adapter.DNSTransport{
-			"default":  defaultTransport,
-			"selected": selectedTransport,
-		},
-	}, &fakeDNSClient{
-		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
-			require.Equal(t, "selected", transport.Tag())
-			require.Equal(t, "example.com", domain)
-			require.Equal(t, C.DomainStrategyIPv4Only, options.LookupStrategy)
-			close(lookupStarted)
-			<-releaseLookup
-			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
-			return MessageToAddresses(response), response, nil
-		},
-	})
-	t.Cleanup(func() {
-		closeErr := router.Close()
-		require.NoError(t, closeErr)
-	})
-
-	require.True(t, router.currentRules.Load().legacyDNSMode)
-	require.Equal(t, 1, fakeSet.refCount())
-
-	var (
-		addresses []netip.Addr
-		err       error
-	)
-	lookupDone := make(chan struct{})
-	go func() {
-		addresses, err = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
-			LookupStrategy: C.DomainStrategyIPv4Only,
-		})
-		close(lookupDone)
-	}()
-
-	select {
-	case <-lookupStarted:
-	case <-time.After(time.Second):
-		t.Fatal("lookup did not reach DNS client")
-	}
-
-	rebuildDone := make(chan struct{})
-	go func() {
-		fakeSet.updateMetadata(adapter.RuleSetMetadata{
-			ContainsIPCIDRRule: true,
-		})
-		close(rebuildDone)
-	}()
-
-	select {
-	case <-rebuildDone:
-	case <-time.After(time.Second):
-		t.Fatal("rebuild blocked on in-flight lookup")
-	}
-
-	require.Equal(t, 2, fakeSet.refCount())
-
-	select {
-	case <-lookupDone:
-		t.Fatal("lookup finished before release")
-	default:
-	}
-
-	close(releaseLookup)
-
-	select {
-	case <-lookupDone:
-	case <-time.After(time.Second):
-		t.Fatal("lookup did not finish after release")
-	}
-
 	require.NoError(t, err)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Eventually(t, func() bool {
-		return fakeSet.refCount() == 1
-	}, time.Second, 10*time.Millisecond)
+	require.False(t, router.started)
+
+	err = router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
+		ContainsDNSQueryTypeRule: true,
+	})
+	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
-func TestCloseReleasesSnapshottedRulesAfterInFlightLookup(t *testing.T) {
+func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldRequireLegacyDNSMode(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{}
+	routerService := &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"dynamic-set": fakeSet,
+		},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				RuleSet: badoption.Listable[string]{"dynamic-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{
+		lookup: func(adapter.DNSTransport, string, adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			return []netip.Addr{netip.MustParseAddr("1.1.1.1")}, nil, nil
+		},
+	})
+	require.False(t, router.legacyDNSMode)
+
+	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
+		ContainsIPCIDRRule: true,
+	})
+	require.ErrorContains(t, err, "Address Filter Fields")
+}
+
+func TestValidateRuleSetMetadataUpdateAllowsRelaxingLegacyRequirement(t *testing.T) {
 	t.Parallel()
 
 	fakeSet := &fakeRuleSet{
@@ -1088,20 +723,52 @@ func TestCloseReleasesSnapshottedRulesAfterInFlightLookup(t *testing.T) {
 			ContainsIPCIDRRule: true,
 		},
 	}
-	ctx := service.ContextWith[adapter.Router](context.Background(), &fakeRouter{
+	routerService := &fakeRouter{
 		ruleSets: map[string]adapter.RuleSet{
 			"dynamic-set": fakeSet,
 		},
-	})
-	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
-	selectedTransport := &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP}
-	lookupStarted := make(chan struct{})
-	releaseLookup := make(chan struct{})
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
 	router := newTestRouterWithContext(t, ctx, []option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
 			RawDefaultDNSRule: option.RawDefaultDNSRule{
 				RuleSet: badoption.Listable[string]{"dynamic-set"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+			},
+		},
+	}}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{
+		lookup: func(adapter.DNSTransport, string, adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+			return []netip.Addr{netip.MustParseAddr("10.0.0.1")}, nil, nil
+		},
+	})
+	require.True(t, router.legacyDNSMode)
+
+	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{})
+	require.NoError(t, err)
+}
+
+func TestCloseWaitsForInFlightLookupUntilContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	defaultTransport := &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP}
+	selectedTransport := &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP}
+	lookupStarted := make(chan struct{})
+	var lookupStartedOnce sync.Once
+	router := newTestRouter(t, []option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain: badoption.Listable[string]{"example.com"},
 			},
 			DNSRuleAction: option.DNSRuleAction{
 				Action:       C.RuleActionTypeRoute,
@@ -1115,30 +782,26 @@ func TestCloseReleasesSnapshottedRulesAfterInFlightLookup(t *testing.T) {
 			"selected": selectedTransport,
 		},
 	}, &fakeDNSClient{
-		lookup: func(transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
+		lookupWithCtx: func(ctx context.Context, transport adapter.DNSTransport, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, *mDNS.Msg, error) {
 			require.Equal(t, "selected", transport.Tag())
 			require.Equal(t, "example.com", domain)
-			require.Equal(t, C.DomainStrategyIPv4Only, options.LookupStrategy)
-			close(lookupStarted)
-			<-releaseLookup
-			response := FixedResponse(0, fixedQuestion(domain, mDNS.TypeA), []netip.Addr{netip.MustParseAddr("10.0.0.1")}, 60)
-			return MessageToAddresses(response), response, nil
+			lookupStartedOnce.Do(func() {
+				close(lookupStarted)
+			})
+			<-ctx.Done()
+			return nil, nil, ctx.Err()
 		},
 	})
 
-	require.True(t, router.currentRules.Load().legacyDNSMode)
-	require.Equal(t, 1, fakeSet.refCount())
-
+	lookupCtx, cancelLookup := context.WithCancel(context.Background())
+	defer cancelLookup()
 	var (
-		addresses []netip.Addr
 		lookupErr error
 		closeErr  error
 	)
 	lookupDone := make(chan struct{})
 	go func() {
-		addresses, lookupErr = router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
-			LookupStrategy: C.DomainStrategyIPv4Only,
-		})
+		_, lookupErr = router.Lookup(lookupCtx, "example.com", adapter.DNSQueryOptions{})
 		close(lookupDone)
 	}()
 
@@ -1154,29 +817,27 @@ func TestCloseReleasesSnapshottedRulesAfterInFlightLookup(t *testing.T) {
 		close(closeDone)
 	}()
 
-	require.Eventually(t, func() bool {
-		return router.currentRules.Load() == nil && fakeSet.refCount() == 1
-	}, time.Second, 10*time.Millisecond)
+	select {
+	case <-closeDone:
+		t.Fatal("close finished before lookup context cancellation")
+	default:
+	}
 
-	close(releaseLookup)
+	cancelLookup()
 
 	select {
 	case <-lookupDone:
 	case <-time.After(time.Second):
-		t.Fatal("lookup did not finish after release")
+		t.Fatal("lookup did not finish after cancellation")
 	}
 	select {
 	case <-closeDone:
 	case <-time.After(time.Second):
-		t.Fatal("close did not finish")
+		t.Fatal("close did not finish after lookup cancellation")
 	}
 
-	require.NoError(t, lookupErr)
+	require.ErrorIs(t, lookupErr, context.Canceled)
 	require.NoError(t, closeErr)
-	require.Equal(t, []netip.Addr{netip.MustParseAddr("10.0.0.1")}, addresses)
-	require.Eventually(t, func() bool {
-		return fakeSet.refCount() == 0
-	}, time.Second, 10*time.Millisecond)
 }
 
 func TestLookupLegacyDNSModeDefersDirectDestinationIPMatch(t *testing.T) {
@@ -1217,7 +878,7 @@ func TestLookupLegacyDNSModeDefersDirectDestinationIPMatch(t *testing.T) {
 		},
 	}, client)
 
-	require.True(t, router.currentRules.Load().legacyDNSMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -1369,7 +1030,7 @@ func TestLookupLegacyDNSModeRuleSetAcceptEmptyDoesNotTreatMismatchAsEmpty(t *tes
 		},
 	})
 
-	require.True(t, router.currentRules.Load().legacyDNSMode)
+	require.True(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{
 		LookupStrategy: C.DomainStrategyIPv4Only,
@@ -1998,7 +1659,7 @@ func TestExchangeLegacyDNSModeDisabledRespondReturnsEvaluatedResponse(t *testing
 			return FixedResponse(0, message.Question[0], []netip.Addr{netip.MustParseAddr("1.1.1.1")}, 60), nil
 		},
 	})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
@@ -2055,7 +1716,7 @@ func TestLookupLegacyDNSModeDisabledRespondReturnsEvaluatedResponse(t *testing.T
 			}
 		},
 	})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -2105,7 +1766,7 @@ func TestExchangeLegacyDNSModeDisabledRespondWithoutEvaluatedResponseReturnsErro
 			return nil, E.New("upstream exchange failed")
 		},
 	})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
@@ -2136,7 +1797,7 @@ func TestLookupLegacyDNSModeDisabledAllowsPartialSuccess(t *testing.T) {
 			}
 		},
 	})
-	router.currentRules.Load().legacyDNSMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -2173,7 +1834,7 @@ func TestLookupLegacyDNSModeDisabledSkipsFakeIPRule(t *testing.T) {
 			return FixedResponse(0, message.Question[0], nil, 60), nil
 		},
 	})
-	router.currentRules.Load().legacyDNSMode = false
+	router.legacyDNSMode = false
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -2226,7 +1887,6 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByEvaluate(t
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2257,7 +1917,6 @@ func TestInitializeRejectsEvaluateFakeIPServerInDefaultRule(t *testing.T) {
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2285,7 +1944,6 @@ func TestInitializeRejectsEvaluateFakeIPServerInLogicalRule(t *testing.T) {
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeLogical,
 		LogicalOptions: option.LogicalDNSRule{
@@ -2321,7 +1979,6 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchRespo
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2351,7 +2008,6 @@ func TestInitializeRejectsDNSMatchResponseWithoutPrecedingEvaluate(t *testing.T)
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2379,7 +2035,6 @@ func TestInitializeRejectsDNSRespondWithoutPrecedingEvaluate(t *testing.T) {
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2405,7 +2060,6 @@ func TestInitializeRejectsLogicalDNSRespondWithoutPrecedingEvaluate(t *testing.T
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeLogical,
 		LogicalOptions: option.LogicalDNSRule{
@@ -2439,7 +2093,6 @@ func TestInitializeRejectsEvaluateRuleWithResponseMatchWithoutPrecedingEvaluate(
 		rawRules:              make([]option.DNSRule, 0, 1),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeLogical,
 		LogicalOptions: option.LogicalDNSRule{
@@ -2485,7 +2138,6 @@ func TestInitializeAllowsEvaluateRuleWithResponseMatchAfterPrecedingEvaluate(t *
 		rawRules:              make([]option.DNSRule, 0, 2),
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 2), false))
 	err := router.Initialize([]option.DNSRule{
 		{
 			Type: C.RuleTypeDefault,
@@ -2559,7 +2211,7 @@ func TestLookupLegacyDNSModeDisabledReturnsRejectedErrorForRejectAction(t *testi
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.Nil(t, addresses)
@@ -2592,7 +2244,7 @@ func TestExchangeLegacyDNSModeDisabledReturnsRefusedResponseForRejectAction(t *t
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
@@ -2627,7 +2279,7 @@ func TestExchangeLegacyDNSModeDisabledReturnsDropErrorForRejectDropAction(t *tes
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	response, err := router.Exchange(context.Background(), &mDNS.Msg{
 		Question: []mDNS.Question{fixedQuestion("example.com", mDNS.TypeA)},
@@ -2664,7 +2316,7 @@ func TestLookupLegacyDNSModeDisabledFiltersPerQueryTypeAddressesBeforeMerging(t 
 			"default": defaultTransport,
 		},
 	}, &fakeDNSClient{})
-	require.False(t, router.currentRules.Load().legacyDNSMode)
+	require.False(t, router.legacyDNSMode)
 
 	addresses, err := router.Lookup(context.Background(), "example.com", adapter.DNSQueryOptions{})
 	require.NoError(t, err)
@@ -2754,7 +2406,6 @@ func TestLegacyDNSModeReportsLegacyAddressFilterDeprecation(t *testing.T) {
 		client:                &fakeDNSClient{},
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
@@ -2786,7 +2437,6 @@ func TestLegacyDNSModeReportsDNSRuleStrategyDeprecation(t *testing.T) {
 		client:                &fakeDNSClient{},
 		defaultDomainStrategy: C.DomainStrategyAsIS,
 	}
-	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
 	err := router.Initialize([]option.DNSRule{{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultDNSRule{
