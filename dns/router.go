@@ -234,12 +234,12 @@ func (r *Router) ValidateRuleSetMetadataUpdate(tag string, metadata adapter.Rule
 		}
 		return nil
 	}
-	_, flags, err := resolveLegacyDNSMode(router, r.rawRules, overrides)
+	candidateLegacyDNSMode, flags, err := resolveLegacyDNSMode(router, r.rawRules, overrides)
 	if err != nil {
 		return err
 	}
 	if legacyDNSMode {
-		if flags.disabled {
+		if !candidateLegacyDNSMode && flags.disabled {
 			err := validateLegacyDNSModeDisabledRules(r.rawRules)
 			if err != nil {
 				return err
@@ -248,7 +248,7 @@ func (r *Router) ValidateRuleSetMetadataUpdate(tag string, metadata adapter.Rule
 		}
 		return nil
 	}
-	if flags.needed {
+	if candidateLegacyDNSMode {
 		return E.New(deprecated.OptionLegacyDNSAddressFilter.MessageWithLink())
 	}
 	return nil

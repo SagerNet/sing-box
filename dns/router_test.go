@@ -715,6 +715,57 @@ func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldRequireLegacyDNSMod
 	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
+func TestValidateRuleSetMetadataUpdateAllowsRuleSetThatKeepsNewMode(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{}
+	routerService := &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"dynamic-set": fakeSet,
+		},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					Domain: badoption.Listable[string]{"example.com"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeEvaluate,
+					RouteOptions: option.DNSRouteActionOptions{Server: "upstream"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"dynamic-set"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+			"upstream": &fakeDNSTransport{tag: "upstream", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{})
+	require.False(t, router.legacyDNSMode)
+
+	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
+		ContainsIPCIDRRule: true,
+	})
+	require.NoError(t, err)
+}
+
 func TestValidateRuleSetMetadataUpdateAllowsRelaxingLegacyRequirement(t *testing.T) {
 	t.Parallel()
 
