@@ -4,12 +4,9 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-plus: [respond](#respond)
-
-!!! quote "Changes in sing-box 1.14.0"
-
+    :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
-    :material-delete-clock: [strategy](#strategy)
+    :material-plus: [respond](#respond)
 
 !!! quote "Changes in sing-box 1.12.0"
 

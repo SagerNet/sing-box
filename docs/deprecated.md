@@ -48,7 +48,7 @@ Old behavior will be removed in sing-box 1.16.0.
 #### Legacy DNS server formats
 
 DNS servers are refactored,
-check [Migration](../migration/#migrate-to-new-dns-servers).
+check [Migration](../migration/#migrate-to-new-dns-server-formats).
 
 Old formats were removed in sing-box 1.14.0.
 

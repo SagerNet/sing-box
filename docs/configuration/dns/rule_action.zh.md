@@ -4,12 +4,9 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-plus: [respond](#respond)
-
-!!! quote "sing-box 1.14.0 中的更改"
-
+    :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
-    :material-delete-clock: [strategy](#strategy)
+    :material-plus: [respond](#respond)
 
 !!! quote "sing-box 1.12.0 中的更改"
 

@@ -4,7 +4,7 @@ icon: material/note-remove
 
 !!! failure "Removed in sing-box 1.14.0"
 
-    Legacy DNS servers are deprecated in sing-box 1.12.0 and removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-servers).
+    Legacy DNS servers are deprecated in sing-box 1.12.0 and removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-server-formats).
 
 !!! quote "Changes in sing-box 1.9.0"
 

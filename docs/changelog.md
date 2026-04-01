@@ -752,7 +752,7 @@ DNS servers are refactored for better performance and scalability.
 
 See [DNS server](/configuration/dns/server/).
 
-For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-server-formats).
 
 Compatibility for old formats will be removed in sing-box 1.14.0.
 
@@ -1222,7 +1222,7 @@ DNS servers are refactored for better performance and scalability.
 
 See [DNS server](/configuration/dns/server/).
 
-For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-servers).
+For migration, see [Migrate to new DNS server formats](/migration/#migrate-to-new-dns-server-formats).
 
 Compatibility for old formats will be removed in sing-box 1.14.0.
 
