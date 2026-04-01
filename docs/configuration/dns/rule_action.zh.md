@@ -80,8 +80,9 @@ icon: material/new-box
 `evaluate` 向指定服务器发送 DNS 查询并保存响应，供后续规则通过 [`match_response`](/zh/configuration/dns/rule/#match_response) 和响应字段进行匹配。与 `route` 不同，它**不会**终止规则评估。
 
 仅允许在顶层 DNS 规则中使用（不可在逻辑子规则内部使用）。
-该规则本身不可使用 `match_response` 或包含带有响应匹配字段的子规则，
-因为 `evaluate` 是为后续规则填充响应数据。
+使用 [`match_response`](/zh/configuration/dns/rule/#match_response) 或响应匹配字段的规则，
+需要位于更早的顶层 `evaluate` 规则之后。规则自身的 `evaluate` 动作不能满足这个条件，
+因为匹配发生在动作执行之前。
 
 #### server
 

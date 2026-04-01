@@ -82,8 +82,9 @@ to match against using [`match_response`](/configuration/dns/rule/#match_respons
 Unlike `route`, it does **not** terminate rule evaluation.
 
 Only allowed on top-level DNS rules (not inside logical sub-rules).
-The rule itself must not use `match_response` or contain sub-rules with Response Match Fields,
-since `evaluate` populates the response for subsequent rules to consume.
+Rules that use [`match_response`](/configuration/dns/rule/#match_response) or Response Match Fields
+require a preceding top-level rule with `evaluate` action. A rule's own `evaluate` action
+does not satisfy this requirement, because matching happens before the action runs.
 
 #### server
 

@@ -2163,6 +2163,140 @@ func TestInitializeRejectsDNSRuleStrategyWhenLegacyDNSModeIsDisabledByMatchRespo
 	require.ErrorContains(t, err, "deprecated")
 }
 
+func TestInitializeRejectsDNSMatchResponseWithoutPrecedingEvaluate(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				MatchResponse:  true,
+				ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "preceding evaluate action")
+}
+
+func TestInitializeRejectsEvaluateRuleWithResponseMatchWithoutPrecedingEvaluate(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 1),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 1), false))
+	err := router.Initialize([]option.DNSRule{{
+		Type: C.RuleTypeLogical,
+		LogicalOptions: option.LogicalDNSRule{
+			RawLogicalDNSRule: option.RawLogicalDNSRule{
+				Mode: C.LogicalTypeOr,
+				Rules: []option.DNSRule{
+					{
+						Type: C.RuleTypeDefault,
+						DefaultOptions: option.DefaultDNSRule{
+							RawDefaultDNSRule: option.RawDefaultDNSRule{
+								Domain: badoption.Listable[string]{"example.com"},
+							},
+						},
+					},
+					{
+						Type: C.RuleTypeDefault,
+						DefaultOptions: option.DefaultDNSRule{
+							RawDefaultDNSRule: option.RawDefaultDNSRule{
+								MatchResponse:  true,
+								ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
+							},
+						},
+					},
+				},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action:       C.RuleActionTypeEvaluate,
+				RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+			},
+		},
+	}})
+	require.ErrorContains(t, err, "preceding evaluate action")
+}
+
+func TestInitializeAllowsEvaluateRuleWithResponseMatchAfterPrecedingEvaluate(t *testing.T) {
+	t.Parallel()
+
+	router := &Router{
+		ctx:                   context.Background(),
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 2),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	router.currentRules.Store(newRulesSnapshot(make([]adapter.DNSRule, 0, 2), false))
+	err := router.Initialize([]option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					Domain: badoption.Listable[string]{"bootstrap.example"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeEvaluate,
+					RouteOptions: option.DNSRouteActionOptions{Server: "bootstrap"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeLogical,
+			LogicalOptions: option.LogicalDNSRule{
+				RawLogicalDNSRule: option.RawLogicalDNSRule{
+					Mode: C.LogicalTypeOr,
+					Rules: []option.DNSRule{
+						{
+							Type: C.RuleTypeDefault,
+							DefaultOptions: option.DefaultDNSRule{
+								RawDefaultDNSRule: option.RawDefaultDNSRule{
+									Domain: badoption.Listable[string]{"example.com"},
+								},
+							},
+						},
+						{
+							Type: C.RuleTypeDefault,
+							DefaultOptions: option.DefaultDNSRule{
+								RawDefaultDNSRule: option.RawDefaultDNSRule{
+									MatchResponse:  true,
+									ResponseAnswer: badoption.Listable[option.DNSRecordOptions]{mustRecord(t, "example.com. IN A 1.1.1.1")},
+								},
+							},
+						},
+					},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeEvaluate,
+					RouteOptions: option.DNSRouteActionOptions{Server: "default"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+}
+
 func TestLookupLegacyDNSModeDisabledReturnsRejectedErrorForRejectAction(t *testing.T) {
 	t.Parallel()
 

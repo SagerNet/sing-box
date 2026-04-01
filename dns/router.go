@@ -1062,14 +1062,17 @@ func referencedDNSRuleSetTags(rules []option.DNSRule) []string {
 }
 
 func validateLegacyDNSModeDisabledRules(rules []option.DNSRule) error {
+	var seenEvaluate bool
 	for i, rule := range rules {
-		consumesResponse, err := validateLegacyDNSModeDisabledRuleTree(rule)
+		requiresPriorEvaluate, err := validateLegacyDNSModeDisabledRuleTree(rule)
 		if err != nil {
 			return E.Cause(err, "validate dns rule[", i, "]")
 		}
-		action := dnsRuleActionType(rule)
-		if action == C.RuleActionTypeEvaluate && consumesResponse {
-			return E.New("dns rule[", i, "]: evaluate action cannot be used with match_response in the same rule")
+		if requiresPriorEvaluate && !seenEvaluate {
+			return E.New("dns rule[", i, "]: response-based matching requires a preceding evaluate action")
+		}
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate {
+			seenEvaluate = true
 		}
 	}
 	return nil
@@ -1080,15 +1083,15 @@ func validateLegacyDNSModeDisabledRuleTree(rule option.DNSRule) (bool, error) {
 	case "", C.RuleTypeDefault:
 		return validateLegacyDNSModeDisabledDefaultRule(rule.DefaultOptions)
 	case C.RuleTypeLogical:
-		var consumesResponse bool
+		var requiresPriorEvaluate bool
 		for i, subRule := range rule.LogicalOptions.Rules {
-			subConsumesResponse, err := validateLegacyDNSModeDisabledRuleTree(subRule)
+			subRequiresPriorEvaluate, err := validateLegacyDNSModeDisabledRuleTree(subRule)
 			if err != nil {
 				return false, E.Cause(err, "sub rule[", i, "]")
 			}
-			consumesResponse = consumesResponse || subConsumesResponse
+			requiresPriorEvaluate = requiresPriorEvaluate || subRequiresPriorEvaluate
 		}
-		return consumesResponse, nil
+		return requiresPriorEvaluate, nil
 	default:
 		return false, nil
 	}
