@@ -130,19 +130,31 @@ func DNSResponseAddresses(response *dns.Msg) []netip.Addr {
 	for _, rawRecord := range response.Answer {
 		switch record := rawRecord.(type) {
 		case *dns.A:
-			addresses = append(addresses, M.AddrFromIP(record.A))
+			addr := M.AddrFromIP(record.A)
+			if addr.IsValid() {
+				addresses = append(addresses, addr)
+			}
 		case *dns.AAAA:
-			addresses = append(addresses, M.AddrFromIP(record.AAAA))
+			addr := M.AddrFromIP(record.AAAA)
+			if addr.IsValid() {
+				addresses = append(addresses, addr)
+			}
 		case *dns.HTTPS:
 			for _, value := range record.SVCB.Value {
 				switch hint := value.(type) {
 				case *dns.SVCBIPv4Hint:
 					for _, ip := range hint.Hint {
-						addresses = append(addresses, M.AddrFromIP(ip).Unmap())
+						addr := M.AddrFromIP(ip).Unmap()
+						if addr.IsValid() {
+							addresses = append(addresses, addr)
+						}
 					}
 				case *dns.SVCBIPv6Hint:
 					for _, ip := range hint.Hint {
-						addresses = append(addresses, M.AddrFromIP(ip))
+						addr := M.AddrFromIP(ip)
+						if addr.IsValid() {
+							addresses = append(addresses, addr)
+						}
 					}
 				}
 			}

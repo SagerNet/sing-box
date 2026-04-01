@@ -329,7 +329,7 @@ func (r *Router) registerRuleSetCallbacks() (bool, error) {
 		})
 	}
 	r.stateAccess.Lock()
-	if len(r.ruleSetCallbacks) == 0 {
+	if !r.closing && len(r.ruleSetCallbacks) == 0 {
 		r.ruleSetCallbacks = callbacks
 		callbacks = nil
 	}
