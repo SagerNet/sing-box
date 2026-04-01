@@ -186,6 +186,19 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.destinationPortItems = append(rule.destinationPortItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.VLESSRoute) > 0 {
+		item := NewVLESSRouteItem(options.VLESSRoute)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.VLESSRouteRange) > 0 {
+		item, err := NewVLESSRouteRangeItem(options.VLESSRouteRange)
+		if err != nil {
+			return nil, E.Cause(err, "vless_route_range")
+		}
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.ProcessName) > 0 {
 		item := NewProcessItem(options.ProcessName)
 		rule.items = append(rule.items, item)
