@@ -26,6 +26,8 @@ service StartedService {
 
   rpc GetSystemProxyStatus(google.protobuf.Empty) returns(SystemProxyStatus) {}
   rpc SetSystemProxyEnabled(SetSystemProxyEnabledRequest) returns(google.protobuf.Empty) {}
+  rpc TriggerDebugCrash(DebugCrashRequest) returns(google.protobuf.Empty) {}
+  rpc TriggerOOMReport(google.protobuf.Empty) returns(google.protobuf.Empty) {}
 
   rpc SubscribeConnections(SubscribeConnectionsRequest) returns(stream ConnectionEvents) {}
   rpc CloseConnection(CloseConnectionRequest) returns(google.protobuf.Empty) {}
@@ -139,6 +141,15 @@ message SystemProxyStatus {
 
 message SetSystemProxyEnabledRequest {
   bool enabled = 1;
+}
+
+message DebugCrashRequest {
+  enum Type {
+    GO = 0;
+    NATIVE = 1;
+  }
+
+  Type type = 1;
 }
 
 message SubscribeConnectionsRequest {
