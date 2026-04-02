@@ -1059,11 +1059,8 @@ func validateLegacyDNSModeDisabledRuleTree(rule option.DNSRule) (bool, error) {
 
 func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool, error) {
 	hasResponseRecords := hasResponseMatchFields(rule)
-	if hasResponseRecords && !rule.MatchResponse {
-		return false, E.New("Response Match Fields (response_rcode, response_answer, response_ns, response_extra) require match_response to be enabled")
-	}
-	if (len(rule.IPCIDR) > 0 || rule.IPIsPrivate) && !rule.MatchResponse {
-		return false, E.New(deprecated.OptionLegacyDNSAddressFilter.MessageWithLink())
+	if (hasResponseRecords || len(rule.IPCIDR) > 0 || rule.IPIsPrivate) && !rule.MatchResponse {
+		return false, E.New("Response Match Fields (ip_cidr, ip_is_private, response_rcode, response_answer, response_ns, response_extra) require match_response to be enabled")
 	}
 	// Intentionally do not reject rule_set here. A referenced rule set may mix
 	// destination-IP predicates with pre-response predicates such as domain items.

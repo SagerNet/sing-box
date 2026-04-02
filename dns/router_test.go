@@ -414,8 +414,8 @@ func TestInitializeRejectsDirectLegacyRuleWhenRuleSetForcesNew(t *testing.T) {
 			},
 		},
 	})
-	require.ErrorContains(t, err, "Address Filter Fields")
-	require.ErrorContains(t, err, "deprecated")
+	require.ErrorContains(t, err, "Response Match Fields")
+	require.ErrorContains(t, err, "require match_response")
 }
 
 func TestLookupLegacyDNSModeDefersRuleSetDestinationIPMatch(t *testing.T) {
