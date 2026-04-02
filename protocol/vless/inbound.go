@@ -178,6 +178,9 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	} else {
 		metadata.User = user
 	}
+	if vlessRoute, hasRoute := vless.VLESSRouteFromContext(ctx); hasRoute {
+		metadata.VLESSRoute = vlessRoute
+	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
@@ -195,6 +198,9 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		user = F.ToString(userIndex)
 	} else {
 		metadata.User = user
+	}
+	if vlessRoute, hasRoute := vless.VLESSRouteFromContext(ctx); hasRoute {
+		metadata.VLESSRoute = vlessRoute
 	}
 	if metadata.Destination.Fqdn == packetaddr.SeqPacketMagicAddress {
 		metadata.Destination = M.Socksaddr{}
