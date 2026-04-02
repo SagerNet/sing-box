@@ -573,7 +573,7 @@ func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldDisableLegacyDNSMod
 	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
 		ContainsDNSQueryTypeRule: true,
 	})
-	require.ErrorContains(t, err, "Address Filter Fields")
+	require.ErrorContains(t, err, "require match_response")
 }
 
 func TestValidateRuleSetMetadataUpdateRejectsRuleSetOnlyLegacyModeSwitchToNew(t *testing.T) {
@@ -672,7 +672,7 @@ func TestValidateRuleSetMetadataUpdateBeforeStartUsesStartupValidation(t *testin
 	err = router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
 		ContainsDNSQueryTypeRule: true,
 	})
-	require.ErrorContains(t, err, "Address Filter Fields")
+	require.ErrorContains(t, err, "require match_response")
 }
 
 func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldRequireLegacyDNSMode(t *testing.T) {

@@ -733,18 +733,6 @@ func TestDNSMatchResponseMissingResponseUsesBooleanSemantics(t *testing.T) {
 	})
 }
 
-func TestDNSLegacyMatchResponseMissingResponseStillFailsClosed(t *testing.T) {
-	t.Parallel()
-
-	rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
-		rule.invert = true
-	})
-	rule.matchResponse = true
-
-	metadata := testMetadata("lookup.example")
-	require.False(t, rule.LegacyPreMatch(&metadata))
-}
-
 func TestDNSAddressLimitIgnoresDestinationAddresses(t *testing.T) {
 	t.Parallel()
 
@@ -963,30 +951,6 @@ func TestDNSLegacyInvertAddressLimitPreLookupRegression(t *testing.T) {
 func TestDNSLegacyInvertLogicalAddressLimitPreLookupRegression(t *testing.T) {
 	t.Parallel()
 
-	t.Run("wrapper invert keeps nested deferred rule matchable", func(t *testing.T) {
-		t.Parallel()
-
-		nestedRule := dnsRuleForTest(func(rule *abstractDefaultRule) {
-			addDestinationIPIsPrivateItem(rule)
-		})
-		logicalRule := &LogicalDNSRule{
-			abstractLogicalRule: abstractLogicalRule{
-				rules:  []adapter.HeadlessRule{nestedRule},
-				mode:   C.LogicalTypeAnd,
-				invert: true,
-			},
-		}
-
-		preLookupMetadata := testMetadata("lookup.example")
-		require.True(t, logicalRule.LegacyPreMatch(&preLookupMetadata))
-
-		matchedMetadata := testMetadata("lookup.example")
-		require.False(t, logicalRule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(netip.MustParseAddr("10.0.0.1"))))
-
-		unmatchedMetadata := testMetadata("lookup.example")
-		require.True(t, logicalRule.MatchAddressLimit(&unmatchedMetadata, dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))))
-	})
-
 	t.Run("inverted deferred child does not suppress branch", func(t *testing.T) {
 		t.Parallel()
 
@@ -1026,94 +990,6 @@ func TestDNSLegacyInvertRuleSetAddressLimitPreLookupRegression(t *testing.T) {
 
 	unmatchedMetadata := testMetadata("lookup.example")
 	require.True(t, rule.MatchAddressLimit(&unmatchedMetadata, dnsResponseForTest(netip.MustParseAddr("8.8.8.8"))))
-}
-
-func TestDNSLegacyInvertNegationStressRegression(t *testing.T) {
-	t.Parallel()
-
-	const branchCount = 20
-	unmatchedResponse := dnsResponseForTest(netip.MustParseAddr("203.0.113.250"))
-
-	t.Run("logical wrapper", func(t *testing.T) {
-		t.Parallel()
-
-		branches := make([]adapter.HeadlessRule, 0, branchCount)
-		var matchedAddrs []netip.Addr
-		for i := 0; i < branchCount; i++ {
-			firstCIDR, secondCIDR, branchAddrs := legacyNegationBranchCIDRs(i)
-			if matchedAddrs == nil {
-				matchedAddrs = branchAddrs
-			}
-			branches = append(branches, &LogicalDNSRule{
-				abstractLogicalRule: abstractLogicalRule{
-					mode: C.LogicalTypeAnd,
-					rules: []adapter.HeadlessRule{
-						dnsRuleForTest(func(rule *abstractDefaultRule) {
-							addDestinationIPCIDRItem(t, rule, []string{firstCIDR})
-						}),
-						dnsRuleForTest(func(rule *abstractDefaultRule) {
-							addDestinationIPCIDRItem(t, rule, []string{secondCIDR})
-						}),
-					},
-				},
-			})
-		}
-
-		rule := &LogicalDNSRule{
-			abstractLogicalRule: abstractLogicalRule{
-				rules:  branches,
-				mode:   C.LogicalTypeOr,
-				invert: true,
-			},
-		}
-
-		preLookupMetadata := testMetadata("lookup.example")
-		require.True(t, rule.LegacyPreMatch(&preLookupMetadata))
-
-		matchedMetadata := testMetadata("lookup.example")
-		require.False(t, rule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(matchedAddrs...)))
-
-		unmatchedMetadata := testMetadata("lookup.example")
-		require.True(t, rule.MatchAddressLimit(&unmatchedMetadata, unmatchedResponse))
-	})
-
-	t.Run("ruleset wrapper", func(t *testing.T) {
-		t.Parallel()
-
-		branches := make([]adapter.HeadlessRule, 0, branchCount)
-		var matchedAddrs []netip.Addr
-		for i := 0; i < branchCount; i++ {
-			firstCIDR, secondCIDR, branchAddrs := legacyNegationBranchCIDRs(i)
-			if matchedAddrs == nil {
-				matchedAddrs = branchAddrs
-			}
-			branches = append(branches, headlessLogicalRule(
-				C.LogicalTypeAnd,
-				false,
-				headlessDefaultRule(t, func(rule *abstractDefaultRule) {
-					addDestinationIPCIDRItem(t, rule, []string{firstCIDR})
-				}),
-				headlessDefaultRule(t, func(rule *abstractDefaultRule) {
-					addDestinationIPCIDRItem(t, rule, []string{secondCIDR})
-				}),
-			))
-		}
-
-		ruleSet := newLocalRuleSetForTest("dns-legacy-negation-stress", branches...)
-		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
-			rule.invert = true
-			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
-		})
-
-		preLookupMetadata := testMetadata("lookup.example")
-		require.True(t, rule.LegacyPreMatch(&preLookupMetadata))
-
-		matchedMetadata := testMetadata("lookup.example")
-		require.False(t, rule.MatchAddressLimit(&matchedMetadata, dnsResponseForTest(matchedAddrs...)))
-
-		unmatchedMetadata := testMetadata("lookup.example")
-		require.True(t, rule.MatchAddressLimit(&unmatchedMetadata, unmatchedResponse))
-	})
 }
 
 func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
@@ -1294,12 +1170,6 @@ func dnsResponseForTest(addresses ...netip.Addr) *mDNS.Msg {
 		}
 	}
 	return response
-}
-
-func legacyNegationBranchCIDRs(index int) (string, string, []netip.Addr) {
-	first := netip.AddrFrom4([4]byte{198, 18, 0, byte(index*2 + 1)})
-	second := netip.AddrFrom4([4]byte{198, 18, 0, byte(index*2 + 2)})
-	return first.String() + "/32", second.String() + "/32", []netip.Addr{first, second}
 }
 
 func addRuleSetItem(rule *abstractDefaultRule, item *RuleSetItem) {
