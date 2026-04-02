@@ -24,6 +24,8 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -683,6 +685,29 @@ func (s *StartedService) SetSystemProxyEnabled(ctx context.Context, request *Set
 		return nil, err
 	}
 	return nil, err
+}
+
+func (s *StartedService) TriggerDebugCrash(ctx context.Context, request *DebugCrashRequest) (*emptypb.Empty, error) {
+	if !s.debug {
+		return nil, status.Error(codes.PermissionDenied, "debug crash trigger unavailable")
+	}
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "missing debug crash request")
+	}
+	switch request.Type {
+	case DebugCrashRequest_GO:
+		time.AfterFunc(200*time.Millisecond, func() {
+			panic("debug go crash")
+		})
+	case DebugCrashRequest_NATIVE:
+		err := s.handler.TriggerNativeCrash()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, status.Error(codes.InvalidArgument, "unknown debug crash type")
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsRequest, server grpc.ServerStreamingServer[ConnectionEvents]) error {

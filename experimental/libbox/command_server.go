@@ -39,6 +39,7 @@ type CommandServerHandler interface {
 	ServiceReload() error
 	GetSystemProxyStatus() (*SystemProxyStatus, error)
 	SetSystemProxyEnabled(enabled bool) error
+	TriggerNativeCrash() error
 	WriteDebugMessage(message string)
 }
 
@@ -170,11 +171,16 @@ type OverrideOptions struct {
 }
 
 func (s *CommandServer) StartOrReloadService(configContent string, options *OverrideOptions) error {
-	return s.StartedService.StartOrReloadService(configContent, &daemon.OverrideOptions{
+	err := s.StartedService.StartOrReloadService(configContent, &daemon.OverrideOptions{
 		AutoRedirect:   options.AutoRedirect,
 		IncludePackage: iteratorToArray(options.IncludePackage),
 		ExcludePackage: iteratorToArray(options.ExcludePackage),
 	})
+	if err != nil {
+		return err
+	}
+	saveConfigSnapshot(configContent)
+	return nil
 }
 
 func (s *CommandServer) CloseService() error {
@@ -269,6 +275,10 @@ func (h *platformHandler) SystemProxyStatus() (*daemon.SystemProxyStatus, error)
 
 func (h *platformHandler) SetSystemProxyEnabled(enabled bool) error {
 	return (*CommandServer)(h).handler.SetSystemProxyEnabled(enabled)
+}
+
+func (h *platformHandler) TriggerNativeCrash() error {
+	return (*CommandServer)(h).handler.TriggerNativeCrash()
 }
 
 func (h *platformHandler) WriteDebugMessage(message string) {

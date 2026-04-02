@@ -540,6 +540,24 @@ func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
 	return err
 }
 
+func (c *CommandClient) TriggerGoCrash() error {
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerDebugCrash(context.Background(), &daemon.DebugCrashRequest{
+			Type: daemon.DebugCrashRequest_GO,
+		})
+	})
+	return err
+}
+
+func (c *CommandClient) TriggerNativeCrash() error {
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerDebugCrash(context.Background(), &daemon.DebugCrashRequest{
+			Type: daemon.DebugCrashRequest_NATIVE,
+		})
+	})
+	return err
+}
+
 func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 	return callWithResult(c, func(client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
 		warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})
