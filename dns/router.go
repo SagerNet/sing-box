@@ -401,25 +401,20 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			r.applyDNSRouteOptions(&effectiveOptions, *action)
 		case *R.RuleActionEvaluate:
 			queryOptions := effectiveOptions
-			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
-			switch status {
-			case dnsRouteStatusMissing:
+			transport, loaded := r.transport.Transport(action.Server)
+			if !loaded {
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				evaluatedResponse = nil
 				evaluatedTransport = nil
 				continue
-			case dnsRouteStatusSkipped:
-				continue
 			}
+			r.applyDNSRouteOptions(&queryOptions, action.RuleActionDNSRouteOptions)
 			exchangeOptions := queryOptions
 			if exchangeOptions.Strategy == C.DomainStrategyAsIS {
 				exchangeOptions.Strategy = r.defaultDomainStrategy
 			}
 			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
 			if err != nil {
-				if E.IsClosedOrCanceled(err) {
-					return exchangeWithRulesResult{err: err}
-				}
 				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
 				evaluatedResponse = nil
 				evaluatedTransport = nil

@@ -715,7 +715,7 @@ func TestValidateRuleSetMetadataUpdateRejectsRuleSetThatWouldRequireLegacyDNSMod
 	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
-func TestValidateRuleSetMetadataUpdateAllowsRuleSetThatKeepsNewMode(t *testing.T) {
+func TestValidateRuleSetMetadataUpdateAllowsRuleSetThatKeepsNonLegacyDNSMode(t *testing.T) {
 	t.Parallel()
 
 	fakeSet := &fakeRuleSet{}
