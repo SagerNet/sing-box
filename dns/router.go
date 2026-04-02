@@ -380,31 +380,7 @@ type exchangeWithRulesResult struct {
 
 const dnsRespondMissingResponseMessage = "respond action requires an evaluated response from a preceding evaluate action"
 
-type lookupSplitHardError struct {
-	cause error
-}
-
-func (e *lookupSplitHardError) Error() string {
-	return e.cause.Error()
-}
-
-func (e *lookupSplitHardError) Unwrap() error {
-	return e.cause
-}
-
-func newLookupSplitHardError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return &lookupSplitHardError{cause: err}
-}
-
-func isLookupSplitHardError(err error) bool {
-	var target *lookupSplitHardError
-	return errors.As(err, &target)
-}
-
-func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool, hardFailMissingTransport bool) exchangeWithRulesResult {
+func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) exchangeWithRulesResult {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
@@ -428,11 +404,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
 			switch status {
 			case dnsRouteStatusMissing:
-				err := E.New("transport not found: ", action.Server)
-				if hardFailMissingTransport {
-					return exchangeWithRulesResult{err: newLookupSplitHardError(err)}
-				}
-				r.logger.ErrorContext(ctx, err)
+				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				evaluatedResponse = nil
 				evaluatedTransport = nil
 				continue
@@ -458,7 +430,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 		case *R.RuleActionRespond:
 			if evaluatedResponse == nil {
 				return exchangeWithRulesResult{
-					err: newLookupSplitHardError(E.New(dnsRespondMissingResponseMessage)),
+					err: E.New(dnsRespondMissingResponseMessage),
 				}
 			}
 			return exchangeWithRulesResult{
@@ -470,11 +442,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
 			switch status {
 			case dnsRouteStatusMissing:
-				err := E.New("transport not found: ", action.Server)
-				if hardFailMissingTransport {
-					return exchangeWithRulesResult{err: newLookupSplitHardError(err)}
-				}
-				r.logger.ErrorContext(ctx, err)
+				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 				continue
 			case dnsRouteStatusSkipped:
 				continue
@@ -579,58 +547,22 @@ func (r *Router) lookupWithRules(ctx context.Context, rules []adapter.DNSRule, d
 		return r.lookupWithRulesType(ctx, rules, domain, mDNS.TypeAAAA, lookupOptions)
 	}
 	var (
-		response4    []netip.Addr
-		response6    []netip.Addr
-		ordinaryErr4 error
-		ordinaryErr6 error
-		hardErr4     error
-		hardErr6     error
+		response4 []netip.Addr
+		response6 []netip.Addr
 	)
 	var group task.Group
 	group.Append("exchange4", func(ctx context.Context) error {
 		result, err := r.lookupWithRulesType(ctx, rules, domain, mDNS.TypeA, lookupOptions)
 		response4 = result
-		if err == nil {
-			return nil
-		}
-		if E.IsClosedOrCanceled(err) {
-			return err
-		}
-		if isLookupSplitHardError(err) {
-			hardErr4 = err
-			return nil
-		}
-		ordinaryErr4 = err
-		return nil
+		return err
 	})
 	group.Append("exchange6", func(ctx context.Context) error {
 		result, err := r.lookupWithRulesType(ctx, rules, domain, mDNS.TypeAAAA, lookupOptions)
 		response6 = result
-		if err == nil {
-			return nil
-		}
-		if E.IsClosedOrCanceled(err) {
-			return err
-		}
-		if isLookupSplitHardError(err) {
-			hardErr6 = err
-			return nil
-		}
-		ordinaryErr6 = err
-		return nil
+		return err
 	})
 	err := group.Run(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = E.Errors(hardErr4, hardErr6)
 	if len(response4) == 0 && len(response6) == 0 {
-		if err != nil {
-			return nil, err
-		}
-		return nil, E.Errors(ordinaryErr4, ordinaryErr6)
-	}
-	if err != nil {
 		return nil, err
 	}
 	return sortAddresses(response4, response6, strategy), nil
@@ -647,7 +579,7 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 			Qclass: mDNS.ClassINET,
 		}},
 	}
-	exchangeResult := r.exchangeWithRules(withLookupQueryMetadata(ctx, qType), rules, request, options, false, true)
+	exchangeResult := r.exchangeWithRules(withLookupQueryMetadata(ctx, qType), rules, request, options, false)
 	if exchangeResult.rejectAction != nil {
 		return nil, exchangeResult.rejectAction.Error(ctx)
 	}
@@ -706,7 +638,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		}
 		response, err = r.client.Exchange(ctx, transport, message, options, nil)
 	} else if !legacyDNSMode {
-		exchangeResult := r.exchangeWithRules(ctx, rules, message, options, true, false)
+		exchangeResult := r.exchangeWithRules(ctx, rules, message, options, true)
 		response, transport, err = exchangeResult.response, exchangeResult.transport, exchangeResult.err
 	} else {
 		var (
