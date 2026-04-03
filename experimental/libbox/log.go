@@ -4,43 +4,24 @@ package libbox
 
 import (
 	"archive/zip"
-	"bytes"
-	"encoding/json"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"time"
-
-	C "github.com/sagernet/sing-box/constant"
-)
-
-const (
-	crashReportMetadataFileName = "metadata.json"
-	crashReportGoLogFileName    = "go.log"
-	crashReportConfigFileName   = "configuration.json"
 )
 
 var crashOutputFile *os.File
 
 type crashReportMetadata struct {
-	Source              string `json:"source"`
-	BundleIdentifier    string `json:"bundleIdentifier,omitempty"`
-	ProcessName         string `json:"processName,omitempty"`
-	ProcessPath         string `json:"processPath,omitempty"`
-	StartedAt           string `json:"startedAt,omitempty"`
-	CrashedAt           string `json:"crashedAt,omitempty"`
-	AppVersion          string `json:"appVersion,omitempty"`
-	AppMarketingVersion string `json:"appMarketingVersion,omitempty"`
-	CoreVersion         string `json:"coreVersion,omitempty"`
-	GoVersion           string `json:"goVersion,omitempty"`
-	SignalName          string `json:"signalName,omitempty"`
-	SignalCode          string `json:"signalCode,omitempty"`
-	ExceptionName       string `json:"exceptionName,omitempty"`
-	ExceptionReason     string `json:"exceptionReason,omitempty"`
+	reportMetadata
+	CrashedAt       string `json:"crashedAt,omitempty"`
+	SignalName      string `json:"signalName,omitempty"`
+	SignalCode      string `json:"signalCode,omitempty"`
+	ExceptionName   string `json:"exceptionName,omitempty"`
+	ExceptionReason string `json:"exceptionReason,omitempty"`
 }
 
 func archiveCrashReport(path string, crashReportsDir string) {
@@ -55,59 +36,29 @@ func archiveCrashReport(path string, crashReportsDir string) {
 		crashTime = info.ModTime().UTC()
 	}
 
-	metadata := currentCrashReportMetadata(crashTime)
-	if len(bytes.TrimSpace(content)) == 0 {
-		os.Remove(path)
-		return
-	}
+	initReportDir(crashReportsDir)
+	destPath := nextAvailableReportPath(crashReportsDir, crashTime)
+	initReportDir(destPath)
 
-	os.MkdirAll(crashReportsDir, 0o777)
-	destName := crashTime.Format("2006-01-02T15-04-05")
-	destPath := filepath.Join(crashReportsDir, destName)
-	for i := 1; ; i++ {
-		if _, err := os.Stat(destPath); os.IsNotExist(err) {
-			break
-		}
-		destPath = filepath.Join(crashReportsDir,
-			crashTime.Format("2006-01-02T15-04-05")+"-"+strconv.Itoa(i))
+	writeReportFile(destPath, "go.log", content)
+	metadata := crashReportMetadata{
+		reportMetadata: baseReportMetadata(),
+		CrashedAt:      crashTime.Format(time.RFC3339),
 	}
-
-	os.MkdirAll(destPath, 0o777)
-	logPath := filepath.Join(destPath, crashReportGoLogFileName)
-	os.WriteFile(logPath, content, 0o666)
-	if runtime.GOOS != "android" {
-		os.Chown(destPath, sUserID, sGroupID)
-		os.Chown(logPath, sUserID, sGroupID)
-	}
-	writeCrashReportMetadata(destPath, metadata)
+	writeReportMetadata(destPath, metadata)
 	os.Remove(path)
-	archiveConfigSnapshot(destPath)
+	copyConfigSnapshot(destPath)
+	os.Remove(configSnapshotPath())
 }
 
 func configSnapshotPath() string {
-	return filepath.Join(sTempPath, crashReportConfigFileName)
+	return filepath.Join(sTempPath, "configuration.json")
 }
 
 func saveConfigSnapshot(configContent string) {
 	snapshotPath := configSnapshotPath()
 	os.WriteFile(snapshotPath, []byte(configContent), 0o666)
-	if runtime.GOOS != "android" {
-		os.Chown(snapshotPath, sUserID, sGroupID)
-	}
-}
-
-func archiveConfigSnapshot(destPath string) {
-	snapshotPath := configSnapshotPath()
-	content, err := os.ReadFile(snapshotPath)
-	if err != nil || len(bytes.TrimSpace(content)) == 0 {
-		return
-	}
-	configPath := filepath.Join(destPath, crashReportConfigFileName)
-	os.WriteFile(configPath, content, 0o666)
-	if runtime.GOOS != "android" {
-		os.Chown(configPath, sUserID, sGroupID)
-	}
-	os.Remove(snapshotPath)
+	chownReport(snapshotPath)
 }
 
 func redirectStderr(path string) error {
@@ -136,35 +87,6 @@ func redirectStderr(path string) error {
 	}
 	crashOutputFile = outputFile
 	return nil
-}
-
-func currentCrashReportMetadata(crashTime time.Time) crashReportMetadata {
-	processPath, _ := os.Executable()
-	processName := filepath.Base(processPath)
-	if processName == "." {
-		processName = ""
-	}
-	return crashReportMetadata{
-		Source:      sCrashReportSource,
-		ProcessName: processName,
-		ProcessPath: processPath,
-		CrashedAt:   crashTime.Format(time.RFC3339),
-		CoreVersion: C.Version,
-		GoVersion:   GoVersion(),
-	}
-}
-
-func writeCrashReportMetadata(reportPath string, metadata crashReportMetadata) {
-	data, err := json.Marshal(metadata)
-	if err != nil {
-		return
-	}
-
-	metaPath := filepath.Join(reportPath, crashReportMetadataFileName)
-	os.WriteFile(metaPath, data, 0o666)
-	if runtime.GOOS != "android" {
-		os.Chown(metaPath, sUserID, sGroupID)
-	}
 }
 
 func CreateZipArchive(sourcePath string, destinationPath string) error {

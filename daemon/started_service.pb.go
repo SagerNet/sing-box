@@ -2008,7 +2008,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x13ConnectionEventType\x12\x18\n" +
 	"\x14CONNECTION_EVENT_NEW\x10\x00\x12\x1b\n" +
 	"\x17CONNECTION_EVENT_UPDATE\x10\x01\x12\x1b\n" +
-	"\x17CONNECTION_EVENT_CLOSED\x10\x022\xaf\f\n" +
+	"\x17CONNECTION_EVENT_CLOSED\x10\x022\xf5\f\n" +
 	"\x0eStartedService\x12=\n" +
 	"\vStopService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\rReloadService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12K\n" +
@@ -2026,7 +2026,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x0eSetGroupExpand\x12\x1d.daemon.SetGroupExpandRequest\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x14GetSystemProxyStatus\x12\x16.google.protobuf.Empty\x1a\x19.daemon.SystemProxyStatus\"\x00\x12W\n" +
 	"\x15SetSystemProxyEnabled\x12$.daemon.SetSystemProxyEnabledRequest\x1a\x16.google.protobuf.Empty\"\x00\x12H\n" +
-	"\x11TriggerDebugCrash\x12\x19.daemon.DebugCrashRequest\x1a\x16.google.protobuf.Empty\"\x00\x12Y\n" +
+	"\x11TriggerDebugCrash\x12\x19.daemon.DebugCrashRequest\x1a\x16.google.protobuf.Empty\"\x00\x12D\n" +
+	"\x10TriggerOOMReport\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12Y\n" +
 	"\x14SubscribeConnections\x12#.daemon.SubscribeConnectionsRequest\x1a\x18.daemon.ConnectionEvents\"\x000\x01\x12K\n" +
 	"\x0fCloseConnection\x12\x1e.daemon.CloseConnectionRequest\x1a\x16.google.protobuf.Empty\"\x00\x12G\n" +
 	"\x13CloseAllConnections\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12M\n" +
@@ -2114,35 +2115,37 @@ var file_daemon_started_service_proto_depIdxs = []int32{
 	31, // 26: daemon.StartedService.GetSystemProxyStatus:input_type -> google.protobuf.Empty
 	19, // 27: daemon.StartedService.SetSystemProxyEnabled:input_type -> daemon.SetSystemProxyEnabledRequest
 	20, // 28: daemon.StartedService.TriggerDebugCrash:input_type -> daemon.DebugCrashRequest
-	21, // 29: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
-	26, // 30: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
-	31, // 31: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
-	31, // 32: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
-	31, // 33: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
-	31, // 34: daemon.StartedService.StopService:output_type -> google.protobuf.Empty
-	31, // 35: daemon.StartedService.ReloadService:output_type -> google.protobuf.Empty
-	4,  // 36: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
-	7,  // 37: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
-	8,  // 38: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
-	31, // 39: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
-	9,  // 40: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
-	10, // 41: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
-	17, // 42: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
-	16, // 43: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
-	31, // 44: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
-	31, // 45: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
-	31, // 46: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
-	31, // 47: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
-	18, // 48: daemon.StartedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
-	31, // 49: daemon.StartedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
-	31, // 50: daemon.StartedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
-	23, // 51: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
-	31, // 52: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
-	31, // 53: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
-	27, // 54: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
-	29, // 55: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
-	34, // [34:56] is the sub-list for method output_type
-	12, // [12:34] is the sub-list for method input_type
+	31, // 29: daemon.StartedService.TriggerOOMReport:input_type -> google.protobuf.Empty
+	21, // 30: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
+	26, // 31: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
+	31, // 32: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
+	31, // 33: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
+	31, // 34: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
+	31, // 35: daemon.StartedService.StopService:output_type -> google.protobuf.Empty
+	31, // 36: daemon.StartedService.ReloadService:output_type -> google.protobuf.Empty
+	4,  // 37: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
+	7,  // 38: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
+	8,  // 39: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
+	31, // 40: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
+	9,  // 41: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
+	10, // 42: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
+	17, // 43: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
+	16, // 44: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
+	31, // 45: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
+	31, // 46: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
+	31, // 47: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
+	31, // 48: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
+	18, // 49: daemon.StartedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
+	31, // 50: daemon.StartedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
+	31, // 51: daemon.StartedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
+	31, // 52: daemon.StartedService.TriggerOOMReport:output_type -> google.protobuf.Empty
+	23, // 53: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
+	31, // 54: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
+	31, // 55: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
+	27, // 56: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
+	29, // 57: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
+	35, // [35:58] is the sub-list for method output_type
+	12, // [12:35] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
 	12, // [12:12] is the sub-list for extension extendee
 	0,  // [0:12] is the sub-list for field type_name

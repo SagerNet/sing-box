@@ -32,6 +32,7 @@ const (
 	StartedService_GetSystemProxyStatus_FullMethodName   = "/daemon.StartedService/GetSystemProxyStatus"
 	StartedService_SetSystemProxyEnabled_FullMethodName  = "/daemon.StartedService/SetSystemProxyEnabled"
 	StartedService_TriggerDebugCrash_FullMethodName      = "/daemon.StartedService/TriggerDebugCrash"
+	StartedService_TriggerOOMReport_FullMethodName       = "/daemon.StartedService/TriggerOOMReport"
 	StartedService_SubscribeConnections_FullMethodName   = "/daemon.StartedService/SubscribeConnections"
 	StartedService_CloseConnection_FullMethodName        = "/daemon.StartedService/CloseConnection"
 	StartedService_CloseAllConnections_FullMethodName    = "/daemon.StartedService/CloseAllConnections"
@@ -60,6 +61,7 @@ type StartedServiceClient interface {
 	GetSystemProxyStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SystemProxyStatus, error)
 	SetSystemProxyEnabled(ctx context.Context, in *SetSystemProxyEnabledRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TriggerDebugCrash(ctx context.Context, in *DebugCrashRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	TriggerOOMReport(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SubscribeConnections(ctx context.Context, in *SubscribeConnectionsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ConnectionEvents], error)
 	CloseConnection(ctx context.Context, in *CloseConnectionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	CloseAllConnections(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -290,6 +292,16 @@ func (c *startedServiceClient) TriggerDebugCrash(ctx context.Context, in *DebugC
 	return out, nil
 }
 
+func (c *startedServiceClient) TriggerOOMReport(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, StartedService_TriggerOOMReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *startedServiceClient) SubscribeConnections(ctx context.Context, in *SubscribeConnectionsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ConnectionEvents], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[5], StartedService_SubscribeConnections_FullMethodName, cOpts...)
@@ -370,6 +382,7 @@ type StartedServiceServer interface {
 	GetSystemProxyStatus(context.Context, *emptypb.Empty) (*SystemProxyStatus, error)
 	SetSystemProxyEnabled(context.Context, *SetSystemProxyEnabledRequest) (*emptypb.Empty, error)
 	TriggerDebugCrash(context.Context, *DebugCrashRequest) (*emptypb.Empty, error)
+	TriggerOOMReport(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	SubscribeConnections(*SubscribeConnectionsRequest, grpc.ServerStreamingServer[ConnectionEvents]) error
 	CloseConnection(context.Context, *CloseConnectionRequest) (*emptypb.Empty, error)
 	CloseAllConnections(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
@@ -451,6 +464,10 @@ func (UnimplementedStartedServiceServer) SetSystemProxyEnabled(context.Context, 
 
 func (UnimplementedStartedServiceServer) TriggerDebugCrash(context.Context, *DebugCrashRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method TriggerDebugCrash not implemented")
+}
+
+func (UnimplementedStartedServiceServer) TriggerOOMReport(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method TriggerOOMReport not implemented")
 }
 
 func (UnimplementedStartedServiceServer) SubscribeConnections(*SubscribeConnectionsRequest, grpc.ServerStreamingServer[ConnectionEvents]) error {
@@ -764,6 +781,24 @@ func _StartedService_TriggerDebugCrash_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StartedService_TriggerOOMReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).TriggerOOMReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_TriggerOOMReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).TriggerOOMReport(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StartedService_SubscribeConnections_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeConnectionsRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -901,6 +936,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TriggerDebugCrash",
 			Handler:    _StartedService_TriggerDebugCrash_Handler,
+		},
+		{
+			MethodName: "TriggerOOMReport",
+			Handler:    _StartedService_TriggerOOMReport_Handler,
 		},
 		{
 			MethodName: "CloseConnection",

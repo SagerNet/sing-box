@@ -558,6 +558,13 @@ func (c *CommandClient) TriggerNativeCrash() error {
 	return err
 }
 
+func (c *CommandClient) TriggerOOMReport() error {
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerOOMReport(context.Background(), &emptypb.Empty{})
+	})
+	return err
+}
+
 func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 	return callWithResult(c, func(client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
 		warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})

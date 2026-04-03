@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/protocol/group"
+	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -34,10 +35,12 @@ var _ StartedServiceServer = (*StartedService)(nil)
 type StartedService struct {
 	ctx context.Context
 	// platform adapter.PlatformInterface
-	handler     PlatformHandler
-	debug       bool
-	logMaxLines int
-	oomKiller   bool
+	handler           PlatformHandler
+	debug             bool
+	logMaxLines       int
+	oomKillerEnabled  bool
+	oomKillerDisabled bool
+	oomMemoryLimit    uint64
 	// workingDirectory string
 	// tempDirectory    string
 	// userID           int
@@ -66,10 +69,12 @@ type StartedService struct {
 type ServiceOptions struct {
 	Context context.Context
 	// Platform           adapter.PlatformInterface
-	Handler     PlatformHandler
-	Debug       bool
-	LogMaxLines int
-	OOMKiller   bool
+	Handler           PlatformHandler
+	Debug             bool
+	LogMaxLines       int
+	OOMKillerEnabled  bool
+	OOMKillerDisabled bool
+	OOMMemoryLimit    uint64
 	// WorkingDirectory   string
 	// TempDirectory      string
 	// UserID             int
@@ -81,10 +86,12 @@ func NewStartedService(options ServiceOptions) *StartedService {
 	s := &StartedService{
 		ctx: options.Context,
 		// platform:                options.Platform,
-		handler:     options.Handler,
-		debug:       options.Debug,
-		logMaxLines: options.LogMaxLines,
-		oomKiller:   options.OOMKiller,
+		handler:           options.Handler,
+		debug:             options.Debug,
+		logMaxLines:       options.LogMaxLines,
+		oomKillerEnabled:  options.OOMKillerEnabled,
+		oomKillerDisabled: options.OOMKillerDisabled,
+		oomMemoryLimit:    options.OOMMemoryLimit,
 		// workingDirectory: options.WorkingDirectory,
 		// tempDirectory:    options.TempDirectory,
 		// userID:           options.UserID,
@@ -708,6 +715,21 @@ func (s *StartedService) TriggerDebugCrash(ctx context.Context, request *DebugCr
 		return nil, status.Error(codes.InvalidArgument, "unknown debug crash type")
 	}
 	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) TriggerOOMReport(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+	if !s.debug {
+		return nil, status.Error(codes.PermissionDenied, "OOM report trigger unavailable")
+	}
+	instance := s.Instance()
+	if instance == nil {
+		return nil, status.Error(codes.FailedPrecondition, "service not started")
+	}
+	reporter := service.FromContext[oomkiller.OOMReporter](instance.ctx)
+	if reporter == nil {
+		return nil, status.Error(codes.Unavailable, "OOM reporter not available")
+	}
+	return &emptypb.Empty{}, reporter.WriteReport(memory.Total())
 }
 
 func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsRequest, server grpc.ServerStreamingServer[ConnectionEvents]) error {

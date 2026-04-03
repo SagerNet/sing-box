@@ -7,7 +7,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64, useAvailable bool) (timerConfig, error) {
+func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64, useAvailable bool, killerDisabled bool) (timerConfig, error) {
 	safetyMargin := uint64(defaultSafetyMargin)
 	if options.SafetyMargin != nil && options.SafetyMargin.Value() > 0 {
 		safetyMargin = options.SafetyMargin.Value()
@@ -47,5 +47,6 @@ func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64
 		maxInterval:       maxInterval,
 		checksBeforeLimit: checksBeforeLimit,
 		useAvailable:      useAvailable,
+		killerDisabled:    killerDisabled,
 	}, nil
 }

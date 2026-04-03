@@ -1,6 +1,7 @@
 package libbox
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,6 +26,9 @@ var (
 	sLogMaxLines             int
 	sDebug                   bool
 	sCrashReportSource       string
+	sOOMKillerEnabled        bool
+	sOOMKillerDisabled       bool
+	sOOMMemoryLimit          int64
 )
 
 func init() {
@@ -42,6 +46,9 @@ type SetupOptions struct {
 	LogMaxLines             int
 	Debug                   bool
 	CrashReportSource       string
+	OOMKillerEnabled        bool
+	OOMKillerDisabled       bool
+	OOMMemoryLimit          int64
 }
 
 func Setup(options *SetupOptions) error {
@@ -61,6 +68,14 @@ func Setup(options *SetupOptions) error {
 	sLogMaxLines = options.LogMaxLines
 	sDebug = options.Debug
 	sCrashReportSource = options.CrashReportSource
+	sOOMKillerEnabled = options.OOMKillerEnabled
+	sOOMKillerDisabled = options.OOMKillerDisabled
+	sOOMMemoryLimit = options.OOMMemoryLimit
+	if sOOMKillerEnabled && sOOMMemoryLimit > 0 {
+		debug.SetMemoryLimit(sOOMMemoryLimit)
+	} else {
+		debug.SetMemoryLimit(math.MaxInt64)
+	}
 
 	os.MkdirAll(sWorkingPath, 0o777)
 	os.MkdirAll(sTempPath, 0o777)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common/byteformats"
 	"github.com/sagernet/sing/common/memory"
 )
 
@@ -26,11 +27,15 @@ type adaptiveTimer struct {
 	maxInterval       time.Duration
 	checksBeforeLimit int
 	useAvailable      bool
+	killerDisabled    bool
+	onTriggered       func(uint64)
+	onRecovered       func()
 
-	access        sync.Mutex
-	timer         *time.Timer
-	previousUsage uint64
-	lastInterval  time.Duration
+	access              sync.Mutex
+	timer               *time.Timer
+	previousUsage       uint64
+	lastInterval        time.Duration
+	previouslyTriggered bool
 }
 
 type timerConfig struct {
@@ -40,9 +45,10 @@ type timerConfig struct {
 	maxInterval       time.Duration
 	checksBeforeLimit int
 	useAvailable      bool
+	killerDisabled    bool
 }
 
-func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config timerConfig) *adaptiveTimer {
+func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config timerConfig, onTriggered func(uint64), onRecovered func()) *adaptiveTimer {
 	return &adaptiveTimer{
 		logger:            logger,
 		router:            router,
@@ -52,6 +58,9 @@ func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config ti
 		maxInterval:       config.maxInterval,
 		checksBeforeLimit: config.checksBeforeLimit,
 		useAvailable:      config.useAvailable,
+		killerDisabled:    config.killerDisabled,
+		onTriggered:       onTriggered,
+		onRecovered:       onRecovered,
 	}
 }
 
@@ -130,9 +139,24 @@ func (t *adaptiveTimer) poll() {
 	}
 
 	if triggered {
-		t.logger.Error("memory threshold reached, usage: ", usage/(1024*1024), " MiB, resetting network")
-		t.router.ResetNetwork()
+		if !t.previouslyTriggered {
+			t.previouslyTriggered = true
+			if t.onTriggered != nil {
+				t.onTriggered(usage)
+			}
+		}
+		if t.killerDisabled {
+			t.logger.Warn("memory threshold reached (report only), usage: ", byteformats.FormatMemoryBytes(usage))
+		} else {
+			t.logger.Error("memory threshold reached, usage: ", usage/(1024*1024), " MiB, resetting network")
+			t.router.ResetNetwork()
+		}
 		runtimeDebug.FreeOSMemory()
+	} else if t.previouslyTriggered {
+		t.previouslyTriggered = false
+		if t.onRecovered != nil {
+			t.onRecovered()
+		}
 	}
 
 	var interval time.Duration
