@@ -47,8 +47,6 @@ type Router struct {
 	rulesAccess                     sync.RWMutex
 	started                         bool
 	closing                         bool
-	addressFilterDeprecatedReported bool
-	ruleStrategyDeprecatedReported  bool
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {
@@ -109,12 +107,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
-		shouldReportAddressFilterDeprecated := legacyDNSMode &&
-			!r.addressFilterDeprecatedReported &&
-			common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() })
-		shouldReportRuleStrategyDeprecated := legacyDNSMode &&
-			!r.ruleStrategyDeprecatedReported &&
-			modeFlags.neededFromStrategy
 		r.rulesAccess.Lock()
 		if r.closing {
 			r.rulesAccess.Unlock()
@@ -124,17 +116,11 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		r.rules = newRules
 		r.legacyDNSMode = legacyDNSMode
 		r.started = true
-		if shouldReportAddressFilterDeprecated {
-			r.addressFilterDeprecatedReported = true
-		}
-		if shouldReportRuleStrategyDeprecated {
-			r.ruleStrategyDeprecatedReported = true
-		}
 		r.rulesAccess.Unlock()
-		if shouldReportAddressFilterDeprecated {
+		if legacyDNSMode && common.Any(newRules, func(rule adapter.DNSRule) bool { return rule.WithAddressLimit() }) {
 			deprecated.Report(r.ctx, deprecated.OptionLegacyDNSAddressFilter)
 		}
-		if shouldReportRuleStrategyDeprecated {
+		if legacyDNSMode && modeFlags.neededFromStrategy {
 			deprecated.Report(r.ctx, deprecated.OptionLegacyDNSRuleStrategy)
 		}
 	}
