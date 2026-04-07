@@ -221,6 +221,9 @@ message DeprecatedWarning {
   string message = 1;
   bool impending = 2;
   string migrationLink = 3;
+  string description = 4;
+  string deprecatedVersion = 5;
+  string scheduledVersion = 6;
 }
 
 message StartedAt {
