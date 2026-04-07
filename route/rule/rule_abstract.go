@@ -156,7 +156,6 @@ func (r *abstractDefaultRule) matchStatesWithBase(metadata *adapter.InboundConte
 		return r.invertedFailure(inheritedBase)
 	}
 	if r.invert {
-		// DNS pre-lookup defers destination address-limit checks until the response phase.
 		if metadata.IgnoreDestinationIPCIDRMatch && stateSet == emptyRuleMatchState() && !metadata.DidMatch && len(r.destinationIPCIDRItems) > 0 {
 			return emptyRuleMatchState().withBase(inheritedBase)
 		}
