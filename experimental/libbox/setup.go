@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common/byteformats"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var (
@@ -97,8 +99,14 @@ func Setup(options *SetupOptions) error {
 	return redirectStderr(filepath.Join(sWorkingPath, "CrashReport-"+sCrashReportSource+".log"))
 }
 
-func SetLocale(localeId string) {
-	locale.Set(localeId)
+func SetLocale(localeId string) error {
+	if strings.Contains(localeId, "@") {
+		localeId = strings.Split(localeId, "@")[0]
+	}
+	if !locale.Set(localeId) {
+		return E.New("unsupported locale: ", localeId)
+	}
+	return nil
 }
 
 func Version() string {
