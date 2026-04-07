@@ -29,7 +29,7 @@ The type of the DNS server.
 
 | Type            | Format                    |
 |-----------------|---------------------------|
-| empty (default) | [Legacy](./legacy/)       |
+| empty (default) | :material-note-remove: [Legacy](./legacy/) |
 | `local`         | [Local](./local/)         |
 | `hosts`         | [Hosts](./hosts/)         |
 | `tcp`           | [TCP](./tcp/)             |
