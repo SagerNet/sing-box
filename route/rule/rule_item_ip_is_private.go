@@ -1,8 +1,6 @@
 package rule
 
 import (
-	"net/netip"
-
 	"github.com/sagernet/sing-box/adapter"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -18,20 +16,23 @@ func NewIPIsPrivateItem(isSource bool) *IPIsPrivateItem {
 }
 
 func (r *IPIsPrivateItem) Match(metadata *adapter.InboundContext) bool {
-	var destination netip.Addr
 	if r.isSource {
-		destination = metadata.Source.Addr
-	} else {
-		destination = metadata.Destination.Addr
+		return !N.IsPublicAddr(metadata.Source.Addr)
 	}
-	if destination.IsValid() {
-		return !N.IsPublicAddr(destination)
-	}
-	if !r.isSource {
-		for _, destinationAddress := range metadata.DestinationAddresses {
+	if metadata.DestinationAddressMatchFromResponse {
+		for _, destinationAddress := range metadata.DNSResponseAddressesForMatch() {
 			if !N.IsPublicAddr(destinationAddress) {
 				return true
 			}
+		}
+		return false
+	}
+	if metadata.Destination.Addr.IsValid() {
+		return !N.IsPublicAddr(metadata.Destination.Addr)
+	}
+	for _, destinationAddress := range metadata.DestinationAddresses {
+		if !N.IsPublicAddr(destinationAddress) {
+			return true
 		}
 	}
 	return false

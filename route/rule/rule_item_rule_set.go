@@ -29,14 +29,25 @@ func NewRuleSetItem(router adapter.Router, tagList []string, ipCIDRMatchSource b
 }
 
 func (r *RuleSetItem) Start() error {
+	_ = r.Close()
 	for _, tag := range r.tagList {
 		ruleSet, loaded := r.router.RuleSet(tag)
 		if !loaded {
+			_ = r.Close()
 			return E.New("rule-set not found: ", tag)
 		}
 		ruleSet.IncRef()
 		r.setList = append(r.setList, ruleSet)
 	}
+	return nil
+}
+
+func (r *RuleSetItem) Close() error {
+	for _, ruleSet := range r.setList {
+		ruleSet.DecRef()
+	}
+	clear(r.setList)
+	r.setList = nil
 	return nil
 }
 
