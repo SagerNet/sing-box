@@ -493,7 +493,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! question "自 sing-box 1.14.0 起"
 
-启用响应匹配。启用后，此规则将匹配 DNS 响应数据（由前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作设置），而不仅是匹配原始查询。
+启用响应匹配。启用后，此规则将匹配已评估的响应（由前序 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作设置），而不仅是匹配原始查询。
 
 该已评估的响应也可以被后续的 [`respond`](/zh/configuration/dns/rule_action/#respond) 动作直接返回。
 
@@ -614,7 +614,7 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 !!! question "自 sing-box 1.14.0 起"
 
-DNS 响应数据的匹配字段。需要将 `match_response` 设为 `true`，
+已评估的响应的匹配字段。需要将 `match_response` 设为 `true`，
 且需要前序规则使用 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作来填充响应。
 
 该已评估的响应也可以被后续的 [`respond`](/zh/configuration/dns/rule_action/#respond) 动作直接返回。

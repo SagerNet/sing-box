@@ -119,7 +119,7 @@ Will override `dns.client_subnet`.
 }
 ```
 
-`respond` terminates rule evaluation and returns the DNS response previously saved by a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action.
+`respond` terminates rule evaluation and returns the evaluated response from a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action.
 
 This action does not send a new DNS query and has no extra options.
 
