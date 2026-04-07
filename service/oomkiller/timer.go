@@ -107,6 +107,7 @@ type adaptiveTimer struct {
 	access                  sync.Mutex
 	timer                   *time.Timer
 	state                   pressureState
+	currentInterval         time.Duration
 	forceMinInterval        bool
 	pendingPressureBaseline bool
 	pressureBaseline        memorySample
@@ -178,7 +179,9 @@ func (t *adaptiveTimer) poll() {
 	t.state = t.nextState(sample)
 	if t.state == pressureStateNormal {
 		t.forceMinInterval = false
-		t.pressureBaselineTime = time.Time{}
+		if !t.pressureBaselineTime.IsZero() && time.Since(t.pressureBaselineTime) > t.maxInterval {
+			t.pressureBaselineTime = time.Time{}
+		}
 	}
 	t.timer.Reset(t.intervalForState())
 	triggered = previousState != pressureStateTriggered && t.state == pressureStateTriggered
@@ -272,13 +275,19 @@ func (t *adaptiveTimer) availableThresholds(sample memorySample) pressureThresho
 }
 
 func (t *adaptiveTimer) intervalForState() time.Duration {
-	if t.state == pressureStateNormal {
-		return t.maxInterval
+	switch {
+	case t.forceMinInterval || t.state == pressureStateTriggered:
+		t.currentInterval = t.minInterval
+	case t.state == pressureStateArmed:
+		t.currentInterval = t.armedInterval
+	default:
+		if t.currentInterval == 0 {
+			t.currentInterval = t.maxInterval
+		} else {
+			t.currentInterval = min(t.currentInterval*2, t.maxInterval)
+		}
 	}
-	if t.forceMinInterval || t.state == pressureStateTriggered {
-		return t.minInterval
-	}
-	return t.armedInterval
+	return t.currentInterval
 }
 
 func (t *adaptiveTimer) logDetails(sample memorySample) string {
