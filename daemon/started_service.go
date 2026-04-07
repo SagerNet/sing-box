@@ -1060,9 +1060,12 @@ func (s *StartedService) GetDeprecatedWarnings(ctx context.Context, empty *empty
 	return &DeprecatedWarnings{
 		Warnings: common.Map(notes, func(it deprecated.Note) *DeprecatedWarning {
 			return &DeprecatedWarning{
-				Message:       it.Message(),
-				Impending:     it.Impending(),
-				MigrationLink: it.MigrationLink,
+				Message:           it.Message(),
+				Impending:         it.Impending(),
+				MigrationLink:     it.MigrationLink,
+				Description:       it.Description,
+				DeprecatedVersion: it.DeprecatedVersion,
+				ScheduledVersion:  it.ScheduledVersion,
 			}
 		}),
 	}, nil
