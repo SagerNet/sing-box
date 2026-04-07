@@ -190,10 +190,13 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
 	}
+	metadata := buildRuleSetMetadata(plainRuleSet.Rules)
+	err = validateRuleSetMetadataUpdate(s.ctx, s.options.Tag, metadata)
+	if err != nil {
+		return err
+	}
 	s.access.Lock()
-	s.metadata.ContainsProcessRule = HasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
-	s.metadata.ContainsWIFIRule = HasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
-	s.metadata.ContainsIPCIDRRule = HasHeadlessRule(plainRuleSet.Rules, isIPCIDRHeadlessRule)
+	s.metadata = metadata
 	s.rules = rules
 	callbacks := s.callbacks.Array()
 	s.access.Unlock()
