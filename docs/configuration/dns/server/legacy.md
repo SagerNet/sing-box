@@ -1,10 +1,10 @@
 ---
-icon: material/delete-clock
+icon: material/note-remove
 ---
 
-!!! failure "Deprecated in sing-box 1.12.0"
+!!! failure "Removed in sing-box 1.14.0"
 
-    Legacy DNS servers is deprecated and will be removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-servers).
+    Legacy DNS servers are deprecated in sing-box 1.12.0 and removed in sing-box 1.14.0, check [Migration](/migration/#migrate-to-new-dns-server-formats).
 
 !!! quote "Changes in sing-box 1.9.0"
 
@@ -108,6 +108,6 @@ Append a `edns0-subnet` OPT extra record with the specified IP prefix to every q
 
 If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
-Can be overrides by `rules.[].client_subnet`.
+Can be overridden by `rules.[].client_subnet`.
 
-Will overrides `dns.client_subnet`.
+Will override `dns.client_subnet`.

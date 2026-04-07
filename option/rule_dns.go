@@ -35,7 +35,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *DNSRule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_DNSRule)(r))
+	err := json.UnmarshalContext(ctx, bytes, (*_DNSRule)(r))
 	if err != nil {
 		return err
 	}
@@ -78,12 +78,6 @@ type RawDefaultDNSRule struct {
 	DomainSuffix             badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword            badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
 	DomainRegex              badoption.Listable[string]                                                  `json:"domain_regex,omitempty"`
-	Geosite                  badoption.Listable[string]                                                  `json:"geosite,omitempty"`
-	SourceGeoIP              badoption.Listable[string]                                                  `json:"source_geoip,omitempty"`
-	GeoIP                    badoption.Listable[string]                                                  `json:"geoip,omitempty"`
-	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
-	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
-	IPAcceptAny              bool                                                                        `json:"ip_accept_any,omitempty"`
 	SourceIPCIDR             badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty"`
 	SourceIPIsPrivate        bool                                                                        `json:"source_ip_is_private,omitempty"`
 	SourcePort               badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`
@@ -110,9 +104,23 @@ type RawDefaultDNSRule struct {
 	SourceHostname           badoption.Listable[string]                                                  `json:"source_hostname,omitempty"`
 	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
-	RuleSetIPCIDRAcceptEmpty bool                                                                        `json:"rule_set_ip_cidr_accept_empty,omitempty"`
+	MatchResponse            bool                                                                        `json:"match_response,omitempty"`
+	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
+	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
+	ResponseRcode            *DNSRCode                                                                   `json:"response_rcode,omitempty"`
+	ResponseAnswer           badoption.Listable[DNSRecordOptions]                                        `json:"response_answer,omitempty"`
+	ResponseNs               badoption.Listable[DNSRecordOptions]                                        `json:"response_ns,omitempty"`
+	ResponseExtra            badoption.Listable[DNSRecordOptions]                                        `json:"response_extra,omitempty"`
 	Invert                   bool                                                                        `json:"invert,omitempty"`
 
+	// Deprecated: removed in sing-box 1.12.0
+	Geosite     badoption.Listable[string] `json:"geosite,omitempty"`
+	SourceGeoIP badoption.Listable[string] `json:"source_geoip,omitempty"`
+	GeoIP       badoption.Listable[string] `json:"geoip,omitempty"`
+	// Deprecated: use match_response with response items
+	IPAcceptAny bool `json:"ip_accept_any,omitempty"`
+	// Deprecated: removed in sing-box 1.11.0
+	RuleSetIPCIDRAcceptEmpty bool `json:"rule_set_ip_cidr_accept_empty,omitempty"`
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
 	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty"`
 }
@@ -127,11 +135,27 @@ func (r DefaultDNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
-	err := json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
+	rawAction, routeOptions, err := inspectDNSRuleAction(ctx, data)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	err = rejectNestedDNSRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(ctx, data, &r.RawDefaultDNSRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+		r.DNSRuleAction = DNSRuleAction{}
+	}
+	return nil
 }
 
 func (r DefaultDNSRule) IsValid() bool {
@@ -156,11 +180,27 @@ func (r LogicalDNSRule) MarshalJSON() ([]byte, error) {
 }
 
 func (r *LogicalDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) error {
-	err := json.Unmarshal(data, &r.RawLogicalDNSRule)
+	rawAction, routeOptions, err := inspectDNSRuleAction(ctx, data)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcludedContext(ctx, data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
+	err = rejectNestedDNSRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(nestedRuleChildContext(ctx), data, &r.RawLogicalDNSRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &r.RawLogicalDNSRule, &r.DNSRuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+		r.DNSRuleAction = DNSRuleAction{}
+	}
+	return nil
 }
 
 func (r *LogicalDNSRule) IsValid() bool {

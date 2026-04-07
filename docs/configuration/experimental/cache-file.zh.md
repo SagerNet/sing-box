@@ -42,7 +42,7 @@
 
 将拒绝的 DNS 响应缓存存储在缓存文件中。
 
-[地址筛选 DNS 规则项](/zh/configuration/dns/rule/#地址筛选字段) 的检查结果将被缓存至过期。
+[旧版地址筛选字段](/zh/configuration/dns/rule/#旧版地址筛选字段) 的检查结果将被缓存至过期。
 
 #### rdrc_timeout
 

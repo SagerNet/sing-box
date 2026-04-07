@@ -39,7 +39,7 @@ icon: material/alert-decagram
 |----------|---------------------------------|
 | `server` | List of [DNS Server](./server/) |
 | `rules`  | List of [DNS Rule](./rule/)     |
-| `fakeip` | [FakeIP](./fakeip/)             |
+| `fakeip` | :material-note-remove: [FakeIP](./fakeip/) |
 
 #### final
 
@@ -88,4 +88,4 @@ Append a `edns0-subnet` OPT extra record with the specified IP prefix to every q
 
 If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
-Can be overrides by `servers.[].client_subnet` or `rules.[].client_subnet`.
+Can be overridden by `servers.[].client_subnet` or `rules.[].client_subnet`.

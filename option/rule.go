@@ -1,6 +1,7 @@
 package option
 
 import (
+	"context"
 	"reflect"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -33,26 +34,24 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects((_Rule)(r), v)
 }
 
-func (r *Rule) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_Rule)(r))
+func (r *Rule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {
+	err := json.UnmarshalContext(ctx, bytes, (*_Rule)(r))
 	if err != nil {
 		return err
 	}
-	var v any
+	payload, err := rulePayloadWithoutType(ctx, bytes)
+	if err != nil {
+		return err
+	}
 	switch r.Type {
 	case "", C.RuleTypeDefault:
 		r.Type = C.RuleTypeDefault
-		v = &r.DefaultOptions
+		return unmarshalDefaultRuleContext(ctx, payload, &r.DefaultOptions)
 	case C.RuleTypeLogical:
-		v = &r.LogicalOptions
+		return unmarshalLogicalRuleContext(ctx, payload, &r.LogicalOptions)
 	default:
 		return E.New("unknown rule type: " + r.Type)
 	}
-	err = badjson.UnmarshallExcluded(bytes, (*_Rule)(r), v)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r Rule) IsValid() bool {
@@ -158,6 +157,64 @@ func (r *LogicalRule) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return badjson.UnmarshallExcluded(data, &r.RawLogicalRule, &r.RuleAction)
+}
+
+func rulePayloadWithoutType(ctx context.Context, data []byte) ([]byte, error) {
+	var content badjson.JSONObject
+	err := content.UnmarshalJSONContext(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+	content.Remove("type")
+	return content.MarshalJSONContext(ctx)
+}
+
+func unmarshalDefaultRuleContext(ctx context.Context, data []byte, rule *DefaultRule) error {
+	rawAction, routeOptions, err := inspectRouteRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	err = rejectNestedRouteRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(ctx, data, &rule.RawDefaultRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &rule.RawDefaultRule, &rule.RuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (RouteActionOptions{}) {
+		rule.RuleAction = RuleAction{}
+	}
+	return nil
+}
+
+func unmarshalLogicalRuleContext(ctx context.Context, data []byte, rule *LogicalRule) error {
+	rawAction, routeOptions, err := inspectRouteRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	err = rejectNestedRouteRuleAction(ctx, data)
+	if err != nil {
+		return err
+	}
+	depth := nestedRuleDepth(ctx)
+	err = json.UnmarshalContext(nestedRuleChildContext(ctx), data, &rule.RawLogicalRule)
+	if err != nil {
+		return err
+	}
+	err = badjson.UnmarshallExcludedContext(ctx, data, &rule.RawLogicalRule, &rule.RuleAction)
+	if err != nil {
+		return err
+	}
+	if depth > 0 && rawAction == "" && routeOptions == (RouteActionOptions{}) {
+		rule.RuleAction = RuleAction{}
+	}
+	return nil
 }
 
 func (r *LogicalRule) IsValid() bool {

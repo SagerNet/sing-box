@@ -13,6 +13,9 @@ func NewIPAcceptAnyItem() *IPAcceptAnyItem {
 }
 
 func (r *IPAcceptAnyItem) Match(metadata *adapter.InboundContext) bool {
+	if metadata.DestinationAddressMatchFromResponse {
+		return len(metadata.DNSResponseAddressesForMatch()) > 0
+	}
 	return len(metadata.DestinationAddresses) > 0
 }
 
