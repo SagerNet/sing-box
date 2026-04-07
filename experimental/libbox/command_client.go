@@ -574,8 +574,10 @@ func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 		var notes []*DeprecatedNote
 		for _, warning := range warnings.Warnings {
 			notes = append(notes, &DeprecatedNote{
-				Description:   warning.Message,
-				MigrationLink: warning.MigrationLink,
+				Description:       warning.Description,
+				DeprecatedVersion: warning.DeprecatedVersion,
+				ScheduledVersion:  warning.ScheduledVersion,
+				MigrationLink:     warning.MigrationLink,
 			})
 		}
 		return newIterator(notes), nil
