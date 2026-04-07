@@ -88,6 +88,6 @@ LRU 缓存容量。
 
 可以被 `servers.[].client_subnet` 或 `rules.[].client_subnet` 覆盖。
 
-#### fakeip
+#### fakeip :material-note-remove:
 
 [FakeIP](./fakeip/) 设置。
