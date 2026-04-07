@@ -29,14 +29,25 @@ func NewRuleSetItem(router adapter.Router, tagList []string, ipCIDRMatchSource b
 }
 
 func (r *RuleSetItem) Start() error {
+	_ = r.Close()
 	for _, tag := range r.tagList {
 		ruleSet, loaded := r.router.RuleSet(tag)
 		if !loaded {
+			_ = r.Close()
 			return E.New("rule-set not found: ", tag)
 		}
 		ruleSet.IncRef()
 		r.setList = append(r.setList, ruleSet)
 	}
+	return nil
+}
+
+func (r *RuleSetItem) Close() error {
+	for _, ruleSet := range r.setList {
+		ruleSet.DecRef()
+	}
+	clear(r.setList)
+	r.setList = nil
 	return nil
 }
 
@@ -49,16 +60,14 @@ func (r *RuleSetItem) matchStates(metadata *adapter.InboundContext) ruleMatchSta
 }
 
 func (r *RuleSetItem) matchStatesWithBase(metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet {
-	var stateSet, definitiveStateSet ruleMatchStateSet
+	var stateSet ruleMatchStateSet
 	for _, ruleSet := range r.setList {
 		nestedMetadata := *metadata
 		nestedMetadata.ResetRuleMatchCache()
 		nestedMetadata.IPCIDRMatchSource = r.ipCidrMatchSource
 		nestedMetadata.IPCIDRAcceptEmpty = r.ipCidrAcceptEmpty
 		stateSet = stateSet.merge(matchHeadlessRuleStatesWithBase(ruleSet, &nestedMetadata, base))
-		definitiveStateSet = definitiveStateSet.merge(ruleMatchStateSet(nestedMetadata.DefinitiveMatchStates))
 	}
-	metadata.DefinitiveMatchStates = uint16(definitiveStateSet)
 	return stateSet
 }
 

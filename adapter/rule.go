@@ -2,6 +2,8 @@ package adapter
 
 import (
 	C "github.com/sagernet/sing-box/constant"
+
+	"github.com/miekg/dns"
 )
 
 type HeadlessRule interface {
@@ -18,8 +20,9 @@ type Rule interface {
 
 type DNSRule interface {
 	Rule
+	LegacyPreMatch(metadata *InboundContext) bool
 	WithAddressLimit() bool
-	MatchAddressLimit(metadata *InboundContext) bool
+	MatchAddressLimit(metadata *InboundContext, response *dns.Msg) bool
 }
 
 type RuleAction interface {
@@ -29,7 +32,7 @@ type RuleAction interface {
 
 func IsFinalAction(action RuleAction) bool {
 	switch action.Type() {
-	case C.RuleActionTypeSniff, C.RuleActionTypeResolve:
+	case C.RuleActionTypeSniff, C.RuleActionTypeResolve, C.RuleActionTypeEvaluate:
 		return false
 	default:
 		return true

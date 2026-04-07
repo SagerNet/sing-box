@@ -326,6 +326,10 @@ func NewLogicalRule(ctx context.Context, logger log.ContextLogger, options optio
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subOptions := range options.Rules {
+		err = validateNoNestedRuleActions(subOptions, true)
+		if err != nil {
+			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
 		subRule, err := NewRule(ctx, logger, subOptions, false)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")

@@ -2,6 +2,7 @@ package option
 
 import (
 	"encoding/base64"
+	"strings"
 
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/miekg/dns"
 )
+
+const defaultDNSRecordTTL uint32 = 3600
 
 type DNSRCode int
 
@@ -76,15 +79,28 @@ func (o *DNSRecordOptions) UnmarshalJSON(data []byte) error {
 	if err == nil {
 		return o.unmarshalBase64(binary)
 	}
-	record, err := dns.NewRR(stringValue)
+	record, err := parseDNSRecord(stringValue)
 	if err != nil {
 		return err
+	}
+	if record == nil {
+		return E.New("empty DNS record")
 	}
 	if a, isA := record.(*dns.A); isA {
 		a.A = M.AddrFromIP(a.A).Unmap().AsSlice()
 	}
 	o.RR = record
 	return nil
+}
+
+func parseDNSRecord(stringValue string) (dns.RR, error) {
+	if len(stringValue) > 0 && stringValue[len(stringValue)-1] != '\n' {
+		stringValue += "\n"
+	}
+	parser := dns.NewZoneParser(strings.NewReader(stringValue), "", "")
+	parser.SetDefaultTTL(defaultDNSRecordTTL)
+	record, _ := parser.Next()
+	return record, parser.Err()
 }
 
 func (o *DNSRecordOptions) unmarshalBase64(binary []byte) error {
@@ -99,4 +115,11 @@ func (o *DNSRecordOptions) unmarshalBase64(binary []byte) error {
 
 func (o DNSRecordOptions) Build() dns.RR {
 	return o.RR
+}
+
+func (o DNSRecordOptions) Match(record dns.RR) bool {
+	if o.RR == nil || record == nil {
+		return false
+	}
+	return dns.IsDuplicate(o.RR, record)
 }

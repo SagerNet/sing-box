@@ -1,10 +1,10 @@
 ---
-icon: material/delete-clock
+icon: material/note-remove
 ---
 
-!!! failure "Deprecated in sing-box 1.12.0"
+!!! failure "已在 sing-box 1.14.0 移除"
 
-    旧的 DNS 服务器配置已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移到新的-dns-服务器格式)。
+    旧的 DNS 服务器配置已在 sing-box 1.12.0 废弃且已在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/zh/migration/#迁移到新的-dns-服务器格式)。
 
 !!! quote "sing-box 1.9.0 中的更改"
 
