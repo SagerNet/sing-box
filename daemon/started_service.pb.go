@@ -1709,12 +1709,15 @@ func (x *DeprecatedWarnings) GetWarnings() []*DeprecatedWarning {
 }
 
 type DeprecatedWarning struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	Impending     bool                   `protobuf:"varint,2,opt,name=impending,proto3" json:"impending,omitempty"`
-	MigrationLink string                 `protobuf:"bytes,3,opt,name=migrationLink,proto3" json:"migrationLink,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Message           string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Impending         bool                   `protobuf:"varint,2,opt,name=impending,proto3" json:"impending,omitempty"`
+	MigrationLink     string                 `protobuf:"bytes,3,opt,name=migrationLink,proto3" json:"migrationLink,omitempty"`
+	Description       string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	DeprecatedVersion string                 `protobuf:"bytes,5,opt,name=deprecatedVersion,proto3" json:"deprecatedVersion,omitempty"`
+	ScheduledVersion  string                 `protobuf:"bytes,6,opt,name=scheduledVersion,proto3" json:"scheduledVersion,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DeprecatedWarning) Reset() {
@@ -1764,6 +1767,27 @@ func (x *DeprecatedWarning) GetImpending() bool {
 func (x *DeprecatedWarning) GetMigrationLink() string {
 	if x != nil {
 		return x.MigrationLink
+	}
+	return ""
+}
+
+func (x *DeprecatedWarning) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *DeprecatedWarning) GetDeprecatedVersion() string {
+	if x != nil {
+		return x.DeprecatedVersion
+	}
+	return ""
+}
+
+func (x *DeprecatedWarning) GetScheduledVersion() string {
+	if x != nil {
+		return x.ScheduledVersion
 	}
 	return ""
 }
@@ -1990,11 +2014,14 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x16CloseConnectionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"K\n" +
 	"\x12DeprecatedWarnings\x125\n" +
-	"\bwarnings\x18\x01 \x03(\v2\x19.daemon.DeprecatedWarningR\bwarnings\"q\n" +
+	"\bwarnings\x18\x01 \x03(\v2\x19.daemon.DeprecatedWarningR\bwarnings\"\xed\x01\n" +
 	"\x11DeprecatedWarning\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x1c\n" +
 	"\timpending\x18\x02 \x01(\bR\timpending\x12$\n" +
-	"\rmigrationLink\x18\x03 \x01(\tR\rmigrationLink\")\n" +
+	"\rmigrationLink\x18\x03 \x01(\tR\rmigrationLink\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12,\n" +
+	"\x11deprecatedVersion\x18\x05 \x01(\tR\x11deprecatedVersion\x12*\n" +
+	"\x10scheduledVersion\x18\x06 \x01(\tR\x10scheduledVersion\")\n" +
 	"\tStartedAt\x12\x1c\n" +
 	"\tstartedAt\x18\x01 \x01(\x03R\tstartedAt*U\n" +
 	"\bLogLevel\x12\t\n" +
