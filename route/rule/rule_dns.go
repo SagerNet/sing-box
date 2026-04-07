@@ -326,6 +326,13 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
+		if legacyDNSMode {
+			deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
+		} else {
+			return nil, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
+		}
+	}
 	if len(options.RuleSet) > 0 {
 		//nolint:staticcheck
 		if options.Deprecated_RulesetIPCIDRMatchSource {
@@ -334,13 +341,6 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		var matchSource bool
 		if options.RuleSetIPCIDRMatchSource {
 			matchSource = true
-		}
-		if options.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
-			if legacyDNSMode {
-				deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
-			} else {
-				return nil, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
-			}
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty) //nolint:staticcheck
 		rule.ruleSetItem = item
