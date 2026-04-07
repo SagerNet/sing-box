@@ -132,6 +132,18 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
 			},
 		}
+	case C.RuleActionTypeEvaluate:
+		return &RuleActionEvaluate{
+			Server: action.RouteOptions.Server,
+			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
+				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
+				DisableCache: action.RouteOptions.DisableCache,
+				RewriteTTL:   action.RouteOptions.RewriteTTL,
+				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+			},
+		}
+	case C.RuleActionTypeRespond:
+		return &RuleActionRespond{}
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
 			Strategy:     C.DomainStrategy(action.RouteOptionsOptions.Strategy),
@@ -230,7 +242,7 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 		descriptions = append(descriptions, F.ToString("network-type=", strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
 	}
 	if r.FallbackNetworkType != nil {
-		descriptions = append(descriptions, F.ToString("fallback-network-type="+strings.Join(common.Map(r.NetworkType, C.InterfaceType.String), ",")))
+		descriptions = append(descriptions, F.ToString("fallback-network-type=", strings.Join(common.Map(r.FallbackNetworkType, C.InterfaceType.String), ",")))
 	}
 	if r.FallbackDelay > 0 {
 		descriptions = append(descriptions, F.ToString("fallback-delay=", r.FallbackDelay.String()))
@@ -266,18 +278,45 @@ func (r *RuleActionDNSRoute) Type() string {
 }
 
 func (r *RuleActionDNSRoute) String() string {
+	return formatDNSRouteAction("route", r.Server, r.RuleActionDNSRouteOptions)
+}
+
+type RuleActionEvaluate struct {
+	Server string
+	RuleActionDNSRouteOptions
+}
+
+func (r *RuleActionEvaluate) Type() string {
+	return C.RuleActionTypeEvaluate
+}
+
+func (r *RuleActionEvaluate) String() string {
+	return formatDNSRouteAction("evaluate", r.Server, r.RuleActionDNSRouteOptions)
+}
+
+type RuleActionRespond struct{}
+
+func (r *RuleActionRespond) Type() string {
+	return C.RuleActionTypeRespond
+}
+
+func (r *RuleActionRespond) String() string {
+	return "respond"
+}
+
+func formatDNSRouteAction(action string, server string, options RuleActionDNSRouteOptions) string {
 	var descriptions []string
-	descriptions = append(descriptions, r.Server)
-	if r.DisableCache {
+	descriptions = append(descriptions, server)
+	if options.DisableCache {
 		descriptions = append(descriptions, "disable-cache")
 	}
-	if r.RewriteTTL != nil {
-		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *r.RewriteTTL))
+	if options.RewriteTTL != nil {
+		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *options.RewriteTTL))
 	}
-	if r.ClientSubnet.IsValid() {
-		descriptions = append(descriptions, F.ToString("client-subnet=", r.ClientSubnet))
+	if options.ClientSubnet.IsValid() {
+		descriptions = append(descriptions, F.ToString("client-subnet=", options.ClientSubnet))
 	}
-	return F.ToString("route(", strings.Join(descriptions, ","), ")")
+	return F.ToString(action, "(", strings.Join(descriptions, ","), ")")
 }
 
 type RuleActionDNSRouteOptions struct {

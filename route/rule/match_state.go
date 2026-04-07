@@ -96,16 +96,11 @@ func matchHeadlessRuleStatesWithBase(rule adapter.HeadlessRule, metadata *adapte
 		return matcher.matchStatesWithBase(metadata, base)
 	}
 	if matcher, isStateMatcher := rule.(ruleStateMatcher); isStateMatcher {
-		stateSet := matcher.matchStates(metadata).withBase(base)
-		metadata.DefinitiveMatchStates = uint16(ruleMatchStateSet(metadata.DefinitiveMatchStates).withBase(base))
-		return stateSet
+		return matcher.matchStates(metadata).withBase(base)
 	}
 	if rule.Match(metadata) {
-		stateSet := emptyRuleMatchState().withBase(base)
-		metadata.DefinitiveMatchStates = uint16(stateSet)
-		return stateSet
+		return emptyRuleMatchState().withBase(base)
 	}
-	metadata.DefinitiveMatchStates = 0
 	return 0
 }
 
@@ -114,15 +109,10 @@ func matchRuleItemStatesWithBase(item RuleItem, metadata *adapter.InboundContext
 		return matcher.matchStatesWithBase(metadata, base)
 	}
 	if matcher, isStateMatcher := item.(ruleStateMatcher); isStateMatcher {
-		stateSet := matcher.matchStates(metadata).withBase(base)
-		metadata.DefinitiveMatchStates = uint16(ruleMatchStateSet(metadata.DefinitiveMatchStates).withBase(base))
-		return stateSet
+		return matcher.matchStates(metadata).withBase(base)
 	}
 	if item.Match(metadata) {
-		stateSet := emptyRuleMatchState().withBase(base)
-		metadata.DefinitiveMatchStates = uint16(stateSet)
-		return stateSet
+		return emptyRuleMatchState().withBase(base)
 	}
-	metadata.DefinitiveMatchStates = 0
 	return 0
 }

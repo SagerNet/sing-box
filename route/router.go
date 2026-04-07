@@ -70,6 +70,10 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 
 func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) error {
 	for i, options := range rules {
+		err := R.ValidateNoNestedRuleActions(options)
+		if err != nil {
+			return E.Cause(err, "parse rule[", i, "]")
+		}
 		rule, err := R.NewRule(r.ctx, r.logger, options, false)
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")

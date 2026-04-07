@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/service"
 
 	"go4.org/netipx"
 )
@@ -68,4 +69,25 @@ func isWIFIHeadlessRule(rule option.DefaultHeadlessRule) bool {
 
 func isIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {
 	return len(rule.IPCIDR) > 0 || rule.IPSet != nil
+}
+
+func isDNSQueryTypeHeadlessRule(rule option.DefaultHeadlessRule) bool {
+	return len(rule.QueryType) > 0
+}
+
+func buildRuleSetMetadata(headlessRules []option.HeadlessRule) adapter.RuleSetMetadata {
+	return adapter.RuleSetMetadata{
+		ContainsProcessRule:      HasHeadlessRule(headlessRules, isProcessHeadlessRule),
+		ContainsWIFIRule:         HasHeadlessRule(headlessRules, isWIFIHeadlessRule),
+		ContainsIPCIDRRule:       HasHeadlessRule(headlessRules, isIPCIDRHeadlessRule),
+		ContainsDNSQueryTypeRule: HasHeadlessRule(headlessRules, isDNSQueryTypeHeadlessRule),
+	}
+}
+
+func validateRuleSetMetadataUpdate(ctx context.Context, tag string, metadata adapter.RuleSetMetadata) error {
+	validator := service.FromContext[adapter.DNSRuleSetUpdateValidator](ctx)
+	if validator == nil {
+		return nil
+	}
+	return validator.ValidateRuleSetMetadataUpdate(tag, metadata)
 }

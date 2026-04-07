@@ -25,8 +25,8 @@ type DNSRouter interface {
 
 type DNSClient interface {
 	Start()
-	Exchange(ctx context.Context, transport DNSTransport, message *dns.Msg, options DNSQueryOptions, responseChecker func(responseAddrs []netip.Addr) bool) (*dns.Msg, error)
-	Lookup(ctx context.Context, transport DNSTransport, domain string, options DNSQueryOptions, responseChecker func(responseAddrs []netip.Addr) bool) ([]netip.Addr, error)
+	Exchange(ctx context.Context, transport DNSTransport, message *dns.Msg, options DNSQueryOptions, responseChecker func(response *dns.Msg) bool) (*dns.Msg, error)
+	Lookup(ctx context.Context, transport DNSTransport, domain string, options DNSQueryOptions, responseChecker func(response *dns.Msg) bool) ([]netip.Addr, error)
 	ClearCache()
 }
 
@@ -72,11 +72,6 @@ type DNSTransport interface {
 	// Exchanges that are currently using those connections may fail.
 	Reset()
 	Exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error)
-}
-
-type LegacyDNSTransport interface {
-	LegacyStrategy() C.DomainStrategy
-	LegacyClientSubnet() netip.Prefix
 }
 
 type DNSTransportRegistry interface {

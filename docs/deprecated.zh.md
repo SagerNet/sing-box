@@ -14,6 +14,34 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
+#### 旧版 DNS 规则动作 `strategy` 选项
+
+旧版 DNS 规则动作 `strategy` 选项已废弃，
+参阅[迁移指南](/zh/migration/#迁移-dns-规则动作-strategy-到规则项)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### 旧版 `ip_accept_any` DNS 规则项
+
+旧版 `ip_accept_any` DNS 规则项已废弃，
+参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### 旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项
+
+旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项已废弃，
+参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### 旧版地址筛选字段 (DNS 规则)
+
+旧版地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
+参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
+
+旧行为将在 sing-box 1.16.0 中被移除。
+
 ## 1.12.0
 
 #### 旧的 DNS 服务器格式
@@ -21,7 +49,7 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 DNS 服务器已重构，
 参阅 [迁移指南](/zh/migration/#迁移到新的-dns-服务器格式).
 
-对旧格式的兼容性将在 sing-box 1.14.0 中被移除。
+旧格式已在 sing-box 1.14.0 中被移除。
 
 #### `outbound` DNS 规则项
 

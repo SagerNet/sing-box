@@ -5,58 +5,84 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+
+	"github.com/miekg/dns"
 )
 
-func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
+func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyDNSMode bool) (adapter.DNSRule, error) {
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
+		if !checkServer && options.DefaultOptions.Action == C.RuleActionTypeEvaluate {
+			return nil, E.New(options.DefaultOptions.Action, " is only allowed on top-level DNS rules")
+		}
+		err := validateDNSRuleAction(options.DefaultOptions.DNSRuleAction)
+		if err != nil {
+			return nil, err
+		}
 		switch options.DefaultOptions.Action {
-		case "", C.RuleActionTypeRoute:
+		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions)
+		return NewDefaultDNSRule(ctx, logger, options.DefaultOptions, legacyDNSMode)
 	case C.RuleTypeLogical:
 		if !options.LogicalOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}
+		if !checkServer && options.LogicalOptions.Action == C.RuleActionTypeEvaluate {
+			return nil, E.New(options.LogicalOptions.Action, " is only allowed on top-level DNS rules")
+		}
+		err := validateDNSRuleAction(options.LogicalOptions.DNSRuleAction)
+		if err != nil {
+			return nil, err
+		}
 		switch options.LogicalOptions.Action {
-		case "", C.RuleActionTypeRoute:
+		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.LogicalOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}
 		}
-		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions)
+		return NewLogicalDNSRule(ctx, logger, options.LogicalOptions, legacyDNSMode)
 	default:
 		return nil, E.New("unknown rule type: ", options.Type)
 	}
+}
+
+func validateDNSRuleAction(action option.DNSRuleAction) error {
+	if action.Action == C.RuleActionTypeReject && action.RejectOptions.Method == C.RuleActionRejectMethodReply {
+		return E.New("reject method `reply` is not supported for DNS rules")
+	}
+	return nil
 }
 
 var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
 	abstractDefaultRule
+	matchResponse bool
 }
 
 func (r *DefaultDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatchStateSet {
 	return r.abstractDefaultRule.matchStates(metadata)
 }
 
-func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule, legacyDNSMode bool) (*DefaultDNSRule, error) {
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
+		matchResponse: options.MatchResponse,
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -116,7 +142,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if len(options.Geosite) > 0 {
+	if len(options.Geosite) > 0 { //nolint:staticcheck
 		return nil, E.New("geosite database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
 	}
 	if len(options.SourceGeoIP) > 0 {
@@ -151,9 +177,34 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if options.IPAcceptAny {
+	if options.IPAcceptAny { //nolint:staticcheck
+		if legacyDNSMode {
+			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
+		} else {
+			return nil, E.New(deprecated.OptionIPAcceptAny.MessageWithLink())
+		}
 		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.ResponseRcode != nil {
+		item := NewDNSResponseRCodeItem(int(*options.ResponseRcode))
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseAnswer) > 0 {
+		item := NewDNSResponseRecordItem("response_answer", options.ResponseAnswer, dnsResponseAnswers)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseNs) > 0 {
+		item := NewDNSResponseRecordItem("response_ns", options.ResponseNs, dnsResponseNS)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.ResponseExtra) > 0 {
+		item := NewDNSResponseRecordItem("response_extra", options.ResponseExtra, dnsResponseExtra)
+		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourcePort) > 0 {
@@ -275,6 +326,13 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
+		if legacyDNSMode {
+			deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
+		} else {
+			return nil, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
+		}
+	}
 	if len(options.RuleSet) > 0 {
 		//nolint:staticcheck
 		if options.Deprecated_RulesetIPCIDRMatchSource {
@@ -284,7 +342,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		if options.RuleSetIPCIDRMatchSource {
 			matchSource = true
 		}
-		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty)
+		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty) //nolint:staticcheck
 		rule.ruleSetItem = item
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -309,15 +367,35 @@ func (r *DefaultDNSRule) WithAddressLimit() bool {
 }
 
 func (r *DefaultDNSRule) Match(metadata *adapter.InboundContext) bool {
-	metadata.IgnoreDestinationIPCIDRMatch = true
-	defer func() {
-		metadata.IgnoreDestinationIPCIDRMatch = false
-	}()
-	return !r.matchStates(metadata).isEmpty()
+	return !r.matchStatesForMatch(metadata).isEmpty()
 }
 
-func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
-	return !r.matchStates(metadata).isEmpty()
+func (r *DefaultDNSRule) LegacyPreMatch(metadata *adapter.InboundContext) bool {
+	if r.matchResponse {
+		return false
+	}
+	metadata.IgnoreDestinationIPCIDRMatch = true
+	defer func() { metadata.IgnoreDestinationIPCIDRMatch = false }()
+	return !r.abstractDefaultRule.matchStates(metadata).isEmpty()
+}
+
+func (r *DefaultDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
+	if r.matchResponse {
+		if metadata.DNSResponse == nil {
+			return r.abstractDefaultRule.invertedFailure(0)
+		}
+		matchMetadata := *metadata
+		matchMetadata.DestinationAddressMatchFromResponse = true
+		return r.abstractDefaultRule.matchStates(&matchMetadata)
+	}
+	return r.abstractDefaultRule.matchStates(metadata)
+}
+
+func (r *DefaultDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
+	matchMetadata := *metadata
+	matchMetadata.DNSResponse = response
+	matchMetadata.DestinationAddressMatchFromResponse = true
+	return !r.abstractDefaultRule.matchStates(&matchMetadata).isEmpty()
 }
 
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
@@ -330,7 +408,53 @@ func (r *LogicalDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 	return r.abstractLogicalRule.matchStates(metadata)
 }
 
-func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+func matchDNSHeadlessRuleStatesForMatch(rule adapter.HeadlessRule, metadata *adapter.InboundContext) ruleMatchStateSet {
+	switch typedRule := rule.(type) {
+	case *DefaultDNSRule:
+		return typedRule.matchStatesForMatch(metadata)
+	case *LogicalDNSRule:
+		return typedRule.matchStatesForMatch(metadata)
+	default:
+		return matchHeadlessRuleStatesWithBase(typedRule, metadata, 0)
+	}
+}
+
+func (r *LogicalDNSRule) matchStatesForMatch(metadata *adapter.InboundContext) ruleMatchStateSet {
+	var stateSet ruleMatchStateSet
+	if r.mode == C.LogicalTypeAnd {
+		stateSet = emptyRuleMatchState()
+		for _, rule := range r.rules {
+			nestedMetadata := *metadata
+			nestedMetadata.ResetRuleCache()
+			nestedStateSet := matchDNSHeadlessRuleStatesForMatch(rule, &nestedMetadata)
+			if nestedStateSet.isEmpty() {
+				if r.invert {
+					return emptyRuleMatchState()
+				}
+				return 0
+			}
+			stateSet = stateSet.combine(nestedStateSet)
+		}
+	} else {
+		for _, rule := range r.rules {
+			nestedMetadata := *metadata
+			nestedMetadata.ResetRuleCache()
+			stateSet = stateSet.merge(matchDNSHeadlessRuleStatesForMatch(rule, &nestedMetadata))
+		}
+		if stateSet.isEmpty() {
+			if r.invert {
+				return emptyRuleMatchState()
+			}
+			return 0
+		}
+	}
+	if r.invert {
+		return 0
+	}
+	return stateSet
+}
+
+func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule, legacyDNSMode bool) (*LogicalDNSRule, error) {
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
@@ -347,7 +471,11 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		return nil, E.New("unknown logical mode: ", options.Mode)
 	}
 	for i, subRule := range options.Rules {
-		rule, err := NewDNSRule(ctx, logger, subRule, false)
+		err := validateNoNestedDNSRuleActions(subRule, true)
+		if err != nil {
+			return nil, E.Cause(err, "sub rule[", i, "]")
+		}
+		rule, err := NewDNSRule(ctx, logger, subRule, false, legacyDNSMode)
 		if err != nil {
 			return nil, E.Cause(err, "sub rule[", i, "]")
 		}
@@ -377,13 +505,18 @@ func (r *LogicalDNSRule) WithAddressLimit() bool {
 }
 
 func (r *LogicalDNSRule) Match(metadata *adapter.InboundContext) bool {
-	metadata.IgnoreDestinationIPCIDRMatch = true
-	defer func() {
-		metadata.IgnoreDestinationIPCIDRMatch = false
-	}()
-	return !r.matchStates(metadata).isEmpty()
+	return !r.matchStatesForMatch(metadata).isEmpty()
 }
 
-func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext) bool {
-	return !r.matchStates(metadata).isEmpty()
+func (r *LogicalDNSRule) LegacyPreMatch(metadata *adapter.InboundContext) bool {
+	metadata.IgnoreDestinationIPCIDRMatch = true
+	defer func() { metadata.IgnoreDestinationIPCIDRMatch = false }()
+	return !r.abstractLogicalRule.matchStates(metadata).isEmpty()
+}
+
+func (r *LogicalDNSRule) MatchAddressLimit(metadata *adapter.InboundContext, response *dns.Msg) bool {
+	matchMetadata := *metadata
+	matchMetadata.DNSResponse = response
+	matchMetadata.DestinationAddressMatchFromResponse = true
+	return !r.abstractLogicalRule.matchStates(&matchMetadata).isEmpty()
 }
