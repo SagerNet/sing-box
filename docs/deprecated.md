@@ -14,14 +14,43 @@ check [Migration](../migration/#migrate-inline-acme-to-certificate-provider).
 
 Old fields will be removed in sing-box 1.16.0.
 
+#### Legacy `strategy` DNS rule action option
+
+Legacy `strategy` DNS rule action option is deprecated,
+check [Migration](../migration/#migrate-dns-rule-action-strategy-to-rule-items).
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### Legacy `ip_accept_any` DNS rule item
+
+Legacy `ip_accept_any` DNS rule item is deprecated,
+check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### Legacy `rule_set_ip_cidr_accept_empty` DNS rule item
+
+Legacy `rule_set_ip_cidr_accept_empty` DNS rule item is deprecated,
+check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### Legacy Address Filter Fields in DNS rules
+
+Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`)
+in DNS rules are deprecated,
+check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
+
+Old behavior will be removed in sing-box 1.16.0.
+
 ## 1.12.0
 
 #### Legacy DNS server formats
 
 DNS servers are refactored,
-check [Migration](../migration/#migrate-to-new-dns-servers).
+check [Migration](../migration/#migrate-to-new-dns-server-formats).
 
-Compatibility for old formats will be removed in sing-box 1.14.0.
+Old formats were removed in sing-box 1.14.0.
 
 #### `outbound` DNS rule item
 
