@@ -24,6 +24,7 @@ icon: material/new-box
   "control_url": "",
   "ephemeral": false,
   "hostname": "",
+  "port": 0,
   "accept_routes": false,
   "exit_node": "",
   "exit_node_allow_lan_access": false,
@@ -76,6 +77,10 @@ icon: material/new-box
 默认使用系统主机名。
 
 示例：`localhost`
+
+#### port
+
+UDP 端口，用于 Tailscale 节点之间的点对点通信；0 表示自动选择端口。
 
 #### accept_routes
 
