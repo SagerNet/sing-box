@@ -47,6 +47,7 @@ type CommandClientHandler interface {
 	WriteLogs(messageList LogIterator)
 	WriteStatus(message *StatusMessage)
 	WriteGroups(message OutboundGroupIterator)
+	WriteOutbounds(message OutboundGroupItemIterator)
 	InitializeClashMode(modeList StringIterator, currentMode string)
 	UpdateClashMode(newMode string)
 	WriteConnectionEvents(events *ConnectionEvents)
@@ -243,6 +244,8 @@ func (c *CommandClient) dispatchCommands() error {
 			go c.handleClashModeStream()
 		case CommandConnections:
 			go c.handleConnectionsStream()
+		case CommandOutbounds:
+			go c.handleOutboundsStream()
 		default:
 			return E.New("unknown command: ", command)
 		}
@@ -456,6 +459,25 @@ func (c *CommandClient) handleConnectionsStream() {
 	}
 }
 
+func (c *CommandClient) handleOutboundsStream() {
+	client, ctx := c.getStreamContext()
+
+	stream, err := client.SubscribeOutbounds(ctx, &emptypb.Empty{})
+	if err != nil {
+		c.handler.Disconnected(err.Error())
+		return
+	}
+
+	for {
+		list, err := stream.Recv()
+		if err != nil {
+			c.handler.Disconnected(err.Error())
+			return
+		}
+		c.handler.WriteOutbounds(outboundGroupItemListFromGRPC(list))
+	}
+}
+
 func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.SelectOutbound(context.Background(), &daemon.SelectOutboundRequest{
@@ -602,4 +624,99 @@ func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 		})
 	})
 	return err
+}
+
+func (c *CommandClient) ListOutbounds() (OutboundGroupItemIterator, error) {
+	return callWithResult(c, func(client daemon.StartedServiceClient) (OutboundGroupItemIterator, error) {
+		list, err := client.ListOutbounds(context.Background(), &emptypb.Empty{})
+		if err != nil {
+			return nil, err
+		}
+		return outboundGroupItemListFromGRPC(list), nil
+	})
+}
+
+func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag string, serial bool, maxRuntimeSeconds int32, http3 bool, handler NetworkQualityTestHandler) error {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	stream, err := client.StartNetworkQualityTest(context.Background(), &daemon.NetworkQualityTestRequest{
+		ConfigURL:         configURL,
+		OutboundTag:       outboundTag,
+		Serial:            serial,
+		MaxRuntimeSeconds: maxRuntimeSeconds,
+		Http3:             http3,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		event, recvErr := stream.Recv()
+		if recvErr != nil {
+			handler.OnError(recvErr.Error())
+			return recvErr
+		}
+		if event.IsFinal {
+			if event.Error != "" {
+				handler.OnError(event.Error)
+			} else {
+				handler.OnResult(&NetworkQualityResult{
+					DownloadCapacity:         event.DownloadCapacity,
+					UploadCapacity:           event.UploadCapacity,
+					DownloadRPM:              event.DownloadRPM,
+					UploadRPM:                event.UploadRPM,
+					IdleLatencyMs:            event.IdleLatencyMs,
+					DownloadCapacityAccuracy: event.DownloadCapacityAccuracy,
+					UploadCapacityAccuracy:   event.UploadCapacityAccuracy,
+					DownloadRPMAccuracy:      event.DownloadRPMAccuracy,
+					UploadRPMAccuracy:        event.UploadRPMAccuracy,
+				})
+			}
+			return nil
+		}
+		handler.OnProgress(networkQualityProgressFromGRPC(event))
+	}
+}
+
+func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler STUNTestHandler) error {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	stream, err := client.StartSTUNTest(context.Background(), &daemon.STUNTestRequest{
+		Server:      server,
+		OutboundTag: outboundTag,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		event, recvErr := stream.Recv()
+		if recvErr != nil {
+			handler.OnError(recvErr.Error())
+			return recvErr
+		}
+		if event.IsFinal {
+			if event.Error != "" {
+				handler.OnError(event.Error)
+			} else {
+				handler.OnResult(&STUNTestResult{
+					ExternalAddr:     event.ExternalAddr,
+					LatencyMs:        event.LatencyMs,
+					NATMapping:       event.NatMapping,
+					NATFiltering:     event.NatFiltering,
+					NATTypeSupported: event.NatTypeSupported,
+				})
+			}
+			return nil
+		}
+		handler.OnProgress(stunTestProgressFromGRPC(event))
+	}
 }
