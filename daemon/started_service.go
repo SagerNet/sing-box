@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/networkquality"
+	"github.com/sagernet/sing-box/common/stun"
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
@@ -691,7 +694,7 @@ func (s *StartedService) SetSystemProxyEnabled(ctx context.Context, request *Set
 	if err != nil {
 		return nil, err
 	}
-	return nil, err
+	return &emptypb.Empty{}, nil
 }
 
 func (s *StartedService) TriggerDebugCrash(ctx context.Context, request *DebugCrashRequest) (*emptypb.Empty, error) {
@@ -1078,6 +1081,210 @@ func (s *StartedService) GetStartedAt(ctx context.Context, empty *emptypb.Empty)
 	s.serviceAccess.RLock()
 	defer s.serviceAccess.RUnlock()
 	return &StartedAt{StartedAt: s.startedAt.UnixMilli()}, nil
+}
+
+func (s *StartedService) ListOutbounds(ctx context.Context, _ *emptypb.Empty) (*OutboundList, error) {
+	s.serviceAccess.RLock()
+	if s.serviceStatus.Status != ServiceStatus_STARTED {
+		s.serviceAccess.RUnlock()
+		return nil, os.ErrInvalid
+	}
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+	historyStorage := boxService.urlTestHistoryStorage
+	outbounds := boxService.instance.Outbound().Outbounds()
+	var list OutboundList
+	for _, ob := range outbounds {
+		item := &GroupItem{
+			Tag:  ob.Tag(),
+			Type: ob.Type(),
+		}
+		if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ob)); history != nil {
+			item.UrlTestTime = history.Time.Unix()
+			item.UrlTestDelay = int32(history.Delay)
+		}
+		list.Outbounds = append(list.Outbounds, item)
+	}
+	return &list, nil
+}
+
+func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.ServerStreamingServer[OutboundList]) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	subscription, done, err := s.urlTestObserver.Subscribe()
+	if err != nil {
+		return err
+	}
+	defer s.urlTestObserver.UnSubscribe(subscription)
+	for {
+		s.serviceAccess.RLock()
+		if s.serviceStatus.Status != ServiceStatus_STARTED {
+			s.serviceAccess.RUnlock()
+			return os.ErrInvalid
+		}
+		boxService := s.instance
+		s.serviceAccess.RUnlock()
+		historyStorage := boxService.urlTestHistoryStorage
+		outbounds := boxService.instance.Outbound().Outbounds()
+		var list OutboundList
+		for _, ob := range outbounds {
+			item := &GroupItem{
+				Tag:  ob.Tag(),
+				Type: ob.Type(),
+			}
+			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ob)); history != nil {
+				item.UrlTestTime = history.Time.Unix()
+				item.UrlTestDelay = int32(history.Delay)
+			}
+			list.Outbounds = append(list.Outbounds, item)
+		}
+		err = server.Send(&list)
+		if err != nil {
+			return err
+		}
+		select {
+		case <-subscription:
+		case <-s.ctx.Done():
+			return s.ctx.Err()
+		case <-server.Context().Done():
+			return server.Context().Err()
+		case <-done:
+			return nil
+		}
+	}
+}
+
+func resolveOutbound(instance *Instance, tag string) (adapter.Outbound, error) {
+	if tag == "" {
+		return instance.instance.Outbound().Default(), nil
+	}
+	outbound, loaded := instance.instance.Outbound().Outbound(tag)
+	if !loaded {
+		return nil, E.New("outbound not found: ", tag)
+	}
+	return outbound, nil
+}
+
+func (s *StartedService) StartNetworkQualityTest(
+	request *NetworkQualityTestRequest,
+	server grpc.ServerStreamingServer[NetworkQualityTestProgress],
+) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	outbound, err := resolveOutbound(boxService, request.OutboundTag)
+	if err != nil {
+		return err
+	}
+
+	resolvedDialer := dialer.NewResolveDialer(boxService.ctx, outbound, true, "", adapter.DNSQueryOptions{}, 0)
+	httpClient := networkquality.NewHTTPClient(resolvedDialer)
+	defer httpClient.CloseIdleConnections()
+
+	measurementClientFactory, err := networkquality.NewOptionalHTTP3Factory(resolvedDialer, request.Http3)
+	if err != nil {
+		return err
+	}
+
+	result, nqErr := networkquality.Run(networkquality.Options{
+		ConfigURL:            request.ConfigURL,
+		HTTPClient:           httpClient,
+		NewMeasurementClient: measurementClientFactory,
+		Serial:               request.Serial,
+		MaxRuntime:           time.Duration(request.MaxRuntimeSeconds) * time.Second,
+		Context:              server.Context(),
+		OnProgress: func(p networkquality.Progress) {
+			_ = server.Send(&NetworkQualityTestProgress{
+				Phase:                    int32(p.Phase),
+				DownloadCapacity:         p.DownloadCapacity,
+				UploadCapacity:           p.UploadCapacity,
+				DownloadRPM:              p.DownloadRPM,
+				UploadRPM:                p.UploadRPM,
+				IdleLatencyMs:            p.IdleLatencyMs,
+				ElapsedMs:                p.ElapsedMs,
+				DownloadCapacityAccuracy: int32(p.DownloadCapacityAccuracy),
+				UploadCapacityAccuracy:   int32(p.UploadCapacityAccuracy),
+				DownloadRPMAccuracy:      int32(p.DownloadRPMAccuracy),
+				UploadRPMAccuracy:        int32(p.UploadRPMAccuracy),
+			})
+		},
+	})
+	if nqErr != nil {
+		return server.Send(&NetworkQualityTestProgress{
+			IsFinal: true,
+			Error:   nqErr.Error(),
+		})
+	}
+	return server.Send(&NetworkQualityTestProgress{
+		Phase:                    int32(networkquality.PhaseDone),
+		DownloadCapacity:         result.DownloadCapacity,
+		UploadCapacity:           result.UploadCapacity,
+		DownloadRPM:              result.DownloadRPM,
+		UploadRPM:                result.UploadRPM,
+		IdleLatencyMs:            result.IdleLatencyMs,
+		IsFinal:                  true,
+		DownloadCapacityAccuracy: int32(result.DownloadCapacityAccuracy),
+		UploadCapacityAccuracy:   int32(result.UploadCapacityAccuracy),
+		DownloadRPMAccuracy:      int32(result.DownloadRPMAccuracy),
+		UploadRPMAccuracy:        int32(result.UploadRPMAccuracy),
+	})
+}
+
+func (s *StartedService) StartSTUNTest(
+	request *STUNTestRequest,
+	server grpc.ServerStreamingServer[STUNTestProgress],
+) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	outbound, err := resolveOutbound(boxService, request.OutboundTag)
+	if err != nil {
+		return err
+	}
+
+	resolvedDialer := dialer.NewResolveDialer(boxService.ctx, outbound, true, "", adapter.DNSQueryOptions{}, 0)
+
+	result, stunErr := stun.Run(stun.Options{
+		Server:  request.Server,
+		Dialer:  resolvedDialer,
+		Context: server.Context(),
+		OnProgress: func(p stun.Progress) {
+			_ = server.Send(&STUNTestProgress{
+				Phase:        int32(p.Phase),
+				ExternalAddr: p.ExternalAddr,
+				LatencyMs:    p.LatencyMs,
+				NatMapping:   int32(p.NATMapping),
+				NatFiltering: int32(p.NATFiltering),
+			})
+		},
+	})
+	if stunErr != nil {
+		return server.Send(&STUNTestProgress{
+			IsFinal: true,
+			Error:   stunErr.Error(),
+		})
+	}
+	return server.Send(&STUNTestProgress{
+		Phase:            int32(stun.PhaseDone),
+		ExternalAddr:     result.ExternalAddr,
+		LatencyMs:        result.LatencyMs,
+		NatMapping:       int32(result.NATMapping),
+		NatFiltering:     int32(result.NATFiltering),
+		IsFinal:          true,
+		NatTypeSupported: result.NATTypeSupported,
+	})
 }
 
 func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {
