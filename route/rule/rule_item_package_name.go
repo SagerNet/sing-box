@@ -26,7 +26,7 @@ func NewPackageNameItem(packageNameList []string) *PackageNameItem {
 
 func (r *PackageNameItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil || len(metadata.ProcessInfo.AndroidPackageNames) == 0 {
-		return false
+		return r.packageMap[""]
 	}
 	for _, packageName := range metadata.ProcessInfo.AndroidPackageNames {
 		if r.packageMap[packageName] {
