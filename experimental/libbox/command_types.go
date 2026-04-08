@@ -339,6 +339,22 @@ func outboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 	return newIterator(libboxGroups)
 }
 
+func outboundGroupItemListFromGRPC(list *daemon.OutboundList) OutboundGroupItemIterator {
+	if list == nil || len(list.Outbounds) == 0 {
+		return newIterator([]*OutboundGroupItem{})
+	}
+	var items []*OutboundGroupItem
+	for _, ob := range list.Outbounds {
+		items = append(items, &OutboundGroupItem{
+			Tag:          ob.Tag,
+			Type:         ob.Type,
+			URLTestTime:  ob.UrlTestTime,
+			URLTestDelay: ob.UrlTestDelay,
+		})
+	}
+	return newIterator(items)
+}
+
 func connectionFromGRPC(conn *daemon.Connection) Connection {
 	var processInfo *ProcessInfo
 	if conn.ProcessInfo != nil {
