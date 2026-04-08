@@ -78,6 +78,9 @@ icon: material/new-box
       "package_name": [
         "com.termux"
       ],
+      "package_name_regex": [
+        "^com\\.termux"
+      ],
       "network_type": [
         "wifi"
       ],
@@ -204,6 +207,10 @@ Match process path using regular expression.
 #### package_name
 
 Match android package name.
+
+#### package_name_regex
+
+Match android package name using regular expression.
 
 #### network_type
 

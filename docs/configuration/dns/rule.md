@@ -130,6 +130,9 @@ icon: material/alert-decagram
         "package_name": [
           "com.termux"
         ],
+        "package_name_regex": [
+          "^com\\.termux"
+        ],
         "user": [
           "sekai"
         ],
@@ -347,6 +350,10 @@ Match process path using regular expression.
 #### package_name
 
 Match android package name.
+
+#### package_name_regex
+
+Match android package name using regular expression.
 
 #### user
 

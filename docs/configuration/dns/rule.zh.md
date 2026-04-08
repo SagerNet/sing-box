@@ -130,6 +130,9 @@ icon: material/alert-decagram
         "package_name": [
           "com.termux"
         ],
+        "package_name_regex": [
+          "^com\\.termux"
+        ],
         "user": [
           "sekai"
         ],
@@ -347,6 +350,10 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### package_name
 
 匹配 Android 应用包名。
+
+#### package_name_regex
+
+使用正则表达式匹配 Android 应用包名。
 
 #### user
 

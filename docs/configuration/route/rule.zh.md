@@ -127,6 +127,9 @@ icon: material/new-box
         "package_name": [
           "com.termux"
         ],
+        "package_name_regex": [
+          "^com\\.termux"
+        ],
         "user": [
           "sekai"
         ],
@@ -351,6 +354,10 @@ icon: material/new-box
 #### package_name
 
 匹配 Android 应用包名。
+
+#### package_name_regex
+
+使用正则表达式匹配 Android 应用包名。
 
 #### user
 
