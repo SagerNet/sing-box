@@ -209,6 +209,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	server := &tsnet.Server{
 		Dir:      stateDirectory,
 		Hostname: hostname,
+		Port:     options.Port,
 		Logf: func(format string, args ...any) {
 			logger.Trace(fmt.Sprintf(format, args...))
 		},
