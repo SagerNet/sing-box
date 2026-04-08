@@ -34,6 +34,11 @@ service StartedService {
   rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
   rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
   rpc GetStartedAt(google.protobuf.Empty) returns(StartedAt) {}
+
+  rpc ListOutbounds(google.protobuf.Empty) returns (OutboundList) {}
+  rpc SubscribeOutbounds(google.protobuf.Empty) returns (stream OutboundList) {}
+  rpc StartNetworkQualityTest(NetworkQualityTestRequest) returns (stream NetworkQualityTestProgress) {}
+  rpc StartSTUNTest(STUNTestRequest) returns (stream STUNTestProgress) {}
 }
 
 message ServiceStatus {
@@ -228,4 +233,48 @@ message DeprecatedWarning {
 
 message StartedAt {
   int64 startedAt = 1;
+}
+
+message OutboundList {
+  repeated GroupItem outbounds = 1;
+}
+
+message NetworkQualityTestRequest {
+  string configURL = 1;
+  string outboundTag = 2;
+  bool serial = 3;
+  int32 maxRuntimeSeconds = 4;
+  bool http3 = 5;
+}
+
+message NetworkQualityTestProgress {
+  int32 phase = 1;
+  int64 downloadCapacity = 2;
+  int64 uploadCapacity = 3;
+  int32 downloadRPM = 4;
+  int32 uploadRPM = 5;
+  int32 idleLatencyMs = 6;
+  int64 elapsedMs = 7;
+  bool isFinal = 8;
+  string error = 9;
+  int32 downloadCapacityAccuracy = 10;
+  int32 uploadCapacityAccuracy = 11;
+  int32 downloadRPMAccuracy = 12;
+  int32 uploadRPMAccuracy = 13;
+}
+
+message STUNTestRequest {
+  string server = 1;
+  string outboundTag = 2;
+}
+
+message STUNTestProgress {
+  int32 phase = 1;
+  string externalAddr = 2;
+  int32 latencyMs = 3;
+  int32 natMapping = 4;
+  int32 natFiltering = 5;
+  bool isFinal = 6;
+  string error = 7;
+  bool natTypeSupported = 8;
 }

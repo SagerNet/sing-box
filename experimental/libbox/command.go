@@ -6,4 +6,5 @@ const (
 	CommandGroup
 	CommandClashMode
 	CommandConnections
+	CommandOutbounds
 )
