@@ -1,0 +1,23 @@
+name: Mirror to CNB
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Push to CNB
+        env:
+          CNB_USERNAME: ${{ secrets.CNB_USERNAME }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          git remote add mirror https://${CNB_USERNAME}:${CNB_TOKEN}@cnb.cool/vvllm/sing-box
+          git push --mirror mirror

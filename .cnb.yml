@@ -1,0 +1,99 @@
+testing:
+  push:
+    - name: docker-build-and-push-amd64
+      services:
+        - docker
+      docker:
+        image: docker:24-git
+      stages:
+        - name: Build & Push (amd64 only)
+          script:
+            - |
+              set -euo pipefail
+
+              echo "===== ENV CHECK ====="
+              echo "CNB_DOCKER_REGISTRY=${CNB_DOCKER_REGISTRY:-}"
+              echo "CNB_REPO_SLUG_LOWERCASE=${CNB_REPO_SLUG_LOWERCASE:-}"
+              echo "CNB_COMMIT_SHORT=${CNB_COMMIT_SHORT:-}"
+              echo "CNB_TAG=${CNB_TAG:-}"
+              echo "====================="
+
+              REGISTRY_IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}"
+
+              if [ -n "${CNB_TAG:-}" ]; then
+                REF="${CNB_TAG}"
+              else
+                REF="${CNB_COMMIT_SHORT}"
+              fi
+
+              IMAGE_LATEST="${REGISTRY_IMAGE}:latest"
+              IMAGE_AMD64="${REGISTRY_IMAGE}:amd64"
+              IMAGE_REF="${REGISTRY_IMAGE}:${REF}"
+
+              echo "REGISTRY_IMAGE=${REGISTRY_IMAGE}"
+              echo "REF=${REF}"
+
+              docker login "${CNB_DOCKER_REGISTRY}" -u cnb -p "${CNB_TOKEN}"
+
+              export DOCKER_BUILDKIT=1
+              export BUILDKIT_PROGRESS=plain
+
+              echo "===== INSTALL BUILD TOOLS ====="
+              apk add --no-cache \
+                bash \
+                git \
+                curl \
+                tar \
+                build-base \
+                clang \
+                lld \
+                llvm \
+                musl-dev \
+                linux-headers
+
+              echo "===== INSTALL GO 1.25.8 ====="
+              GO_VERSION="1.25.8"
+              ARCH="$(uname -m)"
+              case "${ARCH}" in
+                x86_64) GO_ARCH="amd64" ;;
+                aarch64) GO_ARCH="arm64" ;;
+                *) echo "Unsupported arch: ${ARCH}" && exit 1 ;;
+              esac
+
+              rm -rf /usr/local/go
+              curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -o /tmp/go.tgz
+              tar -C /usr/local -xzf /tmp/go.tgz
+              export PATH="/usr/local/go/bin:${PATH}"
+
+              go version
+
+              echo "===== BUILD AMD64 BINARY ====="
+              VERSION="$(go run ./cmd/internal/read_tag)"
+              LDFLAGS_SHARED="$(cat release/LDFLAGS)"
+              BUILD_TAGS="$(cat release/DEFAULT_BUILD_TAGS_OTHERS)"
+
+              export GOOS=linux
+              export GOARCH=amd64
+              export CGO_ENABLED=0
+
+              go build -v -trimpath -o sing-box-amd64 \
+                -tags "${BUILD_TAGS}" \
+                -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+                ./cmd/sing-box
+
+              chmod +x sing-box-amd64
+              ls -la sing-box-amd64
+
+              echo "===== BUILD DOCKER IMAGE ====="
+              docker build --progress=plain \
+                --build-arg TARGETARCH=amd64 \
+                -f Dockerfile.binary \
+                -t "${IMAGE_LATEST}" \
+                -t "${IMAGE_AMD64}" \
+                -t "${IMAGE_REF}" \
+                .
+
+              echo "===== PUSH DOCKER IMAGE ====="
+              docker push "${IMAGE_LATEST}"
+              docker push "${IMAGE_AMD64}"
+              # docker push "${IMAGE_REF}"
