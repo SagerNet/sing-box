@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/common/networkquality"
 	"github.com/sagernet/sing-box/common/stun"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
@@ -179,6 +180,10 @@ func FormatNATMapping(value int32) string {
 
 func FormatNATFiltering(value int32) string {
 	return stun.NATFiltering(value).String()
+}
+
+func FormatFQDN(fqdn string) string {
+	return dns.FqdnToDomain(fqdn)
 }
 
 func ProxyDisplayType(proxyType string) string {
