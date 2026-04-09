@@ -15,33 +15,34 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	StartedService_StopService_FullMethodName             = "/daemon.StartedService/StopService"
-	StartedService_ReloadService_FullMethodName           = "/daemon.StartedService/ReloadService"
-	StartedService_SubscribeServiceStatus_FullMethodName  = "/daemon.StartedService/SubscribeServiceStatus"
-	StartedService_SubscribeLog_FullMethodName            = "/daemon.StartedService/SubscribeLog"
-	StartedService_GetDefaultLogLevel_FullMethodName      = "/daemon.StartedService/GetDefaultLogLevel"
-	StartedService_ClearLogs_FullMethodName               = "/daemon.StartedService/ClearLogs"
-	StartedService_SubscribeStatus_FullMethodName         = "/daemon.StartedService/SubscribeStatus"
-	StartedService_SubscribeGroups_FullMethodName         = "/daemon.StartedService/SubscribeGroups"
-	StartedService_GetClashModeStatus_FullMethodName      = "/daemon.StartedService/GetClashModeStatus"
-	StartedService_SubscribeClashMode_FullMethodName      = "/daemon.StartedService/SubscribeClashMode"
-	StartedService_SetClashMode_FullMethodName            = "/daemon.StartedService/SetClashMode"
-	StartedService_URLTest_FullMethodName                 = "/daemon.StartedService/URLTest"
-	StartedService_SelectOutbound_FullMethodName          = "/daemon.StartedService/SelectOutbound"
-	StartedService_SetGroupExpand_FullMethodName          = "/daemon.StartedService/SetGroupExpand"
-	StartedService_GetSystemProxyStatus_FullMethodName    = "/daemon.StartedService/GetSystemProxyStatus"
-	StartedService_SetSystemProxyEnabled_FullMethodName   = "/daemon.StartedService/SetSystemProxyEnabled"
-	StartedService_TriggerDebugCrash_FullMethodName       = "/daemon.StartedService/TriggerDebugCrash"
-	StartedService_TriggerOOMReport_FullMethodName        = "/daemon.StartedService/TriggerOOMReport"
-	StartedService_SubscribeConnections_FullMethodName    = "/daemon.StartedService/SubscribeConnections"
-	StartedService_CloseConnection_FullMethodName         = "/daemon.StartedService/CloseConnection"
-	StartedService_CloseAllConnections_FullMethodName     = "/daemon.StartedService/CloseAllConnections"
-	StartedService_GetDeprecatedWarnings_FullMethodName   = "/daemon.StartedService/GetDeprecatedWarnings"
-	StartedService_GetStartedAt_FullMethodName            = "/daemon.StartedService/GetStartedAt"
-	StartedService_ListOutbounds_FullMethodName           = "/daemon.StartedService/ListOutbounds"
-	StartedService_SubscribeOutbounds_FullMethodName      = "/daemon.StartedService/SubscribeOutbounds"
-	StartedService_StartNetworkQualityTest_FullMethodName = "/daemon.StartedService/StartNetworkQualityTest"
-	StartedService_StartSTUNTest_FullMethodName           = "/daemon.StartedService/StartSTUNTest"
+	StartedService_StopService_FullMethodName              = "/daemon.StartedService/StopService"
+	StartedService_ReloadService_FullMethodName            = "/daemon.StartedService/ReloadService"
+	StartedService_SubscribeServiceStatus_FullMethodName   = "/daemon.StartedService/SubscribeServiceStatus"
+	StartedService_SubscribeLog_FullMethodName             = "/daemon.StartedService/SubscribeLog"
+	StartedService_GetDefaultLogLevel_FullMethodName       = "/daemon.StartedService/GetDefaultLogLevel"
+	StartedService_ClearLogs_FullMethodName                = "/daemon.StartedService/ClearLogs"
+	StartedService_SubscribeStatus_FullMethodName          = "/daemon.StartedService/SubscribeStatus"
+	StartedService_SubscribeGroups_FullMethodName          = "/daemon.StartedService/SubscribeGroups"
+	StartedService_GetClashModeStatus_FullMethodName       = "/daemon.StartedService/GetClashModeStatus"
+	StartedService_SubscribeClashMode_FullMethodName       = "/daemon.StartedService/SubscribeClashMode"
+	StartedService_SetClashMode_FullMethodName             = "/daemon.StartedService/SetClashMode"
+	StartedService_URLTest_FullMethodName                  = "/daemon.StartedService/URLTest"
+	StartedService_SelectOutbound_FullMethodName           = "/daemon.StartedService/SelectOutbound"
+	StartedService_SetGroupExpand_FullMethodName           = "/daemon.StartedService/SetGroupExpand"
+	StartedService_GetSystemProxyStatus_FullMethodName     = "/daemon.StartedService/GetSystemProxyStatus"
+	StartedService_SetSystemProxyEnabled_FullMethodName    = "/daemon.StartedService/SetSystemProxyEnabled"
+	StartedService_TriggerDebugCrash_FullMethodName        = "/daemon.StartedService/TriggerDebugCrash"
+	StartedService_TriggerOOMReport_FullMethodName         = "/daemon.StartedService/TriggerOOMReport"
+	StartedService_SubscribeConnections_FullMethodName     = "/daemon.StartedService/SubscribeConnections"
+	StartedService_CloseConnection_FullMethodName          = "/daemon.StartedService/CloseConnection"
+	StartedService_CloseAllConnections_FullMethodName      = "/daemon.StartedService/CloseAllConnections"
+	StartedService_GetDeprecatedWarnings_FullMethodName    = "/daemon.StartedService/GetDeprecatedWarnings"
+	StartedService_GetStartedAt_FullMethodName             = "/daemon.StartedService/GetStartedAt"
+	StartedService_ListOutbounds_FullMethodName            = "/daemon.StartedService/ListOutbounds"
+	StartedService_SubscribeOutbounds_FullMethodName       = "/daemon.StartedService/SubscribeOutbounds"
+	StartedService_StartNetworkQualityTest_FullMethodName  = "/daemon.StartedService/StartNetworkQualityTest"
+	StartedService_StartSTUNTest_FullMethodName            = "/daemon.StartedService/StartSTUNTest"
+	StartedService_SubscribeTailscaleStatus_FullMethodName = "/daemon.StartedService/SubscribeTailscaleStatus"
 )
 
 // StartedServiceClient is the client API for StartedService service.
@@ -75,6 +76,7 @@ type StartedServiceClient interface {
 	SubscribeOutbounds(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OutboundList], error)
 	StartNetworkQualityTest(ctx context.Context, in *NetworkQualityTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NetworkQualityTestProgress], error)
 	StartSTUNTest(ctx context.Context, in *STUNTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[STUNTestProgress], error)
+	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
 }
 
 type startedServiceClient struct {
@@ -436,6 +438,25 @@ func (c *startedServiceClient) StartSTUNTest(ctx context.Context, in *STUNTestRe
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartSTUNTestClient = grpc.ServerStreamingClient[STUNTestProgress]
 
+func (c *startedServiceClient) SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[9], StartedService_SubscribeTailscaleStatus_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[emptypb.Empty, TailscaleStatusUpdate]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_SubscribeTailscaleStatusClient = grpc.ServerStreamingClient[TailscaleStatusUpdate]
+
 // StartedServiceServer is the server API for StartedService service.
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
@@ -467,6 +488,7 @@ type StartedServiceServer interface {
 	SubscribeOutbounds(*emptypb.Empty, grpc.ServerStreamingServer[OutboundList]) error
 	StartNetworkQualityTest(*NetworkQualityTestRequest, grpc.ServerStreamingServer[NetworkQualityTestProgress]) error
 	StartSTUNTest(*STUNTestRequest, grpc.ServerStreamingServer[STUNTestProgress]) error
+	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
 	mustEmbedUnimplementedStartedServiceServer()
 }
 
@@ -583,6 +605,10 @@ func (UnimplementedStartedServiceServer) StartNetworkQualityTest(*NetworkQuality
 
 func (UnimplementedStartedServiceServer) StartSTUNTest(*STUNTestRequest, grpc.ServerStreamingServer[STUNTestProgress]) error {
 	return status.Error(codes.Unimplemented, "method StartSTUNTest not implemented")
+}
+
+func (UnimplementedStartedServiceServer) SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error {
+	return status.Error(codes.Unimplemented, "method SubscribeTailscaleStatus not implemented")
 }
 func (UnimplementedStartedServiceServer) mustEmbedUnimplementedStartedServiceServer() {}
 func (UnimplementedStartedServiceServer) testEmbeddedByValue()                        {}
@@ -1028,6 +1054,17 @@ func _StartedService_StartSTUNTest_Handler(srv interface{}, stream grpc.ServerSt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartSTUNTestServer = grpc.ServerStreamingServer[STUNTestProgress]
 
+func _StartedService_SubscribeTailscaleStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(emptypb.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(StartedServiceServer).SubscribeTailscaleStatus(m, &grpc.GenericServerStream[emptypb.Empty, TailscaleStatusUpdate]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_SubscribeTailscaleStatusServer = grpc.ServerStreamingServer[TailscaleStatusUpdate]
+
 // StartedService_ServiceDesc is the grpc.ServiceDesc for StartedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1152,6 +1189,11 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StartSTUNTest",
 			Handler:       _StartedService_StartSTUNTest_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeTailscaleStatus",
+			Handler:       _StartedService_SubscribeTailscaleStatus_Handler,
 			ServerStreams: true,
 		},
 	},
