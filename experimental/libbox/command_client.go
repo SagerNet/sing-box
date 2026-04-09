@@ -720,3 +720,25 @@ func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler
 		handler.OnProgress(stunTestProgressFromGRPC(event))
 	}
 }
+
+func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) error {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	stream, err := client.SubscribeTailscaleStatus(context.Background(), &emptypb.Empty{})
+	if err != nil {
+		return err
+	}
+	for {
+		event, recvErr := stream.Recv()
+		if recvErr != nil {
+			handler.OnError(recvErr.Error())
+			return recvErr
+		}
+		handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(event))
+	}
+}
