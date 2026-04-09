@@ -6,12 +6,14 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/networkquality"
 	"github.com/sagernet/sing-box/common/stun"
 	"github.com/sagernet/sing-box/common/urltest"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/clashapi"
 	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -707,7 +709,7 @@ func (s *StartedService) TriggerDebugCrash(ctx context.Context, request *DebugCr
 	switch request.Type {
 	case DebugCrashRequest_GO:
 		time.AfterFunc(200*time.Millisecond, func() {
-			panic("debug go crash")
+			*(*int)(unsafe.Pointer(uintptr(0))) = 0
 		})
 	case DebugCrashRequest_NATIVE:
 		err := s.handler.TriggerNativeCrash()
@@ -1285,6 +1287,142 @@ func (s *StartedService) StartSTUNTest(
 		IsFinal:          true,
 		NatTypeSupported: result.NATTypeSupported,
 	})
+}
+
+func (s *StartedService) SubscribeTailscaleStatus(
+	_ *emptypb.Empty,
+	server grpc.ServerStreamingServer[TailscaleStatusUpdate],
+) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	if endpointManager == nil {
+		return status.Error(codes.FailedPrecondition, "endpoint manager not available")
+	}
+
+	type tailscaleEndpoint struct {
+		tag      string
+		provider adapter.TailscaleStatusProvider
+	}
+	var endpoints []tailscaleEndpoint
+	for _, endpoint := range endpointManager.Endpoints() {
+		if endpoint.Type() != C.TypeTailscale {
+			continue
+		}
+		provider, loaded := endpoint.(adapter.TailscaleStatusProvider)
+		if !loaded {
+			continue
+		}
+		endpoints = append(endpoints, tailscaleEndpoint{
+			tag:      endpoint.Tag(),
+			provider: provider,
+		})
+	}
+	if len(endpoints) == 0 {
+		return status.Error(codes.NotFound, "no Tailscale endpoint found")
+	}
+
+	type taggedStatus struct {
+		tag    string
+		status *adapter.TailscaleEndpointStatus
+	}
+	updates := make(chan taggedStatus, len(endpoints))
+	ctx, cancel := context.WithCancel(server.Context())
+	defer cancel()
+
+	var waitGroup sync.WaitGroup
+	for _, endpoint := range endpoints {
+		waitGroup.Add(1)
+		go func(tag string, provider adapter.TailscaleStatusProvider) {
+			defer waitGroup.Done()
+			_ = provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
+				select {
+				case updates <- taggedStatus{tag: tag, status: endpointStatus}:
+				case <-ctx.Done():
+				}
+			})
+		}(endpoint.tag, endpoint.provider)
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(updates)
+	}()
+
+	statuses := make(map[string]*adapter.TailscaleEndpointStatus, len(endpoints))
+	for update := range updates {
+		statuses[update.tag] = update.status
+		protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(statuses))
+		for tag, endpointStatus := range statuses {
+			protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, endpointStatus))
+		}
+		sendErr := server.Send(&TailscaleStatusUpdate{
+			Endpoints: protoEndpoints,
+		})
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+	return nil
+}
+
+func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStatus) *TailscaleEndpointStatus {
+	userGroupMap := make(map[int64]*TailscaleUserGroup)
+	for userID, user := range s.Users {
+		userGroupMap[userID] = &TailscaleUserGroup{
+			UserID:        userID,
+			LoginName:     user.LoginName,
+			DisplayName:   user.DisplayName,
+			ProfilePicURL: user.ProfilePicURL,
+		}
+	}
+	for _, peer := range s.Peers {
+		protoPeer := tailscalePeerToProto(peer)
+		group, loaded := userGroupMap[peer.UserID]
+		if !loaded {
+			group = &TailscaleUserGroup{UserID: peer.UserID}
+			userGroupMap[peer.UserID] = group
+		}
+		group.Peers = append(group.Peers, protoPeer)
+	}
+	userGroups := make([]*TailscaleUserGroup, 0, len(userGroupMap))
+	for _, group := range userGroupMap {
+		userGroups = append(userGroups, group)
+	}
+	result := &TailscaleEndpointStatus{
+		EndpointTag:    tag,
+		BackendState:   s.BackendState,
+		AuthURL:        s.AuthURL,
+		NetworkName:    s.NetworkName,
+		MagicDNSSuffix: s.MagicDNSSuffix,
+		UserGroups:     userGroups,
+	}
+	if s.Self != nil {
+		result.Self = tailscalePeerToProto(s.Self)
+	}
+	return result
+}
+
+func tailscalePeerToProto(peer *adapter.TailscalePeer) *TailscalePeer {
+	return &TailscalePeer{
+		HostName:       peer.HostName,
+		DnsName:        peer.DNSName,
+		Os:             peer.OS,
+		TailscaleIPs:   peer.TailscaleIPs,
+		Online:         peer.Online,
+		ExitNode:       peer.ExitNode,
+		ExitNodeOption: peer.ExitNodeOption,
+		Active:         peer.Active,
+		RxBytes:        peer.RxBytes,
+		TxBytes:        peer.TxBytes,
+		KeyExpiry:      peer.KeyExpiry,
+	}
 }
 
 func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {

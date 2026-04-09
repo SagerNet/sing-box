@@ -39,6 +39,7 @@ service StartedService {
   rpc SubscribeOutbounds(google.protobuf.Empty) returns (stream OutboundList) {}
   rpc StartNetworkQualityTest(NetworkQualityTestRequest) returns (stream NetworkQualityTestProgress) {}
   rpc StartSTUNTest(STUNTestRequest) returns (stream STUNTestProgress) {}
+  rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
 }
 
 message ServiceStatus {
@@ -277,4 +278,40 @@ message STUNTestProgress {
   bool isFinal = 6;
   string error = 7;
   bool natTypeSupported = 8;
+}
+
+message TailscaleStatusUpdate {
+  repeated TailscaleEndpointStatus endpoints = 1;
+}
+
+message TailscaleEndpointStatus {
+  string endpointTag = 1;
+  string backendState = 2;
+  string authURL = 3;
+  string networkName = 4;
+  string magicDNSSuffix = 5;
+  TailscalePeer self = 6;
+  repeated TailscaleUserGroup userGroups = 7;
+}
+
+message TailscaleUserGroup {
+  int64 userID = 1;
+  string loginName = 2;
+  string displayName = 3;
+  string profilePicURL = 4;
+  repeated TailscalePeer peers = 5;
+}
+
+message TailscalePeer {
+  string hostName = 1;
+  string dnsName = 2;
+  string os = 3;
+  repeated string tailscaleIPs = 4;
+  bool online = 5;
+  bool exitNode = 6;
+  bool exitNodeOption = 7;
+  bool active = 8;
+  int64 rxBytes = 9;
+  int64 txBytes = 10;
+  int64 keyExpiry = 11;
 }
