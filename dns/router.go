@@ -589,12 +589,13 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		return &responseMessage, nil
 	}
 	r.rulesAccess.RLock()
-	defer r.rulesAccess.RUnlock()
 	if r.closing {
+		r.rulesAccess.RUnlock()
 		return nil, E.New("dns router closed")
 	}
 	rules := r.rules
 	legacyDNSMode := r.legacyDNSMode
+	r.rulesAccess.RUnlock()
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	var (
 		response  *mDNS.Msg
@@ -701,12 +702,13 @@ done:
 
 func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
 	r.rulesAccess.RLock()
-	defer r.rulesAccess.RUnlock()
 	if r.closing {
+		r.rulesAccess.RUnlock()
 		return nil, E.New("dns router closed")
 	}
 	rules := r.rules
 	legacyDNSMode := r.legacyDNSMode
+	r.rulesAccess.RUnlock()
 	var (
 		responseAddrs []netip.Addr
 		err           error
