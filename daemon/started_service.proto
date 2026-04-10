@@ -35,11 +35,11 @@ service StartedService {
   rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
   rpc GetStartedAt(google.protobuf.Empty) returns(StartedAt) {}
 
-  rpc ListOutbounds(google.protobuf.Empty) returns (OutboundList) {}
   rpc SubscribeOutbounds(google.protobuf.Empty) returns (stream OutboundList) {}
   rpc StartNetworkQualityTest(NetworkQualityTestRequest) returns (stream NetworkQualityTestProgress) {}
   rpc StartSTUNTest(STUNTestRequest) returns (stream STUNTestProgress) {}
   rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
+  rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
 }
 
 message ServiceStatus {
@@ -314,4 +314,18 @@ message TailscalePeer {
   int64 rxBytes = 9;
   int64 txBytes = 10;
   int64 keyExpiry = 11;
+}
+
+message TailscalePingRequest {
+  string endpointTag = 1;
+  string peerIP = 2;
+}
+
+message TailscalePingResponse {
+  double latencyMs = 1;
+  bool isDirect = 2;
+  string endpoint = 3;
+  int32 derpRegionID = 4;
+  string derpRegionCode = 5;
+  string error = 6;
 }
