@@ -37,7 +37,7 @@ func NewHTTP3MeasurementClientFactory(dialer N.Dialer) (MeasurementClientFactory
 				if dialErr != nil {
 					return nil, dialErr
 				}
-				var wrappedConn net.Conn = udpConn
+				wrappedConn := udpConn
 				if len(readCounters) > 0 || len(writeCounters) > 0 {
 					wrappedConn = sBufio.NewCounterConn(udpConn, readCounters, writeCounters)
 				}
