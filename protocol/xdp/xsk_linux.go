@@ -433,7 +433,8 @@ func (xsk *XSKSocket) Transmit(data []byte) bool {
 	if !ok {
 		// Use a frame from the upper half of UMEM (reserved for TX)
 		txFrameBase := uint64(xsk.frameCount/2) * uint64(xsk.frameSize)
-		txIdx := prod & xsk.txRing.mask
+		txFrameCount := xsk.frameCount / 2
+		txIdx := prod % txFrameCount
 		addr = txFrameBase + uint64(txIdx)*uint64(xsk.frameSize)
 	}
 
