@@ -21,13 +21,6 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
-#### 旧版 `ip_accept_any` DNS 规则项
-
-旧版 `ip_accept_any` DNS 规则项已废弃，
-参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
-
-旧字段将在 sing-box 1.16.0 中被移除。
-
 #### 旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项
 
 旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项已废弃，

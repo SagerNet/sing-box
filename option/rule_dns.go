@@ -107,6 +107,7 @@ type RawDefaultDNSRule struct {
 	MatchResponse            bool                                                                        `json:"match_response,omitempty"`
 	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
 	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
+	IPAcceptAny              bool                                                                        `json:"ip_accept_any,omitempty"`
 	ResponseRcode            *DNSRCode                                                                   `json:"response_rcode,omitempty"`
 	ResponseAnswer           badoption.Listable[DNSRecordOptions]                                        `json:"response_answer,omitempty"`
 	ResponseNs               badoption.Listable[DNSRecordOptions]                                        `json:"response_ns,omitempty"`
@@ -117,8 +118,6 @@ type RawDefaultDNSRule struct {
 	Geosite     badoption.Listable[string] `json:"geosite,omitempty"`
 	SourceGeoIP badoption.Listable[string] `json:"source_geoip,omitempty"`
 	GeoIP       badoption.Listable[string] `json:"geoip,omitempty"`
-	// Deprecated: use match_response with response items
-	IPAcceptAny bool `json:"ip_accept_any,omitempty"`
 	// Deprecated: removed in sing-box 1.11.0
 	RuleSetIPCIDRAcceptEmpty bool `json:"rule_set_ip_cidr_accept_empty,omitempty"`
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
