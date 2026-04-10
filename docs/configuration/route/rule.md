@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [source_mac_address](#source_mac_address)  
-    :material-plus: [source_hostname](#source_hostname)
+    :material-plus: [source_hostname](#source_hostname)  
+    :material-plus: [package_name_regex](#package_name_regex)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -128,6 +129,9 @@ icon: material/new-box
         ],
         "package_name": [
           "com.termux"
+        ],
+        "package_name_regex": [
+          "^com\\.termux.*"
         ],
         "user": [
           "sekai"
@@ -353,6 +357,12 @@ Match process path using regular expression.
 #### package_name
 
 Match android package name.
+
+#### package_name_regex
+
+!!! question "Since sing-box 1.14.0"
+
+Match android package name using regular expression.
 
 #### user
 
