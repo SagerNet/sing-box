@@ -180,7 +180,7 @@ func (s *CommandServer) StartOrReloadService(configContent string, options *Over
 		ExcludePackage: iteratorToArray(options.ExcludePackage),
 	})
 	if err != nil {
-		return err
+		return E.Cause(err, "start or reload service")
 	}
 	return nil
 }
@@ -267,7 +267,7 @@ func (h *platformHandler) ServiceReload() error {
 func (h *platformHandler) SystemProxyStatus() (*daemon.SystemProxyStatus, error) {
 	status, err := (*CommandServer)(h).handler.GetSystemProxyStatus()
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "get system proxy status")
 	}
 	return &daemon.SystemProxyStatus{
 		Enabled:   status.Enabled,
