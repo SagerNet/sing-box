@@ -79,53 +79,6 @@ See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly ad
     }
     ```
 
-### Migrate DNS rule action strategy to rule items
-
-Legacy `strategy` DNS rule action option is deprecated.
-
-In sing-box 1.14.0, internal domain resolution (Lookup) now splits A and AAAA queries
-at the rule level, so each query type is evaluated independently through the full rule chain.
-Use `ip_version` or `query_type` rule items to control which query types a rule matches.
-
-!!! info "References"
-
-    [DNS Rule](/configuration/dns/rule/) /
-    [DNS Rule Action](/configuration/dns/rule_action/)
-
-=== ":material-card-remove: Deprecated"
-
-    ```json
-    {
-      "dns": {
-        "rules": [
-          {
-            "domain_suffix": ".cn",
-            "action": "route",
-            "server": "local",
-            "strategy": "ipv4_only"
-          }
-        ]
-      }
-    }
-    ```
-
-=== ":material-card-multiple: New"
-
-    ```json
-    {
-      "dns": {
-        "rules": [
-          {
-            "domain_suffix": ".cn",
-            "ip_version": 4,
-            "action": "route",
-            "server": "local"
-          }
-        ]
-      }
-    }
-    ```
-
 ### Migrate address filter fields to response matching
 
 Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) in DNS rules are deprecated,
