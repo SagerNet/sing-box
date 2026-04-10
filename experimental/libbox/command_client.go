@@ -116,7 +116,7 @@ func dialTarget() (string, func(context.Context, string) (net.Conn, error)) {
 		return "passthrough:///xpc", func(ctx context.Context, _ string) (net.Conn, error) {
 			fileDescriptor, err := sXPCDialer.DialXPC()
 			if err != nil {
-				return nil, err
+				return nil, E.Cause(err, "dial xpc")
 			}
 			return networkConnectionFromFileDescriptor(fileDescriptor)
 		}
@@ -165,7 +165,7 @@ func (c *CommandClient) dialWithRetry(target string, contextDialer func(context.
 			if err != nil {
 				lastError = err
 				if !retryDial {
-					return nil, nil, err
+					return nil, nil, E.Cause(err, "create command client")
 				}
 				time.Sleep(commandClientDialDelay(attempt))
 				continue
@@ -185,7 +185,7 @@ func (c *CommandClient) dialWithRetry(target string, contextDialer func(context.
 	if connection != nil {
 		connection.Close()
 	}
-	return nil, nil, lastError
+	return nil, nil, E.Cause(lastError, "probe command server")
 }
 
 func (c *CommandClient) Connect() error {
@@ -282,7 +282,7 @@ func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, error) 
 	target, contextDialer := dialTarget()
 	connection, client, err := c.dialWithRetry(target, contextDialer, true)
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "get command client")
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
@@ -324,19 +324,19 @@ func (c *CommandClient) handleLogStream() {
 	client, ctx := c.getStreamContext()
 	stream, err := client.SubscribeLog(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe log").Error())
 		return
 	}
 	defaultLogLevel, err := client.GetDefaultLogLevel(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "get default log level").Error())
 		return
 	}
 	c.handler.SetDefaultLogLevel(int32(defaultLogLevel.Level))
 	for {
 		logMessage, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "log stream recv").Error())
 			return
 		}
 		if logMessage.Reset_ {
@@ -361,14 +361,14 @@ func (c *CommandClient) handleStatusStream() {
 		Interval: interval,
 	})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe status").Error())
 		return
 	}
 
 	for {
 		status, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "status stream recv").Error())
 			return
 		}
 		c.handler.WriteStatus(statusMessageFromGRPC(status))
@@ -380,14 +380,14 @@ func (c *CommandClient) handleGroupStream() {
 
 	stream, err := client.SubscribeGroups(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe groups").Error())
 		return
 	}
 
 	for {
 		groups, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "groups stream recv").Error())
 			return
 		}
 		c.handler.WriteGroups(outboundGroupIteratorFromGRPC(groups))
@@ -399,7 +399,7 @@ func (c *CommandClient) handleClashModeStream() {
 
 	modeStatus, err := client.GetClashModeStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "get clash mode status").Error())
 		return
 	}
 
@@ -407,13 +407,13 @@ func (c *CommandClient) handleClashModeStream() {
 		go func() {
 			c.handler.InitializeClashMode(newIterator(modeStatus.ModeList), modeStatus.CurrentMode)
 			if len(modeStatus.ModeList) == 0 {
-				c.handler.Disconnected(os.ErrInvalid.Error())
+				c.handler.Disconnected(E.Cause(os.ErrInvalid, "empty clash mode list").Error())
 			}
 		}()
 	} else {
 		c.handler.InitializeClashMode(newIterator(modeStatus.ModeList), modeStatus.CurrentMode)
 		if len(modeStatus.ModeList) == 0 {
-			c.handler.Disconnected(os.ErrInvalid.Error())
+			c.handler.Disconnected(E.Cause(os.ErrInvalid, "empty clash mode list").Error())
 			return
 		}
 	}
@@ -424,14 +424,14 @@ func (c *CommandClient) handleClashModeStream() {
 
 	stream, err := client.SubscribeClashMode(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe clash mode").Error())
 		return
 	}
 
 	for {
 		mode, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "clash mode stream recv").Error())
 			return
 		}
 		c.handler.UpdateClashMode(mode.Mode)
@@ -446,14 +446,14 @@ func (c *CommandClient) handleConnectionsStream() {
 		Interval: interval,
 	})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe connections").Error())
 		return
 	}
 
 	for {
 		events, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "connections stream recv").Error())
 			return
 		}
 		libboxEvents := connectionEventsFromGRPC(events)
@@ -466,14 +466,14 @@ func (c *CommandClient) handleOutboundsStream() {
 
 	stream, err := client.SubscribeOutbounds(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(err.Error())
+		c.handler.Disconnected(E.Cause(err, "subscribe outbounds").Error())
 		return
 	}
 
 	for {
 		list, err := stream.Recv()
 		if err != nil {
-			c.handler.Disconnected(err.Error())
+			c.handler.Disconnected(E.Cause(err, "outbounds stream recv").Error())
 			return
 		}
 		c.handler.WriteOutbounds(outboundGroupItemListFromGRPC(list))
@@ -487,7 +487,10 @@ func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) erro
 			OutboundTag: outboundTag,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "select outbound")
+	}
+	return nil
 }
 
 func (c *CommandClient) URLTest(groupTag string) error {
@@ -496,7 +499,10 @@ func (c *CommandClient) URLTest(groupTag string) error {
 			OutboundTag: groupTag,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "url test")
+	}
+	return nil
 }
 
 func (c *CommandClient) SetClashMode(newMode string) error {
@@ -505,7 +511,10 @@ func (c *CommandClient) SetClashMode(newMode string) error {
 			Mode: newMode,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "set clash mode")
+	}
+	return nil
 }
 
 func (c *CommandClient) CloseConnection(connId string) error {
@@ -514,42 +523,57 @@ func (c *CommandClient) CloseConnection(connId string) error {
 			Id: connId,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "close connection")
+	}
+	return nil
 }
 
 func (c *CommandClient) CloseConnections() error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.CloseAllConnections(context.Background(), &emptypb.Empty{})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "close all connections")
+	}
+	return nil
 }
 
 func (c *CommandClient) ServiceReload() error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.ReloadService(context.Background(), &emptypb.Empty{})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "reload service")
+	}
+	return nil
 }
 
 func (c *CommandClient) ServiceClose() error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.StopService(context.Background(), &emptypb.Empty{})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "stop service")
+	}
+	return nil
 }
 
 func (c *CommandClient) ClearLogs() error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.ClearLogs(context.Background(), &emptypb.Empty{})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "clear logs")
+	}
+	return nil
 }
 
 func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
 	return callWithResult(c, func(client daemon.StartedServiceClient) (*SystemProxyStatus, error) {
 		status, err := client.GetSystemProxyStatus(context.Background(), &emptypb.Empty{})
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "get system proxy status")
 		}
 		return systemProxyStatusFromGRPC(status), nil
 	})
@@ -561,7 +585,10 @@ func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
 			Enabled: isEnabled,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "set system proxy enabled")
+	}
+	return nil
 }
 
 func (c *CommandClient) TriggerGoCrash() error {
@@ -570,7 +597,10 @@ func (c *CommandClient) TriggerGoCrash() error {
 			Type: daemon.DebugCrashRequest_GO,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "trigger debug crash")
+	}
+	return nil
 }
 
 func (c *CommandClient) TriggerNativeCrash() error {
@@ -579,21 +609,27 @@ func (c *CommandClient) TriggerNativeCrash() error {
 			Type: daemon.DebugCrashRequest_NATIVE,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "trigger native crash")
+	}
+	return nil
 }
 
 func (c *CommandClient) TriggerOOMReport() error {
 	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.TriggerOOMReport(context.Background(), &emptypb.Empty{})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "trigger oom report")
+	}
+	return nil
 }
 
 func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 	return callWithResult(c, func(client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
 		warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})
 		if err != nil {
-			return nil, err
+			return nil, E.Cause(err, "get deprecated warnings")
 		}
 		var notes []*DeprecatedNote
 		for _, warning := range warnings.Warnings {
@@ -612,7 +648,7 @@ func (c *CommandClient) GetStartedAt() (int64, error) {
 	return callWithResult(c, func(client daemon.StartedServiceClient) (int64, error) {
 		startedAt, err := client.GetStartedAt(context.Background(), &emptypb.Empty{})
 		if err != nil {
-			return 0, err
+			return 0, E.Cause(err, "get started at")
 		}
 		return startedAt.StartedAt, nil
 	})
@@ -625,13 +661,16 @@ func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 			IsExpand: isExpand,
 		})
 	})
-	return err
+	if err != nil {
+		return E.Cause(err, "set group expand")
+	}
+	return nil
 }
 
 func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag string, serial bool, maxRuntimeSeconds int32, http3 bool, handler NetworkQualityTestHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {
-		return err
+		return E.Cause(err, "start network quality test")
 	}
 	if c.standalone {
 		defer c.closeConnection()
@@ -644,11 +683,12 @@ func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag st
 		Http3:             http3,
 	})
 	if err != nil {
-		return err
+		return E.Cause(err, "start network quality test")
 	}
 	for {
 		event, recvErr := stream.Recv()
 		if recvErr != nil {
+			recvErr = E.Cause(recvErr, "network quality test recv")
 			handler.OnError(recvErr.Error())
 			return recvErr
 		}
@@ -677,7 +717,7 @@ func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag st
 func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler STUNTestHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {
-		return err
+		return E.Cause(err, "start stun test")
 	}
 	if c.standalone {
 		defer c.closeConnection()
@@ -687,11 +727,12 @@ func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler
 		OutboundTag: outboundTag,
 	})
 	if err != nil {
-		return err
+		return E.Cause(err, "start stun test")
 	}
 	for {
 		event, recvErr := stream.Recv()
 		if recvErr != nil {
+			recvErr = E.Cause(recvErr, "stun test recv")
 			handler.OnError(recvErr.Error())
 			return recvErr
 		}
@@ -716,14 +757,14 @@ func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler
 func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {
-		return err
+		return E.Cause(err, "subscribe tailscale status")
 	}
 	if c.standalone {
 		defer c.closeConnection()
 	}
 	stream, err := client.SubscribeTailscaleStatus(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		return err
+		return E.Cause(err, "subscribe tailscale status")
 	}
 	for {
 		event, recvErr := stream.Recv()
@@ -731,6 +772,7 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 			if status.Code(recvErr) == codes.NotFound {
 				return nil
 			}
+			recvErr = E.Cause(recvErr, "tailscale status recv")
 			handler.OnError(recvErr.Error())
 			return recvErr
 		}
@@ -741,7 +783,7 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {
-		return err
+		return E.Cause(err, "start tailscale ping")
 	}
 	if c.standalone {
 		defer c.closeConnection()
@@ -751,11 +793,12 @@ func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, ha
 		PeerIP:      peerIP,
 	})
 	if err != nil {
-		return err
+		return E.Cause(err, "start tailscale ping")
 	}
 	for {
 		event, recvErr := stream.Recv()
 		if recvErr != nil {
+			recvErr = E.Cause(recvErr, "tailscale ping recv")
 			handler.OnError(recvErr.Error())
 			return recvErr
 		}
