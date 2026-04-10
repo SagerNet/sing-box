@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [package_name_regex](#package_name_regex)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [network_interface_address](#network_interface_address)  
@@ -77,6 +81,9 @@ icon: material/new-box
       ],
       "package_name": [
         "com.termux"
+      ],
+      "package_name_regex": [
+        "^com\\.termux.*"
       ],
       "network_type": [
         "wifi"
@@ -204,6 +211,12 @@ Match process path using regular expression.
 #### package_name
 
 Match android package name.
+
+#### package_name_regex
+
+!!! question "Since sing-box 1.14.0"
+
+Match android package name using regular expression.
 
 #### network_type
 
