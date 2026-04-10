@@ -44,7 +44,7 @@ icon: material/new-box
 
     `strategy` 已在 sing-box 1.14.0 废弃，且将在 sing-box 1.16.0 中被移除。
 
-为此查询设置域名策略。已废弃，参阅[迁移指南](/zh/migration/#迁移-dns-规则动作-strategy-到规则项)。
+为此查询设置域名策略。
 
 可选项：`prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`。
 
