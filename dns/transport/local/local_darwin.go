@@ -4,8 +4,6 @@ package local
 
 import (
 	"context"
-	"errors"
-	"net"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -14,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
-	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -35,10 +32,8 @@ type Transport struct {
 	logger        logger.ContextLogger
 	hosts         *hosts.File
 	dialer        N.Dialer
-	preferGo      bool
 	fallback      bool
 	dhcpTransport dhcpTransport
-	resolver      net.Resolver
 }
 
 type dhcpTransport interface {
@@ -52,14 +47,12 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if err != nil {
 		return nil, err
 	}
-	transportAdapter := dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options)
 	return &Transport{
-		TransportAdapter: transportAdapter,
+		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		ctx:              ctx,
 		logger:           logger,
 		hosts:            hosts.NewFile(hosts.DefaultPath),
 		dialer:           transportDialer,
-		preferGo:         options.PreferGo,
 	}, nil
 }
 
@@ -96,45 +89,4 @@ func (t *Transport) Reset() {
 	if t.dhcpTransport != nil {
 		t.dhcpTransport.Reset()
 	}
-}
-
-func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	question := message.Question[0]
-	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
-		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
-		if len(addresses) > 0 {
-			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
-		}
-	}
-	if !t.fallback {
-		return t.exchange(ctx, message, question.Name)
-	}
-	if t.dhcpTransport != nil {
-		dhcpTransports := t.dhcpTransport.Fetch()
-		if len(dhcpTransports) > 0 {
-			return t.dhcpTransport.Exchange0(ctx, message, dhcpTransports)
-		}
-	}
-	if t.preferGo {
-		// Assuming the user knows what they are doing, we still execute the query which will fail.
-		return t.exchange(ctx, message, question.Name)
-	}
-	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
-		var network string
-		if question.Qtype == mDNS.TypeA {
-			network = "ip4"
-		} else {
-			network = "ip6"
-		}
-		addresses, err := t.resolver.LookupNetIP(ctx, network, question.Name)
-		if err != nil {
-			var dnsError *net.DNSError
-			if errors.As(err, &dnsError) && dnsError.IsNotFound {
-				return nil, dns.RcodeRefused
-			}
-			return nil, err
-		}
-		return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
-	}
-	return nil, E.New("only A and AAAA queries are supported on Apple platforms when using TUN and DHCP unavailable.")
 }
