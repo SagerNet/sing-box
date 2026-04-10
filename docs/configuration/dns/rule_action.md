@@ -44,7 +44,7 @@ Tag of target server.
 
     `strategy` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0.
 
-Set domain strategy for this query. Deprecated, check [Migration](/migration/#migrate-dns-rule-action-strategy-to-rule-items).
+Set domain strategy for this query.
 
 One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
