@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -431,6 +433,9 @@ func Run(options Options) (*Result, error) {
 	defer func() {
 		_ = packetConn.Close()
 	}()
+	if deadline.NeedAdditionalReadDeadline(packetConn) {
+		packetConn = deadline.NewPacketConn(bufio.NewPacketConn(packetConn))
+	}
 
 	select {
 	case <-ctx.Done():
