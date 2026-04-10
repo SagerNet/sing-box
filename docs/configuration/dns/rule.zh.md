@@ -8,7 +8,6 @@ icon: material/alert-decagram
     :material-plus: [source_hostname](#source_hostname)  
     :material-plus: [match_response](#match_response)  
     :material-delete-clock: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)  
-    :material-delete-clock: [ip_accept_any](#ip_accept_any)  
     :material-plus: [response_rcode](#response_rcode)  
     :material-plus: [response_answer](#response_answer)  
     :material-plus: [response_ns](#response_ns)  
@@ -178,6 +177,7 @@ icon: material/alert-decagram
           "192.168.0.1"
         ],
         "ip_is_private": false,
+        "ip_accept_any": false,
         "response_rcode": "",
         "response_answer": [],
         "response_ns": [],
@@ -191,7 +191,6 @@ icon: material/alert-decagram
 
         // 已弃用
 
-        "ip_accept_any": false,
         "rule_set_ip_cidr_accept_empty": false,
         "rule_set_ipcidr_match_source": false,
         "geosite": [
@@ -498,7 +497,13 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 该已评估的响应也可以被后续的 [`respond`](/zh/configuration/dns/rule_action/#respond) 动作直接返回。
 
 响应匹配字段（`response_rcode`、`response_answer`、`response_ns`、`response_extra`）需要此选项。
-当与 `evaluate` 或响应匹配字段一起使用时，`ip_cidr` 和 `ip_is_private` 也需要此选项。
+当与 `evaluate` 或响应匹配字段一起使用时，`ip_cidr`、`ip_is_private` 和 `ip_accept_any` 也需要此选项。
+
+#### ip_accept_any
+
+!!! question "自 sing-box 1.12.0 起"
+
+当 DNS 查询响应包含至少一个地址时匹配。
 
 #### invert
 
@@ -598,17 +603,6 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
     参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
 
 使规则集中的 `ip_cidr` 规则接受空查询响应。
-
-#### ip_accept_any
-
-!!! question "自 sing-box 1.12.0 起"
-
-!!! failure "已在 sing-box 1.14.0 废弃"
-
-    `ip_accept_any` 已废弃且将在 sing-box 1.16.0 中被移除，
-    参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
-
-匹配任意 IP。
 
 ### 响应匹配字段
 
