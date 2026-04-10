@@ -16,8 +16,7 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 #### 旧版 DNS 规则动作 `strategy` 选项
 
-旧版 DNS 规则动作 `strategy` 选项已废弃，
-参阅[迁移指南](/zh/migration/#迁移-dns-规则动作-strategy-到规则项)。
+旧版 DNS 规则动作 `strategy` 选项已废弃。
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
