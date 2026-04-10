@@ -11,7 +11,8 @@ icon: material/alert-decagram
     :material-plus: [response_rcode](#response_rcode)  
     :material-plus: [response_answer](#response_answer)  
     :material-plus: [response_ns](#response_ns)  
-    :material-plus: [response_extra](#response_extra)
+    :material-plus: [response_extra](#response_extra)  
+    :material-plus: [package_name_regex](#package_name_regex)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -128,6 +129,9 @@ icon: material/alert-decagram
         ],
         "package_name": [
           "com.termux"
+        ],
+        "package_name_regex": [
+          "^com\\.termux.*"
         ],
         "user": [
           "sekai"
@@ -346,6 +350,12 @@ Match process path using regular expression.
 #### package_name
 
 Match android package name.
+
+#### package_name_regex
+
+!!! question "Since sing-box 1.14.0"
+
+Match android package name using regular expression.
 
 #### user
 
