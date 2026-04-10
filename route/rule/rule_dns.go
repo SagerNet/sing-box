@@ -177,12 +177,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if options.IPAcceptAny { //nolint:staticcheck
-		if legacyDNSMode {
-			deprecated.Report(ctx, deprecated.OptionIPAcceptAny)
-		} else {
-			return nil, E.New(deprecated.OptionIPAcceptAny.MessageWithLink())
-		}
+	if options.IPAcceptAny {
 		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
