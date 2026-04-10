@@ -42,29 +42,62 @@ if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
 
 === "MagicDNS only"
 
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            "type": "local",
-            "tag": "local"
-          },
-          {
-            "type": "tailscale",
-            "tag": "ts",
-            "endpoint": "ts-ep"
+    === ":material-card-multiple: sing-box 1.14.0"
+
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "local",
+                "tag": "local"
+              },
+              {
+                "type": "tailscale",
+                "tag": "ts",
+                "endpoint": "ts-ep"
+              }
+            ],
+            "rules": [
+              {
+                "action": "evaluate",
+                "server": "ts"
+              },
+              {
+                "match_response": true,
+                "ip_accept_any": true,
+                "action": "respond"
+              }
+            ]
           }
-        ],
-        "rules": [
-          {
-            "ip_accept_any": true,
-            "server": "ts"
+        }
+        ```
+
+    === ":material-card-remove: sing-box < 1.14.0"
+
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                "type": "local",
+                "tag": "local"
+              },
+              {
+                "type": "tailscale",
+                "tag": "ts",
+                "endpoint": "ts-ep"
+              }
+            ],
+            "rules": [
+              {
+                "ip_accept_any": true,
+                "server": "ts"
+              }
+            ]
           }
-        ]
-      }
-    }
-    ```
+        }
+        ```
 
 === "Use as global DNS"
 

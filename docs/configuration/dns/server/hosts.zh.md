@@ -73,24 +73,55 @@ hosts 文件路径列表。
 
 === "如果可用则使用 hosts"
 
-    ```json
-    {
-      "dns": {
-        "servers": [
-          {
-            ...
-          },
-          {
-            "type": "hosts",
-            "tag": "hosts"
+    === ":material-card-multiple: sing-box 1.14.0"
+
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                ...
+              },
+              {
+                "type": "hosts",
+                "tag": "hosts"
+              }
+            ],
+            "rules": [
+              {
+                "action": "evaluate",
+                "server": "hosts"
+              },
+              {
+                "match_response": true,
+                "ip_accept_any": true,
+                "action": "respond"
+              }
+            ]
           }
-        ],
-        "rules": [
-          {
-            "ip_accept_any": true,
-            "server": "hosts"
+        }
+        ```
+
+    === ":material-card-remove: sing-box < 1.14.0"
+
+        ```json
+        {
+          "dns": {
+            "servers": [
+              {
+                ...
+              },
+              {
+                "type": "hosts",
+                "tag": "hosts"
+              }
+            ],
+            "rules": [
+              {
+                "ip_accept_any": true,
+                "server": "hosts"
+              }
+            ]
           }
-        ]
-      }
-    }
-    ```
+        }
+        ```
