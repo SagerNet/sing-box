@@ -42,6 +42,7 @@ SFA provides an unprivileged TUN implementation through Android VpnService.
 | `process_path`        | :material-close: | No permission                     |
 | `process_path_regex`  | :material-close: | No permission                     |
 | `package_name`        | :material-check: | /                                 |
+| `package_name_regex`  | :material-check: | /                                 |
 | `user`                | :material-close: | Use `package_name` instead        |
 | `user_id`             | :material-close: | Use `package_name` instead        |
 | `wifi_ssid`           | :material-check: | Fine location permission required |
