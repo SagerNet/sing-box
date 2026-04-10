@@ -12,7 +12,9 @@ icon: material/alert-decagram
     :material-plus: [response_answer](#response_answer)  
     :material-plus: [response_ns](#response_ns)  
     :material-plus: [response_extra](#response_extra)  
-    :material-plus: [package_name_regex](#package_name_regex)
+    :material-plus: [package_name_regex](#package_name_regex)  
+    :material-alert: [ip_version](#ip_version)  
+    :material-alert: [query_type](#query_type)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -243,11 +245,37 @@ icon: material/alert-decagram
 
 #### ip_version
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    此字段现在也会在 DNS 规则被未指定具体 DNS 服务器的内部域名解析匹配时生效，
+    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。
+    此前只有来自客户端的 DNS 查询才会评估此字段。完整列表参阅
+    [迁移指南](/zh/migration/#dns-规则中的-ip_version-和-query_type-行为更改)。
+
+    在 DNS 规则中设置此字段后，该 DNS 规则在同一 DNS 配置中不能与
+    旧版地址筛选字段 (DNS 规则)、旧版 DNS 规则动作 `strategy` 选项，
+    或旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项共存。如需与
+    基于地址的筛选组合，请使用 [`evaluate`](../rule_action/#evaluate) 动作和
+    [`match_response`](#match_response)。
+
 4 (A DNS 查询) 或 6 (AAAA DNS 查询)。
 
 默认不限制。
 
 #### query_type
+
+!!! quote "sing-box 1.14.0 中的更改"
+
+    此字段现在也会在 DNS 规则被未指定具体 DNS 服务器的内部域名解析匹配时生效，
+    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。
+    此前只有来自客户端的 DNS 查询才会评估此字段。完整列表参阅
+    [迁移指南](/zh/migration/#dns-规则中的-ip_version-和-query_type-行为更改)。
+
+    在 DNS 规则中设置此字段后，该 DNS 规则在同一 DNS 配置中不能与
+    旧版地址筛选字段 (DNS 规则)、旧版 DNS 规则动作 `strategy` 选项，
+    或旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项共存。如需与
+    基于地址的筛选组合，请使用 [`evaluate`](../rule_action/#evaluate) 动作和
+    [`match_response`](#match_response)。
 
 DNS 查询类型。值可以为整数或者类型名称字符串。
 
