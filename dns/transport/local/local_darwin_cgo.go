@@ -4,8 +4,24 @@ package local
 
 /*
 #include <stdlib.h>
+#include <dns.h>
 #include <resolv.h>
-#include <netdb.h>
+
+static void *cgo_dns_open_super() {
+	return (void *)dns_open(NULL);
+}
+
+static void cgo_dns_close(void *opaque) {
+	if (opaque != NULL) dns_free((dns_handle_t)opaque);
+}
+
+static int cgo_dns_search(void *opaque, const char *name, int class, int type,
+	unsigned char *answer, int anslen) {
+	dns_handle_t handle = (dns_handle_t)opaque;
+	struct sockaddr_storage from;
+	uint32_t fromlen = sizeof(from);
+	return dns_search(handle, name, class, type, (char *)answer, anslen, (struct sockaddr *)&from, &fromlen);
+}
 
 static void *cgo_res_init() {
 	res_state state = calloc(1, sizeof(struct __res_state));
@@ -52,7 +68,59 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-func resolvSearch(name string, class, qtype int, timeoutSeconds int) (*mDNS.Msg, error) {
+const (
+	darwinResolverHostNotFound = 1
+	darwinResolverTryAgain     = 2
+	darwinResolverNoRecovery   = 3
+	darwinResolverNoData       = 4
+
+	darwinResolverMaxPacketSize = 65535
+)
+
+var errDarwinNeedLargerBuffer = errors.New("darwin resolver response truncated")
+
+func darwinLookupSystemDNS(name string, class, qtype, timeoutSeconds int) (*mDNS.Msg, error) {
+	response, err := darwinSearchWithSystemRouting(name, class, qtype)
+	if err == nil {
+		return response, nil
+	}
+	fallbackResponse, fallbackErr := darwinSearchWithResolv(name, class, qtype, timeoutSeconds)
+	if fallbackErr == nil || fallbackResponse != nil {
+		return fallbackResponse, fallbackErr
+	}
+	return nil, E.Errors(
+		E.Cause(err, "dns_search"),
+		E.Cause(fallbackErr, "res_nsearch"),
+	)
+}
+
+func darwinSearchWithSystemRouting(name string, class, qtype int) (*mDNS.Msg, error) {
+	handle := C.cgo_dns_open_super()
+	if handle == nil {
+		return nil, E.New("dns_open failed")
+	}
+	defer C.cgo_dns_close(handle)
+
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	bufSize := 1232
+	for {
+		answer := make([]byte, bufSize)
+		n := C.cgo_dns_search(handle, cName, C.int(class), C.int(qtype),
+			(*C.uchar)(unsafe.Pointer(&answer[0])), C.int(len(answer)))
+		if n <= 0 {
+			return nil, E.New("dns_search failed for ", name)
+		}
+		if int(n) > bufSize {
+			bufSize = int(n)
+			continue
+		}
+		return unpackDarwinResolverMessage(answer[:int(n)], "dns_search")
+	}
+}
+
+func darwinSearchWithResolv(name string, class, qtype int, timeoutSeconds int) (*mDNS.Msg, error) {
 	state := C.cgo_res_init()
 	if state == nil {
 		return nil, E.New("res_ninit failed")
@@ -61,6 +129,7 @@ func resolvSearch(name string, class, qtype int, timeoutSeconds int) (*mDNS.Msg,
 
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
+
 	bufSize := 1232
 	for {
 		answer := make([]byte, bufSize)
@@ -74,37 +143,55 @@ func resolvSearch(name string, class, qtype int, timeoutSeconds int) (*mDNS.Msg,
 				bufSize = int(n)
 				continue
 			}
-			var response mDNS.Msg
-			err := response.Unpack(answer[:int(n)])
-			if err != nil {
-				return nil, E.Cause(err, "unpack res_nsearch response")
+			return unpackDarwinResolverMessage(answer[:int(n)], "res_nsearch")
+		}
+		response, err := handleDarwinResolvFailure(name, answer, int(hErrno))
+		if err == nil {
+			return response, nil
+		}
+		if errors.Is(err, errDarwinNeedLargerBuffer) && bufSize < darwinResolverMaxPacketSize {
+			bufSize *= 2
+			if bufSize > darwinResolverMaxPacketSize {
+				bufSize = darwinResolverMaxPacketSize
 			}
-			return &response, nil
+			continue
 		}
-		var response mDNS.Msg
-		_ = response.Unpack(answer[:bufSize])
-		if response.Response {
-			if response.Truncated && bufSize < 65535 {
-				bufSize *= 2
-				if bufSize > 65535 {
-					bufSize = 65535
-				}
-				continue
-			}
-			return &response, nil
+		return nil, err
+	}
+}
+
+func unpackDarwinResolverMessage(packet []byte, source string) (*mDNS.Msg, error) {
+	var response mDNS.Msg
+	err := response.Unpack(packet)
+	if err != nil {
+		return nil, E.Cause(err, "unpack ", source, " response")
+	}
+	return &response, nil
+}
+
+func handleDarwinResolvFailure(name string, answer []byte, hErrno int) (*mDNS.Msg, error) {
+	response, err := unpackDarwinResolverMessage(answer, "res_nsearch failure")
+	if err == nil && response.Response {
+		if response.Truncated && len(answer) < darwinResolverMaxPacketSize {
+			return nil, errDarwinNeedLargerBuffer
 		}
-		switch hErrno {
-		case C.HOST_NOT_FOUND:
-			return nil, dns.RcodeNameError
-		case C.TRY_AGAIN:
-			return nil, dns.RcodeNameError
-		case C.NO_RECOVERY:
-			return nil, dns.RcodeServerFailure
-		case C.NO_DATA:
-			return nil, dns.RcodeSuccess
-		default:
-			return nil, E.New("res_nsearch: unknown error ", int(hErrno), " for ", name)
-		}
+		return response, nil
+	}
+	return nil, darwinResolverHErrno(name, hErrno)
+}
+
+func darwinResolverHErrno(name string, hErrno int) error {
+	switch hErrno {
+	case darwinResolverHostNotFound:
+		return dns.RcodeNameError
+	case darwinResolverTryAgain:
+		return dns.RcodeServerFailure
+	case darwinResolverNoRecovery:
+		return dns.RcodeServerFailure
+	case darwinResolverNoData:
+		return dns.RcodeSuccess
+	default:
+		return E.New("res_nsearch: unknown error ", hErrno, " for ", name)
 	}
 }
 
@@ -141,7 +228,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	}
 	resultCh := make(chan resolvResult, 1)
 	go func() {
-		response, err := resolvSearch(name, int(question.Qclass), int(question.Qtype), timeoutSeconds)
+		response, err := darwinLookupSystemDNS(name, int(question.Qclass), int(question.Qtype), timeoutSeconds)
 		resultCh <- resolvResult{response, err}
 	}()
 	var result resolvResult
