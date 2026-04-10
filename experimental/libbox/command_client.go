@@ -14,8 +14,10 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -626,16 +628,6 @@ func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 	return err
 }
 
-func (c *CommandClient) ListOutbounds() (OutboundGroupItemIterator, error) {
-	return callWithResult(c, func(client daemon.StartedServiceClient) (OutboundGroupItemIterator, error) {
-		list, err := client.ListOutbounds(context.Background(), &emptypb.Empty{})
-		if err != nil {
-			return nil, err
-		}
-		return outboundGroupItemListFromGRPC(list), nil
-	})
-}
-
 func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag string, serial bool, maxRuntimeSeconds int32, http3 bool, handler NetworkQualityTestHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {
@@ -736,9 +728,37 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 	for {
 		event, recvErr := stream.Recv()
 		if recvErr != nil {
+			if status.Code(recvErr) == codes.NotFound {
+				return nil
+			}
 			handler.OnError(recvErr.Error())
 			return recvErr
 		}
 		handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(event))
+	}
+}
+
+func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) error {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	stream, err := client.StartTailscalePing(context.Background(), &daemon.TailscalePingRequest{
+		EndpointTag: endpointTag,
+		PeerIP:      peerIP,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		event, recvErr := stream.Recv()
+		if recvErr != nil {
+			handler.OnError(recvErr.Error())
+			return recvErr
+		}
+		handler.OnPingResult(tailscalePingResultFromGRPC(event))
 	}
 }

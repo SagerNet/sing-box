@@ -4,14 +4,14 @@ package tailscale
 
 import (
 	"context"
+	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/tailscale/ipn"
 	"github.com/sagernet/tailscale/ipn/ipnstate"
-	"github.com/sagernet/tailscale/tailcfg"
 )
 
-var _ adapter.TailscaleStatusProvider = (*Endpoint)(nil)
+var _ adapter.TailscaleEndpoint = (*Endpoint)(nil)
 
 func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapter.TailscaleEndpointStatus)) error {
 	localBackend := t.server.ExportLocalBackend()
@@ -46,13 +46,35 @@ func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointS
 	if status.Self != nil {
 		result.Self = convertTailscalePeer(status.Self)
 	}
-	result.Users = make(map[int64]*adapter.TailscaleUser, len(status.User))
-	for userID, profile := range status.User {
-		result.Users[int64(userID)] = convertTailscaleUser(userID, profile)
+	groupIndex := make(map[int64]*adapter.TailscaleUserGroup)
+	for _, peerKey := range status.Peers() {
+		peer := status.Peer[peerKey]
+		userID := int64(peer.UserID)
+		group, loaded := groupIndex[userID]
+		if !loaded {
+			group = &adapter.TailscaleUserGroup{
+				UserID: userID,
+			}
+			if profile, hasProfile := status.User[peer.UserID]; hasProfile {
+				group.LoginName = profile.LoginName
+				group.DisplayName = profile.DisplayName
+				group.ProfilePicURL = profile.ProfilePicURL
+			}
+			groupIndex[userID] = group
+			result.UserGroups = append(result.UserGroups, group)
+		}
+		group.Peers = append(group.Peers, convertTailscalePeer(peer))
 	}
-	result.Peers = make([]*adapter.TailscalePeer, 0, len(status.Peer))
-	for _, peer := range status.Peer {
-		result.Peers = append(result.Peers, convertTailscalePeer(peer))
+	for _, group := range result.UserGroups {
+		slices.SortStableFunc(group.Peers, func(a, b *adapter.TailscalePeer) int {
+			if a.Online != b.Online {
+				if a.Online {
+					return -1
+				}
+				return 1
+			}
+			return 0
+		})
 	}
 	return result
 }
@@ -79,14 +101,5 @@ func convertTailscalePeer(peer *ipnstate.PeerStatus) *adapter.TailscalePeer {
 		TxBytes:        peer.TxBytes,
 		UserID:         int64(peer.UserID),
 		KeyExpiry:      keyExpiry,
-	}
-}
-
-func convertTailscaleUser(id tailcfg.UserID, profile tailcfg.UserProfile) *adapter.TailscaleUser {
-	return &adapter.TailscaleUser{
-		ID:            int64(id),
-		LoginName:     profile.LoginName,
-		DisplayName:   profile.DisplayName,
-		ProfilePicURL: profile.ProfilePicURL,
 	}
 }
