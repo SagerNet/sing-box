@@ -93,15 +93,6 @@ var OptionInlineACME = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-inline-acme-to-certificate-provider",
 }
 
-var OptionIPAcceptAny = Note{
-	Name:              "dns-rule-ip-accept-any",
-	Description:       "Legacy `ip_accept_any` DNS rule item",
-	DeprecatedVersion: "1.14.0",
-	ScheduledVersion:  "1.16.0",
-	EnvName:           "DNS_RULE_IP_ACCEPT_ANY",
-	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-address-filter-fields-to-response-matching",
-}
-
 var OptionRuleSetIPCIDRAcceptEmpty = Note{
 	Name:              "dns-rule-rule-set-ip-cidr-accept-empty",
 	Description:       "Legacy `rule_set_ip_cidr_accept_empty` DNS rule item",
@@ -134,7 +125,6 @@ var Options = []Note{
 	OptionMissingDomainResolver,
 	OptionLegacyDomainStrategyOptions,
 	OptionInlineACME,
-	OptionIPAcceptAny,
 	OptionRuleSetIPCIDRAcceptEmpty,
 	OptionLegacyDNSAddressFilter,
 	OptionLegacyDNSRuleStrategy,
