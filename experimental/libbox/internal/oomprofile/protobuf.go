@@ -22,7 +22,7 @@ func (b *protobuf) length(tag int, length int) {
 }
 
 func (b *protobuf) uint64(tag int, x uint64) {
-	b.varint(uint64(tag)<<3 | 0)
+	b.varint(uint64(tag) << 3)
 	b.varint(x)
 }
 
