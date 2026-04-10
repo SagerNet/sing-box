@@ -23,7 +23,8 @@ const (
 	RuleSetVersion2
 	RuleSetVersion3
 	RuleSetVersion4
-	RuleSetVersionCurrent = RuleSetVersion4
+	RuleSetVersion5
+	RuleSetVersionCurrent = RuleSetVersion5
 )
 
 const (
