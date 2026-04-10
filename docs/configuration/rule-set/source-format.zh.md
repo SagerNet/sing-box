@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: version `5`
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: version `4`
@@ -41,6 +45,7 @@ icon: material/new-box
 * 2: sing-box 1.10.0: 优化了二进制规则集中 `domain_suffix` 规则的内存使用。
 * 3: sing-box 1.11.0: 添加了 `network_type`、 `network_is_expensive` 和 `network_is_constrainted` 规则项。
 * 4: sing-box 1.13.0: 添加了 `network_interface_address` 和 `default_interface_address` 规则项。
+* 5: sing-box 1.14.0: 添加了 `package_name_regex` 规则项。
 
 #### rules
 

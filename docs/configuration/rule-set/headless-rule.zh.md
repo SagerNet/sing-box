@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [package_name_regex](#package_name_regex)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [network_interface_address](#network_interface_address)  
@@ -77,6 +81,9 @@ icon: material/new-box
       ],
       "package_name": [
         "com.termux"
+      ],
+      "package_name_regex": [
+        "^com\\.termux.*"
       ],
       "network_type": [
         "wifi"
@@ -200,6 +207,12 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### package_name
 
 匹配 Android 应用包名。
+
+#### package_name_regex
+
+!!! question "自 sing-box 1.14.0 起"
+
+使用正则表达式匹配 Android 应用包名。
 
 #### network_type
 
