@@ -1,3 +1,5 @@
+//go:build !darwin
+
 package local
 
 import (
