@@ -21,13 +21,6 @@ check [Migration](../migration/#migrate-dns-rule-action-strategy-to-rule-items).
 
 Old fields will be removed in sing-box 1.16.0.
 
-#### Legacy `ip_accept_any` DNS rule item
-
-Legacy `ip_accept_any` DNS rule item is deprecated,
-check [Migration](../migration/#migrate-address-filter-fields-to-response-matching).
-
-Old fields will be removed in sing-box 1.16.0.
-
 #### Legacy `rule_set_ip_cidr_accept_empty` DNS rule item
 
 Legacy `rule_set_ip_cidr_accept_empty` DNS rule item is deprecated,
