@@ -82,6 +82,11 @@ func compileRuleSet(sourcePath string) error {
 }
 
 func downgradeRuleSetVersion(version uint8, options option.PlainRuleSet) uint8 {
+	if version == C.RuleSetVersion5 && !rule.HasHeadlessRule(options.Rules, func(rule option.DefaultHeadlessRule) bool {
+		return len(rule.PackageNameRegex) > 0
+	}) {
+		version = C.RuleSetVersion4
+	}
 	if version == C.RuleSetVersion4 && !rule.HasHeadlessRule(options.Rules, func(rule option.DefaultHeadlessRule) bool {
 		return rule.NetworkInterfaceAddress != nil && rule.NetworkInterfaceAddress.Size() > 0 ||
 			len(rule.DefaultInterfaceAddress) > 0
