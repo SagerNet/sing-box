@@ -38,11 +38,11 @@ const (
 	StartedService_CloseAllConnections_FullMethodName      = "/daemon.StartedService/CloseAllConnections"
 	StartedService_GetDeprecatedWarnings_FullMethodName    = "/daemon.StartedService/GetDeprecatedWarnings"
 	StartedService_GetStartedAt_FullMethodName             = "/daemon.StartedService/GetStartedAt"
-	StartedService_ListOutbounds_FullMethodName            = "/daemon.StartedService/ListOutbounds"
 	StartedService_SubscribeOutbounds_FullMethodName       = "/daemon.StartedService/SubscribeOutbounds"
 	StartedService_StartNetworkQualityTest_FullMethodName  = "/daemon.StartedService/StartNetworkQualityTest"
 	StartedService_StartSTUNTest_FullMethodName            = "/daemon.StartedService/StartSTUNTest"
 	StartedService_SubscribeTailscaleStatus_FullMethodName = "/daemon.StartedService/SubscribeTailscaleStatus"
+	StartedService_StartTailscalePing_FullMethodName       = "/daemon.StartedService/StartTailscalePing"
 )
 
 // StartedServiceClient is the client API for StartedService service.
@@ -72,11 +72,11 @@ type StartedServiceClient interface {
 	CloseAllConnections(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetDeprecatedWarnings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*DeprecatedWarnings, error)
 	GetStartedAt(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StartedAt, error)
-	ListOutbounds(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*OutboundList, error)
 	SubscribeOutbounds(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OutboundList], error)
 	StartNetworkQualityTest(ctx context.Context, in *NetworkQualityTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NetworkQualityTestProgress], error)
 	StartSTUNTest(ctx context.Context, in *STUNTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[STUNTestProgress], error)
 	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
+	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
 }
 
 type startedServiceClient struct {
@@ -371,16 +371,6 @@ func (c *startedServiceClient) GetStartedAt(ctx context.Context, in *emptypb.Emp
 	return out, nil
 }
 
-func (c *startedServiceClient) ListOutbounds(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*OutboundList, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OutboundList)
-	err := c.cc.Invoke(ctx, StartedService_ListOutbounds_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *startedServiceClient) SubscribeOutbounds(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OutboundList], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[6], StartedService_SubscribeOutbounds_FullMethodName, cOpts...)
@@ -457,6 +447,25 @@ func (c *startedServiceClient) SubscribeTailscaleStatus(ctx context.Context, in 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_SubscribeTailscaleStatusClient = grpc.ServerStreamingClient[TailscaleStatusUpdate]
 
+func (c *startedServiceClient) StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[10], StartedService_StartTailscalePing_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TailscalePingRequest, TailscalePingResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartTailscalePingClient = grpc.ServerStreamingClient[TailscalePingResponse]
+
 // StartedServiceServer is the server API for StartedService service.
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
@@ -484,11 +493,11 @@ type StartedServiceServer interface {
 	CloseAllConnections(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	GetDeprecatedWarnings(context.Context, *emptypb.Empty) (*DeprecatedWarnings, error)
 	GetStartedAt(context.Context, *emptypb.Empty) (*StartedAt, error)
-	ListOutbounds(context.Context, *emptypb.Empty) (*OutboundList, error)
 	SubscribeOutbounds(*emptypb.Empty, grpc.ServerStreamingServer[OutboundList]) error
 	StartNetworkQualityTest(*NetworkQualityTestRequest, grpc.ServerStreamingServer[NetworkQualityTestProgress]) error
 	StartSTUNTest(*STUNTestRequest, grpc.ServerStreamingServer[STUNTestProgress]) error
 	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
+	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
 	mustEmbedUnimplementedStartedServiceServer()
 }
 
@@ -591,10 +600,6 @@ func (UnimplementedStartedServiceServer) GetStartedAt(context.Context, *emptypb.
 	return nil, status.Error(codes.Unimplemented, "method GetStartedAt not implemented")
 }
 
-func (UnimplementedStartedServiceServer) ListOutbounds(context.Context, *emptypb.Empty) (*OutboundList, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListOutbounds not implemented")
-}
-
 func (UnimplementedStartedServiceServer) SubscribeOutbounds(*emptypb.Empty, grpc.ServerStreamingServer[OutboundList]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeOutbounds not implemented")
 }
@@ -609,6 +614,10 @@ func (UnimplementedStartedServiceServer) StartSTUNTest(*STUNTestRequest, grpc.Se
 
 func (UnimplementedStartedServiceServer) SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeTailscaleStatus not implemented")
+}
+
+func (UnimplementedStartedServiceServer) StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error {
+	return status.Error(codes.Unimplemented, "method StartTailscalePing not implemented")
 }
 func (UnimplementedStartedServiceServer) mustEmbedUnimplementedStartedServiceServer() {}
 func (UnimplementedStartedServiceServer) testEmbeddedByValue()                        {}
@@ -1003,24 +1012,6 @@ func _StartedService_GetStartedAt_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StartedService_ListOutbounds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StartedServiceServer).ListOutbounds(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: StartedService_ListOutbounds_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StartedServiceServer).ListOutbounds(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _StartedService_SubscribeOutbounds_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(emptypb.Empty)
 	if err := stream.RecvMsg(m); err != nil {
@@ -1064,6 +1055,17 @@ func _StartedService_SubscribeTailscaleStatus_Handler(srv interface{}, stream gr
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_SubscribeTailscaleStatusServer = grpc.ServerStreamingServer[TailscaleStatusUpdate]
+
+func _StartedService_StartTailscalePing_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(TailscalePingRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(StartedServiceServer).StartTailscalePing(m, &grpc.GenericServerStream[TailscalePingRequest, TailscalePingResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartTailscalePingServer = grpc.ServerStreamingServer[TailscalePingResponse]
 
 // StartedService_ServiceDesc is the grpc.ServiceDesc for StartedService service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -1140,10 +1142,6 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetStartedAt",
 			Handler:    _StartedService_GetStartedAt_Handler,
 		},
-		{
-			MethodName: "ListOutbounds",
-			Handler:    _StartedService_ListOutbounds_Handler,
-		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1194,6 +1192,11 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SubscribeTailscaleStatus",
 			Handler:       _StartedService_SubscribeTailscaleStatus_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartTailscalePing",
+			Handler:       _StartedService_StartTailscalePing_Handler,
 			ServerStreams: true,
 		},
 	},
