@@ -158,6 +158,7 @@ nav:
           - Tun: configuration/inbound/tun.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
+          - Cloudflared: configuration/inbound/cloudflared.md
       - Outbound:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md
