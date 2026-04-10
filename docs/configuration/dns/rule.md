@@ -12,7 +12,9 @@ icon: material/alert-decagram
     :material-plus: [response_answer](#response_answer)  
     :material-plus: [response_ns](#response_ns)  
     :material-plus: [response_extra](#response_extra)  
-    :material-plus: [package_name_regex](#package_name_regex)
+    :material-plus: [package_name_regex](#package_name_regex)  
+    :material-alert: [ip_version](#ip_version)  
+    :material-alert: [query_type](#query_type)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -243,11 +245,45 @@ Tags of [Inbound](/configuration/inbound/).
 
 #### ip_version
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    This field now also applies when a DNS rule is matched from an internal
+    domain resolution that does not target a specific DNS server, such as a
+    [`resolve`](../../route/rule_action/#resolve) route rule action without a
+    `server` set. In earlier versions, only DNS queries received from a
+    client evaluated this field. See
+    [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules)
+    for the full list.
+
+    Setting this field makes the DNS rule incompatible in the same DNS
+    configuration with Legacy Address Filter Fields in DNS rules, the Legacy
+    `strategy` DNS rule action option, and the Legacy
+    `rule_set_ip_cidr_accept_empty` DNS rule item. To combine with
+    address-based filtering, use the [`evaluate`](../rule_action/#evaluate)
+    action and [`match_response`](#match_response).
+
 4 (A DNS query) or 6 (AAAA DNS query).
 
 Not limited if empty.
 
 #### query_type
+
+!!! quote "Changes in sing-box 1.14.0"
+
+    This field now also applies when a DNS rule is matched from an internal
+    domain resolution that does not target a specific DNS server, such as a
+    [`resolve`](../../route/rule_action/#resolve) route rule action without a
+    `server` set. In earlier versions, only DNS queries received from a
+    client evaluated this field. See
+    [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules)
+    for the full list.
+
+    Setting this field makes the DNS rule incompatible in the same DNS
+    configuration with Legacy Address Filter Fields in DNS rules, the Legacy
+    `strategy` DNS rule action option, and the Legacy
+    `rule_set_ip_cidr_accept_empty` DNS rule item. To combine with
+    address-based filtering, use the [`evaluate`](../rule_action/#evaluate)
+    action and [`match_response`](#match_response).
 
 DNS query type. Values can be integers or type name strings.
 
