@@ -93,11 +93,12 @@ type DialerOptions struct {
 }
 
 type _DomainResolveOptions struct {
-	Server       string                `json:"server"`
-	Strategy     DomainStrategy        `json:"strategy,omitempty"`
-	DisableCache bool                  `json:"disable_cache,omitempty"`
-	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
-	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
+	Server                 string                `json:"server"`
+	Strategy               DomainStrategy        `json:"strategy,omitempty"`
+	DisableCache           bool                  `json:"disable_cache,omitempty"`
+	DisableOptimisticCache bool                  `json:"disable_optimistic_cache,omitempty"`
+	RewriteTTL             *uint32               `json:"rewrite_ttl,omitempty"`
+	ClientSubnet           *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type DomainResolveOptions _DomainResolveOptions
@@ -107,6 +108,7 @@ func (o DomainResolveOptions) MarshalJSON() ([]byte, error) {
 		return []byte("{}"), nil
 	} else if o.Strategy == DomainStrategy(C.DomainStrategyAsIS) &&
 		!o.DisableCache &&
+		!o.DisableOptimisticCache &&
 		o.RewriteTTL == nil &&
 		o.ClientSubnet == nil {
 		return json.Marshal(o.Server)

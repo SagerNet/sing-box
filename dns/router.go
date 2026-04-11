@@ -51,7 +51,7 @@ type Router struct {
 	closing               bool
 }
 
-func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {
+func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) (*Router, error) {
 	router := &Router{
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("dns"),
@@ -61,12 +61,30 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
 	}
+	if options.DNSClientOptions.IndependentCache {
+		deprecated.Report(ctx, deprecated.OptionIndependentDNSCache)
+	}
+	var optimisticTimeout time.Duration
+	optimisticOptions := common.PtrValueOrDefault(options.DNSClientOptions.Optimistic)
+	if optimisticOptions.Enabled {
+		if options.DNSClientOptions.DisableCache {
+			return nil, E.New("`optimistic` is conflict with `disable_cache`")
+		}
+		if options.DNSClientOptions.DisableExpire {
+			return nil, E.New("`optimistic` is conflict with `disable_expire`")
+		}
+		optimisticTimeout = time.Duration(optimisticOptions.Timeout)
+		if optimisticTimeout == 0 {
+			optimisticTimeout = 3 * 24 * time.Hour
+		}
+	}
 	router.client = NewClient(ClientOptions{
-		DisableCache:     options.DNSClientOptions.DisableCache,
-		DisableExpire:    options.DNSClientOptions.DisableExpire,
-		IndependentCache: options.DNSClientOptions.IndependentCache,
-		CacheCapacity:    options.DNSClientOptions.CacheCapacity,
-		ClientSubnet:     options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
+		Context:           ctx,
+		DisableCache:      options.DNSClientOptions.DisableCache,
+		DisableExpire:     options.DNSClientOptions.DisableExpire,
+		OptimisticTimeout: optimisticTimeout,
+		CacheCapacity:     options.DNSClientOptions.CacheCapacity,
+		ClientSubnet:      options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
 		RDRC: func() adapter.RDRCStore {
 			cacheFile := service.FromContext[adapter.CacheFile](ctx)
 			if cacheFile == nil {
@@ -77,12 +95,24 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 			}
 			return cacheFile
 		},
+		DNSCache: func() adapter.DNSCacheStore {
+			cacheFile := service.FromContext[adapter.CacheFile](ctx)
+			if cacheFile == nil {
+				return nil
+			}
+			if !cacheFile.StoreDNS() {
+				return nil
+			}
+			cacheFile.SetDisableExpire(options.DNSClientOptions.DisableExpire)
+			cacheFile.SetOptimisticTimeout(optimisticTimeout)
+			return cacheFile
+		},
 		Logger: router.logger,
 	})
 	if options.ReverseMapping {
 		router.dnsReverseMapping = common.Must1(freelru.NewSharded[netip.Addr, string](1024, maphash.NewHasher[netip.Addr]().Hash32))
 	}
-	return router
+	return router, nil
 }
 
 func (r *Router) Initialize(rules []option.DNSRule) error {
@@ -318,6 +348,9 @@ func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOpt
 	// when strategy remains at its default value.
 	if routeOptions.DisableCache {
 		options.DisableCache = true
+	}
+	if routeOptions.DisableOptimisticCache {
+		options.DisableOptimisticCache = true
 	}
 	if routeOptions.RewriteTTL != nil {
 		options.RewriteTTL = routeOptions.RewriteTTL
@@ -907,7 +940,9 @@ func dnsRuleModeRequirementsInRule(router adapter.Router, rule option.DNSRule, m
 		return dnsRuleModeRequirementsInDefaultRule(router, rule.DefaultOptions, metadataOverrides)
 	case C.RuleTypeLogical:
 		flags := dnsRuleModeFlags{
-			disabled:           dnsRuleActionType(rule) == C.RuleActionTypeEvaluate || dnsRuleActionType(rule) == C.RuleActionTypeRespond,
+			disabled: dnsRuleActionType(rule) == C.RuleActionTypeEvaluate ||
+				dnsRuleActionType(rule) == C.RuleActionTypeRespond ||
+				dnsRuleActionDisablesLegacyDNSMode(rule.LogicalOptions.DNSRuleAction),
 			neededFromStrategy: dnsRuleActionHasStrategy(rule.LogicalOptions.DNSRuleAction),
 		}
 		flags.needed = flags.neededFromStrategy
@@ -926,7 +961,7 @@ func dnsRuleModeRequirementsInRule(router adapter.Router, rule option.DNSRule, m
 
 func dnsRuleModeRequirementsInDefaultRule(router adapter.Router, rule option.DefaultDNSRule, metadataOverrides map[string]adapter.RuleSetMetadata) (dnsRuleModeFlags, error) {
 	flags := dnsRuleModeFlags{
-		disabled:           defaultRuleDisablesLegacyDNSMode(rule),
+		disabled:           defaultRuleDisablesLegacyDNSMode(rule) || dnsRuleActionDisablesLegacyDNSMode(rule.DNSRuleAction),
 		neededFromStrategy: dnsRuleActionHasStrategy(rule.DNSRuleAction),
 	}
 	flags.needed = defaultRuleNeedsLegacyDNSModeFromAddressFilter(rule) || flags.neededFromStrategy
@@ -1061,6 +1096,17 @@ func validateLegacyDNSModeDisabledDefaultRule(rule option.DefaultDNSRule) (bool,
 		return false, E.New(deprecated.OptionRuleSetIPCIDRAcceptEmpty.MessageWithLink())
 	}
 	return rule.MatchResponse || rule.Action == C.RuleActionTypeRespond, nil
+}
+
+func dnsRuleActionDisablesLegacyDNSMode(action option.DNSRuleAction) bool {
+	switch action.Action {
+	case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
+		return action.RouteOptions.DisableOptimisticCache
+	case C.RuleActionTypeRouteOptions:
+		return action.RouteOptionsOptions.DisableOptimisticCache
+	default:
+		return false
+	}
 }
 
 func dnsRuleActionHasStrategy(action option.DNSRuleAction) bool {
