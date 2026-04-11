@@ -7,6 +7,10 @@ icon: material/new-box
     :material-plus: [bypass](#bypass)  
     :material-alert: [reject](#reject)
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [tls_fragment](#tls_fragment)  
@@ -279,6 +283,7 @@ Timeout for sniffing.
   "server": "",
   "strategy": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -301,6 +306,12 @@ DNS resolution strategy, available values are: `prefer_ipv4`, `prefer_ipv6`, `ip
 !!! question "Since sing-box 1.12.0"
 
 Disable cache and save cache in this query.
+
+#### disable_optimistic_cache
+
+!!! question "Since sing-box 1.14.0"
+
+Disable optimistic DNS caching in this query.
 
 #### rewrite_ttl
 
