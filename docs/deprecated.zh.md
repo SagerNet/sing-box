@@ -27,6 +27,21 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 旧字段将在 sing-box 1.16.0 中被移除。
 
+#### `independent_cache` DNS 选项
+
+`independent_cache` DNS 选项已废弃。
+DNS 缓存现在始终按传输分离，使此选项不再需要，
+参阅[迁移指南](/zh/migration/#迁移-independent-dns-cache)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### `store_rdrc` 缓存文件选项
+
+`store_rdrc` 缓存文件选项已废弃，
+参阅[迁移指南](/zh/migration/#迁移-store_rdrc)。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
 #### 旧版地址筛选字段 (DNS 规则)
 
 旧版地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
