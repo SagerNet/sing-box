@@ -21,7 +21,7 @@ func (c *CacheFile) RDRCTimeout() time.Duration {
 
 func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (rejected bool) {
 	c.saveRDRCAccess.RLock()
-	rejected, cached := c.saveRDRC[saveRDRCCacheKey{transportName, qName, qType}]
+	rejected, cached := c.saveRDRC[saveCacheKey{transportName, qName, qType}]
 	c.saveRDRCAccess.RUnlock()
 	if cached {
 		return
@@ -93,7 +93,7 @@ func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) e
 }
 
 func (c *CacheFile) SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger) {
-	saveKey := saveRDRCCacheKey{transportName, qName, qType}
+	saveKey := saveCacheKey{transportName, qName, qType}
 	c.saveRDRCAccess.Lock()
 	c.saveRDRC[saveKey] = true
 	c.saveRDRCAccess.Unlock()

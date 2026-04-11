@@ -120,6 +120,24 @@ var OptionLegacyDNSRuleStrategy = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-dns-rule-action-strategy-to-rule-items",
 }
 
+var OptionIndependentDNSCache = Note{
+	Name:              "independent-dns-cache",
+	Description:       "`independent_cache` DNS option",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "INDEPENDENT_DNS_CACHE",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-independent-dns-cache",
+}
+
+var OptionStoreRDRC = Note{
+	Name:              "store-rdrc",
+	Description:       "`store_rdrc` cache file option",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "STORE_RDRC",
+	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-store-rdrc",
+}
+
 var Options = []Note{
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
@@ -128,4 +146,6 @@ var Options = []Note{
 	OptionRuleSetIPCIDRAcceptEmpty,
 	OptionLegacyDNSAddressFilter,
 	OptionLegacyDNSRuleStrategy,
+	OptionIndependentDNSCache,
+	OptionStoreRDRC,
 }
