@@ -27,6 +27,21 @@ check [Migration](../migration/#migrate-address-filter-fields-to-response-matchi
 
 Old fields will be removed in sing-box 1.16.0.
 
+#### `independent_cache` DNS option
+
+`independent_cache` DNS option is deprecated.
+The DNS cache now always keys by transport, making this option unnecessary,
+check [Migration](../migration/#migrate-independent-dns-cache).
+
+Old fields will be removed in sing-box 1.16.0.
+
+#### `store_rdrc` cache file option
+
+`store_rdrc` cache file option is deprecated,
+check [Migration](../migration/#migrate-store-rdrc).
+
+Old fields will be removed in sing-box 1.16.0.
+
 #### Legacy Address Filter Fields in DNS rules
 
 Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`)

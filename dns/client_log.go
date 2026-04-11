@@ -22,6 +22,19 @@ func logCachedResponse(logger logger.ContextLogger, ctx context.Context, respons
 	}
 }
 
+func logOptimisticResponse(logger logger.ContextLogger, ctx context.Context, response *dns.Msg) {
+	if logger == nil || len(response.Question) == 0 {
+		return
+	}
+	domain := FqdnToDomain(response.Question[0].Name)
+	logger.DebugContext(ctx, "optimistic ", domain, " ", dns.RcodeToString[response.Rcode])
+	for _, recordList := range [][]dns.RR{response.Answer, response.Ns, response.Extra} {
+		for _, record := range recordList {
+			logger.InfoContext(ctx, "optimistic ", dns.Type(record.Header().Rrtype).String(), " ", FormatQuestion(record.String()))
+		}
+	}
+}
+
 func logExchangedResponse(logger logger.ContextLogger, ctx context.Context, response *dns.Msg, ttl uint32) {
 	if logger == nil || len(response.Question) == 0 {
 		return

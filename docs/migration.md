@@ -137,6 +137,68 @@ to fetch a DNS response, then match against it explicitly with `match_response`.
     }
     ```
 
+### Migrate independent DNS cache
+
+The DNS cache now always keys by transport name, making `independent_cache` unnecessary.
+Simply remove the field.
+
+!!! info "References"
+
+    [DNS](/configuration/dns/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "dns": {
+        "independent_cache": true
+      }
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "dns": {}
+    }
+    ```
+
+### Migrate store_rdrc
+
+`store_rdrc` is deprecated and can be replaced by `store_dns`,
+which persists the full DNS cache to the cache file.
+
+!!! info "References"
+
+    [Cache File](/configuration/experimental/cache-file/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "experimental": {
+        "cache_file": {
+          "enabled": true,
+          "store_rdrc": true
+        }
+      }
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "experimental": {
+        "cache_file": {
+          "enabled": true,
+          "store_dns": true
+        }
+      }
+    }
+    ```
+
 ### ip_version and query_type behavior changes in DNS rules
 
 In sing-box 1.14.0, the behavior of
