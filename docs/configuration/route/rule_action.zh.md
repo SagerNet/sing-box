@@ -7,6 +7,10 @@ icon: material/new-box
     :material-plus: [bypass](#bypass)  
     :material-alert: [reject](#reject)
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [tls_fragment](#tls_fragment)  
@@ -268,6 +272,7 @@ UDP 连接超时时间。
   "server": "",
   "strategy": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -290,6 +295,12 @@ DNS 解析策略，可用值有：`prefer_ipv4`、`prefer_ipv6`、`ipv4_only`、
 !!! question "自 sing-box 1.12.0 起"
 
 在此查询中禁用缓存。
+
+#### disable_optimistic_cache
+
+!!! question "自 sing-box 1.14.0 起"
+
+在此查询中禁用乐观 DNS 缓存。
 
 #### rewrite_ttl
 

@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
-    :material-plus: [respond](#respond)
+    :material-plus: [respond](#respond)  
+    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -23,6 +24,7 @@ icon: material/new-box
   "server": "",
   "strategy": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -52,6 +54,12 @@ One of `prefer_ipv4` `prefer_ipv6` `ipv4_only` `ipv6_only`.
 
 Disable cache and save cache in this query.
 
+#### disable_optimistic_cache
+
+!!! question "Since sing-box 1.14.0"
+
+Disable optimistic DNS caching in this query.
+
 #### rewrite_ttl
 
 Rewrite TTL in DNS responses.
@@ -73,6 +81,7 @@ Will override `dns.client_subnet`.
   "action": "evaluate",
   "server": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -96,6 +105,12 @@ Tag of target server.
 #### disable_cache
 
 Disable cache and save cache in this query.
+
+#### disable_optimistic_cache
+
+!!! question "Since sing-box 1.14.0"
+
+Disable optimistic DNS caching in this query.
 
 #### rewrite_ttl
 
@@ -131,6 +146,7 @@ Only allowed after a preceding top-level `evaluate` rule. If the action is reach
 {
   "action": "route-options",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }

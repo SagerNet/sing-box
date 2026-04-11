@@ -107,11 +107,12 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
-			Server:       action.ResolveOptions.Server,
-			Strategy:     C.DomainStrategy(action.ResolveOptions.Strategy),
-			DisableCache: action.ResolveOptions.DisableCache,
-			RewriteTTL:   action.ResolveOptions.RewriteTTL,
-			ClientSubnet: action.ResolveOptions.ClientSubnet.Build(netip.Prefix{}),
+			Server:                 action.ResolveOptions.Server,
+			Strategy:               C.DomainStrategy(action.ResolveOptions.Strategy),
+			DisableCache:           action.ResolveOptions.DisableCache,
+			DisableOptimisticCache: action.ResolveOptions.DisableOptimisticCache,
+			RewriteTTL:             action.ResolveOptions.RewriteTTL,
+			ClientSubnet:           action.ResolveOptions.ClientSubnet.Build(netip.Prefix{}),
 		}, nil
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -126,30 +127,33 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		return &RuleActionDNSRoute{
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
-				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
-				DisableCache: action.RouteOptions.DisableCache,
-				RewriteTTL:   action.RouteOptions.RewriteTTL,
-				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
+				DisableCache:           action.RouteOptions.DisableCache,
+				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
+				RewriteTTL:             action.RouteOptions.RewriteTTL,
+				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
 			},
 		}
 	case C.RuleActionTypeEvaluate:
 		return &RuleActionEvaluate{
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
-				Strategy:     C.DomainStrategy(action.RouteOptions.Strategy),
-				DisableCache: action.RouteOptions.DisableCache,
-				RewriteTTL:   action.RouteOptions.RewriteTTL,
-				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
+				DisableCache:           action.RouteOptions.DisableCache,
+				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
+				RewriteTTL:             action.RouteOptions.RewriteTTL,
+				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
 			},
 		}
 	case C.RuleActionTypeRespond:
 		return &RuleActionRespond{}
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
-			Strategy:     C.DomainStrategy(action.RouteOptionsOptions.Strategy),
-			DisableCache: action.RouteOptionsOptions.DisableCache,
-			RewriteTTL:   action.RouteOptionsOptions.RewriteTTL,
-			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
+			Strategy:               C.DomainStrategy(action.RouteOptionsOptions.Strategy),
+			DisableCache:           action.RouteOptionsOptions.DisableCache,
+			DisableOptimisticCache: action.RouteOptionsOptions.DisableOptimisticCache,
+			RewriteTTL:             action.RouteOptionsOptions.RewriteTTL,
+			ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
 		}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
@@ -310,6 +314,9 @@ func formatDNSRouteAction(action string, server string, options RuleActionDNSRou
 	if options.DisableCache {
 		descriptions = append(descriptions, "disable-cache")
 	}
+	if options.DisableOptimisticCache {
+		descriptions = append(descriptions, "disable-optimistic-cache")
+	}
 	if options.RewriteTTL != nil {
 		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *options.RewriteTTL))
 	}
@@ -320,10 +327,11 @@ func formatDNSRouteAction(action string, server string, options RuleActionDNSRou
 }
 
 type RuleActionDNSRouteOptions struct {
-	Strategy     C.DomainStrategy
-	DisableCache bool
-	RewriteTTL   *uint32
-	ClientSubnet netip.Prefix
+	Strategy               C.DomainStrategy
+	DisableCache           bool
+	DisableOptimisticCache bool
+	RewriteTTL             *uint32
+	ClientSubnet           netip.Prefix
 }
 
 func (r *RuleActionDNSRouteOptions) Type() string {
@@ -334,6 +342,9 @@ func (r *RuleActionDNSRouteOptions) String() string {
 	var descriptions []string
 	if r.DisableCache {
 		descriptions = append(descriptions, "disable-cache")
+	}
+	if r.DisableOptimisticCache {
+		descriptions = append(descriptions, "disable-optimistic-cache")
 	}
 	if r.RewriteTTL != nil {
 		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *r.RewriteTTL))
@@ -510,11 +521,12 @@ func (r *RuleActionSniff) String() string {
 }
 
 type RuleActionResolve struct {
-	Server       string
-	Strategy     C.DomainStrategy
-	DisableCache bool
-	RewriteTTL   *uint32
-	ClientSubnet netip.Prefix
+	Server                 string
+	Strategy               C.DomainStrategy
+	DisableCache           bool
+	DisableOptimisticCache bool
+	RewriteTTL             *uint32
+	ClientSubnet           netip.Prefix
 }
 
 func (r *RuleActionResolve) Type() string {
@@ -531,6 +543,9 @@ func (r *RuleActionResolve) String() string {
 	}
 	if r.DisableCache {
 		options = append(options, "disable_cache")
+	}
+	if r.DisableOptimisticCache {
+		options = append(options, "disable_optimistic_cache")
 	}
 	if r.RewriteTTL != nil {
 		options = append(options, F.ToString("rewrite_ttl=", *r.RewriteTTL))
