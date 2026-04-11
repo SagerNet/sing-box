@@ -6,7 +6,8 @@ icon: material/new-box
 
     :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
-    :material-plus: [respond](#respond)
+    :material-plus: [respond](#respond)  
+    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -23,6 +24,7 @@ icon: material/new-box
   "server": "",
   "strategy": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -52,6 +54,12 @@ icon: material/new-box
 
 在此查询中禁用缓存。
 
+#### disable_optimistic_cache
+
+!!! question "自 sing-box 1.14.0 起"
+
+在此查询中禁用乐观 DNS 缓存。
+
 #### rewrite_ttl
 
 重写 DNS 回应中的 TTL。
@@ -73,6 +81,7 @@ icon: material/new-box
   "action": "evaluate",
   "server": "",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }
@@ -94,6 +103,12 @@ icon: material/new-box
 #### disable_cache
 
 在此查询中禁用缓存。
+
+#### disable_optimistic_cache
+
+!!! question "自 sing-box 1.14.0 起"
+
+在此查询中禁用乐观 DNS 缓存。
 
 #### rewrite_ttl
 
@@ -129,6 +144,7 @@ icon: material/new-box
 {
   "action": "route-options",
   "disable_cache": false,
+  "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
 }

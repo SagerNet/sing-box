@@ -87,11 +87,12 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 			}
 			server = dialOptions.DomainResolver.Server
 			dnsQueryOptions = adapter.DNSQueryOptions{
-				Transport:    transport,
-				Strategy:     strategy,
-				DisableCache: dialOptions.DomainResolver.DisableCache,
-				RewriteTTL:   dialOptions.DomainResolver.RewriteTTL,
-				ClientSubnet: dialOptions.DomainResolver.ClientSubnet.Build(netip.Prefix{}),
+				Transport:              transport,
+				Strategy:               strategy,
+				DisableCache:           dialOptions.DomainResolver.DisableCache,
+				DisableOptimisticCache: dialOptions.DomainResolver.DisableOptimisticCache,
+				RewriteTTL:             dialOptions.DomainResolver.RewriteTTL,
+				ClientSubnet:           dialOptions.DomainResolver.ClientSubnet.Build(netip.Prefix{}),
 			}
 			resolveFallbackDelay = time.Duration(dialOptions.FallbackDelay)
 		} else if options.DirectResolver {
