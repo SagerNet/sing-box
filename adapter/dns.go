@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"net/netip"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -31,12 +32,13 @@ type DNSClient interface {
 }
 
 type DNSQueryOptions struct {
-	Transport      DNSTransport
-	Strategy       C.DomainStrategy
-	LookupStrategy C.DomainStrategy
-	DisableCache   bool
-	RewriteTTL     *uint32
-	ClientSubnet   netip.Prefix
+	Transport              DNSTransport
+	Strategy               C.DomainStrategy
+	LookupStrategy         C.DomainStrategy
+	DisableCache           bool
+	DisableOptimisticCache bool
+	RewriteTTL             *uint32
+	ClientSubnet           netip.Prefix
 }
 
 func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptions) (*DNSQueryOptions, error) {
@@ -49,11 +51,12 @@ func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptio
 		return nil, E.New("domain resolver not found: " + options.Server)
 	}
 	return &DNSQueryOptions{
-		Transport:    transport,
-		Strategy:     C.DomainStrategy(options.Strategy),
-		DisableCache: options.DisableCache,
-		RewriteTTL:   options.RewriteTTL,
-		ClientSubnet: options.ClientSubnet.Build(netip.Prefix{}),
+		Transport:              transport,
+		Strategy:               C.DomainStrategy(options.Strategy),
+		DisableCache:           options.DisableCache,
+		DisableOptimisticCache: options.DisableOptimisticCache,
+		RewriteTTL:             options.RewriteTTL,
+		ClientSubnet:           options.ClientSubnet.Build(netip.Prefix{}),
 	}, nil
 }
 
@@ -61,6 +64,13 @@ type RDRCStore interface {
 	LoadRDRC(transportName string, qName string, qType uint16) (rejected bool)
 	SaveRDRC(transportName string, qName string, qType uint16) error
 	SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger)
+}
+
+type DNSCacheStore interface {
+	LoadDNSCache(transportName string, qName string, qType uint16) (rawMessage []byte, expireAt time.Time, loaded bool)
+	SaveDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) error
+	SaveDNSCacheAsync(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time, logger logger.Logger)
+	ClearDNSCache() error
 }
 
 type DNSTransport interface {
