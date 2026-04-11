@@ -47,6 +47,12 @@ type CacheFile interface {
 	StoreRDRC() bool
 	RDRCStore
 
+	StoreDNS() bool
+	DNSCacheStore
+
+	SetDisableExpire(disableExpire bool)
+	SetOptimisticTimeout(timeout time.Duration)
+
 	LoadMode() string
 	StoreMode(mode string) error
 	LoadSelected(group string) string
