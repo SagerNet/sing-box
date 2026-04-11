@@ -769,7 +769,7 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 	for {
 		event, recvErr := stream.Recv()
 		if recvErr != nil {
-			if status.Code(recvErr) == codes.NotFound {
+			if status.Code(recvErr) == codes.NotFound || status.Code(recvErr) == codes.Unavailable {
 				return nil
 			}
 			recvErr = E.Cause(recvErr, "tailscale status recv")
