@@ -137,6 +137,68 @@ sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/shared/certificate-p
     }
     ```
 
+### 迁移 independent DNS cache
+
+DNS 缓存现在始终按传输名称分离，使 `independent_cache` 不再需要。
+直接移除该字段即可。
+
+!!! info "参考"
+
+    [DNS](/zh/configuration/dns/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "dns": {
+        "independent_cache": true
+      }
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "dns": {}
+    }
+    ```
+
+### 迁移 store_rdrc
+
+`store_rdrc` 已废弃，且可以被 `store_dns` 替代，
+后者将完整的 DNS 缓存持久化到缓存文件中。
+
+!!! info "参考"
+
+    [缓存文件](/zh/configuration/experimental/cache-file/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "experimental": {
+        "cache_file": {
+          "enabled": true,
+          "store_rdrc": true
+        }
+      }
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "experimental": {
+        "cache_file": {
+          "enabled": true,
+          "store_dns": true
+        }
+      }
+    }
+    ```
+
 ### DNS 规则中的 ip_version 和 query_type 行为更改
 
 在 sing-box 1.14.0 中，DNS 规则中的

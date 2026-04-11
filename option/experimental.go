@@ -16,6 +16,7 @@ type CacheFileOptions struct {
 	StoreFakeIP bool               `json:"store_fakeip,omitempty"`
 	StoreRDRC   bool               `json:"store_rdrc,omitempty"`
 	RDRCTimeout badoption.Duration `json:"rdrc_timeout,omitempty"`
+	StoreDNS    bool               `json:"store_dns,omitempty"`
 }
 
 type ClashAPIOptions struct {
