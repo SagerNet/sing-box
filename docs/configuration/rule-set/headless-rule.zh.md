@@ -54,6 +54,9 @@ icon: material/new-box
         "10.0.0.0/24",
         "192.168.0.1"
       ],
+      "ipset": [
+        "my-ipset"
+      ],
       "source_port": [
         12345
       ],
@@ -173,6 +176,14 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### ip_cidr
 
 匹配 IP CIDR。
+
+#### ipset
+
+!!! quote ""
+
+    仅支持 Linux。
+
+匹配 IP 地址与 Linux ipset。
 
 #### source_port
 

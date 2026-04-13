@@ -160,6 +160,14 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.IPSet) > 0 {
+		item, err := NewIPSetItem(logger, options.IPSet)
+		if err != nil {
+			return nil, E.Cause(err, "ipset")
+		}
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
 		rule.sourcePortItems = append(rule.sourcePortItems, item)
