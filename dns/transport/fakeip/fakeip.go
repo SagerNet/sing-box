@@ -28,6 +28,9 @@ type Transport struct {
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.FakeIPDNSServerOptions) (adapter.DNSTransport, error) {
+	if options.Inet4Range == nil && options.Inet6Range == nil {
+		return nil, E.New("at least one of inet4_range or inet6_range must be configured")
+	}
 	store := NewStore(ctx, logger, options.Inet4Range.Build(netip.Prefix{}), options.Inet6Range.Build(netip.Prefix{}))
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeFakeIP, tag, nil),
@@ -57,7 +60,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	}
 	address, err := t.store.Create(dns.FqdnToDomain(question.Name), question.Qtype == mDNS.TypeAAAA)
 	if err != nil {
-		return nil, err
+		return nil, dns.RcodeError(dns.RcodeSuccess)
 	}
 	return dns.FixedResponse(message.Id, question, []netip.Addr{address}, C.DefaultDNSTTL), nil
 }
