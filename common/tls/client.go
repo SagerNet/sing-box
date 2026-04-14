@@ -10,11 +10,14 @@ import (
 	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
 )
+
+var errMissingServerName = E.New("missing server_name or insecure=true")
 
 func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
 	if !options.Enabled {
@@ -42,11 +45,12 @@ func NewClient(ctx context.Context, logger logger.ContextLogger, serverAddress s
 }
 
 type ClientOptions struct {
-	Context        context.Context
-	Logger         logger.ContextLogger
-	ServerAddress  string
-	Options        option.OutboundTLSOptions
-	KTLSCompatible bool
+	Context              context.Context
+	Logger               logger.ContextLogger
+	ServerAddress        string
+	Options              option.OutboundTLSOptions
+	AllowEmptyServerName bool
+	KTLSCompatible       bool
 }
 
 func NewClientWithOptions(options ClientOptions) (Config, error) {
@@ -61,17 +65,22 @@ func NewClientWithOptions(options ClientOptions) (Config, error) {
 	if options.Options.KernelRx {
 		options.Logger.Warn("enabling kTLS RX will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_rx")
 	}
-	if options.Options.Reality != nil && options.Options.Reality.Enabled {
-		return NewRealityClient(options.Context, options.Logger, options.ServerAddress, options.Options)
-	} else if options.Options.UTLS != nil && options.Options.UTLS.Enabled {
-		return NewUTLSClient(options.Context, options.Logger, options.ServerAddress, options.Options)
+	switch options.Options.Engine {
+	case C.TLSEngineDefault, "go":
+	case C.TLSEngineApple:
+		return newAppleClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+	default:
+		return nil, E.New("unknown tls engine: ", options.Options.Engine)
 	}
-	return NewSTDClient(options.Context, options.Logger, options.ServerAddress, options.Options)
+	if options.Options.Reality != nil && options.Options.Reality.Enabled {
+		return newRealityClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+	} else if options.Options.UTLS != nil && options.Options.UTLS.Enabled {
+		return newUTLSClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+	}
+	return newSTDClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
-	defer cancel()
 	tlsConn, err := aTLS.ClientHandshake(ctx, conn, config)
 	if err != nil {
 		return nil, err
