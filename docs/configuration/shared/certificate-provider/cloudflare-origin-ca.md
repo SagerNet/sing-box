@@ -19,7 +19,7 @@ icon: material/new-box
   "origin_ca_key": "",
   "request_type": "",
   "requested_validity": 0,
-  "detour": ""
+  "http_client": "" // or {}
 }
 ```
 
@@ -75,8 +75,8 @@ Available values: `7`, `30`, `90`, `365`, `730`, `1095`, `5475`.
 
 `5475` days (15 years) is used if empty.
 
-#### detour
+#### http_client
 
-The tag of the upstream outbound.
+HTTP Client for all provider HTTP requests.
 
-All provider HTTP requests will use this outbound.
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.

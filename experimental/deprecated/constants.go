@@ -93,6 +93,22 @@ var OptionInlineACME = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-inline-acme-to-certificate-provider",
 }
 
+var OptionLegacyRuleSetDownloadDetour = Note{
+	Name:              "legacy-rule-set-download-detour",
+	Description:       "legacy `download_detour` remote rule-set option",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "LEGACY_RULE_SET_DOWNLOAD_DETOUR",
+}
+
+var OptionLegacyTailscaleEndpointDialer = Note{
+	Name:              "legacy-tailscale-endpoint-dialer",
+	Description:       "legacy dialer options in Tailscale endpoint",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "LEGACY_TAILSCALE_ENDPOINT_DIALER",
+}
+
 var OptionRuleSetIPCIDRAcceptEmpty = Note{
 	Name:              "dns-rule-rule-set-ip-cidr-accept-empty",
 	Description:       "Legacy `rule_set_ip_cidr_accept_empty` DNS rule item",
@@ -138,14 +154,25 @@ var OptionStoreRDRC = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-store-rdrc",
 }
 
+var OptionImplicitDefaultHTTPClient = Note{
+	Name:              "implicit-default-http-client",
+	Description:       "implicit default HTTP client using default outbound for remote rule-sets",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "IMPLICIT_DEFAULT_HTTP_CLIENT",
+}
+
 var Options = []Note{
 	OptionOutboundDNSRuleItem,
 	OptionMissingDomainResolver,
 	OptionLegacyDomainStrategyOptions,
 	OptionInlineACME,
+	OptionLegacyRuleSetDownloadDetour,
+	OptionLegacyTailscaleEndpointDialer,
 	OptionRuleSetIPCIDRAcceptEmpty,
 	OptionLegacyDNSAddressFilter,
 	OptionLegacyDNSRuleStrategy,
 	OptionIndependentDNSCache,
 	OptionStoreRDRC,
+	OptionImplicitDefaultHTTPClient,
 }
