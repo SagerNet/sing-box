@@ -25,6 +25,7 @@ type Options struct {
 	NewDialer        bool
 	LegacyDNSDialer  bool
 	DirectOutbound   bool
+	DefaultOutbound  bool
 }
 
 // TODO: merge with NewWithOptions
@@ -42,19 +43,26 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 		dialer N.Dialer
 		err    error
 	)
+	hasDetour := dialOptions.Detour != "" || options.DefaultOutbound
 	if dialOptions.Detour != "" {
 		outboundManager := service.FromContext[adapter.OutboundManager](options.Context)
 		if outboundManager == nil {
 			return nil, E.New("missing outbound manager")
 		}
 		dialer = NewDetour(outboundManager, dialOptions.Detour, options.LegacyDNSDialer)
+	} else if options.DefaultOutbound {
+		outboundManager := service.FromContext[adapter.OutboundManager](options.Context)
+		if outboundManager == nil {
+			return nil, E.New("missing outbound manager")
+		}
+		dialer = NewDefaultOutboundDetour(outboundManager)
 	} else {
 		dialer, err = NewDefault(options.Context, dialOptions)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if options.RemoteIsDomain && (dialOptions.Detour == "" || options.ResolverOnDetour || dialOptions.DomainResolver != nil && dialOptions.DomainResolver.Server != "") {
+	if options.RemoteIsDomain && (!hasDetour || options.ResolverOnDetour || dialOptions.DomainResolver != nil && dialOptions.DomainResolver.Server != "") {
 		networkManager := service.FromContext[adapter.NetworkManager](options.Context)
 		dnsTransport := service.FromContext[adapter.DNSTransportManager](options.Context)
 		var defaultOptions adapter.NetworkOptions

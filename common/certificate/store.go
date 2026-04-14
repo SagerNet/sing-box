@@ -22,8 +22,10 @@ var _ adapter.CertificateStore = (*Store)(nil)
 
 type Store struct {
 	access                    sync.RWMutex
+	store                     string
 	systemPool                *x509.CertPool
 	currentPool               *x509.CertPool
+	currentPEM                []string
 	certificate               string
 	certificatePaths          []string
 	certificateDirectoryPaths []string
@@ -61,6 +63,7 @@ func NewStore(ctx context.Context, logger logger.Logger, options option.Certific
 		return nil, E.New("unknown certificate store: ", options.Store)
 	}
 	store := &Store{
+		store:                     options.Store,
 		systemPool:                systemPool,
 		certificate:               strings.Join(options.Certificate, "\n"),
 		certificatePaths:          options.CertificatePath,
@@ -123,19 +126,37 @@ func (s *Store) Pool() *x509.CertPool {
 	return s.currentPool
 }
 
+func (s *Store) StoreKind() string {
+	return s.store
+}
+
+func (s *Store) CurrentPEM() []string {
+	s.access.RLock()
+	defer s.access.RUnlock()
+	return append([]string(nil), s.currentPEM...)
+}
+
 func (s *Store) update() error {
 	s.access.Lock()
 	defer s.access.Unlock()
 	var currentPool *x509.CertPool
+	var currentPEM []string
 	if s.systemPool == nil {
 		currentPool = x509.NewCertPool()
 	} else {
 		currentPool = s.systemPool.Clone()
 	}
+	switch s.store {
+	case C.CertificateStoreMozilla:
+		currentPEM = append(currentPEM, mozillaIncludedPEM)
+	case C.CertificateStoreChrome:
+		currentPEM = append(currentPEM, chromeIncludedPEM)
+	}
 	if s.certificate != "" {
 		if !currentPool.AppendCertsFromPEM([]byte(s.certificate)) {
 			return E.New("invalid certificate PEM strings")
 		}
+		currentPEM = append(currentPEM, s.certificate)
 	}
 	for _, path := range s.certificatePaths {
 		pemContent, err := os.ReadFile(path)
@@ -145,6 +166,7 @@ func (s *Store) update() error {
 		if !currentPool.AppendCertsFromPEM(pemContent) {
 			return E.New("invalid certificate PEM file: ", path)
 		}
+		currentPEM = append(currentPEM, string(pemContent))
 	}
 	var firstErr error
 	for _, directoryPath := range s.certificateDirectoryPaths {
@@ -157,8 +179,8 @@ func (s *Store) update() error {
 		}
 		for _, directoryEntry := range directoryEntries {
 			pemContent, err := os.ReadFile(filepath.Join(directoryPath, directoryEntry.Name()))
-			if err == nil {
-				currentPool.AppendCertsFromPEM(pemContent)
+			if err == nil && currentPool.AppendCertsFromPEM(pemContent) {
+				currentPEM = append(currentPEM, string(pemContent))
 			}
 		}
 	}
@@ -166,6 +188,7 @@ func (s *Store) update() error {
 		return firstErr
 	}
 	s.currentPool = currentPool
+	s.currentPEM = currentPEM
 	return nil
 }
 
