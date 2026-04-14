@@ -6,6 +6,27 @@ icon: material/delete-alert
 
 ## 1.14.0
 
+#### 旧版远程规则集 `download_detour` 选项
+
+旧版远程规则集 `download_detour` 选项已废弃，
+请使用 `http_client` 代替。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
+#### 隐式默认 HTTP 客户端
+
+使用默认出站为远程规则集隐式创建默认 HTTP 客户端的行为已废弃。
+请显式配置 `http_clients` 和 `route.default_http_client`。
+
+旧行为将在 sing-box 1.16.0 中被移除。
+
+#### Tailscale 端点中的旧版拨号选项
+
+Tailscale 端点中的旧版拨号选项已废弃，
+请使用 `control_http_client` 代替。
+
+旧字段将在 sing-box 1.16.0 中被移除。
+
 #### TLS 中的内联 ACME 选项
 
 TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
