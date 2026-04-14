@@ -15,7 +15,7 @@ type CloudflareOriginCACertificateProviderOptions struct {
 	OriginCAKey       string                            `json:"origin_ca_key,omitempty"`
 	RequestType       CloudflareOriginCARequestType     `json:"request_type,omitempty"`
 	RequestedValidity CloudflareOriginCARequestValidity `json:"requested_validity,omitempty"`
-	Detour            string                            `json:"detour,omitempty"`
+	HTTPClient        *HTTPClientOptions                `json:"http_client,omitempty"`
 }
 
 type CloudflareOriginCARequestType string

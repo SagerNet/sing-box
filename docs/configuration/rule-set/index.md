@@ -1,3 +1,8 @@
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [http_client](#http_client)  
+    :material-delete-clock: [download_detour](#download_detour)
+
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: `type: inline`
@@ -43,8 +48,12 @@
       "tag": "",
       "format": "source", // or binary
       "url": "",
-      "download_detour": "", // optional
-      "update_interval": "" // optional
+      "http_client": "", // or {}
+      "update_interval": "",
+
+      // Deprecated
+
+      "download_detour": ""
     }
     ```
 
@@ -102,14 +111,26 @@ File path of rule-set.
 
 Download URL of rule-set.
 
-#### download_detour
+#### http_client
 
-Tag of the outbound to download rule-set.
+!!! question "Since sing-box 1.14.0"
 
-Default outbound will be used if empty.
+HTTP Client for downloading rule-set.
+
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
+Default transport will be used if empty.
 
 #### update_interval
 
 Update interval of rule-set.
 
 `1d` will be used if empty.
+
+#### download_detour
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    `download_detour` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0, use `http_client` instead.
+
+Tag of the outbound to download rule-set.

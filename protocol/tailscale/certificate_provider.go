@@ -39,9 +39,6 @@ func NewCertificateProvider(ctx context.Context, _ log.ContextLogger, tag string
 		return nil, E.New("missing tailscale endpoint tag")
 	}
 	endpointManager := service.FromContext[adapter.EndpointManager](ctx)
-	if endpointManager == nil {
-		return nil, E.New("missing endpoint manager in context")
-	}
 	rawEndpoint, loaded := endpointManager.Get(options.Endpoint)
 	if !loaded {
 		return nil, E.New("endpoint not found: ", options.Endpoint)

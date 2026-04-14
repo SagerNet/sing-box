@@ -15,6 +15,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	qtls "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing-quic/hysteria"
 	"github.com/sagernet/sing-quic/hysteria2"
 	"github.com/sagernet/sing/common"
@@ -114,13 +115,22 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		udpTimeout = C.UDPTimeout
 	}
 	service, err := hysteria2.NewService[int](hysteria2.ServiceOptions{
-		Context:               ctx,
-		Logger:                logger,
-		BrutalDebug:           options.BrutalDebug,
-		SendBPS:               uint64(options.UpMbps * hysteria.MbpsToBps),
-		ReceiveBPS:            uint64(options.DownMbps * hysteria.MbpsToBps),
-		SalamanderPassword:    salamanderPassword,
-		TLSConfig:             tlsConfig,
+		Context:            ctx,
+		Logger:             logger,
+		BrutalDebug:        options.BrutalDebug,
+		SendBPS:            uint64(options.UpMbps * hysteria.MbpsToBps),
+		ReceiveBPS:         uint64(options.DownMbps * hysteria.MbpsToBps),
+		SalamanderPassword: salamanderPassword,
+		TLSConfig:          tlsConfig,
+		QUICOptions: qtls.QUICOptions{
+			IdleTimeout:             options.IdleTimeout.Build(),
+			KeepAlivePeriod:         options.KeepAlivePeriod.Build(),
+			StreamReceiveWindow:     options.StreamReceiveWindow.Value(),
+			ConnectionReceiveWindow: options.ConnectionReceiveWindow.Value(),
+			MaxConcurrentStreams:    options.MaxConcurrentStreams,
+			InitialPacketSize:       options.InitialPacketSize,
+			DisablePathMTUDiscovery: options.DisablePathMTUDiscovery,
+		},
 		IgnoreClientBandwidth: options.IgnoreClientBandwidth,
 		UDPTimeout:            udpTimeout,
 		Handler:               inbound,

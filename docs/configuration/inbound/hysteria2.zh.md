@@ -34,6 +34,9 @@ icon: material/alert-decagram
   ],
   "ignore_client_bandwidth": false,
   "tls": {},
+
+  ... // QUIC 字段
+
   "masquerade": "", // 或 {}
   "bbr_profile": "",
   "brutal_debug": false
@@ -91,6 +94,10 @@ Hysteria 用户
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#入站)。
+
+### QUIC 字段
+
+参阅 [QUIC 字段](/zh/configuration/shared/quic/) 了解详情。
 
 #### masquerade
 
