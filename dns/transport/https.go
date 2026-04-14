@@ -141,10 +141,7 @@ func (t *HTTPSTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *HTTPSTransport) Close() error {
-	t.transportAccess.Lock()
-	defer t.transportAccess.Unlock()
-	t.transport.CloseIdleConnections()
-	t.transport = t.transport.Clone()
+	t.Reset()
 	return nil
 }
 

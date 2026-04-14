@@ -34,6 +34,9 @@ icon: material/alert-decagram
   ],
   "ignore_client_bandwidth": false,
   "tls": {},
+
+  ... // QUIC Fields
+
   "masquerade": "", // or {}
   "bbr_profile": "",
   "brutal_debug": false
@@ -94,6 +97,10 @@ Deny clients to use the BBR CC.
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+
+### QUIC Fields
+
+See [QUIC Fields](/configuration/shared/quic/) for details.
 
 #### masquerade
 
