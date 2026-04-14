@@ -18,7 +18,9 @@
   "auth_timeout": "3s",
   "zero_rtt_handshake": false,
   "heartbeat": "10s",
-  "tls": {}
+  "tls": {},
+
+  ... // QUIC 字段
 }
 ```
 
@@ -76,3 +78,7 @@ QUIC 拥塞控制算法
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#入站)。
+
+### QUIC 字段
+
+参阅 [QUIC 字段](/zh/configuration/shared/quic/) 了解详情。

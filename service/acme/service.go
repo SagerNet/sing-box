@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -17,14 +16,13 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/certificate"
-	"github.com/sagernet/sing-box/common/dialer"
 	boxtls "github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/service"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/caddyserver/zerossl"
@@ -125,7 +123,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		AltTLSALPNPort:          int(options.AlternativeTLSPort),
 		Logger:                  zapLogger,
 	}
-	acmeHTTPClient, err := newACMEHTTPClient(ctx, options.Detour)
+	acmeHTTPClient, err := newACMEHTTPClient(ctx, logger, options)
 	if err != nil {
 		return nil, err
 	}
@@ -310,33 +308,16 @@ func createZeroSSLExternalAccountBinding(ctx context.Context, acmeIssuer *certma
 	}, account, nil
 }
 
-func newACMEHTTPClient(ctx context.Context, detour string) (*http.Client, error) {
-	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context: ctx,
-		Options: option.DialerOptions{
-			Detour: detour,
-		},
-		RemoteIsDomain: true,
-	})
+func newACMEHTTPClient(ctx context.Context, logger log.ContextLogger, options option.ACMECertificateProviderOptions) (*http.Client, error) {
+	httpClientOptions := common.PtrValueOrDefault(options.HTTPClient)
+	httpClientManager := service.FromContext[adapter.HTTPClientManager](ctx)
+	transport, err := httpClientManager.ResolveTransport(ctx, logger, httpClientOptions)
 	if err != nil {
-		return nil, E.Cause(err, "create ACME provider dialer")
+		return nil, E.Cause(err, "create ACME provider http client")
 	}
 	return &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-			TLSClientConfig: &tls.Config{
-				RootCAs: adapter.RootPoolFromContext(ctx),
-				Time:    ntp.TimeFuncFromContext(ctx),
-			},
-			// from certmagic defaults (acmeissuer.go)
-			TLSHandshakeTimeout:   30 * time.Second,
-			ResponseHeaderTimeout: 30 * time.Second,
-			ExpectContinueTimeout: 2 * time.Second,
-			ForceAttemptHTTP2:     true,
-		},
-		Timeout: certmagic.HTTPTimeout,
+		Transport: transport,
+		Timeout:   certmagic.HTTPTimeout,
 	}, nil
 }
 
