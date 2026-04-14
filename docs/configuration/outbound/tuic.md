@@ -16,7 +16,9 @@
   "heartbeat": "10s",
   "network": "tcp",
   "tls": {},
-  
+
+  ... // QUIC Fields
+
   ... // Dial Fields
 }
 ```
@@ -90,6 +92,10 @@ Both is enabled by default.
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
+
+### QUIC Fields
+
+See [QUIC Fields](/configuration/shared/quic/) for details.
 
 ### Dial Fields
 

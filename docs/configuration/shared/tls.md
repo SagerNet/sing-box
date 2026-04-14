@@ -5,6 +5,7 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [certificate_provider](#certificate_provider)  
+    :material-plus: [handshake_timeout](#handshake_timeout)  
     :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -54,6 +55,7 @@ icon: material/new-box
   "key_path": "",
   "kernel_tx": false,
   "kernel_rx": false,
+  "handshake_timeout": "",
   "certificate_provider": "",
 
   // Deprecated
@@ -106,6 +108,7 @@ icon: material/new-box
 ```json
 {
   "enabled": true,
+  "engine": "",
   "disable_sni": false,
   "server_name": "",
   "insecure": false,
@@ -124,6 +127,9 @@ icon: material/new-box
   "fragment": false,
   "fragment_fallback_delay": "",
   "record_fragment": false,
+  "kernel_tx": false,
+  "kernel_rx": false,
+  "handshake_timeout": "",
   "ech": {
     "enabled": false,
     "config": [],
@@ -182,6 +188,49 @@ Cipher suite values:
 #### enabled
 
 Enable TLS.
+
+#### engine
+
+==Client only==
+
+TLS engine to use.
+
+Values:
+
+* `go` (default)
+* `apple`
+
+`apple` uses Network.framework, only available on Apple platforms and only supports **direct** TCP TLS client connections.
+
+!!! warning ""
+
+    Experimental only: due to the high memory overhead of both CGO and Network.framework,
+    do not use in hot paths on iOS and tvOS.
+    If you want to circumvent TLS fingerprint-based proxy censorship,
+    use [NaiveProxy](/configuration/outbound/naive/) instead.
+
+Supported fields:
+
+* `server_name`
+* `insecure`
+* `alpn`
+* `min_version`
+* `max_version`
+* `certificate` / `certificate_path`
+* `certificate_public_key_sha256`
+* `handshake_timeout`
+
+Unsupported fields:
+
+* `disable_sni`
+* `cipher_suites`
+* `curve_preferences`
+* `client_certificate` / `client_certificate_path` / `client_key` / `client_key_path`
+* `fragment` / `record_fragment`
+* `kernel_tx` / `kernel_rx`
+* `ech`
+* `utls`
+* `reality`
 
 #### disable_sni
 
@@ -416,6 +465,14 @@ Enable kernel TLS transmit support.
     kTLS RX will definitely degrade performance even if `splice(2)` is in use, so enabling it is not recommended.
 
 Enable kernel TLS receive support.
+
+#### handshake_timeout
+
+!!! question "Since sing-box 1.14.0"
+
+TLS handshake timeout, in golang's Duration format.
+
+`15s` is used by default.
 
 #### certificate_provider
 

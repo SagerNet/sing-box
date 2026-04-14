@@ -21,11 +21,16 @@
     }
   ],
 
+  "tls": {},
+
+  ... // QUIC 字段
+
+  // 废弃的
+
   "recv_window_conn": 0,
   "recv_window_client": 0,
   "max_conn_client": 0,
-  "disable_mtu_discovery": false,
-  "tls": {}
+  "disable_mtu_discovery": false
 }
 ```
 
@@ -76,32 +81,38 @@ base64 编码的认证密码。
 
 认证密码。
 
-#### recv_window_conn
-
-用于接收数据的 QUIC 流级流控制窗口。
-
-默认 `15728640 (15 MB/s)`。
-
-#### recv_window_client
-
-用于接收数据的 QUIC 连接级流控制窗口。
-
-默认 `67108864 (64 MB/s)`。
-
-#### max_conn_client
-
-允许对等点打开的 QUIC 并发双向流的最大数量。
-
-默认 `1024`。
-
-#### disable_mtu_discovery
-
-禁用路径 MTU 发现 (RFC 8899)。 数据包的大小最多为 1252 (IPv4) / 1232 (IPv6) 字节。
-
-强制为 Linux 和 Windows 以外的系统启用（根据上游）。
-
 #### tls
 
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#入站)。
+
+### QUIC 字段
+
+参阅 [QUIC 字段](/zh/configuration/shared/quic/) 了解详情。
+
+### 废弃字段
+
+#### recv_window_conn
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    请使用 QUIC 字段 `stream_receive_window` 代替。
+
+#### recv_window_client
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    请使用 QUIC 字段 `connection_receive_window` 代替。
+
+#### max_conn_client
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    请使用 QUIC 字段 `max_concurrent_streams` 代替。
+
+#### disable_mtu_discovery
+
+!!! failure "已在 sing-box 1.14.0 废弃"
+
+    请使用 QUIC 字段 `disable_path_mtu_discovery` 代替。

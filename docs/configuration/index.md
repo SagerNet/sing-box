@@ -10,6 +10,7 @@ sing-box uses JSON for configuration files.
   "ntp": {},
   "certificate": {},
   "certificate_providers": [],
+  "http_clients": [],
   "endpoints": [],
   "inbounds": [],
   "outbounds": [],
@@ -28,6 +29,7 @@ sing-box uses JSON for configuration files.
 | `ntp`          | [NTP](./ntp/)                   |
 | `certificate`  | [Certificate](./certificate/)   |
 | `certificate_providers` | [Certificate Provider](./shared/certificate-provider/) |
+| `http_clients` | [HTTP Client](./shared/http-client/) |
 | `endpoints`    | [Endpoint](./endpoint/)         |
 | `inbounds`     | [Inbound](./inbound/)           |
 | `outbounds`    | [Outbound](./outbound/)         |

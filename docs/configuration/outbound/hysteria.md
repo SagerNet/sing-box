@@ -27,13 +27,18 @@ icon: material/new-box
   "obfs": "fuck me till the daylight",
   "auth": "",
   "auth_str": "password",
+  "network": "",
+  "tls": {},
+
+  ... // QUIC Fields
+
+  ... // Dial Fields
+
+  // Deprecated
+
   "recv_window_conn": 0,
   "recv_window": 0,
-  "disable_mtu_discovery": false,
-  "network": "tcp",
-  "tls": {},
-  
-  ... // Dial Fields
+  "disable_mtu_discovery": false
 }
 ```
 
@@ -104,24 +109,6 @@ Authentication password, in base64.
 
 Authentication password.
 
-#### recv_window_conn
-
-The QUIC stream-level flow control window for receiving data.
-
-`15728640 (15 MB/s)` will be used if empty.
-
-#### recv_window
-
-The QUIC connection-level flow control window for receiving data.
-
-`67108864 (64 MB/s)` will be used if empty.
-
-#### disable_mtu_discovery
-
-Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.
-
-Force enabled on for systems other than Linux and Windows (according to upstream).
-
 #### network
 
 Enabled network
@@ -136,6 +123,30 @@ Both is enabled by default.
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
 
+### QUIC Fields
+
+See [QUIC Fields](/configuration/shared/quic/) for details.
+
 ### Dial Fields
 
 See [Dial Fields](/configuration/shared/dial/) for details.
+
+### Deprecated Fields
+
+#### recv_window_conn
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `stream_receive_window` instead.
+
+#### recv_window
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `connection_receive_window` instead.
+
+#### disable_mtu_discovery
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `disable_path_mtu_discovery` instead.
