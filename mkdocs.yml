@@ -122,6 +122,9 @@ nav:
           - Listen Fields: configuration/shared/listen.md
           - Dial Fields: configuration/shared/dial.md
           - TLS: configuration/shared/tls.md
+          - HTTP Client: configuration/shared/http-client.md
+          - HTTP2 Fields: configuration/shared/http2.md
+          - QUIC Fields: configuration/shared/quic.md
           - Certificate Provider:
               - configuration/shared/certificate-provider/index.md
               - ACME: configuration/shared/certificate-provider/acme.md
