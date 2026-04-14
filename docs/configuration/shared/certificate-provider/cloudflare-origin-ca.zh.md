@@ -19,7 +19,7 @@ icon: material/new-box
   "origin_ca_key": "",
   "request_type": "",
   "requested_validity": 0,
-  "detour": ""
+  "http_client": "" // 或 {}
 }
 ```
 
@@ -75,8 +75,8 @@ Cloudflare Origin CA Key。
 
 如果为空，使用 `5475` 天（15 年）。
 
-#### detour
+#### http_client
 
-上游出站的标签。
+用于所有提供者 HTTP 请求的 HTTP 客户端。
 
-所有提供者 HTTP 请求将使用此出站。
+参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。

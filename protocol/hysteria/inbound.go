@@ -77,15 +77,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		ReceiveBPS:    receiveBps,
 		XPlusPassword: options.Obfs,
 		TLSConfig:     tlsConfig,
+		QUICOptions:   buildInboundQUICOptions(options),
 		UDPTimeout:    udpTimeout,
 		Handler:       inbound,
-
-		// Legacy options
-
-		ConnReceiveWindow:   options.ReceiveWindowConn,
-		StreamReceiveWindow: options.ReceiveWindowClient,
-		MaxIncomingStreams:  int64(options.MaxConnClient),
-		DisableMTUDiscovery: options.DisableMTUDiscovery,
 	})
 	if err != nil {
 		return nil, err
