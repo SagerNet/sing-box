@@ -21,11 +21,16 @@
     }
   ],
   
+  "tls": {},
+
+  ... // QUIC Fields
+
+  // Deprecated
+
   "recv_window_conn": 0,
   "recv_window_client": 0,
   "max_conn_client": 0,
-  "disable_mtu_discovery": false,
-  "tls": {}
+  "disable_mtu_discovery": false
 }
 ```
 
@@ -76,32 +81,38 @@ Authentication password, in base64.
 
 Authentication password.
 
-#### recv_window_conn
-
-The QUIC stream-level flow control window for receiving data.
-
-`15728640 (15 MB/s)` will be used if empty.
-
-#### recv_window_client
-
-The QUIC connection-level flow control window for receiving data.
-
-`67108864 (64 MB/s)` will be used if empty.
-
-#### max_conn_client
-
-The maximum number of QUIC concurrent bidirectional streams that a peer is allowed to open.
-
-`1024` will be used if empty.
-
-#### disable_mtu_discovery
-
-Disables Path MTU Discovery (RFC 8899). Packets will then be at most 1252 (IPv4) / 1232 (IPv6) bytes in size.
-
-Force enabled on for systems other than Linux and Windows (according to upstream).
-
 #### tls
 
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+
+### QUIC Fields
+
+See [QUIC Fields](/configuration/shared/quic/) for details.
+
+### Deprecated Fields
+
+#### recv_window_conn
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `stream_receive_window` instead.
+
+#### recv_window_client
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `connection_receive_window` instead.
+
+#### max_conn_client
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `max_concurrent_streams` instead.
+
+#### disable_mtu_discovery
+
+!!! failure "Deprecated in sing-box 1.14.0"
+
+    Use QUIC fields `disable_path_mtu_discovery` instead.
