@@ -46,8 +46,11 @@ func NewServerWithOptions(options ServerOptions) (ServerConfig, error) {
 }
 
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
-	defer cancel()
+	if config.HandshakeTimeout() == 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, C.TCPTimeout)
+		defer cancel()
+	}
 	tlsConn, err := aTLS.ServerHandshake(ctx, conn, config)
 	if err != nil {
 		return nil, err

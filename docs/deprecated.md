@@ -6,6 +6,27 @@ icon: material/delete-alert
 
 ## 1.14.0
 
+#### Legacy `download_detour` remote rule-set option
+
+Legacy `download_detour` remote rule-set option is deprecated,
+use `http_client` instead.
+
+Old field will be removed in sing-box 1.16.0.
+
+#### Implicit default HTTP client
+
+Implicit default HTTP client using the default outbound for remote rule-sets is deprecated.
+Configure `http_clients` and `route.default_http_client` explicitly.
+
+Old behavior will be removed in sing-box 1.16.0.
+
+#### Legacy dialer options in Tailscale endpoint
+
+Legacy dialer options in Tailscale endpoints are deprecated,
+use `control_http_client` instead.
+
+Old fields will be removed in sing-box 1.16.0.
+
 #### Inline ACME options in TLS
 
 Inline ACME options (`tls.acme`) are deprecated
