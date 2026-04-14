@@ -204,6 +204,9 @@ func buildApple() {
 		"-target", bindTarget,
 		"-libname=box",
 		"-tags-not-macos=with_low_memory",
+		"-iosversion=15.0",
+		"-macosversion=13.0",
+		"-tvosversion=17.0",
 	}
 	//if !withTailscale {
 	//	args = append(args, "-tags-macos="+strings.Join(memcTags, ","))

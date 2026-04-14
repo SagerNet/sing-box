@@ -12,10 +12,18 @@ import (
 )
 
 func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+	return newUTLSClient(ctx, logger, serverAddress, options, false)
+}
+
+func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions, allowEmptyServerName bool) (Config, error) {
 	return nil, E.New(`uTLS is not included in this build, rebuild with -tags with_utls`)
 }
 
 func NewRealityClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
+	return newRealityClient(ctx, logger, serverAddress, options, false)
+}
+
+func newRealityClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions, allowEmptyServerName bool) (Config, error) {
 	return nil, E.New(`uTLS, which is required by reality is not included in this build, rebuild with -tags with_utls`)
 }
 

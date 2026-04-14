@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [control_http_client](#control_http_client)  
+    :material-delete-clock: [Dial Fields](#dial-fields)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [relay_server_port](#relay_server_port)  
@@ -22,6 +27,7 @@ icon: material/new-box
   "state_directory": "",
   "auth_key": "",
   "control_url": "",
+  "control_http_client": {}, // or ""
   "ephemeral": false,
   "hostname": "",
   "accept_routes": false,
@@ -148,10 +154,18 @@ UDP NAT expiration time.
 
 `5m` will be used by default.
 
+#### control_http_client
+
+!!! question "Since sing-box 1.14.0"
+
+HTTP Client for connecting to the Tailscale control plane.
+
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
 ### Dial Fields
 
-!!! note
+!!! failure "Deprecated in sing-box 1.14.0"
 
-    Dial Fields in Tailscale endpoints only control how it connects to the control plane and have nothing to do with actual connections.
+    Dial Fields in Tailscale endpoints are deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0, use `control_http_client` instead.
 
 See [Dial Fields](/configuration/shared/dial/) for details.

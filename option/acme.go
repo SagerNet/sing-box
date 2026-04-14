@@ -24,7 +24,7 @@ type ACMECertificateProviderOptions struct {
 	ExternalAccount         *ACMEExternalAccountOptions        `json:"external_account,omitempty"`
 	DNS01Challenge          *ACMEProviderDNS01ChallengeOptions `json:"dns01_challenge,omitempty"`
 	KeyType                 ACMEKeyType                        `json:"key_type,omitempty"`
-	Detour                  string                             `json:"detour,omitempty"`
+	HTTPClient              *HTTPClientOptions                 `json:"http_client,omitempty"`
 }
 
 type _ACMEProviderDNS01ChallengeOptions struct {

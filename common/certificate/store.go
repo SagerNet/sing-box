@@ -25,6 +25,7 @@ type Store struct {
 	storeType                 string
 	systemPool                *x509.CertPool
 	currentPool               *x509.CertPool
+	currentPEM                []string
 	certificate               string
 	certificatePaths          []string
 	certificateDirectoryPaths []string
@@ -125,15 +126,41 @@ func (s *Store) Pool() *x509.CertPool {
 	return s.currentPool
 }
 
+func (s *Store) StoreKind() string {
+	return s.storeType
+}
+
+func (s *Store) CurrentPEM() []string {
+	s.access.RLock()
+	defer s.access.RUnlock()
+	return append([]string(nil), s.currentPEM...)
+}
+
 func (s *Store) update() error {
 	currentPool, err := s.newBasePool()
+	var currentPEM []string
 	if err != nil {
 		return err
+	}
+	switch s.storeType {
+	case C.CertificateStoreMozilla:
+		pemContent := mozillaIncludedPEM()
+		if !currentPool.AppendCertsFromPEM([]byte(pemContent)) {
+			return E.New("invalid Mozilla included certificate PEM")
+		}
+		currentPEM = append(currentPEM, pemContent)
+	case C.CertificateStoreChrome:
+		pemContent := chromeIncludedPEM()
+		if !currentPool.AppendCertsFromPEM([]byte(pemContent)) {
+			return E.New("invalid Chrome included certificate PEM")
+		}
+		currentPEM = append(currentPEM, pemContent)
 	}
 	if s.certificate != "" {
 		if !currentPool.AppendCertsFromPEM([]byte(s.certificate)) {
 			return E.New("invalid certificate PEM strings")
 		}
+		currentPEM = append(currentPEM, s.certificate)
 	}
 	for _, path := range s.certificatePaths {
 		pemContent, err := os.ReadFile(path)
@@ -143,6 +170,7 @@ func (s *Store) update() error {
 		if !currentPool.AppendCertsFromPEM(pemContent) {
 			return E.New("invalid certificate PEM file: ", path)
 		}
+		currentPEM = append(currentPEM, string(pemContent))
 	}
 	var firstErr error
 	for _, directoryPath := range s.certificateDirectoryPaths {
@@ -155,8 +183,8 @@ func (s *Store) update() error {
 		}
 		for _, directoryEntry := range directoryEntries {
 			pemContent, err := os.ReadFile(filepath.Join(directoryPath, directoryEntry.Name()))
-			if err == nil {
-				currentPool.AppendCertsFromPEM(pemContent)
+			if err == nil && currentPool.AppendCertsFromPEM(pemContent) {
+				currentPEM = append(currentPEM, string(pemContent))
 			}
 		}
 	}
@@ -166,6 +194,7 @@ func (s *Store) update() error {
 	s.access.Lock()
 	defer s.access.Unlock()
 	s.currentPool = currentPool
+	s.currentPEM = currentPEM
 	return nil
 }
 
@@ -176,10 +205,8 @@ func (s *Store) newBasePool() (*x509.CertPool, error) {
 			return x509.NewCertPool(), nil
 		}
 		return s.systemPool.Clone(), nil
-	case C.CertificateStoreMozilla:
-		return newMozillaIncluded(), nil
-	case C.CertificateStoreChrome:
-		return newChromeIncluded(), nil
+	case C.CertificateStoreMozilla, C.CertificateStoreChrome:
+		return x509.NewCertPool(), nil
 	case C.CertificateStoreNone:
 		return x509.NewCertPool(), nil
 	default:

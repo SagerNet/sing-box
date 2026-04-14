@@ -6,6 +6,7 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.14.0"
 
+    :material-plus: [default_http_client](#default_http_client)  
     :material-plus: [find_neighbor](#find_neighbor)  
     :material-plus: [dhcp_lease_files](#dhcp_lease_files)
 
@@ -43,6 +44,7 @@ icon: material/alert-decagram
     "find_process": false,
     "find_neighbor": false,
     "dhcp_lease_files": [],
+    "default_http_client": "",
     "default_domain_resolver": "", // or {}
     "default_network_strategy": "",
     "default_network_type": [],
@@ -146,6 +148,14 @@ See [Neighbor Resolution](/configuration/shared/neighbor/) for setup.
 Custom DHCP lease file paths for hostname and MAC address resolution.
 
 Automatically detected from common DHCP servers (dnsmasq, odhcpd, ISC dhcpd, Kea) if empty.
+
+#### default_http_client
+
+!!! question "Since sing-box 1.14.0"
+
+Tag of the default [HTTP Client](/configuration/shared/http-client/) used by remote rule-sets.
+
+If empty and `http_clients` is defined, the first HTTP client is used.
 
 #### default_domain_resolver
 
