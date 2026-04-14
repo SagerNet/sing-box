@@ -17,6 +17,7 @@ type _Options struct {
 	NTP                  *NTPOptions           `json:"ntp,omitempty"`
 	Certificate          *CertificateOptions   `json:"certificate,omitempty"`
 	CertificateProviders []CertificateProvider `json:"certificate_providers,omitempty"`
+	HTTPClients          []HTTPClient          `json:"http_clients,omitempty"`
 	Endpoints            []Endpoint            `json:"endpoints,omitempty"`
 	Inbounds             []Inbound             `json:"inbounds,omitempty"`
 	Outbounds            []Outbound            `json:"outbounds,omitempty"`
@@ -61,6 +62,10 @@ func checkOptions(options *Options) error {
 	if err != nil {
 		return err
 	}
+	err = checkHTTPClients(options.HTTPClients)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -75,6 +80,20 @@ func checkCertificateProviders(providers []CertificateProvider) error {
 			return E.New("duplicate certificate provider tag: ", tag)
 		}
 		seen[tag] = true
+	}
+	return nil
+}
+
+func checkHTTPClients(clients []HTTPClient) error {
+	seen := make(map[string]bool)
+	for _, client := range clients {
+		if client.Tag == "" {
+			return E.New("missing http client tag")
+		}
+		if seen[client.Tag] {
+			return E.New("duplicate http client tag: ", client.Tag)
+		}
+		seen[client.Tag] = true
 	}
 	return nil
 }
