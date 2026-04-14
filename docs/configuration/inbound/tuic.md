@@ -18,7 +18,9 @@
   "auth_timeout": "3s",
   "zero_rtt_handshake": false,
   "heartbeat": "10s",
-  "tls": {}
+  "tls": {},
+
+  ... // QUIC Fields
 }
 ```
 
@@ -76,3 +78,7 @@ Interval for sending heartbeat packets for keeping the connection alive
 ==Required==
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+
+### QUIC Fields
+
+See [QUIC Fields](/configuration/shared/quic/) for details.

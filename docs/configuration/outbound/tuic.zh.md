@@ -16,7 +16,9 @@
   "heartbeat": "10s",
   "network": "tcp",
   "tls": {},
-  
+
+  ... // QUIC 字段
+
   ... // 拨号字段
 }
 ```
@@ -98,6 +100,10 @@ UDP 包中继模式
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#出站)。
+
+### QUIC 字段
+
+参阅 [QUIC 字段](/zh/configuration/shared/quic/) 了解详情。
 
 ### 拨号字段
 

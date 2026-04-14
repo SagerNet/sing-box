@@ -4,7 +4,6 @@ package tailscale
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -28,6 +27,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
@@ -41,7 +41,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 	tailscaleroot "github.com/sagernet/tailscale"
@@ -193,6 +192,17 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	hasLegacyDialer := !reflect.DeepEqual(options.DialerOptions, option.DialerOptions{})
+	hasControlHTTPClient := options.ControlHTTPClient != nil && !options.ControlHTTPClient.IsEmpty()
+	if hasLegacyDialer && hasControlHTTPClient {
+		return nil, E.New("control_http_client is conflict with deprecated dialer options")
+	}
+	controlHTTPClientOptions := common.PtrValueOrDefault(options.ControlHTTPClient)
+	if hasLegacyDialer {
+		deprecated.Report(ctx, deprecated.OptionLegacyTailscaleEndpointDialer)
+		controlHTTPClientOptions.DialerOptions = options.DialerOptions
+	}
+	controlHTTPClientOptions.ResolveOnDetour = true
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context:          ctx,
 		Options:          options.DialerOptions,
@@ -205,6 +215,12 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	dialerQueryOptions := outboundDialer.(dialer.ResolveDialer).QueryOptions()
 	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
+	httpClientManager := service.FromContext[adapter.HTTPClientManager](ctx)
+	controlTransport, err := httpClientManager.ResolveTransport(ctx, logger, controlHTTPClientOptions)
+	if err != nil {
+		return nil, E.Cause(err, "create control HTTP client")
+	}
+	controlHTTPClient := &http.Client{Transport: controlTransport}
 	server := &tsnet.Server{
 		Dir:      stateDirectory,
 		Hostname: hostname,
@@ -222,19 +238,8 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
 			return dnsRouter.Lookup(ctx, host, dialerQueryOptions)
 		},
-		DNS: &dnsConfigurtor{},
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{
-				ForceAttemptHTTP2: true,
-				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-					return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(address))
-				},
-				TLSClientConfig: &tls.Config{
-					RootCAs: adapter.RootPoolFromContext(ctx),
-					Time:    ntp.TimeFuncFromContext(ctx),
-				},
-			},
-		},
+		DNS:        &dnsConfigurtor{},
+		HTTPClient: controlHTTPClient,
 	}
 	return &Endpoint{
 		Adapter:                    endpoint.NewAdapterWithDialerOptions(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, options.DialerOptions),
