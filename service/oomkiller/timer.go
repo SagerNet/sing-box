@@ -161,6 +161,10 @@ func (t *adaptiveTimer) stop() {
 }
 
 func (t *adaptiveTimer) poll() {
+	if t.timerConfig.policyMode == policyModeNetworkExtension {
+		runtimeDebug.FreeOSMemory()
+	}
+
 	var triggered bool
 	var rateTriggered bool
 	sample := readMemorySample(t.policyMode)
@@ -205,6 +209,7 @@ func (t *adaptiveTimer) poll() {
 	if !triggered {
 		return
 	}
+	t.onTriggered(sample.usage)
 	if rateTriggered {
 		if t.killerDisabled {
 			t.logger.Warn("memory growth rate critical (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
@@ -220,7 +225,6 @@ func (t *adaptiveTimer) poll() {
 			t.router.ResetNetwork()
 		}
 	}
-	t.onTriggered(sample.usage)
 	runtimeDebug.FreeOSMemory()
 }
 
