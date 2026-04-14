@@ -182,6 +182,9 @@ icon: material/alert-decagram
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "ipset": [
+          "my-ipset"
+        ],
         "ip_is_private": false,
         "ip_accept_any": false,
         "response_rcode": "",
@@ -630,6 +633,14 @@ Match IP CIDR with query response.
 
 As a Legacy Address Filter Field, deprecated. Use with `match_response` instead,
 check [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
+
+#### ipset
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Match IP with Linux ipset.
 
 #### ip_is_private
 

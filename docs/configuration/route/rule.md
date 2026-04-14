@@ -100,6 +100,9 @@ icon: material/new-box
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "ipset": [
+          "my-ipset"
+        ],
         "ip_is_private": false,
         "source_port": [
           12345
@@ -305,6 +308,14 @@ Match non-public IP.
 #### ip_cidr
 
 Match IP CIDR.
+
+#### ipset
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Match IP with Linux ipset.
 
 #### source_ip_is_private
 

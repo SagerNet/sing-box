@@ -83,6 +83,7 @@ type RawDefaultRule struct {
 	SourceIPIsPrivate        bool                                                                        `json:"source_ip_is_private,omitempty"`
 	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
 	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
+	IPSet                    badoption.Listable[string]                                                  `json:"ipset,omitempty"`
 	SourcePort               badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`
 	SourcePortRange          badoption.Listable[string]                                                  `json:"source_port_range,omitempty"`
 	Port                     badoption.Listable[uint16]                                                  `json:"port,omitempty"`

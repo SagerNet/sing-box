@@ -54,6 +54,9 @@ icon: material/new-box
         "10.0.0.0/24",
         "192.168.0.1"
       ],
+      "ipset": [
+        "my-ipset"
+      ],
       "source_port": [
         12345
       ],
@@ -180,6 +183,14 @@ Match source IP CIDR.
     `ip_cidr` is an alias for `source_ip_cidr` when `rule_set_ipcidr_match_source` enabled in route/DNS rules.
 
 Match IP CIDR.
+
+#### ipset
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Match IP with Linux ipset.
 
 #### source_port
 

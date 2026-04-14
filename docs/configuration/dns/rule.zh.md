@@ -182,6 +182,9 @@ icon: material/alert-decagram
           "10.0.0.0/24",
           "192.168.0.1"
         ],
+        "ipset": [
+          "my-ipset"
+        ],
         "ip_is_private": false,
         "ip_accept_any": false,
         "response_rcode": "",
@@ -621,6 +624,14 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 作为旧版地址筛选字段已废弃。请改为配合 `match_response` 使用，
 参阅[迁移指南](/zh/migration/#迁移地址筛选字段到响应匹配)。
+
+#### ipset
+
+!!! quote ""
+
+    仅支持 Linux。
+
+匹配 IP 地址与 Linux ipset。
 
 #### ip_is_private
 
