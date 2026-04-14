@@ -19,7 +19,7 @@ func NewRuleSet(ctx context.Context, logger logger.ContextLogger, options option
 	case C.RuleSetTypeInline, C.RuleSetTypeLocal, "":
 		return NewLocalRuleSet(ctx, logger, options)
 	case C.RuleSetTypeRemote:
-		return NewRemoteRuleSet(ctx, logger, options), nil
+		return NewRemoteRuleSet(ctx, logger, options)
 	default:
 		return nil, E.New("unknown rule-set type: ", options.Type)
 	}
