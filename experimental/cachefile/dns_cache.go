@@ -52,6 +52,10 @@ func (c *CacheFile) LoadDNSCache(transportName string, qName string, qType uint1
 }
 
 func (c *CacheFile) SaveDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) error {
+	value := buf.Get(8 + len(rawMessage))
+	defer buf.Put(value)
+	binary.BigEndian.PutUint64(value[:8], uint64(expireAt.Unix()))
+	copy(value[8:], rawMessage)
 	return c.batch(func(tx *bbolt.Tx) error {
 		bucket, err := c.createBucket(tx, bucketDNSCache)
 		if err != nil {
@@ -65,10 +69,6 @@ func (c *CacheFile) SaveDNSCache(transportName string, qName string, qType uint1
 		binary.BigEndian.PutUint16(key, qType)
 		copy(key[2:], qName)
 		defer buf.Put(key)
-		value := buf.Get(8 + len(rawMessage))
-		defer buf.Put(value)
-		binary.BigEndian.PutUint64(value[:8], uint64(expireAt.Unix()))
-		copy(value[8:], rawMessage)
 		return bucket.Put(key, value)
 	})
 }
