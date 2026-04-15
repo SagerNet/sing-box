@@ -761,7 +761,8 @@ func TestValidateRuleSetMetadataUpdateAllowsRuleSetThatKeepsNonLegacyDNSMode(t *
 	require.False(t, router.legacyDNSMode)
 
 	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{
-		ContainsIPCIDRRule: true,
+		ContainsIPCIDRRule:    true,
+		ContainsNonIPCIDRRule: true,
 	})
 	require.NoError(t, err)
 }
@@ -806,6 +807,163 @@ func TestValidateRuleSetMetadataUpdateAllowsRelaxingLegacyRequirement(t *testing
 
 	err := router.ValidateRuleSetMetadataUpdate("dynamic-set", adapter.RuleSetMetadata{})
 	require.NoError(t, err)
+}
+
+func TestInitializeRejectsPureIPRuleSetWhenLegacyDNSModeDisabled(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{
+		metadata: adapter.RuleSetMetadata{
+			ContainsIPCIDRRule: true,
+		},
+	}
+	routerService := &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"pure-ip": fakeSet,
+		},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := &Router{
+		ctx:                   ctx,
+		logger:                log.NewNOPFactory().NewLogger("dns"),
+		transport:             &fakeDNSTransportManager{},
+		client:                &fakeDNSClient{},
+		rawRules:              make([]option.DNSRule, 0, 2),
+		rules:                 make([]adapter.DNSRule, 0, 2),
+		defaultDomainStrategy: C.DomainStrategyAsIS,
+	}
+	err := router.Initialize([]option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(mDNS.TypeA)},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"pure-ip"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "Address Filter Fields")
+}
+
+func TestInitializeAllowsMixedRuleSetWhenLegacyDNSModeDisabled(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{
+		metadata: adapter.RuleSetMetadata{
+			ContainsIPCIDRRule:    true,
+			ContainsNonIPCIDRRule: true,
+		},
+	}
+	routerService := &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"mixed": fakeSet,
+		},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(mDNS.TypeA)},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"mixed"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{})
+	require.False(t, router.legacyDNSMode)
+}
+
+func TestValidateRuleSetMetadataUpdateRejectsRuleSetFlippingToPureIP(t *testing.T) {
+	t.Parallel()
+
+	fakeSet := &fakeRuleSet{
+		metadata: adapter.RuleSetMetadata{
+			ContainsIPCIDRRule:    true,
+			ContainsNonIPCIDRRule: true,
+		},
+	}
+	routerService := &fakeRouter{
+		ruleSets: map[string]adapter.RuleSet{
+			"mixed": fakeSet,
+		},
+	}
+	ctx := service.ContextWith[adapter.Router](context.Background(), routerService)
+	router := newTestRouterWithContext(t, ctx, []option.DNSRule{
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(mDNS.TypeA)},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+		{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					RuleSet: badoption.Listable[string]{"mixed"},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action:       C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{Server: "selected"},
+				},
+			},
+		},
+	}, &fakeDNSTransportManager{
+		defaultTransport: &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+		transports: map[string]adapter.DNSTransport{
+			"default":  &fakeDNSTransport{tag: "default", transportType: C.DNSTypeUDP},
+			"selected": &fakeDNSTransport{tag: "selected", transportType: C.DNSTypeUDP},
+		},
+	}, &fakeDNSClient{})
+	require.False(t, router.legacyDNSMode)
+
+	err := router.ValidateRuleSetMetadataUpdate("mixed", adapter.RuleSetMetadata{
+		ContainsIPCIDRRule: true,
+	})
+	require.ErrorContains(t, err, "Address Filter Fields")
 }
 
 func TestCloseWaitsForInFlightLookupUntilContextCancellation(t *testing.T) {
