@@ -16,13 +16,14 @@ import (
 
 func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, options option.HTTPClientOptions) (*ManagedTransport, error) {
 	rawDialer, err := dialer.NewWithOptions(dialer.Options{
-		Context:          ctx,
-		Options:          options.DialerOptions,
-		RemoteIsDomain:   true,
-		DirectResolver:   options.DirectResolver,
-		ResolverOnDetour: options.ResolveOnDetour,
-		NewDialer:        options.ResolveOnDetour,
-		DefaultOutbound:  options.DefaultOutbound,
+		Context:                 ctx,
+		Options:                 options.DialerOptions,
+		RemoteIsDomain:          true,
+		DirectResolver:          options.DirectResolver,
+		ResolverOnDetour:        options.ResolveOnDetour,
+		NewDialer:               options.ResolveOnDetour,
+		DisableEmptyDirectCheck: options.DisableEmptyDirectCheck,
+		DefaultOutbound:         options.DefaultOutbound,
 	})
 	if err != nil {
 		return nil, err
