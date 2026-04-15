@@ -6,6 +6,8 @@ icon: material/new-box
 
     :material-plus: [certificate_provider](#certificate_provider)  
     :material-plus: [handshake_timeout](#handshake_timeout)  
+    :material-plus: [spoof](#spoof)  
+    :material-plus: [spoof_method](#spoof_method)  
     :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -127,6 +129,8 @@ icon: material/new-box
   "fragment": false,
   "fragment_fallback_delay": "",
   "record_fragment": false,
+  "spoof": "",
+  "spoof_method": "",
   "kernel_tx": false,
   "kernel_rx": false,
   "handshake_timeout": "",
@@ -641,6 +645,41 @@ The fallback value used when TLS segmentation cannot automatically determine the
 ==Client only==
 
 Fragment TLS handshake into multiple TLS records to bypass firewalls.
+
+#### spoof
+
+!!! question "Since sing-box 1.14.0"
+
+==Client only, Linux/macOS/Windows only, requires elevated privileges==
+
+Inject a forged TLS ClientHello carrying a whitelisted SNI before the real one,
+to fool SNI-filtering middleboxes that permit specific hostnames.
+
+The forged segment is a copy of the real ClientHello with only the SNI value
+replaced by the value of this field, so TLS fingerprinting cannot distinguish
+it from the real one. The receiving server drops the forged segment
+(see `spoof_method`) while the middlebox treats it as a legitimate session.
+
+Requires raw-socket access (`CAP_NET_RAW` on Linux, root on macOS);
+on Linux, `CAP_NET_ADMIN` is additionally required because the send sequence
+number is read via `TCP_REPAIR`.
+On Windows, Administrator is required to install the embedded WinDivert kernel
+driver on first use. Windows on ARM64 is not supported.
+
+#### spoof_method
+
+!!! question "Since sing-box 1.14.0"
+
+==Client only==
+
+How the forged segment is rejected by the real server.
+
+| Value                      | Behavior                                                                               |
+|----------------------------|----------------------------------------------------------------------------------------|
+| `wrong-sequence` (default) | The forged segment's TCP sequence number is placed before the server's receive window. |
+| `wrong-checksum`           | The forged segment's TCP checksum is deliberately invalid.                              |
+
+Conflict with `spoof` unset.
 
 ### ACME Fields
 
