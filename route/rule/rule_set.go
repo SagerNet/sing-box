@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -75,12 +76,22 @@ func isDNSQueryTypeHeadlessRule(rule option.DefaultHeadlessRule) bool {
 	return len(rule.QueryType) > 0
 }
 
+func isNonIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {
+	ipOnly := option.DefaultHeadlessRule{
+		IPCIDR: rule.IPCIDR,
+		IPSet:  rule.IPSet,
+		Invert: rule.Invert,
+	}
+	return !reflect.DeepEqual(rule, ipOnly)
+}
+
 func buildRuleSetMetadata(headlessRules []option.HeadlessRule) adapter.RuleSetMetadata {
 	return adapter.RuleSetMetadata{
 		ContainsProcessRule:      HasHeadlessRule(headlessRules, isProcessHeadlessRule),
 		ContainsWIFIRule:         HasHeadlessRule(headlessRules, isWIFIHeadlessRule),
 		ContainsIPCIDRRule:       HasHeadlessRule(headlessRules, isIPCIDRHeadlessRule),
 		ContainsDNSQueryTypeRule: HasHeadlessRule(headlessRules, isDNSQueryTypeHeadlessRule),
+		ContainsNonIPCIDRRule:    HasHeadlessRule(headlessRules, isNonIPCIDRHeadlessRule),
 	}
 }
 
