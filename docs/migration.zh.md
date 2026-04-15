@@ -82,7 +82,9 @@ sing-box 1.14.0 新增字段参阅 [ACME](/zh/configuration/shared/certificate-p
 ### 迁移地址筛选字段到响应匹配
 
 旧版地址筛选字段（不使用 `match_response` 的 `ip_cidr`、`ip_is_private`）已废弃，
-旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项也已废弃。
+旧版 `rule_set_ip_cidr_accept_empty` DNS 规则项也已废弃。当旧版 DNS 模式被禁用时，
+引用仅包含 `ip_cidr` 项的规则集（例如 GeoIP 规则集）且未设置 `match_response` 的 DNS 规则
+也将在启动时被拒绝。
 
 在 sing-box 1.14.0 中，请使用 [`evaluate`](/zh/configuration/dns/rule_action/#evaluate) 动作
 获取 DNS 响应，然后通过 `match_response` 显式匹配。
