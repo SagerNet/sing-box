@@ -25,16 +25,17 @@ type QUICOptions struct {
 }
 
 type _HTTPClientOptions struct {
-	Tag                    string               `json:"tag,omitempty"`
-	Engine                 string               `json:"engine,omitempty"`
-	Version                int                  `json:"version,omitempty"`
-	DisableVersionFallback bool                 `json:"disable_version_fallback,omitempty"`
-	Headers                badoption.HTTPHeader `json:"headers,omitempty"`
-	HTTP2Options           HTTP2Options         `json:"-"`
-	HTTP3Options           QUICOptions          `json:"-"`
-	DefaultOutbound        bool                 `json:"-"`
-	ResolveOnDetour        bool                 `json:"-"`
-	DirectResolver         bool                 `json:"-"`
+	Tag                     string               `json:"tag,omitempty"`
+	Engine                  string               `json:"engine,omitempty"`
+	Version                 int                  `json:"version,omitempty"`
+	DisableVersionFallback  bool                 `json:"disable_version_fallback,omitempty"`
+	Headers                 badoption.HTTPHeader `json:"headers,omitempty"`
+	HTTP2Options            HTTP2Options         `json:"-"`
+	HTTP3Options            QUICOptions          `json:"-"`
+	DefaultOutbound         bool                 `json:"-"`
+	DisableEmptyDirectCheck bool                 `json:"-"`
+	ResolveOnDetour         bool                 `json:"-"`
+	DirectResolver          bool                 `json:"-"`
 	OutboundTLSOptionsContainer
 	DialerOptions
 }
