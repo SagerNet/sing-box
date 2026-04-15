@@ -39,11 +39,11 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if err != nil {
 		return nil, err
 	}
+
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		ctx:              ctx,
 		logger:           logger,
-		hosts:            hosts.NewFile(hosts.DefaultPath),
 		dialer:           transportDialer,
 		preferGo:         options.PreferGo,
 	}, nil
@@ -52,6 +52,12 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 func (t *Transport) Start(stage adapter.StartStage) error {
 	switch stage {
 	case adapter.StartStateInitialize:
+		defaultHosts, err := hosts.NewDefault()
+		if err != nil {
+			t.logger.Warn(err)
+		} else {
+			t.hosts = defaultHosts
+		}
 		if !t.preferGo {
 			if isSystemdResolvedManaged() {
 				resolvedResolver, err := NewResolvedResolver(t.ctx, t.logger)
@@ -84,7 +90,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		return t.resolved.Exchange(ctx, message)
 	}
 	question := message.Question[0]
-	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
+	if t.hosts != nil && (question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
 		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
 		if len(addresses) > 0 {
 			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil

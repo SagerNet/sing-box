@@ -2,16 +2,15 @@ package hosts
 
 import (
 	"path/filepath"
+	"sync"
 
 	"golang.org/x/sys/windows"
 )
 
-var DefaultPath string
-
-func init() {
+var defaultPath = sync.OnceValues(func() (string, error) {
 	systemDirectory, err := windows.GetSystemDirectory()
 	if err != nil {
-		systemDirectory = "C:\\Windows\\System32"
+		return "", err
 	}
-	DefaultPath = filepath.Join(systemDirectory, "Drivers/etc/hosts")
-}
+	return filepath.Join(systemDirectory, "Drivers", "etc", "hosts"), nil
+})
