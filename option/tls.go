@@ -120,6 +120,8 @@ type OutboundTLSOptions struct {
 	Fragment                   bool                                `json:"fragment,omitempty"`
 	FragmentFallbackDelay      badoption.Duration                  `json:"fragment_fallback_delay,omitempty"`
 	RecordFragment             bool                                `json:"record_fragment,omitempty"`
+	Spoof                      string                              `json:"spoof,omitempty"`
+	SpoofMethod                string                              `json:"spoof_method,omitempty"`
 	KernelTx                   bool                                `json:"kernel_tx,omitempty"`
 	KernelRx                   bool                                `json:"kernel_rx,omitempty"`
 	HandshakeTimeout           badoption.Duration                  `json:"handshake_timeout,omitempty"`

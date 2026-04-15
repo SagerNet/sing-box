@@ -138,7 +138,10 @@ icon: material/new-box
   "fallback_delay": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false,
-  "udp_timeout": ""
+  "udp_timeout": "",
+  "tls_fragment": false,
+  "tls_fragment_fallback_delay": "",
+  "tls_record_fragment": false
 }
 ```
 
