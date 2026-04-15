@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/sagernet/sing-box/common/badtls"
+	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -18,6 +19,37 @@ import (
 )
 
 var errMissingServerName = E.New("missing server_name or insecure=true")
+
+func parseTLSSpoofOptions(serverName string, options option.OutboundTLSOptions) (string, tlsspoof.Method, error) {
+	if options.Spoof == "" {
+		if options.SpoofMethod != "" {
+			return "", 0, E.New("`spoof_method` requires `spoof`")
+		}
+		return "", 0, nil
+	}
+	if !tlsspoof.PlatformSupported {
+		return "", 0, E.New("`spoof` is not supported on this platform")
+	}
+	if options.DisableSNI || serverName == "" {
+		return "", 0, E.New("`spoof` requires TLS ClientHello with SNI")
+	}
+	method, err := tlsspoof.ParseMethod(options.SpoofMethod)
+	if err != nil {
+		return "", 0, err
+	}
+	return options.Spoof, method, nil
+}
+
+func applyTLSSpoof(conn net.Conn, spoof string, method tlsspoof.Method) (net.Conn, error) {
+	if spoof == "" {
+		return conn, nil
+	}
+	spoofer, err := tlsspoof.NewSpoofer(conn, method)
+	if err != nil {
+		return nil, err
+	}
+	return tlsspoof.NewConn(conn, spoofer, spoof), nil
+}
 
 func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
 	if !options.Enabled {
