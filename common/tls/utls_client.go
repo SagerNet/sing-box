@@ -14,6 +14,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tlsfragment"
+	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -36,6 +37,8 @@ type UTLSClientConfig struct {
 	fragment              bool
 	fragmentFallbackDelay time.Duration
 	recordFragment        bool
+	spoof                 string
+	spoofMethod           tlsspoof.Method
 }
 
 func (c *UTLSClientConfig) ServerName() string {
@@ -83,6 +86,10 @@ func (c *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
 	if c.recordFragment {
 		conn = tf.NewConn(conn, c.ctx, c.fragment, c.recordFragment, c.fragmentFallbackDelay)
 	}
+	conn, err := applyTLSSpoof(conn, c.spoof, c.spoofMethod)
+	if err != nil {
+		return nil, err
+	}
 	return &utlsALPNWrapper{utlsConnWrapper{utls.UClient(conn, c.config.Clone(), c.id)}, c.config.NextProtos}, nil
 }
 
@@ -102,6 +109,8 @@ func (c *UTLSClientConfig) Clone() Config {
 		fragment:              c.fragment,
 		fragmentFallbackDelay: c.fragmentFallbackDelay,
 		recordFragment:        c.recordFragment,
+		spoof:                 c.spoof,
+		spoofMethod:           c.spoofMethod,
 	}
 	cloned.SetServerName(cloned.serverName)
 	return cloned
@@ -290,6 +299,10 @@ func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 	} else {
 		handshakeTimeout = C.TCPTimeout
 	}
+	spoof, spoofMethod, err := parseTLSSpoofOptions(serverName, options)
+	if err != nil {
+		return nil, err
+	}
 	id, err := uTLSClientHelloID(options.UTLS.Fingerprint)
 	if err != nil {
 		return nil, err
@@ -305,6 +318,8 @@ func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 		fragment:              options.Fragment,
 		fragmentFallbackDelay: time.Duration(options.FragmentFallbackDelay),
 		recordFragment:        options.RecordFragment,
+		spoof:                 spoof,
+		spoofMethod:           spoofMethod,
 	}
 	config.SetServerName(serverName)
 	if options.ECH != nil && options.ECH.Enabled {

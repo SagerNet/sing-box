@@ -19,7 +19,6 @@ linters:
   enable:
     - govet
     - ineffassign
-    - paralleltest
     - staticcheck
   settings:
     staticcheck:

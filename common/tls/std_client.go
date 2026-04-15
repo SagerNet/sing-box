@@ -14,6 +14,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tlsfragment"
+	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -31,6 +32,8 @@ type STDClientConfig struct {
 	fragment              bool
 	fragmentFallbackDelay time.Duration
 	recordFragment        bool
+	spoof                 string
+	spoofMethod           tlsspoof.Method
 }
 
 func (c *STDClientConfig) ServerName() string {
@@ -75,6 +78,10 @@ func (c *STDClientConfig) Client(conn net.Conn) (Conn, error) {
 	if c.recordFragment {
 		conn = tf.NewConn(conn, c.ctx, c.fragment, c.recordFragment, c.fragmentFallbackDelay)
 	}
+	conn, err := applyTLSSpoof(conn, c.spoof, c.spoofMethod)
+	if err != nil {
+		return nil, err
+	}
 	return tls.Client(conn, c.config), nil
 }
 
@@ -89,6 +96,8 @@ func (c *STDClientConfig) Clone() Config {
 		fragment:              c.fragment,
 		fragmentFallbackDelay: c.fragmentFallbackDelay,
 		recordFragment:        c.recordFragment,
+		spoof:                 c.spoof,
+		spoofMethod:           c.spoofMethod,
 	}
 	cloned.SetServerName(cloned.serverName)
 	return cloned
@@ -218,6 +227,10 @@ func newSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 	} else {
 		handshakeTimeout = C.TCPTimeout
 	}
+	spoof, spoofMethod, err := parseTLSSpoofOptions(serverName, options)
+	if err != nil {
+		return nil, err
+	}
 	var config Config = &STDClientConfig{
 		ctx:                   ctx,
 		config:                &tlsConfig,
@@ -228,6 +241,8 @@ func newSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		fragment:              options.Fragment,
 		fragmentFallbackDelay: time.Duration(options.FragmentFallbackDelay),
 		recordFragment:        options.RecordFragment,
+		spoof:                 spoof,
+		spoofMethod:           spoofMethod,
 	}
 	config.SetServerName(serverName)
 	if options.ECH != nil && options.ECH.Enabled {
