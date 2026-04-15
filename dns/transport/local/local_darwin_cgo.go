@@ -197,7 +197,7 @@ func darwinResolverHErrno(name string, hErrno int) error {
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
-	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
+	if t.hosts != nil && (question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
 		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
 		if len(addresses) > 0 {
 			return dns.FixedResponse(message.Id, question, addresses, boxC.DefaultDNSTTL), nil
