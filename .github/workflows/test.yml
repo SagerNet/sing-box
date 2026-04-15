@@ -1,0 +1,55 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - stable
+      - testing
+      - unstable
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/test.yml'
+  pull_request:
+    branches:
+      - stable
+      - testing
+      - unstable
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        go:
+          - ~1.24
+          - ~1.25
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Set build tags and ldflags
+        shell: bash
+        run: |
+          echo "BUILD_TAGS=$(cat release/DEFAULT_BUILD_TAGS_OTHERS)" >> "$GITHUB_ENV"
+          echo "LDFLAGS_SHARED=$(cat release/LDFLAGS)" >> "$GITHUB_ENV"
+      - name: Test (unix)
+        if: matrix.os != 'windows-latest'
+        run: go test -v -exec sudo -tags "$BUILD_TAGS" -ldflags "$LDFLAGS_SHARED" ./...
+      - name: Test (windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: go test -v -tags "$BUILD_TAGS" -ldflags "$LDFLAGS_SHARED" ./...
