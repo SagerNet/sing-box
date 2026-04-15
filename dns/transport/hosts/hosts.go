@@ -33,7 +33,11 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		predefined = make(map[string][]netip.Addr)
 	)
 	if len(options.Path) == 0 {
-		files = append(files, NewFile(DefaultPath))
+		defaultFile, err := NewDefault()
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, defaultFile)
 	} else {
 		for _, path := range options.Path {
 			files = append(files, NewFile(filemanager.BasePath(ctx, os.ExpandEnv(path))))
