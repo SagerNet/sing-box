@@ -51,7 +51,6 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		ctx:              ctx,
 		logger:           logger,
-		hosts:            hosts.NewFile(hosts.DefaultPath),
 		dialer:           transportDialer,
 	}, nil
 }
@@ -59,6 +58,12 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 func (t *Transport) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
+	}
+	defaultHosts, err := hosts.NewDefault()
+	if err != nil {
+		t.logger.Warn(err)
+	} else {
+		t.hosts = defaultHosts
 	}
 	inboundManager := service.FromContext[adapter.InboundManager](t.ctx)
 	for _, inbound := range inboundManager.Inbounds() {
