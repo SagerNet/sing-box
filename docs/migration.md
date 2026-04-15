@@ -82,7 +82,9 @@ See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly ad
 ### Migrate address filter fields to response matching
 
 Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) in DNS rules are deprecated,
-along with the Legacy `rule_set_ip_cidr_accept_empty` DNS rule item.
+along with the Legacy `rule_set_ip_cidr_accept_empty` DNS rule item. A DNS rule that references a rule-set
+containing only `ip_cidr` items (for example, a GeoIP rule-set) without `match_response` is also rejected
+at startup when legacy DNS mode is disabled.
 
 In sing-box 1.14.0, use the [`evaluate`](/configuration/dns/rule_action/#evaluate) action
 to fetch a DNS response, then match against it explicitly with `match_response`.
