@@ -295,11 +295,12 @@ func (s *RemoteRuleSet) resolveTransport() (adapter.HTTPTransport, error) {
 	}
 	if s.options.RemoteOptions.DownloadDetour != "" { //nolint:staticcheck
 		deprecated.Report(s.ctx, deprecated.OptionLegacyRuleSetDownloadDetour)
-		var httpClientOptions option.HTTPClientOptions
-		httpClientOptions.DialerOptions = option.DialerOptions{
-			Detour: s.options.RemoteOptions.DownloadDetour, //nolint:staticcheck
-		}
-		return httpClientManager.ResolveTransport(s.ctx, s.logger, httpClientOptions)
+		return httpClientManager.ResolveTransport(s.ctx, s.logger, option.HTTPClientOptions{
+			DialerOptions: option.DialerOptions{
+				Detour: s.options.RemoteOptions.DownloadDetour, //nolint:staticcheck
+			},
+			DisableEmptyDirectCheck: true,
+		})
 	}
 	defaultTransport := httpClientManager.DefaultTransport()
 	if defaultTransport == nil {

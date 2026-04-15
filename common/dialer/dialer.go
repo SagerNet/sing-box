@@ -17,15 +17,15 @@ import (
 )
 
 type Options struct {
-	Context          context.Context
-	Options          option.DialerOptions
-	RemoteIsDomain   bool
-	DirectResolver   bool
-	ResolverOnDetour bool
-	NewDialer        bool
-	LegacyDNSDialer  bool
-	DirectOutbound   bool
-	DefaultOutbound  bool
+	Context                 context.Context
+	Options                 option.DialerOptions
+	RemoteIsDomain          bool
+	DirectResolver          bool
+	ResolverOnDetour        bool
+	NewDialer               bool
+	DisableEmptyDirectCheck bool
+	DirectOutbound          bool
+	DefaultOutbound         bool
 }
 
 // TODO: merge with NewWithOptions
@@ -49,7 +49,7 @@ func NewWithOptions(options Options) (N.Dialer, error) {
 		if outboundManager == nil {
 			return nil, E.New("missing outbound manager")
 		}
-		dialer = NewDetour(outboundManager, dialOptions.Detour, options.LegacyDNSDialer)
+		dialer = NewDetour(outboundManager, dialOptions.Detour, options.DisableEmptyDirectCheck)
 	} else if options.DefaultOutbound {
 		outboundManager := service.FromContext[adapter.OutboundManager](options.Context)
 		if outboundManager == nil {
