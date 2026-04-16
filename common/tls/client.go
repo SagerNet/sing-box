@@ -30,7 +30,7 @@ func parseTLSSpoofOptions(serverName string, options option.OutboundTLSOptions) 
 	if !tlsspoof.PlatformSupported {
 		return "", 0, E.New("`spoof` is not supported on this platform")
 	}
-	if options.DisableSNI || serverName == "" {
+	if options.DisableSNI || serverName == "" || M.ParseAddr(serverName).IsValid() {
 		return "", 0, E.New("`spoof` requires TLS ClientHello with SNI")
 	}
 	method, err := tlsspoof.ParseMethod(options.SpoofMethod)
