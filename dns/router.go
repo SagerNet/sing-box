@@ -445,9 +445,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			evaluatedTransport = transport
 		case *R.RuleActionRespond:
 			if evaluatedResponse == nil {
-				return exchangeWithRulesResult{
-					err: E.New(dnsRespondMissingResponseMessage),
-				}
+				continue
 			}
 			return exchangeWithRulesResult{
 				response:  evaluatedResponse,
