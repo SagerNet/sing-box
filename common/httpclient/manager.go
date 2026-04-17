@@ -69,21 +69,25 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 			return E.Cause(err, "resolve default http client")
 		}
 		m.defaultTransport = sharedTransport
-	} else if m.defaultTransportFallback != nil {
-		transport, err := m.defaultTransportFallback()
-		if err != nil {
-			return E.Cause(err, "create default http client")
-		}
-		m.trackTransport(transport)
-		m.defaultTransport = &sharedManagedTransport{
-			managed: transport,
-			shared:  &sharedState{},
-		}
 	}
 	return nil
 }
 
 func (m *Manager) DefaultTransport() adapter.HTTPTransport {
+	m.access.Lock()
+	defer m.access.Unlock()
+	if m.defaultTransport == nil && m.defaultTransportFallback != nil {
+		transport, err := m.defaultTransportFallback()
+		if err != nil {
+			m.logger.Error(E.Cause(err, "create default http client"))
+			return nil
+		}
+		m.managedTransports = append(m.managedTransports, transport)
+		m.defaultTransport = &sharedManagedTransport{
+			managed: transport,
+			shared:  &sharedState{},
+		}
+	}
 	if m.defaultTransport == nil {
 		return nil
 	}
