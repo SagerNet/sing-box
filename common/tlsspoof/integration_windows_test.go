@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newSpoofer(t *testing.T, conn net.Conn, method Method) Spoofer {
+func newSpoofer(t *testing.T, conn net.Conn, method Method) rawSpoofer {
 	t.Helper()
-	spoofer, err := NewSpoofer(conn, method)
+	s, err := newRawSpoofer(conn, method)
 	require.NoError(t, err)
-	return spoofer
+	return s
 }
 
 // Basic lifecycle: opening a spoofer against a live TCP conn installs
@@ -46,11 +46,10 @@ func TestIntegrationSpooferOpenClose(t *testing.T) {
 	require.NoError(t, spoofer.Close())
 }
 
-// End-to-end: Conn.Write injects a fake ClientHello with a rewritten
-// SNI, then forwards the real ClientHello. With wrong-sequence, the
-// fake lands before the connection's send-next sequence — the peer TCP
-// stack treats it as already-received and only surfaces the real bytes
-// to the echo server.
+// End-to-end: Conn.Write injects a fake ClientHello with a fresh SNI, then
+// forwards the real ClientHello. With wrong-sequence, the fake lands before
+// the connection's send-next sequence — the peer TCP stack treats it as
+// already-received and only surfaces the real bytes to the echo server.
 func TestIntegrationConnInjectsThenForwardsRealCH(t *testing.T) {
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -72,8 +71,8 @@ func TestIntegrationConnInjectsThenForwardsRealCH(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { client.Close() })
 
-	spoofer := newSpoofer(t, client, MethodWrongSequence)
-	wrapped := NewConn(client, spoofer, "letsencrypt.org")
+	wrapped, err := NewConn(client, MethodWrongSequence, "letsencrypt.org")
+	require.NoError(t, err)
 
 	payload, err := hex.DecodeString(realClientHello)
 	require.NoError(t, err)
@@ -94,7 +93,7 @@ func TestIntegrationConnInjectsThenForwardsRealCH(t *testing.T) {
 
 // Inject before any kernel payload: stages the fake, then Write flushes
 // the real CH. Same terminal expectation as the Conn variant but via the
-// Spoofer primitive directly.
+// raw spoofer primitive directly.
 func TestIntegrationSpooferInjectThenWrite(t *testing.T) {
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -119,12 +118,12 @@ func TestIntegrationSpooferInjectThenWrite(t *testing.T) {
 	spoofer := newSpoofer(t, client, MethodWrongSequence)
 	t.Cleanup(func() { spoofer.Close() })
 
-	payload, err := hex.DecodeString(realClientHello)
-	require.NoError(t, err)
-	fake, err := rewriteSNI(payload, "letsencrypt.org")
+	fake, err := buildFakeClientHello("letsencrypt.org")
 	require.NoError(t, err)
 	require.NoError(t, spoofer.Inject(fake))
 
+	payload, err := hex.DecodeString(realClientHello)
+	require.NoError(t, err)
 	n, err := client.Write(payload)
 	require.NoError(t, err)
 	require.Equal(t, len(payload), n)
