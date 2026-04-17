@@ -84,8 +84,16 @@ func tcpdumpObserver(t *testing.T, iface string, port uint16, needle string, do 
 }
 
 func dialLocalEchoServer(t *testing.T) (client net.Conn, serverPort uint16) {
+	return dialLocalEchoServerFamily(t, "tcp4", "127.0.0.1:0")
+}
+
+func dialLocalEchoServerIPv6(t *testing.T) (client net.Conn, serverPort uint16) {
+	return dialLocalEchoServerFamily(t, "tcp6", "[::1]:0")
+}
+
+func dialLocalEchoServerFamily(t *testing.T, network, address string) (client net.Conn, serverPort uint16) {
 	t.Helper()
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	listener, err := net.Listen(network, address)
 	require.NoError(t, err)
 
 	accepted := make(chan net.Conn, 1)
@@ -97,7 +105,7 @@ func dialLocalEchoServer(t *testing.T) (client net.Conn, serverPort uint16) {
 		close(accepted)
 	}()
 	addr := listener.Addr().(*net.TCPAddr)
-	client, err = net.Dial("tcp4", addr.String())
+	client, err = net.Dial(network, addr.String())
 	require.NoError(t, err)
 	server := <-accepted
 	require.NotNil(t, server)
