@@ -534,11 +534,24 @@ func (c *Client) prepareExchangeMessage(message *dns.Msg, options adapter.DNSQue
 	return message
 }
 
+func stripDNSPadding(response *dns.Msg) {
+	for _, record := range response.Extra {
+		opt, isOpt := record.(*dns.OPT)
+		if !isOpt {
+			continue
+		}
+		opt.Option = common.Filter(opt.Option, func(it dns.EDNS0) bool {
+			return it.Option() != dns.EDNS0PADDING
+		})
+	}
+}
+
 func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg) (*dns.Msg, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	response, err := transport.Exchange(ctx, message)
 	if err == nil {
+		stripDNSPadding(response)
 		return response, nil
 	}
 	var rcodeError RcodeError
