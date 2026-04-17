@@ -48,11 +48,56 @@ func TestIntegrationSpoofer_WrongSequence(t *testing.T) {
 	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
 }
 
+func TestIntegrationSpoofer_IPv6_WrongChecksum(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServerIPv6(t)
+	spoofer, err := NewSpoofer(client, MethodWrongChecksum)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	payload, err := hex.DecodeString(realClientHello)
+	require.NoError(t, err)
+	fake, err := rewriteSNI(payload, "letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_IPv6_WrongSequence(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServerIPv6(t)
+	spoofer, err := NewSpoofer(client, MethodWrongSequence)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	payload, err := hex.DecodeString(realClientHello)
+	require.NoError(t, err)
+	fake, err := rewriteSNI(payload, "letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
 // Loopback bypasses TCP checksum validation, so wrong-sequence is used instead.
 func TestIntegrationConn_InjectsThenForwardsRealCH(t *testing.T) {
 	requireRoot(t)
+	runInjectsThenForwardsRealCH(t, "tcp4", "127.0.0.1:0")
+}
 
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+func TestIntegrationConn_IPv6_InjectsThenForwardsRealCH(t *testing.T) {
+	requireRoot(t)
+	runInjectsThenForwardsRealCH(t, "tcp6", "[::1]:0")
+}
+
+func runInjectsThenForwardsRealCH(t *testing.T, network, address string) {
+	t.Helper()
+	listener, err := net.Listen(network, address)
 	require.NoError(t, err)
 
 	serverReceived := make(chan []byte, 1)
@@ -69,7 +114,7 @@ func TestIntegrationConn_InjectsThenForwardsRealCH(t *testing.T) {
 
 	addr := listener.Addr().(*net.TCPAddr)
 	serverPort := uint16(addr.Port)
-	client, err := net.Dial("tcp4", addr.String())
+	client, err := net.Dial(network, addr.String())
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		client.Close()

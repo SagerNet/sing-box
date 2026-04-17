@@ -74,18 +74,34 @@ func encodeTCP(frame []byte, ipHeaderLen int, src, dst netip.AddrPort, seqNum, a
 }
 
 func buildSpoofFrame(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte) ([]byte, error) {
-	var sequence uint32
-	corrupt := false
-	switch method {
-	case MethodWrongSequence:
-		sequence = sendNext - uint32(len(payload))
-	case MethodWrongChecksum:
-		sequence = sendNext
-		corrupt = true
-	default:
-		return nil, E.New("tls_spoof: unknown method ", method)
+	sequence, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
+	if err != nil {
+		return nil, err
 	}
 	return buildTCPSegment(src, dst, sequence, receiveNext, payload, corrupt), nil
+}
+
+// buildSpoofTCPSegment returns a TCP segment without an IP header, for
+// platforms where the kernel synthesises the IP header (darwin IPv6).
+func buildSpoofTCPSegment(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte) ([]byte, error) {
+	sequence, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
+	if err != nil {
+		return nil, err
+	}
+	segment := make([]byte, tcpHeaderLen+len(payload))
+	encodeTCP(segment, 0, src, dst, sequence, receiveNext, payload, corrupt)
+	return segment, nil
+}
+
+func resolveSpoofSequence(method Method, sendNext uint32, payload []byte) (uint32, bool, error) {
+	switch method {
+	case MethodWrongSequence:
+		return sendNext - uint32(len(payload)), false, nil
+	case MethodWrongChecksum:
+		return sendNext, true, nil
+	default:
+		return 0, false, E.New("tls_spoof: unknown method ", method)
+	}
 }
 
 func applyTCPChecksum(tcp header.TCP, srcAddr, dstAddr netip.Addr, payload []byte, corrupt bool) {
