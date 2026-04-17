@@ -1,8 +1,9 @@
 package tlsspoof
 
 import (
+	"bytes"
 	"encoding/binary"
-	"encoding/hex"
+	"strings"
 	"testing"
 
 	tf "github.com/sagernet/sing-box/common/tlsfragment"
@@ -10,70 +11,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// realClientHello is a captured Chrome ClientHello for github.com,
-// reused from common/tlsfragment/index_test.go.
-const realClientHello = "16030105f8010005f403036e35de7389a679c54029cf452611f2211c70d9ac3897271de589ab6155f8e4ab20637d225f1ef969ad87ed78bfb9d171300bcb1703b6f314ccefb964f79b7d0961002a0a0a130213031301c02cc02bcca9c030c02fcca8c00ac009c014c013009d009c0035002fc008c012000a01000581baba00000000000f000d00000a6769746875622e636f6d00170000ff01000100000a000e000c3a3a11ec001d001700180019000b000201000010000e000c02683208687474702f312e31000500050100000000000d00160014040308040401050308050805050108060601020100120000003304ef04ed3a3a00010011ec04c0aeb2250c092a3463161cccb29d9183331a424964248579507ed23a180b0ceab2a5f5d9ce41547e497a89055471ea572867ba3a1fc3c9e45025274a20f60c6b60e62476b6afed0403af59ab83660ef4112ae20386a602010d0a5d454c0ed34c84ed4423e750213e6a2baab1bf9c4367a6007ab40a33d95220c2dcaa44f257024a5626b545db0510f4311b1a60714154909c6a61fdfca011fb2626d657aeb6070bf078508babe3b584555013e34acc56198ed4663742b3155a664a9901794c4586820a7dc162c01827291f3792e1237f801a8d1ef096013c181c4a58d2f6859ba75022d18cc4418bd4f351d5c18f83a58857d05af860c4b9ac018a5b63f17184e591532c6bc2cf2215d4a282c8a8a4f6f7aee110422c8bc9ebd3b1d609c568523aaae555db320e6c269473d87af38c256cbb9febc20aea6380c32a8916f7a373c8b1e37554e3260bf6621f6b804ee80b3c516b1d01985bf4c603b6daa9a5991de6a7a29f3a7122b8afb843a7660110fce62b43c615f5bcc2db688ba012649c0952b0a2c031e732d2b454c6b2968683cb8d244be2c9a7fa163222979eaf92722b92b862d81a3d94450c2b60c318421ebb4307c42d1f0473592a5c30e42039cc68cda9721e61aa63f49def17c15221680ed444896340133bbee67556f56b9f9d78a4df715f926a12add0cc9c862e46ea8b7316ae468282c18601b2771c9c9322f982228cf93effaacd3f80cbd12bce5fc36f56e2a3caf91e578a5fae00c9b23a8ed1a66764f4433c3628a70b8f0a6196adc60a4cb4226f07ba4c6b363fe9065563bfc1347452946386bab488686e837ab979c64f9047417fca635fe1bb4f074f256cc8af837c7b455e280426547755af90a61640169ef180aea3a77e662bb6dac1b6c3696027129b1a5edf495314e9c7f4b6110e16378ec893fa24642330a40aba1a85326101acb97c620fd8d71389e69eaed7bdb01bbe1fd428d66191150c7b2cd1ad4257391676a82ba8ce07fb2667c3b289f159003a7c7bc31d361b7b7f49a802961739d950dfcc0fa1c7abce5abdd2245101da391151490862028110465950b9e9c03d08a90998ab83267838d2e74a0593bc81f74cdf734519a05b351c0e5488c68dd810e6e9142ccc1e2f4a7f464297eb340e27acc6b9d64e12e38cce8492b3d939140b5a9e149a75597f10a23874c84323a07cdd657274378f887c85c4259b9c04cd33ba58ed630ef2a744f8e19dd34843dff331d2a6be7e2332c599289cd248a611c73d7481cd4a9bd43449a3836f14b2af18a1739e17999e4c67e85cc5bcecabb14185e5bcaff3c96098f03dc5aba819f29587758f49f940585354a2a780830528d68ccd166920dadcaa25cab5fc1907272a826aba3f08bc6b88757776812ecb6c7cec69a223ec0a13a7b62a2349a0f63ed7a27a3b15ba21d71fe6864ec6e089ae17cadd433fa3138f7ee24353c11365818f8fc34f43a05542d18efaac24bfccc1f748a0cc1a67ad379468b76fd34973dba785f5c91d618333cd810fe0700d1bbc8422029782628070a624c52c5309a4a64d625b11f8033ab28df34a1add297517fcc06b92b6817b3c5144438cf260867c57bde68c8c4b82e6a135ef676a52fbae5708002a404e6189a60e2836de565ad1b29e3819e5ed49f6810bcb28e1bd6de57306f94b79d9dae1cc4624d2a068499beef81cd5fe4b76dcbfff2a2008001d002001976128c6d5a934533f28b9914d2480aab2a8c1ab03d212529ce8b27640a716002d00020101002b000706caca03040303001b00030200015a5a000100"
+// x25519MLKEM768 is the IANA code point for the post-quantum hybrid named
+// group (0x11EC). The fake ClientHello must never carry it — its 1184-byte
+// key share is the reason kernel-generated ClientHellos exceed one MSS, and
+// the reason this builder has to force CurvePreferences.
+const x25519MLKEM768 uint16 = 0x11EC
 
-func decodeClientHello(t *testing.T) []byte {
-	t.Helper()
-	payload, err := hex.DecodeString(realClientHello)
-	require.NoError(t, err)
-	return payload
-}
-
-func assertConsistent(t *testing.T, payload []byte, expectedSNI string) {
-	t.Helper()
-	serverName := tf.IndexTLSServerName(payload)
-	require.NotNil(t, serverName, "parser should find SNI in rewritten payload")
-	require.Equal(t, expectedSNI, serverName.ServerName)
-	require.Equal(t, expectedSNI, string(payload[serverName.Index:serverName.Index+serverName.Length]))
-	// Record length must equal len(payload) - 5.
-	recordLen := binary.BigEndian.Uint16(payload[3:5])
-	require.Equal(t, len(payload)-5, int(recordLen), "record length must equal payload - 5")
-	// Handshake length must equal len(payload) - 5 - 4.
-	handshakeLen := int(payload[6])<<16 | int(payload[7])<<8 | int(payload[8])
-	require.Equal(t, len(payload)-5-4, handshakeLen, "handshake length must equal payload - 9")
-}
-
-func TestRewriteSNI_ShorterReplacement(t *testing.T) {
+func TestBuildFakeClientHello_ParsesWithSNI(t *testing.T) {
 	t.Parallel()
-	payload := decodeClientHello(t)
-	out, err := rewriteSNI(payload, "a.io")
+	record, err := buildFakeClientHello("example.com")
 	require.NoError(t, err)
-	require.Len(t, out, len(payload)-6) // original "github.com" is 10 bytes, "a.io" is 4 bytes.
-	assertConsistent(t, out, "a.io")
+
+	serverName := tf.IndexTLSServerName(record)
+	require.NotNil(t, serverName, "output must parse as a ClientHello")
+	require.Equal(t, "example.com", serverName.ServerName)
+
+	recordLen := binary.BigEndian.Uint16(record[3:5])
+	require.Equal(t, len(record)-5, int(recordLen),
+		"record length header must match on-wire record size")
+	handshakeLen := int(record[6])<<16 | int(record[7])<<8 | int(record[8])
+	require.Equal(t, len(record)-5-4, handshakeLen,
+		"handshake length header must match handshake body size")
 }
 
-func TestRewriteSNI_SameLengthReplacement(t *testing.T) {
+// TestBuildFakeClientHello_FitsOneSegment is the regression guard for the
+// whole point of the rewrite: the fake must never need fragmenting on a
+// standard 1500-byte path MTU. 1200 leaves ~260 bytes for IP+TCP headers and
+// a generous safety margin — the X25519MLKEM768 ClientHello this replaces
+// hit ~1400+.
+func TestBuildFakeClientHello_FitsOneSegment(t *testing.T) {
 	t.Parallel()
-	payload := decodeClientHello(t)
-	out, err := rewriteSNI(payload, "example.co")
-	require.NoError(t, err)
-	require.Len(t, out, len(payload))
-	assertConsistent(t, out, "example.co")
+	for _, sni := range []string{"a.io", "example.com", strings.Repeat("a", 253)} {
+		record, err := buildFakeClientHello(sni)
+		require.NoError(t, err, "sni=%q", sni)
+		require.Less(t, len(record), 1200, "sni=%q built %d bytes", sni, len(record))
+	}
 }
 
-func TestRewriteSNI_LongerReplacement(t *testing.T) {
+// TestBuildFakeClientHello_NoPostQuantumKeyShare catches regressions that
+// would accidentally pull an X25519MLKEM768 key share (the reason the prior
+// implementation had to fragment) back into the fake — e.g. if CurvePreferences
+// stopped being respected by a future Go version.
+func TestBuildFakeClientHello_NoPostQuantumKeyShare(t *testing.T) {
 	t.Parallel()
-	payload := decodeClientHello(t)
-	out, err := rewriteSNI(payload, "letsencrypt.org")
+	record, err := buildFakeClientHello("example.com")
 	require.NoError(t, err)
-	require.Len(t, out, len(payload)+5) // "letsencrypt.org" is 15, original 10, delta 5.
-	assertConsistent(t, out, "letsencrypt.org")
+
+	var needle [2]byte
+	binary.BigEndian.PutUint16(needle[:], x25519MLKEM768)
+	require.False(t, bytes.Contains(record, needle[:]),
+		"output must not contain the X25519MLKEM768 code point (0x%04x)", x25519MLKEM768)
 }
 
-func TestRewriteSNI_NoSNIReturnsError(t *testing.T) {
+// TestBuildFakeClientHello_RandomizesPerCall ensures crypto/tls generates a
+// fresh random + session_id + key_share on every call, as required to avoid
+// trivial fingerprinting of the spoof.
+func TestBuildFakeClientHello_RandomizesPerCall(t *testing.T) {
 	t.Parallel()
-	// Truncated payload — not a valid ClientHello.
-	_, err := rewriteSNI([]byte{0x16, 0x03, 0x01, 0x00, 0x01, 0x01}, "x.com")
+	first, err := buildFakeClientHello("example.com")
+	require.NoError(t, err)
+	second, err := buildFakeClientHello("example.com")
+	require.NoError(t, err)
+	require.NotEqual(t, first, second,
+		"repeated calls must produce distinct bytes (random/session_id/key_share must vary)")
+}
+
+func TestBuildFakeClientHello_RejectsEmpty(t *testing.T) {
+	t.Parallel()
+	_, err := buildFakeClientHello("")
 	require.Error(t, err)
-}
-
-func TestRewriteSNI_DoesNotMutateInput(t *testing.T) {
-	t.Parallel()
-	payload := decodeClientHello(t)
-	original := append([]byte(nil), payload...)
-	_, err := rewriteSNI(payload, "letsencrypt.org")
-	require.NoError(t, err)
-	require.Equal(t, original, payload, "input payload must not be mutated")
 }
