@@ -12,6 +12,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/net/idna"
 )
 
 func dialTLS(ctx context.Context, rawDialer N.Dialer, baseTLSConfig tls.Config, destination M.Socksaddr, nextProtos []string, expectProto string) (net.Conn, error) {
@@ -71,6 +73,34 @@ func mustGetBody(request *http.Request) io.ReadCloser {
 		panic(err)
 	}
 	return body
+}
+
+func requestAuthority(request *http.Request) string {
+	if request == nil || request.URL == nil || request.URL.Host == "" {
+		return ""
+	}
+	host, port, err := net.SplitHostPort(request.URL.Host)
+	if err != nil {
+		host = request.URL.Host
+		port = ""
+	}
+	if port == "" {
+		if request.URL.Scheme == "http" {
+			port = "80"
+		} else {
+			port = "443"
+		}
+	}
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		return host + ":" + port
+	}
+	ascii, idnaErr := idna.Lookup.ToASCII(host)
+	if idnaErr == nil {
+		host = ascii
+	} else {
+		host = strings.ToLower(host)
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func buildSTDTLSConfig(baseTLSConfig tls.Config, destination M.Socksaddr, nextProtos []string) (*stdTLS.Config, error) {
