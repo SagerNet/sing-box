@@ -83,7 +83,7 @@ func (c *UTLSClientConfig) STDConfig() (*STDConfig, error) {
 }
 
 func (c *UTLSClientConfig) Client(conn net.Conn) (Conn, error) {
-	if c.recordFragment {
+	if c.fragment || c.recordFragment {
 		conn = tf.NewConn(conn, c.ctx, c.fragment, c.recordFragment, c.fragmentFallbackDelay)
 	}
 	conn, err := applyTLSSpoof(conn, c.spoof, c.spoofMethod)

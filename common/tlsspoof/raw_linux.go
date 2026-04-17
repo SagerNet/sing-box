@@ -29,7 +29,7 @@ type linuxSpoofer struct {
 	receiveNext uint32
 }
 
-func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
+func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
 	tcpConn, src, dst, err := tcpEndpoints(conn)
 	if err != nil {
 		return nil, err
@@ -66,22 +66,34 @@ func openLinuxRawSocket(dst netip.AddrPort) (int, unix.Sockaddr, error) {
 		unix.Close(fd)
 		return -1, nil, E.Cause(err, "set IPV6_HDRINCL")
 	}
-	sockaddr := &unix.SockaddrInet6{Port: int(dst.Port())}
-	sockaddr.Addr = dst.Addr().As16()
+	// Linux raw IPv6 sockets interpret sin6_port as a nexthdr protocol number
+	// (see raw(7)); any value other than 0 or the socket's IPPROTO_TCP causes
+	// sendto to fail with EINVAL. The destination is already encoded in the
+	// user-supplied IPv6 header under IPV6_HDRINCL.
+	sockaddr := &unix.SockaddrInet6{Addr: dst.Addr().As16()}
 	return fd, sockaddr, nil
 }
 
 // loadSequenceNumbers puts the socket briefly into TCP_REPAIR mode to read
 // snd_nxt and rcv_nxt from the kernel. TCP_REPAIR requires CAP_NET_ADMIN;
 // callers must run as root or grant both CAP_NET_RAW and CAP_NET_ADMIN.
+//
+// If the TCP_REPAIR_OFF revert fails, the socket would stay in TCP_REPAIR
+// state and subsequent Write() calls would silently buffer instead of sending.
+// Surface that error so callers can abort.
 func (s *linuxSpoofer) loadSequenceNumbers(tcpConn *net.TCPConn) error {
-	return control.Conn(tcpConn, func(raw uintptr) error {
+	return control.Conn(tcpConn, func(raw uintptr) (err error) {
 		fd := int(raw)
-		err := unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR, unix.TCP_REPAIR_ON)
+		err = unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR, unix.TCP_REPAIR_ON)
 		if err != nil {
 			return E.Cause(err, "enter TCP_REPAIR (need CAP_NET_ADMIN)")
 		}
-		defer unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR, unix.TCP_REPAIR_OFF)
+		defer func() {
+			offErr := unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR, unix.TCP_REPAIR_OFF)
+			if err == nil && offErr != nil {
+				err = E.Cause(offErr, "leave TCP_REPAIR")
+			}
+		}()
 
 		err = unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR_QUEUE, tcpSendQueue)
 		if err != nil {
