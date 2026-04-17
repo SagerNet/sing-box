@@ -24,13 +24,17 @@ type http3Transport struct {
 	h3Transport *http3.Transport
 }
 
+type http3BrokenEntry struct {
+	until   time.Time
+	backoff time.Duration
+}
+
 type http3FallbackTransport struct {
 	h3Transport   *http3.Transport
 	h2Fallback    innerTransport
 	fallbackDelay time.Duration
 	brokenAccess  sync.Mutex
-	brokenUntil   time.Time
-	brokenBackoff time.Duration
+	broken        map[string]http3BrokenEntry
 }
 
 func newHTTP3RoundTripper(
@@ -114,6 +118,7 @@ func newHTTP3FallbackTransport(
 		h3Transport:   newHTTP3RoundTripper(rawDialer, baseTLSConfig, options),
 		h2Fallback:    h2Fallback,
 		fallbackDelay: fallbackDelay,
+		broken:        make(map[string]http3BrokenEntry),
 	}, nil
 }
 
@@ -138,31 +143,32 @@ func (t *http3FallbackTransport) RoundTrip(request *http.Request) (*http.Respons
 }
 
 func (t *http3FallbackTransport) roundTripHTTP3(request *http.Request) (*http.Response, error) {
-	if t.h3Broken() {
+	authority := requestAuthority(request)
+	if t.h3Broken(authority) {
 		return t.h2FallbackRoundTrip(request)
 	}
 	response, err := t.h3Transport.RoundTripOpt(request, http3.RoundTripOpt{OnlyCachedConn: true})
 	if err == nil {
-		t.clearH3Broken()
+		t.clearH3Broken(authority)
 		return response, nil
 	}
 	if !errors.Is(err, http3.ErrNoCachedConn) {
-		t.markH3Broken()
+		t.markH3Broken(authority)
 		return t.h2FallbackRoundTrip(cloneRequestForRetry(request))
 	}
 	if !requestReplayable(request) {
 		response, err = t.h3Transport.RoundTrip(request)
 		if err == nil {
-			t.clearH3Broken()
+			t.clearH3Broken(authority)
 			return response, nil
 		}
-		t.markH3Broken()
+		t.markH3Broken(authority)
 		return nil, err
 	}
-	return t.roundTripHTTP3Race(request)
+	return t.roundTripHTTP3Race(request, authority)
 }
 
-func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request) (*http.Response, error) {
+func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, authority string) (*http.Response, error) {
 	ctx, cancel := context.WithCancel(request.Context())
 	defer cancel()
 	type result struct {
@@ -215,13 +221,13 @@ func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request) (*htt
 			received++
 			if raceResult.err == nil {
 				if raceResult.h3 {
-					t.clearH3Broken()
+					t.clearH3Broken(authority)
 				}
 				drainRemaining()
 				return raceResult.response, nil
 			}
 			if raceResult.h3 {
-				t.markH3Broken()
+				t.markH3Broken(authority)
 				h3Err = raceResult.err
 				if goroutines == 1 {
 					goroutines++
@@ -269,29 +275,47 @@ func (t *http3FallbackTransport) Close() error {
 	return t.h3Transport.Close()
 }
 
-func (t *http3FallbackTransport) h3Broken() bool {
+func (t *http3FallbackTransport) h3Broken(authority string) bool {
+	if authority == "" {
+		return false
+	}
 	t.brokenAccess.Lock()
 	defer t.brokenAccess.Unlock()
-	return !t.brokenUntil.IsZero() && time.Now().Before(t.brokenUntil)
+	entry, found := t.broken[authority]
+	if !found {
+		return false
+	}
+	if entry.until.IsZero() || !time.Now().Before(entry.until) {
+		delete(t.broken, authority)
+		return false
+	}
+	return true
 }
 
-func (t *http3FallbackTransport) clearH3Broken() {
+func (t *http3FallbackTransport) clearH3Broken(authority string) {
+	if authority == "" {
+		return
+	}
 	t.brokenAccess.Lock()
-	t.brokenUntil = time.Time{}
-	t.brokenBackoff = 0
+	delete(t.broken, authority)
 	t.brokenAccess.Unlock()
 }
 
-func (t *http3FallbackTransport) markH3Broken() {
+func (t *http3FallbackTransport) markH3Broken(authority string) {
+	if authority == "" {
+		return
+	}
 	t.brokenAccess.Lock()
 	defer t.brokenAccess.Unlock()
-	if t.brokenBackoff == 0 {
-		t.brokenBackoff = 5 * time.Minute
+	entry := t.broken[authority]
+	if entry.backoff == 0 {
+		entry.backoff = 5 * time.Minute
 	} else {
-		t.brokenBackoff *= 2
-		if t.brokenBackoff > 48*time.Hour {
-			t.brokenBackoff = 48 * time.Hour
+		entry.backoff *= 2
+		if entry.backoff > 48*time.Hour {
+			entry.backoff = 48 * time.Hour
 		}
 	}
-	t.brokenUntil = time.Now().Add(t.brokenBackoff)
+	entry.until = time.Now().Add(entry.backoff)
+	t.broken[authority] = entry
 }
