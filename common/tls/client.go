@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/sagernet/sing-box/common/badtls"
 	"github.com/sagernet/sing-box/common/tlsspoof"
@@ -33,6 +34,9 @@ func parseTLSSpoofOptions(serverName string, options option.OutboundTLSOptions) 
 	if options.DisableSNI || serverName == "" || M.ParseAddr(serverName).IsValid() {
 		return "", 0, E.New("`spoof` requires TLS ClientHello with SNI")
 	}
+	if strings.EqualFold(options.Spoof, serverName) {
+		return "", 0, E.New("`spoof` must differ from `server_name`")
+	}
 	method, err := tlsspoof.ParseMethod(options.SpoofMethod)
 	if err != nil {
 		return "", 0, err
@@ -44,11 +48,7 @@ func applyTLSSpoof(conn net.Conn, spoof string, method tlsspoof.Method) (net.Con
 	if spoof == "" {
 		return conn, nil
 	}
-	spoofer, err := tlsspoof.NewSpoofer(conn, method)
-	if err != nil {
-		return nil, err
-	}
-	return tlsspoof.NewConn(conn, spoofer, spoof), nil
+	return tlsspoof.NewConn(conn, method, spoof)
 }
 
 func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
