@@ -40,40 +40,54 @@ func (m Method) String() string {
 	}
 }
 
-type Spoofer interface {
+type rawSpoofer interface {
 	Inject(payload []byte) error
 	Close() error
 }
 
-func NewSpoofer(conn net.Conn, method Method) (Spoofer, error) {
-	return newRawSpoofer(conn, method)
-}
-
 type Conn struct {
 	net.Conn
-	spoofer  Spoofer
-	fakeSNI  string
-	injected bool
+	spoofer   rawSpoofer
+	fakeHello []byte
+	injected  bool
 }
 
-func NewConn(conn net.Conn, spoofer Spoofer, fakeSNI string) *Conn {
-	return &Conn{
-		Conn:    conn,
-		spoofer: spoofer,
-		fakeSNI: fakeSNI,
+func NewConn(conn net.Conn, method Method, fakeSNI string) (*Conn, error) {
+	spoofer, err := newRawSpoofer(conn, method)
+	if err != nil {
+		return nil, err
 	}
+	result, err := newConn(conn, spoofer, fakeSNI)
+	if err != nil {
+		spoofer.Close()
+		return nil, err
+	}
+	return result, nil
 }
 
-func (c *Conn) Write(b []byte) (int, error) {
+func newConn(conn net.Conn, spoofer rawSpoofer, fakeSNI string) (*Conn, error) {
+	fakeHello, err := buildFakeClientHello(fakeSNI)
+	if err != nil {
+		return nil, E.Cause(err, "tls_spoof: build fake ClientHello")
+	}
+	return &Conn{
+		Conn:      conn,
+		spoofer:   spoofer,
+		fakeHello: fakeHello,
+	}, nil
+}
+
+func (c *Conn) Write(b []byte) (n int, err error) {
 	if c.injected {
 		return c.Conn.Write(b)
 	}
-	defer c.spoofer.Close()
-	fake, err := rewriteSNI(b, c.fakeSNI)
-	if err != nil {
-		return 0, E.Cause(err, "tls_spoof: rewrite SNI")
-	}
-	err = c.spoofer.Inject(fake)
+	defer func() {
+		closeErr := c.spoofer.Close()
+		if err == nil && closeErr != nil {
+			err = E.Cause(closeErr, "tls_spoof: close spoofer")
+		}
+	}()
+	err = c.spoofer.Inject(c.fakeHello)
 	if err != nil {
 		return 0, E.Cause(err, "tls_spoof: inject")
 	}
@@ -83,7 +97,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 
 func (c *Conn) Close() error {
 	return E.Append(c.Conn.Close(), c.spoofer.Close(), func(e error) error {
-		return E.Cause(e, "close spoofer")
+		return E.Cause(e, "tls_spoof: close spoofer")
 	})
 }
 
