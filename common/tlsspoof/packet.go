@@ -12,7 +12,19 @@ const (
 	defaultTTL        uint8  = 64
 	defaultWindowSize uint16 = 0xFFFF
 	tcpHeaderLen             = header.TCPMinimumSize
+
+	// Conservative MSS defaults when runtime discovery fails. These assume a
+	// 1500-byte path MTU minus the standard IPv4/IPv6 + TCP headers.
+	defaultMSSv4 = 1460
+	defaultMSSv6 = 1440
 )
+
+func defaultMSS(isV4 bool) int {
+	if isV4 {
+		return defaultMSSv4
+	}
+	return defaultMSSv6
+}
 
 func buildTCPSegment(
 	src netip.AddrPort,
@@ -21,6 +33,7 @@ func buildTCPSegment(
 	ackNum uint32,
 	payload []byte,
 	corruptChecksum bool,
+	setPSH bool,
 ) []byte {
 	if src.Addr().Is4() != dst.Addr().Is4() {
 		panic("tlsspoof: mixed IPv4/IPv6 address family")
@@ -54,43 +67,87 @@ func buildTCPSegment(
 			DstAddr:           dst.Addr(),
 		})
 	}
-	encodeTCP(frame, ipHeaderLen, src, dst, seqNum, ackNum, payload, corruptChecksum)
+	encodeTCP(frame, ipHeaderLen, src, dst, seqNum, ackNum, payload, corruptChecksum, setPSH)
 	return frame
 }
 
-func encodeTCP(frame []byte, ipHeaderLen int, src, dst netip.AddrPort, seqNum, ackNum uint32, payload []byte, corruptChecksum bool) {
+func encodeTCP(frame []byte, ipHeaderLen int, src, dst netip.AddrPort, seqNum, ackNum uint32, payload []byte, corruptChecksum bool, setPSH bool) {
 	tcp := header.TCP(frame[ipHeaderLen:])
 	copy(frame[ipHeaderLen+tcpHeaderLen:], payload)
+	flags := header.TCPFlagAck
+	if setPSH {
+		flags |= header.TCPFlagPsh
+	}
 	tcp.Encode(&header.TCPFields{
 		SrcPort:    src.Port(),
 		DstPort:    dst.Port(),
 		SeqNum:     seqNum,
 		AckNum:     ackNum,
 		DataOffset: tcpHeaderLen,
-		Flags:      header.TCPFlagAck | header.TCPFlagPsh,
+		Flags:      flags,
 		WindowSize: defaultWindowSize,
 	})
 	applyTCPChecksum(tcp, src.Addr(), dst.Addr(), payload, corruptChecksum)
 }
 
-func buildSpoofFrame(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte) ([]byte, error) {
-	sequence, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
+// buildSpoofFrames splits payload into <=mss TCP chunks and returns one IP+TCP
+// frame per chunk. All chunks carry ACK; only the last carries PSH. Emitting
+// <=MSS chunks avoids IP fragmentation on the raw-injection path, which
+// otherwise costs enough extra kernel/driver work to lose the wire-order race
+// against the kernel's own MSS-segmented real ClientHello.
+func buildSpoofFrames(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte, mss int) ([][]byte, error) {
+	if mss <= 0 {
+		return nil, E.New("tls_spoof: non-positive mss: ", mss)
+	}
+	baseSeq, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
 	if err != nil {
 		return nil, err
 	}
-	return buildTCPSegment(src, dst, sequence, receiveNext, payload, corrupt), nil
+	total := len(payload)
+	if total == 0 {
+		return nil, nil
+	}
+	frames := make([][]byte, 0, (total+mss-1)/mss)
+	for offset := 0; offset < total; offset += mss {
+		end := offset + mss
+		if end > total {
+			end = total
+		}
+		chunkSeq := baseSeq + uint32(offset)
+		isLast := end == total
+		frames = append(frames, buildTCPSegment(src, dst, chunkSeq, receiveNext, payload[offset:end], corrupt, isLast))
+	}
+	return frames, nil
 }
 
-// buildSpoofTCPSegment returns a TCP segment without an IP header, for
-// platforms where the kernel synthesises the IP header (darwin IPv6).
-func buildSpoofTCPSegment(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte) ([]byte, error) {
-	sequence, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
+// buildSpoofSegments emits TCP-only segments for platforms where the kernel
+// synthesises the IP header (darwin IPv6). Splitting semantics match
+// buildSpoofFrames.
+func buildSpoofSegments(method Method, src, dst netip.AddrPort, sendNext, receiveNext uint32, payload []byte, mss int) ([][]byte, error) {
+	if mss <= 0 {
+		return nil, E.New("tls_spoof: non-positive mss: ", mss)
+	}
+	baseSeq, corrupt, err := resolveSpoofSequence(method, sendNext, payload)
 	if err != nil {
 		return nil, err
 	}
-	segment := make([]byte, tcpHeaderLen+len(payload))
-	encodeTCP(segment, 0, src, dst, sequence, receiveNext, payload, corrupt)
-	return segment, nil
+	total := len(payload)
+	if total == 0 {
+		return nil, nil
+	}
+	segments := make([][]byte, 0, (total+mss-1)/mss)
+	for offset := 0; offset < total; offset += mss {
+		end := offset + mss
+		if end > total {
+			end = total
+		}
+		chunkSeq := baseSeq + uint32(offset)
+		isLast := end == total
+		segment := make([]byte, tcpHeaderLen+end-offset)
+		encodeTCP(segment, 0, src, dst, chunkSeq, receiveNext, payload[offset:end], corrupt, isLast)
+		segments = append(segments, segment)
+	}
+	return segments, nil
 }
 
 func resolveSpoofSequence(method Method, sendNext uint32, payload []byte) (uint32, bool, error) {

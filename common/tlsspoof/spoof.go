@@ -64,11 +64,16 @@ func NewConn(conn net.Conn, spoofer Spoofer, fakeSNI string) *Conn {
 	}
 }
 
-func (c *Conn) Write(b []byte) (int, error) {
+func (c *Conn) Write(b []byte) (n int, err error) {
 	if c.injected {
 		return c.Conn.Write(b)
 	}
-	defer c.spoofer.Close()
+	defer func() {
+		closeErr := c.spoofer.Close()
+		if err == nil && closeErr != nil {
+			err = E.Cause(closeErr, "tls_spoof: close spoofer")
+		}
+	}()
 	fake, err := rewriteSNI(b, c.fakeSNI)
 	if err != nil {
 		return 0, E.Cause(err, "tls_spoof: rewrite SNI")

@@ -77,3 +77,16 @@ func TestRewriteSNI_DoesNotMutateInput(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, original, payload, "input payload must not be mutated")
 }
+
+// TestRewriteSNI_IdenticalSNIProducesIdenticalBytes codifies why config
+// validation must reject spoof == server_name: with delta=0 and identical SNI
+// bytes, the rewriter produces a byte-identical record, causing the fake and
+// real packets on the wire to look the same.
+func TestRewriteSNI_IdenticalSNIProducesIdenticalBytes(t *testing.T) {
+	t.Parallel()
+	payload := decodeClientHello(t)
+	out, err := rewriteSNI(payload, "github.com")
+	require.NoError(t, err)
+	require.Equal(t, payload, out,
+		"rewriting with the original SNI must yield an identical record (documents the failure mode)")
+}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/common/windivert"
 	"github.com/sagernet/sing-tun/gtcpip/header"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"golang.org/x/sys/windows"
@@ -30,6 +31,7 @@ type windowsSpoofer struct {
 	src, dst netip.AddrPort
 	divertH  *windivert.Handle
 	injectH  *windivert.Handle
+	mss      int
 
 	fakeReady chan []byte   // buffered(1): staged by Inject
 	done      chan struct{} // closed by run() on exit
@@ -38,7 +40,7 @@ type windowsSpoofer struct {
 }
 
 func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
-	_, src, dst, err := tcpEndpoints(conn)
+	tcpConn, src, dst, err := tcpEndpoints(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -56,17 +58,43 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 		divertH.Close()
 		return nil, E.Cause(err, "tls_spoof: open WinDivert")
 	}
+	mss := defaultMSS(src.Addr().Is4())
+	readMSS, mssErr := readWindowsTCPMaxSeg(tcpConn)
+	if mssErr == nil && readMSS > 0 {
+		mss = readMSS
+	}
 	s := &windowsSpoofer{
 		method:    method,
 		src:       src,
 		dst:       dst,
 		divertH:   divertH,
 		injectH:   injectH,
+		mss:       mss,
 		fakeReady: make(chan []byte, 1),
 		done:      make(chan struct{}),
 	}
 	go s.run()
 	return s, nil
+}
+
+// readWindowsTCPMaxSeg reads TCP_MAXSEG from the connected TCP socket. Windows
+// exposes this as a read-only getsockopt option (Windows 10 1703+). Because
+// newRawSpoofer runs after the TCP handshake, the returned value reflects the
+// negotiated MSS rather than the kernel default.
+func readWindowsTCPMaxSeg(tcpConn *net.TCPConn) (int, error) {
+	var mss int
+	err := control.Conn(tcpConn, func(raw uintptr) error {
+		value, getErr := windows.GetsockoptInt(windows.Handle(raw), windows.IPPROTO_TCP, windows.TCP_MAXSEG)
+		if getErr != nil {
+			return getErr
+		}
+		mss = value
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return mss, nil
 }
 
 func (s *windowsSpoofer) Inject(payload []byte) error {
@@ -119,9 +147,17 @@ func (s *windowsSpoofer) run() {
 		pkt := buf[:n]
 		seq, ack, payloadLen, ok := parseTCPFields(pkt, addr.IPv6())
 		if !ok {
-			// Malformed / not TCP — shouldn't match our filter, but be safe.
-			_, _ = s.divertH.Send(pkt, &addr)
-			continue
+			// Our filter is OutboundTCP(src, dst); a non-TCP or truncated
+			// match means driver state is suspect. Re-inject so the kernel
+			// still sees the byte stream, then abort — continuing would risk
+			// reordering against an unknown reference point.
+			_, sendErr := s.divertH.Send(pkt, &addr)
+			if sendErr != nil {
+				s.recordErr(E.Cause(sendErr, "windivert re-inject malformed"))
+				return
+			}
+			s.recordErr(E.New("windivert received malformed packet matching spoof filter"))
+			return
 		}
 		if payloadLen == 0 {
 			// Handshake ACK, keepalive, FIN — pass through unchanged.
@@ -147,22 +183,29 @@ func (s *windowsSpoofer) run() {
 			continue
 		}
 
-		frame, err := buildSpoofFrame(s.method, s.src, s.dst, seq, ack, fake)
+		// Split the fake at negotiated MSS so every injected frame fits in
+		// one MTU. A monolithic oversized injection hits the Windows IP
+		// output path's fragmentation slow path (multi-MDL queuing), which
+		// costs enough extra NDIS work to let the released real beat the
+		// fake to the NIC.
+		frames, err := buildSpoofFrames(s.method, s.src, s.dst, seq, ack, fake, s.mss)
 		if err != nil {
 			s.recordErr(err)
 			return
 		}
 		fakeAddr := addr // inherit Outbound, IfIdx
-		// buildSpoofFrame emits ready-to-wire bytes. The driver recomputes
+		// buildSpoofFrames emits ready-to-wire bytes. The driver recomputes
 		// checksums on Send when TCPChecksum/IPChecksum are 0 — which would
 		// overwrite the intentionally corrupt checksum in WrongChecksum mode.
 		// Force both to 1 to keep our bytes intact.
 		fakeAddr.SetIPChecksum(true)
 		fakeAddr.SetTCPChecksum(true)
-		_, err = s.injectH.Send(frame, &fakeAddr)
-		if err != nil {
-			s.recordErr(E.Cause(err, "windivert inject fake"))
-			return
+		for _, frame := range frames {
+			_, err = s.injectH.Send(frame, &fakeAddr)
+			if err != nil {
+				s.recordErr(E.Cause(err, "windivert inject fake"))
+				return
+			}
 		}
 		_, err = s.divertH.Send(pkt, &addr)
 		if err != nil {

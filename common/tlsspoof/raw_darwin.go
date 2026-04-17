@@ -34,14 +34,26 @@ const (
 	darwinXtcpcbRcvNxtOffset = 80
 )
 
-var darwinStructSize = sync.OnceValue(func() int {
-	value, _ := syscall.Sysctl("kern.osrelease")
-	major, _, _ := strings.Cut(value, ".")
-	n, _ := strconv.ParseInt(major, 10, 64)
-	if n >= 22 {
-		return 408
+// darwinStructSize returns the size of xinpcb_n for the running Darwin kernel.
+// Darwin 22 (macOS 13 Ventura) grew the struct from 384 to 408 bytes; there is
+// no ABI-stable way to read it, so we key off the kernel version.
+var darwinStructSize = sync.OnceValues(func() (int, error) {
+	value, err := syscall.Sysctl("kern.osrelease")
+	if err != nil {
+		return 0, E.Cause(err, "sysctl kern.osrelease")
 	}
-	return 384
+	major, _, ok := strings.Cut(value, ".")
+	if !ok {
+		return 0, E.New("unexpected kern.osrelease format: ", value)
+	}
+	n, err := strconv.ParseInt(major, 10, 64)
+	if err != nil {
+		return 0, E.Cause(err, "parse kern.osrelease major version: ", value)
+	}
+	if n >= 22 {
+		return 408, nil
+	}
+	return 384, nil
 })
 
 type darwinSpoofer struct {
@@ -52,10 +64,11 @@ type darwinSpoofer struct {
 	rawSockAddr unix.Sockaddr
 	sendNext    uint32
 	receiveNext uint32
+	mss         int
 }
 
 func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
-	_, src, dst, err := tcpEndpoints(conn)
+	tcpConn, src, dst, err := tcpEndpoints(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +81,11 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 		unix.Close(fd)
 		return nil, err
 	}
+	mss := defaultMSS(src.Addr().Is4())
+	readMSS, mssErr := readTCPMaxSeg(tcpConn)
+	if mssErr == nil && readMSS > 0 {
+		mss = readMSS
+	}
 	return &darwinSpoofer{
 		method:      method,
 		src:         src,
@@ -76,6 +94,7 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 		rawSockAddr: sockaddr,
 		sendNext:    sendNext,
 		receiveNext: receiveNext,
+		mss:         mss,
 	}, nil
 }
 
@@ -87,7 +106,10 @@ func readDarwinTCPSequence(src, dst netip.AddrPort) (uint32, uint32, error) {
 	if err != nil {
 		return 0, 0, E.Cause(err, "sysctl net.inet.tcp.pcblist_n")
 	}
-	structSize := darwinStructSize()
+	structSize, err := darwinStructSize()
+	if err != nil {
+		return 0, 0, err
+	}
 	itemSize := structSize + darwinTCPExtraSize
 	for i := darwinXinpgenSize; i+itemSize <= len(buffer); i += itemSize {
 		inpcb := buffer[i : i+darwinXsocketOffset]
@@ -143,30 +165,34 @@ func openDarwinRawSocket(src, dst netip.AddrPort) (int, unix.Sockaddr, error) {
 
 func (s *darwinSpoofer) Inject(payload []byte) error {
 	if !s.src.Addr().Is4() {
-		segment, err := buildSpoofTCPSegment(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+		segments, err := buildSpoofSegments(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload, s.mss)
 		if err != nil {
 			return err
 		}
-		err = unix.Sendto(s.rawFD, segment, 0, s.rawSockAddr)
-		if err != nil {
-			return E.Cause(err, "sendto raw socket")
+		for _, segment := range segments {
+			err = unix.Sendto(s.rawFD, segment, 0, s.rawSockAddr)
+			if err != nil {
+				return E.Cause(err, "sendto raw socket")
+			}
 		}
 		return nil
 	}
-	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+	frames, err := buildSpoofFrames(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload, s.mss)
 	if err != nil {
 		return err
 	}
-	// Darwin inherits the historical BSD quirk: with IP_HDRINCL the kernel
-	// expects ip_len and ip_off in host byte order, not network byte order.
-	// Apple's rip_output swaps them back before transmission.
-	totalLen := binary.BigEndian.Uint16(frame[2:4])
-	binary.NativeEndian.PutUint16(frame[2:4], totalLen)
-	fragOff := binary.BigEndian.Uint16(frame[6:8])
-	binary.NativeEndian.PutUint16(frame[6:8], fragOff)
-	err = unix.Sendto(s.rawFD, frame, 0, s.rawSockAddr)
-	if err != nil {
-		return E.Cause(err, "sendto raw socket")
+	for _, frame := range frames {
+		// Darwin inherits the historical BSD quirk: with IP_HDRINCL the kernel
+		// expects ip_len and ip_off in host byte order, not network byte order.
+		// Apple's rip_output swaps them back before transmission.
+		totalLen := binary.BigEndian.Uint16(frame[2:4])
+		binary.NativeEndian.PutUint16(frame[2:4], totalLen)
+		fragOff := binary.BigEndian.Uint16(frame[6:8])
+		binary.NativeEndian.PutUint16(frame[6:8], fragOff)
+		err = unix.Sendto(s.rawFD, frame, 0, s.rawSockAddr)
+		if err != nil {
+			return E.Cause(err, "sendto raw socket")
+		}
 	}
 	return nil
 }

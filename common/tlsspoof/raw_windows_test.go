@@ -16,7 +16,7 @@ func TestParseTCPFieldsIPv4Valid(t *testing.T) {
 	src := netip.MustParseAddrPort("10.0.0.1:54321")
 	dst := netip.MustParseAddrPort("1.2.3.4:443")
 	payload := []byte("hello")
-	frame := buildTCPSegment(src, dst, 1000, 2000, payload, false)
+	frame := buildTCPSegment(src, dst, 1000, 2000, payload, false, true)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, false)
 	require.True(t, ok)
@@ -29,7 +29,7 @@ func TestParseTCPFieldsIPv4NoPayload(t *testing.T) {
 	t.Parallel()
 	src := netip.MustParseAddrPort("10.0.0.1:54321")
 	dst := netip.MustParseAddrPort("1.2.3.4:443")
-	frame := buildTCPSegment(src, dst, 42, 100, nil, false)
+	frame := buildTCPSegment(src, dst, 42, 100, nil, false, true)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, false)
 	require.True(t, ok)
@@ -43,7 +43,7 @@ func TestParseTCPFieldsIPv6Valid(t *testing.T) {
 	src := netip.MustParseAddrPort("[fe80::1]:54321")
 	dst := netip.MustParseAddrPort("[2606:4700::1]:443")
 	payload := []byte("hello-v6")
-	frame := buildTCPSegment(src, dst, 0xDEADBEEF, 0x12345678, payload, false)
+	frame := buildTCPSegment(src, dst, 0xDEADBEEF, 0x12345678, payload, false, true)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, true)
 	require.True(t, ok)
@@ -103,7 +103,7 @@ func TestParseTCPFieldsIPv4OptionsOverflow(t *testing.T) {
 	// Start with a valid IPv4+TCP frame, then lie about the header length.
 	src := netip.MustParseAddrPort("10.0.0.1:1")
 	dst := netip.MustParseAddrPort("10.0.0.2:2")
-	frame := buildTCPSegment(src, dst, 0, 0, []byte("x"), false)
+	frame := buildTCPSegment(src, dst, 0, 0, []byte("x"), false, true)
 	ip := header.IPv4(frame[:header.IPv4MinimumSize])
 	// ihl=15 → 60 bytes of IP header claimed, but buffer only has 20.
 	ip.SetHeaderLength(60)

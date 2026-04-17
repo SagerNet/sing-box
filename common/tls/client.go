@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/sagernet/sing-box/common/badtls"
 	"github.com/sagernet/sing-box/common/tlsspoof"
@@ -32,6 +33,9 @@ func parseTLSSpoofOptions(serverName string, options option.OutboundTLSOptions) 
 	}
 	if options.DisableSNI || serverName == "" || M.ParseAddr(serverName).IsValid() {
 		return "", 0, E.New("`spoof` requires TLS ClientHello with SNI")
+	}
+	if strings.EqualFold(options.Spoof, serverName) {
+		return "", 0, E.New("`spoof` must differ from `server_name`")
 	}
 	method, err := tlsspoof.ParseMethod(options.SpoofMethod)
 	if err != nil {
