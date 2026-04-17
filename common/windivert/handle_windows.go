@@ -110,8 +110,12 @@ func validateOpenArgs(layer Layer, priority int16, flags Flag) error {
 	if priority < PriorityLowest || priority > PriorityHighest {
 		return E.New("windivert: priority out of range")
 	}
-	if flags&^FlagSendOnly != 0 {
+	const supportedFlags = FlagSniff | FlagSendOnly
+	if flags&^supportedFlags != 0 {
 		return E.New("windivert: unknown flag bits")
+	}
+	if flags&FlagSniff != 0 && flags&FlagSendOnly != 0 {
+		return E.New("windivert: FlagSniff and FlagSendOnly are mutually exclusive")
 	}
 	return nil
 }

@@ -23,7 +23,14 @@ const LayerNetwork Layer = 0
 
 type Flag uint64
 
-const FlagSendOnly Flag = 0x0008
+const (
+	// FlagSniff opens a passive observer: the driver copies matching packets
+	// to userspace without removing them from the network stack. Send is not
+	// required (and not allowed) on a sniffing handle.
+	FlagSniff Flag = 0x0001
+	// FlagSendOnly opens a write-only injection handle; Recv is not allowed.
+	FlagSendOnly Flag = 0x0008
+)
 
 const (
 	PriorityHighest int16 = 30000

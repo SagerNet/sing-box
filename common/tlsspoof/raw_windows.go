@@ -25,11 +25,15 @@ const PlatformSupported = true
 // bounds the pathological case where the kernel buffers the packet.
 const closeGracePeriod = 2 * time.Second
 
+// windowsSpoofer uses a single WinDivert handle for both capture and
+// injection. Sequential Send() calls on one handle traverse one driver queue,
+// so the fake provably precedes the released real on the wire — a guarantee
+// two separate handles cannot make because cross-handle order depends on the
+// scheduler.
 type windowsSpoofer struct {
 	method   Method
 	src, dst netip.AddrPort
 	divertH  *windivert.Handle
-	injectH  *windivert.Handle
 
 	fakeReady chan []byte   // buffered(1): staged by Inject
 	done      chan struct{} // closed by run() on exit
@@ -37,12 +41,11 @@ type windowsSpoofer struct {
 	runErr    atomic.Pointer[error]
 }
 
-func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
+func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
 	_, src, dst, err := tcpEndpoints(conn)
 	if err != nil {
 		return nil, err
 	}
-
 	filter, err := windivert.OutboundTCP(src, dst)
 	if err != nil {
 		return nil, err
@@ -51,17 +54,11 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 	if err != nil {
 		return nil, E.Cause(err, "tls_spoof: open WinDivert")
 	}
-	injectH, err := windivert.Open(nil, windivert.LayerNetwork, 0, windivert.FlagSendOnly)
-	if err != nil {
-		divertH.Close()
-		return nil, E.Cause(err, "tls_spoof: open WinDivert")
-	}
 	s := &windowsSpoofer{
 		method:    method,
 		src:       src,
 		dst:       dst,
 		divertH:   divertH,
-		injectH:   injectH,
 		fakeReady: make(chan []byte, 1),
 		done:      make(chan struct{}),
 	}
@@ -91,7 +88,6 @@ func (s *windowsSpoofer) Close() error {
 			s.divertH.Close()
 			<-s.done
 		}
-		s.injectH.Close()
 	})
 	if p := s.runErr.Load(); p != nil {
 		return *p
@@ -119,9 +115,17 @@ func (s *windowsSpoofer) run() {
 		pkt := buf[:n]
 		seq, ack, payloadLen, ok := parseTCPFields(pkt, addr.IPv6())
 		if !ok {
-			// Malformed / not TCP — shouldn't match our filter, but be safe.
-			_, _ = s.divertH.Send(pkt, &addr)
-			continue
+			// Our filter is OutboundTCP(src, dst); a non-TCP or truncated
+			// match means driver state is suspect. Re-inject so the kernel
+			// still sees the byte stream, then abort — continuing would risk
+			// reordering against an unknown reference point.
+			_, sendErr := s.divertH.Send(pkt, &addr)
+			if sendErr != nil {
+				s.recordErr(E.Cause(sendErr, "windivert re-inject malformed"))
+				return
+			}
+			s.recordErr(E.New("windivert received malformed packet matching spoof filter"))
+			return
 		}
 		if payloadLen == 0 {
 			// Handshake ACK, keepalive, FIN — pass through unchanged.
@@ -159,7 +163,7 @@ func (s *windowsSpoofer) run() {
 		// Force both to 1 to keep our bytes intact.
 		fakeAddr.SetIPChecksum(true)
 		fakeAddr.SetTCPChecksum(true)
-		_, err = s.injectH.Send(frame, &fakeAddr)
+		_, err = s.divertH.Send(frame, &fakeAddr)
 		if err != nil {
 			s.recordErr(E.Cause(err, "windivert inject fake"))
 			return

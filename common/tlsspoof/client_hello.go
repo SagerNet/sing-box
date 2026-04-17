@@ -1,86 +1,37 @@
 package tlsspoof
 
 import (
-	"encoding/binary"
+	"bytes"
+	"context"
+	"crypto/tls"
 
-	tf "github.com/sagernet/sing-box/common/tlsfragment"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-const (
-	recordLengthOffset    = 3
-	handshakeLengthOffset = 6
-)
-
-// server_name extension layout (RFC 6066 §3). Offsets are relative to the
-// SNI host name (index returned by the parser):
-//
-//	...    uint16 extension_type = 0x0000     (host_name - 9)
-//	...    uint16 extension_data_length       (host_name - 7)
-//	...    uint16 server_name_list_length     (host_name - 5)
-//	...    uint8  name_type = host_name       (host_name - 3)
-//	...    uint16 host_name_length            (host_name - 2)
-//	sni    host_name                          (host_name)
-const (
-	extensionDataLengthOffsetFromSNI = -7
-	listLengthOffsetFromSNI          = -5
-	hostNameLengthOffsetFromSNI      = -2
-)
-
-func rewriteSNI(record []byte, fakeSNI string) ([]byte, error) {
-	if len(fakeSNI) > 0xFFFF {
-		return nil, E.New("fake SNI too long: ", len(fakeSNI), " bytes")
+// buildFakeClientHello drives crypto/tls against a write-only in-memory conn
+// to capture a generated ClientHello. CurvePreferences pins classical groups
+// to suppress Go's default X25519MLKEM768 hybrid key share; without this the
+// post-quantum public key alone (~1184 bytes) pushes the record past one MSS,
+// and middleboxes do not reassemble fragmented ClientHellos. The handshake
+// error is discarded because the stub conn's Read returns immediately.
+func buildFakeClientHello(sni string) ([]byte, error) {
+	if sni == "" {
+		return nil, E.New("empty sni")
 	}
-	serverName := tf.IndexTLSServerName(record)
-	if serverName == nil {
-		return nil, E.New("not a ClientHello with SNI")
+	var buf bytes.Buffer
+	tlsConn := tls.Client(bufio.NewWriteOnlyConn(&buf), &tls.Config{
+		ServerName: sni,
+		// Order matches what browsers advertised before post-quantum.
+		CurvePreferences:   []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384},
+		MinVersion:         tls.VersionTLS12,
+		MaxVersion:         tls.VersionTLS13,
+		NextProtos:         []string{"h2", "http/1.1"},
+		InsecureSkipVerify: true,
+	})
+	_ = tlsConn.HandshakeContext(context.Background())
+	if buf.Len() == 0 {
+		return nil, E.New("tls ClientHello not produced")
 	}
-
-	delta := len(fakeSNI) - serverName.Length
-	out := make([]byte, len(record)+delta)
-	copy(out, record[:serverName.Index])
-	copy(out[serverName.Index:], fakeSNI)
-	copy(out[serverName.Index+len(fakeSNI):], record[serverName.Index+serverName.Length:])
-
-	err := patchUint16(out, recordLengthOffset, delta)
-	if err != nil {
-		return nil, E.Cause(err, "patch record length")
-	}
-	err = patchUint24(out, handshakeLengthOffset, delta)
-	if err != nil {
-		return nil, E.Cause(err, "patch handshake length")
-	}
-	for _, off := range []int{
-		serverName.ExtensionsListLengthIndex,
-		serverName.Index + extensionDataLengthOffsetFromSNI,
-		serverName.Index + listLengthOffsetFromSNI,
-		serverName.Index + hostNameLengthOffsetFromSNI,
-	} {
-		err = patchUint16(out, off, delta)
-		if err != nil {
-			return nil, E.Cause(err, "patch length at offset ", off)
-		}
-	}
-	return out, nil
-}
-
-func patchUint16(data []byte, offset, delta int) error {
-	patched := int(binary.BigEndian.Uint16(data[offset:])) + delta
-	if patched < 0 || patched > 0xFFFF {
-		return E.New("uint16 out of range: ", patched)
-	}
-	binary.BigEndian.PutUint16(data[offset:], uint16(patched))
-	return nil
-}
-
-func patchUint24(data []byte, offset, delta int) error {
-	original := int(data[offset])<<16 | int(data[offset+1])<<8 | int(data[offset+2])
-	patched := original + delta
-	if patched < 0 || patched > 0xFFFFFF {
-		return E.New("uint24 out of range: ", patched)
-	}
-	data[offset] = byte(patched >> 16)
-	data[offset+1] = byte(patched >> 8)
-	data[offset+2] = byte(patched)
-	return nil
+	return buf.Bytes(), nil
 }

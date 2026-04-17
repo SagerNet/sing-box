@@ -10,6 +10,6 @@ import (
 
 const PlatformSupported = false
 
-func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
+func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
 	return nil, E.New("tls_spoof: unsupported platform")
 }
