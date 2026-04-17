@@ -30,7 +30,6 @@ type windowsSpoofer struct {
 	method   Method
 	src, dst netip.AddrPort
 	divertH  *windivert.Handle
-	injectH  *windivert.Handle
 	mss      int
 
 	fakeReady chan []byte   // buffered(1): staged by Inject
@@ -53,11 +52,6 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 	if err != nil {
 		return nil, E.Cause(err, "tls_spoof: open WinDivert")
 	}
-	injectH, err := windivert.Open(nil, windivert.LayerNetwork, 0, windivert.FlagSendOnly)
-	if err != nil {
-		divertH.Close()
-		return nil, E.Cause(err, "tls_spoof: open WinDivert")
-	}
 	mss := defaultMSS(src.Addr().Is4())
 	readMSS, mssErr := readWindowsTCPMaxSeg(tcpConn)
 	if mssErr == nil && readMSS > 0 {
@@ -68,7 +62,6 @@ func newRawSpoofer(conn net.Conn, method Method) (Spoofer, error) {
 		src:       src,
 		dst:       dst,
 		divertH:   divertH,
-		injectH:   injectH,
 		mss:       mss,
 		fakeReady: make(chan []byte, 1),
 		done:      make(chan struct{}),
@@ -119,7 +112,6 @@ func (s *windowsSpoofer) Close() error {
 			s.divertH.Close()
 			<-s.done
 		}
-		s.injectH.Close()
 	})
 	if p := s.runErr.Load(); p != nil {
 		return *p
@@ -201,7 +193,7 @@ func (s *windowsSpoofer) run() {
 		fakeAddr.SetIPChecksum(true)
 		fakeAddr.SetTCPChecksum(true)
 		for _, frame := range frames {
-			_, err = s.injectH.Send(frame, &fakeAddr)
+			_, err = s.divertH.Send(frame, &fakeAddr)
 			if err != nil {
 				s.recordErr(E.Cause(err, "windivert inject fake"))
 				return
