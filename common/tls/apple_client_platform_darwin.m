@@ -285,26 +285,10 @@ oom:
 	return false;
 }
 
-static bool box_apple_tls_state_load(nw_connection_t connection, box_apple_tls_state_t *state, char **error_out) {
-	box_apple_tls_state_reset(state);
-	if (connection == nil) {
-		box_set_error_message(error_out, "apple TLS: invalid client");
-		return false;
-	}
-
-	nw_protocol_definition_t tls_definition = nw_protocol_copy_tls_definition();
-	nw_protocol_metadata_t metadata = nw_connection_copy_protocol_metadata(connection, tls_definition);
-	if (metadata == NULL || !nw_protocol_metadata_is_tls(metadata)) {
-		box_set_error_message(error_out, "apple TLS: metadata unavailable");
-		return false;
-	}
-
-	sec_protocol_metadata_t sec_metadata = nw_tls_copy_sec_protocol_metadata(metadata);
-	if (sec_metadata == NULL) {
-		box_set_error_message(error_out, "apple TLS: metadata unavailable");
-		return false;
-	}
-
+// Captures TLS negotiation results from the verify block. The sec_metadata
+// exposed here is live for the duration of the handshake; the one retrieved
+// after nw_connection_state_ready may return stale ALPN/server_name buffers.
+static void box_apple_tls_state_load(sec_protocol_metadata_t sec_metadata, box_apple_tls_state_t *state) {
 	state->version = (uint16_t)sec_protocol_metadata_get_negotiated_tls_protocol_version(sec_metadata);
 	state->cipher_suite = (uint16_t)sec_protocol_metadata_get_negotiated_tls_ciphersuite(sec_metadata);
 	state->alpn = box_apple_tls_metadata_copy_negotiated_protocol(sec_metadata);
@@ -329,15 +313,11 @@ static bool box_apple_tls_state_load(nw_connection_t connection, box_apple_tls_s
 	});
 	if (chain_data.length > 0) {
 		state->peer_cert_chain = malloc(chain_data.length);
-		if (state->peer_cert_chain == NULL) {
-			box_set_error_message(error_out, "apple TLS: out of memory");
-			box_apple_tls_state_reset(state);
-			return false;
+		if (state->peer_cert_chain != NULL) {
+			memcpy(state->peer_cert_chain, chain_data.bytes, chain_data.length);
+			state->peer_cert_chain_len = chain_data.length;
 		}
-		memcpy(state->peer_cert_chain, chain_data.bytes, chain_data.length);
-		state->peer_cert_chain_len = chain_data.length;
 	}
-	return true;
 }
 
 box_apple_tls_client_t *box_apple_tls_client_create(
@@ -388,15 +368,12 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 			sec_protocol_options_add_tls_application_protocol(sec_options, protocol.UTF8String);
 		}
 		sec_protocol_options_set_peer_authentication_required(sec_options, !insecure);
-		if (insecure) {
-			sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t metadata, sec_trust_t trust, sec_protocol_verify_complete_t complete) {
-				complete(true);
-			}, box_apple_tls_client_queue(client));
-		} else if (verifyDate != nil || anchors.count > 0 || anchor_only) {
-			sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t metadata, sec_trust_t trust, sec_protocol_verify_complete_t complete) {
-				complete(box_evaluate_trust(trust, anchors, anchor_only, verifyDate));
-			}, box_apple_tls_client_queue(client));
-		}
+		sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t metadata, sec_trust_t trust, sec_protocol_verify_complete_t complete) {
+			if (client->state.version == 0) {
+				box_apple_tls_state_load(metadata, &client->state);
+			}
+			complete(insecure || box_evaluate_trust(trust, anchors, anchor_only, verifyDate));
+		}, box_apple_tls_client_queue(client));
 	}, NW_PARAMETERS_DEFAULT_CONFIGURATION);
 
 	nw_connection_t connection = box_apple_tls_create_connection(connected_socket, parameters);
@@ -420,7 +397,11 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 		switch (state) {
 		case nw_connection_state_ready:
 			if (!atomic_load(&client->ready_done)) {
-				atomic_store(&client->ready, box_apple_tls_state_load(connection, &client->state, &client->ready_error));
+				if (client->state.version == 0) {
+					box_set_error_message(&client->ready_error, "apple TLS: metadata unavailable");
+				} else {
+					atomic_store(&client->ready, true);
+				}
 				atomic_store(&client->ready_done, true);
 				dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
 			}
