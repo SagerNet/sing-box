@@ -61,8 +61,14 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 	alpnPtr := cStringOrNil(alpn)
 	defer cFree(alpnPtr)
 
-	anchorPEMPtr := cStringOrNil(c.anchorPEM)
-	defer cFree(anchorPEMPtr)
+	anchors, err := c.resolveAnchors()
+	if err != nil {
+		return nil, err
+	}
+	var anchorsRef unsafe.Pointer
+	if anchors != nil {
+		anchorsRef = anchors.Ref()
+	}
 
 	var (
 		hasVerifyTime       bool
@@ -82,13 +88,15 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 		C.uint16_t(c.minVersion),
 		C.uint16_t(c.maxVersion),
 		C.bool(c.insecure),
-		anchorPEMPtr,
-		C.size_t(len(c.anchorPEM)),
+		anchorsRef,
 		C.bool(c.anchorOnly),
 		C.bool(hasVerifyTime),
 		C.int64_t(verifyTimeUnixMilli),
 		&errorPtr,
 	)
+	if anchors != nil {
+		anchors.Release()
+	}
 	if client == nil {
 		if errorPtr != nil {
 			defer C.free(unsafe.Pointer(errorPtr))
@@ -142,17 +150,20 @@ const appleTLSHandshakePollInterval = 100 * time.Millisecond
 
 func waitAppleTLSClientReady(ctx context.Context, client *C.box_apple_tls_client_t) error {
 	for {
-		if err := ctx.Err(); err != nil {
+		err := ctx.Err()
+		if err != nil {
 			C.box_apple_tls_client_cancel(client)
 			return err
 		}
 
 		waitTimeout := appleTLSHandshakePollInterval
-		if deadline, loaded := ctx.Deadline(); loaded {
+		deadline, loaded := ctx.Deadline()
+		if loaded {
 			remaining := time.Until(deadline)
 			if remaining <= 0 {
 				C.box_apple_tls_client_cancel(client)
-				if err := ctx.Err(); err != nil {
+				err = ctx.Err()
+				if err != nil {
 					return err
 				}
 				return context.DeadlineExceeded

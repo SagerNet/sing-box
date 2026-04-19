@@ -21,6 +21,7 @@ typedef struct box_apple_tls_client {
 	void *connection;
 	void *queue;
 	void *ready_semaphore;
+	void *anchors;
 	atomic_int ref_count;
 	atomic_bool ready;
 	atomic_bool ready_done;
@@ -49,6 +50,13 @@ static dispatch_semaphore_t box_apple_tls_ready_semaphore(box_apple_tls_client_t
 	return (__bridge dispatch_semaphore_t)client->ready_semaphore;
 }
 
+static NSArray *box_apple_tls_client_anchors(box_apple_tls_client_t *client) {
+	if (client == NULL || client->anchors == NULL) {
+		return nil;
+	}
+	return (__bridge NSArray *)client->anchors;
+}
+
 static void box_apple_tls_state_reset(box_apple_tls_state_t *state) {
 	if (state == NULL) {
 		return;
@@ -62,6 +70,9 @@ static void box_apple_tls_state_reset(box_apple_tls_state_t *state) {
 static void box_apple_tls_client_destroy(box_apple_tls_client_t *client) {
 	free(client->ready_error);
 	box_apple_tls_state_reset(&client->state);
+	if (client->anchors != NULL) {
+		CFRelease((CFTypeRef)client->anchors);
+	}
 	if (client->ready_semaphore != NULL) {
 		CFBridgingRelease(client->ready_semaphore);
 	}
@@ -168,44 +179,6 @@ static NSArray<NSString *> *box_split_lines(const char *content, size_t content_
 		}
 	}];
 	return lines;
-}
-
-static NSArray *box_parse_certificates_from_pem(const char *pem, size_t pem_len) {
-	if (pem == NULL || pem_len == 0) {
-		return @[];
-	}
-	NSString *content = [[NSString alloc] initWithBytes:pem length:pem_len encoding:NSUTF8StringEncoding];
-	if (content == nil) {
-		return @[];
-	}
-	NSString *beginMarker = @"-----BEGIN CERTIFICATE-----";
-	NSString *endMarker = @"-----END CERTIFICATE-----";
-	NSMutableArray *certificates = [NSMutableArray array];
-	NSUInteger searchFrom = 0;
-	while (searchFrom < content.length) {
-		NSRange beginRange = [content rangeOfString:beginMarker options:0 range:NSMakeRange(searchFrom, content.length - searchFrom)];
-		if (beginRange.location == NSNotFound) {
-			break;
-		}
-		NSUInteger bodyStart = beginRange.location + beginRange.length;
-		NSRange endRange = [content rangeOfString:endMarker options:0 range:NSMakeRange(bodyStart, content.length - bodyStart)];
-		if (endRange.location == NSNotFound) {
-			break;
-		}
-		NSString *base64Section = [content substringWithRange:NSMakeRange(bodyStart, endRange.location - bodyStart)];
-		NSArray<NSString *> *components = [base64Section componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		NSString *base64Content = [components componentsJoinedByString:@""];
-		NSData *der = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
-		if (der != nil) {
-			SecCertificateRef certificate = SecCertificateCreateWithData(NULL, (__bridge CFDataRef)der);
-			if (certificate != NULL) {
-				[certificates addObject:(__bridge id)certificate];
-				CFRelease(certificate);
-			}
-		}
-		searchFrom = endRange.location + endRange.length;
-	}
-	return certificates;
 }
 
 static bool box_evaluate_trust(sec_trust_t trust, NSArray *anchors, bool anchor_only, NSDate *verify_date) {
@@ -328,8 +301,7 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 	uint16_t min_version,
 	uint16_t max_version,
 	bool insecure,
-	const char *anchor_pem,
-	size_t anchor_pem_len,
+	void *anchors_cf,
 	bool anchor_only,
 	bool has_verify_time,
 	int64_t verify_time_unix_millis,
@@ -346,9 +318,11 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 	atomic_init(&client->ref_count, 1);
 	atomic_init(&client->ready, false);
 	atomic_init(&client->ready_done, false);
+	if (anchors_cf != NULL) {
+		client->anchors = (void *)CFRetain(anchors_cf);
+	}
 
 	NSArray<NSString *> *alpnList = box_split_lines(alpn, alpn_len);
-	NSArray *anchors = box_parse_certificates_from_pem(anchor_pem, anchor_pem_len);
 	NSDate *verifyDate = nil;
 	if (has_verify_time) {
 		verifyDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)verify_time_unix_millis / 1000.0];
@@ -372,13 +346,16 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 			if (client->state.version == 0) {
 				box_apple_tls_state_load(metadata, &client->state);
 			}
-			complete(insecure || box_evaluate_trust(trust, anchors, anchor_only, verifyDate));
+			complete(insecure || box_evaluate_trust(trust, box_apple_tls_client_anchors(client), anchor_only, verifyDate));
 		}, box_apple_tls_client_queue(client));
 	}, NW_PARAMETERS_DEFAULT_CONFIGURATION);
 
 	nw_connection_t connection = box_apple_tls_create_connection(connected_socket, parameters);
 	if (connection == NULL) {
 		close(connected_socket);
+		if (client->anchors != NULL) {
+			CFRelease((CFTypeRef)client->anchors);
+		}
 		if (client->ready_semaphore != NULL) {
 			CFBridgingRelease(client->ready_semaphore);
 		}
@@ -558,12 +535,11 @@ ssize_t box_apple_tls_client_write(box_apple_tls_client_t *client, const void *b
 	}
 
 	void *content_copy = malloc(buffer_len);
-	dispatch_queue_t queue = box_apple_tls_client_queue(client);
 	if (content_copy == NULL) {
-		free(content_copy);
 		box_set_error_message(error_out, "apple TLS: out of memory");
 		return -1;
 	}
+	dispatch_queue_t queue = box_apple_tls_client_queue(client);
 	if (queue == nil) {
 		free(content_copy);
 		box_set_error_message(error_out, "apple TLS: invalid client");

@@ -1,0 +1,1630 @@
+//go:build windows
+
+package tls
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	stdtls "crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io"
+	"net"
+	"os"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json/badoption"
+	"github.com/sagernet/sing/common/logger"
+)
+
+const windowsTLSTestTimeout = 5 * time.Second
+
+type windowsTLSServerResult struct {
+	state stdtls.ConnectionState
+	err   error
+}
+
+type windowsTestDeadlineConn struct {
+	access         sync.Mutex
+	writeDeadline  time.Time
+	writeDeadlines []time.Time
+}
+
+type windowsTestWriteGateConn struct {
+	writeCalled  chan struct{}
+	releaseWrite chan struct{}
+}
+
+func (c *windowsTestDeadlineConn) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (c *windowsTestDeadlineConn) Write(_ []byte) (int, error) {
+	c.access.Lock()
+	deadline := c.writeDeadline
+	c.access.Unlock()
+	if deadline.IsZero() {
+		return 0, errors.New("write deadline not applied")
+	}
+	if !deadline.After(time.Now()) {
+		return 0, os.ErrDeadlineExceeded
+	}
+	time.Sleep(time.Until(deadline))
+	return 0, os.ErrDeadlineExceeded
+}
+
+func (c *windowsTestDeadlineConn) Close() error {
+	return nil
+}
+
+func (c *windowsTestDeadlineConn) LocalAddr() net.Addr {
+	return windowsTestAddr("local")
+}
+
+func (c *windowsTestDeadlineConn) RemoteAddr() net.Addr {
+	return windowsTestAddr("remote")
+}
+
+func (c *windowsTestDeadlineConn) SetDeadline(t time.Time) error {
+	return c.SetWriteDeadline(t)
+}
+
+func (c *windowsTestDeadlineConn) SetReadDeadline(_ time.Time) error {
+	return nil
+}
+
+func (c *windowsTestDeadlineConn) SetWriteDeadline(t time.Time) error {
+	c.access.Lock()
+	c.writeDeadline = t
+	c.writeDeadlines = append(c.writeDeadlines, t)
+	c.access.Unlock()
+	return nil
+}
+
+func (c *windowsTestDeadlineConn) recordedWriteDeadlines() []time.Time {
+	c.access.Lock()
+	defer c.access.Unlock()
+	return append([]time.Time(nil), c.writeDeadlines...)
+}
+
+func (c *windowsTestWriteGateConn) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (c *windowsTestWriteGateConn) Write(p []byte) (int, error) {
+	close(c.writeCalled)
+	<-c.releaseWrite
+	return len(p), nil
+}
+
+func (c *windowsTestWriteGateConn) Close() error {
+	return nil
+}
+
+func (c *windowsTestWriteGateConn) LocalAddr() net.Addr {
+	return windowsTestAddr("local")
+}
+
+func (c *windowsTestWriteGateConn) RemoteAddr() net.Addr {
+	return windowsTestAddr("remote")
+}
+
+func (c *windowsTestWriteGateConn) SetDeadline(time.Time) error {
+	return nil
+}
+
+func (c *windowsTestWriteGateConn) SetReadDeadline(time.Time) error {
+	return nil
+}
+
+func (c *windowsTestWriteGateConn) SetWriteDeadline(time.Time) error {
+	return nil
+}
+
+type windowsTestAddr string
+
+func (a windowsTestAddr) Network() string {
+	return "test"
+}
+
+func (a windowsTestAddr) String() string {
+	return string(a)
+}
+
+func TestWindowsClientHandshakeTLS12(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverResult, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+		NextProtos:   []string{"h2"},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		MaxVersion:  "1.2",
+		ALPN:        badoption.Listable[string]{"h2"},
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	clientState := clientConn.ConnectionState()
+	if clientState.Version != stdtls.VersionTLS12 {
+		t.Fatalf("unexpected negotiated version: %x", clientState.Version)
+	}
+	if clientState.NegotiatedProtocol != "h2" {
+		t.Fatalf("unexpected negotiated protocol: %q", clientState.NegotiatedProtocol)
+	}
+	if !clientState.HandshakeComplete {
+		t.Fatal("HandshakeComplete is false")
+	}
+	if len(clientState.PeerCertificates) == 0 {
+		t.Fatal("no peer certificates")
+	}
+
+	result := <-serverResult
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.state.Version != stdtls.VersionTLS12 {
+		t.Fatalf("server negotiated unexpected version: %x", result.state.Version)
+	}
+	if result.state.NegotiatedProtocol != "h2" {
+		t.Fatalf("server negotiated unexpected protocol: %q", result.state.NegotiatedProtocol)
+	}
+}
+
+func TestWindowsClientHandshakeTLS13(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverResult, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS13,
+		MaxVersion:   stdtls.VersionTLS13,
+		NextProtos:   []string{"h2"},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.3",
+		ALPN:        badoption.Listable[string]{"h2"},
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	clientState := clientConn.ConnectionState()
+	if clientState.Version != stdtls.VersionTLS13 {
+		t.Fatalf("expected TLS 1.3, got %x", clientState.Version)
+	}
+	if clientState.NegotiatedProtocol != "h2" {
+		t.Fatalf("expected negotiated protocol h2, got %q", clientState.NegotiatedProtocol)
+	}
+
+	result := <-serverResult
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.state.Version != stdtls.VersionTLS13 {
+		t.Fatalf("server negotiated unexpected version: %x", result.state.Version)
+	}
+}
+
+func TestWindowsClientHandshakeALPNNoOverlap(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+		NextProtos:   []string{"http/1.1"},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		MaxVersion:  "1.2",
+		ALPN:        badoption.Listable[string]{"h2"},
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	// Go's TLS server returns a TLS alert when the client advertises ALPN but
+	// the server has no overlap. The handshake fails.
+	if err == nil {
+		_ = clientConn.Close()
+		t.Fatal("expected handshake to fail with no ALPN overlap")
+	}
+}
+
+func TestWindowsClientHandshakeMultipleALPN(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		NextProtos:   []string{"h2", "http/1.1"},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		ALPN:        badoption.Listable[string]{"spdy/3", "h2"},
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	// Schannel follows the standard selection: first protocol offered by
+	// the client that the server also supports. Here: spdy/3 is not in the
+	// server list but h2 is, so h2 wins.
+	if got := clientConn.ConnectionState().NegotiatedProtocol; got != "h2" {
+		t.Fatalf("expected h2, got %q", got)
+	}
+}
+
+func TestWindowsClientHandshakeRejectsVersionMismatch(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverResult, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS13,
+		MaxVersion:   stdtls.VersionTLS13,
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MaxVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err == nil {
+		clientConn.Close()
+		t.Fatal("expected version mismatch handshake to fail")
+	}
+
+	result := <-serverResult
+	if result.err == nil {
+		t.Fatal("expected server handshake to fail on version mismatch")
+	}
+}
+
+func TestWindowsClientHandshakeRejectsServerNameMismatch(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "example.com",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err == nil {
+		clientConn.Close()
+		t.Fatal("expected server name mismatch handshake to fail")
+	}
+}
+
+func TestWindowsClientHandshakeRejectsUntrustedCA(t *testing.T) {
+	serverCertificate, _ := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:    true,
+		Engine:     C.TLSEngineWindows,
+		ServerName: "localhost",
+	})
+	if err == nil {
+		clientConn.Close()
+		t.Fatal("expected untrusted CA handshake to fail")
+	}
+}
+
+func TestWindowsClientHandshakeInsecureSkipsValidation(t *testing.T) {
+	serverCertificate, _ := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	// Server name mismatch but insecure=true → handshake succeeds.
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:    true,
+		Engine:     C.TLSEngineWindows,
+		ServerName: "example.com",
+		Insecure:   true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	if !clientConn.ConnectionState().HandshakeComplete {
+		t.Fatal("expected handshake to complete with insecure=true")
+	}
+}
+
+func TestWindowsClientHandshakeHonorsPublicKeyPinSuccess(t *testing.T) {
+	serverCertificate, _ := newWindowsTestCertificate(t, "localhost")
+	pin := publicKeyPin(t, serverCertificate.Leaf)
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:                    true,
+		Engine:                     C.TLSEngineWindows,
+		ServerName:                 "localhost",
+		CertificatePublicKeySHA256: [][]byte{pin},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+}
+
+func TestWindowsClientHandshakeHonorsPublicKeyPinFailure(t *testing.T) {
+	serverCertificate, _ := newWindowsTestCertificate(t, "localhost")
+	wrongPin := sha256.Sum256([]byte("not the public key"))
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:                    true,
+		Engine:                     C.TLSEngineWindows,
+		ServerName:                 "localhost",
+		CertificatePublicKeySHA256: [][]byte{wrongPin[:]},
+	})
+	if err == nil {
+		clientConn.Close()
+		t.Fatal("expected public-key pin mismatch to fail")
+	}
+}
+
+func TestWindowsClientHandshakeContextCancellation(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	clientHelloRead := make(chan struct{}, 1)
+	serverDone := make(chan struct{})
+	defer close(serverDone)
+	go func() {
+		c, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer c.Close()
+		buffer := make([]byte, 8192)
+		n, readErr := c.Read(buffer)
+		if n > 0 {
+			clientHelloRead <- struct{}{}
+		}
+		if readErr != nil {
+			return
+		}
+		<-serverDone
+	}()
+
+	_, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	clientConfig, err := NewClientWithOptions(ClientOptions{
+		Context: ctx,
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:     true,
+			Engine:      C.TLSEngineWindows,
+			ServerName:  "localhost",
+			Certificate: badoption.Listable[string]{serverCertificatePEM},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.DialTimeout("tcp", listener.Addr().String(), windowsTLSTestTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	handshakeDone := make(chan error, 1)
+	go func() {
+		_, err := ClientHandshake(ctx, conn, clientConfig)
+		handshakeDone <- err
+	}()
+
+	select {
+	case <-clientHelloRead:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not receive the client hello")
+	}
+
+	cancel()
+
+	select {
+	case err := <-handshakeDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("handshake did not return after cancellation")
+	}
+}
+
+func TestWindowsClientHandshakeTimeout(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	// Accept but never respond.
+	go func() {
+		c, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer c.Close()
+		time.Sleep(3 * time.Second)
+	}()
+
+	_, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+
+	ctx, cancel := context.WithTimeout(context.Background(), windowsTLSTestTimeout)
+	defer cancel()
+
+	clientConfig, err := NewClientWithOptions(ClientOptions{
+		Context: ctx,
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:          true,
+			Engine:           C.TLSEngineWindows,
+			ServerName:       "localhost",
+			HandshakeTimeout: badoption.Duration(300 * time.Millisecond),
+			Certificate:      badoption.Listable[string]{serverCertificatePEM},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.DialTimeout("tcp", listener.Addr().String(), windowsTLSTestTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	start := time.Now()
+	_, err = ClientHandshake(ctx, conn, clientConfig)
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("expected handshake to time out")
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("handshake took %v, expected ~300ms timeout", elapsed)
+	}
+}
+
+func TestWindowsClientRoundtrip(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	defer clientConn.Close()
+
+	_, err := clientConn.Write([]byte("ping"))
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	reply := make([]byte, 4)
+	_, err = io.ReadFull(clientConn, reply)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(reply) != "ping" {
+		t.Fatalf("unexpected reply: %q", string(reply))
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientRoundtripTLS13(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS13)
+	defer clientConn.Close()
+
+	payload := []byte("hello tls 1.3")
+	_, err := clientConn.Write(payload)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	reply := make([]byte, len(payload))
+	_, err = io.ReadFull(clientConn, reply)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(payload, reply) {
+		t.Fatalf("unexpected reply: %q", string(reply))
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientTLS13PostHandshakeConcurrentWrite(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	const payloadSize = 4 << 20
+	const prefixSize = 32 << 10
+	reply := []byte("tls13 post-handshake reply")
+
+	serverErr := make(chan error, 1)
+	prefixRead := make(chan struct{})
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   stdtls.VersionTLS13,
+			MaxVersion:   stdtls.VersionTLS13,
+		})
+		defer tlsConn.Close()
+
+		err := tlsConn.SetDeadline(time.Now().Add(2 * windowsTLSTestTimeout))
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		err = tlsConn.Handshake()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		prefix := make([]byte, prefixSize)
+		_, err = io.ReadFull(tlsConn, prefix)
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		close(prefixRead)
+		_, err = tlsConn.Write(reply)
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		_, err = io.Copy(io.Discard, io.LimitReader(tlsConn, int64(payloadSize-prefixSize)))
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		serverErr <- nil
+	}()
+
+	clientConn, err := newWindowsTestClientConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.3",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	payload := make([]byte, payloadSize)
+	for index := range payload {
+		payload[index] = byte(index % 251)
+	}
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := clientConn.Write(payload)
+		writeDone <- err
+	}()
+
+	select {
+	case <-prefixRead:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not observe the client write")
+	}
+
+	replyBuffer := make([]byte, len(reply))
+	_, err = io.ReadFull(clientConn, replyBuffer)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(reply, replyBuffer) {
+		t.Fatalf("unexpected reply: %q", string(replyBuffer))
+	}
+
+	writeErr := <-writeDone
+	if writeErr != nil {
+		t.Fatalf("write: %v", writeErr)
+	}
+	serverErrValue := <-serverErr
+	if serverErrValue != nil {
+		t.Fatal(serverErrValue)
+	}
+}
+
+func TestWindowsClientLargeMessage(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	defer clientConn.Close()
+
+	// 1 MiB exercises multiple TLS records and the chunking logic.
+	// Writes must run concurrently with reads to avoid TCP-buffer deadlock.
+	payload := make([]byte, 1<<20)
+	for index := range payload {
+		payload[index] = byte(index % 251)
+	}
+	writeErr := make(chan error, 1)
+	go func() {
+		_, err := clientConn.Write(payload)
+		writeErr <- err
+	}()
+
+	reply := make([]byte, len(payload))
+	_, err := io.ReadFull(clientConn, reply)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	writeResult := <-writeErr
+	if writeResult != nil {
+		t.Fatalf("write: %v", writeResult)
+	}
+	if !bytes.Equal(payload, reply) {
+		t.Fatal("payload mismatch after round-trip")
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientMultipleRoundtrips(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	defer clientConn.Close()
+
+	for i := 0; i < 100; i++ {
+		payload := []byte("msg" + string(rune('A'+(i%26))))
+		_, err := clientConn.Write(payload)
+		if err != nil {
+			t.Fatalf("write %d: %v", i, err)
+		}
+		reply := make([]byte, len(payload))
+		_, err = io.ReadFull(clientConn, reply)
+		if err != nil {
+			t.Fatalf("read %d: %v", i, err)
+		}
+		if !bytes.Equal(payload, reply) {
+			t.Fatalf("iteration %d: expected %q got %q", i, payload, reply)
+		}
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientConcurrentReadWrite(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	defer clientConn.Close()
+
+	const messageCount = 200
+	const messageSize = 64
+	payloads := make([][]byte, messageCount)
+	for i := range payloads {
+		buffer := make([]byte, messageSize)
+		for j := range buffer {
+			buffer[j] = byte(i + j)
+		}
+		payloads[i] = buffer
+	}
+
+	readErr := make(chan error, 1)
+	readBack := make(chan []byte, messageCount)
+	go func() {
+		for i := 0; i < messageCount; i++ {
+			reply := make([]byte, messageSize)
+			_, err := io.ReadFull(clientConn, reply)
+			if err != nil {
+				readErr <- err
+				return
+			}
+			readBack <- reply
+		}
+		readErr <- nil
+	}()
+
+	for i, payload := range payloads {
+		_, err := clientConn.Write(payload)
+		if err != nil {
+			t.Fatalf("write %d: %v", i, err)
+		}
+	}
+
+	readResult := <-readErr
+	if readResult != nil {
+		t.Fatal(readResult)
+	}
+	for i := 0; i < messageCount; i++ {
+		got := <-readBack
+		if !bytes.Equal(payloads[i], got) {
+			t.Fatalf("iteration %d: payload mismatch", i)
+		}
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientServerCloseReturnsEOF(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   stdtls.VersionTLS12,
+			MaxVersion:   stdtls.VersionTLS12,
+		})
+		_ = tlsConn.Handshake()
+		// Send close_notify then exit.
+		_ = tlsConn.Close()
+	}()
+
+	clientConn, err := newWindowsTestClientConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	buffer := make([]byte, 16)
+	_, err = clientConn.Read(buffer)
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("expected io.EOF, got %v", err)
+	}
+	<-done
+}
+
+func TestWindowsClientCloseUnblocksRead(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSSilentServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	readDone := make(chan error, 1)
+	go func() {
+		buffer := make([]byte, 16)
+		_, err := clientConn.Read(buffer)
+		readDone <- err
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	clientConn.Close()
+
+	select {
+	case err := <-readDone:
+		if err == nil {
+			t.Fatal("expected Read to return an error after Close")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Read did not return within 2s after Close")
+	}
+}
+
+func TestWindowsClientReadAfterCloseReturnsError(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	clientConn.Close()
+	<-serverDone
+
+	buffer := make([]byte, 16)
+	_, err := clientConn.Read(buffer)
+	if err == nil {
+		t.Fatal("expected Read after Close to return error")
+	}
+}
+
+func TestWindowsClientReadAfterCloseDoesNotServeBufferedPlaintext(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	serverDone := make(chan struct{})
+	serverErr := make(chan error, 1)
+	payload := bytes.Repeat([]byte("buffered plaintext "), 32)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   stdtls.VersionTLS12,
+			MaxVersion:   stdtls.VersionTLS12,
+		})
+		defer tlsConn.Close()
+
+		err := tlsConn.SetDeadline(time.Now().Add(windowsTLSTestTimeout))
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		err = tlsConn.Handshake()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		_, err = tlsConn.Write(payload)
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		<-serverDone
+		serverErr <- nil
+	}()
+
+	clientConn, err := newWindowsTestClientConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buffer := make([]byte, 8)
+	n, err := clientConn.Read(buffer)
+	if err != nil {
+		t.Fatalf("first read: %v", err)
+	}
+	if n != len(buffer) {
+		t.Fatalf("expected first read to fill the buffer, got %d", n)
+	}
+
+	clientConn.Close()
+	close(serverDone)
+
+	_, err = clientConn.Read(make([]byte, len(payload)))
+	if !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("expected net.ErrClosed, got %v", err)
+	}
+	serverErrValue := <-serverErr
+	if serverErrValue != nil {
+		t.Fatal(serverErrValue)
+	}
+}
+
+func TestWindowsClientWriteAfterCloseReturnsError(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	clientConn.Close()
+	<-serverDone
+
+	_, err := clientConn.Write([]byte("after close"))
+	if err == nil {
+		t.Fatal("expected Write after Close to return error")
+	}
+}
+
+func TestWindowsClientReadDeadline(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverDone, serverAddress := startWindowsTLSSilentServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+	defer close(serverDone)
+
+	err = clientConn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	if err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+
+	readDone := make(chan error, 1)
+	buffer := make([]byte, 64)
+	go func() {
+		_, readErr := clientConn.Read(buffer)
+		readDone <- readErr
+	}()
+
+	select {
+	case readErr := <-readDone:
+		if !errors.Is(readErr, os.ErrDeadlineExceeded) {
+			t.Fatalf("expected os.ErrDeadlineExceeded, got %v", readErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Read did not return within 2s after deadline")
+	}
+}
+
+func TestWindowsClientSetReadDeadlinePreExpired(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverDone, serverAddress := startWindowsTLSSilentServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+	defer close(serverDone)
+
+	err = clientConn.SetReadDeadline(time.Now().Add(-time.Second))
+	if err != nil {
+		t.Fatalf("SetReadDeadline past: %v", err)
+	}
+
+	buffer := make([]byte, 16)
+	_, err = clientConn.Read(buffer)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+	}
+
+	// Clearing the deadline must restore normal blocking behaviour.
+	err = clientConn.SetReadDeadline(time.Time{})
+	if err != nil {
+		t.Fatalf("SetReadDeadline zero: %v", err)
+	}
+	err = clientConn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	if err != nil {
+		t.Fatalf("SetReadDeadline future: %v", err)
+	}
+	start := time.Now()
+	_, err = clientConn.Read(buffer)
+	elapsed := time.Since(start)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded after re-arm, got %v", err)
+	}
+	if elapsed < 150*time.Millisecond {
+		t.Fatalf("Read returned too fast (%v), pre-expired flag leaked", elapsed)
+	}
+}
+
+func TestWindowsClientPostHandshakeReplyUsesReadDeadline(t *testing.T) {
+	rawConn := &windowsTestDeadlineConn{}
+	tlsConn := &windowsTLSConn{
+		rawConn: rawConn,
+		closed:  make(chan struct{}),
+	}
+
+	readDeadline := time.Now().Add(150 * time.Millisecond)
+	err := tlsConn.SetReadDeadline(readDeadline)
+	if err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+
+	start := time.Now()
+	err = tlsConn.writePostHandshakeReply([]byte("reply"))
+	elapsed := time.Since(start)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+	}
+	if elapsed < 100*time.Millisecond {
+		t.Fatalf("post-handshake write returned too fast: %v", elapsed)
+	}
+
+	deadlines := rawConn.recordedWriteDeadlines()
+	if len(deadlines) != 2 {
+		t.Fatalf("expected 2 write deadline updates, got %d", len(deadlines))
+	}
+	if !deadlines[0].Equal(readDeadline) {
+		t.Fatalf("expected first write deadline %v, got %v", readDeadline, deadlines[0])
+	}
+	if !deadlines[1].IsZero() {
+		t.Fatalf("expected write deadline cleanup, got %v", deadlines[1])
+	}
+}
+
+func TestWindowsClientPostHandshakeReplyPreExpiredReadDeadline(t *testing.T) {
+	rawConn := &windowsTestDeadlineConn{}
+	tlsConn := &windowsTLSConn{
+		rawConn: rawConn,
+		closed:  make(chan struct{}),
+	}
+
+	err := tlsConn.SetReadDeadline(time.Now().Add(-time.Second))
+	if err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+
+	start := time.Now()
+	err = tlsConn.writePostHandshakeReply([]byte("reply"))
+	elapsed := time.Since(start)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+	}
+	if elapsed > 50*time.Millisecond {
+		t.Fatalf("pre-expired post-handshake write returned too slowly: %v", elapsed)
+	}
+
+	deadlines := rawConn.recordedWriteDeadlines()
+	if len(deadlines) != 0 {
+		t.Fatalf("expected no write deadline update for pre-expired read deadline, got %d", len(deadlines))
+	}
+}
+
+func TestWindowsClientPostHandshakeReplyWaitsForWriteAccess(t *testing.T) {
+	rawConn := &windowsTestWriteGateConn{
+		writeCalled:  make(chan struct{}),
+		releaseWrite: make(chan struct{}),
+	}
+	tlsConn := &windowsTLSConn{
+		rawConn: rawConn,
+		closed:  make(chan struct{}),
+	}
+
+	tlsConn.writeAccess.Lock()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- tlsConn.writePostHandshakeReply([]byte("reply"))
+	}()
+
+	select {
+	case <-rawConn.writeCalled:
+		t.Fatal("post-handshake write bypassed writeAccess")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	tlsConn.writeAccess.Unlock()
+
+	select {
+	case <-rawConn.writeCalled:
+	case <-time.After(time.Second):
+		t.Fatal("post-handshake write did not resume after writeAccess release")
+	}
+
+	close(rawConn.releaseWrite)
+	err := <-errCh
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWindowsClientConnectionStateFields(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		NextProtos:   []string{"h2"},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		ALPN:        badoption.Listable[string]{"h2"},
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	state := clientConn.ConnectionState()
+	if state.ServerName != "localhost" {
+		t.Errorf("ServerName: expected localhost, got %q", state.ServerName)
+	}
+	if state.NegotiatedProtocol != "h2" {
+		t.Errorf("NegotiatedProtocol: expected h2, got %q", state.NegotiatedProtocol)
+	}
+	if !state.HandshakeComplete {
+		t.Error("HandshakeComplete: expected true")
+	}
+	if state.Version < stdtls.VersionTLS12 || state.Version > stdtls.VersionTLS13 {
+		t.Errorf("Version: expected TLS 1.2–1.3, got %x", state.Version)
+	}
+	if len(state.PeerCertificates) == 0 {
+		t.Fatal("PeerCertificates: expected at least one certificate")
+	}
+	// CipherSuite may be 0 when the Schannel name does not map to a Go
+	// constant; just ensure it's consistent with the protocol.
+	if state.Version == stdtls.VersionTLS13 && state.CipherSuite != 0 {
+		switch state.CipherSuite {
+		case stdtls.TLS_AES_128_GCM_SHA256, stdtls.TLS_AES_256_GCM_SHA384, stdtls.TLS_CHACHA20_POLY1305_SHA256:
+		default:
+			t.Errorf("unexpected TLS 1.3 cipher suite: %x", state.CipherSuite)
+		}
+	}
+}
+
+func TestWindowsClientNetConnReturnsUnderlying(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
+	defer func() { <-serverDone }()
+	defer clientConn.Close()
+
+	underlying := clientConn.NetConn()
+	if _, isTCP := underlying.(*net.TCPConn); !isTCP {
+		t.Fatalf("NetConn returned %T, expected *net.TCPConn", underlying)
+	}
+}
+
+func TestNewWindowsClientMissingServerName(t *testing.T) {
+	_, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled: true,
+			Engine:  C.TLSEngineWindows,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected missing server_name error")
+	}
+}
+
+func TestNewWindowsClientInsecureAllowsMissingServerName(t *testing.T) {
+	_, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:  true,
+			Engine:   C.TLSEngineWindows,
+			Insecure: true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWindowsClientConfigSTDConfigReturnsError(t *testing.T) {
+	config, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:    true,
+			Engine:     C.TLSEngineWindows,
+			ServerName: "localhost",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = config.STDConfig()
+	if err == nil {
+		t.Fatal("expected STDConfig() to return error for Windows engine")
+	}
+	if !strings.Contains(err.Error(), "system TLS engine") {
+		t.Fatalf("expected error to name the engine, got %q", err.Error())
+	}
+}
+
+func TestWindowsClientConfigClientReturnsErrInvalid(t *testing.T) {
+	config, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:    true,
+			Engine:     C.TLSEngineWindows,
+			ServerName: "localhost",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = config.Client(nil)
+	if !errors.Is(err, os.ErrInvalid) {
+		t.Fatalf("expected os.ErrInvalid, got %v", err)
+	}
+}
+
+func TestWindowsClientConfigClone(t *testing.T) {
+	config, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:    true,
+			Engine:     C.TLSEngineWindows,
+			ServerName: "localhost",
+			ALPN:       badoption.Listable[string]{"h2", "http/1.1"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clone := config.Clone()
+
+	// Mutating the clone must not affect the original.
+	clone.SetServerName("other")
+	clone.SetNextProtos([]string{"h3"})
+	if config.ServerName() == "other" {
+		t.Error("Clone shares server name with original")
+	}
+	if len(config.NextProtos()) != 2 {
+		t.Error("Clone shares ALPN slice with original")
+	}
+}
+
+func TestValidateWindowsTLSOptionsRejections(t *testing.T) {
+	cases := []struct {
+		name    string
+		options option.OutboundTLSOptions
+		needle  string
+	}{
+		{"reality", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			Reality: &option.OutboundRealityOptions{Enabled: true, ShortID: "abc"},
+		}, "reality"},
+		{"utls", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			UTLS: &option.OutboundUTLSOptions{Enabled: true},
+		}, "utls"},
+		{"ech", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			ECH: &option.OutboundECHOptions{Enabled: true},
+		}, "ech"},
+		{"disable_sni", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			DisableSNI: true,
+		}, "disable_sni"},
+		{"cipher_suites", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			CipherSuites: []string{"TLS_AES_128_GCM_SHA256"},
+		}, "cipher_suites"},
+		{"curve_preferences", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			CurvePreferences: []option.CurvePreference{option.CurvePreference(29)},
+		}, "curve_preferences"},
+		{"client_certificate", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			ClientCertificate: badoption.Listable[string]{"pem"},
+		}, "client certificate"},
+		{"fragment", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			Fragment: true,
+		}, "tls fragment"},
+		{"record_fragment", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			RecordFragment: true,
+		}, "tls fragment"},
+		{"kernel_tx", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			KernelTx: true,
+		}, "ktls"},
+		{"kernel_rx", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			KernelRx: true,
+		}, "ktls"},
+		{"spoof", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			Spoof: "decoy.example",
+		}, "spoof"},
+		{"pin_and_cert_conflict", option.OutboundTLSOptions{
+			Enabled: true, Engine: C.TLSEngineWindows, ServerName: "x",
+			Certificate:                badoption.Listable[string]{"-----BEGIN CERTIFICATE-----"},
+			CertificatePublicKeySHA256: [][]byte{make([]byte, 32)},
+		}, "certificate_public_key_sha256"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewClientWithOptions(ClientOptions{
+				Context: context.Background(),
+				Logger:  logger.NOP(),
+				Options: tc.options,
+			})
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.needle)
+			}
+			if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tc.needle)) {
+				t.Fatalf("expected error to contain %q, got %q", tc.needle, err.Error())
+			}
+		})
+	}
+}
+
+func startWindowsTLSSilentServer(t *testing.T, tlsConfig *stdtls.Config) (chan<- struct{}, string) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	if tcpListener, isTCP := listener.(*net.TCPListener); isTCP {
+		err = tcpListener.SetDeadline(time.Now().Add(windowsTLSTestTimeout))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+		deadlineErr := conn.SetDeadline(time.Now().Add(windowsTLSTestTimeout))
+		if deadlineErr != nil {
+			return
+		}
+		tlsConn := stdtls.Server(conn, tlsConfig)
+		defer tlsConn.Close()
+		handshakeErr := tlsConn.Handshake()
+		if handshakeErr != nil {
+			return
+		}
+		handshakeErr = conn.SetDeadline(time.Time{})
+		if handshakeErr != nil {
+			return
+		}
+		<-done
+	}()
+	return done, listener.Addr().String()
+}
+
+// sharedWindowsTestCertificate caches a localhost certificate so the RSA key
+// generation runs once per test binary instead of once per test.
+var sharedWindowsTestCertificate = sync.OnceValues(func() (stdtls.Certificate, string) {
+	return generateWindowsTestCertificate("localhost")
+})
+
+func newWindowsTestCertificate(t *testing.T, serverName string) (stdtls.Certificate, string) {
+	t.Helper()
+	if serverName == "localhost" {
+		return sharedWindowsTestCertificate()
+	}
+	return generateWindowsTestCertificate(serverName)
+}
+
+func generateWindowsTestCertificate(serverName string) (stdtls.Certificate, string) {
+	privateKeyPEM, certificatePEM, err := GenerateCertificate(nil, nil, time.Now, serverName, time.Now().Add(time.Hour))
+	if err != nil {
+		panic(err)
+	}
+	certificate, err := stdtls.X509KeyPair(certificatePEM, privateKeyPEM)
+	if err != nil {
+		panic(err)
+	}
+	leaf, err := x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
+	certificate.Leaf = leaf
+	return certificate, string(certificatePEM)
+}
+
+func publicKeyPin(t *testing.T, cert *x509.Certificate) []byte {
+	t.Helper()
+	pub, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(pub)
+	return sum[:]
+}
+
+func startWindowsTLSTestServer(t *testing.T, tlsConfig *stdtls.Config) (<-chan windowsTLSServerResult, string) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	if tcpListener, isTCP := listener.(*net.TCPListener); isTCP {
+		err = tcpListener.SetDeadline(time.Now().Add(windowsTLSTestTimeout))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := make(chan windowsTLSServerResult, 1)
+	go func() {
+		defer close(result)
+
+		conn, err := listener.Accept()
+		if err != nil {
+			result <- windowsTLSServerResult{err: err}
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(windowsTLSTestTimeout))
+		if err != nil {
+			result <- windowsTLSServerResult{err: err}
+			return
+		}
+
+		tlsConn := stdtls.Server(conn, tlsConfig)
+		defer tlsConn.Close()
+
+		err = tlsConn.Handshake()
+		if err != nil {
+			result <- windowsTLSServerResult{err: err}
+			return
+		}
+
+		result <- windowsTLSServerResult{state: tlsConn.ConnectionState()}
+	}()
+
+	return result, listener.Addr().String()
+}
+
+func newWindowsTestClientConn(t *testing.T, serverAddress string, options option.OutboundTLSOptions) (Conn, error) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), windowsTLSTestTimeout)
+	t.Cleanup(cancel)
+
+	clientConfig, err := NewClientWithOptions(ClientOptions{
+		Context:       ctx,
+		Logger:        logger.NOP(),
+		ServerAddress: "",
+		Options:       options,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTimeout("tcp", serverAddress, windowsTLSTestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConn, err := ClientHandshake(ctx, conn, clientConfig)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return tlsConn, nil
+}
+
+// startWindowsEchoServer brings up a TLS echo server with a self-signed cert
+// and dials an engine client against it. The returned channel closes after
+// the server goroutine exits.
+func startWindowsEchoServer(t *testing.T, minVersion uint16) (Conn, <-chan struct{}) {
+	t.Helper()
+
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   minVersion,
+			MaxVersion:   minVersion,
+		})
+		defer tlsConn.Close()
+
+		handshakeErr := tlsConn.Handshake()
+		if handshakeErr != nil {
+			return
+		}
+
+		buffer := make([]byte, 32*1024)
+		for {
+			n, readErr := tlsConn.Read(buffer)
+			if n > 0 {
+				_, writeErr := tlsConn.Write(buffer[:n])
+				if writeErr != nil {
+					return
+				}
+			}
+			if readErr != nil {
+				return
+			}
+		}
+	}()
+
+	version := "1.2"
+	if minVersion == stdtls.VersionTLS13 {
+		version = "1.3"
+	}
+	clientConn, err := newWindowsTestClientConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  version,
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return clientConn, done
+}

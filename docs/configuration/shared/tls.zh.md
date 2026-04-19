@@ -203,6 +203,7 @@ TLS 版本值：
 
 * `go`（默认）
 * `apple`
+* `windows`
 
 `apple` 使用 Network.framework，仅在 Apple 平台可用，且仅支持 **直接** TCP TLS 客户端连接。
 
@@ -212,7 +213,9 @@ TLS 版本值：
     不应在 iOS 和 tvOS 的热路径中使用。
     如果您想规避基于 TLS 指纹的代理审查，应使用 [NaiveProxy](/zh/configuration/outbound/naive/)。
 
-支持的字段：
+`windows` 通过 SSPI 使用 Schannel，仅在 Windows build 17763 及以上可用，包括 Windows 10 版本 1809、Windows Server 2019 及后续版本。它会在配置的版本范围内，按照运行系统上的 Schannel 能力协商 TLS 1.2 和 TLS 1.3。TLS 1.3 需要 Windows 11 或 Windows Server 2022 及后续版本。该引擎仅支持 **直接** TCP TLS 客户端连接。证书验证在 Go 侧基于 Schannel 返回的证书链执行。
+
+`apple` 与 `windows` 支持的字段：
 
 * `server_name`
 * `insecure`
@@ -223,7 +226,7 @@ TLS 版本值：
 * `certificate_public_key_sha256`
 * `handshake_timeout`
 
-不支持的字段：
+`apple` 与 `windows` 不支持的字段：
 
 * `disable_sni`
 * `cipher_suites`

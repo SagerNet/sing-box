@@ -209,6 +209,65 @@ func TestAppleClientHandshakeRecoversAfterFailure(t *testing.T) {
 	}
 }
 
+func TestAppleClientConfigCloneWithInlineCertificate(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
+	clientConfig, err := NewClientWithOptions(ClientOptions{
+		Context: context.Background(),
+		Logger:  logger.NOP(),
+		Options: option.OutboundTLSOptions{
+			Enabled:     true,
+			Engine:      "apple",
+			ServerName:  "localhost",
+			MinVersion:  "1.2",
+			MaxVersion:  "1.2",
+			ALPN:        badoption.Listable[string]{"h2", "http/1.1"},
+			Certificate: badoption.Listable[string]{serverCertificatePEM},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clone := clientConfig.Clone()
+	clone.SetServerName("other")
+	clone.SetNextProtos([]string{"http/1.1"})
+	if clientConfig.ServerName() == "other" {
+		t.Fatal("Clone shares server name with original")
+	}
+	nextProtos := clientConfig.NextProtos()
+	if len(nextProtos) != 2 || nextProtos[0] != "h2" || nextProtos[1] != "http/1.1" {
+		t.Fatalf("Clone shares ALPN slice with original: %v", nextProtos)
+	}
+
+	for index := 0; index < appleTLSFailureRecoveryLoops; index++ {
+		serverResult, serverAddress := startAppleTLSTestServer(t, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   stdtls.VersionTLS12,
+			MaxVersion:   stdtls.VersionTLS12,
+			NextProtos:   []string{"h2"},
+		})
+
+		handshakeConfig := clientConfig.Clone()
+		handshakeConfig.SetNextProtos([]string{"h2"})
+		clientConn, err := dialAppleTestClientConn(t, serverAddress, handshakeConfig)
+		if err != nil {
+			t.Fatalf("iteration %d: %v", index, err)
+		}
+
+		clientState := clientConn.ConnectionState()
+		if clientState.NegotiatedProtocol != "h2" {
+			_ = clientConn.Close()
+			t.Fatalf("iteration %d: unexpected negotiated protocol: %q", index, clientState.NegotiatedProtocol)
+		}
+		_ = clientConn.Close()
+
+		result := <-serverResult
+		if result.err != nil {
+			t.Fatalf("iteration %d: %v", index, result.err)
+		}
+	}
+}
+
 func TestAppleClientReadDeadline(t *testing.T) {
 	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
 	serverDone, serverAddress := startAppleTLSSilentServer(t, &stdtls.Config{
@@ -426,11 +485,8 @@ func startAppleTLSTestServer(t *testing.T, tlsConfig *stdtls.Config) (<-chan app
 func newAppleTestClientConn(t *testing.T, serverAddress string, options option.OutboundTLSOptions) (Conn, error) {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), appleTLSTestTimeout)
-	t.Cleanup(cancel)
-
 	clientConfig, err := NewClientWithOptions(ClientOptions{
-		Context:       ctx,
+		Context:       context.Background(),
 		Logger:        logger.NOP(),
 		ServerAddress: "",
 		Options:       options,
@@ -438,6 +494,14 @@ func newAppleTestClientConn(t *testing.T, serverAddress string, options option.O
 	if err != nil {
 		return nil, err
 	}
+	return dialAppleTestClientConn(t, serverAddress, clientConfig)
+}
+
+func dialAppleTestClientConn(t *testing.T, serverAddress string, clientConfig Config) (Conn, error) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), appleTLSTestTimeout)
+	t.Cleanup(cancel)
 
 	conn, err := net.DialTimeout("tcp", serverAddress, appleTLSTestTimeout)
 	if err != nil {
