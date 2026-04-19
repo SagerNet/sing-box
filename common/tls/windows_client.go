@@ -31,14 +31,12 @@ const (
 type windowsClientConfig struct {
 	systemTLSConfig
 	userRoots *x509.CertPool
-	creds     *schannel.Credentials
 }
 
 func (c *windowsClientConfig) Clone() Config {
 	return &windowsClientConfig{
 		systemTLSConfig: c.systemTLSConfig.clone(),
 		userRoots:       c.userRoots,
-		creds:           c.creds,
 	}
 }
 
@@ -58,14 +56,9 @@ func newWindowsClient(ctx context.Context, logger logger.ContextLogger, serverAd
 			return nil, E.New("parse certificate PEM")
 		}
 	}
-	creds, err := schannel.NewCredentials(base.minVersion, base.maxVersion)
-	if err != nil {
-		return nil, err
-	}
 	return &windowsClientConfig{
 		systemTLSConfig: base,
 		userRoots:       userRoots,
-		creds:           creds,
 	}, nil
 }
 
@@ -79,7 +72,7 @@ func (c *windowsClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 		defer conn.SetDeadline(time.Time{})
 	}
 
-	client, err := schannel.NewClientContext(c.creds, c.serverName, c.nextProtos)
+	client, err := schannel.NewClientContext(c.minVersion, c.maxVersion, c.serverName, c.nextProtos)
 	if err != nil {
 		return nil, err
 	}

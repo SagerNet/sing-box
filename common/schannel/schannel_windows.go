@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
-	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -28,30 +27,55 @@ func CheckPlatform() error {
 	return versionCheck()
 }
 
-// Credentials wraps a Schannel SCH_CREDENTIALS handle. SSPI guidance is to
-// reuse one handle across many connections; share a Credentials instance
-// across handshakes that use the same TLS parameters.
-type Credentials struct {
-	handle secHandle
+// ClientContext owns the Schannel credential handle and security context for
+// one client connection and drives them through handshake and application-data
+// phases.
+type ClientContext struct {
+	credHandle secHandle
 	// tlsParams is kept alive so its address remains valid for the lifetime
 	// of the underlying Schannel credential handle.
-	tlsParams tlsParameters
+	tlsParams  tlsParameters
+	handle     secHandle
+	targetName *uint16
+
+	// alpnBuffer is the SEC_APPLICATION_PROTOCOLS blob; kept alive for the
+	// duration of the first handshake call.
+	alpnBuffer []byte
+
+	firstCall bool
+	credValid bool
+	valid     bool
 }
 
-// NewCredentials acquires a Schannel client credential handle bound to the
-// supplied TLS version bounds. Callers must Close it when no longer needed.
-func NewCredentials(minVersion, maxVersion uint16) (*Credentials, error) {
+// NewClientContext allocates a new client context, acquires the Schannel
+// credential handle for the supplied TLS version bounds, and advertises ALPN
+// protocols through an SECBUFFER_APPLICATION_PROTOCOLS buffer on the first
+// handshake call.
+func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []string) (*ClientContext, error) {
 	err := CheckPlatform()
 	if err != nil {
 		return nil, err
 	}
-	creds := &Credentials{}
-	creds.tlsParams.grbitDisabledProtocols = disabledProtocolsMask(minVersion, maxVersion)
+	targetName, err := windows.UTF16PtrFromString(serverName)
+	if err != nil {
+		return nil, err
+	}
+	c := &ClientContext{
+		targetName: targetName,
+		firstCall:  true,
+	}
+	if len(alpn) > 0 {
+		c.alpnBuffer, err = encodeAlpnBuffer(alpn)
+		if err != nil {
+			return nil, err
+		}
+	}
+	c.tlsParams.grbitDisabledProtocols = disabledProtocolsMask(minVersion, maxVersion)
 	sch := schCredentials{
 		dwVersion:      schCredentialsVersion,
 		dwFlags:        schCredManualCredValidation | schCredNoDefaultCreds | schUseStrongCrypto,
 		cTlsParameters: 1,
-		pTlsParameters: &creds.tlsParams,
+		pTlsParameters: &c.tlsParams,
 	}
 	pkg, err := windows.UTF16PtrFromString(unispNameW)
 	if err != nil {
@@ -66,58 +90,18 @@ func NewCredentials(minVersion, maxVersion uint16) (*Credentials, error) {
 		unsafe.Pointer(&sch),
 		0,
 		0,
-		&creds.handle,
+		&c.credHandle,
 		&expiry,
 	)
 	if status != secEOK {
 		return nil, sspiError("AcquireCredentialsHandle", status)
 	}
-	runtime.AddCleanup(creds, func(handle secHandle) {
-		sspiFreeCredentialsHandle(&handle)
-	}, creds.handle)
-	return creds, nil
-}
-
-// ClientContext drives a Schannel security context through handshake and
-// application-data phases.
-type ClientContext struct {
-	creds      *Credentials
-	handle     secHandle
-	targetName *uint16
-
-	// alpnBuffer is the SEC_APPLICATION_PROTOCOLS blob; kept alive for the
-	// duration of the first handshake call.
-	alpnBuffer []byte
-
-	firstCall bool
-	valid     bool
-}
-
-// NewClientContext allocates a new client security context bound to the
-// supplied credentials and server name. ALPN protocols are advertised
-// through an SECBUFFER_APPLICATION_PROTOCOLS buffer on the first handshake
-// call.
-func NewClientContext(creds *Credentials, serverName string, alpn []string) (*ClientContext, error) {
-	targetName, err := windows.UTF16PtrFromString(serverName)
-	if err != nil {
-		return nil, err
-	}
-	c := &ClientContext{
-		creds:      creds,
-		targetName: targetName,
-		firstCall:  true,
-	}
-	if len(alpn) > 0 {
-		c.alpnBuffer, err = encodeAlpnBuffer(alpn)
-		if err != nil {
-			return nil, err
-		}
-	}
+	c.credValid = true
 	return c, nil
 }
 
-// Close releases the per-connection security context. The owning Credentials
-// is left untouched. Safe to call multiple times.
+// Close releases the per-connection security context and credential handle.
+// Safe to call multiple times.
 func (c *ClientContext) Close() {
 	if c == nil {
 		return
@@ -126,6 +110,12 @@ func (c *ClientContext) Close() {
 		sspiDeleteSecurityContext(&c.handle)
 		c.valid = false
 		c.handle = secHandle{}
+	}
+	if c.credValid {
+		sspiFreeCredentialsHandle(&c.credHandle)
+		c.credValid = false
+		c.credHandle = secHandle{}
+		c.tlsParams = tlsParameters{}
 	}
 }
 
@@ -436,7 +426,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 	var contextAttr uint32
 	var expiry windows.Filetime
 	status := sspiInitializeSecurityContext(
-		&c.creds.handle,
+		&c.credHandle,
 		ctxIn,
 		c.targetName,
 		handshakeContextReq,
