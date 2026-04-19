@@ -23,9 +23,6 @@ import (
 const (
 	windowsTLSEngineName   = "Windows TLS engine"
 	handshakeReadChunkSize = 8192
-	// handshakeBufferLimit bounds the accumulated handshake bytes from a
-	// single peer so a hostile server cannot stream data forever.
-	handshakeBufferLimit = 64 * 1024
 )
 
 type windowsClientConfig struct {
@@ -158,6 +155,9 @@ func driveSteps(
 	readMore func() ([]byte, error),
 	writeOut func([]byte) error,
 ) ([]byte, error) {
+	// Schannel reports how much input it consumed and whether it needs more.
+	// Keep feeding peer bytes until the handshake completes, then return any
+	// leftover ciphertext or coalesced application data to the caller.
 	buffer := initial
 	for {
 		result, stepErr := step(buffer)
@@ -176,9 +176,6 @@ func driveSteps(
 				return nil, readErr
 			}
 			buffer = append(buffer, more...)
-			if len(buffer) > handshakeBufferLimit {
-				return nil, E.New("schannel: handshake buffer exceeded limit")
-			}
 			continue
 		}
 		if result.Consumed > len(buffer) {
@@ -194,9 +191,6 @@ func driveSteps(
 				return nil, readErr
 			}
 			buffer = append(buffer, more...)
-			if len(buffer) > handshakeBufferLimit {
-				return nil, E.New("schannel: handshake buffer exceeded limit")
-			}
 		}
 	}
 }
