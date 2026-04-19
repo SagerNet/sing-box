@@ -301,7 +301,7 @@ type windowsTLSConn struct {
 	writeStateOnce sync.Once
 	writeReady     *sync.Cond
 	postHandshake  bool
-	pendingWriters int
+	writeActive    bool
 
 	cipher       []byte
 	plain        []byte
@@ -469,7 +469,7 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer c.writeAccess.Unlock()
+	defer c.finishWrite()
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -602,36 +602,43 @@ func (c *windowsTLSConn) applyDeadline(deadline time.Time, set func(time.Time) e
 func (c *windowsTLSConn) beginWrite() error {
 	ready := c.writeCondition()
 	c.writeState.Lock()
-	for c.postHandshake {
+	for c.postHandshake || c.writeActive {
 		if c.isClosed() {
 			c.writeState.Unlock()
 			return net.ErrClosed
 		}
 		ready.Wait()
 	}
-	c.pendingWriters++
+	c.writeActive = true
 	c.writeState.Unlock()
 
 	c.writeAccess.Lock()
 
-	c.writeState.Lock()
-	c.pendingWriters--
-	if c.pendingWriters == 0 {
-		ready.Broadcast()
-	}
-	c.writeState.Unlock()
 	if c.isClosed() {
 		c.writeAccess.Unlock()
+		c.writeState.Lock()
+		c.writeActive = false
+		ready.Broadcast()
+		c.writeState.Unlock()
 		return net.ErrClosed
 	}
 	return nil
+}
+
+func (c *windowsTLSConn) finishWrite() {
+	c.writeAccess.Unlock()
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	c.writeActive = false
+	ready.Broadcast()
+	c.writeState.Unlock()
 }
 
 func (c *windowsTLSConn) beginPostHandshakeWrite() error {
 	ready := c.writeCondition()
 	c.writeState.Lock()
 	c.postHandshake = true
-	for c.pendingWriters > 0 {
+	for c.writeActive {
 		if c.isClosed() {
 			c.postHandshake = false
 			ready.Broadcast()
@@ -640,12 +647,14 @@ func (c *windowsTLSConn) beginPostHandshakeWrite() error {
 		}
 		ready.Wait()
 	}
+	c.writeActive = true
 	c.writeState.Unlock()
 
 	c.writeAccess.Lock()
 	if c.isClosed() {
 		c.writeAccess.Unlock()
 		c.writeState.Lock()
+		c.writeActive = false
 		c.postHandshake = false
 		ready.Broadcast()
 		c.writeState.Unlock()
@@ -658,6 +667,7 @@ func (c *windowsTLSConn) finishPostHandshakeWrite() {
 	c.writeAccess.Unlock()
 	ready := c.writeCondition()
 	c.writeState.Lock()
+	c.writeActive = false
 	c.postHandshake = false
 	ready.Broadcast()
 	c.writeState.Unlock()

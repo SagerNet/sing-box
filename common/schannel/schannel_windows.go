@@ -581,7 +581,9 @@ func extractCertChainDER(chainCtx *windows.CertChainContext) ([][]byte, error) {
 		return nil, E.New("schannel: empty certificate chain")
 	}
 	elements := unsafe.Slice(chain.Elements, int(chain.NumElements))
-	if len(elements) > 1 && isSelfSignedCertContext(elements[len(elements)-1].CertContext) {
+	if len(elements) > 1 &&
+		chain.TrustStatus.ErrorStatus&windows.CERT_TRUST_IS_PARTIAL_CHAIN == 0 &&
+		isSelfSignedCertContext(elements[len(elements)-1].CertContext) {
 		elements = elements[:len(elements)-1]
 	}
 	derChain := make([][]byte, 0, len(elements))
