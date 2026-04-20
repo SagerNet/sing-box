@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
+	"os"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -15,6 +16,7 @@ import (
 
 var versionCheck = sync.OnceValue(func() error {
 	major, _, build := windows.RtlGetNtVersionNumbers()
+	build &= 0xffff
 	if major < 10 || (major == 10 && build < 17763) {
 		return E.New("Windows TLS engine requires Windows build 17763 or later (Windows 10 version 1809, Windows Server 2019, or newer)")
 	}
@@ -52,6 +54,9 @@ type ClientContext struct {
 // protocols through an SECBUFFER_APPLICATION_PROTOCOLS buffer on the first
 // handshake call.
 func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []string) (*ClientContext, error) {
+	if minVersion != 0 && maxVersion != 0 && minVersion > maxVersion {
+		return nil, os.ErrInvalid
+	}
 	err := CheckPlatform()
 	if err != nil {
 		return nil, err
