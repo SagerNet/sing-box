@@ -126,14 +126,11 @@ func (c *windowsClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 
 func driveHandshake(ctx context.Context, conn net.Conn, client *schannel.ClientContext, scratch []byte) ([]byte, error) {
 	readMore := func() ([]byte, error) {
-		n, err := conn.Read(scratch)
-		if n > 0 {
-			return scratch[:n], nil
-		}
+		more, err := readTLSRaw(conn, scratch, true)
 		if err != nil {
 			return nil, handshakeIOError(ctx, err, "read handshake")
 		}
-		return nil, io.ErrUnexpectedEOF
+		return more, nil
 	}
 	writeOut := func(data []byte) error {
 		_, err := conn.Write(data)
@@ -223,6 +220,20 @@ func handshakeIOError(ctx context.Context, err error, message string) error {
 		return ctxErr
 	}
 	return E.Cause(err, message)
+}
+
+func readTLSRaw(conn net.Conn, scratch []byte, requireMore bool) ([]byte, error) {
+	n, err := conn.Read(scratch)
+	if n > 0 {
+		return scratch[:n], nil
+	}
+	if err != nil {
+		if requireMore && errors.Is(err, io.EOF) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		return nil, err
+	}
+	return nil, io.ErrUnexpectedEOF
 }
 
 func isTimeoutError(err error) bool {
@@ -380,7 +391,7 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 			}
 			c.clientAccess.Unlock()
 		}
-		more, readErr := c.readRaw()
+		more, readErr := c.readRaw(len(c.cipher) > 0)
 		if readErr != nil {
 			return 0, readErr
 		}
@@ -403,8 +414,9 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 		c.clientAccess.Unlock()
 		return net.ErrClosed
 	}
+	writeFailed := false
 	readMore := func() ([]byte, error) {
-		more, err := c.readRaw()
+		more, err := c.readRaw(true)
 		if err != nil {
 			return nil, E.Cause(err, "tls post-handshake read")
 		}
@@ -413,6 +425,7 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 	writeOut := func(data []byte) error {
 		err := c.writePostHandshakeReplyLocked(data)
 		if err != nil {
+			writeFailed = true
 			return E.Cause(err, "tls post-handshake write")
 		}
 		return nil
@@ -420,6 +433,9 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 	leftover, err := driveSteps(initial, c.client.PostHandshake, readMore, writeOut)
 	c.clientAccess.Unlock()
 	if err != nil {
+		if writeFailed {
+			_ = c.Close()
+		}
 		return E.Cause(err, "tls post-handshake")
 	}
 	if len(leftover) > 0 {
@@ -431,7 +447,11 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 func (c *windowsTLSConn) writePostHandshakeReply(data []byte) error {
 	c.writeAccess.Lock()
 	defer c.writeAccess.Unlock()
-	return c.writePostHandshakeReplyLocked(data)
+	err := c.writePostHandshakeReplyLocked(data)
+	if err != nil {
+		_ = c.Close()
+	}
+	return err
 }
 
 func (c *windowsTLSConn) writePostHandshakeReplyLocked(data []byte) error {
@@ -447,15 +467,8 @@ func (c *windowsTLSConn) writePostHandshakeReplyLocked(data []byte) error {
 	return err
 }
 
-func (c *windowsTLSConn) readRaw() ([]byte, error) {
-	n, err := c.rawConn.Read(c.readScratch)
-	if n > 0 {
-		return c.readScratch[:n], nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return nil, io.ErrUnexpectedEOF
+func (c *windowsTLSConn) readRaw(requireMore bool) ([]byte, error) {
+	return readTLSRaw(c.rawConn, c.readScratch, requireMore)
 }
 
 func (c *windowsTLSConn) Write(p []byte) (int, error) {
@@ -496,6 +509,7 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 		}
 		_, writeErr := c.rawConn.Write(encrypted)
 		if writeErr != nil {
+			_ = c.Close()
 			return total, E.Cause(writeErr, "tls write")
 		}
 		total += len(chunk)

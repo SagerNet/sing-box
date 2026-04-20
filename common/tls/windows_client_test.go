@@ -41,6 +41,15 @@ type windowsTestWriteGateConn struct {
 	releaseWrite chan struct{}
 }
 
+type windowsTestIOConn struct {
+	access     sync.Mutex
+	readErr    error
+	writeErr   error
+	writeN     int
+	writeCalls int
+	closed     bool
+}
+
 func (c *windowsTestDeadlineConn) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
@@ -125,6 +134,63 @@ func (c *windowsTestWriteGateConn) SetReadDeadline(time.Time) error {
 
 func (c *windowsTestWriteGateConn) SetWriteDeadline(time.Time) error {
 	return nil
+}
+
+func (c *windowsTestIOConn) Read(_ []byte) (int, error) {
+	return 0, c.readErr
+}
+
+func (c *windowsTestIOConn) Write(p []byte) (int, error) {
+	c.access.Lock()
+	defer c.access.Unlock()
+	c.writeCalls++
+	if c.writeErr == nil {
+		return len(p), nil
+	}
+	n := c.writeN
+	if n <= 0 || n > len(p) {
+		n = 0
+	}
+	return n, c.writeErr
+}
+
+func (c *windowsTestIOConn) Close() error {
+	c.access.Lock()
+	c.closed = true
+	c.access.Unlock()
+	return nil
+}
+
+func (c *windowsTestIOConn) LocalAddr() net.Addr {
+	return windowsTestAddr("local")
+}
+
+func (c *windowsTestIOConn) RemoteAddr() net.Addr {
+	return windowsTestAddr("remote")
+}
+
+func (c *windowsTestIOConn) SetDeadline(time.Time) error {
+	return nil
+}
+
+func (c *windowsTestIOConn) SetReadDeadline(time.Time) error {
+	return nil
+}
+
+func (c *windowsTestIOConn) SetWriteDeadline(time.Time) error {
+	return nil
+}
+
+func (c *windowsTestIOConn) isClosed() bool {
+	c.access.Lock()
+	defer c.access.Unlock()
+	return c.closed
+}
+
+func (c *windowsTestIOConn) totalWriteCalls() int {
+	c.access.Lock()
+	defer c.access.Unlock()
+	return c.writeCalls
 }
 
 type windowsTestAddr string
@@ -1132,6 +1198,22 @@ func TestWindowsClientPostHandshakeReplyPreExpiredReadDeadline(t *testing.T) {
 	}
 }
 
+func TestWindowsTLSRawReadEOFAtRecordBoundary(t *testing.T) {
+	rawConn := &windowsTestIOConn{readErr: io.EOF}
+	_, err := readTLSRaw(rawConn, make([]byte, 16), false)
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("expected io.EOF, got %v", err)
+	}
+}
+
+func TestWindowsTLSRawReadEOFWithPendingRecord(t *testing.T) {
+	rawConn := &windowsTestIOConn{readErr: io.EOF}
+	_, err := readTLSRaw(rawConn, make([]byte, 16), true)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("expected io.ErrUnexpectedEOF, got %v", err)
+	}
+}
+
 func TestWindowsClientPostHandshakeReplyWaitsForWriteAccess(t *testing.T) {
 	rawConn := &windowsTestWriteGateConn{
 		writeCalled:  make(chan struct{}),
@@ -1166,6 +1248,84 @@ func TestWindowsClientPostHandshakeReplyWaitsForWriteAccess(t *testing.T) {
 	err := <-errCh
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWindowsClientPostHandshakeReplyErrorClosesConn(t *testing.T) {
+	rawConn := &windowsTestIOConn{
+		writeErr: os.ErrDeadlineExceeded,
+		writeN:   1,
+	}
+	tlsConn := &windowsTLSConn{
+		rawConn: rawConn,
+		closed:  make(chan struct{}),
+	}
+
+	err := tlsConn.writePostHandshakeReply([]byte("reply"))
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+	}
+	if !rawConn.isClosed() {
+		t.Fatal("expected raw conn to be closed")
+	}
+	if !tlsConn.isClosed() {
+		t.Fatal("expected tls conn to be closed")
+	}
+}
+
+func TestWindowsClientWriteErrorClosesConn(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverDone, serverAddress := startWindowsTLSSilentServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	})
+	defer close(serverDone)
+
+	tlsConn, err := newWindowsTestEngineConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalRawConn := tlsConn.rawConn
+	rawConn := &windowsTestIOConn{
+		writeErr: os.ErrDeadlineExceeded,
+		writeN:   1,
+	}
+	tlsConn.rawConn = rawConn
+	t.Cleanup(func() {
+		_ = originalRawConn.Close()
+		_ = tlsConn.Close()
+	})
+
+	_, err = tlsConn.Write([]byte("ping"))
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+	}
+	if !rawConn.isClosed() {
+		t.Fatal("expected raw conn to be closed")
+	}
+	if !tlsConn.isClosed() {
+		t.Fatal("expected tls conn to be closed")
+	}
+
+	_, err = tlsConn.Write([]byte("again"))
+	if !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("expected net.ErrClosed on second write, got %v", err)
+	}
+	if rawConn.totalWriteCalls() != 1 {
+		t.Fatalf("expected exactly 1 raw write, got %d", rawConn.totalWriteCalls())
+	}
+
+	_, err = tlsConn.Read(make([]byte, 1))
+	if !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("expected net.ErrClosed on read after write failure, got %v", err)
 	}
 }
 
@@ -1561,6 +1721,46 @@ func newWindowsTestClientConn(t *testing.T, serverAddress string, options option
 		return nil, err
 	}
 	return tlsConn, nil
+}
+
+func newWindowsTestEngineConn(t *testing.T, serverAddress string, options option.OutboundTLSOptions) (*windowsTLSConn, error) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), windowsTLSTestTimeout)
+	t.Cleanup(cancel)
+
+	clientConfig, err := NewClientWithOptions(ClientOptions{
+		Context:       ctx,
+		Logger:        logger.NOP(),
+		ServerAddress: "",
+		Options:       options,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	engineConfig, ok := clientConfig.(*windowsClientConfig)
+	if !ok {
+		return nil, errors.New("unexpected windows config type")
+	}
+
+	conn, err := net.DialTimeout("tcp", serverAddress, windowsTLSTestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConn, err := engineConfig.ClientHandshake(ctx, conn)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	engineConn, ok := tlsConn.(*windowsTLSConn)
+	if !ok {
+		tlsConn.Close()
+		return nil, errors.New("unexpected windows conn type")
+	}
+	return engineConn, nil
 }
 
 // startWindowsEchoServer brings up a TLS echo server with a self-signed cert
