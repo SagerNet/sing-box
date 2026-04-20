@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [accept_search_domain](#accept_search_domain)
+
 !!! question "Since sing-box 1.12.0"
 
 # Tailscale
@@ -17,7 +21,8 @@ icon: material/new-box
         "tag": "",
 
         "endpoint": "ts-ep",
-        "accept_default_resolvers": false
+        "accept_default_resolvers": false,
+        "accept_search_domain": false
       }
     ]
   }
@@ -37,6 +42,14 @@ The tag of the [Tailscale Endpoint](/configuration/endpoint/tailscale).
 Indicates whether default DNS resolvers should be accepted for fallback queries in addition to MagicDNS。
 
 if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
+
+#### accept_search_domain
+
+!!! question "Since sing-box 1.14.0"
+
+When enabled, single-label queries (e.g. `my-device`) are retried against each Tailscale search domain until one resolves.
+
+Default resolvers are not consulted for single-label queries regardless of `accept_default_resolvers`.
 
 ### Examples
 
