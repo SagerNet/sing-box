@@ -63,6 +63,7 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 	}
 	rule := &DefaultRule{
 		abstractDefaultRule{
+			tag:    options.Name,
 			invert: options.Invert,
 			action: action,
 		},
@@ -320,6 +321,7 @@ func NewLogicalRule(ctx context.Context, logger log.ContextLogger, options optio
 	}
 	rule := &LogicalRule{
 		abstractLogicalRule{
+			tag:    options.Name,
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
 			invert: options.Invert,
 			action: action,

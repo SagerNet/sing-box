@@ -11,6 +11,7 @@ import (
 )
 
 type abstractDefaultRule struct {
+	tag    					string
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	sourcePortItems         []RuleItem
@@ -176,14 +177,20 @@ func (r *abstractDefaultRule) Action() adapter.RuleAction {
 }
 
 func (r *abstractDefaultRule) String() string {
-	if !r.invert {
-		return strings.Join(F.MapToString(r.allItems), " ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
-	}
+    var description string
+    if !r.invert {
+        description = strings.Join(F.MapToString(r.allItems), " ")
+    } else {
+        description = "!(" + strings.Join(F.MapToString(r.allItems), " ") + ")"
+    }
+    if r.tag != "" {
+        return "[" + r.tag + "] " + description
+    }
+    return description
 }
 
 type abstractLogicalRule struct {
+	tag    string
 	rules  []adapter.HeadlessRule
 	mode   string
 	invert bool
@@ -277,18 +284,23 @@ func (r *abstractLogicalRule) Action() adapter.RuleAction {
 }
 
 func (r *abstractLogicalRule) String() string {
-	var op string
-	switch r.mode {
-	case C.LogicalTypeAnd:
-		op = "&&"
-	case C.LogicalTypeOr:
-		op = "||"
-	}
-	if !r.invert {
-		return strings.Join(F.MapToString(r.rules), " "+op+" ")
-	} else {
-		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
-	}
+    var op string
+    switch r.mode {
+    case C.LogicalTypeAnd:
+        op = "&&"
+    case C.LogicalTypeOr:
+        op = "||"
+    }
+    var description string
+    if !r.invert {
+        description = strings.Join(F.MapToString(r.rules), " "+op+" ")
+    } else {
+        description = "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
+    }
+    if r.tag != "" {
+        return "[" + r.tag + "] " + description
+    }
+    return description
 }
 
 func matchAnyItem(items []RuleItem, metadata *adapter.InboundContext) bool {
