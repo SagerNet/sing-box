@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [accept_search_domain](#accept_search_domain)
+
 !!! question "自 sing-box 1.12.0 起"
 
 # Tailscale
@@ -17,7 +21,8 @@ icon: material/new-box
         "tag": "",
 
         "endpoint": "ts-ep",
-        "accept_default_resolvers": false
+        "accept_default_resolvers": false,
+        "accept_search_domain": false
       }
     ]
   }
@@ -37,6 +42,14 @@ icon: material/new-box
 指示是否除了 MagicDNS 外，还应接受默认 DNS 解析器以进行回退查询。
 
 如果未启用，对于非 Tailscale 域名查询将返回 `NXDOMAIN`。
+
+#### accept_search_domain
+
+!!! question "自 sing-box 1.14.0 起"
+
+启用后，单标签查询（例如 `my-device`）将依次附加 Tailscale 搜索域进行重试，直到其中一个解析成功。
+
+对于单标签查询，无论 `accept_default_resolvers` 是否启用，都不会使用默认 DNS 解析器。
 
 ### 示例
 

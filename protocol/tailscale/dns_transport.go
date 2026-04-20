@@ -4,6 +4,7 @@ package tailscale
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
@@ -28,6 +29,7 @@ import (
 	"github.com/sagernet/sing/service"
 	nDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/types/dnstype"
+	"github.com/sagernet/tailscale/util/dnsname"
 	"github.com/sagernet/tailscale/wgengine/router"
 	"github.com/sagernet/tailscale/wgengine/wgcfg"
 
@@ -46,6 +48,7 @@ type DNSTransport struct {
 	logger                 logger.ContextLogger
 	endpointTag            string
 	acceptDefaultResolvers bool
+	acceptSearchDomain     bool
 	dnsRouter              adapter.DNSRouter
 	endpointManager        adapter.EndpointManager
 	endpoint               *Endpoint
@@ -53,6 +56,7 @@ type DNSTransport struct {
 	routePrefixes          []netip.Prefix
 	routes                 map[string][]adapter.DNSTransport
 	hosts                  map[string][]netip.Addr
+	searchDomains          []string
 	defaultResolvers       []adapter.DNSTransport
 }
 
@@ -66,6 +70,7 @@ func NewDNSTransport(ctx context.Context, logger log.ContextLogger, tag string, 
 		logger:                 logger,
 		endpointTag:            options.Endpoint,
 		acceptDefaultResolvers: options.AcceptDefaultResolvers,
+		acceptSearchDomain:     options.AcceptSearchDomain,
 		dnsRouter:              service.FromContext[adapter.DNSRouter](ctx),
 		endpointManager:        service.FromContext[adapter.EndpointManager](ctx),
 	}, nil
@@ -129,6 +134,9 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	for domain, addresses := range dnsConfig.Hosts {
 		hosts[domain.WithTrailingDot()] = addresses
 	}
+	searchDomains := common.Map(dnsConfig.SearchDomains, func(it dnsname.FQDN) string {
+		return it.WithTrailingDot()
+	})
 	var defaultResolvers []adapter.DNSTransport
 	for _, resolver := range dnsConfig.DefaultResolvers {
 		myResolver, err := t.createResolver(directDialerOnce, resolver)
@@ -143,6 +151,7 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	t.routePrefixes = routePrefixes
 	t.routes = routes
 	t.hosts = hosts
+	t.searchDomains = searchDomains
 	t.defaultResolvers = defaultResolvers
 	t.access.Unlock()
 
@@ -151,10 +160,10 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	}
 
 	if len(defaultResolvers) > 0 {
-		t.logger.Info("updated ", len(routes), " routes, ", len(hosts), " hosts, default resolvers: ",
+		t.logger.Info("updated ", len(routes), " routes, ", len(hosts), " hosts, ", len(searchDomains), " search domains, default resolvers: ",
 			strings.Join(common.Map(dnsConfig.DefaultResolvers, func(it *dnstype.Resolver) string { return it.Addr }), " "))
 	} else {
-		t.logger.Info("updated ", len(routes), " routes, ", len(hosts), " hosts")
+		t.logger.Info("updated ", len(routes), " routes, ", len(hosts), " hosts, ", len(searchDomains), " search domains")
 	}
 	return nil
 }
@@ -254,13 +263,51 @@ func (t *DNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 	if len(message.Question) != 1 {
 		return nil, os.ErrInvalid
 	}
+	if t.acceptSearchDomain && mDNS.CountLabel(message.Question[0].Name) == 1 {
+		return t.exchangeWithSearchDomains(ctx, message)
+	}
+	t.access.RLock()
+	acceptDefaultResolvers := t.acceptDefaultResolvers
+	t.access.RUnlock()
+	return t.exchangeOnce(ctx, message, acceptDefaultResolvers)
+}
+
+func (t *DNSTransport) exchangeWithSearchDomains(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	t.access.RLock()
+	searchDomains := t.searchDomains
+	t.access.RUnlock()
+	singleLabel := strings.TrimSuffix(message.Question[0].Name, ".")
+	var lastErr error
+	for _, searchDomain := range searchDomains {
+		question := message.Question[0]
+		question.Name = singleLabel + "." + searchDomain
+		rewritten := *message
+		rewritten.Question = []mDNS.Question{question}
+		response, err := t.exchangeOnce(ctx, &rewritten, false)
+		if err == nil {
+			if response.Rcode == mDNS.RcodeNameError {
+				continue
+			}
+			return response, nil
+		}
+		if errors.Is(err, dns.RcodeNameError) {
+			continue
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, dns.RcodeNameError
+}
+
+func (t *DNSTransport) exchangeOnce(ctx context.Context, message *mDNS.Msg, allowDefaultResolvers bool) (*mDNS.Msg, error) {
 	question := message.Question[0]
 
 	t.access.RLock()
 	hosts := t.hosts
 	routes := t.routes
 	defaultResolvers := t.defaultResolvers
-	acceptDefaultResolvers := t.acceptDefaultResolvers
 	t.access.RUnlock()
 
 	addresses, hostsLoaded := hosts[question.Name]
@@ -306,7 +353,7 @@ func (t *DNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			return nil, lastErr
 		}
 	}
-	if acceptDefaultResolvers {
+	if allowDefaultResolvers {
 		if len(defaultResolvers) > 0 {
 			var lastErr error
 			for _, resolver := range defaultResolvers {
