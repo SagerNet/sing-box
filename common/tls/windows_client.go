@@ -168,6 +168,9 @@ func driveSteps(
 			}
 		}
 		if result.Incomplete {
+			// readMore reuses scratch storage, so keep the buffered handshake
+			// bytes in stable memory before the next read overwrites them.
+			buffer = append([]byte(nil), buffer...)
 			more, readErr := readMore()
 			if readErr != nil {
 				return nil, readErr

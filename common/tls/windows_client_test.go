@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/common/schannel"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -1195,6 +1196,50 @@ func TestWindowsClientPostHandshakeReplyPreExpiredReadDeadline(t *testing.T) {
 	deadlines := rawConn.recordedWriteDeadlines()
 	if len(deadlines) != 0 {
 		t.Fatalf("expected no write deadline update for pre-expired read deadline, got %d", len(deadlines))
+	}
+}
+
+func TestDriveStepsPreservesBufferedHandshakeBytes(t *testing.T) {
+	scratch := make([]byte, 8)
+	copy(scratch, "abc")
+
+	readCalls := 0
+	stepCalls := 0
+	leftover, err := driveSteps(
+		scratch[:3],
+		func(input []byte) (schannel.StepResult, error) {
+			stepCalls++
+			switch stepCalls {
+			case 1:
+				if string(input) != "abc" {
+					t.Fatalf("first step input = %q, want %q", input, "abc")
+				}
+				return schannel.StepResult{Incomplete: true}, nil
+			case 2:
+				if string(input) != "abcdef" {
+					t.Fatalf("second step input = %q, want %q", input, "abcdef")
+				}
+				return schannel.StepResult{Consumed: len(input), Done: true}, nil
+			default:
+				t.Fatalf("unexpected step call %d", stepCalls)
+				return schannel.StepResult{}, nil
+			}
+		},
+		func() ([]byte, error) {
+			readCalls++
+			copy(scratch, "def")
+			return scratch[:3], nil
+		},
+		func([]byte) error { return nil },
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readCalls != 1 {
+		t.Fatalf("readMore called %d times, want 1", readCalls)
+	}
+	if len(leftover) != 0 {
+		t.Fatalf("leftover = %q, want empty", leftover)
 	}
 }
 

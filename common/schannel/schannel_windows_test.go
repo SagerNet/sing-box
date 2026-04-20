@@ -4,6 +4,7 @@ package schannel
 
 import (
 	"bytes"
+	"crypto/tls"
 	"testing"
 	"unsafe"
 
@@ -45,6 +46,40 @@ func TestExtractCertChainDERKeepsLastIntermediateWithoutRoot(t *testing.T) {
 	}
 	if !bytes.Equal(derChain[1], []byte("intermediate")) {
 		t.Fatalf("unexpected last certificate: %q", string(derChain[1]))
+	}
+}
+
+func TestDisabledProtocolsMask(t *testing.T) {
+	testCases := []struct {
+		name       string
+		minVersion uint16
+		maxVersion uint16
+		want       uint32
+	}{
+		{
+			name: "default range",
+			want: spProtAllTLSClients &^ (spProtTLS12Client | spProtTLS13Client),
+		},
+		{
+			name:       "default minimum with explicit max",
+			maxVersion: tls.VersionTLS12,
+			want:       spProtAllTLSClients &^ spProtTLS12Client,
+		},
+		{
+			name:       "explicit tls10 range",
+			minVersion: tls.VersionTLS10,
+			maxVersion: tls.VersionTLS13,
+			want:       0,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := disabledProtocolsMask(testCase.minVersion, testCase.maxVersion)
+			if got != testCase.want {
+				t.Fatalf("disabledProtocolsMask(%#x, %#x) = %#x, want %#x", testCase.minVersion, testCase.maxVersion, got, testCase.want)
+			}
+		})
 	}
 }
 
