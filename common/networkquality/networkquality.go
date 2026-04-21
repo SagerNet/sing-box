@@ -227,7 +227,7 @@ type loadConnection struct {
 }
 
 func (c *loadConnection) run(ctx context.Context, onError func(error)) {
-	defer c.client.CloseIdleConnections()
+	defer closeMeasurementClient(c.client)
 	markActive := func() {
 		c.ready.Store(true)
 		c.active.Store(true)
@@ -451,27 +451,29 @@ func (r *directionRunner) startProber(ctx context.Context) {
 			if conn == nil {
 				continue
 			}
-			go func(selfClient *http.Client) {
-				foreignClient, err := r.factory(r.plan.connectEndpoint, true, true, nil, nil)
-				if err != nil {
-					return
-				}
-				round, err := collectProbeRound(ctx, foreignClient, selfClient, r.plan.probeURL.String())
-				foreignClient.CloseIdleConnections()
-				if err != nil {
-					return
-				}
-				r.recordProbeRound(probeRound{
-					interval:   int(r.currentInterval.Load()),
-					tcp:        round.tcp,
-					tls:        round.tls,
-					httpFirst:  round.httpFirst,
-					httpLoaded: round.httpLoaded,
-				})
-			}(conn.client)
+			r.runProbeRound(ctx, conn.client)
 			ticker.Reset(r.probeInterval())
 		}
 	}()
+}
+
+func (r *directionRunner) runProbeRound(ctx context.Context, selfClient *http.Client) {
+	foreignClient, err := r.factory(r.plan.connectEndpoint, true, true, nil, nil)
+	if err != nil {
+		return
+	}
+	defer closeMeasurementClient(foreignClient)
+	round, err := collectProbeRound(ctx, foreignClient, selfClient, r.plan.probeURL.String())
+	if err != nil {
+		return
+	}
+	r.recordProbeRound(probeRound{
+		interval:   int(r.currentInterval.Load()),
+		tcp:        round.tcp,
+		tls:        round.tls,
+		httpFirst:  round.httpFirst,
+		httpLoaded: round.httpLoaded,
+	})
 }
 
 func (r *directionRunner) probeInterval() time.Duration {
@@ -945,7 +947,7 @@ func measureIdleLatency(ctx context.Context, factory MeasurementClientFactory, c
 			return 0, 0, err
 		}
 		measurement, err := runProbe(ctx, client, config.smallURL.String(), false)
-		client.CloseIdleConnections()
+		closeMeasurementClient(client)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -1272,6 +1274,16 @@ func newRequest(ctx context.Context, method string, rawURL string, body io.Reade
 	}
 	req.Header.Set("Accept-Encoding", "identity")
 	return req, nil
+}
+
+func closeMeasurementClient(client *http.Client) {
+	if client == nil {
+		return
+	}
+	client.CloseIdleConnections()
+	if closer, ok := client.Transport.(interface{ Close() error }); ok {
+		_ = closer.Close()
+	}
 }
 
 func validateResponse(resp *http.Response) error {
