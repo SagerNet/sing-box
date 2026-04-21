@@ -5,16 +5,20 @@ package usbip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/common/shell"
 
 	"github.com/stretchr/testify/require"
 )
@@ -242,6 +246,105 @@ func startDispatchServer(t *testing.T, server *ServerService) (M.Socksaddr, func
 	}
 }
 
+type testUSBGadget struct {
+	path   string
+	serial string
+	busid  string
+}
+
+func requireRoot(t *testing.T) {
+	t.Helper()
+	if os.Geteuid() != 0 {
+		t.Skip("root required")
+	}
+}
+
+func requireKernelModule(t *testing.T, module string) {
+	t.Helper()
+
+	modprobePath, err := findModprobePath()
+	require.NoError(t, err)
+
+	output, err := shell.Exec(modprobePath, module).Read()
+	require.NoErrorf(t, err, "modprobe %s: %s", module, output)
+}
+
+func writeSysfsLine(path string, content string) error {
+	return os.WriteFile(path, []byte(content+"\n"), 0)
+}
+
+func newTestUSBGadget(t *testing.T) *testUSBGadget {
+	t.Helper()
+	requireRoot(t)
+
+	requireKernelModule(t, "configfs")
+	requireKernelModule(t, "libcomposite")
+	requireKernelModule(t, "dummy_hcd")
+
+	udcs, err := os.ReadDir("/sys/class/udc")
+	require.NoError(t, err)
+	require.NotEmpty(t, udcs)
+
+	gadget := &testUSBGadget{
+		path:   filepath.Join("/sys/kernel/config/usb_gadget", fmt.Sprintf("codex_usbip_%d", time.Now().UnixNano())),
+		serial: fmt.Sprintf("codex-usbip-%d", time.Now().UnixNano()),
+	}
+	require.NoError(t, os.MkdirAll(filepath.Join(gadget.path, "strings/0x409"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(gadget.path, "configs/c.1/strings/0x409"), 0o755))
+	require.NoError(t, os.Mkdir(filepath.Join(gadget.path, "functions/acm.usb0"), 0o755))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "idVendor"), "0x1d6b"))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "idProduct"), "0x0104"))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "strings/0x409/serialnumber"), gadget.serial))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "strings/0x409/manufacturer"), "OpenAI"))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "strings/0x409/product"), "Codex USBIP Test"))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "configs/c.1/strings/0x409/configuration"), "config-1"))
+	require.NoError(t, os.Symlink(filepath.Join(gadget.path, "functions/acm.usb0"), filepath.Join(gadget.path, "configs/c.1/acm.usb0")))
+	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "UDC"), udcs[0].Name()))
+
+	require.Eventually(t, func() bool {
+		devices, err := listUSBDevices()
+		if err != nil {
+			return false
+		}
+		for i := range devices {
+			if devices[i].VendorID == 0x1d6b &&
+				devices[i].ProductID == 0x0104 &&
+				devices[i].Serial == gadget.serial {
+				gadget.busid = devices[i].BusID
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond)
+
+	t.Cleanup(func() {
+		if gadget.busid != "" {
+			if driver, err := currentDriver(gadget.busid); err == nil {
+				switch driver {
+				case "usbip-host":
+					_ = hostUnbind(gadget.busid)
+					_ = hostMatchBusID(gadget.busid, false)
+					_ = bindToDriver(gadget.busid, "usb")
+				case "usb":
+				case "":
+				default:
+					_ = bindToDriver(gadget.busid, "usb")
+				}
+			}
+		}
+
+		_ = writeSysfsLine(filepath.Join(gadget.path, "UDC"), "")
+		_ = os.Remove(filepath.Join(gadget.path, "configs/c.1/acm.usb0"))
+		_ = os.Remove(filepath.Join(gadget.path, "functions/acm.usb0"))
+		_ = os.Remove(filepath.Join(gadget.path, "configs/c.1/strings/0x409"))
+		_ = os.Remove(filepath.Join(gadget.path, "configs/c.1"))
+		_ = os.Remove(filepath.Join(gadget.path, "strings/0x409"))
+		_ = os.Remove(gadget.path)
+	})
+
+	return gadget
+}
+
 func TestBuildTargetsDedupesFixedBusID(t *testing.T) {
 	t.Parallel()
 
@@ -304,6 +407,40 @@ func TestLinuxHelpers(t *testing.T) {
 	require.Equal(t, "ss", vhciHubForSpeed(SpeedSuper))
 	require.True(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=usb\x00")))
 	require.False(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=net\x00")))
+}
+
+func TestServerStartRequiresHostDriver(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("host driver unavailable")
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(),
+		exports:     make(map[string]serverExport),
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops: usbipOps{
+			ensureHostDriver: func() error { return expectedErr },
+		},
+	}
+
+	err := server.Start(adapter.StartStateStart)
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestClientStartRequiresVHCI(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("vhci unavailable")
+	client := &ClientService{
+		ctx:    context.Background(),
+		logger: newTestLogger(),
+		ops: usbipOps{
+			ensureVHCI: func() error { return expectedErr },
+		},
+	}
+
+	err := client.Start(adapter.StartStateStart)
+	require.ErrorIs(t, err, expectedErr)
 }
 
 func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
@@ -619,23 +756,42 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 }
 
 func TestUSBIPLinuxSmoke(t *testing.T) {
-	if os.Geteuid() != 0 {
-		t.Skip("usbip smoke test requires root")
-	}
+	requireRoot(t)
+
 	require.NoError(t, ensureHostDriver())
 	require.NoError(t, ensureVHCI())
 
-	busid := os.Getenv("USBIP_TEST_BUSID")
-	if busid == "" {
-		t.Skip("USBIP_TEST_BUSID not set")
+	gadget := newTestUSBGadget(t)
+	device, err := readSysfsDevice(gadget.busid, sysBusDevicePath(gadget.busid))
+	require.NoError(t, err)
+	require.Equal(t, gadget.busid, device.BusID)
+
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(),
+		exports:     make(map[string]serverExport),
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         systemUSBIPOps,
 	}
+	require.NoError(t, server.bindOne(&device))
 
-	device, err := readSysfsDevice(busid, sysBusDevicePath(busid))
-	require.NoError(t, err)
-	require.Equal(t, busid, device.BusID)
+	_, ok := server.snapshotExports()[gadget.busid]
+	require.True(t, ok)
 
-	_, err = currentDriver(busid)
+	driver, err := currentDriver(gadget.busid)
 	require.NoError(t, err)
-	_, err = readUsbipStatus(busid)
+	require.Equal(t, "usbip-host", driver)
+
+	status, err := readUsbipStatus(gadget.busid)
 	require.NoError(t, err)
+	require.Equal(t, usbipStatusAvailable, status)
+
+	require.NoError(t, hostUnbind(gadget.busid))
+	require.NoError(t, hostMatchBusID(gadget.busid, false))
+	require.NoError(t, bindToDriver(gadget.busid, "usb"))
+	server.deleteExport(gadget.busid)
+
+	driver, err = currentDriver(gadget.busid)
+	require.NoError(t, err)
+	require.Equal(t, "usb", driver)
 }

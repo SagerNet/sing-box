@@ -30,6 +30,7 @@ const (
 )
 
 var errImmediateReconnect = errors.New("usbip control reconnect")
+var errControlUnsupported = errors.New("usbip control unsupported")
 
 type clientTarget struct {
 	fixedBusID string
@@ -168,7 +169,7 @@ func (c *ClientService) run() {
 		if !immediate && !sleepCtx(c.ctx, clientReconnectDelay) {
 			break
 		}
-		err := c.runControlSession()
+		err := c.runSession()
 		if c.ctx.Err() != nil {
 			break
 		}
@@ -178,6 +179,15 @@ func (c *ClientService) run() {
 		immediate = errors.Is(err, errImmediateReconnect)
 	}
 	c.stopAllWorkers()
+}
+
+func (c *ClientService) runSession() error {
+	err := c.runControlSession()
+	if errors.Is(err, errControlUnsupported) {
+		c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
+		return c.runStandardSession()
+	}
+	return err
 }
 
 func (c *ClientService) runControlSession() error {
@@ -192,23 +202,23 @@ func (c *ClientService) runControlSession() error {
 	_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
 	_ = conn.SetReadDeadline(time.Now().Add(controlWriteTimeout))
 	if err := WriteControlPreface(conn); err != nil {
-		return E.Cause(err, "write control preface")
+		return E.Cause(errControlUnsupported, "write control preface: ", err)
 	}
 	if err := WriteControlHello(conn); err != nil {
-		return E.Cause(err, "write control hello")
+		return E.Cause(errControlUnsupported, "write control hello: ", err)
 	}
 	ack, err := ReadControlFrame(conn)
 	if err != nil {
-		return E.Cause(err, "read control ack")
+		return E.Cause(errControlUnsupported, "read control ack: ", err)
 	}
 	if ack.Type != controlFrameAck {
-		return E.New("unexpected control ack frame ", ack.Type)
+		return E.Cause(errControlUnsupported, "unexpected control ack frame ", ack.Type)
 	}
 	if ack.Version != controlProtocolVersion {
-		return E.New("unsupported control version ", ack.Version)
+		return E.Cause(errControlUnsupported, "unsupported control version ", ack.Version)
 	}
 	if ack.Capabilities&controlCapabilities != controlCapabilities {
-		return E.New("missing control capabilities 0x", ack.Capabilities)
+		return E.Cause(errControlUnsupported, "missing control capabilities 0x", ack.Capabilities)
 	}
 	_ = conn.SetWriteDeadline(time.Time{})
 	_ = conn.SetReadDeadline(time.Time{})
@@ -244,6 +254,14 @@ func (c *ClientService) runControlSession() error {
 			return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
 		}
 	}
+}
+
+func (c *ClientService) runStandardSession() error {
+	if err := c.syncRemoteState(); err != nil {
+		return E.Cause(err, "initial devlist sync")
+	}
+	<-c.ctx.Done()
+	return nil
 }
 
 func (c *ClientService) controlPingLoop(conn net.Conn, done <-chan struct{}) {
