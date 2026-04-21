@@ -9,6 +9,7 @@ icon: material/new-box
     :material-plus: [spoof](#spoof)  
     :material-plus: [spoof_method](#spoof_method)  
     :material-plus: [engine](#engine)  
+    :material-plus: [reality.mldsa65_verify](#mldsa65_verify)  
     :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -152,7 +153,8 @@ icon: material/new-box
   "reality": {
     "enabled": false,
     "public_key": "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-    "short_id": "0123456789abcdef"
+    "short_id": "0123456789abcdef",
+    "mldsa65_verify": ""
   }
 }
 ```
@@ -827,3 +829,11 @@ A hexadecimal string with zero to eight digits.
 The maximum time difference between the server and the client.
 
 Check disabled if empty.
+
+#### mldsa65_verify
+
+!!! question "Since sing-box 1.14.0"
+
+==Client only==
+
+A 1952 bytes ML-DSA-65 public key in base64 format, used to verify the additional post-quantum signature in the first certificate extension.
