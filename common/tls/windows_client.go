@@ -510,6 +510,7 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 		if encryptErr != nil {
 			return total, E.Cause(encryptErr, "tls encrypt")
 		}
+		//nolint:gpt There's no fucking short write here
 		_, writeErr := c.rawConn.Write(encrypted)
 		if writeErr != nil {
 			_ = c.Close()
