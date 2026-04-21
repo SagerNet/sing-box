@@ -97,6 +97,14 @@ func ReadOpHeader(r io.Reader) (OpHeader, error) {
 	return h, nil
 }
 
+func ParseOpHeader(raw []byte) OpHeader {
+	return OpHeader{
+		Version: binary.BigEndian.Uint16(raw[:2]),
+		Code:    binary.BigEndian.Uint16(raw[2:4]),
+		Status:  binary.BigEndian.Uint32(raw[4:8]),
+	}
+}
+
 // WriteOpReqImport sends OP_REQ_IMPORT for busid (8 + 32 = 40 bytes).
 func WriteOpReqImport(w io.Writer, busid string) error {
 	if err := WriteOpHeader(w, OpReqImport, OpStatusOK); err != nil {

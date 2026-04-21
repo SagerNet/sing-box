@@ -4,7 +4,10 @@ package usbip
 
 import (
 	"context"
+	"io"
 	"net"
+	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -25,6 +28,12 @@ type serverExport struct {
 	originalDriver string
 }
 
+type serverControlConn struct {
+	id   uint64
+	conn net.Conn
+	send chan controlFrame
+}
+
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -34,8 +43,13 @@ type ServerService struct {
 	matches  []option.USBIPDeviceMatch
 
 	mu       sync.Mutex
-	exports  []serverExport
+	exports  map[string]serverExport
 	listenFD net.Listener
+
+	controlMu     sync.Mutex
+	controlSeq    uint64
+	controlNextID uint64
+	controlSubs   map[uint64]*serverControlConn
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -54,12 +68,14 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 		cancel:  cancel,
 		logger:  logger,
 		matches: options.Devices,
+		exports: make(map[string]serverExport),
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
+		controlSubs: make(map[uint64]*serverControlConn),
 	}
 	return s, nil
 }
@@ -71,7 +87,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if err := ensureHostDriver(); err != nil {
 		return err
 	}
-	if err := s.bindExports(); err != nil {
+	if _, err := s.reconcileExports(); err != nil {
 		s.rollbackExports()
 		return err
 	}
@@ -84,6 +100,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	s.listenFD = tcpListener
 	s.mu.Unlock()
 	go s.acceptLoop(tcpListener)
+	go s.ueventLoop()
 	return nil
 }
 
@@ -91,47 +108,58 @@ func (s *ServerService) Close() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.closeControlSubscribers()
 	err := common.Close(common.PtrOrNil(s.listener))
 	s.rollbackExports()
 	return err
 }
 
-// bindExports resolves every match against current sysfs state, unbinds from
-// the current driver, and binds to usbip-host.
-func (s *ServerService) bindExports() error {
+func (s *ServerService) reconcileExports() (bool, error) {
 	devices, err := listUSBDevices()
 	if err != nil {
-		return E.Cause(err, "enumerate usb devices")
+		return false, E.Cause(err, "enumerate usb devices")
 	}
-	seen := make(map[string]bool)
+	desired := make(map[string]sysfsDevice)
+	present := make(map[string]struct{}, len(devices))
+	for i := range devices {
+		present[devices[i].BusID] = struct{}{}
+	}
 	for _, m := range s.matches {
-		matched := 0
 		for i := range devices {
 			if !Matches(m, devices[i].key()) {
 				continue
 			}
-			if seen[devices[i].BusID] {
-				matched++
-				continue
-			}
 			if devices[i].DeviceClass == 0x09 {
-				seen[devices[i].BusID] = true
-				matched++
 				s.logger.Warn("skip hub device ", devices[i].BusID, " matched by ", describeMatch(m))
 				continue
 			}
-			if err := s.bindOne(&devices[i]); err != nil {
-				s.logger.Warn("bind ", devices[i].BusID, ": ", err)
-				continue
-			}
-			seen[devices[i].BusID] = true
-			matched++
-		}
-		if matched == 0 {
-			s.logger.Warn("no local device matched ", describeMatch(m))
+			desired[devices[i].BusID] = devices[i]
 		}
 	}
-	return nil
+
+	current := s.snapshotExports()
+	changed := false
+	for busid, device := range desired {
+		if _, ok := current[busid]; ok {
+			continue
+		}
+		if err := s.bindOne(&device); err != nil {
+			s.logger.Warn("bind ", busid, ": ", err)
+			continue
+		}
+		changed = true
+	}
+	for busid, export := range current {
+		if _, ok := desired[busid]; ok {
+			continue
+		}
+		_, restore := present[busid]
+		if err := s.releaseExport(export, restore); err != nil {
+			s.logger.Warn("release ", busid, ": ", err)
+		}
+		changed = true
+	}
+	return changed, nil
 }
 
 func (s *ServerService) bindOne(d *sysfsDevice) error {
@@ -141,9 +169,7 @@ func (s *ServerService) bindOne(d *sysfsDevice) error {
 	}
 	if driver == "usbip-host" {
 		s.logger.Info("device ", d.BusID, " already bound to usbip-host; co-opting")
-		s.mu.Lock()
-		s.exports = append(s.exports, serverExport{busid: d.BusID})
-		s.mu.Unlock()
+		s.setExport(serverExport{busid: d.BusID})
 		return nil
 	}
 	if driver != "" {
@@ -165,53 +191,90 @@ func (s *ServerService) bindOne(d *sysfsDevice) error {
 		return E.Cause(err, "bind to usbip-host")
 	}
 	s.logger.Info("exported ", d.BusID, " (previously on ", driverOrNone(driver), ")")
-	s.mu.Lock()
-	s.exports = append(s.exports, serverExport{
+	s.setExport(serverExport{
 		busid:          d.BusID,
 		managed:        true,
 		originalDriver: driver,
 	})
-	s.mu.Unlock()
 	return nil
 }
 
+func (s *ServerService) releaseExport(export serverExport, restore bool) error {
+	s.deleteExport(export.busid)
+
+	var releaseErr error
+	if err := writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
+		releaseErr = err
+	}
+	if !export.managed {
+		s.logger.Info("stopped tracking ", export.busid, " on usbip-host")
+		return releaseErr
+	}
+	if err := hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && releaseErr == nil {
+		releaseErr = err
+	}
+	if err := hostMatchBusID(export.busid, false); err != nil && releaseErr == nil {
+		releaseErr = err
+	}
+	if !restore {
+		s.logger.Info("removed export state for disappeared device ", export.busid)
+		return releaseErr
+	}
+	if export.originalDriver == "" {
+		s.logger.Info("released ", export.busid, " from usbip-host")
+		return releaseErr
+	}
+	if err := bindToDriver(export.busid, export.originalDriver); err != nil {
+		if releaseErr == nil {
+			releaseErr = err
+		}
+		return releaseErr
+	}
+	s.logger.Info("restored ", export.busid, " to ", export.originalDriver)
+	return releaseErr
+}
+
 func (s *ServerService) rollbackExports() {
-	s.mu.Lock()
-	exports := s.exports
-	s.exports = nil
-	s.mu.Unlock()
-	for _, e := range exports {
-		if !e.managed {
-			continue
+	exports := s.snapshotExports()
+	for _, export := range exports {
+		_, restore := currentSysfsDevice(export.busid)
+		if err := s.releaseExport(export, restore); err != nil {
+			s.logger.Warn("rollback ", export.busid, ": ", err)
 		}
-		// Release any attached peer.
-		_ = writeUsbipSockfd(e.busid, -1)
-		if err := hostUnbind(e.busid); err != nil {
-			s.logger.Warn("unbind ", e.busid, ": ", err)
-		}
-		if err := hostMatchBusID(e.busid, false); err != nil {
-			s.logger.Debug("match_busid del ", e.busid, ": ", err)
-		}
-		if e.originalDriver == "" {
-			s.logger.Info("released ", e.busid, " from usbip-host")
-			continue
-		}
-		if err := bindToDriver(e.busid, e.originalDriver); err != nil {
-			s.logger.Warn("rebind ", e.busid, " to ", e.originalDriver, ": ", err)
-			continue
-		}
-		s.logger.Info("restored ", e.busid, " to ", e.originalDriver)
 	}
 }
 
 func (s *ServerService) currentExports() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]string, len(s.exports))
-	for i, e := range s.exports {
-		out[i] = e.busid
+	out := make([]string, 0, len(s.exports))
+	for busid := range s.exports {
+		out = append(out, busid)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func (s *ServerService) snapshotExports() map[string]serverExport {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[string]serverExport, len(s.exports))
+	for busid, export := range s.exports {
+		out[busid] = export
 	}
 	return out
+}
+
+func (s *ServerService) setExport(export serverExport) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.exports[export.busid] = export
+}
+
+func (s *ServerService) deleteExport(busid string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.exports, busid)
 }
 
 func (s *ServerService) acceptLoop(ln net.Listener) {
@@ -237,17 +300,26 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 			s.logger.Error("accept: ", err)
 			return
 		}
-		go s.handleConn(conn)
+		go s.dispatchConn(conn)
 	}
 }
 
-func (s *ServerService) handleConn(conn net.Conn) {
-	defer conn.Close()
-	header, err := ReadOpHeader(conn)
-	if err != nil {
-		s.logger.Debug("read op header: ", err)
+func (s *ServerService) dispatchConn(conn net.Conn) {
+	var prefix [controlPrefaceSize]byte
+	if _, err := io.ReadFull(conn, prefix[:]); err != nil {
+		s.logger.Debug("read connection preface: ", err)
+		_ = conn.Close()
 		return
 	}
+	if IsControlPreface(prefix[:]) {
+		s.handleControlConn(conn)
+		return
+	}
+	s.handleStandardConn(conn, ParseOpHeader(prefix[:]))
+}
+
+func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
+	defer conn.Close()
 	switch header.Code {
 	case OpReqDevList:
 		s.handleDevList(conn)
@@ -255,6 +327,71 @@ func (s *ServerService) handleConn(conn net.Conn) {
 		s.handleImport(conn)
 	default:
 		s.logger.Debug("unknown opcode 0x", hex16(header.Code))
+	}
+}
+
+func (s *ServerService) handleControlConn(conn net.Conn) {
+	defer conn.Close()
+
+	hello, err := ReadControlFrame(conn)
+	if err != nil {
+		s.logger.Debug("read control hello: ", err)
+		return
+	}
+	if hello.Type != controlFrameHello {
+		s.logger.Debug("unexpected control frame ", hello.Type, " before hello")
+		return
+	}
+	if hello.Version != controlProtocolVersion {
+		s.logger.Debug("unsupported control version ", hello.Version)
+		return
+	}
+	if hello.Capabilities&controlCapabilities != controlCapabilities {
+		s.logger.Debug("missing control capabilities 0x", hello.Capabilities)
+		return
+	}
+
+	sub, seq := s.registerControlConn(conn)
+	defer s.unregisterControlConn(sub.id)
+
+	if err := WriteControlAck(conn, seq); err != nil {
+		s.logger.Debug("write control ack: ", err)
+		return
+	}
+
+	readDone := make(chan struct{})
+	go s.readControlConn(sub, readDone)
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-readDone:
+			return
+		case frame := <-sub.send:
+			if err := writeControlFrame(conn, frame); err != nil {
+				s.logger.Debug("write control frame: ", err)
+				return
+			}
+		}
+	}
+}
+
+func (s *ServerService) readControlConn(sub *serverControlConn, done chan<- struct{}) {
+	defer close(done)
+	for {
+		frame, err := ReadControlFrame(sub.conn)
+		if err != nil {
+			return
+		}
+		switch frame.Type {
+		case controlFramePing:
+			s.enqueueControlFrame(sub, controlFrame{
+				Type:    controlFramePong,
+				Version: controlProtocolVersion,
+			})
+		default:
+			return
+		}
 	}
 }
 
@@ -346,12 +483,124 @@ func (s *ServerService) handleImport(conn net.Conn) {
 func (s *ServerService) isExported(busid string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, e := range s.exports {
-		if e.busid == busid {
-			return true
+	_, ok := s.exports[busid]
+	return ok
+}
+
+func (s *ServerService) ueventLoop() {
+	for {
+		listener, err := newUEventListener()
+		if err != nil {
+			if s.ctx.Err() != nil {
+				return
+			}
+			s.logger.Warn("open uevent listener: ", err)
+			if !sleepCtx(s.ctx, time.Second) {
+				return
+			}
+			continue
+		}
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-s.ctx.Done():
+				_ = listener.Close()
+			case <-done:
+			}
+		}()
+		for {
+			err = listener.WaitUSBEvent()
+			if err != nil {
+				close(done)
+				_ = listener.Close()
+				if s.ctx.Err() != nil {
+					return
+				}
+				s.logger.Warn("read uevent: ", err)
+				if !sleepCtx(s.ctx, time.Second) {
+					return
+				}
+				break
+			}
+			changed, reconcileErr := s.reconcileExports()
+			if reconcileErr != nil {
+				s.logger.Warn("reconcile exports: ", reconcileErr)
+				continue
+			}
+			if changed {
+				s.broadcastChanged()
+			}
 		}
 	}
-	return false
+}
+
+func (s *ServerService) registerControlConn(conn net.Conn) (*serverControlConn, uint64) {
+	s.controlMu.Lock()
+	defer s.controlMu.Unlock()
+	s.controlNextID++
+	sub := &serverControlConn{
+		id:   s.controlNextID,
+		conn: conn,
+		send: make(chan controlFrame, 16),
+	}
+	s.controlSubs[sub.id] = sub
+	return sub, s.controlSeq
+}
+
+func (s *ServerService) unregisterControlConn(id uint64) {
+	s.controlMu.Lock()
+	defer s.controlMu.Unlock()
+	delete(s.controlSubs, id)
+}
+
+func (s *ServerService) closeControlSubscribers() {
+	s.controlMu.Lock()
+	subs := make([]*serverControlConn, 0, len(s.controlSubs))
+	for _, sub := range s.controlSubs {
+		subs = append(subs, sub)
+	}
+	s.controlSubs = make(map[uint64]*serverControlConn)
+	s.controlMu.Unlock()
+	for _, sub := range subs {
+		_ = sub.conn.Close()
+	}
+}
+
+func (s *ServerService) broadcastChanged() {
+	s.controlMu.Lock()
+	s.controlSeq++
+	sequence := s.controlSeq
+	subs := make([]*serverControlConn, 0, len(s.controlSubs))
+	for _, sub := range s.controlSubs {
+		subs = append(subs, sub)
+	}
+	s.controlMu.Unlock()
+
+	frame := controlFrame{
+		Type:     controlFrameChanged,
+		Version:  controlProtocolVersion,
+		Sequence: sequence,
+	}
+	for _, sub := range subs {
+		s.enqueueControlFrame(sub, frame)
+	}
+}
+
+func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame controlFrame) {
+	select {
+	case sub.send <- frame:
+	default:
+		s.logger.Debug("control subscriber ", sub.id, " lagged behind")
+		_ = sub.conn.Close()
+	}
+}
+
+func currentSysfsDevice(busid string) (sysfsDevice, bool) {
+	device, err := readSysfsDevice(busid, sysBusDevicePath(busid))
+	if err != nil {
+		return sysfsDevice{}, false
+	}
+	return device, true
 }
 
 func sysBusDevicePath(busid string) string {
