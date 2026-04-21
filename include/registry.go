@@ -39,6 +39,7 @@ import (
 	originca "github.com/sagernet/sing-box/service/origin_ca"
 	"github.com/sagernet/sing-box/service/resolved"
 	"github.com/sagernet/sing-box/service/ssmapi"
+	"github.com/sagernet/sing-box/service/usbip"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -135,6 +136,7 @@ func ServiceRegistry() *service.Registry {
 
 	resolved.RegisterService(registry)
 	ssmapi.RegisterService(registry)
+	usbip.RegisterService(registry)
 
 	registerQUICServices(registry)
 	registerDERPService(registry)

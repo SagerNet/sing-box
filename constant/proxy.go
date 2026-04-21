@@ -33,6 +33,8 @@ const (
 	TypeOCM                = "ocm"
 	TypeOOMKiller          = "oom-killer"
 	TypeHysteriaRealm      = "hysteria-realm"
+	TypeUSBIPServer        = "usbip-server"
+	TypeUSBIPClient        = "usbip-client"
 	TypeACME               = "acme"
 	TypeCloudflareOriginCA = "cloudflare-origin-ca"
 )
