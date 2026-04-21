@@ -17,6 +17,10 @@ const (
 	sysBusUSBDevices    = "/sys/bus/usb/devices"
 	sysUsbipHostDriver  = "/sys/bus/usb/drivers/usbip-host"
 	sysVHCIControllerV0 = "/sys/devices/platform/vhci_hcd.0"
+
+	usbipStatusAvailable = 1
+	usbipStatusUsed      = 2
+	usbipStatusError     = 3
 )
 
 // sysfsDevice captures the subset of USB device attributes needed for
@@ -208,7 +212,6 @@ func hostUnbind(busid string) error {
 }
 
 // readUsbipStatus returns the usbip_status attribute value for busid.
-// 1 = AVAILABLE, 2 = USED, 3 = ERROR.
 func readUsbipStatus(busid string) (int, error) {
 	raw, err := os.ReadFile(filepath.Join(sysBusUSBDevices, busid, "usbip_status"))
 	if err != nil {
@@ -401,7 +404,7 @@ func speedCodeFromString(s string) uint32 {
 		return SpeedHigh
 	case "5000":
 		return SpeedSuper
-	case "10000":
+	case "10000", "20000":
 		return SpeedSuperPlus
 	default:
 		return SpeedUnknown

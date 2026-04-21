@@ -22,6 +22,18 @@ import (
 
 const clientReconnectDelay = 5 * time.Second
 
+type clientTarget struct {
+	fixedBusID string
+	match      option.USBIPDeviceMatch
+}
+
+func (t clientTarget) description() string {
+	if t.fixedBusID != "" {
+		return describeMatch(option.USBIPDeviceMatch{BusID: t.fixedBusID})
+	}
+	return describeMatch(t.match)
+}
+
 type ClientService struct {
 	boxService.Adapter
 	ctx        context.Context
@@ -30,6 +42,10 @@ type ClientService struct {
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
 	matches    []option.USBIPDeviceMatch // empty = import all remote exports
+
+	assignMu sync.Mutex
+	targets  []clientTarget
+	assigned []string
 
 	attachMu sync.Mutex // serializes vhci port pick + attach
 	wg       sync.WaitGroup
@@ -97,32 +113,55 @@ func (c *ClientService) Close() error {
 	return nil
 }
 
-// run resolves the desired busid set (once) and spawns a worker per busid.
+// run prepares the desired targets and spawns one worker per target.
 func (c *ClientService) run() {
 	defer c.wg.Done()
-	busids := c.resolveBusIDs()
-	if len(busids) == 0 {
+	targets := c.buildTargets()
+	if len(targets) == 0 {
 		c.logger.Warn("no devices to import; client idle")
 		return
 	}
-	for _, busid := range busids {
+	c.assignMu.Lock()
+	c.targets = targets
+	c.assigned = make([]string, len(targets))
+	for i := range targets {
+		c.assigned[i] = targets[i].fixedBusID
+	}
+	c.assignMu.Unlock()
+	for i := range targets {
 		c.wg.Add(1)
-		go c.worker(busid)
+		go c.worker(i)
 	}
 }
 
-// resolveBusIDs connects once, issues OP_REQ_DEVLIST, and returns the busids
-// to attach. For the empty-matches case, returns every remote busid.
-// For filtered mode, returns the first match per criterion.
-func (c *ClientService) resolveBusIDs() []string {
-	// Busid-only matches don't require enumeration.
-	if len(c.matches) > 0 && everyMatchBusIDOnly(c.matches) {
-		out := make([]string, 0, len(c.matches))
-		for _, m := range c.matches {
-			out = append(out, m.BusID)
+func (c *ClientService) buildTargets() []clientTarget {
+	if len(c.matches) == 0 {
+		busids := c.snapshotRemoteBusIDs()
+		targets := make([]clientTarget, 0, len(busids))
+		for _, busid := range busids {
+			targets = append(targets, clientTarget{fixedBusID: busid})
 		}
-		return dedupe(out)
+		return targets
 	}
+	seenFixed := make(map[string]struct{})
+	targets := make([]clientTarget, 0, len(c.matches))
+	for _, m := range c.matches {
+		if isBusIDOnlyMatch(m) {
+			if _, seen := seenFixed[m.BusID]; seen {
+				continue
+			}
+			seenFixed[m.BusID] = struct{}{}
+			targets = append(targets, clientTarget{fixedBusID: m.BusID})
+			continue
+		}
+		targets = append(targets, clientTarget{match: m})
+	}
+	return targets
+}
+
+// snapshotRemoteBusIDs connects once, issues OP_REQ_DEVLIST, and returns the
+// currently exported remote busids.
+func (c *ClientService) snapshotRemoteBusIDs() []string {
 	for {
 		if err := c.ctx.Err(); err != nil {
 			return nil
@@ -135,33 +174,9 @@ func (c *ClientService) resolveBusIDs() []string {
 			}
 			continue
 		}
-		if len(c.matches) == 0 {
-			out := make([]string, 0, len(entries))
-			for i := range entries {
-				out = append(out, entries[i].Info.BusIDString())
-			}
-			return out
-		}
-		var out []string
-		for _, m := range c.matches {
-			picked := ""
-			for i := range entries {
-				key := DeviceKey{
-					BusID:     entries[i].Info.BusIDString(),
-					VendorID:  entries[i].Info.IDVendor,
-					ProductID: entries[i].Info.IDProduct,
-					Serial:    entries[i].Info.SerialString(),
-				}
-				if Matches(m, key) {
-					picked = key.BusID
-					break
-				}
-			}
-			if picked == "" {
-				c.logger.Warn("no remote device matched ", describeMatch(m))
-				continue
-			}
-			out = append(out, picked)
+		out := make([]string, 0, len(entries))
+		for i := range entries {
+			out = append(out, entries[i].Info.BusIDString())
 		}
 		return dedupe(out)
 	}
@@ -186,16 +201,32 @@ func (c *ClientService) fetchDevList() ([]DeviceEntry, error) {
 	return ReadOpRepDevListBody(conn)
 }
 
-// worker keeps one remote busid attached to vhci_hcd.0. On any error or
-// kernel-side detach, waits clientReconnectDelay and retries.
-func (c *ClientService) worker(busid string) {
+// worker keeps one target attached to vhci_hcd.0. On any error or kernel-side
+// detach, waits clientReconnectDelay and retries.
+func (c *ClientService) worker(targetIndex int) {
 	defer c.wg.Done()
+	target := c.targets[targetIndex]
 	for {
 		if err := c.ctx.Err(); err != nil {
 			return
 		}
+		busid, err := c.claimTargetBusID(targetIndex)
+		if err != nil {
+			c.logger.Error("assign ", target.description(), ": ", err)
+			if !sleepCtx(c.ctx, clientReconnectDelay) {
+				return
+			}
+			continue
+		}
+		if busid == "" {
+			if !sleepCtx(c.ctx, clientReconnectDelay) {
+				return
+			}
+			continue
+		}
 		port, err := c.attemptAttach(busid)
 		if err != nil {
+			c.releaseTargetBusID(targetIndex, busid)
 			c.logger.Error("attach ", busid, ": ", err)
 			if !sleepCtx(c.ctx, clientReconnectDelay) {
 				return
@@ -206,6 +237,7 @@ func (c *ClientService) worker(busid string) {
 		c.trackPort(port, true)
 		c.watchPort(port, busid)
 		c.trackPort(port, false)
+		c.releaseTargetBusID(targetIndex, busid)
 		if err := c.ctx.Err(); err != nil {
 			return
 		}
@@ -213,6 +245,62 @@ func (c *ClientService) worker(busid string) {
 		if !sleepCtx(c.ctx, clientReconnectDelay) {
 			return
 		}
+	}
+}
+
+func (c *ClientService) claimTargetBusID(targetIndex int) (string, error) {
+	target := c.targets[targetIndex]
+	if target.fixedBusID != "" {
+		return target.fixedBusID, nil
+	}
+	c.assignMu.Lock()
+	current := c.assigned[targetIndex]
+	c.assignMu.Unlock()
+	if current != "" {
+		return current, nil
+	}
+	entries, err := c.fetchDevList()
+	if err != nil {
+		return "", err
+	}
+	return c.refreshAssignments(targetIndex, entries), nil
+}
+
+func (c *ClientService) refreshAssignments(targetIndex int, entries []DeviceEntry) string {
+	c.assignMu.Lock()
+	defer c.assignMu.Unlock()
+	if c.assigned[targetIndex] != "" {
+		return c.assigned[targetIndex]
+	}
+	reserved := make(map[string]struct{}, len(c.assigned))
+	for _, busid := range c.assigned {
+		if busid == "" {
+			continue
+		}
+		reserved[busid] = struct{}{}
+	}
+	for i, target := range c.targets {
+		if target.fixedBusID != "" || c.assigned[i] != "" {
+			continue
+		}
+		busid := firstMatchingUnclaimedBusID(target.match, entries, reserved)
+		if busid == "" {
+			continue
+		}
+		c.assigned[i] = busid
+		reserved[busid] = struct{}{}
+	}
+	return c.assigned[targetIndex]
+}
+
+func (c *ClientService) releaseTargetBusID(targetIndex int, busid string) {
+	if c.targets[targetIndex].fixedBusID != "" {
+		return
+	}
+	c.assignMu.Lock()
+	defer c.assignMu.Unlock()
+	if c.assigned[targetIndex] == busid {
+		c.assigned[targetIndex] = ""
 	}
 }
 
@@ -304,13 +392,26 @@ func (c *ClientService) trackPort(port int, add bool) {
 	}
 }
 
-func everyMatchBusIDOnly(matches []option.USBIPDeviceMatch) bool {
-	for _, m := range matches {
-		if m.BusID == "" || m.VendorID != 0 || m.ProductID != 0 || m.Serial != "" {
-			return false
+func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {
+	return m.BusID != "" && m.VendorID == 0 && m.ProductID == 0 && m.Serial == ""
+}
+
+func firstMatchingUnclaimedBusID(match option.USBIPDeviceMatch, entries []DeviceEntry, reserved map[string]struct{}) string {
+	for i := range entries {
+		key := DeviceKey{
+			BusID:     entries[i].Info.BusIDString(),
+			VendorID:  entries[i].Info.IDVendor,
+			ProductID: entries[i].Info.IDProduct,
+			Serial:    entries[i].Info.SerialString(),
+		}
+		if _, claimed := reserved[key.BusID]; claimed {
+			continue
+		}
+		if Matches(match, key) {
+			return key.BusID
 		}
 	}
-	return true
+	return ""
 }
 
 func dedupe(in []string) []string {

@@ -257,6 +257,14 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	}
 	entries := make([]DeviceEntry, 0, len(busids))
 	for _, busid := range busids {
+		status, err := readUsbipStatus(busid)
+		if err != nil {
+			s.logger.Debug("status ", busid, ": ", err)
+			continue
+		}
+		if status != usbipStatusAvailable {
+			continue
+		}
 		d, err := readSysfsDevice(busid, sysBusDevicePath(busid))
 		if err != nil {
 			s.logger.Debug("refresh ", busid, ": ", err)
@@ -282,7 +290,7 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		return
 	}
 	status, err := readUsbipStatus(busid)
-	if err != nil || status != 1 {
+	if err != nil || status != usbipStatusAvailable {
 		s.logger.Info("import rejected (busid ", busid, " status=", status, " err=", err, ")")
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
 		return
