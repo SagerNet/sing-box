@@ -15,6 +15,8 @@ import (
 
 type OOMReporter interface {
 	WriteReport(memoryUsage uint64) error
+	WriteDraft(memoryUsage uint64) error
+	DiscardDraft() error
 }
 
 func RegisterService(registry *boxService.Registry) {
@@ -29,6 +31,7 @@ type Service struct {
 	timerConfig    timerConfig
 	adaptiveTimer  *adaptiveTimer
 	lastReportTime atomic.Int64
+	draftCancelled atomic.Bool
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.OOMKillerServiceOptions) (adapter.Service, error) {
@@ -79,5 +82,39 @@ func (s *Service) writeOOMReport(memoryUsage uint64) {
 		s.logger.Warn("failed to write OOM report: ", err)
 	} else {
 		s.logger.Info("OOM report saved")
+	}
+}
+
+func (s *Service) writeOOMDraft(memoryUsage uint64) {
+	if s.draftCancelled.Load() {
+		return
+	}
+	reporter := service.FromContext[OOMReporter](s.ctx)
+	if reporter == nil {
+		return
+	}
+	err := reporter.WriteDraft(memoryUsage)
+	if s.draftCancelled.Load() {
+		reporter.DiscardDraft()
+		return
+	}
+	if err != nil {
+		s.logger.Warn("failed to write OOM draft: ", err)
+	} else {
+		s.logger.Warn("OOM draft saved")
+	}
+}
+
+func (s *Service) discardOOMDraft() {
+	s.draftCancelled.Store(true)
+	reporter := service.FromContext[OOMReporter](s.ctx)
+	if reporter == nil {
+		return
+	}
+	err := reporter.DiscardDraft()
+	if err != nil {
+		s.logger.Warn("failed to discard OOM draft: ", err)
+	} else {
+		s.logger.Info("OOM draft discarded")
 	}
 }
