@@ -83,6 +83,7 @@ func (s *Service) Close() error {
 		if isLast {
 			C.stopMemoryPressureMonitor()
 		}
+		s.discardOOMDraft()
 	}
 	return nil
 }
@@ -100,6 +101,7 @@ func goMemoryPressureCallback(status C.ulong) {
 	sample := readMemorySample(policyModeNetworkExtension)
 	for _, s := range services {
 		s.logger.Warn("memory pressure: critical, usage: ", byteformats.FormatMemoryBytes(sample.usage))
+		s.writeOOMDraft(sample.usage)
 		s.adaptiveTimer.notifyPressure()
 	}
 }
