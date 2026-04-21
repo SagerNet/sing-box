@@ -13,4 +13,7 @@ type SSHOutboundOptions struct {
 	HostKey              badoption.Listable[string] `json:"host_key,omitempty"`
 	HostKeyAlgorithms    badoption.Listable[string] `json:"host_key_algorithms,omitempty"`
 	ClientVersion        string                     `json:"client_version,omitempty"`
+	Ciphers              badoption.Listable[string] `json:"ciphers,omitempty"`
+	MACs                 badoption.Listable[string] `json:"macs,omitempty"`
+	KeyExchanges         badoption.Listable[string] `json:"key_exchanges,omitempty"`
 }

@@ -43,6 +43,9 @@ type Outbound struct {
 	hostKey           []ssh.PublicKey
 	hostKeyAlgorithms []string
 	clientVersion     string
+	ciphers           []string
+	macs              []string
+	keyExchanges      []string
 	authMethod        []ssh.AuthMethod
 	clientAccess      sync.Mutex
 	clientConn        net.Conn
@@ -63,6 +66,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,
 		clientVersion:     options.ClientVersion,
+		ciphers:           options.Ciphers,
+		macs:              options.MACs,
+		keyExchanges:      options.KeyExchanges,
 	}
 	if outbound.serverAddr.Port == 0 {
 		outbound.serverAddr.Port = 22
@@ -121,6 +127,29 @@ func randomVersion() string {
 	return version
 }
 
+func validateAlgorithms(userAlgs []string, supported []string, insecure []string, algType string) ([]string, error) {
+	if len(userAlgs) == 0 {
+		return nil, nil
+	}
+	normalized := make([]string, len(userAlgs))
+	for i, alg := range userAlgs {
+		normalized[i] = strings.ToLower(alg)
+	}
+	allAlgs := make(map[string]bool)
+	for _, alg := range supported {
+		allAlgs[alg] = true
+	}
+	for _, alg := range insecure {
+		allAlgs[alg] = true
+	}
+	for _, alg := range normalized {
+		if !allAlgs[alg] {
+			return nil, E.New("unknown ", algType, ": ", alg)
+		}
+	}
+	return normalized, nil
+}
+
 func (s *Outbound) connect() (*ssh.Client, error) {
 	if s.client != nil {
 		return s.client, nil
@@ -135,6 +164,23 @@ func (s *Outbound) connect() (*ssh.Client, error) {
 
 	conn, err := s.dialer.DialContext(s.ctx, N.NetworkTCP, s.serverAddr)
 	if err != nil {
+		return nil, err
+	}
+	supported := ssh.SupportedAlgorithms()
+	insecure := ssh.InsecureAlgorithms()
+	ciphers, err := validateAlgorithms(s.ciphers, supported.Ciphers, insecure.Ciphers, "cipher")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	macs, err := validateAlgorithms(s.macs, supported.MACs, insecure.MACs, "mac")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	keyExchanges, err := validateAlgorithms(s.keyExchanges, supported.KeyExchanges, insecure.KeyExchanges, "key exchange")
+	if err != nil {
+		conn.Close()
 		return nil, err
 	}
 	config := &ssh.ClientConfig{
@@ -153,6 +199,11 @@ func (s *Outbound) connect() (*ssh.Client, error) {
 				}
 			}
 			return E.New("host key mismatch, server send ", key.Type(), " ", base64.StdEncoding.EncodeToString(serverKey))
+		},
+		Config: ssh.Config{
+			Ciphers:      ciphers,
+			MACs:         macs,
+			KeyExchanges: keyExchanges,
 		},
 	}
 	clientConn, chans, reqs, err := ssh.NewClientConn(conn, s.serverAddr.Addr.String(), config)

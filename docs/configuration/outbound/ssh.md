@@ -17,6 +17,16 @@
   ],
   "host_key_algorithms": [],
   "client_version": "SSH-2.0-OpenSSH_7.4p1",
+  "ciphers": [
+    "aes128-gcm@openssh.com",
+    "chacha20-poly1305@openssh.com"
+  ],
+  "macs": [
+    "hmac-sha2-256-etm@openssh.com"
+  ],
+  "key_exchanges": [
+    "curve25519-sha256"
+  ],
 
   ... // Dial Fields
 }
@@ -65,6 +75,24 @@ Host key algorithms.
 #### client_version
 
 Client version. Random version will be used if empty.
+
+#### ciphers
+
+List of cipher algorithms to use. If empty, SSH defaults will be used.
+
+Available values: `aes128-gcm@openssh.com` | `aes256-gcm@openssh.com` | `chacha20-poly1305@openssh.com` | `aes128-ctr` | `aes192-ctr` | `aes256-ctr`.
+
+#### macs
+
+List of MAC (Message Authentication Code) algorithms to use. If empty, SSH defaults will be used.
+
+Available values: `hmac-sha2-256-etm@openssh.com` | `hmac-sha2-512-etm@openssh.com` | `hmac-sha2-256` | `hmac-sha2-512` | `hmac-sha1`.
+
+#### key_exchanges
+
+List of key exchange algorithms to use. If empty, SSH defaults will be used.
+
+Available values: `mlkem768x25519-sha256` | `curve25519-sha256` | `ecdh-sha2-nistp256` | `ecdh-sha2-nistp384` | `ecdh-sha2-nistp521` | `diffie-hellman-group14-sha256` | `diffie-hellman-group16-sha512` | `diffie-hellman-group-exchange-sha256`.
 
 ### Dial Fields
 
