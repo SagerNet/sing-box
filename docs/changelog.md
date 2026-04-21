@@ -2,6 +2,15 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.16
+
+* Add ACME profile support for IP address certificates
+* Fixes and improvements
+
+#### 1.13.10
+
+* Fix process searcher failure introduced in 1.13.9
+
 #### 1.14.0-alpha.15
 
 * Add search domain support for Tailscale DNS **1**
@@ -191,10 +200,6 @@ See [Cloudflared](/configuration/inbound/cloudflared/).
 **1**:
 
 See [Hysteria2 Inbound](/configuration/inbound/hysteria2/#bbr_profile) and [Hysteria2 Outbound](/configuration/outbound/hysteria2/#bbr_profile).
-
-#### 1.14.0-alpha.8
-
-* Fixes and improvements
 
 #### 1.13.5
 

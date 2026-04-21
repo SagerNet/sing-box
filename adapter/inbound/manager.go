@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/taskmonitor"
@@ -47,13 +46,12 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	m.access.Unlock()
 	for _, inbound := range inbounds {
 		name := "inbound/" + inbound.Type() + "[" + inbound.Tag() + "]"
-		m.logger.Trace(stage, " ", name)
-		startTime := time.Now()
+		done := adapter.LogElapsed(m.logger, stage, " ", name)
 		err := adapter.LegacyStart(inbound, stage)
+		done()
 		if err != nil {
 			return E.Cause(err, stage, " ", name)
 		}
-		adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 	}
 	return nil
 }
@@ -71,14 +69,13 @@ func (m *Manager) Close() error {
 	var err error
 	for _, inbound := range inbounds {
 		name := "inbound/" + inbound.Type() + "[" + inbound.Tag() + "]"
-		m.logger.Trace("close ", name)
-		startTime := time.Now()
+		done := adapter.LogElapsed(m.logger, "close ", name)
 		monitor.Start("close ", name)
 		err = E.Append(err, inbound.Close(), func(err error) error {
 			return E.Cause(err, "close ", name)
 		})
 		monitor.Finish()
-		adapter.LogElapsed(m.logger, startTime, "close ", name)
+		done()
 	}
 	return nil
 }
@@ -132,13 +129,12 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	if m.started {
 		name := "inbound/" + inbound.Type() + "[" + inbound.Tag() + "]"
 		for _, stage := range adapter.ListStartStages {
-			m.logger.Trace(stage, " ", name)
-			startTime := time.Now()
+			done := adapter.LogElapsed(m.logger, stage, " ", name)
 			err = adapter.LegacyStart(inbound, stage)
+			done()
 			if err != nil {
 				return E.Cause(err, stage, " ", name)
 			}
-			adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 		}
 	}
 	if existsInbound, loaded := m.inboundByTag[tag]; loaded {

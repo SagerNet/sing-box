@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/taskmonitor"
@@ -83,13 +82,12 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 		m.access.Unlock()
 		for _, outbound := range outbounds {
 			name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-			m.logger.Trace(stage, " ", name)
-			startTime := time.Now()
+			done := adapter.LogElapsed(m.logger, stage, " ", name)
 			err := adapter.LegacyStart(outbound, stage)
+			done()
 			if err != nil {
 				return E.Cause(err, stage, " ", name)
 			}
-			adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 		}
 	}
 	return nil
@@ -116,27 +114,25 @@ func (m *Manager) startOutbounds(outbounds []adapter.Outbound) error {
 			canContinue = true
 			name := "outbound/" + outboundToStart.Type() + "[" + outboundTag + "]"
 			if starter, isStarter := outboundToStart.(adapter.Lifecycle); isStarter {
-				m.logger.Trace("start ", name)
-				startTime := time.Now()
+				done := adapter.LogElapsed(m.logger, "start ", name)
 				monitor.Start("start ", name)
 				err := starter.Start(adapter.StartStateStart)
 				monitor.Finish()
+				done()
 				if err != nil {
 					return E.Cause(err, "start ", name)
 				}
-				adapter.LogElapsed(m.logger, startTime, "start ", name)
 			} else if starter, isStarter := outboundToStart.(interface {
 				Start() error
 			}); isStarter {
-				m.logger.Trace("start ", name)
-				startTime := time.Now()
+				done := adapter.LogElapsed(m.logger, "start ", name)
 				monitor.Start("start ", name)
 				err := starter.Start()
 				monitor.Finish()
+				done()
 				if err != nil {
 					return E.Cause(err, "start ", name)
 				}
-				adapter.LogElapsed(m.logger, startTime, "start ", name)
 			}
 		}
 		if len(started) == len(outbounds) {
@@ -184,14 +180,13 @@ func (m *Manager) Close() error {
 	for _, outbound := range outbounds {
 		if closer, isCloser := outbound.(io.Closer); isCloser {
 			name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-			m.logger.Trace("close ", name)
-			startTime := time.Now()
+			done := adapter.LogElapsed(m.logger, "close ", name)
 			monitor.Start("close ", name)
 			err = E.Append(err, closer.Close(), func(err error) error {
 				return E.Cause(err, "close ", name)
 			})
 			monitor.Finish()
-			adapter.LogElapsed(m.logger, startTime, "close ", name)
+			done()
 		}
 	}
 	return nil
@@ -274,13 +269,12 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	if m.started {
 		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
 		for _, stage := range adapter.ListStartStages {
-			m.logger.Trace(stage, " ", name)
-			startTime := time.Now()
+			done := adapter.LogElapsed(m.logger, stage, " ", name)
 			err = adapter.LegacyStart(outbound, stage)
+			done()
 			if err != nil {
 				return E.Cause(err, stage, " ", name)
 			}
-			adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 		}
 	}
 	m.access.Lock()

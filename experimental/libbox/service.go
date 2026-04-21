@@ -104,14 +104,11 @@ func (w *platformInterfaceWrapper) NetworkInterfaces() ([]adapter.NetworkInterfa
 	}
 	var interfaces []adapter.NetworkInterface
 	for _, netInterface := range iteratorToArray[*NetworkInterface](interfaceIterator) {
-		if netInterface.Name == w.myTunName {
-			continue
-		}
 		w.defaultInterfaceAccess.Lock()
 		// (GOOS=windows) SA4006: this value of `isDefault` is never used
 		// Why not used?
 		//nolint:staticcheck
-		isDefault := w.defaultInterface != nil && int(netInterface.Index) == w.defaultInterface.Index
+		isDefault := netInterface.Name != w.myTunName && w.defaultInterface != nil && int(netInterface.Index) == w.defaultInterface.Index
 		w.defaultInterfaceAccess.Unlock()
 		interfaces = append(interfaces, adapter.NetworkInterface{
 			Interface: control.Interface{
