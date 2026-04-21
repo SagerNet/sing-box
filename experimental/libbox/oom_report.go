@@ -64,19 +64,63 @@ type oomReporter struct{}
 var _ oomkiller.OOMReporter = (*oomReporter)(nil)
 
 func (r *oomReporter) WriteReport(memoryUsage uint64) error {
-	now := time.Now().UTC()
+	draftPath := filepath.Join(sWorkingPath, "oom_draft")
+	draftInfo, err := os.Stat(draftPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		draftInfo = nil
+	}
 	reportsDir := filepath.Join(sWorkingPath, "oom_reports")
-	err := os.MkdirAll(reportsDir, 0o777)
+	err = os.MkdirAll(reportsDir, 0o777)
 	if err != nil {
 		return err
 	}
 	chownReport(reportsDir)
 
-	destPath, err := nextAvailableReportPath(reportsDir, now)
+	destPath, err := nextAvailableReportPath(reportsDir, time.Now().UTC())
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(destPath, 0o777)
+	err = r.writeSnapshot(destPath, memoryUsage)
+	if err != nil {
+		return err
+	}
+	return discardDraftIfCurrent(draftPath, draftInfo)
+}
+
+func (r *oomReporter) WriteDraft(memoryUsage uint64) error {
+	draftPath := filepath.Join(sWorkingPath, "oom_draft")
+	os.RemoveAll(draftPath)
+	return r.writeSnapshot(draftPath, memoryUsage)
+}
+
+func (r *oomReporter) DiscardDraft() error {
+	draftPath := filepath.Join(sWorkingPath, "oom_draft")
+	return os.RemoveAll(draftPath)
+}
+
+func discardDraftIfCurrent(draftPath string, draftInfo os.FileInfo) error {
+	if draftInfo == nil {
+		return nil
+	}
+	currentInfo, err := os.Stat(draftPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if !os.SameFile(draftInfo, currentInfo) {
+		return nil
+	}
+	return os.RemoveAll(draftPath)
+}
+
+func (r *oomReporter) writeSnapshot(destPath string, memoryUsage uint64) error {
+	now := time.Now().UTC()
+	err := os.MkdirAll(destPath, 0o777)
 	if err != nil {
 		return err
 	}
@@ -138,4 +182,37 @@ func writeOOMProfile(destPath string, name string) {
 		return
 	}
 	chownReport(filePath)
+}
+
+func promoteOOMDraftAt(workingPath string) {
+	draftPath := filepath.Join(workingPath, "oom_draft")
+	info, err := os.Stat(draftPath)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	reportsDir := filepath.Join(workingPath, "oom_reports")
+	initReportDir(reportsDir)
+	destPath, err := nextAvailableReportPath(reportsDir, info.ModTime().UTC())
+	if err != nil {
+		os.RemoveAll(draftPath)
+		return
+	}
+	err = os.Rename(draftPath, destPath)
+	if err != nil {
+		os.RemoveAll(draftPath)
+		return
+	}
+	chownReport(destPath)
+}
+
+func promoteOOMDraft() {
+	promoteOOMDraftAt(sWorkingPath)
+}
+
+func PromoteOOMDraft() {
+	promoteOOMDraft()
+}
+
+func PromoteOOMDraftAt(workingPath string) {
+	promoteOOMDraftAt(workingPath)
 }
