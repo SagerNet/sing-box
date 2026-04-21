@@ -158,7 +158,7 @@ func decodeCertificatePEM(pemBytes []byte) [][]byte {
 		if block == nil {
 			break
 		}
-		if block.Type == "CERTIFICATE" {
+		if block.Type == "CERTIFICATE" && len(block.Bytes) > 0 {
 			blocks = append(blocks, block.Bytes)
 		}
 		rest = next
