@@ -24,6 +24,7 @@ var _ adapter.CertificateStore = (*Store)(nil)
 type Store struct {
 	access                    sync.RWMutex
 	updateAccess              sync.Mutex
+	closed                    bool
 	store                     string
 	systemPool                *x509.CertPool
 	currentPool               *x509.CertPool
@@ -116,12 +117,24 @@ func (s *Store) Start(stage adapter.StartStage) error {
 }
 
 func (s *Store) Close() error {
-	closeErr := s.closePlatform()
-	if s.watcher != nil {
-		watcherErr := s.watcher.Close()
-		if closeErr == nil {
-			closeErr = watcherErr
-		}
+	s.updateAccess.Lock()
+	defer s.updateAccess.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
+	watcher := s.watcher
+	s.watcher = nil
+
+	var closeErr error
+	if watcher != nil {
+		closeErr = watcher.Close()
+	}
+	platformErr := s.closePlatform()
+	if platformErr != nil {
+		closeErr = platformErr
 	}
 	return closeErr
 }
@@ -139,6 +152,9 @@ func (s *Store) ExclusiveAnchors() bool {
 func (s *Store) update() error {
 	s.updateAccess.Lock()
 	defer s.updateAccess.Unlock()
+	if s.closed {
+		return nil
+	}
 	var currentPool *x509.CertPool
 	if s.systemPool == nil {
 		currentPool = x509.NewCertPool()

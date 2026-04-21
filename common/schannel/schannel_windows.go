@@ -490,6 +490,9 @@ func disabledProtocolsMask(minVersion, maxVersion uint16) uint32 {
 	effectiveMin := minVersion
 	if effectiveMin == 0 {
 		effectiveMin = tls.VersionTLS12
+		if maxVersion != 0 && maxVersion < tls.VersionTLS12 {
+			effectiveMin = versions[0].id
+		}
 	}
 	effectiveMax := maxVersion
 	if effectiveMax == 0 {
