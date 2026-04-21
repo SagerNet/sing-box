@@ -39,13 +39,9 @@ func (h *USBIPHexUint16) UnmarshalJSON(data []byte) error {
 		*h = 0
 		return nil
 	}
-	parsed, err := strconv.ParseUint(asString, 0, 16)
+	asString = strings.TrimPrefix(strings.TrimPrefix(asString, "0x"), "0X")
+	parsed, err := strconv.ParseUint(asString, 16, 16)
 	if err != nil {
-		// Allow bare hex without 0x prefix.
-		if parsed2, err2 := strconv.ParseUint(asString, 16, 16); err2 == nil {
-			*h = USBIPHexUint16(parsed2)
-			return nil
-		}
 		return E.Cause(err, "parse usb id ", asString)
 	}
 	*h = USBIPHexUint16(parsed)

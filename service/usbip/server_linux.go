@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -113,6 +114,12 @@ func (s *ServerService) bindExports() error {
 				matched++
 				continue
 			}
+			if devices[i].DeviceClass == 0x09 {
+				seen[devices[i].BusID] = true
+				matched++
+				s.logger.Warn("skip hub device ", devices[i].BusID, " matched by ", describeMatch(m))
+				continue
+			}
 			if err := s.bindOne(&devices[i]); err != nil {
 				s.logger.Warn("bind ", devices[i].BusID, ": ", err)
 				continue
@@ -218,6 +225,14 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 			}
 			if E.IsClosed(err) {
 				return
+			}
+			//nolint:staticcheck
+			if netError, isNetError := err.(net.Error); isNetError && netError.Temporary() {
+				s.logger.Error("accept: ", err)
+				if !sleepCtx(s.ctx, 200*time.Millisecond) {
+					return
+				}
+				continue
 			}
 			s.logger.Error("accept: ", err)
 			return

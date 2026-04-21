@@ -312,12 +312,7 @@ func (c *ClientService) attemptAttach(busid string) (int, error) {
 	if err != nil {
 		return -1, E.Cause(err, "dial ", c.serverAddr)
 	}
-	success := false
-	defer func() {
-		if !success {
-			conn.Close()
-		}
-	}()
+	defer conn.Close()
 	if err := WriteOpReqImport(conn, busid); err != nil {
 		return -1, E.Cause(err, "write OP_REQ_IMPORT")
 	}
@@ -353,7 +348,6 @@ func (c *ClientService) attemptAttach(busid string) (int, error) {
 	if err := vhciAttach(port, file.Fd(), info.DevID(), info.Speed); err != nil {
 		return -1, E.Cause(err, "vhci attach")
 	}
-	success = true
 	return port, nil
 }
 
