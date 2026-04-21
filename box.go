@@ -595,6 +595,14 @@ func (s *Box) Close() error {
 		})
 		s.logger.Trace("close ", s.httpClientService.Name(), " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
 	}
+	if s.httpClientService != nil {
+		s.logger.Trace("close ", s.httpClientService.Name())
+		startTime := time.Now()
+		err = E.Append(err, s.httpClientService.Close(), func(err error) error {
+			return E.Cause(err, "close ", s.httpClientService.Name())
+		})
+		s.logger.Trace("close ", s.httpClientService.Name(), " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+	}
 	for _, lifecycleService := range s.internalService {
 		done := adapter.LogElapsed(s.logger, "close ", lifecycleService.Name())
 		err = E.Append(err, lifecycleService.Close(), func(err error) error {

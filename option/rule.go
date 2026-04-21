@@ -66,6 +66,7 @@ func (r Rule) IsValid() bool {
 }
 
 type RawDefaultRule struct {
+	Name 					 string																		 `json:"name,omitempty"`
 	Inbound                  badoption.Listable[string]                                                  `json:"inbound,omitempty"`
 	IPVersion                int                                                                         `json:"ip_version,omitempty"`
 	Network                  badoption.Listable[string]                                                  `json:"network,omitempty"`
@@ -138,6 +139,7 @@ func (r DefaultRule) IsValid() bool {
 }
 
 type RawLogicalRule struct {
+	Name   string `json:"name,omitempty"`
 	Mode   string `json:"mode"`
 	Rules  []Rule `json:"rules,omitempty"`
 	Invert bool   `json:"invert,omitempty"`
