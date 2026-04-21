@@ -276,11 +276,13 @@ func (t *DNSTransport) exchangeWithSearchDomains(ctx context.Context, message *m
 	t.access.RLock()
 	searchDomains := t.searchDomains
 	t.access.RUnlock()
-	singleLabel := strings.TrimSuffix(message.Question[0].Name, ".")
+	originalQuestion := message.Question[0]
+	singleLabel := strings.TrimSuffix(originalQuestion.Name, ".")
 	var lastErr error
 	for _, searchDomain := range searchDomains {
-		question := message.Question[0]
-		question.Name = singleLabel + "." + searchDomain
+		expandedName := singleLabel + "." + searchDomain
+		question := originalQuestion
+		question.Name = expandedName
 		rewritten := *message
 		rewritten.Question = []mDNS.Question{question}
 		response, err := t.exchangeOnce(ctx, &rewritten, false)
@@ -288,6 +290,7 @@ func (t *DNSTransport) exchangeWithSearchDomains(ctx context.Context, message *m
 			if response.Rcode == mDNS.RcodeNameError {
 				continue
 			}
+			restoreOriginalQuestion(response, expandedName, originalQuestion)
 			return response, nil
 		}
 		if errors.Is(err, dns.RcodeNameError) {
@@ -299,6 +302,17 @@ func (t *DNSTransport) exchangeWithSearchDomains(ctx context.Context, message *m
 		return nil, lastErr
 	}
 	return nil, dns.RcodeNameError
+}
+
+// RFC 1035 §4.1.1 requires the response Question to match the request byte-for-byte,
+// and stub resolvers discard Answer RRs whose owner name does not match the question.
+func restoreOriginalQuestion(response *mDNS.Msg, expandedName string, originalQuestion mDNS.Question) {
+	response.Question = []mDNS.Question{originalQuestion}
+	for _, rr := range response.Answer {
+		if strings.EqualFold(rr.Header().Name, expandedName) {
+			rr.Header().Name = originalQuestion.Name
+		}
+	}
 }
 
 func (t *DNSTransport) exchangeOnce(ctx context.Context, message *mDNS.Msg, allowDefaultResolvers bool) (*mDNS.Msg, error) {
