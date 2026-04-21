@@ -498,7 +498,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, question d
 		response, err := c.exchangeToTransport(ctx, transport, message)
 		if err != nil {
 			if c.logger != nil {
-				c.logger.Debug("optimistic refresh failed for ", FqdnToDomain(question.Name), ": ", err)
+				c.logger.DebugContext(ctx, "optimistic refresh failed for ", FqdnToDomain(question.Name), ": ", err)
 			}
 			return
 		}
@@ -510,6 +510,9 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, question d
 				rejected = !responseChecker(response)
 			}
 			if rejected {
+				if c.logger != nil {
+					c.logger.DebugContext(ctx, "optimistic refresh rejected for ", FqdnToDomain(question.Name))
+				}
 				if c.rdrc != nil {
 					c.rdrc.SaveRDRCAsync(transport.Tag(), question.Name, question.Qtype, c.logger)
 				}
@@ -520,6 +523,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, question d
 		}
 		timeToLive := applyResponseOptions(question, response, options)
 		c.storeCache(transport, question, response, timeToLive)
+		logRefreshedResponse(c.logger, ctx, response, timeToLive)
 	}()
 }
 
