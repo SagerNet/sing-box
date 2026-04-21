@@ -106,6 +106,8 @@ const (
 	SecureProtocolTLS12 = 0x00000800
 	SecureProtocolTLS13 = 0x00002000
 
+	CallbackStatusSendingRequest      = 0x00000010
+	CallbackStatusRequestSent         = 0x00000020
 	CallbackStatusHandleClosing       = 0x00000800
 	CallbackStatusSecureFailure       = 0x00010000
 	CallbackStatusHeadersAvailable    = 0x00020000
@@ -124,6 +126,7 @@ const (
 	CallbackFlagHeadersAvailable    = CallbackStatusHeadersAvailable
 	CallbackFlagReadComplete        = CallbackStatusReadComplete
 	CallbackFlagRequestError        = CallbackStatusRequestError
+	CallbackFlagSendRequest         = CallbackStatusSendingRequest | CallbackStatusRequestSent
 	CallbackFlagSendRequestComplete = CallbackStatusSendRequestComplete
 	CallbackFlagSecureFailure       = CallbackStatusSecureFailure
 	CallbackFlagHandles             = 0x00000400 | CallbackStatusHandleClosing

@@ -5,11 +5,16 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	stdtls "crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +27,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	boxTLS "github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/winhttp"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -31,6 +35,7 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 )
 
@@ -53,8 +58,57 @@ type windowsHTTPTestServer struct {
 	server         *httptest.Server
 	baseURL        string
 	dialHost       string
+	requestHost    string
 	certificatePEM string
 	publicKeyHash  []byte
+}
+
+type windowsHTTPTestCertificateOptions struct {
+	subjectName string
+	dnsNames    []string
+	notBefore   time.Time
+	notAfter    time.Time
+	extKeyUsage []x509.ExtKeyUsage
+}
+
+type windowsHTTPTestServerOptions struct {
+	requestHost    string
+	certificate    *stdtls.Certificate
+	certificatePEM string
+}
+
+type windowsHTTPTestCertificateStore struct {
+	pool *x509.CertPool
+}
+
+func (s *windowsHTTPTestCertificateStore) Name() string {
+	return "windows-http-test-store"
+}
+
+func (s *windowsHTTPTestCertificateStore) Start(adapter.StartStage) error {
+	return nil
+}
+
+func (s *windowsHTTPTestCertificateStore) Close() error {
+	return nil
+}
+
+func (s *windowsHTTPTestCertificateStore) Pool() *x509.CertPool {
+	return s.pool
+}
+
+func (s *windowsHTTPTestCertificateStore) ExclusiveAnchors() bool {
+	return false
+}
+
+type windowsHTTPTestTimeService struct {
+	now time.Time
+}
+
+func (s windowsHTTPTestTimeService) TimeFunc() func() time.Time {
+	return func() time.Time {
+		return s.now
+	}
 }
 
 func TestNewWindowsSessionConfig(t *testing.T) {
@@ -267,6 +321,52 @@ func TestWindowsSecureProtocols(t *testing.T) {
 	}
 }
 
+func TestWindowsSecurityFlags(t *testing.T) {
+	t.Parallel()
+
+	expected := uint32(winhttp.SecurityFlagIgnoreUnknownCA |
+		winhttp.SecurityFlagIgnoreCertCNInvalid |
+		winhttp.SecurityFlagIgnoreCertDateInvalid |
+		winhttp.SecurityFlagIgnoreCertWrongUsage)
+	testCases := []struct {
+		name   string
+		config windowsSessionConfig
+	}{
+		{
+			name: "default verification",
+		},
+		{
+			name:   "custom roots",
+			config: windowsSessionConfig{userRoots: x509.NewCertPool()},
+		},
+		{
+			name: "certificate store",
+			config: windowsSessionConfig{
+				store: &windowsHTTPTestCertificateStore{pool: x509.NewCertPool()},
+			},
+		},
+		{
+			name:   "insecure",
+			config: windowsSessionConfig{insecure: true},
+		},
+		{
+			name:   "pins",
+			config: windowsSessionConfig{pinnedPublicKeys: [][]byte{{1}}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if flags := windowsSecurityFlags(testCase.config); flags != expected {
+				t.Fatalf("unexpected security flags: %#x", flags)
+			}
+		})
+	}
+}
+
 func TestWindowsTransportPlainHTTP(t *testing.T) {
 	t.Parallel()
 
@@ -426,6 +526,193 @@ func TestWindowsTransportPinnedPublicKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	response.Body.Close()
+}
+
+func TestWindowsTransportPinnedPublicKeyRejectedBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServer(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("unexpected"))
+	})
+	badHash := append([]byte(nil), server.publicKeyHash...)
+	badHash[0] ^= 0xff
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:                    true,
+				CertificatePublicKeySHA256: badoption.Listable[[]byte]{badHash},
+			},
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/pin-mismatch"), nil))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected pin validation error")
+	}
+	select {
+	case observed := <-requests:
+		t.Fatalf("unexpected request reached server: %+v", observed)
+	default:
+	}
+	if transport.(*windowsTransport).tree.active.Load() != 0 {
+		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
+	}
+}
+
+func TestWindowsTransportCustomRootRejectedBeforeSendAndReleasesTree(t *testing.T) {
+	t.Parallel()
+
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServer(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("unexpected"))
+	})
+	_, wrongCertificatePEM := newWindowsHTTPTestCertificate(t, "localhost")
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:     true,
+				ServerName:  "localhost",
+				Certificate: badoption.Listable[string]{wrongCertificatePEM},
+			},
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/wrong-root"), nil))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected custom root validation error")
+	}
+	select {
+	case observed := <-requests:
+		t.Fatalf("unexpected request reached server: %+v", observed)
+	default:
+	}
+	if transport.(*windowsTransport).tree.active.Load() != 0 {
+		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
+	}
+}
+
+func TestWindowsTransportVerifyTimeFromContext(t *testing.T) {
+	t.Parallel()
+
+	verifyTime := time.Now().Add(2 * time.Hour).Truncate(time.Second)
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificateWithOptions(t, windowsHTTPTestCertificateOptions{
+		subjectName: "localhost",
+		dnsNames:    []string{"localhost"},
+		notBefore:   verifyTime.Add(-time.Minute),
+		notAfter:    verifyTime.Add(time.Hour),
+	})
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("ok"))
+	}, windowsHTTPTestServerOptions{
+		certificate:    &serverCertificate,
+		certificatePEM: certificatePEM,
+	})
+	transport := newWindowsHTTPTestTransportWithVerifyTime(t, server, verifyTime, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: windowsHTTPServerTLSOptions(server),
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/time-skew"), nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := readWindowsHTTPResponseBody(t, response); body != "ok" {
+		t.Fatalf("unexpected response body: %q", body)
+	}
+	response.Body.Close()
+	if observed := <-requests; observed.method != http.MethodGet {
+		t.Fatalf("unexpected request: %+v", observed)
+	}
+}
+
+func TestWindowsTransportHostnameMismatchRejectedBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificate(t, "localhost")
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("unexpected"))
+	}, windowsHTTPTestServerOptions{
+		requestHost:    "example.com",
+		certificate:    &serverCertificate,
+		certificatePEM: certificatePEM,
+	})
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:     true,
+				Certificate: badoption.Listable[string]{server.certificatePEM},
+			},
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/hostname-mismatch"), nil))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected hostname validation error")
+	}
+	var hostnameError x509.HostnameError
+	if !errors.As(err, &hostnameError) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case observed := <-requests:
+		t.Fatalf("unexpected request reached server: %+v", observed)
+	default:
+	}
+	if transport.(*windowsTransport).tree.active.Load() != 0 {
+		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
+	}
+}
+
+func TestWindowsTransportWrongUsageRejectedBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificateWithOptions(t, windowsHTTPTestCertificateOptions{
+		subjectName: "localhost",
+		dnsNames:    []string{"localhost"},
+		extKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	})
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("unexpected"))
+	}, windowsHTTPTestServerOptions{
+		certificate:    &serverCertificate,
+		certificatePEM: certificatePEM,
+	})
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: windowsHTTPServerTLSOptions(server),
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/wrong-usage"), nil))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected incompatible usage error")
+	}
+	var invalidError x509.CertificateInvalidError
+	if !errors.As(err, &invalidError) || invalidError.Reason != x509.IncompatibleUsage {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case observed := <-requests:
+		t.Fatalf("unexpected request reached server: %+v", observed)
+	default:
+	}
+	if transport.(*windowsTransport).tree.active.Load() != 0 {
+		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
+	}
 }
 
 func TestWindowsTransportInsecure(t *testing.T) {
@@ -606,7 +893,9 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 		name    string
 		ctx     context.Context
 		input   error
+		tlsErr  error
 		wantErr error
+		check   func(error) bool
 	}{
 		{
 			name:    "closed handle with canceled context",
@@ -632,6 +921,26 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 			input:   os.ErrClosed,
 			wantErr: os.ErrClosed,
 		},
+		{
+			name:   "tls verification overrides closed handle",
+			ctx:    context.Background(),
+			input:  os.ErrClosed,
+			tlsErr: x509.HostnameError{},
+			check: func(err error) bool {
+				var hostnameError x509.HostnameError
+				return errors.As(err, &hostnameError)
+			},
+		},
+		{
+			name:   "tls verification overrides operation cancelled",
+			ctx:    context.Background(),
+			input:  winhttp.ErrorOperationCancelled,
+			tlsErr: x509.CertificateInvalidError{Reason: x509.IncompatibleUsage},
+			check: func(err error) bool {
+				var invalidError x509.CertificateInvalidError
+				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -639,8 +948,17 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			state := &windowsRequestState{ctx: testCase.ctx}
+			state := &windowsRequestState{
+				ctx:    testCase.ctx,
+				tlsErr: testCase.tlsErr,
+			}
 			err := state.mapError(testCase.input)
+			if testCase.check != nil {
+				if !testCase.check(err) {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
 			if !errors.Is(err, testCase.wantErr) {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -732,15 +1050,34 @@ func TestWindowsTransportLifecycle(t *testing.T) {
 
 func startWindowsHTTPTestServer(t *testing.T, tlsEnabled bool, enableHTTP2 bool, handler http.HandlerFunc) *windowsHTTPTestServer {
 	t.Helper()
+	return startWindowsHTTPTestServerWithOptions(t, tlsEnabled, enableHTTP2, handler, windowsHTTPTestServerOptions{})
+}
+
+func startWindowsHTTPTestServerWithOptions(t *testing.T, tlsEnabled bool, enableHTTP2 bool, handler http.HandlerFunc, options windowsHTTPTestServerOptions) *windowsHTTPTestServer {
+	t.Helper()
 
 	var (
 		server         *httptest.Server
 		certificatePEM string
 		publicKeyHash  []byte
 	)
+	requestHost := options.requestHost
+	if requestHost == "" {
+		requestHost = "localhost"
+	}
 	if tlsEnabled {
-		serverCertificate, pemText := newWindowsHTTPTestCertificate(t, "localhost")
-		certificatePEM = pemText
+		var serverCertificate stdtls.Certificate
+		if options.certificate != nil {
+			if options.certificatePEM == "" {
+				t.Fatal("missing certificate PEM for custom TLS test server")
+			}
+			serverCertificate = *options.certificate
+			certificatePEM = options.certificatePEM
+		} else {
+			var pemText string
+			serverCertificate, pemText = newWindowsHTTPTestCertificate(t, requestHost)
+			certificatePEM = pemText
+		}
 		publicKeyHash = windowsHTTPCertificatePublicKeySHA256(t, serverCertificate.Certificate[0])
 		server = httptest.NewUnstartedServer(handler)
 		server.EnableHTTP2 = enableHTTP2
@@ -759,12 +1096,13 @@ func startWindowsHTTPTestServer(t *testing.T, tlsEnabled bool, enableHTTP2 bool,
 		t.Fatal(err)
 	}
 	baseURL := *parsedURL
-	baseURL.Host = net.JoinHostPort("localhost", parsedURL.Port())
+	baseURL.Host = net.JoinHostPort(requestHost, parsedURL.Port())
 
 	return &windowsHTTPTestServer{
 		server:         server,
 		baseURL:        baseURL.String(),
 		dialHost:       parsedURL.Hostname(),
+		requestHost:    requestHost,
 		certificatePEM: certificatePEM,
 		publicKeyHash:  publicKeyHash,
 	}
@@ -783,6 +1121,20 @@ func (s *windowsHTTPTestServer) URL(path string) string {
 func newWindowsHTTPTestTransport(t *testing.T, server *windowsHTTPTestServer, options option.HTTPClientOptions) innerTransport {
 	t.Helper()
 	ctx, dialer := newWindowsHTTPTestContext(server)
+	transport, err := newWindowsTransport(ctx, log.NewNOPFactory().NewLogger("httpclient"), dialer, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = transport.Close()
+	})
+	return transport
+}
+
+func newWindowsHTTPTestTransportWithVerifyTime(t *testing.T, server *windowsHTTPTestServer, verifyTime time.Time, options option.HTTPClientOptions) innerTransport {
+	t.Helper()
+	ctx, dialer := newWindowsHTTPTestContext(server)
+	ctx = service.ContextWith[ntp.TimeService](ctx, windowsHTTPTestTimeService{now: verifyTime})
 	transport, err := newWindowsTransport(ctx, log.NewNOPFactory().NewLogger("httpclient"), dialer, options)
 	if err != nil {
 		t.Fatal(err)
@@ -818,7 +1170,7 @@ func newWindowsHTTPTestContext(server *windowsHTTPTestServer) (context.Context, 
 		hostMap: make(map[string]string),
 	}
 	if server != nil {
-		dialer.hostMap["localhost"] = server.dialHost
+		dialer.hostMap[server.requestHost] = server.dialHost
 	}
 	ctx := service.ContextWith[adapter.ConnectionManager](
 		context.Background(),
@@ -829,11 +1181,64 @@ func newWindowsHTTPTestContext(server *windowsHTTPTestServer) (context.Context, 
 
 func newWindowsHTTPTestCertificate(t *testing.T, serverName string) (stdtls.Certificate, string) {
 	t.Helper()
+	return newWindowsHTTPTestCertificateWithOptions(t, windowsHTTPTestCertificateOptions{
+		subjectName: serverName,
+		dnsNames:    []string{serverName},
+	})
+}
 
-	privateKeyPEM, certificatePEM, err := boxTLS.GenerateCertificate(nil, nil, time.Now, serverName, time.Now().Add(time.Hour))
+func newWindowsHTTPTestCertificateWithOptions(t *testing.T, options windowsHTTPTestCertificateOptions) (stdtls.Certificate, string) {
+	t.Helper()
+
+	subjectName := options.subjectName
+	if subjectName == "" {
+		subjectName = "localhost"
+	}
+	dnsNames := options.dnsNames
+	if len(dnsNames) == 0 {
+		dnsNames = []string{subjectName}
+	}
+	notBefore := options.notBefore
+	if notBefore.IsZero() {
+		notBefore = time.Now().Add(-time.Hour)
+	}
+	notAfter := options.notAfter
+	if notAfter.IsZero() {
+		notAfter = notBefore.Add(2 * time.Hour)
+	}
+	extKeyUsage := options.extKeyUsage
+	if len(extKeyUsage) == 0 {
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               pkix.Name{CommonName: subjectName},
+		DNSNames:              append([]string(nil), dnsNames...),
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           append([]x509.ExtKeyUsage(nil), extKeyUsage...),
+		BasicConstraintsValid: true,
+	}
+	certificateDER, err := x509.CreateCertificate(rand.Reader, template, template, privateKey.Public(), privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certificatePEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificateDER})
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyDER})
 	certificate, err := stdtls.X509KeyPair(certificatePEM, privateKeyPEM)
 	if err != nil {
 		t.Fatal(err)
@@ -859,7 +1264,7 @@ func windowsHTTPCertificatePublicKeySHA256(t *testing.T, certificateDER []byte) 
 func windowsHTTPServerTLSOptions(server *windowsHTTPTestServer) *option.OutboundTLSOptions {
 	return &option.OutboundTLSOptions{
 		Enabled:     true,
-		ServerName:  "localhost",
+		ServerName:  server.requestHost,
 		Certificate: badoption.Listable[string]{server.certificatePEM},
 	}
 }
