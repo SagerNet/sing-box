@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -435,7 +436,7 @@ func (t *windowsTransport) RoundTrip(request *http.Request) (*http.Response, err
 	if err != nil {
 		state.clearSend(sendCh)
 		state.clearSendKeepAlive()
-		return nil, err
+		return nil, state.mapError(err)
 	}
 	err = state.wait(sendCh)
 	state.clearSendKeepAlive()
@@ -446,7 +447,7 @@ func (t *windowsTransport) RoundTrip(request *http.Request) (*http.Response, err
 	err = requestHandle.ReceiveResponse()
 	if err != nil {
 		state.clearHeaders(headerCh)
-		return nil, err
+		return nil, state.mapError(err)
 	}
 	err = state.wait(headerCh)
 	if err != nil {
@@ -529,7 +530,7 @@ func configureWindowsRequest(requestHandle *winhttp.Request, config windowsSessi
 		return err
 	}
 	if !secure {
-		return applyWindowsHTTPVersion(requestHandle, config)
+		return applyWindowsHTTPVersion(requestHandle, config, secure)
 	}
 	securityFlags := windowsSecurityFlags(config)
 	if securityFlags != 0 {
@@ -538,10 +539,10 @@ func configureWindowsRequest(requestHandle *winhttp.Request, config windowsSessi
 			return err
 		}
 	}
-	return applyWindowsHTTPVersion(requestHandle, config)
+	return applyWindowsHTTPVersion(requestHandle, config, secure)
 }
 
-func applyWindowsHTTPVersion(requestHandle *winhttp.Request, config windowsSessionConfig) error {
+func applyWindowsHTTPVersion(requestHandle *winhttp.Request, config windowsSessionConfig, secure bool) error {
 	switch config.version {
 	case 1:
 		return requestHandle.SetEnableHTTPProtocol(0)
@@ -550,7 +551,7 @@ func applyWindowsHTTPVersion(requestHandle *winhttp.Request, config windowsSessi
 		if err != nil {
 			return err
 		}
-		if config.disableVersionFallback {
+		if secure && config.disableVersionFallback {
 			return requestHandle.SetRequiredHTTPProtocol(winhttp.ProtocolFlagHTTP2)
 		}
 		return nil
@@ -572,6 +573,9 @@ func windowsSecureProtocols(minVersion, maxVersion uint16) uint32 {
 	effectiveMin := minVersion
 	if effectiveMin == 0 {
 		effectiveMin = stdtls.VersionTLS12
+		if maxVersion != 0 && maxVersion < stdtls.VersionTLS12 {
+			effectiveMin = versions[0].version
+		}
 	}
 	effectiveMax := maxVersion
 	if effectiveMax == 0 {
@@ -888,7 +892,7 @@ func (s *windowsRequestState) mapError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if s.ctx.Err() != nil && (errors.Is(err, winhttp.ErrorOperationCancelled) || errors.Is(err, net.ErrClosed)) {
+	if s.ctx.Err() != nil && (errors.Is(err, winhttp.ErrorOperationCancelled) || errors.Is(err, net.ErrClosed) || errors.Is(err, os.ErrClosed)) {
 		return s.ctx.Err()
 	}
 	return err

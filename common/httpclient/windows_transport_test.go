@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	boxTLS "github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/winhttp"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -221,6 +223,50 @@ func TestWindowsSessionConfigMinimumBuildGating(t *testing.T) {
 	}
 }
 
+func TestWindowsSecureProtocols(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		minVersion uint16
+		maxVersion uint16
+		wantMask   uint32
+	}{
+		{
+			name:     "defaults",
+			wantMask: winhttp.SecureProtocolTLS12 | winhttp.SecureProtocolTLS13,
+		},
+		{
+			name:       "max version below tls12 expands lower bound",
+			maxVersion: stdtls.VersionTLS11,
+			wantMask:   winhttp.SecureProtocolTLS10 | winhttp.SecureProtocolTLS11,
+		},
+		{
+			name:       "explicit min version",
+			minVersion: stdtls.VersionTLS11,
+			wantMask:   winhttp.SecureProtocolTLS11 | winhttp.SecureProtocolTLS12 | winhttp.SecureProtocolTLS13,
+		},
+		{
+			name:       "explicit range",
+			minVersion: stdtls.VersionTLS11,
+			maxVersion: stdtls.VersionTLS12,
+			wantMask:   winhttp.SecureProtocolTLS11 | winhttp.SecureProtocolTLS12,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mask := windowsSecureProtocols(testCase.minVersion, testCase.maxVersion)
+			if mask != testCase.wantMask {
+				t.Fatalf("unexpected secure protocol mask: %#x", mask)
+			}
+		})
+	}
+}
+
 func TestWindowsTransportPlainHTTP(t *testing.T) {
 	t.Parallel()
 
@@ -329,6 +375,34 @@ func TestWindowsTransportHTTPSVersion2FallbackDisabled(t *testing.T) {
 	if err == nil {
 		response.Body.Close()
 		t.Fatal("expected protocol mismatch")
+	}
+}
+
+func TestWindowsTransportPlainHTTPVersion2FallbackDisabled(t *testing.T) {
+	t.Parallel()
+
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServer(t, false, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{protoMajor: r.ProtoMajor}
+		_, _ = w.Write([]byte("ok"))
+	})
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version:                2,
+		DisableVersionFallback: true,
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/strict-h2-cleartext"), nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.ProtoMajor != 1 {
+		t.Fatalf("unexpected response proto major: %d", response.ProtoMajor)
+	}
+	if body := readWindowsHTTPResponseBody(t, response); body != "ok" {
+		t.Fatalf("unexpected response body: %q", body)
+	}
+	response.Body.Close()
+	if observed := <-requests; observed.protoMajor != 1 {
+		t.Fatalf("unexpected request proto major: %d", observed.protoMajor)
 	}
 }
 
@@ -517,6 +591,60 @@ func TestWindowsTransportContextCancellation(t *testing.T) {
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestWindowsRequestStateMapError(t *testing.T) {
+	t.Parallel()
+
+	deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer deadlineCancel()
+	canceledCtx, canceledCancel := context.WithCancel(context.Background())
+	canceledCancel()
+
+	testCases := []struct {
+		name    string
+		ctx     context.Context
+		input   error
+		wantErr error
+	}{
+		{
+			name:    "closed handle with canceled context",
+			ctx:     canceledCtx,
+			input:   os.ErrClosed,
+			wantErr: context.Canceled,
+		},
+		{
+			name:    "operation cancelled with canceled context",
+			ctx:     canceledCtx,
+			input:   winhttp.ErrorOperationCancelled,
+			wantErr: context.Canceled,
+		},
+		{
+			name:    "closed handle with expired deadline",
+			ctx:     deadlineCtx,
+			input:   os.ErrClosed,
+			wantErr: context.DeadlineExceeded,
+		},
+		{
+			name:    "background context keeps closed error",
+			ctx:     context.Background(),
+			input:   os.ErrClosed,
+			wantErr: os.ErrClosed,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			state := &windowsRequestState{ctx: testCase.ctx}
+			err := state.mapError(testCase.input)
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
