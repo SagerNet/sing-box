@@ -6,11 +6,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/shell"
 )
 
 const (
@@ -80,18 +82,12 @@ type vhciStatusRecord struct {
 
 // ensureHostDriver verifies the usbip-host kernel driver is loaded.
 func ensureHostDriver() error {
-	if _, err := os.Stat(sysUsbipHostDriver); err != nil {
-		return E.Cause(err, "usbip-host driver not present; modprobe usbip-host")
-	}
-	return nil
+	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 }
 
 // ensureVHCI verifies the vhci_hcd controller is loaded.
 func ensureVHCI() error {
-	if _, err := os.Stat(sysVHCIControllerV0); err != nil {
-		return E.Cause(err, "vhci_hcd.0 not present; modprobe vhci-hcd")
-	}
-	return nil
+	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 
 // listUSBDevices enumerates /sys/bus/usb/devices, returning non-interface
@@ -322,6 +318,41 @@ func vhciHubForSpeed(speed uint32) string {
 	default:
 		return "hs"
 	}
+}
+
+func ensureKernelPath(path string, module string, description string) error {
+	_, err := os.Stat(path)
+	if err == nil {
+		return nil
+	}
+	if os.Getuid() != 0 {
+		return E.Cause(err, description, " not present; root is required to load kernel module ", module)
+	}
+	modprobePath, modprobeErr := findModprobePath()
+	if modprobeErr != nil {
+		return E.Cause(modprobeErr, "load kernel module ", module, " for ", description)
+	}
+	output, modprobeErr := shell.Exec(modprobePath, module).Read()
+	if modprobeErr != nil {
+		return E.Extend(E.Cause(modprobeErr, "load kernel module ", module, " for ", description), strings.TrimSpace(output))
+	}
+	if _, err = os.Stat(path); err != nil {
+		return E.Cause(err, description, " still not present after loading kernel module ", module)
+	}
+	return nil
+}
+
+func findModprobePath() (string, error) {
+	if path, err := exec.LookPath("modprobe"); err == nil {
+		return path, nil
+	}
+	for _, path := range []string{"/usr/sbin/modprobe", "/sbin/modprobe", "/usr/bin/modprobe", "/bin/modprobe"} {
+		info, err := os.Stat(path)
+		if err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+			return path, nil
+		}
+	}
+	return "", E.New("modprobe executable not found")
 }
 
 // --- small helpers ------------------------------------------------------

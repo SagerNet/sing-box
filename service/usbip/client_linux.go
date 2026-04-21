@@ -60,6 +60,7 @@ type ClientService struct {
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
 	matches    []option.USBIPDeviceMatch // empty = import all remote exports
+	ops        usbipOps
 
 	stateMu         sync.Mutex
 	targets         []clientTarget
@@ -99,6 +100,7 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
 		matches:    options.Devices,
+		ops:        systemUSBIPOps,
 		allWorkers: make(map[string]*clientBusIDWorker),
 		ports:      make(map[int]struct{}),
 	}, nil
@@ -108,7 +110,7 @@ func (c *ClientService) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	if err := ensureVHCI(); err != nil {
+	if err := c.ops.ensureVHCI(); err != nil {
 		return err
 	}
 	c.initializeWorkers()
@@ -319,66 +321,12 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 }
 
 func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
-	keysByBusID := make(map[string]DeviceKey, len(entries))
-	for i := range entries {
-		busid := entries[i].Info.BusIDString()
-		if busid == "" {
-			continue
-		}
-		keysByBusID[busid] = DeviceKey{
-			BusID:     busid,
-			VendorID:  entries[i].Info.IDVendor,
-			ProductID: entries[i].Info.IDProduct,
-			Serial:    entries[i].Info.SerialString(),
-		}
-	}
-
 	c.stateMu.Lock()
 	if len(c.targets) == 0 {
 		c.stateMu.Unlock()
 		return
 	}
-
-	nextAssigned := make([]string, len(c.targets))
-	reserved := make(map[string]struct{}, len(c.targets))
-	for i, target := range c.targets {
-		if target.fixedBusID == "" {
-			continue
-		}
-		if _, ok := keysByBusID[target.fixedBusID]; !ok {
-			continue
-		}
-		nextAssigned[i] = target.fixedBusID
-		reserved[target.fixedBusID] = struct{}{}
-	}
-	for i, target := range c.targets {
-		if target.fixedBusID != "" {
-			continue
-		}
-		current := c.assigned[i]
-		if current == "" {
-			continue
-		}
-		if _, ok := reserved[current]; ok {
-			continue
-		}
-		key, ok := keysByBusID[current]
-		if !ok || !Matches(target.match, key) {
-			continue
-		}
-		nextAssigned[i] = current
-		reserved[current] = struct{}{}
-	}
-	for i, target := range c.targets {
-		if target.fixedBusID != "" || nextAssigned[i] != "" {
-			continue
-		}
-		nextAssigned[i] = firstMatchingUnclaimedBusID(target.match, entries, reserved)
-		if nextAssigned[i] != "" {
-			reserved[nextAssigned[i]] = struct{}{}
-		}
-	}
-
+	nextAssigned := assignMatchedBusIDs(c.targets, c.assigned, entries)
 	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
 	previous := append([]string(nil), c.assigned...)
 	c.assigned = nextAssigned
@@ -585,11 +533,11 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	defer file.Close()
 	c.attachMu.Lock()
 	defer c.attachMu.Unlock()
-	port, err := vhciPickFreePort(info.Speed)
+	port, err := c.ops.vhciPickFreePort(info.Speed)
 	if err != nil {
 		return -1, err
 	}
-	if err := vhciAttach(port, file.Fd(), info.DevID(), info.Speed); err != nil {
+	if err := c.ops.vhciAttach(port, file.Fd(), info.DevID(), info.Speed); err != nil {
 		return -1, E.Cause(err, "vhci attach")
 	}
 	return port, nil
@@ -601,12 +549,12 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 	for {
 		select {
 		case <-ctx.Done():
-			if err := vhciDetach(port); err != nil {
+			if err := c.ops.vhciDetach(port); err != nil {
 				c.logger.Warn("detach port ", port, " (", busid, "): ", err)
 			}
 			return
 		case <-ticker.C:
-			used, err := vhciPortUsed(port)
+			used, err := c.ops.vhciPortUsed(port)
 			if err != nil {
 				c.logger.Debug("poll port ", port, ": ", err)
 				continue
@@ -630,6 +578,65 @@ func (c *ClientService) trackPort(port int, add bool) {
 
 func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {
 	return m.BusID != "" && m.VendorID == 0 && m.ProductID == 0 && m.Serial == ""
+}
+
+func assignMatchedBusIDs(targets []clientTarget, current []string, entries []DeviceEntry) []string {
+	if len(targets) == 0 {
+		return nil
+	}
+	keysByBusID := make(map[string]DeviceKey, len(entries))
+	for i := range entries {
+		busid := entries[i].Info.BusIDString()
+		if busid == "" {
+			continue
+		}
+		keysByBusID[busid] = DeviceKey{
+			BusID:     busid,
+			VendorID:  entries[i].Info.IDVendor,
+			ProductID: entries[i].Info.IDProduct,
+			Serial:    entries[i].Info.SerialString(),
+		}
+	}
+
+	nextAssigned := make([]string, len(targets))
+	reserved := make(map[string]struct{}, len(targets))
+	for i, target := range targets {
+		if target.fixedBusID == "" {
+			continue
+		}
+		if _, ok := keysByBusID[target.fixedBusID]; !ok {
+			continue
+		}
+		nextAssigned[i] = target.fixedBusID
+		reserved[target.fixedBusID] = struct{}{}
+	}
+	for i, target := range targets {
+		if target.fixedBusID != "" || i >= len(current) {
+			continue
+		}
+		if current[i] == "" {
+			continue
+		}
+		if _, ok := reserved[current[i]]; ok {
+			continue
+		}
+		key, ok := keysByBusID[current[i]]
+		if !ok || !Matches(target.match, key) {
+			continue
+		}
+		nextAssigned[i] = current[i]
+		reserved[current[i]] = struct{}{}
+	}
+	for i, target := range targets {
+		if target.fixedBusID != "" || nextAssigned[i] != "" {
+			continue
+		}
+		nextAssigned[i] = firstMatchingUnclaimedBusID(target.match, entries, reserved)
+		if nextAssigned[i] != "" {
+			reserved[nextAssigned[i]] = struct{}{}
+		}
+	}
+	return nextAssigned
 }
 
 func firstMatchingUnclaimedBusID(match option.USBIPDeviceMatch, entries []DeviceEntry, reserved map[string]struct{}) string {

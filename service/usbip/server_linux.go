@@ -41,6 +41,7 @@ type ServerService struct {
 	logger   log.ContextLogger
 	listener *listener.Listener
 	matches  []option.USBIPDeviceMatch
+	ops      usbipOps
 
 	mu       sync.Mutex
 	exports  map[string]serverExport
@@ -76,6 +77,7 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 			Listen:  options.ListenOptions,
 		}),
 		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         systemUSBIPOps,
 	}
 	return s, nil
 }
@@ -84,7 +86,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	if err := ensureHostDriver(); err != nil {
+	if err := s.ops.ensureHostDriver(); err != nil {
 		return err
 	}
 	if _, err := s.reconcileExports(); err != nil {
@@ -115,7 +117,7 @@ func (s *ServerService) Close() error {
 }
 
 func (s *ServerService) reconcileExports() (bool, error) {
-	devices, err := listUSBDevices()
+	devices, err := s.ops.listUSBDevices()
 	if err != nil {
 		return false, E.Cause(err, "enumerate usb devices")
 	}
@@ -163,7 +165,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 }
 
 func (s *ServerService) bindOne(d *sysfsDevice) error {
-	driver, err := currentDriver(d.BusID)
+	driver, err := s.ops.currentDriver(d.BusID)
 	if err != nil {
 		return err
 	}
@@ -173,20 +175,20 @@ func (s *ServerService) bindOne(d *sysfsDevice) error {
 		return nil
 	}
 	if driver != "" {
-		if err := unbindFromDriver(d.BusID, driver); err != nil {
+		if err := s.ops.unbindFromDriver(d.BusID, driver); err != nil {
 			return E.Cause(err, "unbind from ", driver)
 		}
 	}
-	if err := hostMatchBusID(d.BusID, true); err != nil {
+	if err := s.ops.hostMatchBusID(d.BusID, true); err != nil {
 		if driver != "" {
-			_ = bindToDriver(d.BusID, driver)
+			_ = s.ops.bindToDriver(d.BusID, driver)
 		}
 		return E.Cause(err, "match_busid add")
 	}
-	if err := hostBind(d.BusID); err != nil {
-		_ = hostMatchBusID(d.BusID, false)
+	if err := s.ops.hostBind(d.BusID); err != nil {
+		_ = s.ops.hostMatchBusID(d.BusID, false)
 		if driver != "" {
-			_ = bindToDriver(d.BusID, driver)
+			_ = s.ops.bindToDriver(d.BusID, driver)
 		}
 		return E.Cause(err, "bind to usbip-host")
 	}
@@ -203,17 +205,17 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 	s.deleteExport(export.busid)
 
 	var releaseErr error
-	if err := writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
+	if err := s.ops.writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
 		releaseErr = err
 	}
 	if !export.managed {
 		s.logger.Info("stopped tracking ", export.busid, " on usbip-host")
 		return releaseErr
 	}
-	if err := hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && releaseErr == nil {
+	if err := s.ops.hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && releaseErr == nil {
 		releaseErr = err
 	}
-	if err := hostMatchBusID(export.busid, false); err != nil && releaseErr == nil {
+	if err := s.ops.hostMatchBusID(export.busid, false); err != nil && releaseErr == nil {
 		releaseErr = err
 	}
 	if !restore {
@@ -224,7 +226,7 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 		s.logger.Info("released ", export.busid, " from usbip-host")
 		return releaseErr
 	}
-	if err := bindToDriver(export.busid, export.originalDriver); err != nil {
+	if err := s.ops.bindToDriver(export.busid, export.originalDriver); err != nil {
 		if releaseErr == nil {
 			releaseErr = err
 		}
@@ -237,7 +239,8 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 func (s *ServerService) rollbackExports() {
 	exports := s.snapshotExports()
 	for _, export := range exports {
-		_, restore := currentSysfsDevice(export.busid)
+		_, err := s.ops.readSysfsDevice(export.busid, sysBusDevicePath(export.busid))
+		restore := err == nil
 		if err := s.releaseExport(export, restore); err != nil {
 			s.logger.Warn("rollback ", export.busid, ": ", err)
 		}
@@ -409,7 +412,7 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	}
 	entries := make([]DeviceEntry, 0, len(busids))
 	for _, busid := range busids {
-		status, err := readUsbipStatus(busid)
+		status, err := s.ops.readUsbipStatus(busid)
 		if err != nil {
 			s.logger.Debug("status ", busid, ": ", err)
 			continue
@@ -417,7 +420,7 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 		if status != usbipStatusAvailable {
 			continue
 		}
-		d, err := readSysfsDevice(busid, sysBusDevicePath(busid))
+		d, err := s.ops.readSysfsDevice(busid, sysBusDevicePath(busid))
 		if err != nil {
 			s.logger.Debug("refresh ", busid, ": ", err)
 			continue
@@ -441,13 +444,13 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
 		return
 	}
-	status, err := readUsbipStatus(busid)
+	status, err := s.ops.readUsbipStatus(busid)
 	if err != nil || status != usbipStatusAvailable {
 		s.logger.Info("import rejected (busid ", busid, " status=", status, " err=", err, ")")
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
 		return
 	}
-	dev, err := readSysfsDevice(busid, sysBusDevicePath(busid))
+	dev, err := s.ops.readSysfsDevice(busid, sysBusDevicePath(busid))
 	if err != nil {
 		s.logger.Warn("refresh ", busid, ": ", err)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
@@ -466,7 +469,7 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		return
 	}
 	defer file.Close()
-	if err := writeUsbipSockfd(busid, int(file.Fd())); err != nil {
+	if err := s.ops.writeUsbipSockfd(busid, int(file.Fd())); err != nil {
 		s.logger.Warn("hand off ", busid, " to kernel: ", err)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
 		return
@@ -474,7 +477,7 @@ func (s *ServerService) handleImport(conn net.Conn) {
 	info := dev.toProtocol()
 	if err := WriteOpRepImport(conn, OpStatusOK, &info); err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
-		_ = writeUsbipSockfd(busid, -1)
+		_ = s.ops.writeUsbipSockfd(busid, -1)
 		return
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
@@ -489,7 +492,7 @@ func (s *ServerService) isExported(busid string) bool {
 
 func (s *ServerService) ueventLoop() {
 	for {
-		listener, err := newUEventListener()
+		listener, err := s.ops.newUEventListener()
 		if err != nil {
 			if s.ctx.Err() != nil {
 				return
@@ -593,14 +596,6 @@ func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame contro
 		s.logger.Debug("control subscriber ", sub.id, " lagged behind")
 		_ = sub.conn.Close()
 	}
-}
-
-func currentSysfsDevice(busid string) (sysfsDevice, bool) {
-	device, err := readSysfsDevice(busid, sysBusDevicePath(busid))
-	if err != nil {
-		return sysfsDevice{}, false
-	}
-	return device, true
 }
 
 func sysBusDevicePath(busid string) string {
