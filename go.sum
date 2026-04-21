@@ -16,6 +16,8 @@ github.com/anytls/sing-anytls v0.0.11 h1:w8e9Uj1oP3m4zxkyZDewPk0EcQbvVxb7Nn+rapE
 github.com/anytls/sing-anytls v0.0.11/go.mod h1:7rjN6IukwysmdusYsrV51Fgu1uW6vsrdd6ctjnEAln8=
 github.com/caddyserver/certmagic v0.25.2 h1:D7xcS7ggX/WEY54x0czj7ioTkmDWKIgxtIi2OcQclUc=
 github.com/caddyserver/certmagic v0.25.2/go.mod h1:llW/CvsNmza8S6hmsuggsZeiX+uS27dkqY27wDIuBWg=
+github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6 h1:LYSB6VgWzKtNrcxElw3c97BP40Oc7bizKxA9K1Vi/5k=
+github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6/go.mod h1:llW/CvsNmza8S6hmsuggsZeiX+uS27dkqY27wDIuBWg=
 github.com/caddyserver/zerossl v0.1.5 h1:dkvOjBAEEtY6LIGAHei7sw2UgqSD6TrWweXpV7lvEvE=
 github.com/caddyserver/zerossl v0.1.5/go.mod h1:CxA0acn7oEGO6//4rtrRjYgEoa4MFw/XofZnrYwGqG4=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

@@ -5,7 +5,7 @@ go 1.24.7
 require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
 	github.com/anytls/sing-anytls v0.0.11
-	github.com/caddyserver/certmagic v0.25.2
+	github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6
 	github.com/caddyserver/zerossl v0.1.5
 	github.com/coder/websocket v1.8.14
 	github.com/cretz/bine v0.2.0
