@@ -142,8 +142,8 @@ func TestNewWindowsSessionConfig(t *testing.T) {
 				if config.userRoots == nil {
 					t.Fatal("expected user roots")
 				}
-				if config.insecure {
-					t.Fatal("unexpected insecure flag")
+				if config.mode != windowsTLSModePreflightChain {
+					t.Fatalf("unexpected mode: %v", config.mode)
 				}
 			},
 		},
@@ -160,8 +160,8 @@ func TestNewWindowsSessionConfig(t *testing.T) {
 			},
 			check: func(t *testing.T, config windowsSessionConfig) {
 				t.Helper()
-				if !config.insecure {
-					t.Fatal("expected insecure flag")
+				if config.mode != windowsTLSModePreflightPins {
+					t.Fatalf("unexpected mode: %v", config.mode)
 				}
 				if len(config.pinnedPublicKeys) != 1 {
 					t.Fatalf("unexpected pin count: %d", len(config.pinnedPublicKeys))
@@ -331,48 +331,25 @@ func TestWindowsSecurityFlags(t *testing.T) {
 		winhttp.SecurityFlagIgnoreCertWrongUsage)
 	testCases := []struct {
 		name      string
-		config    windowsSessionConfig
+		mode      windowsTLSMode
 		wantFlags uint32
 	}{
 		{
-			name:      "default verification",
+			name: "native",
+		},
+		{
+			name:      "preflight pins",
+			mode:      windowsTLSModePreflightPins,
 			wantFlags: fullIgnore,
 		},
 		{
-			name:      "custom roots",
-			config:    windowsSessionConfig{userRoots: x509.NewCertPool()},
-			wantFlags: fullIgnore,
-		},
-		{
-			name: "certificate store",
-			config: windowsSessionConfig{
-				store: &windowsHTTPTestCertificateStore{pool: x509.NewCertPool()},
-			},
-			wantFlags: fullIgnore,
-		},
-		{
-			name: "verify time",
-			config: windowsSessionConfig{
-				timeFunc: func() time.Time { return time.Unix(0, 0) },
-			},
-			wantFlags: fullIgnore,
-		},
-		{
-			name: "custom roots with verify time",
-			config: windowsSessionConfig{
-				userRoots: x509.NewCertPool(),
-				timeFunc:  func() time.Time { return time.Unix(0, 0) },
-			},
+			name:      "preflight chain",
+			mode:      windowsTLSModePreflightChain,
 			wantFlags: fullIgnore,
 		},
 		{
 			name:      "insecure",
-			config:    windowsSessionConfig{insecure: true},
-			wantFlags: fullIgnore,
-		},
-		{
-			name:      "pins",
-			config:    windowsSessionConfig{pinnedPublicKeys: [][]byte{{1}}},
+			mode:      windowsTLSModeInsecure,
 			wantFlags: fullIgnore,
 		},
 	}
@@ -382,8 +359,78 @@ func TestWindowsSecurityFlags(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if flags := windowsSecurityFlags(testCase.config); flags != testCase.wantFlags {
+			if flags := windowsSecurityFlags(testCase.mode); flags != testCase.wantFlags {
 				t.Fatalf("unexpected security flags: %#x", flags)
+			}
+		})
+	}
+}
+
+func TestWindowsTLSModeForConfig(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		rawInsecure bool
+		userRoots   *x509.CertPool
+		store       adapter.CertificateStore
+		timeFunc    func() time.Time
+		pins        [][]byte
+		wantMode    windowsTLSMode
+	}{
+		{
+			name:     "default native",
+			wantMode: windowsTLSModeNative,
+		},
+		{
+			name:     "pins use preflight pins",
+			pins:     [][]byte{{1}},
+			wantMode: windowsTLSModePreflightPins,
+		},
+		{
+			name:        "insecure uses insecure mode",
+			rawInsecure: true,
+			wantMode:    windowsTLSModeInsecure,
+		},
+		{
+			name:        "pins win over insecure",
+			rawInsecure: true,
+			pins:        [][]byte{{1}},
+			wantMode:    windowsTLSModePreflightPins,
+		},
+		{
+			name:      "custom roots use preflight chain",
+			userRoots: x509.NewCertPool(),
+			wantMode:  windowsTLSModePreflightChain,
+		},
+		{
+			name: "store uses preflight chain",
+			store: &windowsHTTPTestCertificateStore{
+				pool: x509.NewCertPool(),
+			},
+			wantMode: windowsTLSModePreflightChain,
+		},
+		{
+			name:     "verify time uses preflight chain",
+			timeFunc: func() time.Time { return time.Unix(0, 0) },
+			wantMode: windowsTLSModePreflightChain,
+		},
+		{
+			name:        "insecure wins over custom roots",
+			rawInsecure: true,
+			userRoots:   x509.NewCertPool(),
+			wantMode:    windowsTLSModeInsecure,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mode := windowsTLSModeForConfig(testCase.rawInsecure, testCase.userRoots, testCase.store, testCase.timeFunc, testCase.pins)
+			if mode != testCase.wantMode {
+				t.Fatalf("unexpected mode: %v", mode)
 			}
 		})
 	}
@@ -1007,9 +1054,7 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 		name    string
 		ctx     context.Context
 		input   error
-		tlsErr  error
 		wantErr error
-		check   func(error) bool
 	}{
 		{
 			name:    "closed handle with canceled context",
@@ -1035,25 +1080,80 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 			input:   os.ErrClosed,
 			wantErr: os.ErrClosed,
 		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			state := &windowsRequestState{ctx: testCase.ctx}
+			err := state.mapError(testCase.input)
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestMapWindowsTLSError(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		input      error
+		secureFlag uint32
+		verifyName string
+		wantErr    error
+		check      func(error) bool
+	}{
 		{
-			name:   "tls verification overrides closed handle",
-			ctx:    context.Background(),
-			input:  os.ErrClosed,
-			tlsErr: x509.HostnameError{},
+			name:       "hostname mismatch maps to hostname error",
+			input:      winhttp.ErrorSecureCertCNInvalid,
+			verifyName: "example.com",
 			check: func(err error) bool {
 				var hostnameError x509.HostnameError
-				return errors.As(err, &hostnameError)
+				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
 			},
 		},
 		{
-			name:   "tls verification overrides operation cancelled",
-			ctx:    context.Background(),
-			input:  winhttp.ErrorOperationCancelled,
-			tlsErr: x509.CertificateInvalidError{Reason: x509.IncompatibleUsage},
+			name:  "wrong usage maps to incompatible usage",
+			input: winhttp.ErrorSecureCertWrongUsage,
 			check: func(err error) bool {
 				var invalidError x509.CertificateInvalidError
 				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
 			},
+		},
+		{
+			name:  "date invalid maps to expired",
+			input: winhttp.ErrorSecureCertDateInvalid,
+			check: func(err error) bool {
+				var invalidError x509.CertificateInvalidError
+				return errors.As(err, &invalidError) && invalidError.Reason == x509.Expired
+			},
+		},
+		{
+			name:  "invalid ca maps to unknown authority",
+			input: winhttp.ErrorSecureInvalidCA,
+			check: func(err error) bool {
+				var authorityError x509.UnknownAuthorityError
+				return errors.As(err, &authorityError)
+			},
+		},
+		{
+			name:       "secure failure flags map hostname error",
+			input:      winhttp.ErrorSecureFailure,
+			secureFlag: winhttp.CallbackStatusFlagCertCNInvalid,
+			verifyName: "example.com",
+			check: func(err error) bool {
+				var hostnameError x509.HostnameError
+				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
+			},
+		},
+		{
+			name:    "generic secure failure keeps winhttp error without flags",
+			input:   winhttp.ErrorSecureFailure,
+			wantErr: winhttp.ErrorSecureFailure,
 		},
 	}
 
@@ -1062,11 +1162,7 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			state := &windowsRequestState{
-				ctx:    testCase.ctx,
-				tlsErr: testCase.tlsErr,
-			}
-			err := state.mapError(testCase.input)
+			err := mapWindowsTLSError(testCase.input, testCase.secureFlag, testCase.verifyName)
 			if testCase.check != nil {
 				if !testCase.check(err) {
 					t.Fatalf("unexpected error: %v", err)
@@ -1080,74 +1176,79 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 	}
 }
 
-func TestWindowsRequestStateRoundTripError(t *testing.T) {
+func TestResolveWindowsResponseTLSState(t *testing.T) {
 	t.Parallel()
 
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificate(t, "localhost")
+	validMetadata := newWindowsHTTPTestTLSMetadata(t, serverCertificate, "localhost")
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM([]byte(certificatePEM)) {
+		t.Fatal("append cert pem")
+	}
+	wrongPinHash := windowsHTTPCertificatePublicKeySHA256(t, validMetadata.rawCerts[0])
+	wrongPinHash[0] ^= 0xff
+
 	testCases := []struct {
-		name       string
-		input      error
-		secureFlag uint32
-		tlsErr     error
-		verifyName string
-		wantErr    error
-		check      func(error) bool
+		name        string
+		config      windowsSessionConfig
+		verifyName  string
+		metadata    windowsRequestTLSMetadata
+		metadataErr error
+		wantNil     bool
+		wantErr     error
+		check       func(*testing.T, error)
 	}{
 		{
-			name:       "hostname mismatch falls back to synthetic x509 error",
-			input:      winhttp.ErrorSecureCertCNInvalid,
-			tlsErr:     winhttp.ErrorIncorrectHandleState,
+			name:        "native tolerates missing metadata",
+			config:      windowsSessionConfig{mode: windowsTLSModeNative},
+			verifyName:  "localhost",
+			metadataErr: winhttp.ErrorIncorrectHandleState,
+			wantNil:     true,
+		},
+		{
+			name:        "insecure tolerates missing metadata",
+			config:      windowsSessionConfig{mode: windowsTLSModeInsecure},
+			verifyName:  "localhost",
+			metadataErr: winhttp.ErrorIncorrectHandleState,
+			wantNil:     true,
+		},
+		{
+			name:        "preflight pins fails on missing metadata",
+			config:      windowsSessionConfig{mode: windowsTLSModePreflightPins, pinnedPublicKeys: [][]byte{windowsHTTPCertificatePublicKeySHA256(t, validMetadata.rawCerts[0])}},
+			verifyName:  "localhost",
+			metadataErr: winhttp.ErrorIncorrectHandleState,
+			wantErr:     winhttp.ErrorIncorrectHandleState,
+		},
+		{
+			name:       "preflight pins revalidates pins",
+			config:     windowsSessionConfig{mode: windowsTLSModePreflightPins, pinnedPublicKeys: [][]byte{wrongPinHash}},
+			verifyName: "localhost",
+			metadata:   validMetadata,
+			check: func(t *testing.T, err error) {
+				t.Helper()
+				if err == nil {
+					t.Fatal("expected pin verification error")
+				}
+			},
+		},
+		{
+			name:       "preflight chain validates hostname",
+			config:     windowsSessionConfig{mode: windowsTLSModePreflightChain, userRoots: roots},
 			verifyName: "example.com",
-			check: func(err error) bool {
+			metadata:   validMetadata,
+			check: func(t *testing.T, err error) {
+				t.Helper()
 				var hostnameError x509.HostnameError
-				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
+				if !errors.As(err, &hostnameError) {
+					t.Fatalf("unexpected error: %v", err)
+				}
 			},
 		},
 		{
-			name:  "prepared x509 error wins over secure cert code",
-			input: winhttp.ErrorSecureCertCNInvalid,
-			tlsErr: x509.HostnameError{
-				Certificate: &x509.Certificate{},
-				Host:        "localhost",
-			},
-			check: func(err error) bool {
-				var hostnameError x509.HostnameError
-				return errors.As(err, &hostnameError) && hostnameError.Host == "localhost"
-			},
-		},
-		{
-			name:   "wrong usage falls back to x509 incompatible usage",
-			input:  winhttp.ErrorSecureCertWrongUsage,
-			tlsErr: winhttp.ErrorIncorrectHandleState,
-			check: func(err error) bool {
-				var invalidError x509.CertificateInvalidError
-				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
-			},
-		},
-		{
-			name:   "prepared wrong usage error wins",
-			input:  winhttp.ErrorSecureCertWrongUsage,
-			tlsErr: x509.CertificateInvalidError{Reason: x509.IncompatibleUsage},
-			check: func(err error) bool {
-				var invalidError x509.CertificateInvalidError
-				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
-			},
-		},
-		{
-			name:       "secure failure flags fall back to synthetic hostname error",
-			input:      winhttp.ErrorSecureFailure,
-			secureFlag: winhttp.CallbackStatusFlagCertCNInvalid,
-			tlsErr:     winhttp.ErrorIncorrectHandleState,
-			verifyName: "example.com",
-			check: func(err error) bool {
-				var hostnameError x509.HostnameError
-				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
-			},
-		},
-		{
-			name:    "generic secure failure keeps winhttp error without flags",
-			input:   winhttp.ErrorSecureFailure,
-			tlsErr:  winhttp.ErrorIncorrectHandleState,
-			wantErr: winhttp.ErrorSecureFailure,
+			name:       "preflight chain returns metadata on success",
+			config:     windowsSessionConfig{mode: windowsTLSModePreflightChain, userRoots: roots},
+			verifyName: "localhost",
+			metadata:   validMetadata,
 		},
 	}
 
@@ -1156,21 +1257,28 @@ func TestWindowsRequestStateRoundTripError(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			state := &windowsRequestState{
-				ctx:           context.Background(),
-				tlsErr:        testCase.tlsErr,
-				tlsVerifyName: testCase.verifyName,
-			}
-			state.secureFailure.Store(testCase.secureFlag)
-			err := state.roundTripError(testCase.input)
+			state, err := resolveWindowsResponseTLSState(testCase.config, testCase.verifyName, testCase.metadata, testCase.metadataErr)
 			if testCase.check != nil {
-				if !testCase.check(err) {
+				testCase.check(t, err)
+				return
+			}
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
 					t.Fatalf("unexpected error: %v", err)
 				}
 				return
 			}
-			if !errors.Is(err, testCase.wantErr) {
-				t.Fatalf("unexpected error: %v", err)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if testCase.wantNil {
+				if state != nil {
+					t.Fatalf("expected nil TLS state: %+v", state)
+				}
+				return
+			}
+			if state == nil {
+				t.Fatal("expected TLS state")
 			}
 		})
 	}
@@ -1479,6 +1587,25 @@ func windowsHTTPServerTLSOptions(server *windowsHTTPTestServer) *option.Outbound
 		Enabled:     true,
 		ServerName:  server.requestHost,
 		Certificate: badoption.Listable[string]{server.certificatePEM},
+	}
+}
+
+func newWindowsHTTPTestTLSMetadata(t *testing.T, certificate stdtls.Certificate, serverName string) windowsRequestTLSMetadata {
+	t.Helper()
+
+	rawCerts := append([][]byte(nil), certificate.Certificate...)
+	peerCertificates, err := parseWindowsPeerCertificates(rawCerts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return windowsRequestTLSMetadata{
+		connectionState: &stdtls.ConnectionState{
+			HandshakeComplete: true,
+			ServerName:        serverName,
+			PeerCertificates:  peerCertificates,
+		},
+		peerCertificates: peerCertificates,
+		rawCerts:         rawCerts,
 	}
 }
 
