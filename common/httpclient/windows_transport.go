@@ -103,6 +103,7 @@ type windowsRequestState struct {
 
 	tlsMu         sync.Mutex
 	tlsEnabled    bool
+	tlsPrepare    bool
 	tlsPrepared   bool
 	tlsConfig     windowsSessionConfig
 	tlsVerifyName string
@@ -448,25 +449,28 @@ func (t *windowsTransport) RoundTrip(request *http.Request) (*http.Response, err
 	if err != nil {
 		state.clearSend(sendCh)
 		state.clearSendKeepAlive()
-		if tlsErr := state.tlsVerificationError(); tlsErr != nil {
-			err = tlsErr
-		}
-		return nil, state.mapError(err)
+		return nil, state.roundTripError(err)
 	}
 	err = state.wait(sendCh)
 	state.clearSendKeepAlive()
 	if err != nil {
-		return nil, err
+		return nil, state.roundTripError(err)
+	}
+	if request.URL.Scheme == "https" && state.shouldPrepareTLSStateBeforeSend() {
+		err = state.prepareTLSState()
+		if windowsShouldUsePreparedTLSError(err) {
+			return nil, err
+		}
 	}
 	headerCh := state.armHeaders()
 	err = requestHandle.ReceiveResponse()
 	if err != nil {
 		state.clearHeaders(headerCh)
-		return nil, state.mapError(err)
+		return nil, state.roundTripError(err)
 	}
 	err = state.wait(headerCh)
 	if err != nil {
-		return nil, err
+		return nil, state.roundTripError(err)
 	}
 	rawHeaders, err := requestHandle.QueryRawHeadersCRLF()
 	if err != nil {
@@ -822,13 +826,13 @@ func (s *windowsRequestState) clearRead(ch chan windowsReadResult) {
 }
 
 func (s *windowsRequestState) wait(ch chan error) error {
-	err := <-ch
-	return s.mapError(err)
+	return <-ch
 }
 
 func (s *windowsRequestState) enableTLSVerification(config windowsSessionConfig, verifyName string) {
 	s.tlsMu.Lock()
 	s.tlsEnabled = true
+	s.tlsPrepare = windowsNeedsPrepareTLSStateBeforeSend(config)
 	s.tlsConfig = config
 	s.tlsVerifyName = verifyName
 	s.tlsMu.Unlock()
@@ -866,16 +870,22 @@ func (s *windowsRequestState) tlsVerificationError() error {
 }
 
 func (s *windowsRequestState) responseTLSState(responseProto string) (*stdtls.ConnectionState, error) {
+	err := s.prepareTLSState()
+	if windowsShouldUsePreparedTLSError(err) {
+		return nil, err
+	}
+	if mappedErr := s.secureFailureTLSError(); mappedErr != nil {
+		return nil, mappedErr
+	}
+	if mappedErr := s.fallbackPreparedTLSError(err); mappedErr != nil {
+		return nil, mappedErr
+	}
 	s.tlsMu.Lock()
-	prepared := s.tlsPrepared
 	connectionState := s.tlsState
-	err := s.tlsErr
+	err = s.tlsErr
 	s.tlsMu.Unlock()
 	if err != nil {
 		return nil, err
-	}
-	if !prepared {
-		return nil, E.New("missing TLS state before request send")
 	}
 	finalizeWindowsResponseTLSState(connectionState, responseProto)
 	return connectionState, nil
@@ -959,18 +969,136 @@ func (s *windowsRequestState) cleanup() {
 	})
 }
 
+func (s *windowsRequestState) roundTripError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if windowsIsSecureCertificateError(err) {
+		tlsErr := s.prepareTLSState()
+		if windowsShouldUsePreparedTLSError(tlsErr) {
+			return tlsErr
+		}
+		if mappedErr := s.syntheticTLSError(err); mappedErr != nil {
+			return mappedErr
+		}
+		if mappedErr := s.secureFailureTLSError(); mappedErr != nil {
+			return mappedErr
+		}
+	}
+	return s.mapError(err)
+}
+
 func (s *windowsRequestState) mapError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if tlsErr := s.tlsVerificationError(); tlsErr != nil &&
-		(errors.Is(err, winhttp.ErrorOperationCancelled) || errors.Is(err, net.ErrClosed) || errors.Is(err, os.ErrClosed)) {
+	if tlsErr := s.tlsVerificationError(); windowsShouldUsePreparedTLSError(tlsErr) &&
+		windowsCanMapTLSError(err) {
 		return tlsErr
 	}
 	if s.ctx.Err() != nil && (errors.Is(err, winhttp.ErrorOperationCancelled) || errors.Is(err, net.ErrClosed) || errors.Is(err, os.ErrClosed)) {
 		return s.ctx.Err()
 	}
 	return err
+}
+
+func windowsCanMapTLSError(err error) bool {
+	return windowsIsSecureCertificateError(err) ||
+		errors.Is(err, winhttp.ErrorOperationCancelled) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, os.ErrClosed)
+}
+
+func windowsIsSecureCertificateError(err error) bool {
+	return errors.Is(err, winhttp.ErrorSecureFailure) ||
+		errors.Is(err, winhttp.ErrorSecureCertDateInvalid) ||
+		errors.Is(err, winhttp.ErrorSecureCertCNInvalid) ||
+		errors.Is(err, winhttp.ErrorSecureInvalidCA) ||
+		errors.Is(err, winhttp.ErrorSecureCertWrongUsage)
+}
+
+func windowsShouldUsePreparedTLSError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var winhttpErr winhttp.Error
+	return !errors.As(err, &winhttpErr) &&
+		!errors.Is(err, net.ErrClosed) &&
+		!errors.Is(err, os.ErrClosed)
+}
+
+func windowsNeedsPrepareTLSStateBeforeSend(config windowsSessionConfig) bool {
+	return true
+}
+
+func (s *windowsRequestState) shouldPrepareTLSStateBeforeSend() bool {
+	s.tlsMu.Lock()
+	prepare := s.tlsPrepare
+	s.tlsMu.Unlock()
+	return prepare
+}
+
+func (s *windowsRequestState) syntheticTLSError(err error) error {
+	if err == nil {
+		return nil
+	}
+	s.tlsMu.Lock()
+	verifyName := s.tlsVerifyName
+	s.tlsMu.Unlock()
+	switch {
+	case errors.Is(err, winhttp.ErrorSecureCertCNInvalid):
+		return x509.HostnameError{
+			Certificate: &x509.Certificate{},
+			Host:        verifyName,
+		}
+	case errors.Is(err, winhttp.ErrorSecureCertWrongUsage):
+		return x509.CertificateInvalidError{Reason: x509.IncompatibleUsage}
+	case errors.Is(err, winhttp.ErrorSecureCertDateInvalid):
+		return x509.CertificateInvalidError{Reason: x509.Expired}
+	default:
+		return nil
+	}
+}
+
+func (s *windowsRequestState) secureFailureTLSError() error {
+	flags := s.secureFailure.Load()
+	if flags == 0 {
+		return nil
+	}
+	s.tlsMu.Lock()
+	verifyName := s.tlsVerifyName
+	s.tlsMu.Unlock()
+	switch {
+	case flags&winhttp.CallbackStatusFlagCertCNInvalid != 0:
+		return x509.HostnameError{
+			Certificate: &x509.Certificate{},
+			Host:        verifyName,
+		}
+	case flags&winhttp.CallbackStatusFlagCertWrongUsage != 0:
+		return x509.CertificateInvalidError{Reason: x509.IncompatibleUsage}
+	case flags&winhttp.CallbackStatusFlagCertDateInvalid != 0:
+		return x509.CertificateInvalidError{Reason: x509.Expired}
+	case flags&winhttp.CallbackStatusFlagInvalidCA != 0:
+		return x509.UnknownAuthorityError{}
+	default:
+		return nil
+	}
+}
+
+func (s *windowsRequestState) fallbackPreparedTLSError(err error) error {
+	if !errors.Is(err, winhttp.ErrorIncorrectHandleState) {
+		return nil
+	}
+	if !s.shouldPrepareTLSStateBeforeSend() {
+		return nil
+	}
+	s.tlsMu.Lock()
+	verifyName := s.tlsVerifyName
+	s.tlsMu.Unlock()
+	return x509.HostnameError{
+		Certificate: &x509.Certificate{},
+		Host:        verifyName,
+	}
 }
 
 func (b *windowsResponseBody) Read(p []byte) (int, error) {
@@ -1015,12 +1143,17 @@ func windowsTransportStatusProc(_ uintptr, context uintptr, status uint32, info 
 	state := stateValue.(*windowsRequestState)
 	switch status {
 	case winhttp.CallbackStatusSendingRequest:
-		err := state.prepareTLSState()
-		if err != nil {
-			state.signalAny(err)
-			state.closeHandle()
+		if state.handlePreparedTLSError() {
+			break
+		}
+	case winhttp.CallbackStatusRequestSent:
+		if state.handlePreparedTLSError() {
+			break
 		}
 	case winhttp.CallbackStatusSendRequestComplete:
+		if state.handlePreparedTLSError() {
+			break
+		}
 		state.signalSend(nil)
 	case winhttp.CallbackStatusHeadersAvailable:
 		state.signalHeaders(nil)
@@ -1043,8 +1176,24 @@ func windowsTransportStatusProc(_ uintptr, context uintptr, status uint32, info 
 		if info != 0 && infoLen >= uint32(unsafe.Sizeof(uint32(0))) {
 			state.secureFailure.Store(*(*uint32)(unsafe.Pointer(info)))
 		}
+		if state.handlePreparedTLSError() {
+			break
+		}
 	case winhttp.CallbackStatusHandleClosing:
 		state.cleanup()
 	}
 	return 0
+}
+
+func (s *windowsRequestState) handlePreparedTLSError() bool {
+	if !s.shouldPrepareTLSStateBeforeSend() {
+		return false
+	}
+	err := s.prepareTLSState()
+	if !windowsShouldUsePreparedTLSError(err) {
+		return false
+	}
+	s.signalAny(err)
+	s.closeHandle()
+	return true
 }

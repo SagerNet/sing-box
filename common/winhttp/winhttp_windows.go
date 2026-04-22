@@ -306,8 +306,11 @@ func (r *Request) QueryServerCertChainContext() (*windows.CertChainContext, erro
 func (r *Request) QueryServerCertificateChainDER() ([][]byte, error) {
 	chainCtx, err := r.QueryServerCertChainContext()
 	if err != nil {
-		if errors.Is(err, ErrorInvalidOption) {
-			return r.QueryServerCertificateDER()
+		if errors.Is(err, ErrorInvalidOption) || errors.Is(err, ErrorIncorrectHandleState) {
+			der, certErr := r.QueryServerCertificateDER()
+			if certErr == nil {
+				return der, nil
+			}
 		}
 		return nil, err
 	}

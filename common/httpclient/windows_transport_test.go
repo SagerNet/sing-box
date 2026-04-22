@@ -324,34 +324,55 @@ func TestWindowsSecureProtocols(t *testing.T) {
 func TestWindowsSecurityFlags(t *testing.T) {
 	t.Parallel()
 
-	expected := uint32(winhttp.SecurityFlagIgnoreUnknownCA |
+	fullIgnore := uint32(winhttp.SecurityFlagIgnoreUnknownCA |
 		winhttp.SecurityFlagIgnoreCertCNInvalid |
 		winhttp.SecurityFlagIgnoreCertDateInvalid |
 		winhttp.SecurityFlagIgnoreCertWrongUsage)
 	testCases := []struct {
-		name   string
-		config windowsSessionConfig
+		name      string
+		config    windowsSessionConfig
+		wantFlags uint32
 	}{
 		{
-			name: "default verification",
+			name:      "default verification",
+			wantFlags: fullIgnore,
 		},
 		{
-			name:   "custom roots",
-			config: windowsSessionConfig{userRoots: x509.NewCertPool()},
+			name:      "custom roots",
+			config:    windowsSessionConfig{userRoots: x509.NewCertPool()},
+			wantFlags: fullIgnore,
 		},
 		{
 			name: "certificate store",
 			config: windowsSessionConfig{
 				store: &windowsHTTPTestCertificateStore{pool: x509.NewCertPool()},
 			},
+			wantFlags: fullIgnore,
 		},
 		{
-			name:   "insecure",
-			config: windowsSessionConfig{insecure: true},
+			name: "verify time",
+			config: windowsSessionConfig{
+				timeFunc: func() time.Time { return time.Unix(0, 0) },
+			},
+			wantFlags: fullIgnore,
 		},
 		{
-			name:   "pins",
-			config: windowsSessionConfig{pinnedPublicKeys: [][]byte{{1}}},
+			name: "custom roots with verify time",
+			config: windowsSessionConfig{
+				userRoots: x509.NewCertPool(),
+				timeFunc:  func() time.Time { return time.Unix(0, 0) },
+			},
+			wantFlags: fullIgnore,
+		},
+		{
+			name:      "insecure",
+			config:    windowsSessionConfig{insecure: true},
+			wantFlags: fullIgnore,
+		},
+		{
+			name:      "pins",
+			config:    windowsSessionConfig{pinnedPublicKeys: [][]byte{{1}}},
+			wantFlags: fullIgnore,
 		},
 	}
 
@@ -360,7 +381,7 @@ func TestWindowsSecurityFlags(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if flags := windowsSecurityFlags(testCase.config); flags != expected {
+			if flags := windowsSecurityFlags(testCase.config); flags != testCase.wantFlags {
 				t.Fatalf("unexpected security flags: %#x", flags)
 			}
 		})
@@ -630,6 +651,49 @@ func TestWindowsTransportVerifyTimeFromContext(t *testing.T) {
 	response.Body.Close()
 	if observed := <-requests; observed.method != http.MethodGet {
 		t.Fatalf("unexpected request: %+v", observed)
+	}
+}
+
+func TestWindowsTransportVerifyTimeRejectedBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	verifyTime := time.Now().Add(2 * time.Hour).Truncate(time.Second)
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificateWithOptions(t, windowsHTTPTestCertificateOptions{
+		subjectName: "localhost",
+		dnsNames:    []string{"localhost"},
+		notBefore:   verifyTime.Add(-3 * time.Hour),
+		notAfter:    verifyTime.Add(-30 * time.Minute),
+	})
+	requests := make(chan windowsHTTPObservedRequest, 1)
+	server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		requests <- windowsHTTPObservedRequest{method: r.Method}
+		_, _ = w.Write([]byte("unexpected"))
+	}, windowsHTTPTestServerOptions{
+		certificate:    &serverCertificate,
+		certificatePEM: certificatePEM,
+	})
+	transport := newWindowsHTTPTestTransportWithVerifyTime(t, server, verifyTime, option.HTTPClientOptions{
+		Version: 1,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: windowsHTTPServerTLSOptions(server),
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/time-expired"), nil))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected certificate expiry error")
+	}
+	var invalidError x509.CertificateInvalidError
+	if !errors.As(err, &invalidError) || invalidError.Reason != x509.Expired {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case observed := <-requests:
+		t.Fatalf("unexpected request reached server: %+v", observed)
+	default:
+	}
+	if transport.(*windowsTransport).tree.active.Load() != 0 {
+		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
 	}
 }
 
@@ -953,6 +1017,102 @@ func TestWindowsRequestStateMapError(t *testing.T) {
 				tlsErr: testCase.tlsErr,
 			}
 			err := state.mapError(testCase.input)
+			if testCase.check != nil {
+				if !testCase.check(err) {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestWindowsRequestStateRoundTripError(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		input      error
+		secureFlag uint32
+		tlsErr     error
+		verifyName string
+		wantErr    error
+		check      func(error) bool
+	}{
+		{
+			name:       "hostname mismatch falls back to synthetic x509 error",
+			input:      winhttp.ErrorSecureCertCNInvalid,
+			tlsErr:     winhttp.ErrorIncorrectHandleState,
+			verifyName: "example.com",
+			check: func(err error) bool {
+				var hostnameError x509.HostnameError
+				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
+			},
+		},
+		{
+			name:  "prepared x509 error wins over secure cert code",
+			input: winhttp.ErrorSecureCertCNInvalid,
+			tlsErr: x509.HostnameError{
+				Certificate: &x509.Certificate{},
+				Host:        "localhost",
+			},
+			check: func(err error) bool {
+				var hostnameError x509.HostnameError
+				return errors.As(err, &hostnameError) && hostnameError.Host == "localhost"
+			},
+		},
+		{
+			name:   "wrong usage falls back to x509 incompatible usage",
+			input:  winhttp.ErrorSecureCertWrongUsage,
+			tlsErr: winhttp.ErrorIncorrectHandleState,
+			check: func(err error) bool {
+				var invalidError x509.CertificateInvalidError
+				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
+			},
+		},
+		{
+			name:   "prepared wrong usage error wins",
+			input:  winhttp.ErrorSecureCertWrongUsage,
+			tlsErr: x509.CertificateInvalidError{Reason: x509.IncompatibleUsage},
+			check: func(err error) bool {
+				var invalidError x509.CertificateInvalidError
+				return errors.As(err, &invalidError) && invalidError.Reason == x509.IncompatibleUsage
+			},
+		},
+		{
+			name:       "secure failure flags fall back to synthetic hostname error",
+			input:      winhttp.ErrorSecureFailure,
+			secureFlag: winhttp.CallbackStatusFlagCertCNInvalid,
+			tlsErr:     winhttp.ErrorIncorrectHandleState,
+			verifyName: "example.com",
+			check: func(err error) bool {
+				var hostnameError x509.HostnameError
+				return errors.As(err, &hostnameError) && hostnameError.Host == "example.com"
+			},
+		},
+		{
+			name:    "generic secure failure keeps winhttp error without flags",
+			input:   winhttp.ErrorSecureFailure,
+			tlsErr:  winhttp.ErrorIncorrectHandleState,
+			wantErr: winhttp.ErrorSecureFailure,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			state := &windowsRequestState{
+				ctx:           context.Background(),
+				tlsErr:        testCase.tlsErr,
+				tlsVerifyName: testCase.verifyName,
+			}
+			state.secureFailure.Store(testCase.secureFlag)
+			err := state.roundTripError(testCase.input)
 			if testCase.check != nil {
 				if !testCase.check(err) {
 					t.Fatalf("unexpected error: %v", err)
