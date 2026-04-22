@@ -64,11 +64,12 @@ type windowsHTTPTestServer struct {
 }
 
 type windowsHTTPTestCertificateOptions struct {
-	subjectName string
-	dnsNames    []string
-	notBefore   time.Time
-	notAfter    time.Time
-	extKeyUsage []x509.ExtKeyUsage
+	subjectName        string
+	dnsNames           []string
+	notBefore          time.Time
+	notAfter           time.Time
+	extKeyUsage        []x509.ExtKeyUsage
+	signatureAlgorithm x509.SignatureAlgorithm
 }
 
 type windowsHTTPTestServerOptions struct {
@@ -549,6 +550,36 @@ func TestWindowsTransportPinnedPublicKey(t *testing.T) {
 	response.Body.Close()
 }
 
+func TestWindowsTransportPinnedPublicKeyWithWeakSignatureCertificate(t *testing.T) {
+	t.Parallel()
+
+	serverCertificate, certificatePEM := newWindowsHTTPTestCertificateWithOptions(t, windowsHTTPTestCertificateOptions{
+		subjectName:        "localhost",
+		dnsNames:           []string{"localhost"},
+		signatureAlgorithm: x509.SHA1WithRSA,
+	})
+	server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}, windowsHTTPTestServerOptions{
+		certificate:    &serverCertificate,
+		certificatePEM: certificatePEM,
+	})
+	transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 2,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:                    true,
+				CertificatePublicKeySHA256: badoption.Listable[[]byte]{server.publicKeyHash},
+			},
+		},
+	})
+	response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/pin-weak-signature"), nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+}
+
 func TestWindowsTransportPinnedPublicKeyRejectedBeforeSend(t *testing.T) {
 	t.Parallel()
 
@@ -776,6 +807,25 @@ func TestWindowsTransportWrongUsageRejectedBeforeSend(t *testing.T) {
 	}
 	if transport.(*windowsTransport).tree.active.Load() != 0 {
 		t.Fatalf("unexpected active request count: %d", transport.(*windowsTransport).tree.active.Load())
+	}
+}
+
+func TestBindWindowsRequestStateCleansUpOnContextValueFailure(t *testing.T) {
+	t.Parallel()
+
+	state := newWindowsRequestState(context.Background(), &winhttp.Request{})
+
+	err := bindWindowsRequestState(state)
+	if err == nil {
+		t.Fatal("expected context value error")
+	}
+	if _, loaded := windowsTransportRequestStates.Load(state.id); loaded {
+		t.Fatal("expected request state cleanup")
+	}
+	select {
+	case <-state.handleClosed:
+	default:
+		t.Fatal("expected closed handle signal")
 	}
 }
 
@@ -1388,6 +1438,9 @@ func newWindowsHTTPTestCertificateWithOptions(t *testing.T, options windowsHTTPT
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           append([]x509.ExtKeyUsage(nil), extKeyUsage...),
 		BasicConstraintsValid: true,
+	}
+	if options.signatureAlgorithm != 0 {
+		template.SignatureAlgorithm = options.signatureAlgorithm
 	}
 	certificateDER, err := x509.CreateCertificate(rand.Reader, template, template, privateKey.Public(), privateKey)
 	if err != nil {

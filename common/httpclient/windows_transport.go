@@ -431,7 +431,7 @@ func (t *windowsTransport) RoundTrip(request *http.Request) (*http.Response, err
 			tree.release()
 		}
 	}()
-	err = requestHandle.SetContextValue(state.id)
+	err = bindWindowsRequestState(state)
 	if err != nil {
 		return nil, err
 	}
@@ -775,6 +775,15 @@ func newWindowsRequestState(ctx context.Context, request *winhttp.Request) *wind
 		}
 	}()
 	return state
+}
+
+func bindWindowsRequestState(state *windowsRequestState) error {
+	err := state.request.SetContextValue(state.id)
+	if err != nil {
+		state.cleanup()
+		return err
+	}
+	return nil
 }
 
 func (s *windowsRequestState) armSend() chan error {
