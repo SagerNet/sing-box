@@ -4,52 +4,23 @@ package local
 
 /*
 #include <stdlib.h>
+#include <netdb.h>
 #include <dns.h>
-#include <resolv.h>
 
-static void *cgo_dns_open_super() {
-	return (void *)dns_open(NULL);
-}
-
-static void cgo_dns_close(void *opaque) {
-	if (opaque != NULL) dns_free((dns_handle_t)opaque);
-}
-
-static int cgo_dns_search(void *opaque, const char *name, int class, int type,
-	unsigned char *answer, int anslen) {
-	dns_handle_t handle = (dns_handle_t)opaque;
+static int cgo_dns_search(const char *name, int class, int type,
+	unsigned char *answer, int anslen, int *out_h_errno) {
+	dns_handle_t handle = (dns_handle_t)dns_open(NULL);
+	if (handle == NULL) {
+		*out_h_errno = NO_RECOVERY;
+		return -1;
+	}
 	struct sockaddr_storage from;
 	uint32_t fromlen = sizeof(from);
-	return dns_search(handle, name, class, type, (char *)answer, anslen, (struct sockaddr *)&from, &fromlen);
-}
-
-static void *cgo_res_init() {
-	res_state state = calloc(1, sizeof(struct __res_state));
-	if (state == NULL) return NULL;
-	if (res_ninit(state) != 0) {
-		free(state);
-		return NULL;
-	}
-	return state;
-}
-
-static void cgo_res_destroy(void *opaque) {
-	res_state state = (res_state)opaque;
-	res_ndestroy(state);
-	free(state);
-}
-
-static int cgo_res_nsearch(void *opaque, const char *dname, int class, int type,
-	unsigned char *answer, int anslen,
-	int timeout_seconds,
-	int *out_h_errno) {
-	res_state state = (res_state)opaque;
-	state->retrans = timeout_seconds;
-	state->retry = 1;
-	int n = res_nsearch(state, dname, class, type, answer, anslen);
-	if (n < 0) {
-		*out_h_errno = state->res_h_errno;
-	}
+	h_errno = 0;
+	int n = dns_search(handle, name, class, type, (char *)answer, anslen,
+		(struct sockaddr *)&from, &fromlen);
+	*out_h_errno = h_errno;
+	dns_free(handle);
 	return n;
 }
 */
@@ -58,7 +29,6 @@ import "C"
 import (
 	"context"
 	"errors"
-	"time"
 	"unsafe"
 
 	boxC "github.com/sagernet/sing-box/constant"
@@ -73,125 +43,38 @@ const (
 	darwinResolverTryAgain     = 2
 	darwinResolverNoRecovery   = 3
 	darwinResolverNoData       = 4
-
-	darwinResolverMaxPacketSize = 65535
 )
 
-var errDarwinNeedLargerBuffer = errors.New("darwin resolver response truncated")
-
-func darwinLookupSystemDNS(name string, class, qtype, timeoutSeconds int) (*mDNS.Msg, error) {
-	response, err := darwinSearchWithSystemRouting(name, class, qtype)
-	if err == nil {
-		return response, nil
-	}
-	fallbackResponse, fallbackErr := darwinSearchWithResolv(name, class, qtype, timeoutSeconds)
-	if fallbackErr == nil || fallbackResponse != nil {
-		return fallbackResponse, fallbackErr
-	}
-	return nil, E.Errors(
-		E.Cause(err, "dns_search"),
-		E.Cause(fallbackErr, "res_nsearch"),
-	)
-}
-
-func darwinSearchWithSystemRouting(name string, class, qtype int) (*mDNS.Msg, error) {
-	handle := C.cgo_dns_open_super()
-	if handle == nil {
-		return nil, E.New("dns_open failed")
-	}
-	defer C.cgo_dns_close(handle)
-
+func darwinLookupSystemDNS(name string, class, qtype int) (*mDNS.Msg, error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	bufSize := 1232
-	for {
-		answer := make([]byte, bufSize)
-		n := C.cgo_dns_search(handle, cName, C.int(class), C.int(qtype),
-			(*C.uchar)(unsafe.Pointer(&answer[0])), C.int(len(answer)))
-		if n <= 0 {
-			return nil, E.New("dns_search failed for ", name)
-		}
-		if int(n) > bufSize {
-			bufSize = int(n)
-			continue
-		}
-		return unpackDarwinResolverMessage(answer[:int(n)], "dns_search")
+	answer := make([]byte, 4096)
+	var hErrno C.int
+	n := C.cgo_dns_search(cName, C.int(class), C.int(qtype),
+		(*C.uchar)(unsafe.Pointer(&answer[0])), C.int(len(answer)),
+		&hErrno)
+	if n <= 0 {
+		return nil, darwinResolverHErrno(name, int(hErrno))
 	}
-}
-
-func darwinSearchWithResolv(name string, class, qtype int, timeoutSeconds int) (*mDNS.Msg, error) {
-	state := C.cgo_res_init()
-	if state == nil {
-		return nil, E.New("res_ninit failed")
-	}
-	defer C.cgo_res_destroy(state)
-
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
-
-	bufSize := 1232
-	for {
-		answer := make([]byte, bufSize)
-		var hErrno C.int
-		n := C.cgo_res_nsearch(state, cName, C.int(class), C.int(qtype),
-			(*C.uchar)(unsafe.Pointer(&answer[0])), C.int(len(answer)),
-			C.int(timeoutSeconds),
-			&hErrno)
-		if n >= 0 {
-			if int(n) > bufSize {
-				bufSize = int(n)
-				continue
-			}
-			return unpackDarwinResolverMessage(answer[:int(n)], "res_nsearch")
-		}
-		response, err := handleDarwinResolvFailure(name, answer, int(hErrno))
-		if err == nil {
-			return response, nil
-		}
-		if errors.Is(err, errDarwinNeedLargerBuffer) && bufSize < darwinResolverMaxPacketSize {
-			bufSize *= 2
-			if bufSize > darwinResolverMaxPacketSize {
-				bufSize = darwinResolverMaxPacketSize
-			}
-			continue
-		}
-		return nil, err
-	}
-}
-
-func unpackDarwinResolverMessage(packet []byte, source string) (*mDNS.Msg, error) {
 	var response mDNS.Msg
-	err := response.Unpack(packet)
+	err := response.Unpack(answer[:int(n)])
 	if err != nil {
-		return nil, E.Cause(err, "unpack ", source, " response")
+		return nil, E.Cause(err, "unpack dns_search response")
 	}
 	return &response, nil
-}
-
-func handleDarwinResolvFailure(name string, answer []byte, hErrno int) (*mDNS.Msg, error) {
-	response, err := unpackDarwinResolverMessage(answer, "res_nsearch failure")
-	if err == nil && response.Response {
-		if response.Truncated && len(answer) < darwinResolverMaxPacketSize {
-			return nil, errDarwinNeedLargerBuffer
-		}
-		return response, nil
-	}
-	return nil, darwinResolverHErrno(name, hErrno)
 }
 
 func darwinResolverHErrno(name string, hErrno int) error {
 	switch hErrno {
 	case darwinResolverHostNotFound:
 		return dns.RcodeNameError
-	case darwinResolverTryAgain:
-		return dns.RcodeServerFailure
-	case darwinResolverNoRecovery:
-		return dns.RcodeServerFailure
 	case darwinResolverNoData:
 		return dns.RcodeSuccess
+	case darwinResolverTryAgain, darwinResolverNoRecovery:
+		return dns.RcodeServerFailure
 	default:
-		return E.New("res_nsearch: unknown error ", hErrno, " for ", name)
+		return E.New("dns_search: unknown h_errno ", hErrno, " for ", name)
 	}
 }
 
@@ -209,26 +92,13 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 			return t.dhcpTransport.Exchange0(ctx, message, dhcpServers)
 		}
 	}
-	name := question.Name
-	timeoutSeconds := int(boxC.DNSTimeout / time.Second)
-	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			return nil, context.DeadlineExceeded
-		}
-		seconds := int(remaining.Seconds())
-		if seconds < 1 {
-			seconds = 1
-		}
-		timeoutSeconds = seconds
-	}
 	type resolvResult struct {
 		response *mDNS.Msg
 		err      error
 	}
 	resultCh := make(chan resolvResult, 1)
 	go func() {
-		response, err := darwinLookupSystemDNS(name, int(question.Qclass), int(question.Qtype), timeoutSeconds)
+		response, err := darwinLookupSystemDNS(question.Name, int(question.Qclass), int(question.Qtype))
 		resultCh <- resolvResult{response, err}
 	}()
 	var result resolvResult
@@ -245,5 +115,17 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		return nil, result.err
 	}
 	result.response.Id = message.Id
+	// Workaround for a bug in Apple libresolv: res_query_mDNSResponder
+	// (libresolv/res_query.c), used when the resolver has
+	// DNS_FLAG_FORWARD_TO_MDNSRESPONDER set (typical inside a Network
+	// Extension), writes:
+	//
+	//     ans->qr = 1;
+	//     ans->qr = htons(ans->qr);
+	//
+	// HEADER.qr is a 1-bit bitfield (<arpa/nameser_compat.h>), so
+	// htons(1) == 0x0100 gets truncated back to 0, clearing the QR bit.
+	// Force it on so downstream clients see a valid response.
+	result.response.Response = true
 	return result.response, nil
 }
