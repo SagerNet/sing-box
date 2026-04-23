@@ -32,6 +32,7 @@ const (
 	testVendorID     uint16 = 0x1d6b
 	testACMProductID uint16 = 0x0104
 	testHIDProductID uint16 = 0x0105
+	testUDCCount            = 2
 )
 
 var testHIDReportDescriptor = []byte{
@@ -57,6 +58,7 @@ type testUSBIPTools struct {
 
 type testVirtualFunction struct {
 	name        string
+	instance    string
 	nodePattern string
 	configure   func(functionPath string) error
 }
@@ -92,6 +94,11 @@ type readResult struct {
 	err  error
 }
 
+var (
+	testUDCMu        sync.Mutex
+	testAllocatedUDC = make(map[string]struct{})
+)
+
 func requireUSBIPTools(t *testing.T) testUSBIPTools {
 	t.Helper()
 	requireRoot(t)
@@ -105,6 +112,152 @@ func requireUSBIPTools(t *testing.T) testUSBIPTools {
 		usbip:  usbipPath,
 		usbipd: usbipdPath,
 	}
+}
+
+func currentUDCNames() []string {
+	entries, err := os.ReadDir("/sys/class/udc")
+	if err != nil {
+		return nil
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+	return names
+}
+
+func ensureTestUDCs(t *testing.T, minCount int) []string {
+	t.Helper()
+
+	requireKernelModule(t, "configfs")
+	requireKernelModule(t, "libcomposite")
+
+	udcs := currentUDCNames()
+	if len(udcs) >= minCount {
+		return udcs
+	}
+
+	modprobePath, err := findModprobePath()
+	require.NoError(t, err)
+
+	command := exec.Command(modprobePath, "-r", "dummy_hcd")
+	command.Env = os.Environ()
+	_, _ = command.CombinedOutput()
+
+	command = exec.Command(modprobePath, "dummy_hcd", "num="+strconv.Itoa(minCount))
+	command.Env = os.Environ()
+	output, err := command.CombinedOutput()
+	require.NoErrorf(t, err, "modprobe dummy_hcd num=%d\n%s", minCount, string(output))
+
+	require.Eventually(t, func() bool {
+		return len(currentUDCNames()) >= minCount
+	}, 5*time.Second, 100*time.Millisecond)
+
+	return currentUDCNames()
+}
+
+func reserveTestUDC(t *testing.T) string {
+	t.Helper()
+
+	testUDCMu.Lock()
+	defer testUDCMu.Unlock()
+
+	udcs := ensureTestUDCs(t, testUDCCount)
+	for _, udc := range udcs {
+		if _, inUse := testAllocatedUDC[udc]; inUse {
+			continue
+		}
+		testAllocatedUDC[udc] = struct{}{}
+		return udc
+	}
+
+	t.Fatal("no free test UDC available")
+	return ""
+}
+
+func releaseTestUDC(name string) {
+	if name == "" {
+		return
+	}
+	testUDCMu.Lock()
+	delete(testAllocatedUDC, name)
+	testUDCMu.Unlock()
+}
+
+func resetUSBIPInteropState(t *testing.T) {
+	t.Helper()
+	requireRoot(t)
+
+	records, err := readVHCIStatus()
+	if err == nil {
+		for _, record := range records {
+			if record.state == 6 {
+				_ = vhciDetach(record.port)
+			}
+		}
+		require.Eventually(t, func() bool {
+			records, err = readVHCIStatus()
+			if err != nil {
+				return false
+			}
+			for _, record := range records {
+				if record.state == 6 {
+					return false
+				}
+			}
+			return true
+		}, 10*time.Second, 100*time.Millisecond)
+	}
+
+	devices, err := listUSBDevices()
+	if err != nil {
+		return
+	}
+	for _, device := range devices {
+		if !strings.HasPrefix(device.Serial, "codex-usbip-") {
+			continue
+		}
+		driver, err := currentDriver(device.BusID)
+		if err != nil || driver != "usbip-host" {
+			continue
+		}
+		_ = hostUnbind(device.BusID)
+		_ = hostMatchBusID(device.BusID, false)
+		_ = bindToDriver(device.BusID, "usb")
+	}
+
+	paths, _ := filepath.Glob("/sys/kernel/config/usb_gadget/codex_usbip_*")
+	for _, path := range paths {
+		_ = writeSysfsLine(filepath.Join(path, "UDC"), "")
+
+		links, _ := filepath.Glob(filepath.Join(path, "configs", "*", "*"))
+		for _, link := range links {
+			info, err := os.Lstat(link)
+			if err == nil && info.Mode()&os.ModeSymlink != 0 {
+				_ = os.Remove(link)
+			}
+		}
+
+		functions, _ := filepath.Glob(filepath.Join(path, "functions", "*"))
+		for _, functionPath := range functions {
+			_ = os.RemoveAll(functionPath)
+		}
+		_ = os.RemoveAll(filepath.Join(path, "configs"))
+		_ = os.RemoveAll(filepath.Join(path, "strings"))
+		_ = os.RemoveAll(path)
+	}
+	require.Eventually(t, func() bool {
+		paths, _ := filepath.Glob("/sys/kernel/config/usb_gadget/codex_usbip_*")
+		return len(paths) == 0
+	}, 10*time.Second, 100*time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(importedNodeSnapshot("/dev/ttyACM*")) == 0 && len(importedNodeSnapshot("/dev/hidraw*")) == 0
+	}, 10*time.Second, 100*time.Millisecond)
+
+	testUDCMu.Lock()
+	testAllocatedUDC = make(map[string]struct{})
+	testUDCMu.Unlock()
 }
 
 func loopbackListenAddr() *badoption.Addr {
@@ -305,6 +458,35 @@ func waitForNewImportedNode(t *testing.T, pattern string, before map[string]stru
 		sort.Strings(candidates)
 		found = candidates[0]
 		return true
+	}, 20*time.Second, 100*time.Millisecond)
+	return found
+}
+
+func waitForImportedNodePresent(t *testing.T, pattern string, path string) string {
+	t.Helper()
+
+	if path != "" {
+		if _, err := os.Stat(path); err == nil && isVHCINode(path) {
+			return path
+		}
+	}
+
+	var found string
+	require.Eventually(t, func() bool {
+		paths, _ := filepath.Glob(pattern)
+		var candidates []string
+		for _, candidate := range paths {
+			if !isVHCINode(candidate) {
+				continue
+			}
+			candidates = append(candidates, candidate)
+		}
+		if len(candidates) == 0 {
+			return false
+		}
+		sort.Strings(candidates)
+		found = candidates[0]
+		return true
 	}, 10*time.Second, 100*time.Millisecond)
 	return found
 }
@@ -399,6 +581,16 @@ func requireRead(t *testing.T, results <-chan readResult, expected []byte) {
 	}
 }
 
+func readExactlyWithin(reader io.Reader, size int, timeout time.Duration) ([]byte, error) {
+	results := readExactlyAsync(reader, size)
+	select {
+	case result := <-results:
+		return result.data, result.err
+	case <-time.After(timeout):
+		return nil, context.DeadlineExceeded
+	}
+}
+
 func openRawTTY(t *testing.T, path string) *rawFile {
 	t.Helper()
 
@@ -434,14 +626,21 @@ func newTestVirtualGadget(t *testing.T, productID uint16, productName string, fu
 
 	requireKernelModule(t, "configfs")
 	requireKernelModule(t, "libcomposite")
-	requireKernelModule(t, "dummy_hcd")
 
-	udcs, err := os.ReadDir("/sys/class/udc")
-	require.NoError(t, err)
-	require.NotEmpty(t, udcs)
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	resolvedFunctions := make([]testVirtualFunction, len(functions))
+	for i, function := range functions {
+		resolvedFunctions[i] = function
+		typeName, _, hasInstance := strings.Cut(function.name, ".")
+		if hasInstance {
+			resolvedFunctions[i].instance = typeName + ".codex" + suffix
+		} else {
+			resolvedFunctions[i].instance = function.name + "codex" + suffix
+		}
+	}
 
 	snapshots := make(map[string]map[string]struct{})
-	for _, function := range functions {
+	for _, function := range resolvedFunctions {
 		if function.nodePattern == "" {
 			continue
 		}
@@ -451,9 +650,9 @@ func newTestVirtualGadget(t *testing.T, productID uint16, productName string, fu
 	gadget := &testVirtualGadget{
 		path:      filepath.Join("/sys/kernel/config/usb_gadget", fmt.Sprintf("codex_usbip_%d", time.Now().UnixNano())),
 		serial:    fmt.Sprintf("codex-usbip-%d", time.Now().UnixNano()),
-		functions: functions,
-		nodes:     make(map[string]string, len(functions)),
-		udcName:   udcs[0].Name(),
+		functions: resolvedFunctions,
+		nodes:     make(map[string]string, len(resolvedFunctions)),
+		udcName:   reserveTestUDC(t),
 	}
 
 	require.NoError(t, os.MkdirAll(filepath.Join(gadget.path, "strings/0x409"), 0o755))
@@ -465,13 +664,13 @@ func newTestVirtualGadget(t *testing.T, productID uint16, productName string, fu
 	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "strings/0x409/product"), productName))
 	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "configs/c.1/strings/0x409/configuration"), "config-1"))
 
-	for _, function := range functions {
-		functionPath := filepath.Join(gadget.path, "functions", function.name)
-		require.NoError(t, os.MkdirAll(functionPath, 0o755))
+	for _, function := range resolvedFunctions {
+		functionPath := filepath.Join(gadget.path, "functions", function.instance)
+		require.NoError(t, os.Mkdir(functionPath, 0o755))
 		if function.configure != nil {
 			require.NoError(t, function.configure(functionPath))
 		}
-		require.NoError(t, os.Symlink(functionPath, filepath.Join(gadget.path, "configs/c.1", function.name)))
+		require.NoError(t, os.Symlink(functionPath, filepath.Join(gadget.path, "configs/c.1", function.instance)))
 	}
 
 	require.NoError(t, writeSysfs(filepath.Join(gadget.path, "UDC"), gadget.udcName))
@@ -508,6 +707,8 @@ func newTestVirtualGadget(t *testing.T, productID uint16, productName string, fu
 
 func (g *testVirtualGadget) Close() {
 	g.closeOnce.Do(func() {
+		defer releaseTestUDC(g.udcName)
+
 		if g.busid != "" {
 			if driver, err := currentDriver(g.busid); err == nil && driver == "usbip-host" {
 				_ = hostUnbind(g.busid)
@@ -518,15 +719,40 @@ func (g *testVirtualGadget) Close() {
 		_ = writeSysfsLine(filepath.Join(g.path, "UDC"), "")
 
 		for _, function := range g.functions {
-			_ = os.Remove(filepath.Join(g.path, "configs/c.1", function.name))
+			_ = os.Remove(filepath.Join(g.path, "configs/c.1", function.instance))
 		}
 		for _, function := range g.functions {
-			_ = os.RemoveAll(filepath.Join(g.path, "functions", function.name))
+			_ = os.RemoveAll(filepath.Join(g.path, "functions", function.instance))
 		}
 		_ = os.RemoveAll(filepath.Join(g.path, "configs/c.1/strings/0x409"))
 		_ = os.RemoveAll(filepath.Join(g.path, "configs/c.1"))
 		_ = os.RemoveAll(filepath.Join(g.path, "strings/0x409"))
 		_ = os.RemoveAll(g.path)
+
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(g.path); err == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if g.busid != "" {
+				if _, err := os.Stat(sysBusDevicePath(g.busid)); err == nil {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+			}
+			remainingNode := false
+			for _, path := range g.nodes {
+				if _, err := os.Stat(path); err == nil {
+					remainingNode = true
+					break
+				}
+			}
+			if !remainingNode {
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 	})
 }
 
@@ -593,37 +819,63 @@ func (g *testACMGadget) exerciseImportedIO(t *testing.T, importedTTY string) {
 func (g *testHIDGadget) exerciseImportedIO(t *testing.T, importedHID string) {
 	t.Helper()
 
-	gadgetHID := openBinaryDevice(t, g.hidPath)
-	imported := openBinaryDevice(t, importedHID)
-	defer gadgetHID.Close()
-	defer imported.Close()
-
 	gadgetToHost := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 	hostToGadget := []byte{8, 7, 6, 5, 4, 3, 2, 1}
 
-	hostRead := readExactlyAsync(imported, len(gadgetToHost))
-	_, err := gadgetHID.Write(gadgetToHost)
-	require.NoError(t, err)
-	requireRead(t, hostRead, gadgetToHost)
+	require.Eventually(t, func() bool {
+		gadgetHID, err := os.OpenFile(g.hidPath, os.O_RDWR, 0)
+		if err != nil {
+			return false
+		}
+		defer gadgetHID.Close()
 
-	gadgetRead := readExactlyAsync(gadgetHID, len(hostToGadget))
-	_, err = imported.Write(hostToGadget)
-	require.NoError(t, err)
-	requireRead(t, gadgetRead, hostToGadget)
+		imported, err := os.OpenFile(importedHID, os.O_RDWR, 0)
+		if err != nil {
+			return false
+		}
+		defer imported.Close()
+
+		if _, err = gadgetHID.Write(gadgetToHost); err != nil {
+			return false
+		}
+		readBack, err := readExactlyWithin(imported, len(gadgetToHost), time.Second)
+		if err != nil || !bytes.Equal(readBack, gadgetToHost) {
+			return false
+		}
+
+		if _, err = imported.Write(hostToGadget); err != nil {
+			return false
+		}
+		readBack, err = readExactlyWithin(gadgetHID, len(hostToGadget), time.Second)
+		return err == nil && bytes.Equal(readBack, hostToGadget)
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 func bindWithOfficialUSBIP(t *testing.T, tools testUSBIPTools, busid string) {
 	t.Helper()
+
+	if driver, err := currentDriver(busid); err == nil && driver == "usbip-host" {
+		return
+	}
 	runUSBIP(t, tools, "bind", "--busid="+busid)
+	require.Eventually(t, func() bool {
+		driver, err := currentDriver(busid)
+		return err == nil && driver == "usbip-host"
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func unbindWithOfficialUSBIP(t *testing.T, tools testUSBIPTools, busid string) {
 	t.Helper()
 	runUSBIP(t, tools, "unbind", "--busid="+busid)
+	require.Eventually(t, func() bool {
+		driver, err := currentDriver(busid)
+		return err == nil && driver != "usbip-host"
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestUSBIPInteropOurServerWithOfficialClientACM(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
 	require.NoError(t, ensureVHCI())
 
@@ -651,6 +903,7 @@ func TestUSBIPInteropOurServerWithOfficialClientACM(t *testing.T) {
 
 func TestUSBIPInteropOurServerWithOfficialClientHID(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
 	require.NoError(t, ensureVHCI())
 
@@ -676,6 +929,7 @@ func TestUSBIPInteropOurServerWithOfficialClientHID(t *testing.T) {
 
 func TestUSBIPInteropOurClientWithOfficialServerACM(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
 	require.NoError(t, ensureVHCI())
 
@@ -704,6 +958,7 @@ func TestUSBIPInteropOurClientWithOfficialServerACM(t *testing.T) {
 
 func TestUSBIPInteropOurClientWithOfficialServerHID(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
 	require.NoError(t, ensureVHCI())
 
@@ -732,6 +987,7 @@ func TestUSBIPInteropOurClientWithOfficialServerHID(t *testing.T) {
 
 func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
 	require.NoError(t, ensureVHCI())
 
@@ -766,9 +1022,11 @@ func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 
 func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	require.NoError(t, ensureVHCI())
+	ensureTestUDCs(t, testUDCCount)
 
-	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{
+	server, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{
 		VendorID:  option.USBIPHexUint16(testVendorID),
 		ProductID: option.USBIPHexUint16(testACMProductID),
 	}})
@@ -785,6 +1043,9 @@ func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 
 	first.Close()
 	waitForPathGone(t, firstImportedTTY)
+	require.Eventually(t, func() bool {
+		return len(server.currentExports()) == 0
+	}, 5*time.Second, 100*time.Millisecond)
 
 	secondBefore := importedNodeSnapshot("/dev/ttyACM*")
 	second := newTestACMGadget(t)
@@ -794,7 +1055,9 @@ func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 
 func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
 	requireRoot(t)
+	resetUSBIPInteropState(t)
 	require.NoError(t, ensureVHCI())
+	ensureTestUDCs(t, testUDCCount)
 
 	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{
 		{VendorID: option.USBIPHexUint16(testVendorID), ProductID: option.USBIPHexUint16(testACMProductID)},
@@ -811,6 +1074,8 @@ func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
 
 	importedTTY := waitForNewImportedNode(t, "/dev/ttyACM*", beforeTTY)
 	importedHID := waitForNewImportedNode(t, "/dev/hidraw*", beforeHID)
+	importedTTY = waitForImportedNodePresent(t, "/dev/ttyACM*", importedTTY)
+	importedHID = waitForImportedNodePresent(t, "/dev/hidraw*", importedHID)
 
 	acm.exerciseImportedIO(t, importedTTY)
 	hid.exerciseImportedIO(t, importedHID)

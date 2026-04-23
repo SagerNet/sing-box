@@ -74,6 +74,9 @@ type ClientService struct {
 
 	portsMu sync.Mutex
 	ports   map[int]struct{}
+
+	activeMu     sync.Mutex
+	activeBusIDs map[string]struct{}
 }
 
 func NewClientService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {
@@ -94,16 +97,17 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	return &ClientService{
-		Adapter:    boxService.NewAdapter(C.TypeUSBIPClient, tag),
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     logger,
-		dialer:     outboundDialer,
-		serverAddr: options.ServerOptions.Build(),
-		matches:    options.Devices,
-		ops:        systemUSBIPOps,
-		allWorkers: make(map[string]*clientBusIDWorker),
-		ports:      make(map[int]struct{}),
+		Adapter:      boxService.NewAdapter(C.TypeUSBIPClient, tag),
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       logger,
+		dialer:       outboundDialer,
+		serverAddr:   options.ServerOptions.Build(),
+		matches:      options.Devices,
+		ops:          systemUSBIPOps,
+		allWorkers:   make(map[string]*clientBusIDWorker),
+		ports:        make(map[int]struct{}),
+		activeBusIDs: make(map[string]struct{}),
 	}, nil
 }
 
@@ -317,6 +321,9 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 		if _, ok := desired[busid]; ok {
 			continue
 		}
+		if c.isBusIDActive(busid) {
+			continue
+		}
 		stopWorkers = append(stopWorkers, worker)
 		delete(c.allWorkers, busid)
 	}
@@ -482,6 +489,9 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 	if err != nil {
 		return nil, E.Cause(err, "read OP_REP_DEVLIST header")
 	}
+	if header.Version != ProtocolVersion {
+		return nil, E.New("unexpected reply version 0x", hex16(header.Version))
+	}
 	if header.Code != OpRepDevList || header.Status != OpStatusOK {
 		return nil, E.New("OP_REP_DEVLIST status=", header.Status, " code=0x", hex16(header.Code))
 	}
@@ -502,8 +512,9 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 			continue
 		}
 		c.logger.Info("attached ", busid, " → vhci port ", port)
-		c.trackPort(port, true)
+		c.setBusIDActive(busid, true)
 		c.watchPort(ctx, port, busid)
+		c.setBusIDActive(busid, false)
 		c.trackPort(port, false)
 		if err := ctx.Err(); err != nil {
 			return
@@ -530,6 +541,9 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if err != nil {
 		return -1, E.Cause(err, "read OP_REP_IMPORT header")
 	}
+	if header.Version != ProtocolVersion {
+		return -1, E.New("unexpected reply version 0x", hex16(header.Version))
+	}
 	if header.Code != OpRepImport {
 		return -1, E.New("unexpected reply code 0x", hex16(header.Code))
 	}
@@ -555,7 +569,11 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if err != nil {
 		return -1, err
 	}
+	if !c.reservePort(port) {
+		return -1, E.New("vhci port ", port, " already reserved")
+	}
 	if err := c.ops.vhciAttach(port, file.Fd(), info.DevID(), info.Speed); err != nil {
+		c.trackPort(port, false)
 		return -1, E.Cause(err, "vhci attach")
 	}
 	return port, nil
@@ -564,6 +582,9 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	seenUsed := false
+	settleDeadline := time.NewTimer(10 * time.Second)
+	defer settleDeadline.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -571,13 +592,26 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 				c.logger.Warn("detach port ", port, " (", busid, "): ", err)
 			}
 			return
+		case <-settleDeadline.C:
+			if !seenUsed {
+				c.logger.Warn("vhci port ", port, " never reached used state; reattaching ", busid)
+				return
+			}
 		case <-ticker.C:
 			used, err := c.ops.vhciPortUsed(port)
 			if err != nil {
 				c.logger.Debug("poll port ", port, ": ", err)
 				continue
 			}
-			if !used {
+			if used {
+				if !seenUsed {
+					c.logger.Debug("vhci port ", port, " entered used state for ", busid)
+				}
+				seenUsed = true
+				continue
+			}
+			if seenUsed {
+				c.logger.Debug("vhci port ", port, " left used state for ", busid)
 				return
 			}
 		}
@@ -587,11 +621,51 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 func (c *ClientService) trackPort(port int, add bool) {
 	c.portsMu.Lock()
 	defer c.portsMu.Unlock()
+	if c.ports == nil {
+		c.ports = make(map[int]struct{})
+	}
 	if add {
+		c.logger.Debug("reserve vhci port ", port)
 		c.ports[port] = struct{}{}
 	} else {
+		c.logger.Debug("release vhci port ", port)
 		delete(c.ports, port)
 	}
+}
+
+func (c *ClientService) reservePort(port int) bool {
+	c.portsMu.Lock()
+	defer c.portsMu.Unlock()
+	if c.ports == nil {
+		c.ports = make(map[int]struct{})
+	}
+	if _, exists := c.ports[port]; exists {
+		c.logger.Debug("vhci port ", port, " already reserved locally")
+		return false
+	}
+	c.logger.Debug("reserve vhci port ", port)
+	c.ports[port] = struct{}{}
+	return true
+}
+
+func (c *ClientService) setBusIDActive(busid string, active bool) {
+	c.activeMu.Lock()
+	defer c.activeMu.Unlock()
+	if c.activeBusIDs == nil {
+		c.activeBusIDs = make(map[string]struct{})
+	}
+	if active {
+		c.activeBusIDs[busid] = struct{}{}
+	} else {
+		delete(c.activeBusIDs, busid)
+	}
+}
+
+func (c *ClientService) isBusIDActive(busid string) bool {
+	c.activeMu.Lock()
+	defer c.activeMu.Unlock()
+	_, exists := c.activeBusIDs[busid]
+	return exists
 }
 
 func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {

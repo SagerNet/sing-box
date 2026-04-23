@@ -4,10 +4,13 @@ package usbip
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+	"golang.org/x/sys/unix"
 )
 
 type serverExport struct {
@@ -51,6 +55,8 @@ type ServerService struct {
 	controlSeq    uint64
 	controlNextID uint64
 	controlSubs   map[uint64]*serverControlConn
+
+	reconcileMu sync.Mutex
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -89,7 +95,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if err := s.ops.ensureHostDriver(); err != nil {
 		return err
 	}
-	if _, err := s.reconcileExports(); err != nil {
+	if err := s.reconcileAndBroadcast(false); err != nil {
 		s.rollbackExports()
 		return err
 	}
@@ -103,6 +109,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	s.mu.Unlock()
 	go s.acceptLoop(tcpListener)
 	go s.ueventLoop()
+	go s.reconcileLoop()
 	return nil
 }
 
@@ -129,6 +136,10 @@ func (s *ServerService) reconcileExports() (bool, error) {
 	for _, m := range s.matches {
 		for i := range devices {
 			if !Matches(m, devices[i].key()) {
+				continue
+			}
+			if isVHCIImportedDevice(devices[i].Path) {
+				s.logger.Debug("skip vhci-imported device ", devices[i].BusID, " matched by ", describeMatch(m))
 				continue
 			}
 			if devices[i].DeviceClass == 0x09 {
@@ -202,38 +213,36 @@ func (s *ServerService) bindOne(d *sysfsDevice) error {
 }
 
 func (s *ServerService) releaseExport(export serverExport, restore bool) error {
-	s.deleteExport(export.busid)
-
-	var releaseErr error
-	if err := s.ops.writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
-		releaseErr = err
-	}
 	if !export.managed {
+		s.deleteExport(export.busid)
 		s.logger.Info("stopped tracking ", export.busid, " on usbip-host")
-		return releaseErr
+		return nil
 	}
-	if err := s.ops.hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && releaseErr == nil {
-		releaseErr = err
+	if err := s.ops.writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
+		return err
 	}
-	if err := s.ops.hostMatchBusID(export.busid, false); err != nil && releaseErr == nil {
-		releaseErr = err
+	if err := s.ops.hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
+		return err
+	}
+	if err := s.ops.hostMatchBusID(export.busid, false); err != nil {
+		return err
 	}
 	if !restore {
+		s.deleteExport(export.busid)
 		s.logger.Info("removed export state for disappeared device ", export.busid)
-		return releaseErr
+		return nil
 	}
 	if export.originalDriver == "" {
+		s.deleteExport(export.busid)
 		s.logger.Info("released ", export.busid, " from usbip-host")
-		return releaseErr
+		return nil
 	}
 	if err := s.ops.bindToDriver(export.busid, export.originalDriver); err != nil {
-		if releaseErr == nil {
-			releaseErr = err
-		}
-		return releaseErr
+		return err
 	}
+	s.deleteExport(export.busid)
 	s.logger.Info("restored ", export.busid, " to ", export.originalDriver)
-	return releaseErr
+	return nil
 }
 
 func (s *ServerService) rollbackExports() {
@@ -245,6 +254,20 @@ func (s *ServerService) rollbackExports() {
 			s.logger.Warn("rollback ", export.busid, ": ", err)
 		}
 	}
+}
+
+func (s *ServerService) reconcileAndBroadcast(notify bool) error {
+	s.reconcileMu.Lock()
+	defer s.reconcileMu.Unlock()
+
+	changed, err := s.reconcileExports()
+	if err != nil {
+		return err
+	}
+	if notify && changed {
+		s.broadcastChanged()
+	}
+	return nil
 }
 
 func (s *ServerService) currentExports() []string {
@@ -525,14 +548,26 @@ func (s *ServerService) ueventLoop() {
 				}
 				break
 			}
-			changed, reconcileErr := s.reconcileExports()
-			if reconcileErr != nil {
-				s.logger.Warn("reconcile exports: ", reconcileErr)
-				continue
+			if err := s.reconcileAndBroadcast(true); err != nil {
+				s.logger.Warn("reconcile exports: ", err)
 			}
-			if changed {
-				s.broadcastChanged()
-			}
+		}
+	}
+}
+
+func (s *ServerService) reconcileLoop() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+		}
+
+		if err := s.reconcileAndBroadcast(true); err != nil {
+			s.logger.Warn("reconcile exports: ", err)
 		}
 	}
 }
@@ -600,6 +635,21 @@ func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame contro
 
 func sysBusDevicePath(busid string) string {
 	return sysBusUSBDevices + "/" + busid
+}
+
+func isVHCIImportedDevice(path string) bool {
+	if strings.Contains(path, "vhci_hcd") {
+		return true
+	}
+	realPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(realPath, "vhci_hcd")
+}
+
+func isMissingUSBDeviceError(err error) bool {
+	return errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ENODEV)
 }
 
 func describeMatch(m option.USBIPDeviceMatch) string {

@@ -4,10 +4,12 @@ package usbip
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -18,7 +20,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/common/shell"
 
 	"github.com/stretchr/testify/require"
 )
@@ -199,6 +200,21 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 }
 
 func newTestLogger() log.ContextLogger {
+	if os.Getenv("CODEX_USBIP_TEST_LOG") != "" {
+		factory := log.NewDefaultFactory(
+			context.Background(),
+			log.Formatter{
+				BaseTime:      time.Now(),
+				DisableColors: true,
+			},
+			os.Stderr,
+			"",
+			nil,
+			false,
+		)
+		factory.SetLevel(log.LevelTrace)
+		return factory.NewLogger("usbip")
+	}
 	return log.NewNOPFactory().NewLogger("usbip")
 }
 
@@ -261,12 +277,23 @@ func requireRoot(t *testing.T) {
 
 func requireKernelModule(t *testing.T, module string) {
 	t.Helper()
+	if _, err := os.Stat(filepath.Join("/sys/module", module)); err == nil {
+		return
+	}
 
 	modprobePath, err := findModprobePath()
 	require.NoError(t, err)
 
-	output, err := shell.Exec(modprobePath, module).Read()
-	require.NoErrorf(t, err, "modprobe %s: %s", module, output)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	command := exec.CommandContext(ctx, modprobePath, module)
+	command.Env = os.Environ()
+	output, err := command.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("modprobe %s timed out: %s", module, string(output))
+	}
+	require.NoErrorf(t, err, "modprobe %s: %s", module, string(output))
 }
 
 func writeSysfsLine(path string, content string) error {
@@ -362,6 +389,30 @@ func TestBuildTargetsDedupesFixedBusID(t *testing.T) {
 		{match: option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002}},
 		{fixedBusID: "1-2"},
 	}, client.buildTargets())
+}
+
+func TestClientApplyRemoteExportsKeepsActiveBusIDWorker(t *testing.T) {
+	t.Parallel()
+
+	canceled := false
+	client := &ClientService{
+		ctx:          context.Background(),
+		logger:       newTestLogger(),
+		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		activeBusIDs: map[string]struct{}{"1-1": {}},
+		ops:          newTestUSBIPOps(t),
+	}
+
+	client.applyRemoteExports(nil)
+
+	require.False(t, canceled)
+	require.Contains(t, client.allWorkers, "1-1")
+
+	client.setBusIDActive("1-1", false)
+	client.applyRemoteExports(nil)
+
+	require.True(t, canceled)
+	require.NotContains(t, client.allWorkers, "1-1")
 }
 
 func TestAssignMatchedBusIDs(t *testing.T) {
@@ -502,6 +553,59 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 	}, server.snapshotExports())
 }
 
+func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
+	t.Parallel()
+
+	physical := newTestDevice("1-1", 0x1d6b, 0x0002, "physical", SpeedHigh)
+	imported := newTestDevice("3-1", 0x1d6b, 0x0002, "imported", SpeedHigh)
+	imported.Path = "/sys/devices/platform/vhci_hcd.0/usb3/3-1"
+
+	store := newTestDeviceStore(physical, imported)
+	ops := newTestUSBIPOps(t)
+	var bound []string
+	ops.listUSBDevices = store.listUSBDevices
+	ops.currentDriver = func(busid string) (string, error) {
+		return "usb", nil
+	}
+	ops.unbindFromDriver = func(busid, driver string) error {
+		bound = append(bound, "unbind "+busid+" "+driver)
+		return nil
+	}
+	ops.hostMatchBusID = func(busid string, add bool) error {
+		bound = append(bound, "match "+busid)
+		return nil
+	}
+	ops.hostBind = func(busid string) error {
+		bound = append(bound, "bind "+busid)
+		return nil
+	}
+
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(),
+		matches:     []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
+		exports:     make(map[string]serverExport),
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         ops,
+	}
+
+	changed, err := server.reconcileExports()
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, []string{
+		"unbind 1-1 usb",
+		"match 1-1",
+		"bind 1-1",
+	}, bound)
+	require.Equal(t, map[string]serverExport{
+		"1-1": {
+			busid:          "1-1",
+			managed:        true,
+			originalDriver: "usb",
+		},
+	}, server.snapshotExports())
+}
+
 func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 	t.Parallel()
 
@@ -545,6 +649,63 @@ func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 		"match 1-1 del",
 		"bind 1-1 usbhid",
 	}, actions)
+}
+
+func TestServerReleaseExportLeavesCooptedSocketUntouched(t *testing.T) {
+	t.Parallel()
+
+	ops := newTestUSBIPOps(t)
+	var calls []string
+	ops.writeUsbipSockfd = func(busid string, fd int) error {
+		calls = append(calls, fmt.Sprintf("%s=%d", busid, fd))
+		return nil
+	}
+
+	server := &ServerService{
+		logger:  newTestLogger(),
+		exports: map[string]serverExport{"1-1": {busid: "1-1"}},
+		ops:     ops,
+	}
+
+	err := server.releaseExport(serverExport{busid: "1-1"}, true)
+	require.NoError(t, err)
+	require.Empty(t, calls)
+	require.Empty(t, server.snapshotExports())
+}
+
+func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("host unbind failed")
+	export := serverExport{
+		busid:          "1-1",
+		managed:        true,
+		originalDriver: "usbhid",
+	}
+
+	ops := newTestUSBIPOps(t)
+	ops.writeUsbipSockfd = func(string, int) error {
+		return nil
+	}
+	ops.hostUnbind = func(string) error {
+		return expectedErr
+	}
+	ops.hostMatchBusID = func(string, bool) error {
+		return nil
+	}
+	ops.bindToDriver = func(string, string) error {
+		return nil
+	}
+
+	server := &ServerService{
+		logger:  newTestLogger(),
+		exports: map[string]serverExport{"1-1": export},
+		ops:     ops,
+	}
+
+	err := server.releaseExport(export, true)
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, map[string]serverExport{"1-1": export}, server.snapshotExports())
 }
 
 func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testing.T) {
@@ -680,6 +841,210 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	require.Equal(t, info.DevID(), attachedDevID)
 	require.Equal(t, SpeedSuper, attachedSpeed)
 	require.Positive(t, store.lastSockfd("1-1"))
+}
+
+func TestClientFetchDevListRejectsUnexpectedReplyVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		if header.Code != OpReqDevList {
+			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		if writeErr := binary.Write(conn, binary.BigEndian, OpHeader{
+			Version: ProtocolVersion + 1,
+			Code:    OpRepDevList,
+			Status:  OpStatusOK,
+		}); writeErr != nil {
+			serverErr <- writeErr
+			return
+		}
+		if writeErr := binary.Write(conn, binary.BigEndian, uint32(0)); writeErr != nil {
+			serverErr <- writeErr
+			return
+		}
+		serverErr <- nil
+	}()
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     testDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        newTestUSBIPOps(t),
+	}
+
+	entries, err := client.fetchDevList(ctx)
+	require.Nil(t, entries)
+	require.ErrorContains(t, err, "unexpected reply version")
+	require.NoError(t, <-serverErr)
+}
+
+func TestClientFetchDevListReturnsOnContextCancelWhileServerStalls(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	requestReady := make(chan struct{})
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		if header.Code != OpReqDevList {
+			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		close(requestReady)
+
+		var buf [1]byte
+		_, readErr = conn.Read(buf[:])
+		if readErr == nil {
+			serverErr <- errors.New("expected client close after cancellation")
+			return
+		}
+		serverErr <- nil
+	}()
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     testDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        newTestUSBIPOps(t),
+	}
+
+	fetchErr := make(chan error, 1)
+	go func() {
+		_, fetchErrValue := client.fetchDevList(ctx)
+		fetchErr <- fetchErrValue
+	}()
+
+	select {
+	case <-requestReady:
+	case <-time.After(3 * time.Second):
+		t.Fatal("fetchDevList did not reach stalled read path")
+	}
+	cancel()
+
+	select {
+	case err = <-fetchErr:
+		require.Error(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("fetchDevList did not exit after cancellation")
+	}
+	require.NoError(t, <-serverErr)
+}
+
+func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	info := device.toProtocol()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		if header.Code != OpReqImport {
+			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		busid, readErr := ReadOpReqImportBody(conn)
+		if readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		if busid != "1-1" {
+			serverErr <- fmt.Errorf("unexpected busid %s", busid)
+			return
+		}
+		if writeErr := binary.Write(conn, binary.BigEndian, OpHeader{
+			Version: ProtocolVersion + 1,
+			Code:    OpRepImport,
+			Status:  OpStatusOK,
+		}); writeErr != nil {
+			serverErr <- writeErr
+			return
+		}
+		if writeErr := binary.Write(conn, binary.BigEndian, &info); writeErr != nil {
+			serverErr <- writeErr
+			return
+		}
+		serverErr <- nil
+	}()
+
+	ops := newTestUSBIPOps(t)
+	ops.vhciPickFreePort = func(uint32) (int, error) {
+		return -1, errors.New("unexpected vhci attach path")
+	}
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     testDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        ops,
+	}
+
+	port, err := client.attemptAttach(ctx, "1-1")
+	require.Equal(t, -1, port)
+	require.ErrorContains(t, err, "unexpected reply version")
+	require.NoError(t, <-serverErr)
 }
 
 func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
