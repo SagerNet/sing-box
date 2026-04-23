@@ -203,7 +203,6 @@ Values:
 
 * `go` (default)
 * `apple`
-* `windows`
 
 `apple` uses Network.framework, only available on Apple platforms and only supports **direct** TCP TLS client connections.
 
@@ -214,9 +213,7 @@ Values:
     If you want to circumvent TLS fingerprint-based proxy censorship,
     use [NaiveProxy](/configuration/outbound/naive/) instead.
 
-`windows` uses Schannel via SSPI, only available on Windows build 17763 or later (Windows 10 version 1809, Windows Server 2019, or newer). It negotiates TLS 1.2 and TLS 1.3 within the configured version range according to Schannel support on the running system. TLS 1.3 is available on Windows 11 and Windows Server 2022 or newer. It only supports **direct** TCP TLS client connections. Certificate verification is performed in Go against the chain returned by Schannel.
-
-Supported fields for `apple` and `windows`:
+Supported fields:
 
 * `server_name`
 * `insecure`
@@ -227,7 +224,7 @@ Supported fields for `apple` and `windows`:
 * `certificate_public_key_sha256`
 * `handshake_timeout`
 
-Unsupported fields for `apple` and `windows`:
+Unsupported fields:
 
 * `disable_sni`
 * `cipher_suites`
