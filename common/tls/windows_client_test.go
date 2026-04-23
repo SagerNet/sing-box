@@ -32,7 +32,8 @@ func newTestWindowsTLSConn(rawConn net.Conn) *windowsTLSConn {
 
 // writePostHandshakeReply wraps writePostHandshakeReplyLocked with the
 // writeAccess locking and auto-close behavior that drivePostHandshake
-// composes from lockWrite/unlockWrite plus the writeFailed → Close branch.
+// composes from beginPostHandshakeWrite/finishPostHandshakeWrite plus the
+// writeFailed → Close branch.
 // Kept here as a test seam.
 func (c *windowsTLSConn) writePostHandshakeReply(data []byte) error {
 	c.writeAccess.Lock()
@@ -1487,6 +1488,70 @@ func TestWindowsClientPostHandshakeReplyWaitsForWriteAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestWindowsClientPostHandshakeWritePreemptsNewWrite(t *testing.T) {
+	tlsConn := newTestWindowsTLSConn(&windowsTestIOConn{})
+	err := tlsConn.beginWrite()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	postHandshakeReady := make(chan error, 1)
+	go func() {
+		postHandshakeReady <- tlsConn.beginPostHandshakeWrite()
+	}()
+
+	deadline := time.After(time.Second)
+	for {
+		tlsConn.writeState.Lock()
+		pending := tlsConn.postHandshake
+		tlsConn.writeState.Unlock()
+		if pending {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("post-handshake write did not become pending")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+
+	writeReady := make(chan error, 1)
+	go func() {
+		writeReady <- tlsConn.beginWrite()
+	}()
+
+	tlsConn.finishWrite()
+
+	select {
+	case err = <-postHandshakeReady:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case err = <-writeReady:
+		t.Fatalf("new write preempted post-handshake write: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("post-handshake write did not resume")
+	}
+
+	select {
+	case err = <-writeReady:
+		t.Fatalf("new write acquired before post-handshake finished: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	tlsConn.finishPostHandshakeWrite()
+	select {
+	case err = <-writeReady:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("new write did not resume after post-handshake write")
+	}
+	tlsConn.finishWrite()
 }
 
 func TestWindowsClientPostHandshakeReplyErrorClosesConn(t *testing.T) {

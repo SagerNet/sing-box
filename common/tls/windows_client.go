@@ -301,6 +301,12 @@ type windowsTLSConn struct {
 	writeAccess  sync.Mutex
 	clientAccess sync.Mutex
 
+	writeState     sync.Mutex
+	writeStateOnce sync.Once
+	writeReady     *sync.Cond
+	postHandshake  bool
+	writeActive    bool
+
 	cipher       []byte
 	plain        []byte
 	readScratch  []byte
@@ -395,11 +401,11 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 func (c *windowsTLSConn) drivePostHandshake() error {
 	initial := c.cipher
 	c.cipher = nil
-	err := c.lockWrite()
+	err := c.beginPostHandshakeWrite()
 	if err != nil {
 		return err
 	}
-	defer c.unlockWrite()
+	defer c.finishPostHandshakeWrite()
 	c.clientAccess.Lock()
 	if c.client == nil {
 		c.clientAccess.Unlock()
@@ -453,11 +459,11 @@ func (c *windowsTLSConn) readRaw(requireMore bool) ([]byte, error) {
 }
 
 func (c *windowsTLSConn) Write(p []byte) (int, error) {
-	err := c.lockWrite()
+	err := c.beginWrite()
 	if err != nil {
 		return 0, err
 	}
-	defer c.unlockWrite()
+	defer c.finishWrite()
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -503,6 +509,10 @@ func (c *windowsTLSConn) Close() error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	ready.Broadcast()
+	c.writeState.Unlock()
 	closeErr := c.rawConn.Close()
 	c.clientAccess.Lock()
 	if c.client != nil {
@@ -595,17 +605,84 @@ func (c *windowsTLSConn) applyDeadline(deadline time.Time, set func(time.Time) e
 	return func() { _ = set(time.Time{}) }, nil
 }
 
-func (c *windowsTLSConn) lockWrite() error {
+func (c *windowsTLSConn) beginWrite() error {
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	for c.postHandshake || c.writeActive {
+		if c.closed.Load() {
+			c.writeState.Unlock()
+			return net.ErrClosed
+		}
+		ready.Wait()
+	}
+	c.writeActive = true
+	c.writeState.Unlock()
+
 	c.writeAccess.Lock()
 	if c.closed.Load() {
 		c.writeAccess.Unlock()
+		c.writeState.Lock()
+		c.writeActive = false
+		ready.Broadcast()
+		c.writeState.Unlock()
 		return net.ErrClosed
 	}
 	return nil
 }
 
-func (c *windowsTLSConn) unlockWrite() {
+func (c *windowsTLSConn) finishWrite() {
 	c.writeAccess.Unlock()
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	c.writeActive = false
+	ready.Broadcast()
+	c.writeState.Unlock()
+}
+
+func (c *windowsTLSConn) beginPostHandshakeWrite() error {
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	c.postHandshake = true
+	for c.writeActive {
+		if c.closed.Load() {
+			c.postHandshake = false
+			ready.Broadcast()
+			c.writeState.Unlock()
+			return net.ErrClosed
+		}
+		ready.Wait()
+	}
+	c.writeActive = true
+	c.writeState.Unlock()
+
+	c.writeAccess.Lock()
+	if c.closed.Load() {
+		c.writeAccess.Unlock()
+		c.writeState.Lock()
+		c.writeActive = false
+		c.postHandshake = false
+		ready.Broadcast()
+		c.writeState.Unlock()
+		return net.ErrClosed
+	}
+	return nil
+}
+
+func (c *windowsTLSConn) finishPostHandshakeWrite() {
+	c.writeAccess.Unlock()
+	ready := c.writeCondition()
+	c.writeState.Lock()
+	c.writeActive = false
+	c.postHandshake = false
+	ready.Broadcast()
+	c.writeState.Unlock()
+}
+
+func (c *windowsTLSConn) writeCondition() *sync.Cond {
+	c.writeStateOnce.Do(func() {
+		c.writeReady = sync.NewCond(&c.writeState)
+	})
+	return c.writeReady
 }
 
 func (c *windowsTLSConn) isClosed() bool {

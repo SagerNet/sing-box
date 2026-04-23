@@ -45,6 +45,8 @@ type ClientContext struct {
 	alpnBuffer []byte
 
 	firstCall bool
+	credValid bool
+	valid     bool
 }
 
 // NewClientContext allocates a new client context, acquires the Schannel
@@ -99,6 +101,7 @@ func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []s
 	if status != secEOK {
 		return nil, sspiError("AcquireCredentialsHandle", status)
 	}
+	c.credValid = true
 	return c, nil
 }
 
@@ -108,12 +111,14 @@ func (c *ClientContext) Close() {
 	if c == nil {
 		return
 	}
-	if c.handle != (secHandle{}) {
+	if c.valid {
 		sspiDeleteSecurityContext(&c.handle)
+		c.valid = false
 		c.handle = secHandle{}
 	}
-	if c.credHandle != (secHandle{}) {
+	if c.credValid {
 		sspiFreeCredentialsHandle(&c.credHandle)
+		c.credValid = false
 		c.credHandle = secHandle{}
 		c.tlsParams = tlsParameters{}
 	}
@@ -440,7 +445,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		pBuffers:  &outputBufs[0],
 	}
 	var ctxIn *secHandle
-	if c.handle != (secHandle{}) {
+	if c.valid {
 		ctxIn = &c.handle
 	}
 	var contextAttr uint32
@@ -460,6 +465,10 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		&expiry,
 	)
 
+	switch status {
+	case secEOK, secICompleteNeeded, secICompleteAndContinue, secIContinueNeeded:
+		c.valid = true
+	}
 	if status == secICompleteNeeded || status == secICompleteAndContinue {
 		completeStatus := sspiCompleteAuthToken(&c.handle, &outputDesc)
 		if completeStatus != secEOK {
@@ -483,6 +492,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 	case secIContinueNeeded, secICompleteAndContinue:
 		return result, false, nil
 	case secEIncompleteMessage:
+		c.valid = true
 		result.Incomplete = true
 		return result, true, nil
 	default:
