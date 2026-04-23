@@ -238,9 +238,12 @@ type DecryptResult struct {
 	// ConsumedTotal is the number of input bytes Schannel consumed, i.e.
 	// input[ConsumedTotal:] are unprocessed leftover ciphertext.
 	ConsumedTotal int
-	Incomplete    bool
-	Renegotiate   bool
-	Expired       bool
+	// RenegotiateToken aliases the post-handshake token that must be fed back
+	// through InitializeSecurityContext after SEC_I_RENEGOTIATE.
+	RenegotiateToken []byte
+	Incomplete       bool
+	Renegotiate      bool
+	Expired          bool
 }
 
 // Decrypt processes a chunk of TLS ciphertext in-place. The returned Plaintext
@@ -277,31 +280,13 @@ func (c *ClientContext) Decrypt(input []byte) (DecryptResult, error) {
 	default:
 		return result, sspiError("DecryptMessage", status)
 	}
-
-	var dataBuffer, extraBuffer *secBuffer
-	for index := range bufs {
-		switch bufs[index].bufferType {
-		case secbufferData:
-			dataBuffer = &bufs[index]
-		case secbufferExtra:
-			extraBuffer = &bufs[index]
-		}
-	}
-	if dataBuffer != nil && dataBuffer.cbBuffer > 0 && dataBuffer.pvBuffer != nil {
-		result.Plaintext = unsafe.Slice(dataBuffer.pvBuffer, int(dataBuffer.cbBuffer))
-	}
-	if extraBuffer != nil && extraBuffer.cbBuffer > 0 {
-		result.ConsumedTotal = len(input) - int(extraBuffer.cbBuffer)
-	} else {
-		result.ConsumedTotal = len(input)
-	}
-	return result, nil
+	return parseDecryptResult(input, bufs[:], result.Renegotiate)
 }
 
 // PostHandshake processes a TLS 1.3 post-handshake message
 // (NewSessionTicket, KeyUpdate) after DecryptMessage returned
-// SEC_I_RENEGOTIATE. Pass nil on the first call so Schannel consumes its
-// internal state; pass more peer bytes on subsequent calls when Incomplete.
+// SEC_I_RENEGOTIATE. Pass the token preserved from Decrypt on the first call;
+// pass more peer bytes on subsequent calls when Incomplete.
 func (c *ClientContext) PostHandshake(input []byte) (StepResult, error) {
 	var inputDesc *secBufferDesc
 	var inputBufs [2]secBuffer
@@ -330,6 +315,40 @@ func (c *ClientContext) PostHandshake(input []byte) (StepResult, error) {
 		result.Consumed = consumed
 	} else {
 		result.Consumed = len(input)
+	}
+	return result, nil
+}
+
+func parseDecryptResult(input []byte, bufs []secBuffer, renegotiate bool) (DecryptResult, error) {
+	var result DecryptResult
+	var dataBuffer, extraBuffer *secBuffer
+	for index := range bufs {
+		switch bufs[index].bufferType {
+		case secbufferData:
+			dataBuffer = &bufs[index]
+		case secbufferExtra:
+			extraBuffer = &bufs[index]
+		}
+	}
+	if dataBuffer != nil && dataBuffer.cbBuffer > 0 && dataBuffer.pvBuffer != nil {
+		result.Plaintext = unsafe.Slice(dataBuffer.pvBuffer, int(dataBuffer.cbBuffer))
+	}
+	if extraBuffer != nil && extraBuffer.cbBuffer > 0 {
+		consumed, err := consumedFromExtra(extraBuffer, len(input))
+		if err != nil {
+			return result, err
+		}
+		result.ConsumedTotal = consumed
+	} else {
+		result.ConsumedTotal = len(input)
+	}
+	if renegotiate {
+		result.Renegotiate = true
+		if extraBuffer != nil && extraBuffer.cbBuffer > 0 {
+			result.RenegotiateToken = input[result.ConsumedTotal:]
+		} else {
+			result.RenegotiateToken = input
+		}
 	}
 	return result, nil
 }

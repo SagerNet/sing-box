@@ -83,6 +83,44 @@ func TestDisabledProtocolsMask(t *testing.T) {
 	}
 }
 
+func TestParseDecryptResultKeepsRenegotiateExtraToken(t *testing.T) {
+	input := []byte("plain-ticket")
+	result, err := parseDecryptResult(input, []secBuffer{
+		{bufferType: secbufferExtra, cbBuffer: 6},
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Renegotiate {
+		t.Fatal("expected Renegotiate to be true")
+	}
+	if result.ConsumedTotal != len(input)-6 {
+		t.Fatalf("unexpected consumed total: %d", result.ConsumedTotal)
+	}
+	if !bytes.Equal(result.RenegotiateToken, []byte("ticket")) {
+		t.Fatalf("unexpected renegotiate token: %q", string(result.RenegotiateToken))
+	}
+}
+
+func TestParseDecryptResultKeepsRenegotiateWholeBufferWithoutExtra(t *testing.T) {
+	input := []byte("ticket")
+	result, err := parseDecryptResult(input, []secBuffer{
+		{bufferType: secbufferData, cbBuffer: uint32(len(input)), pvBuffer: &input[0]},
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Renegotiate {
+		t.Fatal("expected Renegotiate to be true")
+	}
+	if result.ConsumedTotal != len(input) {
+		t.Fatalf("unexpected consumed total: %d", result.ConsumedTotal)
+	}
+	if !bytes.Equal(result.RenegotiateToken, input) {
+		t.Fatalf("unexpected renegotiate token: %q", string(result.RenegotiateToken))
+	}
+}
+
 func certChainContextForTest(certs ...*windows.CertContext) *windows.CertChainContext {
 	elements := make([]*windows.CertChainElement, 0, len(certs))
 	for _, cert := range certs {

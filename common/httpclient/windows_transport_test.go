@@ -76,6 +76,8 @@ type windowsHTTPTestServerOptions struct {
 	requestHost    string
 	certificate    *stdtls.Certificate
 	certificatePEM string
+	tlsMinVersion  uint16
+	tlsMaxVersion  uint16
 }
 
 type windowsHTTPTestCertificateStore struct {
@@ -317,6 +319,55 @@ func TestWindowsSecureProtocols(t *testing.T) {
 			mask := windowsSecureProtocols(testCase.minVersion, testCase.maxVersion)
 			if mask != testCase.wantMask {
 				t.Fatalf("unexpected secure protocol mask: %#x", mask)
+			}
+		})
+	}
+}
+
+func TestWindowsEffectiveTLSVersionRange(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		minVersion uint16
+		maxVersion uint16
+		wantMin    uint16
+		wantMax    uint16
+	}{
+		{
+			name:    "defaults",
+			wantMin: stdtls.VersionTLS12,
+			wantMax: stdtls.VersionTLS13,
+		},
+		{
+			name:       "legacy max lowers default minimum",
+			maxVersion: stdtls.VersionTLS11,
+			wantMin:    stdtls.VersionTLS10,
+			wantMax:    stdtls.VersionTLS11,
+		},
+		{
+			name:       "explicit range",
+			minVersion: stdtls.VersionTLS11,
+			maxVersion: stdtls.VersionTLS12,
+			wantMin:    stdtls.VersionTLS11,
+			wantMax:    stdtls.VersionTLS12,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			minVersion, maxVersion := windowsEffectiveTLSVersionRange(testCase.minVersion, testCase.maxVersion)
+			if minVersion != testCase.wantMin || maxVersion != testCase.wantMax {
+				t.Fatalf(
+					"unexpected version range: got (%#x, %#x), want (%#x, %#x)",
+					minVersion,
+					maxVersion,
+					testCase.wantMin,
+					testCase.wantMax,
+				)
 			}
 		})
 	}
@@ -977,6 +1028,60 @@ func TestWindowsTransportRequestBodyBuffering(t *testing.T) {
 	}
 }
 
+func TestWindowsTransportPreflightLegacyTLSDefaults(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		maxVersion string
+		tlsVersion uint16
+	}{
+		{
+			name:       "tls10",
+			maxVersion: "1.0",
+			tlsVersion: stdtls.VersionTLS10,
+		},
+		{
+			name:       "tls11",
+			maxVersion: "1.1",
+			tlsVersion: stdtls.VersionTLS11,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := startWindowsHTTPTestServerWithOptions(t, true, false, func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("legacy"))
+			}, windowsHTTPTestServerOptions{
+				tlsMinVersion: testCase.tlsVersion,
+				tlsMaxVersion: testCase.tlsVersion,
+			})
+			transport := newWindowsHTTPTestTransport(t, server, option.HTTPClientOptions{
+				Version: 1,
+				OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+					TLS: &option.OutboundTLSOptions{
+						Enabled:     true,
+						ServerName:  server.requestHost,
+						MaxVersion:  testCase.maxVersion,
+						Certificate: badoption.Listable[string]{server.certificatePEM},
+					},
+				},
+			})
+			response, err := transport.RoundTrip(newWindowsHTTPRequest(t, http.MethodGet, server.URL("/legacy"), nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if body := readWindowsHTTPResponseBody(t, response); body != "legacy" {
+				t.Fatalf("unexpected response body: %q", body)
+			}
+			response.Body.Close()
+		})
+	}
+}
+
 func TestWindowsTransportResponseBodyStreaming(t *testing.T) {
 	t.Parallel()
 
@@ -1402,6 +1507,12 @@ func startWindowsHTTPTestServerWithOptions(t *testing.T, tlsEnabled bool, enable
 		server.TLS = &stdtls.Config{
 			Certificates: []stdtls.Certificate{serverCertificate},
 			MinVersion:   stdtls.VersionTLS12,
+		}
+		if options.tlsMinVersion != 0 {
+			server.TLS.MinVersion = options.tlsMinVersion
+		}
+		if options.tlsMaxVersion != 0 {
+			server.TLS.MaxVersion = options.tlsMaxVersion
 		}
 		server.StartTLS()
 	} else {

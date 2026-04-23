@@ -472,17 +472,19 @@ func (t *windowsTransport) RoundTrip(request *http.Request) (*http.Response, err
 		return nil, state.roundTripError(err, t.shared.config.mode, verifyName)
 	}
 	err = state.wait(sendCh)
-	state.clearSendKeepAlive()
 	if err != nil {
+		state.clearSendKeepAlive()
 		return nil, state.roundTripError(err, t.shared.config.mode, verifyName)
 	}
 	headerCh := state.armHeaders()
 	err = requestHandle.ReceiveResponse()
 	if err != nil {
 		state.clearHeaders(headerCh)
+		state.clearSendKeepAlive()
 		return nil, state.roundTripError(err, t.shared.config.mode, verifyName)
 	}
 	err = state.wait(headerCh)
+	state.clearSendKeepAlive()
 	if err != nil {
 		return nil, state.roundTripError(err, t.shared.config.mode, verifyName)
 	}
@@ -598,6 +600,21 @@ func applyWindowsHTTPVersion(requestHandle *winhttp.Request, config windowsSessi
 	}
 }
 
+func windowsEffectiveTLSVersionRange(minVersion, maxVersion uint16) (uint16, uint16) {
+	effectiveMin := minVersion
+	if effectiveMin == 0 {
+		effectiveMin = stdtls.VersionTLS12
+		if maxVersion != 0 && maxVersion < stdtls.VersionTLS12 {
+			effectiveMin = stdtls.VersionTLS10
+		}
+	}
+	effectiveMax := maxVersion
+	if effectiveMax == 0 {
+		effectiveMax = stdtls.VersionTLS13
+	}
+	return effectiveMin, effectiveMax
+}
+
 func windowsSecureProtocols(minVersion, maxVersion uint16) uint32 {
 	versions := []struct {
 		version uint16
@@ -608,17 +625,7 @@ func windowsSecureProtocols(minVersion, maxVersion uint16) uint32 {
 		{stdtls.VersionTLS12, winhttp.SecureProtocolTLS12},
 		{stdtls.VersionTLS13, winhttp.SecureProtocolTLS13},
 	}
-	effectiveMin := minVersion
-	if effectiveMin == 0 {
-		effectiveMin = stdtls.VersionTLS12
-		if maxVersion != 0 && maxVersion < stdtls.VersionTLS12 {
-			effectiveMin = versions[0].version
-		}
-	}
-	effectiveMax := maxVersion
-	if effectiveMax == 0 {
-		effectiveMax = stdtls.VersionTLS13
-	}
+	effectiveMin, effectiveMax := windowsEffectiveTLSVersionRange(minVersion, maxVersion)
 	var mask uint32
 	for _, version := range versions {
 		if version.version >= effectiveMin && version.version <= effectiveMax {
@@ -827,10 +834,11 @@ func (s *windowsTransportShared) preflightTLS(ctx context.Context, authority str
 	if err != nil {
 		return err
 	}
+	effectiveMin, effectiveMax := windowsEffectiveTLSVersionRange(s.config.minVersion, s.config.maxVersion)
 	tlsConfig := &stdtls.Config{
 		ServerName:         verifyName,
-		MinVersion:         s.config.minVersion,
-		MaxVersion:         s.config.maxVersion,
+		MinVersion:         effectiveMin,
+		MaxVersion:         effectiveMax,
 		NextProtos:         windowsPreflightNextProtos(s.config),
 		InsecureSkipVerify: true,
 	}

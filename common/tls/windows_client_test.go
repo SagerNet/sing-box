@@ -32,9 +32,15 @@ type windowsTLSServerResult struct {
 }
 
 type windowsTestDeadlineConn struct {
-	access         sync.Mutex
-	writeDeadline  time.Time
-	writeDeadlines []time.Time
+	access          sync.Mutex
+	readCalled      chan struct{}
+	writeCalled     chan struct{}
+	readCalledOnce  sync.Once
+	writeCalledOnce sync.Once
+	readDeadline    time.Time
+	writeDeadline   time.Time
+	readDeadlines   []time.Time
+	writeDeadlines  []time.Time
 }
 
 type windowsTestWriteGateConn struct {
@@ -52,21 +58,47 @@ type windowsTestIOConn struct {
 }
 
 func (c *windowsTestDeadlineConn) Read(_ []byte) (int, error) {
-	return 0, io.EOF
+	if c.readCalled != nil {
+		c.readCalledOnce.Do(func() {
+			close(c.readCalled)
+		})
+	}
+	for {
+		c.access.Lock()
+		deadline := c.readDeadline
+		c.access.Unlock()
+		if deadline.IsZero() {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		if !deadline.After(time.Now()) {
+			return 0, os.ErrDeadlineExceeded
+		}
+		time.Sleep(time.Until(deadline))
+		return 0, os.ErrDeadlineExceeded
+	}
 }
 
 func (c *windowsTestDeadlineConn) Write(_ []byte) (int, error) {
-	c.access.Lock()
-	deadline := c.writeDeadline
-	c.access.Unlock()
-	if deadline.IsZero() {
-		return 0, errors.New("write deadline not applied")
+	if c.writeCalled != nil {
+		c.writeCalledOnce.Do(func() {
+			close(c.writeCalled)
+		})
 	}
-	if !deadline.After(time.Now()) {
+	for {
+		c.access.Lock()
+		deadline := c.writeDeadline
+		c.access.Unlock()
+		if deadline.IsZero() {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		if !deadline.After(time.Now()) {
+			return 0, os.ErrDeadlineExceeded
+		}
+		time.Sleep(time.Until(deadline))
 		return 0, os.ErrDeadlineExceeded
 	}
-	time.Sleep(time.Until(deadline))
-	return 0, os.ErrDeadlineExceeded
 }
 
 func (c *windowsTestDeadlineConn) Close() error {
@@ -82,10 +114,20 @@ func (c *windowsTestDeadlineConn) RemoteAddr() net.Addr {
 }
 
 func (c *windowsTestDeadlineConn) SetDeadline(t time.Time) error {
-	return c.SetWriteDeadline(t)
+	c.access.Lock()
+	c.readDeadline = t
+	c.writeDeadline = t
+	c.readDeadlines = append(c.readDeadlines, t)
+	c.writeDeadlines = append(c.writeDeadlines, t)
+	c.access.Unlock()
+	return nil
 }
 
-func (c *windowsTestDeadlineConn) SetReadDeadline(_ time.Time) error {
+func (c *windowsTestDeadlineConn) SetReadDeadline(t time.Time) error {
+	c.access.Lock()
+	c.readDeadline = t
+	c.readDeadlines = append(c.readDeadlines, t)
+	c.access.Unlock()
 	return nil
 }
 
@@ -101,6 +143,12 @@ func (c *windowsTestDeadlineConn) recordedWriteDeadlines() []time.Time {
 	c.access.Lock()
 	defer c.access.Unlock()
 	return append([]time.Time(nil), c.writeDeadlines...)
+}
+
+func (c *windowsTestDeadlineConn) recordedReadDeadlines() []time.Time {
+	c.access.Lock()
+	defer c.access.Unlock()
+	return append([]time.Time(nil), c.readDeadlines...)
 }
 
 func (c *windowsTestWriteGateConn) Read(_ []byte) (int, error) {
@@ -1133,6 +1181,148 @@ func TestWindowsClientSetReadDeadlinePreExpired(t *testing.T) {
 	}
 	if elapsed < 150*time.Millisecond {
 		t.Fatalf("Read returned too fast (%v), pre-expired flag leaked", elapsed)
+	}
+}
+
+func TestWindowsClientSetDeadlinePropagatesToRawConn(t *testing.T) {
+	rawConn := &windowsTestDeadlineConn{}
+	tlsConn := &windowsTLSConn{
+		rawConn: rawConn,
+		closed:  make(chan struct{}),
+	}
+
+	deadline := time.Now().Add(time.Second)
+	err := tlsConn.SetDeadline(deadline)
+	if err != nil {
+		t.Fatalf("SetDeadline: %v", err)
+	}
+
+	readDeadlines := rawConn.recordedReadDeadlines()
+	if len(readDeadlines) != 1 {
+		t.Fatalf("expected 1 read deadline update, got %d", len(readDeadlines))
+	}
+	if !readDeadlines[0].Equal(deadline) {
+		t.Fatalf("expected read deadline %v, got %v", deadline, readDeadlines[0])
+	}
+
+	writeDeadlines := rawConn.recordedWriteDeadlines()
+	if len(writeDeadlines) != 1 {
+		t.Fatalf("expected 1 write deadline update, got %d", len(writeDeadlines))
+	}
+	if !writeDeadlines[0].Equal(deadline) {
+		t.Fatalf("expected write deadline %v, got %v", deadline, writeDeadlines[0])
+	}
+}
+
+func TestWindowsClientSetReadDeadlineCancelsBlockedRead(t *testing.T) {
+	rawConn := &windowsTestDeadlineConn{
+		readCalled: make(chan struct{}),
+	}
+	tlsConn := &windowsTLSConn{
+		rawConn:     rawConn,
+		readScratch: make([]byte, 16),
+		closed:      make(chan struct{}),
+	}
+
+	readErrCh := make(chan error, 1)
+	go func() {
+		_, err := tlsConn.Read(make([]byte, 1))
+		readErrCh <- err
+	}()
+
+	select {
+	case <-rawConn.readCalled:
+	case <-time.After(time.Second):
+		t.Fatal("Read did not reach the raw connection")
+	}
+
+	deadline := time.Now().Add(150 * time.Millisecond)
+	err := tlsConn.SetReadDeadline(deadline)
+	if err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+
+	select {
+	case err = <-readErrCh:
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Read did not return after SetReadDeadline")
+	}
+
+	readDeadlines := rawConn.recordedReadDeadlines()
+	if len(readDeadlines) != 1 {
+		t.Fatalf("expected 1 read deadline update, got %d", len(readDeadlines))
+	}
+	if !readDeadlines[0].Equal(deadline) {
+		t.Fatalf("expected read deadline %v, got %v", deadline, readDeadlines[0])
+	}
+}
+
+func TestWindowsClientSetWriteDeadlineCancelsBlockedWrite(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	serverDone, serverAddress := startWindowsTLSSilentServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	})
+	defer close(serverDone)
+
+	tlsConn, err := newWindowsTestEngineConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalRawConn := tlsConn.rawConn
+	rawConn := &windowsTestDeadlineConn{
+		writeCalled: make(chan struct{}),
+	}
+	tlsConn.rawConn = rawConn
+	t.Cleanup(func() {
+		_ = originalRawConn.Close()
+		_ = tlsConn.Close()
+	})
+
+	writeErrCh := make(chan error, 1)
+	go func() {
+		_, err := tlsConn.Write([]byte("ping"))
+		writeErrCh <- err
+	}()
+
+	select {
+	case <-rawConn.writeCalled:
+	case <-time.After(time.Second):
+		t.Fatal("Write did not reach the raw connection")
+	}
+
+	deadline := time.Now().Add(150 * time.Millisecond)
+	err = tlsConn.SetWriteDeadline(deadline)
+	if err != nil {
+		t.Fatalf("SetWriteDeadline: %v", err)
+	}
+
+	select {
+	case err = <-writeErrCh:
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Fatalf("expected os.ErrDeadlineExceeded, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Write did not return after SetWriteDeadline")
+	}
+
+	writeDeadlines := rawConn.recordedWriteDeadlines()
+	if len(writeDeadlines) != 1 {
+		t.Fatalf("expected 1 write deadline update, got %d", len(writeDeadlines))
+	}
+	if !writeDeadlines[0].Equal(deadline) {
+		t.Fatalf("expected write deadline %v, got %v", deadline, writeDeadlines[0])
 	}
 }
 

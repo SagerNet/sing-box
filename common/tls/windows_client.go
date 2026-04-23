@@ -375,7 +375,11 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 					count := copy(c.plainStorage, result.Plaintext[n:])
 					extra = c.plainStorage[:count]
 				}
-				c.cipher = c.cipher[result.ConsumedTotal:]
+				nextCipher := c.cipher[result.ConsumedTotal:]
+				if len(result.RenegotiateToken) > 0 {
+					nextCipher = result.RenegotiateToken
+				}
+				c.cipher = nextCipher
 				if len(c.cipher) == 0 {
 					c.cipher = nil
 				}
@@ -551,23 +555,35 @@ func (c *windowsTLSConn) RemoteAddr() net.Addr {
 
 func (c *windowsTLSConn) SetDeadline(t time.Time) error {
 	c.deadlineAccess.Lock()
+	defer c.deadlineAccess.Unlock()
+	err := c.rawConn.SetDeadline(t)
+	if err != nil {
+		return err
+	}
 	c.readDeadline = t
 	c.writeDeadline = t
-	c.deadlineAccess.Unlock()
 	return nil
 }
 
 func (c *windowsTLSConn) SetReadDeadline(t time.Time) error {
 	c.deadlineAccess.Lock()
+	defer c.deadlineAccess.Unlock()
+	err := c.rawConn.SetReadDeadline(t)
+	if err != nil {
+		return err
+	}
 	c.readDeadline = t
-	c.deadlineAccess.Unlock()
 	return nil
 }
 
 func (c *windowsTLSConn) SetWriteDeadline(t time.Time) error {
 	c.deadlineAccess.Lock()
+	defer c.deadlineAccess.Unlock()
+	err := c.rawConn.SetWriteDeadline(t)
+	if err != nil {
+		return err
+	}
 	c.writeDeadline = t
-	c.deadlineAccess.Unlock()
 	return nil
 }
 
