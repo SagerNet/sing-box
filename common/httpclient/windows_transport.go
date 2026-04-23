@@ -267,6 +267,10 @@ func (s *windowsTransportShared) newTree() (*windowsTransportTree, error) {
 			_ = session.Close()
 		}
 	}()
+	// WinHTTP delivers async request lifecycle notifications through the session callback, and
+	// handle-closing is the last point where request state can be released safely.
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpsetstatuscallback
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nc-winhttp-winhttp_status_callback
 	err = session.SetStatusCallback(
 		windowsTransportStatusCallback,
 		winhttp.CallbackFlagHandles|
@@ -283,6 +287,9 @@ func (s *windowsTransportShared) newTree() (*windowsTransportTree, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Certificate validation and connection reuse are session-scoped in WinHTTP, so tree rotation
+	// creates a fresh session before old connections are retired.
+	// https://learn.microsoft.com/en-us/windows/win32/winhttp/winhttp-security-considerations
 	err = session.DisableGlobalPooling()
 	if err != nil {
 		return nil, err
@@ -561,6 +568,10 @@ func configureWindowsRequest(requestHandle *winhttp.Request, config windowsSessi
 	}
 	securityFlags := windowsSecurityFlags(config.mode)
 	if securityFlags != 0 {
+		// These flags change WinHTTP's built-in certificate validation behavior for this request.
+		// In preflight modes we ignore WinHTTP certificate errors here and re-check peer materials ourselves.
+		// https://learn.microsoft.com/en-us/windows/win32/winhttp/option-flags
+		// https://learn.microsoft.com/en-us/windows/win32/winhttp/winhttp-security-considerations
 		err = requestHandle.SetSecurityFlags(securityFlags)
 		if err != nil {
 			return err
@@ -692,6 +703,11 @@ func parseWindowsPeerCertificates(rawCerts [][]byte) ([]*x509.Certificate, error
 }
 
 func queryWindowsTLSMetadata(requestHandle *winhttp.Request, serverName string, responseProto string) (windowsRequestTLSMetadata, error) {
+	// These query options read the certificate chain and security info from the negotiated SSL
+	// connection attached to this request handle. WinHTTP reports incorrect-handle-state when that
+	// metadata is unavailable at the current request state.
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpqueryoption
+	// https://learn.microsoft.com/en-us/windows/win32/winhttp/option-flags
 	rawCerts, err := requestHandle.QueryServerCertificateChainDER()
 	if err != nil {
 		return windowsRequestTLSMetadata{}, err
@@ -919,6 +935,8 @@ func resolveWindowsResponseTLSState(config windowsSessionConfig, verifyName stri
 		if config.mode == windowsTLSModeNative || config.mode == windowsTLSModeInsecure {
 			return nil, nil
 		}
+		// Custom-root and pinning modes depend on request-handle certificate metadata. If WinHTTP
+		// cannot provide it for the negotiated connection, the extra verification step cannot proceed.
 		return nil, metadataErr
 	}
 	if metadata.connectionState == nil || len(metadata.peerCertificates) == 0 || len(metadata.rawCerts) == 0 {
@@ -1108,6 +1126,12 @@ func windowsTransportStatusProc(_ uintptr, context uintptr, status uint32, info 
 		return 0
 	}
 	state := stateValue.(*windowsRequestState)
+	// WinHTTP reports send completion, headers availability, request errors, and secure-failure
+	// details as separate status notifications. SENDREQUEST_COMPLETE belongs to WinHttpSendRequest,
+	// while HEADERS_AVAILABLE belongs to WinHttpReceiveResponse.
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nc-winhttp-winhttp_status_callback
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpsendrequest
+	// https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpreceiveresponse
 	switch status {
 	case winhttp.CallbackStatusSendRequestComplete:
 		state.signalSend(nil)
