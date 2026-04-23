@@ -139,6 +139,51 @@ static void box_set_error_from_nw_error(char **error_out, nw_error_t error) {
 	CFRelease(cfError);
 }
 
+static ssize_t box_apple_tls_dispatch_data_copy(dispatch_data_t content, void *buffer, size_t buffer_len, char **error_out) {
+	if (content == nil) {
+		return 0;
+	}
+	size_t content_size = dispatch_data_get_size(content);
+	if (content_size == 0) {
+		return 0;
+	}
+	if (buffer == NULL) {
+		box_set_error_message(error_out, "apple TLS: read buffer unavailable");
+		return -1;
+	}
+	__block size_t copied = 0;
+	__block bool overflow = false;
+	bool complete = dispatch_data_apply(content, ^bool(dispatch_data_t region, size_t offset, const void *region_buffer, size_t region_size) {
+		(void)region;
+		(void)offset;
+		if (region_size == 0) {
+			return true;
+		}
+		if (region_buffer == NULL || region_size > buffer_len - copied) {
+			overflow = true;
+			return false;
+		}
+		memcpy((uint8_t *)buffer + copied, region_buffer, region_size);
+		copied += region_size;
+		return true;
+	});
+	if (!complete || overflow) {
+		box_set_error_message(error_out, "apple TLS: read buffer too small");
+		return -1;
+	}
+	return (ssize_t)copied;
+}
+
+ssize_t box_apple_tls_copy_dispatch_data_for_test(const void *first, size_t first_len, const void *second, size_t second_len, void *buffer, size_t buffer_len, char **error_out) {
+	@autoreleasepool {
+		dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0);
+		dispatch_data_t first_data = first_len > 0 ? dispatch_data_create(first, first_len, queue, DISPATCH_DATA_DESTRUCTOR_DEFAULT) : dispatch_data_empty;
+		dispatch_data_t second_data = second_len > 0 ? dispatch_data_create(second, second_len, queue, DISPATCH_DATA_DESTRUCTOR_DEFAULT) : dispatch_data_empty;
+		dispatch_data_t content = dispatch_data_create_concat(first_data, second_data);
+		return box_apple_tls_dispatch_data_copy(content, buffer, buffer_len, error_out);
+	}
+}
+
 static char *box_apple_tls_metadata_copy_negotiated_protocol(sec_protocol_metadata_t metadata) {
 	static box_sec_protocol_metadata_string_accessor_f copy_fn;
 	static box_sec_protocol_metadata_string_accessor_f get_fn;
@@ -492,20 +537,12 @@ ssize_t box_apple_tls_client_read(box_apple_tls_client_t *client, void *buffer, 
 		nw_connection_receive(connection, 1, (uint32_t)buffer_len, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t error) {
 			@autoreleasepool {
 				if (content != NULL) {
-					const void *mapped = NULL;
-					size_t mapped_len = 0;
-					dispatch_data_t mapped_data = dispatch_data_create_map(content, &mapped, &mapped_len);
-					if (mapped != NULL && mapped_len > 0) {
-						size_t copy_len = mapped_len;
-						if (copy_len > buffer_len) {
-							copy_len = buffer_len;
-						}
-						memcpy(buffer, mapped, copy_len);
-						content_len = copy_len;
+					ssize_t copied = box_apple_tls_dispatch_data_copy(content, buffer, buffer_len, &local_error);
+					if (copied >= 0) {
+						content_len = (size_t)copied;
 					}
-					(void)mapped_data;
 				}
-				if (error != NULL && content_len == 0) {
+				if (error != NULL && content_len == 0 && local_error == NULL) {
 					box_set_error_from_nw_error(&local_error, error);
 				}
 				if (is_complete && (context == NULL || nw_content_context_get_is_final(context))) {
@@ -668,21 +705,7 @@ ssize_t box_apple_tls_read_result_copy(box_apple_tls_read_result_t *result, void
 		if (content == nil) {
 			return 0;
 		}
-		const void *mapped = NULL;
-		size_t mapped_len = 0;
-		dispatch_data_t mapped_data = dispatch_data_create_map(content, &mapped, &mapped_len);
-		if (mapped == NULL || mapped_len == 0) {
-			(void)mapped_data;
-			return 0;
-		}
-		if (mapped_len > buffer_len) {
-			box_set_error_message(error_out, "apple TLS: read buffer too small");
-			(void)mapped_data;
-			return -1;
-		}
-		memcpy(buffer, mapped, mapped_len);
-		(void)mapped_data;
-		return (ssize_t)mapped_len;
+		return box_apple_tls_dispatch_data_copy(content, buffer, buffer_len, error_out);
 	}
 }
 

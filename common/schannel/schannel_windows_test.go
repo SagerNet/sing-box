@@ -83,6 +83,37 @@ func TestDisabledProtocolsMask(t *testing.T) {
 	}
 }
 
+func TestClientCredentialCacheReusesVersionRange(t *testing.T) {
+	if err := CheckPlatform(); err != nil {
+		t.Skip(err)
+	}
+	first, err := NewClientContext(tls.VersionTLS12, tls.VersionTLS13, "localhost", []string{"h2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := NewClientContext(tls.VersionTLS12, tls.VersionTLS13, "example.com", []string{"http/1.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	if first.credential != second.credential {
+		t.Fatal("expected same TLS version range to reuse credential")
+	}
+
+	tls12Only, err := NewClientContext(tls.VersionTLS12, tls.VersionTLS12, "localhost", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tls12Only.Close()
+	if first.credential == tls12Only.credential {
+		t.Fatal("expected distinct TLS version range to use a distinct credential")
+	}
+	if first.credential.key.disabledProtocols != disabledProtocolsMask(tls.VersionTLS12, tls.VersionTLS13) {
+		t.Fatalf("unexpected cached disabled protocol mask: %#x", first.credential.key.disabledProtocols)
+	}
+}
+
 func TestParseDecryptResultKeepsRenegotiateExtraToken(t *testing.T) {
 	input := []byte("plain-ticket")
 	result, err := parseDecryptResult(input, []secBuffer{

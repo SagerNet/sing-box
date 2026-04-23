@@ -299,9 +299,9 @@ type windowsTLSConn struct {
 	trailer    uint32
 	maxMessage uint32
 
-	readAccess   sync.Mutex
-	writeAccess  sync.Mutex
-	clientAccess sync.Mutex
+	readAccess    sync.Mutex
+	writeAccess   sync.Mutex
+	contextAccess sync.RWMutex
 
 	writeState     sync.Mutex
 	writeStateOnce sync.Once
@@ -386,18 +386,11 @@ func (c *windowsTLSConn) readPlaintextLocked(appendCipher windowsTLSAppendCipher
 
 	for {
 		if len(c.cipher) > 0 {
-			c.clientAccess.Lock()
-			if c.client == nil {
-				c.clientAccess.Unlock()
-				return nil, net.ErrClosed
-			}
-			result, decryptErr := c.client.Decrypt(c.cipher)
+			result, decryptErr := c.decrypt(c.cipher)
 			if decryptErr != nil {
-				c.clientAccess.Unlock()
 				return nil, decryptErr
 			}
 			if result.Expired {
-				c.clientAccess.Unlock()
 				c.readEOF = true
 				return nil, io.EOF
 			}
@@ -414,7 +407,6 @@ func (c *windowsTLSConn) readPlaintextLocked(appendCipher windowsTLSAppendCipher
 				if len(c.cipher) == 0 {
 					c.cipher = nil
 				}
-				c.clientAccess.Unlock()
 				if result.Renegotiate {
 					postErr := c.drivePostHandshake(readRaw)
 					if postErr != nil {
@@ -426,7 +418,6 @@ func (c *windowsTLSConn) readPlaintextLocked(appendCipher windowsTLSAppendCipher
 				}
 				continue
 			}
-			c.clientAccess.Unlock()
 		}
 		err = appendCipher(len(c.cipher) > 0)
 		if err != nil {
@@ -443,9 +434,9 @@ func (c *windowsTLSConn) drivePostHandshake(readRaw windowsTLSReadRawFunc) error
 		return err
 	}
 	defer c.finishPostHandshakeWrite()
-	c.clientAccess.Lock()
+	c.contextAccess.Lock()
 	if c.client == nil {
-		c.clientAccess.Unlock()
+		c.contextAccess.Unlock()
 		return net.ErrClosed
 	}
 	writeFailed := false
@@ -465,7 +456,7 @@ func (c *windowsTLSConn) drivePostHandshake(readRaw windowsTLSReadRawFunc) error
 		return nil
 	}
 	leftover, err := driveSteps(initial, c.client.PostHandshake, readMore, writeOut)
-	c.clientAccess.Unlock()
+	c.contextAccess.Unlock()
 	if err != nil {
 		if writeFailed {
 			_ = c.Close()
@@ -489,6 +480,27 @@ func (c *windowsTLSConn) writePostHandshakeReplyLocked(data []byte) error {
 	defer cleanup()
 	_, err = c.rawConn.Write(data)
 	return err
+}
+
+func (c *windowsTLSConn) decrypt(input []byte) (schannel.DecryptResult, error) {
+	c.contextAccess.RLock()
+	defer c.contextAccess.RUnlock()
+	if c.client == nil {
+		return schannel.DecryptResult{}, net.ErrClosed
+	}
+	return c.client.Decrypt(input)
+}
+
+func (c *windowsTLSConn) encrypt(plaintext []byte) ([]byte, error) {
+	c.contextAccess.RLock()
+	defer c.contextAccess.RUnlock()
+	if c.client == nil {
+		return nil, net.ErrClosed
+	}
+	if c.writeScratch == nil {
+		c.writeScratch = make([]byte, int(c.header)+int(c.maxMessage)+int(c.trailer))
+	}
+	return c.client.Encrypt(c.header, c.trailer, plaintext, c.writeScratch)
 }
 
 func (c *windowsTLSConn) readRaw(requireMore bool) ([]byte, error) {
@@ -533,17 +545,11 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 		if len(chunk) > chunkSize {
 			chunk = chunk[:chunkSize]
 		}
-		c.clientAccess.Lock()
-		if c.client == nil {
-			c.clientAccess.Unlock()
-			return total, net.ErrClosed
-		}
-		if c.writeScratch == nil {
-			c.writeScratch = make([]byte, int(c.header)+int(c.maxMessage)+int(c.trailer))
-		}
-		encrypted, encryptErr := c.client.Encrypt(c.header, c.trailer, chunk, c.writeScratch)
-		c.clientAccess.Unlock()
+		encrypted, encryptErr := c.encrypt(chunk)
 		if encryptErr != nil {
+			if errors.Is(encryptErr, net.ErrClosed) {
+				return total, net.ErrClosed
+			}
 			return total, E.Cause(encryptErr, "tls encrypt")
 		}
 		_, writeErr := c.rawConn.Write(encrypted)
@@ -583,12 +589,12 @@ func (c *windowsTLSConn) Close() error {
 	ready.Broadcast()
 	c.writeState.Unlock()
 	closeErr := c.rawConn.Close()
-	c.clientAccess.Lock()
+	c.contextAccess.Lock()
 	if c.client != nil {
 		c.client.Close()
 		c.client = nil
 	}
-	c.clientAccess.Unlock()
+	c.contextAccess.Unlock()
 	return closeErr
 }
 

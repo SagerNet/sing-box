@@ -40,3 +40,4 @@ ssize_t box_apple_tls_read_result_copy(box_apple_tls_read_result_t *result, void
 void box_apple_tls_read_result_free(box_apple_tls_read_result_t *result);
 bool box_apple_tls_client_copy_state(box_apple_tls_client_t *client, box_apple_tls_state_t *state, char **error_out);
 void box_apple_tls_state_free(box_apple_tls_state_t *state);
+ssize_t box_apple_tls_copy_dispatch_data_for_test(const void *first, size_t first_len, const void *second, size_t second_len, void *buffer, size_t buffer_len, char **error_out);

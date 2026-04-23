@@ -957,6 +957,106 @@ func TestWindowsClientLargeMessage(t *testing.T) {
 	<-serverDone
 }
 
+func TestWindowsClientFullDuplexLargePayload(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	const payloadSize = 2 << 20
+	clientPayload := make([]byte, payloadSize)
+	serverPayload := make([]byte, payloadSize)
+	for index := range clientPayload {
+		clientPayload[index] = byte(index % 251)
+		serverPayload[index] = byte((index + 97) % 251)
+	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   stdtls.VersionTLS12,
+			MaxVersion:   stdtls.VersionTLS12,
+		})
+		defer tlsConn.Close()
+		err := tlsConn.SetDeadline(time.Now().Add(2 * windowsTLSTestTimeout))
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		err = tlsConn.Handshake()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+
+		readDone := make(chan error, 1)
+		writeDone := make(chan error, 1)
+		go func() {
+			received := make([]byte, len(clientPayload))
+			_, readErr := io.ReadFull(tlsConn, received)
+			if readErr == nil && !bytes.Equal(received, clientPayload) {
+				readErr = errors.New("client payload mismatch")
+			}
+			readDone <- readErr
+		}()
+		go func() {
+			_, writeErr := tlsConn.Write(serverPayload)
+			writeDone <- writeErr
+		}()
+		if readErr := <-readDone; readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		serverErr <- <-writeDone
+	}()
+
+	clientConn, err := newWindowsTestEngineConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	writeDone := make(chan error, 1)
+	go func() {
+		n, writeErr := clientConn.Write(clientPayload)
+		if writeErr == nil && n != len(clientPayload) {
+			writeErr = io.ErrShortWrite
+		}
+		writeDone <- writeErr
+	}()
+
+	reply := make([]byte, len(serverPayload))
+	_, err = io.ReadFull(clientConn, reply)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(reply, serverPayload) {
+		t.Fatal("server payload mismatch")
+	}
+	if writeErr := <-writeDone; writeErr != nil {
+		t.Fatalf("write: %v", writeErr)
+	}
+	if err = <-serverErr; err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWindowsClientMultipleRoundtrips(t *testing.T) {
 	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
 	defer clientConn.Close()

@@ -14,6 +14,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+const clientCredentialFlags = schCredManualCredValidation | schCredNoDefaultCreds | schUseStrongCrypto
+
 var versionCheck = sync.OnceValue(func() error {
 	major, _, build := windows.RtlGetNtVersionNumbers()
 	build &= 0xffff
@@ -29,14 +31,72 @@ func CheckPlatform() error {
 	return versionCheck()
 }
 
-// ClientContext owns the Schannel credential handle and security context for
-// one client connection and drives them through handshake and application-data
-// phases.
+type clientCredentialKey struct {
+	disabledProtocols uint32
+	flags             uint32
+}
+
+type clientCredential struct {
+	key       clientCredentialKey
+	once      sync.Once
+	handle    secHandle
+	tlsParams tlsParameters
+	err       error
+}
+
+var clientCredentialCache sync.Map
+
+func cachedClientCredential(minVersion, maxVersion uint16) (*clientCredential, error) {
+	key := clientCredentialKey{
+		disabledProtocols: disabledProtocolsMask(minVersion, maxVersion),
+		flags:             clientCredentialFlags,
+	}
+	actual, _ := clientCredentialCache.LoadOrStore(key, &clientCredential{key: key})
+	credential := actual.(*clientCredential)
+	credential.once.Do(func() {
+		credential.err = credential.acquire()
+	})
+	if credential.err != nil {
+		clientCredentialCache.Delete(key)
+		return nil, credential.err
+	}
+	return credential, nil
+}
+
+func (c *clientCredential) acquire() error {
+	c.tlsParams.grbitDisabledProtocols = c.key.disabledProtocols
+	sch := schCredentials{
+		dwVersion:      schCredentialsVersion,
+		dwFlags:        c.key.flags,
+		cTlsParameters: 1,
+		pTlsParameters: &c.tlsParams,
+	}
+	pkg, err := windows.UTF16PtrFromString(unispNameW)
+	if err != nil {
+		return err
+	}
+	var expiry windows.Filetime
+	status := sspiAcquireCredentialsHandle(
+		nil,
+		pkg,
+		secPkgCredOutbound,
+		nil,
+		unsafe.Pointer(&sch),
+		0,
+		0,
+		&c.handle,
+		&expiry,
+	)
+	if status != secEOK {
+		return sspiError("AcquireCredentialsHandle", status)
+	}
+	return nil
+}
+
+// ClientContext owns the per-connection Schannel security context and drives
+// it through handshake and application-data phases.
 type ClientContext struct {
-	credHandle secHandle
-	// tlsParams is kept alive so its address remains valid for the lifetime
-	// of the underlying Schannel credential handle.
-	tlsParams  tlsParameters
+	credential *clientCredential
 	handle     secHandle
 	targetName *uint16
 
@@ -45,11 +105,10 @@ type ClientContext struct {
 	alpnBuffer []byte
 
 	firstCall bool
-	credValid bool
 	valid     bool
 }
 
-// NewClientContext allocates a new client context, acquires the Schannel
+// NewClientContext allocates a new client context, reuses the Schannel
 // credential handle for the supplied TLS version bounds, and advertises ALPN
 // protocols through an SECBUFFER_APPLICATION_PROTOCOLS buffer on the first
 // handshake call.
@@ -65,7 +124,12 @@ func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []s
 	if err != nil {
 		return nil, err
 	}
+	credential, err := cachedClientCredential(minVersion, maxVersion)
+	if err != nil {
+		return nil, err
+	}
 	c := &ClientContext{
+		credential: credential,
 		targetName: targetName,
 		firstCall:  true,
 	}
@@ -75,38 +139,11 @@ func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []s
 			return nil, err
 		}
 	}
-	c.tlsParams.grbitDisabledProtocols = disabledProtocolsMask(minVersion, maxVersion)
-	sch := schCredentials{
-		dwVersion:      schCredentialsVersion,
-		dwFlags:        schCredManualCredValidation | schCredNoDefaultCreds | schUseStrongCrypto,
-		cTlsParameters: 1,
-		pTlsParameters: &c.tlsParams,
-	}
-	pkg, err := windows.UTF16PtrFromString(unispNameW)
-	if err != nil {
-		return nil, err
-	}
-	var expiry windows.Filetime
-	status := sspiAcquireCredentialsHandle(
-		nil,
-		pkg,
-		secPkgCredOutbound,
-		nil,
-		unsafe.Pointer(&sch),
-		0,
-		0,
-		&c.credHandle,
-		&expiry,
-	)
-	if status != secEOK {
-		return nil, sspiError("AcquireCredentialsHandle", status)
-	}
-	c.credValid = true
 	return c, nil
 }
 
-// Close releases the per-connection security context and credential handle.
-// Safe to call multiple times.
+// Close releases the per-connection security context. Safe to call multiple
+// times.
 func (c *ClientContext) Close() {
 	if c == nil {
 		return
@@ -115,12 +152,6 @@ func (c *ClientContext) Close() {
 		sspiDeleteSecurityContext(&c.handle)
 		c.valid = false
 		c.handle = secHandle{}
-	}
-	if c.credValid {
-		sspiFreeCredentialsHandle(&c.credHandle)
-		c.credValid = false
-		c.credHandle = secHandle{}
-		c.tlsParams = tlsParameters{}
 	}
 }
 
@@ -451,7 +482,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 	var contextAttr uint32
 	var expiry windows.Filetime
 	status := sspiInitializeSecurityContext(
-		&c.credHandle,
+		&c.credential.handle,
 		ctxIn,
 		c.targetName,
 		handshakeContextReq,
