@@ -455,7 +455,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		c.targetName,
 		handshakeContextReq,
 		0,
-		securityNativeDrep,
+		0,
 		inputDesc,
 		0,
 		&c.handle,
@@ -464,6 +464,20 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		&expiry,
 	)
 
+	switch status {
+	case secEOK, secICompleteNeeded, secICompleteAndContinue, secIContinueNeeded:
+		c.valid = true
+	}
+	if status == secICompleteNeeded || status == secICompleteAndContinue {
+		completeStatus := sspiCompleteAuthToken(&c.handle, &outputDesc)
+		if completeStatus != secEOK {
+			if outputBufs[0].pvBuffer != nil {
+				sspiFreeContextBuffer(outputBufs[0].pvBuffer)
+			}
+			return StepResult{}, true, sspiError("CompleteAuthToken", completeStatus)
+		}
+	}
+
 	var result StepResult
 	if outputBufs[0].cbBuffer > 0 && outputBufs[0].pvBuffer != nil {
 		result.Output = unsafeSliceCopy(outputBufs[0].pvBuffer, int(outputBufs[0].cbBuffer))
@@ -471,12 +485,10 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 	}
 
 	switch status {
-	case secEOK:
-		c.valid = true
+	case secEOK, secICompleteNeeded:
 		result.Done = true
 		return result, false, nil
-	case secIContinueNeeded:
-		c.valid = true
+	case secIContinueNeeded, secICompleteAndContinue:
 		return result, false, nil
 	case secEIncompleteMessage:
 		c.valid = true

@@ -345,11 +345,11 @@ func (r *Request) QueryServerCertificateDER() ([][]byte, error) {
 }
 
 func (s *Session) setStringOption(option uint32, value string) error {
-	value16, err := windows.UTF16PtrFromString(value)
+	value16, err := windows.UTF16FromString(value)
 	if err != nil {
 		return err
 	}
-	return s.setOption(option, unsafe.Pointer(value16), uint32((len(value)+1)*2))
+	return s.setOption(option, unsafe.Pointer(&value16[0]), uint32(len(value16)))
 }
 
 func (s *Session) setUint32Option(option uint32, value uint32) error {
@@ -365,11 +365,11 @@ func (r *Request) setUint32Option(option uint32, value uint32) error {
 }
 
 func (r *Request) setStringOption(option uint32, value string) error {
-	value16, err := windows.UTF16PtrFromString(value)
+	value16, err := windows.UTF16FromString(value)
 	if err != nil {
 		return err
 	}
-	return r.setOption(option, unsafe.Pointer(value16), uint32((len(value)+1)*2))
+	return r.setOption(option, unsafe.Pointer(&value16[0]), uint32(len(value16)))
 }
 
 func (r *Request) setOption(option uint32, buffer unsafe.Pointer, bufferLen uint32) error {

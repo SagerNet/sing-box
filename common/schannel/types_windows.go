@@ -13,8 +13,6 @@ const (
 
 	secPkgCredOutbound = 2
 
-	securityNativeDrep = 0x10
-
 	iscReqSequenceDetect       = 0x00000008
 	iscReqReplayDetect         = 0x00000004
 	iscReqConfidentiality      = 0x00000010
@@ -57,6 +55,8 @@ const (
 
 const (
 	secEOK                        = syscall.Errno(windows.SEC_E_OK)
+	secICompleteNeeded            = syscall.Errno(windows.SEC_I_COMPLETE_NEEDED)
+	secICompleteAndContinue       = syscall.Errno(windows.SEC_I_COMPLETE_AND_CONTINUE)
 	secIContinueNeeded            = syscall.Errno(windows.SEC_I_CONTINUE_NEEDED)
 	secIContextExpired            = syscall.Errno(windows.SEC_I_CONTEXT_EXPIRED)
 	secIRenegotiate               = syscall.Errno(windows.SEC_I_RENEGOTIATE)

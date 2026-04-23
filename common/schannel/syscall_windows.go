@@ -1,5 +1,10 @@
 package schannel
 
+import (
+	"syscall"
+	"unsafe"
+)
+
 //go:generate go run golang.org/x/sys/windows/mkwinsyscall -output zsyscall_windows.go syscall_windows.go
 
 // secur32.dll — SSPI / Schannel interface
@@ -12,3 +17,12 @@ package schannel
 //sys sspiEncryptMessage(context *secHandle, qop uint32, message *secBufferDesc, sequenceNumber uint32) (ret syscall.Errno) = secur32.EncryptMessage
 //sys sspiDecryptMessage(context *secHandle, message *secBufferDesc, sequenceNumber uint32, qop *uint32) (ret syscall.Errno) = secur32.DecryptMessage
 //sys sspiFreeContextBuffer(buffer *byte) (ret syscall.Errno) = secur32.FreeContextBuffer
+
+// mkwinsyscall does not emit CompleteAuthToken for this package, so bind it manually.
+var procCompleteAuthToken = modsecur32.NewProc("CompleteAuthToken")
+
+func sspiCompleteAuthToken(context *secHandle, token *secBufferDesc) (ret syscall.Errno) {
+	r0, _, _ := syscall.SyscallN(procCompleteAuthToken.Addr(), uintptr(unsafe.Pointer(context)), uintptr(unsafe.Pointer(token)))
+	ret = syscall.Errno(r0)
+	return
+}
