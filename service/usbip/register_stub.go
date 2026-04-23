@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !(darwin && cgo)
 
 package usbip
 
@@ -15,9 +15,9 @@ import (
 
 func RegisterService(registry *boxService.Registry) {
 	boxService.Register[option.USBIPServerServiceOptions](registry, C.TypeUSBIPServer, func(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
-		return nil, E.New("usbip-server service is only supported on Linux")
+		return nil, E.New("usbip-server service is only supported on Linux and macOS with CGO")
 	})
 	boxService.Register[option.USBIPClientServiceOptions](registry, C.TypeUSBIPClient, func(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {
-		return nil, E.New("usbip-client service is only supported on Linux")
+		return nil, E.New("usbip-client service is only supported on Linux and macOS with CGO")
 	})
 }
