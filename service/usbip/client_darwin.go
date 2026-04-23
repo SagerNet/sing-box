@@ -155,11 +155,7 @@ func (c *ClientService) initializeWorkers() {
 
 func (c *ClientService) run() {
 	defer c.wg.Done()
-	immediate := true
-	for {
-		if !immediate && !sleepCtx(c.ctx, clientReconnectDelay) {
-			break
-		}
+	for immediate := true; immediate || sleepCtx(c.ctx, clientReconnectDelay); {
 		err := c.runSession()
 		if c.ctx.Err() != nil {
 			break

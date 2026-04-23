@@ -64,6 +64,7 @@ type darwinCIMessage struct {
 	control uint32
 	data0   uint32
 	data1   uint64
+	buffer  unsafe.Pointer
 }
 
 type darwinCITransfer struct {
@@ -255,6 +256,7 @@ func (s *darwinUSBHostEndpointSM) currentTransfer() darwinCITransfer {
 			control: uint32(ptr.control),
 			data0:   uint32(ptr.data0),
 			data1:   uint64(ptr.data1),
+			buffer:  C.box_usbhost_ci_normal_buffer(ptr),
 		},
 	}
 }
@@ -313,7 +315,7 @@ func (m darwinCIMessage) normalLength() uint32 {
 }
 
 func (m darwinCIMessage) bufferPointer() unsafe.Pointer {
-	return unsafe.Pointer(uintptr(m.data1))
+	return m.buffer
 }
 
 func darwinCIFrameTimestamp() uint64 {

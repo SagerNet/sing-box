@@ -271,6 +271,7 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 			if E.IsClosed(err) {
 				return
 			}
+			//nolint:staticcheck // Keep parity with Linux accept retry handling.
 			if netError, isNetError := err.(net.Error); isNetError && netError.Temporary() {
 				s.logger.Error("accept: ", err)
 				if !sleepCtx(s.ctx, 200*time.Millisecond) {
