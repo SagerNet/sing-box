@@ -882,15 +882,22 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		c.logger.Debug("process doorbell: ", err)
 		return
 	}
+	var previousNoResponse unsafe.Pointer
 	for {
 		transfer := endpoint.currentTransfer()
 		if transfer.ptr == nil || !transfer.message.valid() {
 			return
 		}
-		status, length := c.handleTransfer(key, transfer.message)
 		if transfer.message.noResponse() {
-			return
+			if transfer.ptr == previousNoResponse {
+				return
+			}
+			previousNoResponse = transfer.ptr
+			c.handleTransfer(key, transfer.message)
+			continue
 		}
+		previousNoResponse = nil
+		status, length := c.handleTransfer(key, transfer.message)
 		if err := endpoint.complete(transfer, darwinUSBIPStatusToCIStatus(status), length); err != nil {
 			c.logger.Debug("complete transfer: ", err)
 			c.Close()

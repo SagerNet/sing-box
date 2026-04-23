@@ -384,7 +384,12 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
 		return
 	}
-	defer s.releaseClaim(busid)
+	releaseClaim := true
+	defer func() {
+		if releaseClaim {
+			s.releaseClaim(busid)
+		}
+	}()
 	info := export.entry.Info
 	if err := WriteOpRepImport(conn, OpStatusOK, &info); err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
@@ -395,6 +400,8 @@ func (s *ServerService) handleImport(conn net.Conn) {
 	if err := session.serve(); err != nil && s.ctx.Err() == nil {
 		s.logger.Debug("data session ", busid, ": ", err)
 	}
+	s.releaseClaim(busid)
+	releaseClaim = false
 	s.broadcastChanged()
 }
 

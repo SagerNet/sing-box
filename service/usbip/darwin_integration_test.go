@@ -205,8 +205,8 @@ func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
 }
 
 type fakeDarwinEndpointStateMachine struct {
-	transfer       darwinCITransfer
-	currentRead    bool
+	transfers      []darwinCITransfer
+	currentRead    int
 	completeCalled int
 }
 
@@ -221,11 +221,12 @@ func (f *fakeDarwinEndpointStateMachine) processDoorbell(uint32) error {
 }
 
 func (f *fakeDarwinEndpointStateMachine) currentTransfer() darwinCITransfer {
-	if f.currentRead {
+	if f.currentRead >= len(f.transfers) {
 		return darwinCITransfer{}
 	}
-	f.currentRead = true
-	return f.transfer
+	transfer := f.transfers[f.currentRead]
+	f.currentRead++
+	return transfer
 }
 
 func (f *fakeDarwinEndpointStateMachine) complete(darwinCITransfer, int, int) error {
@@ -242,15 +243,46 @@ func TestDarwinHandleDoorbellSkipsNoResponseCompletion(t *testing.T) {
 		data0:   (uint32(2) << 8) | 1,
 	}
 	endpoint := &fakeDarwinEndpointStateMachine{
-		transfer: darwinCITransfer{
+		transfers: []darwinCITransfer{{
 			ptr:     unsafe.Pointer(&message),
 			message: message,
-		},
+		}},
 	}
 	controller.endpoints[darwinEndpointKey{device: 1, endpoint: 2}] = endpoint
 
 	controller.handleDoorbell((uint32(2) << 8) | 1)
 	require.Zero(t, endpoint.completeCalled)
+}
+
+func TestDarwinHandleDoorbellContinuesAfterNoResponseTransfer(t *testing.T) {
+	t.Parallel()
+
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	noResponseMessage := darwinCIMessage{
+		control: (1 << 15) | (1 << 14) | 0x3c,
+		data0:   (uint32(2) << 8) | 1,
+	}
+	responseMessage := darwinCIMessage{
+		control: (1 << 15) | 0x3c,
+		data0:   (uint32(2) << 8) | 1,
+	}
+	endpoint := &fakeDarwinEndpointStateMachine{
+		transfers: []darwinCITransfer{
+			{
+				ptr:     unsafe.Pointer(&noResponseMessage),
+				message: noResponseMessage,
+			},
+			{
+				ptr:     unsafe.Pointer(&responseMessage),
+				message: responseMessage,
+			},
+		},
+	}
+	controller.endpoints[darwinEndpointKey{device: 1, endpoint: 2}] = endpoint
+
+	controller.handleDoorbell((uint32(2) << 8) | 1)
+	require.Equal(t, 1, endpoint.completeCalled)
+	require.Equal(t, 2, endpoint.currentRead)
 }
 
 func startDarwinFakeUSBIPServer(t *testing.T) *darwinFakeUSBIPServer {
