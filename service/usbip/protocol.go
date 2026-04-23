@@ -14,10 +14,12 @@ const (
 
 	ProtocolVersion uint16 = 0x0111
 
-	OpReqDevList uint16 = 0x8005
-	OpRepDevList uint16 = 0x0005
-	OpReqImport  uint16 = 0x8003
-	OpRepImport  uint16 = 0x0003
+	OpReqDevList   uint16 = 0x8005
+	OpRepDevList   uint16 = 0x0005
+	OpReqImport    uint16 = 0x8003
+	OpRepImport    uint16 = 0x0003
+	OpReqImportExt uint16 = 0x8f03
+	OpRepImportExt uint16 = 0x0f03
 
 	OpStatusOK    uint32 = 0
 	OpStatusError uint32 = 1
@@ -26,6 +28,7 @@ const (
 	maxOpRepDevListBodyBytes = 8 << 20
 	deviceInfoWireSize       = 312
 	deviceInterfaceWireSize  = 4
+	importExtBodyWireSize    = 56
 )
 
 // USB speeds (enum usb_device_speed).
@@ -79,6 +82,13 @@ type DeviceEntry struct {
 	Interfaces []DeviceInterface
 }
 
+type ImportExtRequest struct {
+	BusID       string
+	LeaseID     uint64
+	ClientNonce uint64
+	Flags       uint32
+}
+
 // WriteOpHeader emits the 8-byte OP header.
 func WriteOpHeader(w io.Writer, code uint16, status uint32) error {
 	return binary.Write(w, binary.BigEndian, OpHeader{
@@ -118,6 +128,22 @@ func WriteOpReqImport(w io.Writer, busid string) error {
 	return binary.Write(w, binary.BigEndian, field)
 }
 
+func WriteOpReqImportExt(w io.Writer, request ImportExtRequest) error {
+	if err := WriteOpHeader(w, OpReqImportExt, OpStatusOK); err != nil {
+		return err
+	}
+	var raw [importExtBodyWireSize]byte
+	if len(request.BusID) >= 32 {
+		return E.New("busid too long: ", request.BusID)
+	}
+	copy(raw[:32], request.BusID)
+	binary.BigEndian.PutUint64(raw[32:40], request.LeaseID)
+	binary.BigEndian.PutUint64(raw[40:48], request.ClientNonce)
+	binary.BigEndian.PutUint32(raw[48:52], request.Flags)
+	_, err := w.Write(raw[:])
+	return err
+}
+
 // ReadOpReqImportBody reads the 32-byte busid that follows the OP header.
 func ReadOpReqImportBody(r io.Reader) (string, error) {
 	var field [32]byte
@@ -127,9 +153,30 @@ func ReadOpReqImportBody(r io.Reader) (string, error) {
 	return cstring(field[:]), nil
 }
 
+func ReadOpReqImportExtBody(r io.Reader) (ImportExtRequest, error) {
+	var raw [importExtBodyWireSize]byte
+	if _, err := io.ReadFull(r, raw[:]); err != nil {
+		return ImportExtRequest{}, err
+	}
+	return ImportExtRequest{
+		BusID:       cstring(raw[:32]),
+		LeaseID:     binary.BigEndian.Uint64(raw[32:40]),
+		ClientNonce: binary.BigEndian.Uint64(raw[40:48]),
+		Flags:       binary.BigEndian.Uint32(raw[48:52]),
+	}, nil
+}
+
 // WriteOpRepImport sends OP_REP_IMPORT. If status != OpStatusOK, info is omitted.
 func WriteOpRepImport(w io.Writer, status uint32, info *DeviceInfoTruncated) error {
-	if err := WriteOpHeader(w, OpRepImport, status); err != nil {
+	return writeOpRepImport(w, OpRepImport, status, info)
+}
+
+func WriteOpRepImportExt(w io.Writer, status uint32, info *DeviceInfoTruncated) error {
+	return writeOpRepImport(w, OpRepImportExt, status, info)
+}
+
+func writeOpRepImport(w io.Writer, code uint16, status uint32, info *DeviceInfoTruncated) error {
+	if err := WriteOpHeader(w, code, status); err != nil {
 		return err
 	}
 	if status != OpStatusOK {

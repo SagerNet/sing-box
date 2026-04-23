@@ -80,6 +80,12 @@ type ClientService struct {
 
 	activeMu     sync.Mutex
 	activeBusIDs map[string]struct{}
+
+	controlMu      sync.Mutex
+	controlSession *clientControlSession
+
+	remoteMu        sync.Mutex
+	remoteDevicesV2 map[string]DeviceInfoV2
 }
 
 func NewClientService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {
@@ -221,18 +227,23 @@ func (c *ClientService) runControlSession() error {
 	if ack.Version != controlProtocolVersion {
 		return E.Cause(errControlUnsupported, "unsupported control version ", ack.Version)
 	}
-	if ack.Capabilities&controlCapabilities != controlCapabilities {
+	if ack.Capabilities&controlRequiredCapabilities != controlRequiredCapabilities {
 		return E.Cause(errControlUnsupported, "missing control capabilities 0x", ack.Capabilities)
 	}
 	_ = conn.SetWriteDeadline(time.Time{})
 	_ = conn.SetReadDeadline(time.Time{})
 
-	if err := c.syncRemoteState(); err != nil {
+	session := newClientControlSession(conn, ack.Capabilities)
+	extended := supportsControlExtensions(ack.Capabilities)
+	if extended {
+		c.setControlSession(session)
+		defer c.clearControlSession(session, errClientControlSessionClosed)
+	} else if err := c.syncRemoteState(); err != nil {
 		return E.Cause(err, "initial devlist sync")
 	}
 
 	pingDone := make(chan struct{})
-	go c.controlPingLoop(conn, pingDone)
+	go c.controlPingLoop(session, pingDone)
 	defer close(pingDone)
 
 	lastSeq := ack.Sequence
@@ -240,19 +251,57 @@ func (c *ClientService) runControlSession() error {
 		if err := conn.SetReadDeadline(time.Now().Add(controlReadTimeout)); err != nil {
 			return err
 		}
-		frame, err := ReadControlFrame(conn)
+		message, err := readControlMessage(conn)
 		if err != nil {
 			return E.Cause(errImmediateReconnect, controlSessionIdleHint, ": ", err)
 		}
+		frame := message.Frame
 		switch frame.Type {
 		case controlFrameChanged:
-			if frame.Sequence != lastSeq+1 {
+			if frame.Sequence != lastSeq && frame.Sequence != lastSeq+1 {
 				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
 			}
 			lastSeq = frame.Sequence
 			if err := c.syncRemoteState(); err != nil {
 				return E.Cause(errImmediateReconnect, "devlist sync after change ", frame.Sequence, ": ", err)
 			}
+		case controlFrameDeviceSnapshot:
+			if !extended {
+				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
+			}
+			var snapshot controlDeviceSnapshot
+			if err := unmarshalControlPayload(message.Payload, &snapshot); err != nil {
+				return E.Cause(errImmediateReconnect, "read device snapshot: ", err)
+			}
+			lastSeq = frame.Sequence
+			c.applyControlSnapshot(snapshot)
+		case controlFrameDeviceDelta:
+			if !extended {
+				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
+			}
+			if frame.Sequence != lastSeq+1 {
+				if err := c.syncRemoteState(); err != nil {
+					return E.Cause(errImmediateReconnect, "devlist sync after sequence jump ", frame.Sequence, ": ", err)
+				}
+				c.clearControlDeviceState()
+				lastSeq = frame.Sequence
+				continue
+			}
+			var delta controlDeviceDelta
+			if err := unmarshalControlPayload(message.Payload, &delta); err != nil {
+				return E.Cause(errImmediateReconnect, "read device delta: ", err)
+			}
+			lastSeq = frame.Sequence
+			c.applyControlDelta(delta)
+		case controlFrameLeaseResponse:
+			if !extended {
+				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
+			}
+			var response controlLeaseResponse
+			if err := unmarshalControlPayload(message.Payload, &response); err != nil {
+				return E.Cause(errImmediateReconnect, "read lease response: ", err)
+			}
+			session.deliverLeaseResponse(response)
 		case controlFramePong:
 		default:
 			return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
@@ -268,7 +317,7 @@ func (c *ClientService) runStandardSession() error {
 	return nil
 }
 
-func (c *ClientService) controlPingLoop(conn net.Conn, done <-chan struct{}) {
+func (c *ClientService) controlPingLoop(session *clientControlSession, done <-chan struct{}) {
 	ticker := time.NewTicker(controlPingInterval)
 	defer ticker.Stop()
 	for {
@@ -278,12 +327,13 @@ func (c *ClientService) controlPingLoop(conn net.Conn, done <-chan struct{}) {
 		case <-done:
 			return
 		case <-ticker.C:
-			_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
-			if err := WriteControlPing(conn); err != nil {
-				_ = conn.Close()
+			if err := session.writeControl(controlFrame{
+				Type:    controlFramePing,
+				Version: controlProtocolVersion,
+			}, nil); err != nil {
+				_ = session.conn.Close()
 				return
 			}
-			_ = conn.SetWriteDeadline(time.Time{})
 		}
 	}
 }
@@ -548,7 +598,21 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	}()
 	stopCloseOnCancel := closeConnOnContextDone(ctx, conn)
 	defer stopCloseOnCancel()
-	if err := WriteOpReqImport(conn, busid); err != nil {
+	lease, err := c.requestImportLease(ctx, busid)
+	if err != nil {
+		return -1, err
+	}
+	expectedReply := OpRepImport
+	if lease.Valid {
+		expectedReply = OpRepImportExt
+		if err := WriteOpReqImportExt(conn, ImportExtRequest{
+			BusID:       busid,
+			LeaseID:     lease.ID,
+			ClientNonce: lease.ClientNonce,
+		}); err != nil {
+			return -1, E.Cause(err, "write OP_REQ_IMPORT_EXT")
+		}
+	} else if err := WriteOpReqImport(conn, busid); err != nil {
 		return -1, E.Cause(err, "write OP_REQ_IMPORT")
 	}
 	header, err := ReadOpHeader(conn)
@@ -558,7 +622,7 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if header.Version != ProtocolVersion {
 		return -1, E.New("unexpected reply version 0x", hex16(header.Version))
 	}
-	if header.Code != OpRepImport {
+	if header.Code != expectedReply {
 		return -1, E.New("unexpected reply code 0x", hex16(header.Code))
 	}
 	if header.Status != OpStatusOK {

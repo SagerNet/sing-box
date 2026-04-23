@@ -33,9 +33,10 @@ type serverExport struct {
 }
 
 type serverControlConn struct {
-	id   uint64
-	conn net.Conn
-	send chan controlFrame
+	id           uint64
+	capabilities uint32
+	conn         net.Conn
+	send         chan controlOutboundMessage
 }
 
 type ServerService struct {
@@ -54,6 +55,10 @@ type ServerService struct {
 	controlSeq    uint64
 	controlNextID uint64
 	controlSubs   map[uint64]*serverControlConn
+	controlState  map[string]DeviceInfoV2
+	leaseNextID   uint64
+	leases        map[uint64]serverImportLease
+	leaseByBusID  map[string]uint64
 
 	reconcileMu sync.Mutex
 }
@@ -81,7 +86,10 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		controlSubs: make(map[uint64]*serverControlConn),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		leases:       make(map[uint64]serverImportLease),
+		leaseByBusID: make(map[string]uint64),
 	}, nil
 }
 
@@ -187,6 +195,8 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	}
 	if notify && changed {
 		s.broadcastChanged()
+	} else {
+		s.refreshControlState()
 	}
 	return nil
 }
@@ -307,6 +317,8 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 		s.handleDevList(conn)
 	case OpReqImport:
 		s.handleImport(conn)
+	case OpReqImportExt:
+		s.handleImportExt(conn)
 	default:
 		s.logger.Debug("unknown opcode 0x", hex16(header.Code))
 	}
@@ -314,20 +326,25 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 
 func (s *ServerService) handleControlConn(conn net.Conn) {
 	defer conn.Close()
-	hello, err := ReadControlFrame(conn)
+	helloMessage, err := readControlMessage(conn)
 	if err != nil {
 		s.logger.Debug("read control hello: ", err)
 		return
 	}
-	if hello.Type != controlFrameHello || hello.Version != controlProtocolVersion || hello.Capabilities&controlCapabilities != controlCapabilities {
+	hello := helloMessage.Frame
+	if hello.Type != controlFrameHello || hello.Version != controlProtocolVersion || hello.Capabilities&controlRequiredCapabilities != controlRequiredCapabilities {
 		s.logger.Debug("invalid control hello")
 		return
 	}
-	sub, seq := s.registerControlConn(conn)
+	capabilities := negotiatedControlCapabilities(hello.Capabilities)
+	sub, seq := s.registerControlConn(conn, capabilities)
 	defer s.unregisterControlConn(sub.id)
-	if err := WriteControlAck(conn, seq); err != nil {
+	if err := writeControlAckWithCapabilities(conn, seq, capabilities); err != nil {
 		s.logger.Debug("write control ack: ", err)
 		return
+	}
+	if supportsControlExtensions(capabilities) {
+		s.enqueueControlSnapshot(sub, seq)
 	}
 	readDone := make(chan struct{})
 	go s.readControlConn(sub, readDone)
@@ -337,8 +354,8 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 			return
 		case <-readDone:
 			return
-		case frame := <-sub.send:
-			if err := writeControlFrame(conn, frame); err != nil {
+		case message := <-sub.send:
+			if err := writeControlMessage(conn, message.Frame, message.Payload); err != nil {
 				s.logger.Debug("write control frame: ", err)
 				return
 			}
@@ -349,13 +366,20 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 func (s *ServerService) readControlConn(sub *serverControlConn, done chan<- struct{}) {
 	defer close(done)
 	for {
-		frame, err := ReadControlFrame(sub.conn)
+		message, err := readControlMessage(sub.conn)
 		if err != nil {
 			return
 		}
+		frame := message.Frame
 		switch frame.Type {
 		case controlFramePing:
 			s.enqueueControlFrame(sub, controlFrame{Type: controlFramePong, Version: controlProtocolVersion})
+		case controlFrameLeaseRequest:
+			if supportsControlExtensions(sub.capabilities) {
+				s.handleControlLeaseRequest(sub, message.Payload)
+				continue
+			}
+			return
 		default:
 			return
 		}
@@ -379,10 +403,32 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		s.logger.Debug("read import body: ", err)
 		return
 	}
+	s.handleImportBusID(conn, busid, false)
+}
+
+func (s *ServerService) handleImportExt(conn net.Conn) {
+	request, err := ReadOpReqImportExtBody(conn)
+	if err != nil {
+		s.logger.Debug("read import-ext body: ", err)
+		return
+	}
+	if !s.consumeImportLease(request) {
+		s.logger.Info("import-ext rejected (invalid lease): ", request.BusID)
+		_ = WriteOpRepImportExt(conn, OpStatusError, nil)
+		return
+	}
+	s.handleImportBusID(conn, request.BusID, true)
+}
+
+func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended bool) {
+	writeReply := WriteOpRepImport
+	if extended {
+		writeReply = WriteOpRepImportExt
+	}
 	export, ok := s.claimExport(busid)
 	if !ok {
 		s.logger.Info("import rejected (unknown or busy busid): ", busid)
-		_ = WriteOpRepImport(conn, OpStatusError, nil)
+		_ = writeReply(conn, OpStatusError, nil)
 		return
 	}
 	releaseClaim := true
@@ -392,7 +438,7 @@ func (s *ServerService) handleImport(conn net.Conn) {
 		}
 	}()
 	info := export.entry.Info
-	if err := WriteOpRepImport(conn, OpStatusOK, &info); err != nil {
+	if err := writeReply(conn, OpStatusOK, &info); err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		return
 	}
@@ -421,14 +467,15 @@ func (s *ServerService) reconcileLoop() {
 	}
 }
 
-func (s *ServerService) registerControlConn(conn net.Conn) (*serverControlConn, uint64) {
+func (s *ServerService) registerControlConn(conn net.Conn, capabilities uint32) (*serverControlConn, uint64) {
 	s.controlMu.Lock()
 	defer s.controlMu.Unlock()
 	s.controlNextID++
 	sub := &serverControlConn{
-		id:   s.controlNextID,
-		conn: conn,
-		send: make(chan controlFrame, 16),
+		id:           s.controlNextID,
+		capabilities: capabilities,
+		conn:         conn,
+		send:         make(chan controlOutboundMessage, 16),
 	}
 	s.controlSubs[sub.id] = sub
 	return sub, s.controlSeq
@@ -438,6 +485,7 @@ func (s *ServerService) unregisterControlConn(id uint64) {
 	s.controlMu.Lock()
 	defer s.controlMu.Unlock()
 	delete(s.controlSubs, id)
+	s.deleteImportLeasesForSubscriberLocked(id)
 }
 
 func (s *ServerService) closeControlSubscribers() {
@@ -454,9 +502,14 @@ func (s *ServerService) closeControlSubscribers() {
 }
 
 func (s *ServerService) broadcastChanged() {
+	devices := s.buildDeviceStateV2()
+	nextState := deviceInfoV2Map(devices)
+
 	s.controlMu.Lock()
 	s.controlSeq++
 	sequence := s.controlSeq
+	delta := buildControlDeviceDelta(sequence, s.controlState, nextState)
+	s.controlState = nextState
 	subs := make([]*serverControlConn, 0, len(s.controlSubs))
 	for _, sub := range s.controlSubs {
 		subs = append(subs, sub)
@@ -464,17 +517,206 @@ func (s *ServerService) broadcastChanged() {
 	s.controlMu.Unlock()
 	frame := controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence}
 	for _, sub := range subs {
+		if supportsControlExtensions(sub.capabilities) {
+			s.enqueueControlPayload(sub, controlFrame{
+				Type:     controlFrameDeviceDelta,
+				Version:  controlProtocolVersion,
+				Sequence: sequence,
+			}, delta, frame)
+			continue
+		}
 		s.enqueueControlFrame(sub, frame)
 	}
 }
 
 func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame controlFrame) {
+	s.enqueueControlMessage(sub, controlOutboundMessage{Frame: frame})
+}
+
+func (s *ServerService) enqueueControlPayload(sub *serverControlConn, frame controlFrame, payload any, fallback controlFrame) {
+	rawPayload, err := marshalControlPayload(payload)
+	if err != nil || len(rawPayload) > maxControlPayloadLength {
+		s.enqueueControlFrame(sub, fallback)
+		return
+	}
+	s.enqueueControlMessage(sub, controlOutboundMessage{Frame: frame, Payload: rawPayload})
+}
+
+func (s *ServerService) enqueueControlSnapshot(sub *serverControlConn, sequence uint64) {
+	devices := s.buildDeviceStateV2()
+	s.controlMu.Lock()
+	s.controlState = deviceInfoV2Map(devices)
+	s.controlMu.Unlock()
+	s.enqueueControlPayload(sub, controlFrame{
+		Type:     controlFrameDeviceSnapshot,
+		Version:  controlProtocolVersion,
+		Sequence: sequence,
+	}, controlDeviceSnapshot{Sequence: sequence, Devices: devices}, controlFrame{
+		Type:     controlFrameChanged,
+		Version:  controlProtocolVersion,
+		Sequence: sequence,
+	})
+}
+
+func (s *ServerService) enqueueControlMessage(sub *serverControlConn, message controlOutboundMessage) {
 	select {
-	case sub.send <- frame:
+	case sub.send <- message:
 	default:
 		s.logger.Debug("control subscriber ", sub.id, " lagged behind")
 		_ = sub.conn.Close()
 	}
+}
+
+func (s *ServerService) refreshControlState() {
+	devices := s.buildDeviceStateV2()
+	s.controlMu.Lock()
+	s.controlState = deviceInfoV2Map(devices)
+	s.controlMu.Unlock()
+}
+
+func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
+	exports := s.currentExports()
+	if len(exports) == 0 {
+		return nil
+	}
+	devices := make([]DeviceInfoV2, 0, len(exports))
+	for _, export := range exports {
+		devices = append(devices, deviceInfoV2FromEntry(export.entry, "darwin-iokit", darwinStableID(export.registryID), deviceStateAvailable, 0, "available"))
+	}
+	return devices
+}
+
+func (s *ServerService) handleControlLeaseRequest(sub *serverControlConn, payload []byte) {
+	var request controlLeaseRequest
+	if err := unmarshalControlPayload(payload, &request); err != nil {
+		s.enqueueControlPayload(sub, controlFrame{
+			Type:    controlFrameLeaseResponse,
+			Version: controlProtocolVersion,
+		}, controlLeaseResponse{
+			ErrorCode:    "bad_request",
+			ErrorMessage: err.Error(),
+		}, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: s.currentControlSequence()})
+		return
+	}
+	response := s.createControlLeaseResponse(sub.id, request, s.darwinLeaseAvailable)
+	s.enqueueControlPayload(sub, controlFrame{
+		Type:    controlFrameLeaseResponse,
+		Version: controlProtocolVersion,
+	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: s.currentControlSequence()})
+}
+
+func (s *ServerService) darwinLeaseAvailable(busid string) (bool, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	export, ok := s.exports[busid]
+	if !ok {
+		return false, "unknown busid"
+	}
+	if export.busy {
+		return false, "busy"
+	}
+	return true, ""
+}
+
+func (s *ServerService) createControlLeaseResponse(subID uint64, request controlLeaseRequest, available func(string) (bool, string)) controlLeaseResponse {
+	response := controlLeaseResponse{
+		BusID:       request.BusID,
+		ClientNonce: request.ClientNonce,
+	}
+	if request.BusID == "" {
+		response.ErrorCode = "bad_request"
+		response.ErrorMessage = "missing busid"
+		return response
+	}
+	if ok, reason := available(request.BusID); !ok {
+		response.ErrorCode = "unavailable"
+		response.ErrorMessage = reason
+		return response
+	}
+	now := time.Now()
+	expires := now.Add(importLeaseTTL)
+	s.controlMu.Lock()
+	defer s.controlMu.Unlock()
+	s.cleanupExpiredImportLeasesLocked(now)
+	if _, exists := s.leaseByBusID[request.BusID]; exists {
+		response.ErrorCode = "busy"
+		response.ErrorMessage = "lease already active"
+		return response
+	}
+	s.leaseNextID++
+	lease := serverImportLease{
+		ID:           s.leaseNextID,
+		SubscriberID: subID,
+		BusID:        request.BusID,
+		ClientNonce:  request.ClientNonce,
+		Generation:   s.controlSeq,
+		Expires:      expires,
+	}
+	if s.leases == nil {
+		s.leases = make(map[uint64]serverImportLease)
+	}
+	if s.leaseByBusID == nil {
+		s.leaseByBusID = make(map[string]uint64)
+	}
+	s.leases[lease.ID] = lease
+	s.leaseByBusID[lease.BusID] = lease.ID
+	response.LeaseID = lease.ID
+	response.Generation = lease.Generation
+	response.TTLMillis = int64(importLeaseTTL / time.Millisecond)
+	return response
+}
+
+func (s *ServerService) consumeImportLease(request ImportExtRequest) bool {
+	now := time.Now()
+	s.controlMu.Lock()
+	defer s.controlMu.Unlock()
+	s.cleanupExpiredImportLeasesLocked(now)
+	lease, ok := s.leases[request.LeaseID]
+	if !ok {
+		return false
+	}
+	if lease.BusID != request.BusID || lease.ClientNonce != request.ClientNonce {
+		return false
+	}
+	delete(s.leases, request.LeaseID)
+	delete(s.leaseByBusID, request.BusID)
+	return now.Before(lease.Expires)
+}
+
+func (s *ServerService) cleanupExpiredImportLeasesLocked(now time.Time) {
+	if s.leases == nil {
+		s.leases = make(map[uint64]serverImportLease)
+	}
+	if s.leaseByBusID == nil {
+		s.leaseByBusID = make(map[string]uint64)
+	}
+	for id, lease := range s.leases {
+		if now.Before(lease.Expires) {
+			continue
+		}
+		delete(s.leases, id)
+		delete(s.leaseByBusID, lease.BusID)
+	}
+}
+
+func (s *ServerService) deleteImportLeasesForSubscriberLocked(subID uint64) {
+	for id, lease := range s.leases {
+		if lease.SubscriberID != subID {
+			continue
+		}
+		delete(s.leases, id)
+		delete(s.leaseByBusID, lease.BusID)
+	}
+}
+
+func (s *ServerService) currentControlSequence() uint64 {
+	s.controlMu.Lock()
+	defer s.controlMu.Unlock()
+	return s.controlSeq
+}
+
+func darwinStableID(registryID uint64) string {
+	return "darwin-registry:" + hex32(uint32(registryID>>32)) + hex32(uint32(registryID))
 }
 
 type darwinServerDataSession struct {

@@ -1226,6 +1226,13 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, controlCapabilities, ack.Capabilities)
 	require.Zero(t, ack.Sequence)
 
+	snapshotMessage, err := readControlMessage(conn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceSnapshot, snapshotMessage.Frame.Type)
+	var snapshot controlDeviceSnapshot
+	require.NoError(t, unmarshalControlPayload(snapshotMessage.Payload, &snapshot))
+	require.Empty(t, snapshot.Devices)
+
 	require.NoError(t, WriteControlPing(conn))
 	pong, err := ReadControlFrame(conn)
 	require.NoError(t, err)
@@ -1233,10 +1240,108 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, controlProtocolVersion, pong.Version)
 
 	server.broadcastChanged()
-	changed, err := ReadControlFrame(conn)
+	changed, err := readControlMessage(conn)
 	require.NoError(t, err)
-	require.Equal(t, controlFrameChanged, changed.Type)
-	require.Equal(t, uint64(1), changed.Sequence)
+	require.Equal(t, controlFrameDeviceDelta, changed.Frame.Type)
+	require.Equal(t, uint64(1), changed.Frame.Sequence)
+	var delta controlDeviceDelta
+	require.NoError(t, unmarshalControlPayload(changed.Payload, &delta))
+	require.Equal(t, uint64(1), delta.Sequence)
+}
+
+func TestServerControlLeaseEnablesImportExt(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	serverOps := newTestUSBIPOps(t)
+	serverOps.readUsbipStatus = store.readUsbipStatus
+	serverOps.readSysfsDevice = store.readSysfsDevice
+	serverOps.writeUsbipSockfd = store.writeUsbipSockfd
+
+	server := &ServerService{
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       newTestLogger(),
+		exports:      map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		leases:       make(map[uint64]serverImportLease),
+		leaseByBusID: make(map[string]uint64),
+		ops:          serverOps,
+	}
+	server.refreshControlState()
+	serverAddr, closeServer := startDispatchServer(t, server)
+	defer closeServer()
+
+	controlConn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	defer controlConn.Close()
+	require.NoError(t, WriteControlPreface(controlConn))
+	require.NoError(t, WriteControlHello(controlConn))
+	ack, err := ReadControlFrame(controlConn)
+	require.NoError(t, err)
+	require.Equal(t, controlCapabilities, ack.Capabilities)
+	_, err = readControlMessage(controlConn)
+	require.NoError(t, err)
+
+	require.NoError(t, writeControlMessage(controlConn, controlFrame{
+		Type:    controlFrameLeaseRequest,
+		Version: controlProtocolVersion,
+	}, controlLeaseRequest{BusID: "1-1", ClientNonce: 42}))
+	leaseMessage, err := readControlMessage(controlConn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameLeaseResponse, leaseMessage.Frame.Type)
+	var lease controlLeaseResponse
+	require.NoError(t, unmarshalControlPayload(leaseMessage.Payload, &lease))
+	require.Empty(t, lease.ErrorCode)
+	require.Equal(t, uint64(42), lease.ClientNonce)
+	require.NotZero(t, lease.LeaseID)
+
+	require.NoError(t, writeControlMessage(controlConn, controlFrame{
+		Type:    controlFrameLeaseRequest,
+		Version: controlProtocolVersion,
+	}, controlLeaseRequest{BusID: "1-1", ClientNonce: 43}))
+	busyMessage, err := readControlMessage(controlConn)
+	require.NoError(t, err)
+	var busy controlLeaseResponse
+	require.NoError(t, unmarshalControlPayload(busyMessage.Payload, &busy))
+	require.Equal(t, "busy", busy.ErrorCode)
+
+	importConn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	require.NoError(t, WriteOpReqImportExt(importConn, ImportExtRequest{
+		BusID:       "1-1",
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	}))
+	header, err := ReadOpHeader(importConn)
+	require.NoError(t, err)
+	require.Equal(t, OpRepImportExt, header.Code)
+	require.Equal(t, OpStatusOK, header.Status)
+	info, err := ReadOpRepImportBody(importConn)
+	require.NoError(t, err)
+	require.Equal(t, "1-1", info.BusIDString())
+	require.NoError(t, importConn.Close())
+	require.Positive(t, store.lastSockfd("1-1"))
+
+	reuseConn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	defer reuseConn.Close()
+	require.NoError(t, WriteOpReqImportExt(reuseConn, ImportExtRequest{
+		BusID:       "1-1",
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	}))
+	header, err = ReadOpHeader(reuseConn)
+	require.NoError(t, err)
+	require.Equal(t, OpRepImportExt, header.Code)
+	require.Equal(t, OpStatusError, header.Status)
 }
 
 func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
@@ -1299,6 +1404,135 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	require.Equal(t, info.DevID(), attachedDevID)
 	require.Equal(t, SpeedSuper, attachedSpeed)
 	require.Positive(t, store.lastSockfd("1-1"))
+}
+
+func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controlClient, controlServer := net.Pipe()
+	defer controlClient.Close()
+	defer controlServer.Close()
+
+	controlSession := newClientControlSession(controlClient, controlCapabilities)
+	controlErrCh := make(chan error, 1)
+	go func() {
+		message, err := readControlMessage(controlServer)
+		if err != nil {
+			controlErrCh <- err
+			return
+		}
+		if message.Frame.Type != controlFrameLeaseRequest {
+			controlErrCh <- fmt.Errorf("unexpected control frame %d", message.Frame.Type)
+			return
+		}
+		var request controlLeaseRequest
+		if err := unmarshalControlPayload(message.Payload, &request); err != nil {
+			controlErrCh <- err
+			return
+		}
+		if request.BusID != "1-1" {
+			controlErrCh <- fmt.Errorf("unexpected lease busid %s", request.BusID)
+			return
+		}
+		controlErrCh <- writeControlMessage(controlServer, controlFrame{
+			Type:    controlFrameLeaseResponse,
+			Version: controlProtocolVersion,
+		}, controlLeaseResponse{
+			BusID:       request.BusID,
+			LeaseID:     55,
+			ClientNonce: request.ClientNonce,
+			Generation:  2,
+			TTLMillis:   int64(importLeaseTTL / time.Millisecond),
+		})
+	}()
+	deliverErrCh := make(chan error, 1)
+	go func() {
+		message, err := readControlMessage(controlClient)
+		if err != nil {
+			deliverErrCh <- err
+			return
+		}
+		if message.Frame.Type != controlFrameLeaseResponse {
+			deliverErrCh <- fmt.Errorf("unexpected control response %d", message.Frame.Type)
+			return
+		}
+		var response controlLeaseResponse
+		if err := unmarshalControlPayload(message.Payload, &response); err != nil {
+			deliverErrCh <- err
+			return
+		}
+		controlSession.deliverLeaseResponse(response)
+		deliverErrCh <- nil
+	}()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErrCh <- acceptErr
+			return
+		}
+		defer conn.Close()
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if header.Code != OpReqImportExt {
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		request, readErr := ReadOpReqImportExtBody(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if request.BusID != "1-1" || request.LeaseID != 55 || request.ClientNonce != 1 {
+			serverErrCh <- fmt.Errorf("unexpected import-ext request %+v", request)
+			return
+		}
+		info := device.toProtocol()
+		serverErrCh <- WriteOpRepImportExt(conn, OpStatusOK, &info)
+	}()
+
+	ops := newTestUSBIPOps(t)
+	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+		require.Equal(t, SpeedHigh, speed)
+		return 4, nil
+	}
+	ops.vhciAttach = func(port int, _ uintptr, devid uint32, speed uint32) error {
+		require.Equal(t, 4, port)
+		info := device.toProtocol()
+		require.Equal(t, info.DevID(), devid)
+		require.Equal(t, SpeedHigh, speed)
+		return nil
+	}
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     testDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        ops,
+	}
+	client.setControlSession(controlSession)
+	defer client.clearControlSession(controlSession, errClientControlSessionClosed)
+
+	port, err := client.attemptAttach(ctx, "1-1")
+	require.NoError(t, err)
+	require.Equal(t, 4, port)
+	require.NoError(t, <-controlErrCh)
+	require.NoError(t, <-deliverErrCh)
+	require.NoError(t, <-serverErrCh)
 }
 
 func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {

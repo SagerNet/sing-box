@@ -377,26 +377,55 @@ func (s *darwinFakeUSBIPServer) handleConn(conn net.Conn) {
 		_ = WriteOpRepDevList(conn, []DeviceEntry{s.entry})
 	case OpReqImport:
 		s.handleImport(conn)
+	case OpReqImportExt:
+		s.handleImportExt(conn)
 	}
 }
 
 func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
-	hello, err := ReadControlFrame(conn)
+	helloMessage, err := readControlMessage(conn)
 	if err != nil {
 		return
 	}
+	hello := helloMessage.Frame
 	if hello.Type != controlFrameHello || hello.Version != controlProtocolVersion {
 		return
 	}
-	if err := WriteControlAck(conn, 0); err != nil {
+	capabilities := negotiatedControlCapabilities(hello.Capabilities)
+	if err := writeControlAckWithCapabilities(conn, 0, capabilities); err != nil {
 		return
 	}
+	if supportsControlExtensions(capabilities) {
+		_ = writeControlMessage(conn, controlFrame{
+			Type:    controlFrameDeviceSnapshot,
+			Version: controlProtocolVersion,
+		}, controlDeviceSnapshot{
+			Devices: []DeviceInfoV2{deviceInfoV2FromEntry(s.entry, "darwin-fake", "darwin-fake:"+s.entry.Info.BusIDString(), deviceStateAvailable, 0, "available")},
+		})
+	}
 	for {
-		frame, err := ReadControlFrame(conn)
+		message, err := readControlMessage(conn)
 		if err != nil {
 			return
 		}
+		frame := message.Frame
 		if frame.Type != controlFramePing {
+			if frame.Type == controlFrameLeaseRequest && supportsControlExtensions(capabilities) {
+				var request controlLeaseRequest
+				if unmarshalControlPayload(message.Payload, &request) != nil {
+					return
+				}
+				_ = writeControlMessage(conn, controlFrame{
+					Type:    controlFrameLeaseResponse,
+					Version: controlProtocolVersion,
+				}, controlLeaseResponse{
+					BusID:       request.BusID,
+					LeaseID:     1,
+					ClientNonce: request.ClientNonce,
+					TTLMillis:   int64(importLeaseTTL / time.Millisecond),
+				})
+				continue
+			}
 			return
 		}
 		if err := WriteControlPong(conn); err != nil {
@@ -416,6 +445,22 @@ func (s *darwinFakeUSBIPServer) handleImport(conn net.Conn) {
 	}
 	info := s.entry.Info
 	if err := WriteOpRepImport(conn, OpStatusOK, &info); err != nil {
+		return
+	}
+	s.handleDataSession(conn)
+}
+
+func (s *darwinFakeUSBIPServer) handleImportExt(conn net.Conn) {
+	request, err := ReadOpReqImportExtBody(conn)
+	if err != nil {
+		return
+	}
+	if request.BusID != s.entry.Info.BusIDString() || request.LeaseID == 0 {
+		_ = WriteOpRepImportExt(conn, OpStatusError, nil)
+		return
+	}
+	info := s.entry.Info
+	if err := WriteOpRepImportExt(conn, OpStatusOK, &info); err != nil {
 		return
 	}
 	s.handleDataSession(conn)

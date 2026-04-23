@@ -89,6 +89,57 @@ func TestControlPrefaceAndFrames(t *testing.T) {
 	}
 }
 
+func TestControlMessagePayloadRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	payload := controlDeviceSnapshot{
+		Sequence: 3,
+		Devices: []DeviceInfoV2{{
+			BusID:     "1-2",
+			StableID:  "usb:1d6b:0002:serial-1",
+			Backend:   "linux-sysfs",
+			VendorID:  0x1d6b,
+			ProductID: 0x0002,
+			Speed:     SpeedHigh,
+			State:     deviceStateAvailable,
+		}},
+	}
+	var buffer bytes.Buffer
+	require.NoError(t, writeControlMessage(&buffer, controlFrame{
+		Type:     controlFrameDeviceSnapshot,
+		Version:  controlProtocolVersion,
+		Sequence: 3,
+	}, payload))
+
+	message, err := readControlMessage(&buffer)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceSnapshot, message.Frame.Type)
+	require.Equal(t, uint64(3), message.Frame.Sequence)
+	require.Positive(t, message.Frame.PayloadLength)
+
+	var decoded controlDeviceSnapshot
+	require.NoError(t, unmarshalControlPayload(message.Payload, &decoded))
+	require.Equal(t, payload, decoded)
+}
+
+func TestControlMessagePayloadSizeGuard(t *testing.T) {
+	t.Parallel()
+
+	var buffer bytes.Buffer
+	err := writeControlMessage(&buffer, controlFrame{Type: controlFrameDeviceSnapshot}, bytes.Repeat([]byte{'x'}, maxControlPayloadLength+1))
+	require.ErrorContains(t, err, "control payload too large")
+}
+
+func TestReadControlFrameRejectsPayload(t *testing.T) {
+	t.Parallel()
+
+	var buffer bytes.Buffer
+	require.NoError(t, writeControlMessage(&buffer, controlFrame{Type: controlFrameDeviceSnapshot}, []byte(`{}`)))
+
+	_, err := ReadControlFrame(&buffer)
+	require.ErrorContains(t, err, "unexpected control payload length")
+}
+
 func TestOpHeaderRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -112,6 +163,28 @@ func TestOpHeaderRoundTrip(t *testing.T) {
 		Code:    OpRepImport,
 		Status:  OpStatusOK,
 	}, ParseOpHeader(raw[:]))
+}
+
+func TestOpReqImportExtRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	request := ImportExtRequest{
+		BusID:       "1-2",
+		LeaseID:     9,
+		ClientNonce: 7,
+		Flags:       1,
+	}
+	var buffer bytes.Buffer
+	require.NoError(t, WriteOpReqImportExt(&buffer, request))
+
+	header, err := ReadOpHeader(&buffer)
+	require.NoError(t, err)
+	require.Equal(t, OpReqImportExt, header.Code)
+	require.Equal(t, OpStatusOK, header.Status)
+
+	parsed, err := ReadOpReqImportExtBody(&buffer)
+	require.NoError(t, err)
+	require.Equal(t, request, parsed)
 }
 
 func TestOpReqImportRoundTrip(t *testing.T) {
@@ -229,6 +302,44 @@ func TestDeviceInfoHelpers(t *testing.T) {
 	require.Equal(t, "serial-1", info.SerialString())
 	require.Equal(t, "1-2", info.BusIDString())
 	require.Equal(t, uint32(0x00030009), info.DevID())
+}
+
+func TestDeviceInfoV2RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	var path [256]byte
+	encodePathField(&path, "/sys/bus/usb/devices/1-2", "serial-1")
+	entry := DeviceEntry{
+		Info: DeviceInfoTruncated{
+			Path:                path,
+			BusNum:              1,
+			DevNum:              2,
+			Speed:               SpeedSuper,
+			IDVendor:            0x1d6b,
+			IDProduct:           0x0002,
+			BCDDevice:           0x0100,
+			BDeviceClass:        0xff,
+			BDeviceSubClass:     1,
+			BDeviceProtocol:     2,
+			BConfigurationValue: 1,
+			BNumConfigurations:  1,
+			BNumInterfaces:      1,
+		},
+		Interfaces: []DeviceInterface{{BInterfaceClass: 0xff, BInterfaceSubClass: 1, BInterfaceProtocol: 2}},
+	}
+	copy(entry.Info.BusID[:], "1-2")
+
+	info := deviceInfoV2FromEntry(entry, "linux-sysfs", "usb:1d6b:0002:serial-1", deviceStateAvailable, 1, "available")
+	require.Equal(t, "1-2", info.BusID)
+	require.Equal(t, "serial-1", info.Serial)
+	require.True(t, info.available())
+	require.Equal(t, DeviceKey{BusID: "1-2", VendorID: 0x1d6b, ProductID: 0x0002, Serial: "serial-1"}, info.key())
+	roundTrip := info.toDeviceEntry()
+	require.Equal(t, "1-2", roundTrip.Info.BusIDString())
+	require.Equal(t, "serial-1", roundTrip.Info.SerialString())
+	require.Equal(t, uint16(0x1d6b), roundTrip.Info.IDVendor)
+	require.Equal(t, uint16(0x0002), roundTrip.Info.IDProduct)
+	require.Equal(t, entry.Interfaces, roundTrip.Interfaces)
 }
 
 func TestEncodePathFieldSkipsSerialWithoutRoom(t *testing.T) {
