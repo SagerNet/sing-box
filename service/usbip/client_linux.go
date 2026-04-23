@@ -68,6 +68,7 @@ type ClientService struct {
 	assigned        []string
 	assignedWorkers []*clientAssignedWorker
 	allWorkers      map[string]*clientBusIDWorker
+	allDesired      map[string]struct{}
 
 	attachMu sync.Mutex // serializes vhci port pick + attach
 	wg       sync.WaitGroup
@@ -106,6 +107,7 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 		matches:      options.Devices,
 		ops:          systemUSBIPOps,
 		allWorkers:   make(map[string]*clientBusIDWorker),
+		allDesired:   make(map[string]struct{}),
 		ports:        make(map[int]struct{}),
 		activeBusIDs: make(map[string]struct{}),
 	}, nil
@@ -289,7 +291,11 @@ func (c *ClientService) controlPingLoop(conn net.Conn, done <-chan struct{}) {
 }
 
 func (c *ClientService) syncRemoteState() error {
-	entries, err := c.fetchDevList(c.ctx)
+	return c.syncRemoteStateContext(c.ctx)
+}
+
+func (c *ClientService) syncRemoteStateContext(ctx context.Context) error {
+	entries, err := c.fetchDevList(ctx)
 	if err != nil {
 		return err
 	}
@@ -316,6 +322,7 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 	}
 
 	c.stateMu.Lock()
+	c.allDesired = desired
 	stopWorkers := make([]*clientBusIDWorker, 0)
 	for busid, worker := range c.allWorkers {
 		if _, ok := desired[busid]; ok {
@@ -519,6 +526,10 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if err := ctx.Err(); err != nil {
 			return
 		}
+		if !c.shouldRetryBusID(ctx, busid) {
+			c.logger.Info("remote export ", busid, " disappeared; stopping import worker")
+			return
+		}
 		c.logger.Info("vhci port ", port, " released; reattaching ", busid)
 		if !sleepCtx(ctx, clientReconnectDelay) {
 			return
@@ -595,6 +606,9 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 		case <-settleDeadline.C:
 			if !seenUsed {
 				c.logger.Warn("vhci port ", port, " never reached used state; reattaching ", busid)
+				if err := c.ops.vhciDetach(port); err != nil {
+					c.logger.Warn("detach port ", port, " (", busid, "): ", err)
+				}
 				return
 			}
 		case <-ticker.C:
@@ -666,6 +680,29 @@ func (c *ClientService) isBusIDActive(busid string) bool {
 	defer c.activeMu.Unlock()
 	_, exists := c.activeBusIDs[busid]
 	return exists
+}
+
+func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {
+	if len(c.matches) != 0 {
+		return true
+	}
+	if err := c.syncRemoteStateContext(ctx); err != nil {
+		c.logger.Warn("refresh remote exports after releasing ", busid, ": ", err)
+		return true
+	}
+	return c.isBusIDRetryDesired(busid)
+}
+
+func (c *ClientService) isBusIDRetryDesired(busid string) bool {
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
+	if _, registered := c.allWorkers[busid]; !registered {
+		return false
+	}
+	if _, desired := c.allDesired[busid]; desired {
+		return true
+	}
+	return false
 }
 
 func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {

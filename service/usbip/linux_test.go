@@ -35,6 +35,18 @@ func (testDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, er
 	return nil, errors.New("unused")
 }
 
+type failingDialer struct {
+	err error
+}
+
+func (d failingDialer) DialContext(context.Context, string, M.Socksaddr) (net.Conn, error) {
+	return nil, d.err
+}
+
+func (d failingDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
+	return nil, errors.New("unused")
+}
+
 type testDeviceStore struct {
 	mu       sync.Mutex
 	devices  map[string]sysfsDevice
@@ -413,6 +425,63 @@ func TestClientApplyRemoteExportsKeepsActiveBusIDWorker(t *testing.T) {
 
 	require.True(t, canceled)
 	require.NotContains(t, client.allWorkers, "1-1")
+}
+
+func TestClientShouldRetryBusIDRefreshesImportAllState(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		exports:     make(map[string]serverExport),
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         newTestUSBIPOps(t),
+	}
+	serverAddr, closeServer := startDispatchServer(t, server)
+	defer closeServer()
+
+	canceled := false
+	client := &ClientService{
+		ctx:          context.Background(),
+		logger:       newTestLogger(),
+		dialer:       testDialer{},
+		serverAddr:   serverAddr,
+		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		allDesired:   map[string]struct{}{"1-1": {}},
+		activeBusIDs: make(map[string]struct{}),
+		ops:          newTestUSBIPOps(t),
+	}
+
+	require.False(t, client.shouldRetryBusID(context.Background(), "1-1"))
+	require.True(t, canceled)
+	require.NotContains(t, client.allWorkers, "1-1")
+	require.Empty(t, client.allDesired)
+}
+
+func TestClientShouldRetryBusIDKeepsRetryOnRefreshFailure(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("devlist unavailable")
+	canceled := false
+	client := &ClientService{
+		ctx:          context.Background(),
+		logger:       newTestLogger(),
+		dialer:       failingDialer{err: expectedErr},
+		serverAddr:   M.ParseSocksaddrHostPort("127.0.0.1", 3240),
+		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		allDesired:   map[string]struct{}{"1-1": {}},
+		activeBusIDs: make(map[string]struct{}),
+		ops:          newTestUSBIPOps(t),
+	}
+
+	require.True(t, client.shouldRetryBusID(context.Background(), "1-1"))
+	require.False(t, canceled)
+	require.Contains(t, client.allWorkers, "1-1")
+	require.Contains(t, client.allDesired, "1-1")
 }
 
 func TestAssignMatchedBusIDs(t *testing.T) {
