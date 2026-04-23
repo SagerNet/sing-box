@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -22,6 +23,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 type testDialer struct{}
@@ -44,6 +46,25 @@ func (d failingDialer) DialContext(context.Context, string, M.Socksaddr) (net.Co
 }
 
 func (d failingDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
+	return nil, errors.New("unused")
+}
+
+type opaqueConn struct {
+	net.Conn
+}
+
+type wrappingDialer struct{}
+
+func (wrappingDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(ctx, network, destination.String())
+	if err != nil {
+		return nil, err
+	}
+	return opaqueConn{Conn: conn}, nil
+}
+
+func (wrappingDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
 	return nil, errors.New("unused")
 }
 
@@ -272,6 +293,71 @@ func startDispatchServer(t *testing.T, server *ServerService) (M.Socksaddr, func
 		_ = listener.Close()
 		<-done
 	}
+}
+
+func duplicateConnFromFD(t *testing.T, fd uintptr, name string) net.Conn {
+	t.Helper()
+
+	conn, err := duplicateNetConnFromFD(fd, name)
+	require.NoError(t, err)
+	return conn
+}
+
+func duplicateNetConnFromFD(fd uintptr, name string) (net.Conn, error) {
+	dupFD, err := unix.Dup(int(fd))
+	if err != nil {
+		return nil, err
+	}
+	file := os.NewFile(uintptr(dupFD), name)
+	conn, err := net.FileConn(file)
+	closeErr := file.Close()
+	if err != nil {
+		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	return conn, nil
+}
+
+func duplicateHandoffKernelConn(t *testing.T, handoff *usbipConnHandoff) net.Conn {
+	t.Helper()
+
+	conn := duplicateConnFromFD(t, handoff.kernelFD(), "usbip-test-kernel")
+	require.NoError(t, handoff.closeKernelFD())
+	return conn
+}
+
+func requireConnRead(t *testing.T, conn net.Conn, expected []byte) {
+	t.Helper()
+
+	buffer := make([]byte, len(expected))
+	_, err := io.ReadFull(conn, buffer)
+	require.NoError(t, err)
+	require.Equal(t, expected, buffer)
+}
+
+func requireConnEOF(t *testing.T, conn net.Conn) {
+	t.Helper()
+
+	buffer := make([]byte, 1)
+	n, err := conn.Read(buffer)
+	require.Zero(t, n)
+	require.ErrorIs(t, err, io.EOF)
+}
+
+func setConnDeadline(t *testing.T, conn net.Conn) {
+	t.Helper()
+
+	require.NoError(t, conn.SetDeadline(time.Now().Add(3*time.Second)))
+}
+
+func requireStreamSocketFD(t *testing.T, fd uintptr) {
+	t.Helper()
+
+	socketType, err := unix.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_TYPE)
+	require.NoError(t, err)
+	require.Equal(t, unix.SOCK_STREAM, socketType)
 }
 
 type testUSBGadget struct {
@@ -527,6 +613,64 @@ func TestLinuxHelpers(t *testing.T) {
 	require.Equal(t, "ss", vhciHubForSpeed(SpeedSuper))
 	require.True(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=usb\x00")))
 	require.False(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=net\x00")))
+}
+
+func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
+	t.Parallel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := listener.Accept()
+		accepted <- conn
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close()
+	acceptedConn := <-accepted
+	defer acceptedConn.Close()
+
+	handoff, err := newUSBIPConnHandoff(conn)
+	require.NoError(t, err)
+	defer handoff.Close()
+
+	require.False(t, handoff.relay())
+	require.Equal(t, "direct", handoff.mode())
+	requireStreamSocketFD(t, handoff.kernelFD())
+}
+
+func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
+	t.Parallel()
+
+	left, right := net.Pipe()
+	defer right.Close()
+	handoff, err := newUSBIPConnHandoff(opaqueConn{Conn: left})
+	require.NoError(t, err)
+	defer handoff.Close()
+	require.True(t, handoff.relay())
+	require.Equal(t, "relay", handoff.mode())
+	requireStreamSocketFD(t, handoff.kernelFD())
+
+	kernelConn := duplicateHandoffKernelConn(t, handoff)
+	defer kernelConn.Close()
+	setConnDeadline(t, right)
+	setConnDeadline(t, kernelConn)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	require.True(t, handoff.startRelay(ctx, newTestLogger(), "test", "relay"))
+
+	_, err = right.Write([]byte("ping"))
+	require.NoError(t, err)
+	requireConnRead(t, kernelConn, []byte("ping"))
+
+	_, err = kernelConn.Write([]byte("pong"))
+	require.NoError(t, err)
+	requireConnRead(t, right, []byte("pong"))
 }
 
 func TestServerStartRequiresHostDriver(t *testing.T) {
@@ -806,6 +950,229 @@ func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testin
 	require.Equal(t, "ok", entries[0].Info.SerialString())
 }
 
+func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	kernelConnCh := make(chan net.Conn, 1)
+	kernelErrCh := make(chan error, 1)
+	ops := newTestUSBIPOps(t)
+	ops.readUsbipStatus = store.readUsbipStatus
+	ops.readSysfsDevice = store.readSysfsDevice
+	ops.writeUsbipSockfd = func(busid string, fd int) error {
+		if fd < 0 {
+			return nil
+		}
+		if busid != "1-1" {
+			kernelErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			return nil
+		}
+		socketType, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_TYPE)
+		if err != nil {
+			kernelErrCh <- err
+			return nil
+		}
+		if socketType != unix.SOCK_STREAM {
+			kernelErrCh <- fmt.Errorf("unexpected socket type %d", socketType)
+			return nil
+		}
+		kernelConn, err := duplicateNetConnFromFD(uintptr(fd), "usbip-server-test-kernel")
+		if err != nil {
+			kernelErrCh <- err
+			return nil
+		}
+		kernelConnCh <- kernelConn
+		return nil
+	}
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         ops,
+	}
+
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	go server.dispatchConn(opaqueConn{Conn: serverConn})
+
+	setConnDeadline(t, clientConn)
+	require.NoError(t, WriteOpReqImport(clientConn, "1-1"))
+	header, err := ReadOpHeader(clientConn)
+	require.NoError(t, err)
+	require.Equal(t, OpRepImport, header.Code)
+	require.Equal(t, OpStatusOK, header.Status)
+	_, err = ReadOpRepImportBody(clientConn)
+	require.NoError(t, err)
+
+	var kernelConn net.Conn
+	select {
+	case kernelConn = <-kernelConnCh:
+	case err = <-kernelErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for server relay kernel conn")
+	}
+	defer kernelConn.Close()
+	setConnDeadline(t, kernelConn)
+
+	_, err = clientConn.Write([]byte("server-in"))
+	require.NoError(t, err)
+	requireConnRead(t, kernelConn, []byte("server-in"))
+
+	_, err = kernelConn.Write([]byte("server-out"))
+	require.NoError(t, err)
+	requireConnRead(t, clientConn, []byte("server-out"))
+}
+
+func TestServerHandleImportRelayClosesHandoffOnSockfdFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	expectedErr := errors.New("sockfd handoff failed")
+	kernelConnCh := make(chan net.Conn, 1)
+	kernelErrCh := make(chan error, 1)
+	ops := newTestUSBIPOps(t)
+	ops.readUsbipStatus = store.readUsbipStatus
+	ops.readSysfsDevice = store.readSysfsDevice
+	ops.writeUsbipSockfd = func(busid string, fd int) error {
+		if fd < 0 {
+			return nil
+		}
+		if busid != "1-1" {
+			kernelErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			return expectedErr
+		}
+		kernelConn, err := duplicateNetConnFromFD(uintptr(fd), "usbip-server-sockfd-failure-kernel")
+		if err != nil {
+			kernelErrCh <- err
+		} else {
+			kernelConnCh <- kernelConn
+		}
+		return expectedErr
+	}
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         ops,
+	}
+
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	go server.dispatchConn(opaqueConn{Conn: serverConn})
+
+	setConnDeadline(t, clientConn)
+	require.NoError(t, WriteOpReqImport(clientConn, "1-1"))
+	header, err := ReadOpHeader(clientConn)
+	require.NoError(t, err)
+	require.Equal(t, OpRepImport, header.Code)
+	require.Equal(t, OpStatusError, header.Status)
+
+	var kernelConn net.Conn
+	select {
+	case kernelConn = <-kernelConnCh:
+	case err = <-kernelErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for failed server relay kernel conn")
+	}
+	defer kernelConn.Close()
+	setConnDeadline(t, kernelConn)
+	requireConnEOF(t, kernelConn)
+}
+
+func TestServerHandleImportRelayClosesHandoffOnReplyFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	kernelConnCh := make(chan net.Conn, 1)
+	kernelErrCh := make(chan error, 1)
+	rollbackCh := make(chan string, 1)
+	allowReply := make(chan struct{})
+	ops := newTestUSBIPOps(t)
+	ops.readUsbipStatus = store.readUsbipStatus
+	ops.readSysfsDevice = store.readSysfsDevice
+	ops.writeUsbipSockfd = func(busid string, fd int) error {
+		if fd < 0 {
+			rollbackCh <- busid
+			return nil
+		}
+		if busid != "1-1" {
+			kernelErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			<-allowReply
+			return nil
+		}
+		kernelConn, err := duplicateNetConnFromFD(uintptr(fd), "usbip-server-reply-failure-kernel")
+		if err != nil {
+			kernelErrCh <- err
+		} else {
+			kernelConnCh <- kernelConn
+		}
+		<-allowReply
+		return nil
+	}
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         ops,
+	}
+
+	serverConn, clientConn := net.Pipe()
+	go server.dispatchConn(opaqueConn{Conn: serverConn})
+
+	setConnDeadline(t, clientConn)
+	require.NoError(t, WriteOpReqImport(clientConn, "1-1"))
+
+	var kernelConn net.Conn
+	select {
+	case kernelConn = <-kernelConnCh:
+	case err := <-kernelErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for reply-failure relay kernel conn")
+	}
+	defer kernelConn.Close()
+	require.NoError(t, clientConn.Close())
+	close(allowReply)
+
+	select {
+	case busid := <-rollbackCh:
+		require.Equal(t, "1-1", busid)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for import rollback")
+	}
+	setConnDeadline(t, kernelConn)
+	requireConnEOF(t, kernelConn)
+}
+
 func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	t.Parallel()
 
@@ -910,6 +1277,224 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	require.Equal(t, info.DevID(), attachedDevID)
 	require.Equal(t, SpeedSuper, attachedSpeed)
 	require.Positive(t, store.lastSockfd("1-1"))
+}
+
+func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	serverConnCh := make(chan net.Conn, 1)
+	serverErrCh := make(chan error, 1)
+	serverDone := make(chan struct{})
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErrCh <- acceptErr
+			return
+		}
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			_ = conn.Close()
+			serverErrCh <- readErr
+			return
+		}
+		if header.Code != OpReqImport {
+			_ = conn.Close()
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		busid, readErr := ReadOpReqImportBody(conn)
+		if readErr != nil {
+			_ = conn.Close()
+			serverErrCh <- readErr
+			return
+		}
+		if busid != "1-1" {
+			_ = conn.Close()
+			serverErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			return
+		}
+		info := device.toProtocol()
+		if writeErr := WriteOpRepImport(conn, OpStatusOK, &info); writeErr != nil {
+			_ = conn.Close()
+			serverErrCh <- writeErr
+			return
+		}
+		serverConnCh <- conn
+		<-serverDone
+		_ = conn.Close()
+		serverErrCh <- nil
+	}()
+	defer close(serverDone)
+
+	kernelConnCh := make(chan net.Conn, 1)
+	ops := newTestUSBIPOps(t)
+	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+		require.Equal(t, SpeedHigh, speed)
+		return 4, nil
+	}
+	ops.vhciAttach = func(port int, fd uintptr, devid uint32, speed uint32) error {
+		require.Equal(t, 4, port)
+		requireStreamSocketFD(t, fd)
+		info := device.toProtocol()
+		require.Equal(t, info.DevID(), devid)
+		require.Equal(t, SpeedHigh, speed)
+		kernelConnCh <- duplicateConnFromFD(t, fd, "usbip-client-test-kernel")
+		return nil
+	}
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     wrappingDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        ops,
+	}
+
+	port, err := client.attemptAttach(ctx, "1-1")
+	require.NoError(t, err)
+	require.Equal(t, 4, port)
+
+	var serverConn net.Conn
+	select {
+	case serverConn = <-serverConnCh:
+	case err = <-serverErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for server conn")
+	}
+	var kernelConn net.Conn
+	select {
+	case kernelConn = <-kernelConnCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for client relay kernel conn")
+	}
+	defer kernelConn.Close()
+	setConnDeadline(t, serverConn)
+	setConnDeadline(t, kernelConn)
+
+	_, err = serverConn.Write([]byte("client-in"))
+	require.NoError(t, err)
+	requireConnRead(t, kernelConn, []byte("client-in"))
+
+	_, err = kernelConn.Write([]byte("client-out"))
+	require.NoError(t, err)
+	requireConnRead(t, serverConn, []byte("client-out"))
+}
+
+func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErrCh <- acceptErr
+			return
+		}
+		defer conn.Close()
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if header.Code != OpReqImport {
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		busid, readErr := ReadOpReqImportBody(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if busid != "1-1" {
+			serverErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			return
+		}
+		info := device.toProtocol()
+		if writeErr := WriteOpRepImport(conn, OpStatusOK, &info); writeErr != nil {
+			serverErrCh <- writeErr
+			return
+		}
+		buffer := make([]byte, 1)
+		n, readErr := conn.Read(buffer)
+		if n != 0 {
+			serverErrCh <- fmt.Errorf("unexpected server read bytes after attach failure: %d", n)
+			return
+		}
+		if !errors.Is(readErr, io.EOF) {
+			serverErrCh <- readErr
+			return
+		}
+		serverErrCh <- nil
+	}()
+
+	expectedErr := errors.New("vhci attach failed")
+	kernelConnCh := make(chan net.Conn, 1)
+	ops := newTestUSBIPOps(t)
+	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+		require.Equal(t, SpeedHigh, speed)
+		return 4, nil
+	}
+	ops.vhciAttach = func(port int, fd uintptr, devid uint32, speed uint32) error {
+		require.Equal(t, 4, port)
+		requireStreamSocketFD(t, fd)
+		info := device.toProtocol()
+		require.Equal(t, info.DevID(), devid)
+		require.Equal(t, SpeedHigh, speed)
+		kernelConnCh <- duplicateConnFromFD(t, fd, "usbip-client-vhci-failure-kernel")
+		return expectedErr
+	}
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(),
+		dialer:     wrappingDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        ops,
+	}
+
+	port, err := client.attemptAttach(ctx, "1-1")
+	require.Equal(t, -1, port)
+	require.ErrorIs(t, err, expectedErr)
+
+	var kernelConn net.Conn
+	select {
+	case kernelConn = <-kernelConnCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for failed client relay kernel conn")
+	}
+	defer kernelConn.Close()
+	setConnDeadline(t, kernelConn)
+	requireConnEOF(t, kernelConn)
+
+	select {
+	case err = <-serverErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for server side close")
+	}
+	client.portsMu.Lock()
+	_, reserved := client.ports[4]
+	client.portsMu.Unlock()
+	require.False(t, reserved)
 }
 
 func TestClientFetchDevListRejectsUnexpectedReplyVersion(t *testing.T) {

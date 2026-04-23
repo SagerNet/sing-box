@@ -23,6 +23,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -345,12 +346,17 @@ func (s *ServerService) dispatchConn(conn net.Conn) {
 }
 
 func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
-	defer conn.Close()
+	closeConn := true
+	defer func() {
+		if closeConn {
+			_ = conn.Close()
+		}
+	}()
 	switch header.Code {
 	case OpReqDevList:
 		s.handleDevList(conn)
 	case OpReqImport:
-		s.handleImport(conn)
+		closeConn = !s.handleImport(conn)
 	default:
 		s.logger.Debug("unknown opcode 0x", hex16(header.Code))
 	}
@@ -456,54 +462,53 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	return entries
 }
 
-func (s *ServerService) handleImport(conn net.Conn) {
+func (s *ServerService) handleImport(conn net.Conn) bool {
 	busid, err := ReadOpReqImportBody(conn)
 	if err != nil {
 		s.logger.Debug("read import body: ", err)
-		return
+		return false
 	}
 	if !s.isExported(busid) {
 		s.logger.Info("import rejected (unknown busid): ", busid)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
+		return false
 	}
 	status, err := s.ops.readUsbipStatus(busid)
 	if err != nil || status != usbipStatusAvailable {
 		s.logger.Info("import rejected (busid ", busid, " status=", status, " err=", err, ")")
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
+		return false
 	}
 	dev, err := s.ops.readSysfsDevice(busid, sysBusDevicePath(busid))
 	if err != nil {
 		s.logger.Warn("refresh ", busid, ": ", err)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
+		return false
 	}
-	tcp, ok := conn.(*net.TCPConn)
-	if !ok {
-		s.logger.Warn("import requires *net.TCPConn, got ", conn)
-		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
-	}
-	file, err := tcp.File()
+	handoff, err := newUSBIPConnHandoff(conn)
 	if err != nil {
-		s.logger.Warn("dup socket fd: ", err)
+		s.logger.Warn("prepare handoff ", busid, ": ", err)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
+		return false
 	}
-	defer file.Close()
-	if err := s.ops.writeUsbipSockfd(busid, int(file.Fd())); err != nil {
+	defer handoff.Close()
+	s.logger.Debug("usbip server handoff ", busid, ": ", handoff.mode())
+	if err := s.ops.writeUsbipSockfd(busid, int(handoff.kernelFD())); err != nil {
 		s.logger.Warn("hand off ", busid, " to kernel: ", err)
 		_ = WriteOpRepImport(conn, OpStatusError, nil)
-		return
+		return false
+	}
+	if err := handoff.closeKernelFD(); err != nil {
+		s.logger.Debug("close kernel fd ", busid, ": ", err)
 	}
 	info := dev.toProtocol()
 	if err := WriteOpRepImport(conn, OpStatusOK, &info); err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		_ = s.ops.writeUsbipSockfd(busid, -1)
-		return
+		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
+	return handoff.startRelay(s.ctx, s.logger, "server", busid)
 }
 
 func (s *ServerService) isExported(busid string) bool {

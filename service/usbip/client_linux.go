@@ -29,8 +29,10 @@ const (
 	controlSessionIdleHint = "control session lost"
 )
 
-var errImmediateReconnect = errors.New("usbip control reconnect")
-var errControlUnsupported = errors.New("usbip control unsupported")
+var (
+	errImmediateReconnect = errors.New("usbip control reconnect")
+	errControlUnsupported = errors.New("usbip control unsupported")
+)
 
 type clientTarget struct {
 	fixedBusID string
@@ -542,7 +544,12 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if err != nil {
 		return -1, E.Cause(err, "dial ", c.serverAddr)
 	}
-	defer conn.Close()
+	relayStarted := false
+	defer func() {
+		if !relayStarted {
+			_ = conn.Close()
+		}
+	}()
 	stopCloseOnCancel := closeConnOnContextDone(ctx, conn)
 	defer stopCloseOnCancel()
 	if err := WriteOpReqImport(conn, busid); err != nil {
@@ -565,15 +572,16 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if err != nil {
 		return -1, E.Cause(err, "read OP_REP_IMPORT body")
 	}
-	tcp, ok := conn.(*net.TCPConn)
-	if !ok {
-		return -1, E.New("dialed conn is not *net.TCPConn (type=", conn, ")")
-	}
-	file, err := tcp.File()
+	handoff, err := newUSBIPConnHandoff(conn)
 	if err != nil {
-		return -1, E.Cause(err, "dup socket fd")
+		return -1, E.Cause(err, "prepare handoff")
 	}
-	defer file.Close()
+	defer func() {
+		if !relayStarted {
+			_ = handoff.Close()
+		}
+	}()
+	c.logger.Debug("usbip client handoff ", busid, ": ", handoff.mode())
 	c.attachMu.Lock()
 	defer c.attachMu.Unlock()
 	port, err := c.ops.vhciPickFreePort(info.Speed)
@@ -583,10 +591,14 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	if !c.reservePort(port) {
 		return -1, E.New("vhci port ", port, " already reserved")
 	}
-	if err := c.ops.vhciAttach(port, file.Fd(), info.DevID(), info.Speed); err != nil {
+	if err := c.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed); err != nil {
 		c.trackPort(port, false)
 		return -1, E.Cause(err, "vhci attach")
 	}
+	if err := handoff.closeKernelFD(); err != nil {
+		c.logger.Debug("close kernel fd ", busid, ": ", err)
+	}
+	relayStarted = handoff.startRelay(ctx, c.logger, "client", busid)
 	return port, nil
 }
 
