@@ -485,7 +485,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		}
 		c.logger.Info("attached ", busid, " through IOUSBHostControllerInterface")
 		c.setBusIDActive(busid, true)
-		controller.Wait()
+		waitDarwinController(ctx, controller)
 		c.setBusIDActive(busid, false)
 		if err := ctx.Err(); err != nil {
 			controller.Close()
@@ -499,6 +499,15 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if !sleepCtx(ctx, clientReconnectDelay) {
 			return
 		}
+	}
+}
+
+func waitDarwinController(ctx context.Context, controller *darwinVirtualController) {
+	select {
+	case <-controller.done:
+	case <-ctx.Done():
+		controller.Close()
+		controller.Wait()
 	}
 }
 
@@ -592,6 +601,19 @@ type darwinControlState struct {
 	setup [8]byte
 }
 
+type darwinPendingSubmit struct {
+	direction uint32
+	reply     chan SubmitResponse
+}
+
+type darwinEndpointStateMachine interface {
+	Close()
+	respond(message darwinCIMessage, status int) error
+	processDoorbell(doorbell uint32) error
+	currentTransfer() darwinCITransfer
+	complete(transfer darwinCITransfer, status int, length int) error
+}
+
 type darwinVirtualController struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -608,14 +630,14 @@ type darwinVirtualController struct {
 
 	writeMu   sync.Mutex
 	pendingMu sync.Mutex
-	pending   map[uint32]chan SubmitResponse
+	pending   map[uint32]darwinPendingSubmit
 
 	stateMu       sync.Mutex
 	powered       bool
 	connected     bool
 	nextAddress   uint8
 	devices       map[uint8]*darwinUSBHostDeviceSM
-	endpoints     map[darwinEndpointKey]*darwinUSBHostEndpointSM
+	endpoints     map[darwinEndpointKey]darwinEndpointStateMachine
 	controlStates map[uint8]darwinControlState
 }
 
@@ -630,10 +652,10 @@ func newDarwinVirtualController(ctx context.Context, logger log.ContextLogger, c
 		startTime:     time.Now(),
 		events:        make(chan darwinControllerEvent, 64),
 		done:          make(chan struct{}),
-		pending:       make(map[uint32]chan SubmitResponse),
+		pending:       make(map[uint32]darwinPendingSubmit),
 		nextAddress:   1,
 		devices:       make(map[uint8]*darwinUSBHostDeviceSM),
-		endpoints:     make(map[darwinEndpointKey]*darwinUSBHostEndpointSM),
+		endpoints:     make(map[darwinEndpointKey]darwinEndpointStateMachine),
 		controlStates: make(map[uint8]darwinControlState),
 	}
 }
@@ -703,7 +725,11 @@ func (c *darwinVirtualController) readLoop() {
 		}
 		switch header.Command {
 		case RetSubmit:
-			response, err := ReadSubmitResponseBody(c.conn, header)
+			payloadDirection, ok := c.pendingSubmitDirection(header.SeqNum)
+			if !ok {
+				payloadDirection = header.Direction
+			}
+			response, err := ReadSubmitResponseBody(c.conn, header, payloadDirection)
 			if err != nil {
 				c.logger.Debug("read RET_SUBMIT: ", err)
 				c.failPending()
@@ -862,6 +888,9 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 			return
 		}
 		status, length := c.handleTransfer(key, transfer.message)
+		if transfer.message.noResponse() {
+			return
+		}
 		if err := endpoint.complete(transfer, darwinUSBIPStatusToCIStatus(status), length); err != nil {
 			c.logger.Debug("complete transfer: ", err)
 			c.Close()
@@ -914,6 +943,7 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 			Endpoint:  0,
 		},
 		TransferBufferLength: int32(length),
+		NumberOfPackets:      nonIsoPacketCount,
 		Setup:                state.setup,
 		Buffer:               buffer,
 	})
@@ -944,7 +974,8 @@ func (c *darwinVirtualController) handleControlStatusTransfer(key darwinEndpoint
 			Direction: USBIPDirOut,
 			Endpoint:  0,
 		},
-		Setup: state.setup,
+		NumberOfPackets: nonIsoPacketCount,
+		Setup:           state.setup,
 	})
 	if err != nil {
 		return -int32(unix.EIO), 0
@@ -969,6 +1000,7 @@ func (c *darwinVirtualController) handleNormalTransfer(key darwinEndpointKey, me
 			Endpoint:  uint32(key.endpoint & 0x0f),
 		},
 		TransferBufferLength: int32(length),
+		NumberOfPackets:      nonIsoPacketCount,
 		Buffer:               buffer,
 	})
 	if err != nil {
@@ -1017,9 +1049,12 @@ func (c *darwinVirtualController) handleIsoTransfer(key darwinEndpointKey, messa
 func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitResponse, error) {
 	seq := c.seq.Add(1)
 	command.Header.SeqNum = seq
+	if command.NumberOfPackets == 0 && len(command.IsoPackets) == 0 {
+		command.NumberOfPackets = nonIsoPacketCount
+	}
 	reply := make(chan SubmitResponse, 1)
 	c.pendingMu.Lock()
-	c.pending[seq] = reply
+	c.pending[seq] = darwinPendingSubmit{direction: command.Header.Direction, reply: reply}
 	c.pendingMu.Unlock()
 	defer func() {
 		c.pendingMu.Lock()
@@ -1043,10 +1078,21 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 	}
 }
 
+func (c *darwinVirtualController) pendingSubmitDirection(seq uint32) (uint32, bool) {
+	c.pendingMu.Lock()
+	defer c.pendingMu.Unlock()
+	pending, ok := c.pending[seq]
+	if !ok {
+		return 0, false
+	}
+	return pending.direction, true
+}
+
 func (c *darwinVirtualController) deliverSubmit(response SubmitResponse) {
 	c.pendingMu.Lock()
-	reply := c.pending[response.Header.SeqNum]
+	pending := c.pending[response.Header.SeqNum]
 	c.pendingMu.Unlock()
+	reply := pending.reply
 	if reply == nil {
 		return
 	}
@@ -1059,9 +1105,9 @@ func (c *darwinVirtualController) deliverSubmit(response SubmitResponse) {
 func (c *darwinVirtualController) failPending() {
 	c.pendingMu.Lock()
 	defer c.pendingMu.Unlock()
-	for seq, reply := range c.pending {
+	for seq, pending := range c.pending {
 		delete(c.pending, seq)
-		close(reply)
+		close(pending.reply)
 	}
 }
 

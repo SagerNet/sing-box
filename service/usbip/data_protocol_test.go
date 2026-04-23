@@ -25,7 +25,7 @@ func TestUSBIPSubmitCommandRoundTripOut(t *testing.T) {
 		TransferFlags:        0x400,
 		TransferBufferLength: 3,
 		StartFrame:           11,
-		NumberOfPackets:      0,
+		NumberOfPackets:      nonIsoPacketCount,
 		Interval:             4,
 		Setup:                [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
 		Buffer:               []byte{1, 2, 3},
@@ -55,6 +55,7 @@ func TestUSBIPSubmitCommandRoundTripInOmitsCommandPayload(t *testing.T) {
 			Endpoint:  1,
 		},
 		TransferBufferLength: 4,
+		NumberOfPackets:      nonIsoPacketCount,
 		Buffer:               []byte{9, 8, 7, 6},
 	}
 
@@ -99,10 +100,11 @@ func TestUSBIPSubmitResponseRoundTripInWithIsoPackets(t *testing.T) {
 
 	header, err := ReadDataHeader(&buffer)
 	require.NoError(t, err)
-	require.Equal(t, expected.Header, header)
+	require.Equal(t, DataHeader{Command: RetSubmit, SeqNum: expected.Header.SeqNum}, header)
 
-	actual, err := ReadSubmitResponseBody(&buffer, header)
+	actual, err := ReadSubmitResponseBody(&buffer, header, expected.Header.Direction)
 	require.NoError(t, err)
+	expected.Header = DataHeader{Command: RetSubmit, SeqNum: expected.Header.SeqNum}
 	require.Equal(t, expected, actual)
 }
 
@@ -117,9 +119,10 @@ func TestUSBIPSubmitResponseRoundTripOutOmitsResponsePayload(t *testing.T) {
 			Direction: USBIPDirOut,
 			Endpoint:  2,
 		},
-		Status:       0,
-		ActualLength: 3,
-		Buffer:       []byte{1, 2, 3},
+		Status:          0,
+		ActualLength:    3,
+		NumberOfPackets: nonIsoPacketCount,
+		Buffer:          []byte{1, 2, 3},
 	}
 
 	var buffer bytes.Buffer
@@ -128,11 +131,51 @@ func TestUSBIPSubmitResponseRoundTripOutOmitsResponsePayload(t *testing.T) {
 
 	header, err := ReadDataHeader(&buffer)
 	require.NoError(t, err)
-	actual, err := ReadSubmitResponseBody(&buffer, header)
+	actual, err := ReadSubmitResponseBody(&buffer, header, expected.Header.Direction)
 	require.NoError(t, err)
-	require.Equal(t, expected.Header, actual.Header)
+	require.Equal(t, DataHeader{Command: RetSubmit, SeqNum: expected.Header.SeqNum}, actual.Header)
 	require.Equal(t, expected.ActualLength, actual.ActualLength)
+	require.Equal(t, expected.NumberOfPackets, actual.NumberOfPackets)
 	require.Empty(t, actual.Buffer)
+}
+
+func TestUSBIPSubmitResponseReadsPayloadFromOriginalDirection(t *testing.T) {
+	t.Parallel()
+
+	expected := SubmitResponse{
+		Header: DataHeader{
+			Command:   RetSubmit,
+			SeqNum:    42,
+			Direction: USBIPDirIn,
+		},
+		Status:          0,
+		ActualLength:    3,
+		NumberOfPackets: nonIsoPacketCount,
+		Buffer:          []byte{4, 5, 6},
+	}
+
+	var buffer bytes.Buffer
+	require.NoError(t, WriteSubmitResponse(&buffer, expected))
+
+	header, err := ReadDataHeader(&buffer)
+	require.NoError(t, err)
+	require.Equal(t, DataHeader{Command: RetSubmit, SeqNum: expected.Header.SeqNum}, header)
+
+	actual, err := ReadSubmitResponseBody(&buffer, header, USBIPDirIn)
+	require.NoError(t, err)
+	expected.Header = header
+	require.Equal(t, expected, actual)
+}
+
+func TestUSBIPSubmitCommandAcceptsNonISOPacketSentinel(t *testing.T) {
+	t.Parallel()
+
+	var raw [28]byte
+	binary.BigEndian.PutUint32(raw[12:16], 0xffffffff)
+	command, err := ReadSubmitCommandBody(bytes.NewReader(raw[:]), DataHeader{Command: CmdSubmit, Direction: USBIPDirIn})
+	require.NoError(t, err)
+	require.Equal(t, int32(nonIsoPacketCount), command.NumberOfPackets)
+	require.Empty(t, command.IsoPackets)
 }
 
 func TestUSBIPUnlinkRoundTrip(t *testing.T) {
@@ -175,6 +218,7 @@ func TestUSBIPUnlinkRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	actualResponse, err := ReadUnlinkResponseBody(&buffer, header)
 	require.NoError(t, err)
+	response.Header = DataHeader{Command: RetUnlink, SeqNum: command.Header.SeqNum}
 	require.Equal(t, response, actualResponse)
 }
 
@@ -282,4 +326,9 @@ func TestUSBIPRejectsInvalidDataPlaneLengths(t *testing.T) {
 	binary.BigEndian.PutUint32(raw[12:16], uint32(maxUSBIPIsoPackets+1))
 	_, err = ReadSubmitCommandBody(bytes.NewReader(raw[:]), DataHeader{Command: CmdSubmit, Direction: USBIPDirIn})
 	require.ErrorContains(t, err, "too large")
+
+	raw = [28]byte{}
+	binary.BigEndian.PutUint32(raw[12:16], 0xfffffffe)
+	_, err = ReadSubmitCommandBody(bytes.NewReader(raw[:]), DataHeader{Command: CmdSubmit, Direction: USBIPDirIn})
+	require.ErrorContains(t, err, "negative")
 }

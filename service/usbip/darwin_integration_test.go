@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
@@ -112,6 +113,144 @@ func requireDarwinUserHCI(t *testing.T) {
 		t.Skipf("IOUSBHostControllerInterface unavailable: %v", err)
 	}
 	hostController.Close()
+}
+
+func TestDarwinVirtualControllerReadsCompliantSubmitResponsePayload(t *testing.T) {
+	t.Parallel()
+
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{
+		BusNum: 1,
+		DevNum: 1,
+	})
+	go controller.readLoop()
+	t.Cleanup(controller.Close)
+
+	responseCh := make(chan SubmitResponse, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		response, err := controller.sendSubmit(SubmitCommand{
+			Header: DataHeader{
+				Command:   CmdSubmit,
+				DevID:     0x00010001,
+				Direction: USBIPDirIn,
+				Endpoint:  1,
+			},
+			TransferBufferLength: 3,
+		})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		responseCh <- response
+	}()
+
+	header, err := ReadDataHeader(serverConn)
+	require.NoError(t, err)
+	command, err := ReadSubmitCommandBody(serverConn, header)
+	require.NoError(t, err)
+	require.Equal(t, USBIPDirIn, command.Header.Direction)
+	require.Equal(t, int32(nonIsoPacketCount), command.NumberOfPackets)
+
+	require.NoError(t, WriteSubmitResponse(serverConn, SubmitResponse{
+		Header: DataHeader{
+			Command:   RetSubmit,
+			SeqNum:    header.SeqNum,
+			Direction: USBIPDirIn,
+		},
+		Status:       0,
+		ActualLength: 3,
+		Buffer:       []byte{1, 2, 3},
+	}))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case response := <-responseCh:
+		require.Equal(t, DataHeader{Command: RetSubmit, SeqNum: header.SeqNum}, response.Header)
+		require.Equal(t, int32(nonIsoPacketCount), response.NumberOfPackets)
+		require.Equal(t, []byte{1, 2, 3}, response.Buffer)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for submit response")
+	}
+}
+
+func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
+	t.Parallel()
+
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{})
+	go controller.readLoop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	done := make(chan struct{})
+	go func() {
+		waitDarwinController(ctx, controller)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for controller cancellation")
+	}
+	select {
+	case <-controller.done:
+	default:
+		t.Fatal("controller read loop still active after cancellation")
+	}
+}
+
+type fakeDarwinEndpointStateMachine struct {
+	transfer       darwinCITransfer
+	currentRead    bool
+	completeCalled int
+}
+
+func (f *fakeDarwinEndpointStateMachine) Close() {}
+
+func (f *fakeDarwinEndpointStateMachine) respond(darwinCIMessage, int) error {
+	return nil
+}
+
+func (f *fakeDarwinEndpointStateMachine) processDoorbell(uint32) error {
+	return nil
+}
+
+func (f *fakeDarwinEndpointStateMachine) currentTransfer() darwinCITransfer {
+	if f.currentRead {
+		return darwinCITransfer{}
+	}
+	f.currentRead = true
+	return f.transfer
+}
+
+func (f *fakeDarwinEndpointStateMachine) complete(darwinCITransfer, int, int) error {
+	f.completeCalled++
+	return nil
+}
+
+func TestDarwinHandleDoorbellSkipsNoResponseCompletion(t *testing.T) {
+	t.Parallel()
+
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	message := darwinCIMessage{
+		control: (1 << 15) | (1 << 14) | 0x3c,
+		data0:   (uint32(2) << 8) | 1,
+	}
+	endpoint := &fakeDarwinEndpointStateMachine{
+		transfer: darwinCITransfer{
+			ptr:     unsafe.Pointer(&message),
+			message: message,
+		},
+	}
+	controller.endpoints[darwinEndpointKey{device: 1, endpoint: 2}] = endpoint
+
+	controller.handleDoorbell((uint32(2) << 8) | 1)
+	require.Zero(t, endpoint.completeCalled)
 }
 
 func startDarwinFakeUSBIPServer(t *testing.T) *darwinFakeUSBIPServer {
@@ -300,7 +439,8 @@ func (s *darwinFakeUSBIPServer) submitResponse(command SubmitCommand) SubmitResp
 			Direction: command.Header.Direction,
 			Endpoint:  command.Header.Endpoint,
 		},
-		Status: 0,
+		Status:          0,
+		NumberOfPackets: nonIsoPacketCount,
 	}
 	if command.Header.Endpoint != 0 {
 		return response
@@ -459,7 +599,7 @@ func TestDarwinUSBIPServerSelectedDeviceConfiguresDevice(t *testing.T) {
 	dataHeader, err := ReadDataHeader(conn)
 	require.NoError(t, err)
 	require.Equal(t, RetSubmit, dataHeader.Command)
-	response, err := ReadSubmitResponseBody(conn, dataHeader)
+	response, err := ReadSubmitResponseBody(conn, dataHeader, USBIPDirIn)
 	require.NoError(t, err)
 	require.Equal(t, int32(0), response.Status)
 	require.GreaterOrEqual(t, len(response.Buffer), 18)
@@ -517,7 +657,7 @@ func darwinSubmitControl(t *testing.T, conn net.Conn, command SubmitCommand) Sub
 	require.NoError(t, err)
 	require.Equal(t, RetSubmit, dataHeader.Command)
 	require.Equal(t, command.Header.SeqNum, dataHeader.SeqNum)
-	response, err := ReadSubmitResponseBody(conn, dataHeader)
+	response, err := ReadSubmitResponseBody(conn, dataHeader, command.Header.Direction)
 	require.NoError(t, err)
 	return response
 }

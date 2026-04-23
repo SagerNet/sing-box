@@ -21,6 +21,7 @@ const (
 	isoPacketDescriptorWireSize  = 16
 	maxUSBIPTransferBufferLength = 16 << 20
 	maxUSBIPIsoPackets           = 4096
+	nonIsoPacketCount            = -1
 )
 
 type DataHeader struct {
@@ -109,7 +110,7 @@ func ReadSubmitCommandBody(r io.Reader, header DataHeader) (SubmitCommand, error
 	return command, nil
 }
 
-func ReadSubmitResponseBody(r io.Reader, header DataHeader) (SubmitResponse, error) {
+func ReadSubmitResponseBody(r io.Reader, header DataHeader, payloadDirection uint32) (SubmitResponse, error) {
 	var raw [28]byte
 	if _, err := io.ReadFull(r, raw[:]); err != nil {
 		return SubmitResponse{}, err
@@ -127,7 +128,7 @@ func ReadSubmitResponseBody(r io.Reader, header DataHeader) (SubmitResponse, err
 	if bufferLength < 0 {
 		bufferLength = 0
 	}
-	buffer, isoPackets, err := readUSBIPPayload(r, header.Direction, bufferLength, response.NumberOfPackets, false)
+	buffer, isoPackets, err := readUSBIPPayload(r, payloadDirection, bufferLength, response.NumberOfPackets, false)
 	if err != nil {
 		return SubmitResponse{}, err
 	}
@@ -162,7 +163,8 @@ func WriteSubmitCommand(w io.Writer, command SubmitCommand) error {
 	if err := validateUSBIPBufferLength(command.TransferBufferLength); err != nil {
 		return err
 	}
-	if err := validateUSBIPIsoPacketCount(command.NumberOfPackets); err != nil {
+	packetCount := normalizeUSBIPIsoPacketCount(command.NumberOfPackets, command.IsoPackets)
+	if err := validateUSBIPIsoPacketCount(packetCount); err != nil {
 		return err
 	}
 	if err := writeDataHeader(w, command.Header); err != nil {
@@ -172,7 +174,7 @@ func WriteSubmitCommand(w io.Writer, command SubmitCommand) error {
 	binary.BigEndian.PutUint32(raw[0:4], uint32(command.TransferFlags))
 	binary.BigEndian.PutUint32(raw[4:8], uint32(command.TransferBufferLength))
 	binary.BigEndian.PutUint32(raw[8:12], uint32(command.StartFrame))
-	binary.BigEndian.PutUint32(raw[12:16], uint32(command.NumberOfPackets))
+	binary.BigEndian.PutUint32(raw[12:16], uint32(packetCount))
 	binary.BigEndian.PutUint32(raw[16:20], uint32(command.Interval))
 	copy(raw[20:28], command.Setup[:])
 	if _, err := w.Write(raw[:]); err != nil {
@@ -188,23 +190,26 @@ func WriteSubmitResponse(w io.Writer, response SubmitResponse) error {
 	if err := validateUSBIPBufferLength(response.ActualLength); err != nil {
 		return err
 	}
-	if err := validateUSBIPIsoPacketCount(response.NumberOfPackets); err != nil {
+	packetCount := normalizeUSBIPIsoPacketCount(response.NumberOfPackets, response.IsoPackets)
+	if err := validateUSBIPIsoPacketCount(packetCount); err != nil {
 		return err
 	}
-	if err := writeDataHeader(w, response.Header); err != nil {
+	payloadDirection := response.Header.Direction
+	header := responseDataHeader(response.Header)
+	if err := writeDataHeader(w, header); err != nil {
 		return err
 	}
 	var raw [28]byte
 	binary.BigEndian.PutUint32(raw[0:4], uint32(response.Status))
 	binary.BigEndian.PutUint32(raw[4:8], uint32(response.ActualLength))
 	binary.BigEndian.PutUint32(raw[8:12], uint32(response.StartFrame))
-	binary.BigEndian.PutUint32(raw[12:16], uint32(response.NumberOfPackets))
+	binary.BigEndian.PutUint32(raw[12:16], uint32(packetCount))
 	binary.BigEndian.PutUint32(raw[16:20], uint32(response.ErrorCount))
 	copy(raw[20:28], response.Setup[:])
 	if _, err := w.Write(raw[:]); err != nil {
 		return err
 	}
-	return writeUSBIPPayload(w, response.Header.Direction, response.Buffer, response.IsoPackets, false)
+	return writeUSBIPPayload(w, payloadDirection, response.Buffer, response.IsoPackets, false)
 }
 
 func WriteUnlinkCommand(w io.Writer, command UnlinkCommand) error {
@@ -218,7 +223,7 @@ func WriteUnlinkCommand(w io.Writer, command UnlinkCommand) error {
 }
 
 func WriteUnlinkResponse(w io.Writer, response UnlinkResponse) error {
-	if err := writeDataHeader(w, response.Header); err != nil {
+	if err := writeDataHeader(w, responseDataHeader(response.Header)); err != nil {
 		return err
 	}
 	var raw [unlinkBodySize]byte
@@ -276,8 +281,25 @@ func shouldCarryUSBIPBuffer(direction uint32, command bool) bool {
 	return direction == USBIPDirIn
 }
 
+func normalizeUSBIPIsoPacketCount(count int32, packets []IsoPacketDescriptor) int32 {
+	if count == 0 && len(packets) == 0 {
+		return nonIsoPacketCount
+	}
+	if count == 0 && len(packets) > 0 {
+		return int32(len(packets))
+	}
+	return count
+}
+
+func responseDataHeader(header DataHeader) DataHeader {
+	return DataHeader{
+		Command: header.Command,
+		SeqNum:  header.SeqNum,
+	}
+}
+
 func readUSBIPIsoPackets(r io.Reader, count int32) ([]IsoPacketDescriptor, error) {
-	if count == 0 {
+	if count <= 0 {
 		return nil, nil
 	}
 	packets := make([]IsoPacketDescriptor, int(count))
@@ -321,7 +343,7 @@ func validateUSBIPBufferLength(length int32) error {
 }
 
 func validateUSBIPIsoPacketCount(count int32) error {
-	if count < 0 {
+	if count < nonIsoPacketCount {
 		return E.New("USB/IP iso packet count is negative: ", count)
 	}
 	if count > maxUSBIPIsoPackets {
