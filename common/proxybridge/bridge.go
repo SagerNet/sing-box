@@ -15,23 +15,14 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	protocolHTTP "github.com/sagernet/sing/protocol/http"
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/service"
-)
-
-type protocol uint8
-
-const (
-	protocolSOCKS protocol = iota
-	protocolHTTPProxy
 )
 
 type Bridge struct {
 	ctx           context.Context
 	logger        logger.ContextLogger
 	tag           string
-	protocol      protocol
 	dialer        N.Dialer
 	connection    adapter.ConnectionManager
 	tcpListener   *net.TCPListener
@@ -41,32 +32,22 @@ type Bridge struct {
 }
 
 func New(ctx context.Context, logger logger.ContextLogger, tag string, dialer N.Dialer) (*Bridge, error) {
-	return newBridge(ctx, logger, tag, protocolSOCKS, dialer)
-}
-
-func NewHTTP(ctx context.Context, logger logger.ContextLogger, tag string, dialer N.Dialer) (*Bridge, error) {
-	return newBridge(ctx, logger, tag, protocolHTTPProxy, dialer)
-}
-
-func newBridge(ctx context.Context, logger logger.ContextLogger, tag string, protocol protocol, dialer N.Dialer) (*Bridge, error) {
+	username := randomHex(16)
+	password := randomHex(16)
 	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		return nil, err
 	}
-	username := randomHex(16)
-	password := randomHex(16)
-	authenticator := auth.NewAuthenticator([]auth.User{{Username: username, Password: password}})
 	bridge := &Bridge{
 		ctx:           ctx,
 		logger:        logger,
 		tag:           tag,
-		protocol:      protocol,
 		dialer:        dialer,
 		connection:    service.FromContext[adapter.ConnectionManager](ctx),
 		tcpListener:   tcpListener,
 		username:      username,
 		password:      password,
-		authenticator: authenticator,
+		authenticator: auth.NewAuthenticator([]auth.User{{Username: username, Password: password}}),
 	}
 	go bridge.acceptLoop()
 	return bridge, nil
@@ -102,16 +83,7 @@ func (b *Bridge) acceptLoop() {
 		}
 		ctx := log.ContextWithNewID(b.ctx)
 		go func() {
-			reader := std_bufio.NewReader(tcpConn)
-			var hErr error
-			switch b.protocol {
-			case protocolSOCKS:
-				hErr = socks.HandleConnectionEx(ctx, tcpConn, reader, b.authenticator, b, nil, 0, M.SocksaddrFromNet(tcpConn.RemoteAddr()), nil)
-			case protocolHTTPProxy:
-				hErr = protocolHTTP.HandleConnectionEx(ctx, tcpConn, reader, b.authenticator, b, M.SocksaddrFromNet(tcpConn.RemoteAddr()), nil)
-			default:
-				hErr = E.New("unknown proxy bridge protocol")
-			}
+			hErr := socks.HandleConnectionEx(ctx, tcpConn, std_bufio.NewReader(tcpConn), b.authenticator, b, nil, 0, M.SocksaddrFromNet(tcpConn.RemoteAddr()), nil)
 			if hErr == nil {
 				return
 			}

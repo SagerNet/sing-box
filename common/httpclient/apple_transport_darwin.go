@@ -39,12 +39,14 @@ import (
 
 const applePinnedHashSize = sha256.Size
 
-var newAppleUserAnchors = certificate.NewAppleAnchors
-var newAppleProxyBridge = proxybridge.New
-var newAppleTransportSession = func(shared *appleTransportShared) (unsafe.Pointer, error) {
-	session, err := shared.newSession()
-	return unsafe.Pointer(session), err
-}
+var (
+	newAppleUserAnchors      = certificate.NewAppleAnchors
+	newAppleProxyBridge      = proxybridge.New
+	newAppleTransportSession = func(shared *appleTransportShared) (unsafe.Pointer, error) {
+		session, err := shared.newSession()
+		return unsafe.Pointer(session), err
+	}
+)
 
 func verifyApplePinnedPublicKeySHA256(flatHashes []byte, leafCertificate []byte) error {
 	if len(flatHashes)%applePinnedHashSize != 0 {

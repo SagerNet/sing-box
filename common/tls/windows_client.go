@@ -23,6 +23,7 @@ import (
 const (
 	windowsTLSEngineName   = "Windows TLS engine"
 	handshakeReadChunkSize = 8192
+	readScratchSize        = 16 * 1024
 )
 
 type windowsClientConfig struct {
@@ -109,7 +110,7 @@ func (c *windowsClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	}
 
 	handshakeOK = true
-	return &windowsTLSConn{
+	tlsConn := &windowsTLSConn{
 		rawConn:      conn,
 		client:       client,
 		state:        state,
@@ -117,11 +118,10 @@ func (c *windowsClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 		trailer:      trailer,
 		maxMessage:   maxMessage,
 		cipher:       leftover,
-		plainStorage: make([]byte, maxMessage),
-		readScratch:  make([]byte, 16*1024),
+		readScratch:  make([]byte, readScratchSize),
 		writeScratch: make([]byte, int(header)+int(maxMessage)+int(trailer)),
-		closed:       make(chan struct{}),
-	}, nil
+	}
+	return tlsConn, nil
 }
 
 func driveHandshake(ctx context.Context, conn net.Conn, client *schannel.ClientContext, scratch []byte) ([]byte, error) {
@@ -152,9 +152,6 @@ func driveSteps(
 	readMore func() ([]byte, error),
 	writeOut func([]byte) error,
 ) ([]byte, error) {
-	// Schannel reports how much input it consumed and whether it needs more.
-	// Keep feeding peer bytes until the handshake completes, then return any
-	// leftover ciphertext or coalesced application data to the caller.
 	buffer := initial
 	for {
 		result, stepErr := step(buffer)
@@ -303,17 +300,9 @@ type windowsTLSConn struct {
 	readAccess   sync.Mutex
 	writeAccess  sync.Mutex
 	clientAccess sync.Mutex
-	closeOnce    sync.Once
-
-	writeState     sync.Mutex
-	writeStateOnce sync.Once
-	writeReady     *sync.Cond
-	postHandshake  bool
-	writeActive    bool
 
 	cipher       []byte
 	plain        []byte
-	plainStorage []byte
 	readScratch  []byte
 	writeScratch []byte
 	readEOF      bool
@@ -321,7 +310,7 @@ type windowsTLSConn struct {
 	deadlineAccess sync.Mutex
 	readDeadline   time.Time
 	writeDeadline  time.Time
-	closed         chan struct{}
+	closed         atomic.Bool
 }
 
 func (c *windowsTLSConn) Read(p []byte) (int, error) {
@@ -367,13 +356,10 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 				return 0, io.EOF
 			}
 			if !result.Incomplete {
-				// Extract plaintext into caller buffer + overflow while the
-				// cipher memory is still valid; Plaintext aliases c.cipher.
 				n := copy(p, result.Plaintext)
 				var extra []byte
 				if n < len(result.Plaintext) {
-					count := copy(c.plainStorage, result.Plaintext[n:])
-					extra = c.plainStorage[:count]
+					extra = append([]byte(nil), result.Plaintext[n:]...)
 				}
 				nextCipher := c.cipher[result.ConsumedTotal:]
 				if len(result.RenegotiateToken) > 0 {
@@ -406,16 +392,14 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 	}
 }
 
-// c.cipher already contains the raw post-handshake record that Schannel wants
-// fed back through InitializeSecurityContext.
 func (c *windowsTLSConn) drivePostHandshake() error {
 	initial := c.cipher
 	c.cipher = nil
-	err := c.beginPostHandshakeWrite()
+	err := c.lockWrite()
 	if err != nil {
 		return err
 	}
-	defer c.finishPostHandshakeWrite()
+	defer c.unlockWrite()
 	c.clientAccess.Lock()
 	if c.client == nil {
 		c.clientAccess.Unlock()
@@ -451,16 +435,6 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 	return nil
 }
 
-func (c *windowsTLSConn) writePostHandshakeReply(data []byte) error {
-	c.writeAccess.Lock()
-	defer c.writeAccess.Unlock()
-	err := c.writePostHandshakeReplyLocked(data)
-	if err != nil {
-		_ = c.Close()
-	}
-	return err
-}
-
 func (c *windowsTLSConn) writePostHandshakeReplyLocked(data []byte) error {
 	c.deadlineAccess.Lock()
 	deadline := c.readDeadline
@@ -479,11 +453,11 @@ func (c *windowsTLSConn) readRaw(requireMore bool) ([]byte, error) {
 }
 
 func (c *windowsTLSConn) Write(p []byte) (int, error) {
-	err := c.beginWrite()
+	err := c.lockWrite()
 	if err != nil {
 		return 0, err
 	}
-	defer c.finishWrite()
+	defer c.unlockWrite()
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -514,7 +488,6 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 		if encryptErr != nil {
 			return total, E.Cause(encryptErr, "tls encrypt")
 		}
-		//nolint:gpt There's no fucking short write here
 		_, writeErr := c.rawConn.Write(encrypted)
 		if writeErr != nil {
 			_ = c.Close()
@@ -527,21 +500,16 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 }
 
 func (c *windowsTLSConn) Close() error {
-	var closeErr error
-	c.closeOnce.Do(func() {
-		close(c.closed)
-		ready := c.writeCondition()
-		c.writeState.Lock()
-		ready.Broadcast()
-		c.writeState.Unlock()
-		closeErr = c.rawConn.Close()
-		c.clientAccess.Lock()
-		if c.client != nil {
-			c.client.Close()
-			c.client = nil
-		}
-		c.clientAccess.Unlock()
-	})
+	if !c.closed.CompareAndSwap(false, true) {
+		return nil
+	}
+	closeErr := c.rawConn.Close()
+	c.clientAccess.Lock()
+	if c.client != nil {
+		c.client.Close()
+		c.client = nil
+	}
+	c.clientAccess.Unlock()
 	return closeErr
 }
 
@@ -627,92 +595,19 @@ func (c *windowsTLSConn) applyDeadline(deadline time.Time, set func(time.Time) e
 	return func() { _ = set(time.Time{}) }, nil
 }
 
-func (c *windowsTLSConn) beginWrite() error {
-	ready := c.writeCondition()
-	c.writeState.Lock()
-	for c.postHandshake || c.writeActive {
-		if c.isClosed() {
-			c.writeState.Unlock()
-			return net.ErrClosed
-		}
-		ready.Wait()
-	}
-	c.writeActive = true
-	c.writeState.Unlock()
-
+func (c *windowsTLSConn) lockWrite() error {
 	c.writeAccess.Lock()
-
-	if c.isClosed() {
+	if c.closed.Load() {
 		c.writeAccess.Unlock()
-		c.writeState.Lock()
-		c.writeActive = false
-		ready.Broadcast()
-		c.writeState.Unlock()
 		return net.ErrClosed
 	}
 	return nil
 }
 
-func (c *windowsTLSConn) finishWrite() {
+func (c *windowsTLSConn) unlockWrite() {
 	c.writeAccess.Unlock()
-	ready := c.writeCondition()
-	c.writeState.Lock()
-	c.writeActive = false
-	ready.Broadcast()
-	c.writeState.Unlock()
-}
-
-func (c *windowsTLSConn) beginPostHandshakeWrite() error {
-	ready := c.writeCondition()
-	c.writeState.Lock()
-	c.postHandshake = true
-	for c.writeActive {
-		if c.isClosed() {
-			c.postHandshake = false
-			ready.Broadcast()
-			c.writeState.Unlock()
-			return net.ErrClosed
-		}
-		ready.Wait()
-	}
-	c.writeActive = true
-	c.writeState.Unlock()
-
-	c.writeAccess.Lock()
-	if c.isClosed() {
-		c.writeAccess.Unlock()
-		c.writeState.Lock()
-		c.writeActive = false
-		c.postHandshake = false
-		ready.Broadcast()
-		c.writeState.Unlock()
-		return net.ErrClosed
-	}
-	return nil
-}
-
-func (c *windowsTLSConn) finishPostHandshakeWrite() {
-	c.writeAccess.Unlock()
-	ready := c.writeCondition()
-	c.writeState.Lock()
-	c.writeActive = false
-	c.postHandshake = false
-	ready.Broadcast()
-	c.writeState.Unlock()
-}
-
-func (c *windowsTLSConn) writeCondition() *sync.Cond {
-	c.writeStateOnce.Do(func() {
-		c.writeReady = sync.NewCond(&c.writeState)
-	})
-	return c.writeReady
 }
 
 func (c *windowsTLSConn) isClosed() bool {
-	select {
-	case <-c.closed:
-		return true
-	default:
-		return false
-	}
+	return c.closed.Load()
 }

@@ -26,6 +26,24 @@ import (
 
 const windowsTLSTestTimeout = 5 * time.Second
 
+func newTestWindowsTLSConn(rawConn net.Conn) *windowsTLSConn {
+	return &windowsTLSConn{rawConn: rawConn}
+}
+
+// writePostHandshakeReply wraps writePostHandshakeReplyLocked with the
+// writeAccess locking and auto-close behavior that drivePostHandshake
+// composes from lockWrite/unlockWrite plus the writeFailed → Close branch.
+// Kept here as a test seam.
+func (c *windowsTLSConn) writePostHandshakeReply(data []byte) error {
+	c.writeAccess.Lock()
+	defer c.writeAccess.Unlock()
+	err := c.writePostHandshakeReplyLocked(data)
+	if err != nil {
+		_ = c.Close()
+	}
+	return err
+}
+
 type windowsTLSServerResult struct {
 	state stdtls.ConnectionState
 	err   error
@@ -1186,10 +1204,7 @@ func TestWindowsClientSetReadDeadlinePreExpired(t *testing.T) {
 
 func TestWindowsClientSetDeadlinePropagatesToRawConn(t *testing.T) {
 	rawConn := &windowsTestDeadlineConn{}
-	tlsConn := &windowsTLSConn{
-		rawConn: rawConn,
-		closed:  make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
 
 	deadline := time.Now().Add(time.Second)
 	err := tlsConn.SetDeadline(deadline)
@@ -1218,11 +1233,8 @@ func TestWindowsClientSetReadDeadlineCancelsBlockedRead(t *testing.T) {
 	rawConn := &windowsTestDeadlineConn{
 		readCalled: make(chan struct{}),
 	}
-	tlsConn := &windowsTLSConn{
-		rawConn:     rawConn,
-		readScratch: make([]byte, 16),
-		closed:      make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
+	tlsConn.readScratch = make([]byte, 16)
 
 	readErrCh := make(chan error, 1)
 	go func() {
@@ -1328,10 +1340,7 @@ func TestWindowsClientSetWriteDeadlineCancelsBlockedWrite(t *testing.T) {
 
 func TestWindowsClientPostHandshakeReplyUsesReadDeadline(t *testing.T) {
 	rawConn := &windowsTestDeadlineConn{}
-	tlsConn := &windowsTLSConn{
-		rawConn: rawConn,
-		closed:  make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
 
 	readDeadline := time.Now().Add(150 * time.Millisecond)
 	err := tlsConn.SetReadDeadline(readDeadline)
@@ -1363,10 +1372,7 @@ func TestWindowsClientPostHandshakeReplyUsesReadDeadline(t *testing.T) {
 
 func TestWindowsClientPostHandshakeReplyPreExpiredReadDeadline(t *testing.T) {
 	rawConn := &windowsTestDeadlineConn{}
-	tlsConn := &windowsTLSConn{
-		rawConn: rawConn,
-		closed:  make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
 
 	err := tlsConn.SetReadDeadline(time.Now().Add(-time.Second))
 	if err != nil {
@@ -1454,10 +1460,7 @@ func TestWindowsClientPostHandshakeReplyWaitsForWriteAccess(t *testing.T) {
 		writeCalled:  make(chan struct{}),
 		releaseWrite: make(chan struct{}),
 	}
-	tlsConn := &windowsTLSConn{
-		rawConn: rawConn,
-		closed:  make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
 
 	tlsConn.writeAccess.Lock()
 	errCh := make(chan error, 1)
@@ -1491,10 +1494,7 @@ func TestWindowsClientPostHandshakeReplyErrorClosesConn(t *testing.T) {
 		writeErr: os.ErrDeadlineExceeded,
 		writeN:   1,
 	}
-	tlsConn := &windowsTLSConn{
-		rawConn: rawConn,
-		closed:  make(chan struct{}),
-	}
+	tlsConn := newTestWindowsTLSConn(rawConn)
 
 	err := tlsConn.writePostHandshakeReply([]byte("reply"))
 	if !errors.Is(err, os.ErrDeadlineExceeded) {

@@ -45,8 +45,6 @@ type ClientContext struct {
 	alpnBuffer []byte
 
 	firstCall bool
-	credValid bool
-	valid     bool
 }
 
 // NewClientContext allocates a new client context, acquires the Schannel
@@ -101,7 +99,6 @@ func NewClientContext(minVersion, maxVersion uint16, serverName string, alpn []s
 	if status != secEOK {
 		return nil, sspiError("AcquireCredentialsHandle", status)
 	}
-	c.credValid = true
 	return c, nil
 }
 
@@ -111,14 +108,12 @@ func (c *ClientContext) Close() {
 	if c == nil {
 		return
 	}
-	if c.valid {
+	if c.handle != (secHandle{}) {
 		sspiDeleteSecurityContext(&c.handle)
-		c.valid = false
 		c.handle = secHandle{}
 	}
-	if c.credValid {
+	if c.credHandle != (secHandle{}) {
 		sspiFreeCredentialsHandle(&c.credHandle)
-		c.credValid = false
 		c.credHandle = secHandle{}
 		c.tlsParams = tlsParameters{}
 	}
@@ -385,22 +380,23 @@ func (c *ClientContext) ConnectionInfo() (version, cipherSuite uint16, err error
 	cipherInfo.dwVersion = 1
 	status = sspiQueryContextAttributes(&c.handle, secpkgAttrCipherInfo, unsafe.Pointer(&cipherInfo))
 	if status == secEOK {
-		cipherSuiteName := windows.UTF16ToString(cipherInfo.szCipherSuite[:])
-	find:
-		for _, tlsCipherSuite := range tls.CipherSuites() {
-			if cipherSuiteName == tlsCipherSuite.Name {
-				cipherSuite = tlsCipherSuite.ID
-				break find
-			}
-		}
-		for _, tlsCipherSuite := range tls.InsecureCipherSuites() {
-			if cipherSuiteName == tlsCipherSuite.Name {
-				cipherSuite = tlsCipherSuite.ID
-				break
-			}
-		}
+		cipherSuite = cipherSuiteID(windows.UTF16ToString(cipherInfo.szCipherSuite[:]))
 	}
 	return version, cipherSuite, nil
+}
+
+func cipherSuiteID(name string) uint16 {
+	for _, suite := range tls.CipherSuites() {
+		if suite.Name == name {
+			return suite.ID
+		}
+	}
+	for _, suite := range tls.InsecureCipherSuites() {
+		if suite.Name == name {
+			return suite.ID
+		}
+	}
+	return 0
 }
 
 // RemoteCertificateChain returns freshly allocated DER bytes ordered
@@ -444,7 +440,7 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		pBuffers:  &outputBufs[0],
 	}
 	var ctxIn *secHandle
-	if c.valid {
+	if c.handle != (secHandle{}) {
 		ctxIn = &c.handle
 	}
 	var contextAttr uint32
@@ -464,10 +460,6 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 		&expiry,
 	)
 
-	switch status {
-	case secEOK, secICompleteNeeded, secICompleteAndContinue, secIContinueNeeded:
-		c.valid = true
-	}
 	if status == secICompleteNeeded || status == secICompleteAndContinue {
 		completeStatus := sspiCompleteAuthToken(&c.handle, &outputDesc)
 		if completeStatus != secEOK {
@@ -491,7 +483,6 @@ func (c *ClientContext) runInitializeSecurityContext(inputDesc *secBufferDesc, o
 	case secIContinueNeeded, secICompleteAndContinue:
 		return result, false, nil
 	case secEIncompleteMessage:
-		c.valid = true
 		result.Incomplete = true
 		return result, true, nil
 	default:
