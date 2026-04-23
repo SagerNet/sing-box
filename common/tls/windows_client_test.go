@@ -20,11 +20,19 @@ import (
 	"github.com/sagernet/sing-box/common/schannel"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/common/logger"
+	N "github.com/sagernet/sing/common/network"
 )
 
 const windowsTLSTestTimeout = 5 * time.Second
+
+var (
+	_ N.ExtendedConn    = (*windowsTLSConn)(nil)
+	_ N.ReadWaitCreator = (*windowsTLSConn)(nil)
+)
 
 func newTestWindowsTLSConn(rawConn net.Conn) *windowsTLSConn {
 	return &windowsTLSConn{rawConn: rawConn}
@@ -705,6 +713,109 @@ func TestWindowsClientRoundtripTLS13(t *testing.T) {
 
 	clientConn.Close()
 	<-serverDone
+}
+
+func TestWindowsClientReadBuffer(t *testing.T) {
+	payload := []byte("windows tls read buffer payload")
+	clientConn, serverErr := startWindowsPayloadServer(t, stdtls.VersionTLS12, payload)
+	defer clientConn.Close()
+
+	const (
+		frontHeadroom = 8
+		rearHeadroom  = 8
+	)
+	buffer := buf.NewSize(len(payload) + frontHeadroom + rearHeadroom)
+	defer buffer.Release()
+	buffer.Resize(frontHeadroom, 0)
+	buffer.Reserve(rearHeadroom)
+
+	err := clientConn.ReadBuffer(buffer)
+	if err != nil {
+		t.Fatalf("ReadBuffer: %v", err)
+	}
+	if buffer.Start() != frontHeadroom {
+		t.Fatalf("expected front headroom %d, got %d", frontHeadroom, buffer.Start())
+	}
+	if !bytes.Equal(buffer.Bytes(), payload) {
+		t.Fatalf("unexpected payload: %q", string(buffer.Bytes()))
+	}
+	if err = <-serverErr; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWindowsClientWriteBuffer(t *testing.T) {
+	clientConn, serverDone := startWindowsEchoEngineServer(t, stdtls.VersionTLS12)
+	defer clientConn.Close()
+
+	payload := []byte("windows tls write buffer payload")
+	buffer := buf.NewSize(len(payload))
+	_, err := buffer.Write(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = clientConn.WriteBuffer(buffer)
+	if err != nil {
+		t.Fatalf("WriteBuffer: %v", err)
+	}
+	if buffer.RawCap() != 0 {
+		t.Fatalf("expected WriteBuffer to release buffer, raw cap %d", buffer.RawCap())
+	}
+
+	reply := make([]byte, len(payload))
+	_, err = io.ReadFull(clientConn, reply)
+	if err != nil {
+		t.Fatalf("read echo: %v", err)
+	}
+	if !bytes.Equal(reply, payload) {
+		t.Fatalf("unexpected echo: %q", string(reply))
+	}
+
+	clientConn.Close()
+	<-serverDone
+}
+
+func TestWindowsClientCreateReadWaiter(t *testing.T) {
+	payload := []byte("windows tls read waiter payload")
+	clientConn, serverErr := startWindowsPayloadServer(t, stdtls.VersionTLS12, payload)
+	defer clientConn.Close()
+
+	readWaiter, created := bufio.CreateReadWaiter(clientConn)
+	if !created {
+		t.Fatal("expected read waiter")
+	}
+	readWaiter.InitializeReadWaiter(N.ReadWaitOptions{
+		FrontHeadroom: 7,
+		RearHeadroom:  5,
+		MTU:           len(payload),
+	})
+
+	buffer, err := readWaiter.WaitReadBuffer()
+	if err != nil {
+		t.Fatalf("WaitReadBuffer: %v", err)
+	}
+	defer buffer.Release()
+	if buffer.Start() != 7 {
+		t.Fatalf("expected front headroom 7, got %d", buffer.Start())
+	}
+	if buffer.FreeLen() < 5 {
+		t.Fatalf("expected rear headroom at least 5, got %d", buffer.FreeLen())
+	}
+	if !bytes.Equal(buffer.Bytes(), payload) {
+		t.Fatalf("unexpected payload: %q", string(buffer.Bytes()))
+	}
+	if err = <-serverErr; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWindowsClientCreateReadWaiterFallback(t *testing.T) {
+	tlsConn := newTestWindowsTLSConn(&windowsTestIOConn{})
+	_, created := tlsConn.CreateReadWaiter()
+	if created {
+		t.Fatal("expected read waiter fallback")
+	}
 }
 
 func TestWindowsClientTLS13PostHandshakeConcurrentWrite(t *testing.T) {
@@ -2063,6 +2174,58 @@ func newWindowsTestEngineConn(t *testing.T, serverAddress string, options option
 	return engineConn, nil
 }
 
+func startWindowsPayloadServer(t *testing.T, minVersion uint16, payload []byte) (*windowsTLSConn, <-chan error) {
+	t.Helper()
+
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   minVersion,
+			MaxVersion:   minVersion,
+		})
+		defer tlsConn.Close()
+
+		handshakeErr := tlsConn.Handshake()
+		if handshakeErr != nil {
+			serverErr <- handshakeErr
+			return
+		}
+		_, writeErr := tlsConn.Write(payload)
+		serverErr <- writeErr
+	}()
+
+	version := "1.2"
+	if minVersion == stdtls.VersionTLS13 {
+		version = "1.3"
+	}
+	clientConn, err := newWindowsTestEngineConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  version,
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return clientConn, serverErr
+}
+
 // startWindowsEchoServer brings up a TLS echo server with a self-signed cert
 // and dials an engine client against it. The returned channel closes after
 // the server goroutine exits.
@@ -2117,6 +2280,69 @@ func startWindowsEchoServer(t *testing.T, minVersion uint16) (Conn, <-chan struc
 		version = "1.3"
 	}
 	clientConn, err := newWindowsTestClientConn(t, listener.Addr().String(), option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      C.TLSEngineWindows,
+		ServerName:  "localhost",
+		MinVersion:  version,
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return clientConn, done
+}
+
+func startWindowsEchoEngineServer(t *testing.T, minVersion uint16) (*windowsTLSConn, <-chan struct{}) {
+	t.Helper()
+
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "localhost")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { listener.Close() })
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+
+		tlsConn := stdtls.Server(conn, &stdtls.Config{
+			Certificates: []stdtls.Certificate{serverCertificate},
+			MinVersion:   minVersion,
+			MaxVersion:   minVersion,
+		})
+		defer tlsConn.Close()
+
+		handshakeErr := tlsConn.Handshake()
+		if handshakeErr != nil {
+			return
+		}
+
+		buffer := make([]byte, 32*1024)
+		for {
+			n, readErr := tlsConn.Read(buffer)
+			if n > 0 {
+				_, writeErr := tlsConn.Write(buffer[:n])
+				if writeErr != nil {
+					return
+				}
+			}
+			if readErr != nil {
+				return
+			}
+		}
+	}()
+
+	version := "1.2"
+	if minVersion == stdtls.VersionTLS13 {
+		version = "1.3"
+	}
+	clientConn, err := newWindowsTestEngineConn(t, listener.Addr().String(), option.OutboundTLSOptions{
 		Enabled:     true,
 		Engine:      C.TLSEngineWindows,
 		ServerName:  "localhost",

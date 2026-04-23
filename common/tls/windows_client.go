@@ -16,14 +16,18 @@ import (
 
 	"github.com/sagernet/sing-box/common/schannel"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	N "github.com/sagernet/sing/common/network"
 )
 
 const (
-	windowsTLSEngineName   = "Windows TLS engine"
-	handshakeReadChunkSize = 8192
-	readScratchSize        = 16 * 1024
+	windowsTLSEngineName        = "Windows TLS engine"
+	handshakeReadChunkSize      = 8192
+	readScratchSize             = 16 * 1024
+	readWaitCiphertextChunkSize = 4096
 )
 
 type windowsClientConfig struct {
@@ -111,15 +115,13 @@ func (c *windowsClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 
 	handshakeOK = true
 	tlsConn := &windowsTLSConn{
-		rawConn:      conn,
-		client:       client,
-		state:        state,
-		header:       header,
-		trailer:      trailer,
-		maxMessage:   maxMessage,
-		cipher:       leftover,
-		readScratch:  make([]byte, readScratchSize),
-		writeScratch: make([]byte, int(header)+int(maxMessage)+int(trailer)),
+		rawConn:    conn,
+		client:     client,
+		state:      state,
+		header:     header,
+		trailer:    trailer,
+		maxMessage: maxMessage,
+		cipher:     leftover,
 	}
 	return tlsConn, nil
 }
@@ -319,6 +321,14 @@ type windowsTLSConn struct {
 	closed         atomic.Bool
 }
 
+var (
+	_ N.ExtendedConn    = (*windowsTLSConn)(nil)
+	_ N.ReadWaitCreator = (*windowsTLSConn)(nil)
+)
+
+type windowsTLSAppendCipherFunc func(requireMore bool) error
+type windowsTLSReadRawFunc func(requireMore bool) ([]byte, error)
+
 func (c *windowsTLSConn) Read(p []byte) (int, error) {
 	c.readAccess.Lock()
 	defer c.readAccess.Unlock()
@@ -328,19 +338,49 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 	if c.isClosed() {
 		return 0, net.ErrClosed
 	}
+	return c.readIntoLocked(p, c.appendRaw, c.readRaw)
+}
 
+func (c *windowsTLSConn) ReadBuffer(buffer *buf.Buffer) error {
+	c.readAccess.Lock()
+	defer c.readAccess.Unlock()
+	if buffer.IsFull() {
+		return io.ErrShortBuffer
+	}
+	if c.isClosed() {
+		return net.ErrClosed
+	}
+	startLen := buffer.Len()
+	n, err := c.readIntoLocked(buffer.FreeBytes(), c.appendRaw, c.readRaw)
+	buffer.Truncate(startLen + n)
+	return err
+}
+
+func (c *windowsTLSConn) readIntoLocked(p []byte, appendCipher windowsTLSAppendCipherFunc, readRaw windowsTLSReadRawFunc) (int, error) {
+	plaintext, err := c.readPlaintextLocked(appendCipher, readRaw)
+	if err != nil {
+		return 0, err
+	}
+	n := copy(p, plaintext)
+	if n < len(plaintext) {
+		c.plain = append([]byte(nil), plaintext[n:]...)
+	}
+	return n, nil
+}
+
+func (c *windowsTLSConn) readPlaintextLocked(appendCipher windowsTLSAppendCipherFunc, readRaw windowsTLSReadRawFunc) ([]byte, error) {
 	if len(c.plain) > 0 {
-		n := copy(p, c.plain)
-		c.plain = c.plain[n:]
-		return n, nil
+		plaintext := c.plain
+		c.plain = nil
+		return plaintext, nil
 	}
 	if c.readEOF {
-		return 0, io.EOF
+		return nil, io.EOF
 	}
 
 	cleanup, err := c.applyReadDeadline()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer cleanup()
 
@@ -349,23 +389,22 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 			c.clientAccess.Lock()
 			if c.client == nil {
 				c.clientAccess.Unlock()
-				return 0, net.ErrClosed
+				return nil, net.ErrClosed
 			}
 			result, decryptErr := c.client.Decrypt(c.cipher)
 			if decryptErr != nil {
 				c.clientAccess.Unlock()
-				return 0, decryptErr
+				return nil, decryptErr
 			}
 			if result.Expired {
 				c.clientAccess.Unlock()
 				c.readEOF = true
-				return 0, io.EOF
+				return nil, io.EOF
 			}
 			if !result.Incomplete {
-				n := copy(p, result.Plaintext)
-				var extra []byte
-				if n < len(result.Plaintext) {
-					extra = append([]byte(nil), result.Plaintext[n:]...)
+				plaintext := result.Plaintext
+				if result.Renegotiate && len(plaintext) > 0 {
+					plaintext = append([]byte(nil), plaintext...)
 				}
 				nextCipher := c.cipher[result.ConsumedTotal:]
 				if len(result.RenegotiateToken) > 0 {
@@ -377,28 +416,26 @@ func (c *windowsTLSConn) Read(p []byte) (int, error) {
 				}
 				c.clientAccess.Unlock()
 				if result.Renegotiate {
-					postErr := c.drivePostHandshake()
+					postErr := c.drivePostHandshake(readRaw)
 					if postErr != nil {
-						return 0, postErr
+						return nil, postErr
 					}
 				}
-				c.plain = extra
-				if n > 0 {
-					return n, nil
+				if len(plaintext) > 0 {
+					return plaintext, nil
 				}
 				continue
 			}
 			c.clientAccess.Unlock()
 		}
-		more, readErr := c.readRaw(len(c.cipher) > 0)
-		if readErr != nil {
-			return 0, readErr
+		err = appendCipher(len(c.cipher) > 0)
+		if err != nil {
+			return nil, err
 		}
-		c.cipher = append(c.cipher, more...)
 	}
 }
 
-func (c *windowsTLSConn) drivePostHandshake() error {
+func (c *windowsTLSConn) drivePostHandshake(readRaw windowsTLSReadRawFunc) error {
 	initial := c.cipher
 	c.cipher = nil
 	err := c.beginPostHandshakeWrite()
@@ -413,7 +450,7 @@ func (c *windowsTLSConn) drivePostHandshake() error {
 	}
 	writeFailed := false
 	readMore := func() ([]byte, error) {
-		more, err := c.readRaw(true)
+		more, err := readRaw(true)
 		if err != nil {
 			return nil, E.Cause(err, "tls post-handshake read")
 		}
@@ -455,7 +492,19 @@ func (c *windowsTLSConn) writePostHandshakeReplyLocked(data []byte) error {
 }
 
 func (c *windowsTLSConn) readRaw(requireMore bool) ([]byte, error) {
+	if c.readScratch == nil {
+		c.readScratch = make([]byte, readScratchSize)
+	}
 	return readTLSRaw(c.rawConn, c.readScratch, requireMore)
+}
+
+func (c *windowsTLSConn) appendRaw(requireMore bool) error {
+	more, err := c.readRaw(requireMore)
+	if err != nil {
+		return err
+	}
+	c.cipher = append(c.cipher, more...)
+	return nil
 }
 
 func (c *windowsTLSConn) Write(p []byte) (int, error) {
@@ -489,6 +538,9 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 			c.clientAccess.Unlock()
 			return total, net.ErrClosed
 		}
+		if c.writeScratch == nil {
+			c.writeScratch = make([]byte, int(c.header)+int(c.maxMessage)+int(c.trailer))
+		}
 		encrypted, encryptErr := c.client.Encrypt(c.header, c.trailer, chunk, c.writeScratch)
 		c.clientAccess.Unlock()
 		if encryptErr != nil {
@@ -503,6 +555,23 @@ func (c *windowsTLSConn) Write(p []byte) (int, error) {
 		p = p[len(chunk):]
 	}
 	return total, nil
+}
+
+func (c *windowsTLSConn) WriteBuffer(buffer *buf.Buffer) error {
+	defer buffer.Release()
+	_, err := c.Write(buffer.Bytes())
+	return err
+}
+
+func (c *windowsTLSConn) CreateReadWaiter() (N.ReadWaiter, bool) {
+	rawWaiter, ok := bufio.CreateReadWaiter(c.rawConn)
+	if !ok {
+		return nil, false
+	}
+	return &windowsTLSReadWaiter{
+		conn:      c,
+		rawWaiter: rawWaiter,
+	}, true
 }
 
 func (c *windowsTLSConn) Close() error {
@@ -687,4 +756,85 @@ func (c *windowsTLSConn) writeCondition() *sync.Cond {
 
 func (c *windowsTLSConn) isClosed() bool {
 	return c.closed.Load()
+}
+
+type windowsTLSReadWaiter struct {
+	conn      *windowsTLSConn
+	rawWaiter N.ReadWaiter
+	options   N.ReadWaitOptions
+}
+
+var _ N.ReadWaiter = (*windowsTLSReadWaiter)(nil)
+
+func (w *windowsTLSReadWaiter) InitializeReadWaiter(options N.ReadWaitOptions) (needCopy bool) {
+	w.options = options
+	w.rawWaiter.InitializeReadWaiter(N.ReadWaitOptions{
+		MTU: readWaitCiphertextChunkSize,
+	})
+	return false
+}
+
+func (w *windowsTLSReadWaiter) WaitReadBuffer() (*buf.Buffer, error) {
+	c := w.conn
+	c.readAccess.Lock()
+	defer c.readAccess.Unlock()
+	if c.isClosed() {
+		return nil, net.ErrClosed
+	}
+	plaintext, err := c.readPlaintextLocked(w.appendRaw, w.readRaw)
+	if err != nil {
+		return nil, err
+	}
+	buffer := w.options.NewBuffer()
+	n, writeErr := buffer.Write(plaintext)
+	if writeErr != nil {
+		buffer.Release()
+		return nil, writeErr
+	}
+	if n == 0 {
+		buffer.Release()
+		return nil, io.ErrShortBuffer
+	}
+	if n < len(plaintext) {
+		c.plain = append([]byte(nil), plaintext[n:]...)
+	}
+	w.options.PostReturn(buffer)
+	return buffer, nil
+}
+
+func (w *windowsTLSReadWaiter) appendRaw(requireMore bool) error {
+	rawBuffer, err := w.readRawBuffer(requireMore)
+	if err != nil {
+		return err
+	}
+	w.conn.cipher = append(w.conn.cipher, rawBuffer.Bytes()...)
+	rawBuffer.Release()
+	return nil
+}
+
+func (w *windowsTLSReadWaiter) readRaw(requireMore bool) ([]byte, error) {
+	rawBuffer, err := w.readRawBuffer(requireMore)
+	if err != nil {
+		return nil, err
+	}
+	data := append([]byte(nil), rawBuffer.Bytes()...)
+	rawBuffer.Release()
+	return data, nil
+}
+
+func (w *windowsTLSReadWaiter) readRawBuffer(requireMore bool) (*buf.Buffer, error) {
+	rawBuffer, err := w.rawWaiter.WaitReadBuffer()
+	if err != nil {
+		if requireMore && errors.Is(err, io.EOF) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		return nil, err
+	}
+	if rawBuffer == nil || rawBuffer.Len() == 0 {
+		if rawBuffer != nil {
+			rawBuffer.Release()
+		}
+		return nil, io.ErrUnexpectedEOF
+	}
+	return rawBuffer, nil
 }
