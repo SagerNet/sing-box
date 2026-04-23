@@ -267,7 +267,7 @@ func TestUSBIPUnlinkDelayedFakeTransfer(t *testing.T) {
 				Direction: unlink.Header.Direction,
 				Endpoint:  unlink.Header.Endpoint,
 			},
-			Status: 0,
+			Status: usbipStatusECONNRESET,
 		})
 	}()
 
@@ -297,7 +297,7 @@ func TestUSBIPUnlinkDelayedFakeTransfer(t *testing.T) {
 	require.Equal(t, RetUnlink, header.Command)
 	response, err := ReadUnlinkResponseBody(client, header)
 	require.NoError(t, err)
-	require.Equal(t, int32(0), response.Status)
+	require.Equal(t, int32(usbipStatusECONNRESET), response.Status)
 	require.NoError(t, <-serverDone)
 }
 

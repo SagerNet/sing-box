@@ -139,7 +139,9 @@ func ensureTestUDCs(t *testing.T, minCount int) []string {
 	}
 
 	modprobePath, err := findModprobePath()
-	require.NoError(t, err)
+	if err != nil {
+		t.Skipf("dummy_hcd unavailable: %v", err)
+	}
 
 	command := exec.Command(modprobePath, "-r", "dummy_hcd")
 	command.Env = os.Environ()
@@ -148,13 +150,20 @@ func ensureTestUDCs(t *testing.T, minCount int) []string {
 	command = exec.Command(modprobePath, "dummy_hcd", "num="+strconv.Itoa(minCount))
 	command.Env = os.Environ()
 	output, err := command.CombinedOutput()
-	require.NoErrorf(t, err, "modprobe dummy_hcd num=%d\n%s", minCount, string(output))
+	if err != nil {
+		t.Skipf("dummy_hcd with %d UDCs unavailable: %v\n%s", minCount, err, string(output))
+	}
 
-	require.Eventually(t, func() bool {
-		return len(currentUDCNames()) >= minCount
-	}, 5*time.Second, 100*time.Millisecond)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if udcs = currentUDCNames(); len(udcs) >= minCount {
+			return udcs
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
-	return currentUDCNames()
+	t.Skipf("dummy_hcd provided %d UDCs, need %d", len(currentUDCNames()), minCount)
+	return nil
 }
 
 func reserveTestUDC(t *testing.T) string {
@@ -276,6 +285,7 @@ func pickFreeTCPPort(t *testing.T) uint16 {
 
 func startRealUSBIPServer(t *testing.T, devices []option.USBIPDeviceMatch) (*ServerService, M.Socksaddr) {
 	t.Helper()
+	requireUSBIPHost(t)
 
 	serviceInstance, err := NewServerService(context.Background(), newTestLogger(), "usbip-server-test", option.USBIPServerServiceOptions{
 		ListenOptions: option.ListenOptions{
@@ -297,6 +307,7 @@ func startRealUSBIPServer(t *testing.T, devices []option.USBIPDeviceMatch) (*Ser
 
 func startRealUSBIPClient(t *testing.T, destination M.Socksaddr, devices []option.USBIPDeviceMatch) *ClientService {
 	t.Helper()
+	requireVHCI(t)
 
 	serviceInstance, err := NewClientService(context.Background(), newTestLogger(), "usbip-client-test", option.USBIPClientServiceOptions{
 		ServerOptions: option.ServerOptions{
@@ -853,6 +864,7 @@ func (g *testHIDGadget) exerciseImportedIO(t *testing.T, importedHID string) {
 
 func bindWithOfficialUSBIP(t *testing.T, tools testUSBIPTools, busid string) {
 	t.Helper()
+	requireUSBIPHost(t)
 
 	if driver, err := currentDriver(busid); err == nil && driver == "usbip-host" {
 		return
@@ -877,7 +889,7 @@ func TestUSBIPInteropOurServerWithOfficialClientACM(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 
 	gadget := newTestACMGadget(t)
 	server, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{Serial: gadget.serial}})
@@ -905,7 +917,7 @@ func TestUSBIPInteropOurServerWithOfficialClientHID(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 
 	gadget := newTestHIDGadget(t)
 	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{Serial: gadget.serial}})
@@ -931,7 +943,7 @@ func TestUSBIPInteropOurClientWithOfficialServerACM(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 
 	gadget := newTestACMGadget(t)
 	bindWithOfficialUSBIP(t, tools, gadget.busid)
@@ -960,7 +972,7 @@ func TestUSBIPInteropOurClientWithOfficialServerHID(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 
 	gadget := newTestHIDGadget(t)
 	bindWithOfficialUSBIP(t, tools, gadget.busid)
@@ -989,7 +1001,7 @@ func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
 	tools := requireUSBIPTools(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 
 	first := newTestACMGadget(t)
 	bindWithOfficialUSBIP(t, tools, first.busid)
@@ -1023,7 +1035,7 @@ func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 	ensureTestUDCs(t, testUDCCount)
 
 	server, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{
@@ -1056,7 +1068,7 @@ func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
 	requireRoot(t)
 	resetUSBIPInteropState(t)
-	require.NoError(t, ensureVHCI())
+	requireVHCI(t)
 	ensureTestUDCs(t, testUDCCount)
 
 	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{

@@ -483,8 +483,13 @@ type darwinServerDataSession struct {
 	device  *darwinUSBHostDevice
 	writeMu sync.Mutex
 	mu      sync.Mutex
-	pending map[uint32]uint8
+	pending map[uint32]darwinServerPendingSubmit
 	wg      sync.WaitGroup
+}
+
+type darwinServerPendingSubmit struct {
+	endpoint uint8
+	unlinked bool
 }
 
 func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device *darwinUSBHostDevice) *darwinServerDataSession {
@@ -493,7 +498,7 @@ func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, c
 		logger:  logger,
 		conn:    conn,
 		device:  device,
-		pending: make(map[uint32]uint8),
+		pending: make(map[uint32]darwinServerPendingSubmit),
 	}
 }
 
@@ -519,8 +524,10 @@ func (s *darwinServerDataSession) serve() error {
 			s.wg.Add(1)
 			go func() {
 				defer s.wg.Done()
-				defer s.untrackSubmit(command.Header.SeqNum)
 				response := s.handleSubmit(command)
+				if !s.finishSubmit(command.Header.SeqNum) {
+					return
+				}
 				s.writeMu.Lock()
 				err := WriteSubmitResponse(s.conn, response)
 				s.writeMu.Unlock()
@@ -533,12 +540,12 @@ func (s *darwinServerDataSession) serve() error {
 			if err != nil {
 				return err
 			}
-			status := -int32(unix.ECONNRESET)
-			if endpoint, ok := s.untrackSubmit(command.SeqNum); ok {
+			status := int32(0)
+			if endpoint, ok := s.markSubmitUnlinked(command.SeqNum); ok {
 				if err := s.device.abortEndpoint(endpoint); err != nil {
 					s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", err)
 				}
-				status = 0
+				status = usbipStatusECONNRESET
 			}
 			s.writeMu.Lock()
 			err = WriteUnlinkResponse(s.conn, UnlinkResponse{
@@ -604,17 +611,30 @@ func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResp
 func (s *darwinServerDataSession) trackSubmit(seq uint32, endpoint uint8) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.pending[seq] = endpoint
+	s.pending[seq] = darwinServerPendingSubmit{endpoint: endpoint}
 }
 
-func (s *darwinServerDataSession) untrackSubmit(seq uint32) (uint8, bool) {
+func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	endpoint, ok := s.pending[seq]
-	if ok {
-		delete(s.pending, seq)
+	pending, ok := s.pending[seq]
+	if !ok {
+		return 0, false
 	}
-	return endpoint, ok
+	pending.unlinked = true
+	s.pending[seq] = pending
+	return pending.endpoint, true
+}
+
+func (s *darwinServerDataSession) finishSubmit(seq uint32) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pending, ok := s.pending[seq]
+	if !ok {
+		return true
+	}
+	delete(s.pending, seq)
+	return !pending.unlinked
 }
 
 func commandEndpoint(command SubmitCommand) uint8 {
