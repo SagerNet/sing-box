@@ -29,6 +29,14 @@ typedef struct box_apple_tls_client {
 	box_apple_tls_state_t state;
 } box_apple_tls_client_t;
 
+struct box_apple_tls_read_result {
+	void *content;
+	bool eof;
+	char *error;
+};
+
+extern void box_apple_tls_read_callback(uintptr_t callback_handle, box_apple_tls_read_result_t *result);
+
 static nw_connection_t box_apple_tls_connection(box_apple_tls_client_t *client) {
 	if (client == NULL || client->connection == NULL) {
 		return nil;
@@ -55,6 +63,13 @@ static NSArray *box_apple_tls_client_anchors(box_apple_tls_client_t *client) {
 		return nil;
 	}
 	return (__bridge NSArray *)client->anchors;
+}
+
+static dispatch_data_t box_apple_tls_read_result_content(box_apple_tls_read_result_t *result) {
+	if (result == NULL || result->content == NULL) {
+		return nil;
+	}
+	return (__bridge dispatch_data_t)result->content;
 }
 
 static void box_apple_tls_state_reset(box_apple_tls_state_t *state) {
@@ -462,127 +477,224 @@ void box_apple_tls_client_free(box_apple_tls_client_t *client) {
 }
 
 ssize_t box_apple_tls_client_read(box_apple_tls_client_t *client, void *buffer, size_t buffer_len, int timeout_msec, bool *eof_out, char **error_out) {
-	nw_connection_t connection = box_apple_tls_connection(client);
-	if (connection == nil) {
-		box_set_error_message(error_out, "apple TLS: invalid client");
-		return -1;
-	}
+	@autoreleasepool {
+		nw_connection_t connection = box_apple_tls_connection(client);
+		if (connection == nil) {
+			box_set_error_message(error_out, "apple TLS: invalid client");
+			return -1;
+		}
 
-	dispatch_semaphore_t read_semaphore = dispatch_semaphore_create(0);
-	__block NSData *content_data = nil;
-	__block bool read_eof = false;
-	__block char *local_error = NULL;
+		dispatch_semaphore_t read_semaphore = dispatch_semaphore_create(0);
+		__block size_t content_len = 0;
+		__block bool read_eof = false;
+		__block char *local_error = NULL;
 
-	nw_connection_receive(connection, 1, (uint32_t)buffer_len, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t error) {
-		if (content != NULL) {
-			const void *mapped = NULL;
-			size_t mapped_len = 0;
-			dispatch_data_t mapped_data = dispatch_data_create_map(content, &mapped, &mapped_len);
-			if (mapped != NULL && mapped_len > 0) {
-				content_data = [NSData dataWithBytes:mapped length:mapped_len];
+		nw_connection_receive(connection, 1, (uint32_t)buffer_len, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t error) {
+			@autoreleasepool {
+				if (content != NULL) {
+					const void *mapped = NULL;
+					size_t mapped_len = 0;
+					dispatch_data_t mapped_data = dispatch_data_create_map(content, &mapped, &mapped_len);
+					if (mapped != NULL && mapped_len > 0) {
+						size_t copy_len = mapped_len;
+						if (copy_len > buffer_len) {
+							copy_len = buffer_len;
+						}
+						memcpy(buffer, mapped, copy_len);
+						content_len = copy_len;
+					}
+					(void)mapped_data;
+				}
+				if (error != NULL && content_len == 0) {
+					box_set_error_from_nw_error(&local_error, error);
+				}
+				if (is_complete && (context == NULL || nw_content_context_get_is_final(context))) {
+					read_eof = true;
+				}
+				dispatch_semaphore_signal(read_semaphore);
 			}
-			(void)mapped_data;
-		}
-		if (error != NULL && content_data.length == 0) {
-			box_set_error_from_nw_error(&local_error, error);
-		}
-		if (is_complete && (context == NULL || nw_content_context_get_is_final(context))) {
-			read_eof = true;
-		}
-		dispatch_semaphore_signal(read_semaphore);
-	});
+		});
 
-	dispatch_time_t wait_deadline = DISPATCH_TIME_FOREVER;
-	if (timeout_msec >= 0) {
-		wait_deadline = dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout_msec * NSEC_PER_MSEC);
-	}
-	long wait_result = dispatch_semaphore_wait(read_semaphore, wait_deadline);
-	if (wait_result != 0) {
-		nw_connection_cancel(connection);
-		dispatch_semaphore_wait(read_semaphore, DISPATCH_TIME_FOREVER);
+		dispatch_time_t wait_deadline = DISPATCH_TIME_FOREVER;
+		if (timeout_msec >= 0) {
+			wait_deadline = dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout_msec * NSEC_PER_MSEC);
+		}
+		long wait_result = dispatch_semaphore_wait(read_semaphore, wait_deadline);
+		if (wait_result != 0) {
+			nw_connection_cancel(connection);
+			dispatch_semaphore_wait(read_semaphore, DISPATCH_TIME_FOREVER);
+			if (local_error != NULL) {
+				free(local_error);
+				local_error = NULL;
+			}
+			return -2;
+		}
 		if (local_error != NULL) {
-			free(local_error);
-			local_error = NULL;
+			if (error_out != NULL) {
+				*error_out = local_error;
+			} else {
+				free(local_error);
+			}
+			return -1;
 		}
-		return -2;
-	}
-	if (local_error != NULL) {
-		if (error_out != NULL) {
-			*error_out = local_error;
-		} else {
-			free(local_error);
+		if (eof_out != NULL) {
+			*eof_out = read_eof;
 		}
-		return -1;
+		return (ssize_t)content_len;
 	}
-	if (eof_out != NULL) {
-		*eof_out = read_eof;
-	}
-	if (content_data == nil || content_data.length == 0) {
-		return 0;
-	}
-	memcpy(buffer, content_data.bytes, content_data.length);
-	return (ssize_t)content_data.length;
 }
 
 ssize_t box_apple_tls_client_write(box_apple_tls_client_t *client, const void *buffer, size_t buffer_len, int timeout_msec, char **error_out) {
-	nw_connection_t connection = box_apple_tls_connection(client);
-	if (connection == nil) {
-		box_set_error_message(error_out, "apple TLS: invalid client");
-		return -1;
-	}
-	if (buffer_len == 0) {
-		return 0;
-	}
-
-	void *content_copy = malloc(buffer_len);
-	if (content_copy == NULL) {
-		box_set_error_message(error_out, "apple TLS: out of memory");
-		return -1;
-	}
-	dispatch_queue_t queue = box_apple_tls_client_queue(client);
-	if (queue == nil) {
-		free(content_copy);
-		box_set_error_message(error_out, "apple TLS: invalid client");
-		return -1;
-	}
-	memcpy(content_copy, buffer, buffer_len);
-	dispatch_data_t content = dispatch_data_create(content_copy, buffer_len, queue, ^{
-		free(content_copy);
-	});
-
-	dispatch_semaphore_t write_semaphore = dispatch_semaphore_create(0);
-	__block char *local_error = NULL;
-
-	nw_connection_send(connection, content, NW_CONNECTION_DEFAULT_STREAM_CONTEXT, false, ^(nw_error_t error) {
-		if (error != NULL) {
-			box_set_error_from_nw_error(&local_error, error);
+	@autoreleasepool {
+		nw_connection_t connection = box_apple_tls_connection(client);
+		if (connection == nil) {
+			box_set_error_message(error_out, "apple TLS: invalid client");
+			return -1;
 		}
-		dispatch_semaphore_signal(write_semaphore);
-	});
+		if (buffer_len == 0) {
+			return 0;
+		}
 
-	dispatch_time_t wait_deadline = DISPATCH_TIME_FOREVER;
-	if (timeout_msec >= 0) {
-		wait_deadline = dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout_msec * NSEC_PER_MSEC);
-	}
-	long wait_result = dispatch_semaphore_wait(write_semaphore, wait_deadline);
-	if (wait_result != 0) {
-		nw_connection_cancel(connection);
-		dispatch_semaphore_wait(write_semaphore, DISPATCH_TIME_FOREVER);
+		void *content_copy = malloc(buffer_len);
+		if (content_copy == NULL) {
+			box_set_error_message(error_out, "apple TLS: out of memory");
+			return -1;
+		}
+		dispatch_queue_t queue = box_apple_tls_client_queue(client);
+		if (queue == nil) {
+			free(content_copy);
+			box_set_error_message(error_out, "apple TLS: invalid client");
+			return -1;
+		}
+		memcpy(content_copy, buffer, buffer_len);
+		dispatch_data_t content = dispatch_data_create(content_copy, buffer_len, queue, ^{
+			free(content_copy);
+		});
+
+		dispatch_semaphore_t write_semaphore = dispatch_semaphore_create(0);
+		__block char *local_error = NULL;
+
+		nw_connection_send(connection, content, NW_CONNECTION_DEFAULT_STREAM_CONTEXT, false, ^(nw_error_t error) {
+			@autoreleasepool {
+				if (error != NULL) {
+					box_set_error_from_nw_error(&local_error, error);
+				}
+				dispatch_semaphore_signal(write_semaphore);
+			}
+		});
+
+		dispatch_time_t wait_deadline = DISPATCH_TIME_FOREVER;
+		if (timeout_msec >= 0) {
+			wait_deadline = dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeout_msec * NSEC_PER_MSEC);
+		}
+		long wait_result = dispatch_semaphore_wait(write_semaphore, wait_deadline);
+		if (wait_result != 0) {
+			nw_connection_cancel(connection);
+			dispatch_semaphore_wait(write_semaphore, DISPATCH_TIME_FOREVER);
+			if (local_error != NULL) {
+				free(local_error);
+				local_error = NULL;
+			}
+			return -2;
+		}
 		if (local_error != NULL) {
-			free(local_error);
-			local_error = NULL;
+			if (error_out != NULL) {
+				*error_out = local_error;
+			} else {
+				free(local_error);
+			}
+			return -1;
 		}
-		return -2;
+		return (ssize_t)buffer_len;
 	}
-	if (local_error != NULL) {
-		if (error_out != NULL) {
-			*error_out = local_error;
-		} else {
-			free(local_error);
+}
+
+bool box_apple_tls_client_read_async(box_apple_tls_client_t *client, size_t maximum_len, uintptr_t callback_handle, char **error_out) {
+	@autoreleasepool {
+		nw_connection_t connection = box_apple_tls_connection(client);
+		if (connection == nil) {
+			box_set_error_message(error_out, "apple TLS: invalid client");
+			return false;
 		}
-		return -1;
+		if (maximum_len == 0) {
+			box_set_error_message(error_out, "apple TLS: empty read buffer");
+			return false;
+		}
+		uint32_t receive_len = maximum_len > UINT32_MAX ? UINT32_MAX : (uint32_t)maximum_len;
+		nw_connection_receive(connection, 1, receive_len, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t error) {
+			@autoreleasepool {
+				box_apple_tls_read_result_t *result = calloc(1, sizeof(box_apple_tls_read_result_t));
+				if (result == NULL) {
+					box_apple_tls_read_callback(callback_handle, NULL);
+					return;
+				}
+				size_t content_size = content != NULL ? dispatch_data_get_size(content) : 0;
+				if (content_size > 0) {
+					result->content = (__bridge_retained void *)content;
+				}
+				if (error != NULL && content_size == 0) {
+					box_set_error_from_nw_error(&result->error, error);
+				}
+				if (is_complete && (context == NULL || nw_content_context_get_is_final(context))) {
+					result->eof = true;
+				}
+				box_apple_tls_read_callback(callback_handle, result);
+			}
+		});
+		return true;
 	}
-	return (ssize_t)buffer_len;
+}
+
+ssize_t box_apple_tls_read_result_copy(box_apple_tls_read_result_t *result, void *buffer, size_t buffer_len, bool *eof_out, char **error_out) {
+	@autoreleasepool {
+		if (result == NULL) {
+			box_set_error_message(error_out, "apple TLS: read result unavailable");
+			return -1;
+		}
+		if (result->error != NULL) {
+			if (error_out != NULL) {
+				*error_out = result->error;
+				result->error = NULL;
+			} else {
+				free(result->error);
+				result->error = NULL;
+			}
+			return -1;
+		}
+		if (eof_out != NULL) {
+			*eof_out = result->eof;
+		}
+		dispatch_data_t content = box_apple_tls_read_result_content(result);
+		if (content == nil) {
+			return 0;
+		}
+		const void *mapped = NULL;
+		size_t mapped_len = 0;
+		dispatch_data_t mapped_data = dispatch_data_create_map(content, &mapped, &mapped_len);
+		if (mapped == NULL || mapped_len == 0) {
+			(void)mapped_data;
+			return 0;
+		}
+		if (mapped_len > buffer_len) {
+			box_set_error_message(error_out, "apple TLS: read buffer too small");
+			(void)mapped_data;
+			return -1;
+		}
+		memcpy(buffer, mapped, mapped_len);
+		(void)mapped_data;
+		return (ssize_t)mapped_len;
+	}
+}
+
+void box_apple_tls_read_result_free(box_apple_tls_read_result_t *result) {
+	if (result == NULL) {
+		return;
+	}
+	free(result->error);
+	if (result->content != NULL) {
+		CFBridgingRelease(result->content);
+	}
+	free(result);
 }
 
 bool box_apple_tls_client_copy_state(box_apple_tls_client_t *client, box_apple_tls_state_t *state, char **error_out) {

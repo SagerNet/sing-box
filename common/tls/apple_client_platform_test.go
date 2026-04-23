@@ -3,17 +3,21 @@
 package tls
 
 import (
+	"bytes"
 	"context"
 	stdtls "crypto/tls"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/common/logger"
+	N "github.com/sagernet/sing/common/network"
 )
 
 const appleTLSTestTimeout = 5 * time.Second
@@ -27,6 +31,11 @@ type appleTLSServerResult struct {
 	state stdtls.ConnectionState
 	err   error
 }
+
+var (
+	_ N.ExtendedConn    = (*appleTLSConn)(nil)
+	_ N.ReadWaitCreator = (*appleTLSConn)(nil)
+)
 
 func TestAppleClientHandshakeAppliesALPNAndVersion(t *testing.T) {
 	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
@@ -268,6 +277,178 @@ func TestAppleClientConfigCloneWithInlineCertificate(t *testing.T) {
 	}
 }
 
+func TestAppleClientReadBuffer(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
+	payload := []byte("apple tls read buffer payload")
+	serverResult, serverAddress := startAppleTLSIOTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	}, func(conn *stdtls.Conn) error {
+		_, err := conn.Write(payload)
+		return err
+	})
+
+	clientConn, err := newAppleTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      "apple",
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		MaxVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	extendedConn := clientConn.(N.ExtendedConn)
+	const (
+		frontHeadroom = 17
+		rearHeadroom  = 19
+	)
+	buffer := buf.NewSize(frontHeadroom + len(payload) + rearHeadroom)
+	defer buffer.Release()
+	buffer.Resize(frontHeadroom, 0)
+	buffer.Reserve(rearHeadroom)
+	err = extendedConn.ReadBuffer(buffer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buffer.Bytes(), payload) {
+		t.Fatalf("unexpected payload: %q", buffer.Bytes())
+	}
+	if buffer.Start() != frontHeadroom {
+		t.Fatalf("unexpected front headroom: %d", buffer.Start())
+	}
+	if buffer.FreeLen() != 0 {
+		t.Fatalf("unexpected reserved free length before PostReturn: %d", buffer.FreeLen())
+	}
+	buffer.OverCap(rearHeadroom)
+	if buffer.FreeLen() != rearHeadroom {
+		t.Fatalf("unexpected rear headroom after PostReturn: %d", buffer.FreeLen())
+	}
+
+	if err = <-serverResult; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAppleClientWriteBuffer(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
+	payload := bytes.Repeat([]byte("apple-write-buffer-"), 3000)
+	serverResult, serverAddress := startAppleTLSIOTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	}, func(conn *stdtls.Conn) error {
+		received := make([]byte, len(payload))
+		_, err := io.ReadFull(conn, received)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(received, payload) {
+			return errors.New("payload mismatch")
+		}
+		return nil
+	})
+
+	clientConn, err := newAppleTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      "apple",
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		MaxVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	extendedConn := clientConn.(N.ExtendedConn)
+	buffer := buf.NewSize(len(payload))
+	_, err = buffer.Write(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = extendedConn.WriteBuffer(buffer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buffer.RawCap() != 0 {
+		t.Fatalf("buffer was not released: raw cap %d", buffer.RawCap())
+	}
+	if err = <-serverResult; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAppleClientCreateReadWaiter(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
+	payload := []byte("apple tls read waiter payload")
+	serverResult, serverAddress := startAppleTLSIOTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+		MinVersion:   stdtls.VersionTLS12,
+		MaxVersion:   stdtls.VersionTLS12,
+	}, func(conn *stdtls.Conn) error {
+		_, err := conn.Write(payload)
+		return err
+	})
+
+	clientConn, err := newAppleTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:     true,
+		Engine:      "apple",
+		ServerName:  "localhost",
+		MinVersion:  "1.2",
+		MaxVersion:  "1.2",
+		Certificate: badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	readWaitCreator := clientConn.(N.ReadWaitCreator)
+	readWaiter, ok := readWaitCreator.CreateReadWaiter()
+	if !ok {
+		t.Fatal("expected read waiter")
+	}
+	const (
+		frontHeadroom = 11
+		rearHeadroom  = 13
+	)
+	needCopy := readWaiter.InitializeReadWaiter(N.ReadWaitOptions{
+		FrontHeadroom: frontHeadroom,
+		RearHeadroom:  rearHeadroom,
+		MTU:           len(payload),
+	})
+	if needCopy {
+		t.Fatal("expected owned read waiter buffer")
+	}
+	buffer, err := readWaiter.WaitReadBuffer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer buffer.Release()
+	if !bytes.Equal(buffer.Bytes(), payload) {
+		t.Fatalf("unexpected payload: %q", buffer.Bytes())
+	}
+	if buffer.Start() != frontHeadroom {
+		t.Fatalf("unexpected front headroom: %d", buffer.Start())
+	}
+	if buffer.FreeLen() != rearHeadroom {
+		t.Fatalf("unexpected rear headroom: %d", buffer.FreeLen())
+	}
+	if buffer.Cap() != buffer.RawCap() {
+		t.Fatalf("capacity was not restored: cap=%d raw=%d", buffer.Cap(), buffer.RawCap())
+	}
+
+	if err = <-serverResult; err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAppleClientReadDeadline(t *testing.T) {
 	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
 	serverDone, serverAddress := startAppleTLSSilentServer(t, &stdtls.Config{
@@ -418,7 +599,52 @@ func startAppleTLSSilentServer(t *testing.T, tlsConfig *stdtls.Config) (chan<- s
 	return done, listener.Addr().String()
 }
 
-func newAppleTestCertificate(t *testing.T, serverName string) (stdtls.Certificate, string) {
+func startAppleTLSIOTestServer(t testing.TB, tlsConfig *stdtls.Config, handler func(*stdtls.Conn) error) (<-chan error, string) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		listener.Close()
+	})
+
+	if tcpListener, isTCP := listener.(*net.TCPListener); isTCP {
+		err = tcpListener.SetDeadline(time.Now().Add(appleTLSTestTimeout))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			result <- err
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(appleTLSTestTimeout))
+		if err != nil {
+			result <- err
+			return
+		}
+
+		tlsConn := stdtls.Server(conn, tlsConfig)
+		defer tlsConn.Close()
+		err = tlsConn.Handshake()
+		if err != nil {
+			result <- err
+			return
+		}
+		result <- handler(tlsConn)
+	}()
+	return result, listener.Addr().String()
+}
+
+func newAppleTestCertificate(t testing.TB, serverName string) (stdtls.Certificate, string) {
 	t.Helper()
 
 	privateKeyPEM, certificatePEM, err := GenerateCertificate(nil, nil, time.Now, serverName, time.Now().Add(time.Hour))
@@ -482,7 +708,7 @@ func startAppleTLSTestServer(t *testing.T, tlsConfig *stdtls.Config) (<-chan app
 	return result, listener.Addr().String()
 }
 
-func newAppleTestClientConn(t *testing.T, serverAddress string, options option.OutboundTLSOptions) (Conn, error) {
+func newAppleTestClientConn(t testing.TB, serverAddress string, options option.OutboundTLSOptions) (Conn, error) {
 	t.Helper()
 
 	clientConfig, err := NewClientWithOptions(ClientOptions{
@@ -497,7 +723,7 @@ func newAppleTestClientConn(t *testing.T, serverAddress string, options option.O
 	return dialAppleTestClientConn(t, serverAddress, clientConfig)
 }
 
-func dialAppleTestClientConn(t *testing.T, serverAddress string, clientConfig Config) (Conn, error) {
+func dialAppleTestClientConn(t testing.TB, serverAddress string, clientConfig Config) (Conn, error) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), appleTLSTestTimeout)
