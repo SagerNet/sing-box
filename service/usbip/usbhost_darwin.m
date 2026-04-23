@@ -543,7 +543,7 @@ box_usbhost_controller_t *box_usbhost_controller_create(uintptr_t ref, uint8_t p
 					| IOUSBHostCIMessageControlValid
 					| (port << IOUSBHostCIPortCapabilitiesMessageControlPortNumberPhase),
 				.data0 = (125 << IOUSBHostCIPortCapabilitiesMessageData0MaxPowerPhase),
-				.data1 = speed,
+				.data1 = 0,
 			};
 			[capabilities appendBytes:&port_capabilities length:sizeof(port_capabilities)];
 		}

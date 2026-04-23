@@ -269,14 +269,15 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	s.reconcileMu.Lock()
 	defer s.reconcileMu.Unlock()
 
-	changed, err := s.reconcileExports()
-	if err != nil {
+	if _, err := s.reconcileExports(); err != nil {
 		return err
 	}
-	if notify && changed {
-		s.broadcastChanged()
+
+	nextState := deviceInfoV2Map(s.buildDeviceStateV2())
+	if notify {
+		s.broadcastControlState(nextState, false)
 	} else {
-		s.refreshControlState()
+		s.setControlState(nextState)
 	}
 	return nil
 }
@@ -658,13 +659,20 @@ func (s *ServerService) closeControlSubscribers() {
 }
 
 func (s *ServerService) broadcastChanged() {
-	devices := s.buildDeviceStateV2()
-	nextState := deviceInfoV2Map(devices)
+	s.broadcastControlState(deviceInfoV2Map(s.buildDeviceStateV2()), true)
+}
 
+func (s *ServerService) broadcastControlState(nextState map[string]DeviceInfoV2, force bool) bool {
 	s.controlMu.Lock()
-	s.controlSeq++
+	nextSequence := s.controlSeq + 1
+	delta := buildControlDeviceDelta(nextSequence, s.controlState, nextState)
+	if !force && controlDeviceDeltaEmpty(delta) {
+		s.controlState = nextState
+		s.controlMu.Unlock()
+		return false
+	}
+	s.controlSeq = nextSequence
 	sequence := s.controlSeq
-	delta := buildControlDeviceDelta(sequence, s.controlState, nextState)
 	s.controlState = nextState
 	subs := make([]*serverControlConn, 0, len(s.controlSubs))
 	for _, sub := range s.controlSubs {
@@ -688,6 +696,11 @@ func (s *ServerService) broadcastChanged() {
 		}
 		s.enqueueControlFrame(sub, frame)
 	}
+	return true
+}
+
+func controlDeviceDeltaEmpty(delta controlDeviceDelta) bool {
+	return len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0
 }
 
 func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame controlFrame) {
@@ -705,9 +718,7 @@ func (s *ServerService) enqueueControlPayload(sub *serverControlConn, frame cont
 
 func (s *ServerService) enqueueControlSnapshot(sub *serverControlConn, sequence uint64) {
 	devices := s.buildDeviceStateV2()
-	s.controlMu.Lock()
-	s.controlState = deviceInfoV2Map(devices)
-	s.controlMu.Unlock()
+	s.setControlState(deviceInfoV2Map(devices))
 	s.enqueueControlPayload(sub, controlFrame{
 		Type:     controlFrameDeviceSnapshot,
 		Version:  controlProtocolVersion,
@@ -729,9 +740,12 @@ func (s *ServerService) enqueueControlMessage(sub *serverControlConn, message co
 }
 
 func (s *ServerService) refreshControlState() {
-	devices := s.buildDeviceStateV2()
+	s.setControlState(deviceInfoV2Map(s.buildDeviceStateV2()))
+}
+
+func (s *ServerService) setControlState(nextState map[string]DeviceInfoV2) {
 	s.controlMu.Lock()
-	s.controlState = deviceInfoV2Map(devices)
+	s.controlState = nextState
 	s.controlMu.Unlock()
 }
 

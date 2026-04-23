@@ -1249,6 +1249,84 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, uint64(1), delta.Sequence)
 }
 
+func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusUsed)
+
+	serverOps := newTestUSBIPOps(t)
+	serverOps.listUSBDevices = store.listUSBDevices
+	serverOps.readUsbipStatus = store.readUsbipStatus
+	serverOps.readSysfsDevice = store.readSysfsDevice
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
+		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         serverOps,
+	}
+	server.refreshControlState()
+	serverAddr, closeServer := startDispatchServer(t, server)
+	defer closeServer()
+
+	conn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	defer conn.Close()
+	setConnDeadline(t, conn)
+
+	require.NoError(t, WriteControlPreface(conn))
+	require.NoError(t, WriteControlHello(conn))
+	ack, err := ReadControlFrame(conn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameAck, ack.Type)
+
+	snapshotMessage, err := readControlMessage(conn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceSnapshot, snapshotMessage.Frame.Type)
+	var snapshot controlDeviceSnapshot
+	require.NoError(t, unmarshalControlPayload(snapshotMessage.Payload, &snapshot))
+	require.Len(t, snapshot.Devices, 1)
+	require.Equal(t, "1-1", snapshot.Devices[0].BusID)
+	require.Equal(t, deviceStateBusy, snapshot.Devices[0].State)
+	require.Equal(t, usbipStatusUsed, snapshot.Devices[0].StatusCode)
+
+	store.setStatus("1-1", usbipStatusAvailable)
+	require.NoError(t, server.reconcileAndBroadcast(true))
+
+	changed, err := readControlMessage(conn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceDelta, changed.Frame.Type)
+	require.Equal(t, uint64(1), changed.Frame.Sequence)
+	var delta controlDeviceDelta
+	require.NoError(t, unmarshalControlPayload(changed.Payload, &delta))
+	require.Equal(t, uint64(1), delta.Sequence)
+	require.Empty(t, delta.Added)
+	require.Empty(t, delta.Removed)
+	require.Len(t, delta.Updated, 1)
+	require.Equal(t, "1-1", delta.Updated[0].BusID)
+	require.Equal(t, deviceStateAvailable, delta.Updated[0].State)
+	require.Equal(t, usbipStatusAvailable, delta.Updated[0].StatusCode)
+
+	sequence := server.currentControlSequence()
+	require.NoError(t, server.reconcileAndBroadcast(true))
+	require.Equal(t, sequence, server.currentControlSequence())
+
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(100*time.Millisecond)))
+	_, err = readControlMessage(conn)
+	require.Error(t, err)
+	var netErr net.Error
+	require.ErrorAs(t, err, &netErr)
+	require.True(t, netErr.Timeout())
+}
+
 func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	t.Parallel()
 
