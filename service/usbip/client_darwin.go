@@ -682,11 +682,13 @@ type darwinVirtualController struct {
 	info      DeviceInfoTruncated
 	startTime time.Time
 
-	controller *darwinUSBHostController
-	events     chan darwinControllerEvent
-	done       chan struct{}
-	closeOnce  sync.Once
-	seq        atomic.Uint32
+	controller   *darwinUSBHostController
+	events       chan darwinControllerEvent
+	done         chan struct{}
+	eventDone    chan struct{}
+	closeOnce    sync.Once
+	eventStarted atomic.Bool
+	seq          atomic.Uint32
 
 	writeMu   sync.Mutex
 	pendingMu sync.Mutex
@@ -712,6 +714,7 @@ func newDarwinVirtualController(ctx context.Context, logger log.ContextLogger, c
 		startTime:     time.Now(),
 		events:        make(chan darwinControllerEvent, 64),
 		done:          make(chan struct{}),
+		eventDone:     make(chan struct{}),
 		pending:       make(map[uint32]darwinPendingSubmit),
 		nextAddress:   1,
 		devices:       make(map[uint8]*darwinUSBHostDeviceSM),
@@ -726,26 +729,25 @@ func (c *darwinVirtualController) Start() error {
 		return err
 	}
 	c.controller = controller
+	c.eventStarted.Store(true)
 	go c.readLoop()
 	go c.eventLoop()
 	return nil
 }
 
 func (c *darwinVirtualController) Close() {
+	c.requestClose()
+	if c.eventStarted.Load() {
+		<-c.eventDone
+	}
+}
+
+func (c *darwinVirtualController) requestClose() {
 	c.closeOnce.Do(func() {
 		c.cancel()
-		_ = c.conn.Close()
-		if c.controller != nil {
-			c.controller.Close()
+		if c.conn != nil {
+			_ = c.conn.Close()
 		}
-		c.stateMu.Lock()
-		for _, endpoint := range c.endpoints {
-			endpoint.Close()
-		}
-		for _, device := range c.devices {
-			device.Close()
-		}
-		c.stateMu.Unlock()
 	})
 }
 
@@ -767,7 +769,7 @@ func (c *darwinVirtualController) enqueueEvent(event darwinControllerEvent) {
 	case <-c.ctx.Done():
 	default:
 		c.logger.Warn("IOUSBHostControllerInterface event queue overflow")
-		c.Close()
+		c.requestClose()
 	}
 }
 
@@ -812,6 +814,9 @@ func (c *darwinVirtualController) readLoop() {
 }
 
 func (c *darwinVirtualController) eventLoop() {
+	c.eventStarted.Store(true)
+	defer close(c.eventDone)
+	defer c.teardownIOUSBHostState()
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -821,6 +826,9 @@ func (c *darwinVirtualController) eventLoop() {
 				c.handleCommand(*event.command)
 			} else {
 				c.handleDoorbell(event.doorbell)
+			}
+			if c.ctx.Err() != nil {
+				return
 			}
 		}
 	}
@@ -861,7 +869,8 @@ func (c *darwinVirtualController) handleCommand(message darwinCIMessage) {
 	}
 	if err != nil {
 		c.logger.Debug("IOUSBHostCI command 0x", hex8(message.messageType()), ": ", err)
-		c.Close()
+		c.requestClose()
+		return
 	}
 }
 
@@ -960,9 +969,37 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		status, length := c.handleTransfer(key, transfer.message)
 		if err := endpoint.complete(transfer, darwinUSBIPStatusToCIStatus(status), length); err != nil {
 			c.logger.Debug("complete transfer: ", err)
-			c.Close()
+			c.requestClose()
 			return
 		}
+	}
+}
+
+func (c *darwinVirtualController) teardownIOUSBHostState() {
+	c.stateMu.Lock()
+	endpoints := make([]darwinEndpointStateMachine, 0, len(c.endpoints))
+	for _, endpoint := range c.endpoints {
+		endpoints = append(endpoints, endpoint)
+	}
+	c.endpoints = make(map[darwinEndpointKey]darwinEndpointStateMachine)
+	devices := make([]*darwinUSBHostDeviceSM, 0, len(c.devices))
+	for _, device := range c.devices {
+		devices = append(devices, device)
+	}
+	c.devices = make(map[uint8]*darwinUSBHostDeviceSM)
+	c.controlStates = make(map[uint8]darwinControlState)
+	controller := c.controller
+	c.controller = nil
+	c.stateMu.Unlock()
+
+	for _, endpoint := range endpoints {
+		endpoint.Close()
+	}
+	for _, device := range devices {
+		device.Close()
+	}
+	if controller != nil {
+		controller.Close()
 	}
 }
 

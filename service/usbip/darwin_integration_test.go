@@ -205,18 +205,34 @@ func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
 }
 
 type fakeDarwinEndpointStateMachine struct {
-	transfers      []darwinCITransfer
-	currentRead    int
-	completeCalled int
+	transfers              []darwinCITransfer
+	processDoorbellStarted chan struct{}
+	releaseProcessDoorbell <-chan struct{}
+	closeCalled            chan struct{}
+	currentRead            int
+	completeCalled         int
+	closeOnce              sync.Once
 }
 
-func (f *fakeDarwinEndpointStateMachine) Close() {}
+func (f *fakeDarwinEndpointStateMachine) Close() {
+	if f.closeCalled != nil {
+		f.closeOnce.Do(func() {
+			close(f.closeCalled)
+		})
+	}
+}
 
 func (f *fakeDarwinEndpointStateMachine) respond(darwinCIMessage, int) error {
 	return nil
 }
 
 func (f *fakeDarwinEndpointStateMachine) processDoorbell(uint32) error {
+	if f.processDoorbellStarted != nil {
+		close(f.processDoorbellStarted)
+	}
+	if f.releaseProcessDoorbell != nil {
+		<-f.releaseProcessDoorbell
+	}
 	return nil
 }
 
@@ -283,6 +299,77 @@ func TestDarwinHandleDoorbellContinuesAfterNoResponseTransfer(t *testing.T) {
 	controller.handleDoorbell((uint32(2) << 8) | 1)
 	require.Equal(t, 1, endpoint.completeCalled)
 	require.Equal(t, 2, endpoint.currentRead)
+}
+
+func TestDarwinControllerCloseWaitsForEventLoopTeardown(t *testing.T) {
+	t.Parallel()
+
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	processStarted := make(chan struct{})
+	releaseProcess := make(chan struct{})
+	endpointClosed := make(chan struct{})
+	endpoint := &fakeDarwinEndpointStateMachine{
+		processDoorbellStarted: processStarted,
+		releaseProcessDoorbell: releaseProcess,
+		closeCalled:            endpointClosed,
+	}
+	controller.endpoints[darwinEndpointKey{device: 1, endpoint: 2}] = endpoint
+
+	go controller.eventLoop()
+	controller.enqueueDoorbell((uint32(2) << 8) | 1)
+
+	select {
+	case <-processStarted:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for doorbell processing")
+	}
+
+	closeDone := make(chan struct{})
+	go func() {
+		controller.Close()
+		close(closeDone)
+	}()
+
+	select {
+	case <-endpointClosed:
+		t.Fatal("endpoint closed while doorbell processing was active")
+	case <-time.After(100 * time.Millisecond):
+	}
+	select {
+	case <-closeDone:
+		t.Fatal("controller Close returned while doorbell processing was active")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(releaseProcess)
+
+	select {
+	case <-endpointClosed:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for endpoint close")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for controller Close")
+	}
+}
+
+func TestDarwinControllerCloseWithNilConn(t *testing.T) {
+	t.Parallel()
+
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	done := make(chan struct{})
+	go func() {
+		controller.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for controller Close")
+	}
 }
 
 func startDarwinFakeUSBIPServer(t *testing.T) *darwinFakeUSBIPServer {
