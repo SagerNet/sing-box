@@ -50,22 +50,6 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 		}
 		managedTransport.epoch.Store(&transportEpoch{transport: inner})
 		return managedTransport, nil
-	case C.TLSEngineWindows:
-		inner, transportErr := newWindowsTransport(ctx, logger, rawDialer, options)
-		if transportErr != nil {
-			return nil, transportErr
-		}
-		managedTransport := &ManagedTransport{
-			dialer:  rawDialer,
-			headers: headers,
-			host:    host,
-			tag:     tag,
-			factory: func() (innerTransport, error) {
-				return newWindowsTransport(ctx, logger, rawDialer, options)
-			},
-		}
-		managedTransport.epoch.Store(&transportEpoch{transport: inner})
-		return managedTransport, nil
 	case "", C.TLSEngineGo:
 		cheapRebuild = true
 	default:
