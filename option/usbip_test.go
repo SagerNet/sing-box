@@ -65,13 +65,3 @@ func TestUSBIPHexUint16MarshalJSON(t *testing.T) {
 		})
 	}
 }
-
-func TestUSBIPDeviceMatchIsZero(t *testing.T) {
-	t.Parallel()
-
-	require.True(t, (USBIPDeviceMatch{}).IsZero())
-	require.False(t, (USBIPDeviceMatch{BusID: "1-1"}).IsZero())
-	require.False(t, (USBIPDeviceMatch{VendorID: 0x1d6b}).IsZero())
-	require.False(t, (USBIPDeviceMatch{ProductID: 0x0002}).IsZero())
-	require.False(t, (USBIPDeviceMatch{Serial: "abc"}).IsZero())
-}

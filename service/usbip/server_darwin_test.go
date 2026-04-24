@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/log"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -184,6 +185,8 @@ func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing
 	require.Zero(t, seq)
 	require.Contains(t, server.controlSubs, sub.id)
 
+	added := standardTestDeviceEntry("added")
+	server.exports["added"] = serverExport{busid: "added", registryID: 1, entry: added}
 	server.broadcastChanged()
 
 	first := <-sub.send
@@ -242,7 +245,7 @@ func TestDarwinServerImportBroadcastsBusyState(t *testing.T) {
 }
 
 func darwinServerControlState(server *ServerService, busid string) string {
-	server.controlMu.Lock()
-	defer server.controlMu.Unlock()
+	server.controlAccess.Lock()
+	defer server.controlAccess.Unlock()
 	return server.controlState[busid].State
 }

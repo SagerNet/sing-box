@@ -4,9 +4,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-// DeviceKey is the minimal set of fields needed to evaluate a USBIPDeviceMatch.
-// Both the local sysfs enumerator and the remote OP_REP_DEVLIST parser populate
-// this before running matches.
 type DeviceKey struct {
 	BusID     string
 	VendorID  uint16
@@ -14,10 +11,7 @@ type DeviceKey struct {
 	Serial    string
 }
 
-// Matches reports whether d satisfies m. Non-zero fields AND together; an
-// all-zero match is treated as non-matching (callers should reject such
-// configs earlier).
-func Matches(m option.USBIPDeviceMatch, d DeviceKey) bool {
+func matches(m option.USBIPDeviceMatch, d DeviceKey) bool {
 	if m.IsZero() {
 		return false
 	}

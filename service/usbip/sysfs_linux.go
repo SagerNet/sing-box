@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/shell"
@@ -23,13 +24,13 @@ const (
 	usbipStatusAvailable = 1
 	usbipStatusUsed      = 2
 	usbipStatusError     = 3
+
+	vhciStateUsed = 6
 )
 
-// sysfsDevice captures the subset of USB device attributes needed for
-// matching, export, and OP_REP_DEVLIST emission.
 type sysfsDevice struct {
 	BusID          string
-	Path           string // sysfs path, e.g. /sys/bus/usb/devices/1-2
+	Path           string
 	BusNum         uint32
 	DevNum         uint32
 	Speed          uint32
@@ -88,18 +89,14 @@ type vhciStatusRecord struct {
 	state int
 }
 
-// ensureHostDriver verifies the usbip-host kernel driver is loaded.
 func ensureHostDriver() error {
 	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 }
 
-// ensureVHCI verifies the vhci_hcd controller is loaded.
 func ensureVHCI() error {
 	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 
-// listUSBDevices enumerates /sys/bus/usb/devices, returning non-interface
-// device entries that expose idVendor.
 func listUSBDevices() ([]sysfsDevice, error) {
 	entries, err := os.ReadDir(sysBusUSBDevices)
 	if err != nil {
@@ -121,7 +118,6 @@ func listUSBDevices() ([]sysfsDevice, error) {
 	return devices, nil
 }
 
-// readSysfsDevice populates a sysfsDevice from the attributes at path.
 func readSysfsDevice(busid, path string) (sysfsDevice, error) {
 	d := sysfsDevice{BusID: busid, Path: path}
 	vendor, err := readHexU16(path, "idVendor")
@@ -149,7 +145,6 @@ func readSysfsDevice(busid, path string) (sysfsDevice, error) {
 	return d, nil
 }
 
-// readInterfaces reads the per-interface descriptors sibling to the device node.
 func readInterfaces(devicePath, busid string, configValue uint8, count int) []DeviceInterface {
 	if count == 0 {
 		return nil
@@ -170,7 +165,6 @@ func readInterfaces(devicePath, busid string, configValue uint8, count int) []De
 	return interfaces
 }
 
-// currentDriver returns the driver currently bound to busid, or "" if none.
 func currentDriver(busid string) (string, error) {
 	link, err := os.Readlink(filepath.Join(sysBusUSBDevices, busid, "driver"))
 	if err != nil {
@@ -182,20 +176,16 @@ func currentDriver(busid string) (string, error) {
 	return filepath.Base(link), nil
 }
 
-// unbindFromDriver detaches busid from driver.
 func unbindFromDriver(busid, driver string) error {
 	path := filepath.Join("/sys/bus/usb/drivers", driver, "unbind")
 	return writeSysfs(path, busid)
 }
 
-// bindToDriver attaches busid to driver.
 func bindToDriver(busid, driver string) error {
 	path := filepath.Join("/sys/bus/usb/drivers", driver, "bind")
 	return writeSysfs(path, busid)
 }
 
-// hostMatchBusID writes "add <busid>" / "del <busid>" to the usbip-host
-// match_busid attribute. Returns nil on ENOENT for "del" (idempotent).
 func hostMatchBusID(busid string, add bool) error {
 	verb := "del"
 	if add {
@@ -205,12 +195,10 @@ func hostMatchBusID(busid string, add bool) error {
 	return writeSysfs(path, verb+" "+busid)
 }
 
-// hostBind attaches busid to usbip-host.
 func hostBind(busid string) error {
 	return writeSysfs(filepath.Join(sysUsbipHostDriver, "bind"), busid)
 }
 
-// hostUnbind detaches busid from usbip-host.
 func hostUnbind(busid string) error {
 	return writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), busid)
 }
@@ -227,7 +215,6 @@ func reloadHostDriver() error {
 	return ensureHostDriver()
 }
 
-// readUsbipStatus returns the usbip_status attribute value for busid.
 func readUsbipStatus(busid string) (int, error) {
 	raw, err := os.ReadFile(filepath.Join(sysBusUSBDevices, busid, "usbip_status"))
 	if err != nil {
@@ -240,14 +227,10 @@ func readUsbipStatus(busid string) (int, error) {
 	return v, nil
 }
 
-// writeUsbipSockfd hands the fd for busid to the usbip-host kernel driver.
-// Passing -1 as fd releases the connection.
 func writeUsbipSockfd(busid string, fd int) error {
 	return writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), strconv.Itoa(fd))
 }
 
-// vhciPickFreePort scans the vhci_hcd.0 status table and returns a free port
-// from the hub that matches the remote device speed.
 func vhciPickFreePort(speed uint32) (int, error) {
 	records, err := readVHCIStatus()
 	if err != nil {
@@ -263,28 +246,60 @@ func vhciPickFreePort(speed uint32) (int, error) {
 	return -1, E.New("no free ", targetHub, " vhci port")
 }
 
-// vhciPortUsed reports whether the given port is currently in VDEV_ST_USED (6).
+type vhciStatusFlight struct {
+	done chan struct{}
+	used map[int]bool
+	err  error
+}
+
+// vhciPortUsedAccess coalesces concurrent callers into a single
+// status-file read: the first goroutine reads, later arrivals share its result.
+var (
+	vhciPortUsedAccess sync.Mutex
+	vhciPortUsedFlight *vhciStatusFlight
+)
+
 func vhciPortUsed(port int) (bool, error) {
-	records, err := readVHCIStatus()
+	used, err := vhciUsedPorts()
 	if err != nil {
 		return false, err
 	}
-	for _, record := range records {
-		if record.port != port {
-			continue
-		}
-		return record.state == 6, nil // VDEV_ST_USED
-	}
-	return false, nil
+	return used[port], nil
 }
 
-// vhciAttach writes "port fd devid speed" to the attach attribute.
+func vhciUsedPorts() (map[int]bool, error) {
+	vhciPortUsedAccess.Lock()
+	if vhciPortUsedFlight != nil {
+		flight := vhciPortUsedFlight
+		vhciPortUsedAccess.Unlock()
+		<-flight.done
+		return flight.used, flight.err
+	}
+	flight := &vhciStatusFlight{done: make(chan struct{})}
+	vhciPortUsedFlight = flight
+	vhciPortUsedAccess.Unlock()
+
+	records, err := readVHCIStatus()
+	if err == nil {
+		flight.used = make(map[int]bool, len(records))
+		for _, record := range records {
+			flight.used[record.port] = record.state == vhciStateUsed
+		}
+	}
+	flight.err = err
+
+	vhciPortUsedAccess.Lock()
+	vhciPortUsedFlight = nil
+	vhciPortUsedAccess.Unlock()
+	close(flight.done)
+	return flight.used, flight.err
+}
+
 func vhciAttach(port int, fd uintptr, devid uint32, speed uint32) error {
 	line := fmt.Sprintf("%d %d %d %d", port, int(fd), devid, speed)
 	return writeSysfs(filepath.Join(sysVHCIControllerV0, "attach"), line)
 }
 
-// vhciDetach writes the port number to the detach attribute.
 func vhciDetach(port int) error {
 	return writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(port))
 }
@@ -375,8 +390,6 @@ func findModprobePath() (string, error) {
 	return "", E.New("modprobe executable not found")
 }
 
-// --- small helpers ------------------------------------------------------
-
 func writeSysfs(path, content string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
 	if err != nil {
@@ -443,8 +456,6 @@ func readDecU32(dir, attr string) (uint32, error) {
 	return uint32(v), nil
 }
 
-// speedCodeFromString maps the sysfs "speed" attribute to the USB/IP wire
-// enum usb_device_speed.
 func speedCodeFromString(s string) uint32 {
 	switch s {
 	case "1.5":

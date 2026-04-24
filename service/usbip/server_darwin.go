@@ -5,9 +5,11 @@ package usbip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,13 +34,6 @@ type serverExport struct {
 	busy       bool
 }
 
-type serverControlConn struct {
-	id           uint64
-	capabilities uint32
-	conn         net.Conn
-	send         chan controlOutboundMessage
-}
-
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -47,20 +42,19 @@ type ServerService struct {
 	listener *listener.Listener
 	matches  []option.USBIPDeviceMatch
 
-	mu      sync.Mutex
+	access  sync.Mutex
 	exports map[string]serverExport
 	listen  net.Listener
 
-	controlMu     sync.Mutex
+	controlAccess sync.Mutex
 	controlSeq    uint64
 	controlNextID uint64
 	controlSubs   map[uint64]*serverControlConn
 	controlState  map[string]DeviceInfoV2
 	leaseNextID   uint64
-	leases        map[uint64]serverImportLease
-	leaseByBusID  map[string]uint64
+	leasesByBusID map[string]serverImportLease
 
-	reconcileMu sync.Mutex
+	reconcileAccess sync.Mutex
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -86,10 +80,9 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		leases:       make(map[uint64]serverImportLease),
-		leaseByBusID: make(map[string]uint64),
+		controlSubs:   make(map[uint64]*serverControlConn),
+		controlState:  make(map[string]DeviceInfoV2),
+		leasesByBusID: make(map[string]serverImportLease),
 	}, nil
 }
 
@@ -97,17 +90,19 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	if err := s.reconcileAndBroadcast(false); err != nil {
+	err := s.reconcileAndBroadcast(false)
+	if err != nil {
 		return err
 	}
-	tcpListener, err := s.listener.ListenTCP()
+	var tcpListener net.Listener
+	tcpListener, err = s.listener.ListenTCP()
 	if err != nil {
 		s.rollbackExports()
 		return err
 	}
-	s.mu.Lock()
+	s.access.Lock()
 	s.listen = tcpListener
-	s.mu.Unlock()
+	s.access.Unlock()
 	go s.acceptLoop(tcpListener)
 	go s.reconcileLoop()
 	return nil
@@ -119,8 +114,8 @@ func (s *ServerService) Close() error {
 	}
 	s.closeControlSubscribers()
 	err := common.Close(common.PtrOrNil(s.listener))
-	s.reconcileMu.Lock()
-	defer s.reconcileMu.Unlock()
+	s.reconcileAccess.Lock()
+	defer s.reconcileAccess.Unlock()
 	s.rollbackExports()
 	return err
 }
@@ -133,7 +128,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 	desired := make(map[string]darwinUSBHostDeviceInfo)
 	for _, match := range s.matches {
 		for i := range devices {
-			if !Matches(match, devices[i].key) {
+			if !matches(match, devices[i].key) {
 				continue
 			}
 			if devices[i].entry.Info.BDeviceClass == 0x09 {
@@ -189,8 +184,8 @@ func (s *ServerService) reconcileExports() (bool, error) {
 }
 
 func (s *ServerService) reconcileAndBroadcast(notify bool) error {
-	s.reconcileMu.Lock()
-	defer s.reconcileMu.Unlock()
+	s.reconcileAccess.Lock()
+	defer s.reconcileAccess.Unlock()
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return nil
 	}
@@ -215,8 +210,8 @@ func (s *ServerService) rollbackExports() {
 }
 
 func (s *ServerService) currentExports() []serverExport {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	out := make([]serverExport, 0, len(s.exports))
 	for _, export := range s.exports {
 		if export.busy {
@@ -225,27 +220,27 @@ func (s *ServerService) currentExports() []serverExport {
 		out = append(out, export)
 	}
 	slices.SortFunc(out, func(a, b serverExport) int {
-		return stringsCompare(a.busid, b.busid)
+		return strings.Compare(a.busid, b.busid)
 	})
 	return out
 }
 
 func (s *ServerService) allExports() []serverExport {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	out := make([]serverExport, 0, len(s.exports))
 	for _, export := range s.exports {
 		out = append(out, export)
 	}
 	slices.SortFunc(out, func(a, b serverExport) int {
-		return stringsCompare(a.busid, b.busid)
+		return strings.Compare(a.busid, b.busid)
 	})
 	return out
 }
 
 func (s *ServerService) snapshotExports() map[string]serverExport {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	out := make(map[string]serverExport, len(s.exports))
 	for busid, export := range s.exports {
 		out[busid] = export
@@ -254,20 +249,20 @@ func (s *ServerService) snapshotExports() map[string]serverExport {
 }
 
 func (s *ServerService) setExport(export serverExport) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.exports[export.busid] = export
 }
 
 func (s *ServerService) deleteExport(busid string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	delete(s.exports, busid)
 }
 
 func (s *ServerService) claimExport(busid string) (serverExport, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	export, ok := s.exports[busid]
 	if !ok || export.busy {
 		return serverExport{}, false
@@ -278,54 +273,13 @@ func (s *ServerService) claimExport(busid string) (serverExport, bool) {
 }
 
 func (s *ServerService) releaseClaim(busid string) {
-	s.mu.Lock()
+	s.access.Lock()
 	export, ok := s.exports[busid]
 	if ok {
 		export.busy = false
 		s.exports[busid] = export
 	}
-	s.mu.Unlock()
-}
-
-func (s *ServerService) acceptLoop(ln net.Listener) {
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			select {
-			case <-s.ctx.Done():
-				return
-			default:
-			}
-			if E.IsClosed(err) {
-				return
-			}
-			//nolint:staticcheck // Keep parity with Linux accept retry handling.
-			if netError, isNetError := err.(net.Error); isNetError && netError.Temporary() {
-				s.logger.Error("accept: ", err)
-				if !sleepCtx(s.ctx, 200*time.Millisecond) {
-					return
-				}
-				continue
-			}
-			s.logger.Error("accept: ", err)
-			return
-		}
-		go s.dispatchConn(conn)
-	}
-}
-
-func (s *ServerService) dispatchConn(conn net.Conn) {
-	var prefix [controlPrefaceSize]byte
-	if _, err := io.ReadFull(conn, prefix[:]); err != nil {
-		s.logger.Debug("read connection preface: ", err)
-		_ = conn.Close()
-		return
-	}
-	if IsControlPreface(prefix[:]) {
-		s.handleControlConn(conn)
-		return
-	}
-	s.handleStandardConn(conn, ParseOpHeader(prefix[:]))
+	s.access.Unlock()
 }
 
 func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
@@ -338,7 +292,7 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 	case OpReqImportExt:
 		s.handleImportExt(conn)
 	default:
-		s.logger.Debug("unknown opcode 0x", hex16(header.Code))
+		s.logger.Debug(fmt.Sprintf("unknown opcode 0x%04x", header.Code))
 	}
 }
 
@@ -357,7 +311,8 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 	capabilities := negotiatedControlCapabilities(hello.Capabilities)
 	sub, seq := s.registerControlConn(conn, capabilities)
 	defer s.unregisterControlConn(sub.id)
-	if err := writeControlAckWithCapabilities(conn, seq, capabilities); err != nil {
+	err = writeControlAckWithCapabilities(conn, seq, capabilities)
+	if err != nil {
 		s.logger.Debug("write control ack: ", err)
 		return
 	}
@@ -370,33 +325,11 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		case <-readDone:
 			return
 		case message := <-sub.send:
-			if err := writeControlMessage(conn, message.Frame, message.Payload); err != nil {
+			err = writeControlMessage(conn, message.Frame, message.Payload)
+			if err != nil {
 				s.logger.Debug("write control frame: ", err)
 				return
 			}
-		}
-	}
-}
-
-func (s *ServerService) readControlConn(sub *serverControlConn, done chan<- struct{}) {
-	defer close(done)
-	for {
-		message, err := readControlMessage(sub.conn)
-		if err != nil {
-			return
-		}
-		frame := message.Frame
-		switch frame.Type {
-		case controlFramePing:
-			s.enqueueControlFrame(sub, controlFrame{Type: controlFramePong, Version: controlProtocolVersion})
-		case controlFrameLeaseRequest:
-			if supportsControlExtensions(sub.capabilities) {
-				s.handleControlLeaseRequest(sub, message.Payload)
-				continue
-			}
-			return
-		default:
-			return
 		}
 	}
 }
@@ -407,7 +340,8 @@ func (s *ServerService) handleDevList(conn net.Conn) {
 	for _, export := range exports {
 		entries = append(entries, export.entry)
 	}
-	if err := WriteOpRepDevList(conn, entries); err != nil {
+	err := WriteOpRepDevList(conn, entries)
+	if err != nil {
 		s.logger.Debug("write devlist: ", err)
 	}
 }
@@ -455,13 +389,15 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		}
 	}()
 	info := export.entry.Info
-	if err := writeReply(conn, OpStatusOK, &info); err != nil {
+	err := writeReply(conn, OpStatusOK, &info)
+	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		return
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
 	session := newDarwinServerDataSession(s.ctx, s.logger, conn, export.device)
-	if err := session.serve(); err != nil && s.ctx.Err() == nil {
+	err = session.serve()
+	if err != nil && s.ctx.Err() == nil {
 		s.logger.Debug("data session ", busid, ": ", err)
 	}
 	s.releaseClaim(busid)
@@ -478,118 +414,15 @@ func (s *ServerService) reconcileLoop() {
 			return
 		case <-ticker.C:
 		}
-		if err := s.reconcileAndBroadcast(true); err != nil {
+		err := s.reconcileAndBroadcast(true)
+		if err != nil {
 			s.logger.Warn("reconcile exports: ", err)
 		}
 	}
 }
 
-func (s *ServerService) registerControlConn(conn net.Conn, capabilities uint32) (*serverControlConn, uint64) {
-	s.controlMu.Lock()
-	defer s.controlMu.Unlock()
-	s.controlNextID++
-	sequence := s.controlSeq
-	sub := &serverControlConn{
-		id:           s.controlNextID,
-		capabilities: capabilities,
-		conn:         conn,
-		send:         make(chan controlOutboundMessage, 16),
-	}
-	if supportsControlExtensions(capabilities) {
-		s.enqueueControlSnapshot(sub, sequence)
-	}
-	s.controlSubs[sub.id] = sub
-	return sub, sequence
-}
-
-func (s *ServerService) unregisterControlConn(id uint64) {
-	s.controlMu.Lock()
-	defer s.controlMu.Unlock()
-	delete(s.controlSubs, id)
-	s.deleteImportLeasesForSubscriberLocked(id)
-}
-
-func (s *ServerService) closeControlSubscribers() {
-	s.controlMu.Lock()
-	subs := make([]*serverControlConn, 0, len(s.controlSubs))
-	for _, sub := range s.controlSubs {
-		subs = append(subs, sub)
-	}
-	s.controlSubs = make(map[uint64]*serverControlConn)
-	s.controlMu.Unlock()
-	for _, sub := range subs {
-		_ = sub.conn.Close()
-	}
-}
-
 func (s *ServerService) broadcastChanged() {
-	devices := s.buildDeviceStateV2()
-	nextState := deviceInfoV2Map(devices)
-
-	s.controlMu.Lock()
-	s.controlSeq++
-	sequence := s.controlSeq
-	delta := buildControlDeviceDelta(sequence, s.controlState, nextState)
-	s.controlState = nextState
-	subs := make([]*serverControlConn, 0, len(s.controlSubs))
-	for _, sub := range s.controlSubs {
-		subs = append(subs, sub)
-	}
-	s.controlMu.Unlock()
-	frame := controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence}
-	for _, sub := range subs {
-		if supportsControlExtensions(sub.capabilities) {
-			s.enqueueControlPayload(sub, controlFrame{
-				Type:     controlFrameDeviceDelta,
-				Version:  controlProtocolVersion,
-				Sequence: sequence,
-			}, delta, frame)
-			continue
-		}
-		s.enqueueControlFrame(sub, frame)
-	}
-}
-
-func (s *ServerService) enqueueControlFrame(sub *serverControlConn, frame controlFrame) {
-	s.enqueueControlMessage(sub, controlOutboundMessage{Frame: frame})
-}
-
-func (s *ServerService) enqueueControlPayload(sub *serverControlConn, frame controlFrame, payload any, fallback controlFrame) {
-	rawPayload, err := marshalControlPayload(payload)
-	if err != nil || len(rawPayload) > maxControlPayloadLength {
-		s.enqueueControlFrame(sub, fallback)
-		return
-	}
-	s.enqueueControlMessage(sub, controlOutboundMessage{Frame: frame, Payload: rawPayload})
-}
-
-func (s *ServerService) enqueueControlSnapshot(sub *serverControlConn, sequence uint64) {
-	devices := s.buildDeviceStateV2()
-	s.enqueueControlPayload(sub, controlFrame{
-		Type:     controlFrameDeviceSnapshot,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	}, controlDeviceSnapshot{Sequence: sequence, Devices: devices}, controlFrame{
-		Type:     controlFrameChanged,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	})
-}
-
-func (s *ServerService) enqueueControlMessage(sub *serverControlConn, message controlOutboundMessage) {
-	select {
-	case sub.send <- message:
-	default:
-		s.logger.Debug("control subscriber ", sub.id, " lagged behind")
-		_ = sub.conn.Close()
-	}
-}
-
-func (s *ServerService) refreshControlState() {
-	devices := s.buildDeviceStateV2()
-	s.controlMu.Lock()
-	s.controlState = deviceInfoV2Map(devices)
-	s.controlMu.Unlock()
+	s.broadcastControlState(deviceInfoV2Map(s.buildDeviceStateV2()), false)
 }
 
 func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
@@ -600,158 +433,42 @@ func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
 	devices := make([]DeviceInfoV2, 0, len(exports))
 	for _, export := range exports {
 		state := deviceStateAvailable
-		reason := "available"
+		reason := deviceStateAvailable
 		if export.busy {
 			state = deviceStateBusy
-			reason = "busy"
+			reason = deviceStateBusy
 		}
-		devices = append(devices, deviceInfoV2FromEntry(export.entry, "darwin-iokit", darwinStableID(export.registryID), state, 0, reason))
+		devices = append(devices, deviceInfoV2FromEntry(export.entry, backendIDDarwinIOKit, darwinStableID(export.registryID), state, 0, reason))
 	}
 	return devices
 }
 
-func (s *ServerService) handleControlLeaseRequest(sub *serverControlConn, payload []byte) {
-	var request controlLeaseRequest
-	if err := unmarshalControlPayload(payload, &request); err != nil {
-		s.enqueueControlPayload(sub, controlFrame{
-			Type:    controlFrameLeaseResponse,
-			Version: controlProtocolVersion,
-		}, controlLeaseResponse{
-			ErrorCode:    "bad_request",
-			ErrorMessage: err.Error(),
-		}, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: s.currentControlSequence()})
-		return
-	}
-	response := s.createControlLeaseResponse(sub.id, request, s.darwinLeaseAvailable)
-	s.enqueueControlPayload(sub, controlFrame{
-		Type:    controlFrameLeaseResponse,
-		Version: controlProtocolVersion,
-	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: s.currentControlSequence()})
-}
-
-func (s *ServerService) darwinLeaseAvailable(busid string) (bool, string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *ServerService) leaseAvailable(busid string) (bool, string) {
+	s.access.Lock()
+	defer s.access.Unlock()
 	export, ok := s.exports[busid]
 	if !ok {
 		return false, "unknown busid"
 	}
 	if export.busy {
-		return false, "busy"
+		return false, deviceStateBusy
 	}
 	return true, ""
 }
 
-func (s *ServerService) createControlLeaseResponse(subID uint64, request controlLeaseRequest, available func(string) (bool, string)) controlLeaseResponse {
-	response := controlLeaseResponse{
-		BusID:       request.BusID,
-		ClientNonce: request.ClientNonce,
-	}
-	if request.BusID == "" {
-		response.ErrorCode = "bad_request"
-		response.ErrorMessage = "missing busid"
-		return response
-	}
-	if ok, reason := available(request.BusID); !ok {
-		response.ErrorCode = "unavailable"
-		response.ErrorMessage = reason
-		return response
-	}
-	now := time.Now()
-	expires := now.Add(importLeaseTTL)
-	s.controlMu.Lock()
-	defer s.controlMu.Unlock()
-	s.cleanupExpiredImportLeasesLocked(now)
-	if _, exists := s.leaseByBusID[request.BusID]; exists {
-		response.ErrorCode = "busy"
-		response.ErrorMessage = "lease already active"
-		return response
-	}
-	s.leaseNextID++
-	lease := serverImportLease{
-		ID:           s.leaseNextID,
-		SubscriberID: subID,
-		BusID:        request.BusID,
-		ClientNonce:  request.ClientNonce,
-		Generation:   s.controlSeq,
-		Expires:      expires,
-	}
-	if s.leases == nil {
-		s.leases = make(map[uint64]serverImportLease)
-	}
-	if s.leaseByBusID == nil {
-		s.leaseByBusID = make(map[string]uint64)
-	}
-	s.leases[lease.ID] = lease
-	s.leaseByBusID[lease.BusID] = lease.ID
-	response.LeaseID = lease.ID
-	response.Generation = lease.Generation
-	response.TTLMillis = int64(importLeaseTTL / time.Millisecond)
-	return response
-}
-
-func (s *ServerService) consumeImportLease(request ImportExtRequest) bool {
-	now := time.Now()
-	s.controlMu.Lock()
-	defer s.controlMu.Unlock()
-	s.cleanupExpiredImportLeasesLocked(now)
-	lease, ok := s.leases[request.LeaseID]
-	if !ok {
-		return false
-	}
-	if lease.BusID != request.BusID || lease.ClientNonce != request.ClientNonce {
-		return false
-	}
-	delete(s.leases, request.LeaseID)
-	delete(s.leaseByBusID, request.BusID)
-	return now.Before(lease.Expires)
-}
-
-func (s *ServerService) cleanupExpiredImportLeasesLocked(now time.Time) {
-	if s.leases == nil {
-		s.leases = make(map[uint64]serverImportLease)
-	}
-	if s.leaseByBusID == nil {
-		s.leaseByBusID = make(map[string]uint64)
-	}
-	for id, lease := range s.leases {
-		if now.Before(lease.Expires) {
-			continue
-		}
-		delete(s.leases, id)
-		delete(s.leaseByBusID, lease.BusID)
-	}
-}
-
-func (s *ServerService) deleteImportLeasesForSubscriberLocked(subID uint64) {
-	for id, lease := range s.leases {
-		if lease.SubscriberID != subID {
-			continue
-		}
-		delete(s.leases, id)
-		delete(s.leaseByBusID, lease.BusID)
-	}
-}
-
-func (s *ServerService) currentControlSequence() uint64 {
-	s.controlMu.Lock()
-	defer s.controlMu.Unlock()
-	return s.controlSeq
-}
-
 func darwinStableID(registryID uint64) string {
-	return "darwin-registry:" + hex32(uint32(registryID>>32)) + hex32(uint32(registryID))
+	return fmt.Sprintf("darwin-registry:%016x", registryID)
 }
 
 type darwinServerDataSession struct {
-	ctx     context.Context
-	logger  log.ContextLogger
-	conn    net.Conn
-	device  darwinServerDataDevice
-	writeMu sync.Mutex
-	mu      sync.Mutex
-	pending map[uint32]darwinServerPendingSubmit
-	wg      sync.WaitGroup
+	ctx         context.Context
+	logger      log.ContextLogger
+	conn        net.Conn
+	device      darwinServerDataDevice
+	writeAccess sync.Mutex
+	access      sync.Mutex
+	pending     map[uint32]darwinServerPendingSubmit
+	wg          sync.WaitGroup
 }
 
 type darwinServerPendingSubmit struct {
@@ -805,9 +522,9 @@ func (s *darwinServerDataSession) serve() error {
 				if !s.finishSubmit(command.Header.SeqNum) {
 					return
 				}
-				s.writeMu.Lock()
+				s.writeAccess.Lock()
 				err := WriteSubmitResponse(s.conn, response)
-				s.writeMu.Unlock()
+				s.writeAccess.Unlock()
 				if err != nil {
 					_ = s.conn.Close()
 				}
@@ -819,22 +536,23 @@ func (s *darwinServerDataSession) serve() error {
 			}
 			status := int32(0)
 			if endpoint, ok := s.markSubmitUnlinked(command.SeqNum); ok {
-				if err := s.device.abortEndpoint(endpoint); err != nil {
-					s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", err)
+				abortErr := s.device.abortEndpoint(endpoint)
+				if abortErr != nil {
+					s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", abortErr)
 				}
 				status = usbipStatusECONNRESET
 			}
-			s.writeMu.Lock()
+			s.writeAccess.Lock()
 			err = WriteUnlinkResponse(s.conn, UnlinkResponse{
 				Header: DataHeader{Command: RetUnlink, SeqNum: header.SeqNum, DevID: header.DevID, Direction: header.Direction, Endpoint: header.Endpoint},
 				Status: status,
 			})
-			s.writeMu.Unlock()
+			s.writeAccess.Unlock()
 			if err != nil {
 				return err
 			}
 		default:
-			return E.New("unexpected USB/IP command 0x", hex32(header.Command))
+			return E.New(fmt.Sprintf("unexpected USB/IP command 0x%08x", header.Command))
 		}
 	}
 }
@@ -886,14 +604,14 @@ func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResp
 }
 
 func (s *darwinServerDataSession) trackSubmit(seq uint32, endpoint uint8) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.pending[seq] = darwinServerPendingSubmit{endpoint: endpoint}
 }
 
 func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	pending, ok := s.pending[seq]
 	if !ok {
 		return 0, false
@@ -904,8 +622,8 @@ func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, bool) {
 }
 
 func (s *darwinServerDataSession) finishSubmit(seq uint32) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	pending, ok := s.pending[seq]
 	if !ok {
 		return true
@@ -920,15 +638,16 @@ func (s *darwinServerDataSession) abortPendingSubmits() {
 		return
 	}
 	for _, endpoint := range endpoints {
-		if err := s.device.abortEndpoint(endpoint); err != nil {
+		err := s.device.abortEndpoint(endpoint)
+		if err != nil {
 			s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", err)
 		}
 	}
 }
 
 func (s *darwinServerDataSession) markPendingSubmitsUnlinked() []uint8 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	seen := make(map[uint8]struct{})
 	for seq, pending := range s.pending {
 		if !pending.unlinked {

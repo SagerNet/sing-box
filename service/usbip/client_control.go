@@ -4,7 +4,6 @@ package usbip
 
 import (
 	"context"
-	"errors"
 	"net"
 	"sync"
 	"time"
@@ -12,7 +11,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-var errClientControlSessionClosed = errors.New("usbip control session closed")
+var errClientControlSessionClosed = E.New("usbip control session closed")
 
 type clientImportLease struct {
 	Valid       bool
@@ -23,8 +22,8 @@ type clientImportLease struct {
 type clientControlSession struct {
 	conn         net.Conn
 	capabilities uint32
-	writeMu      sync.Mutex
-	mu           sync.Mutex
+	writeAccess  sync.Mutex
+	access       sync.Mutex
 	nextNonce    uint64
 	pending      map[uint64]chan clientLeaseResult
 	closed       bool
@@ -48,8 +47,8 @@ func (s *clientControlSession) supportsImportLease() bool {
 }
 
 func (s *clientControlSession) writeControl(frame controlFrame, payload any) error {
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	s.writeAccess.Lock()
+	defer s.writeAccess.Unlock()
 	_ = s.conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
 	err := writeControlMessage(s.conn, frame, payload)
 	_ = s.conn.SetWriteDeadline(time.Time{})
@@ -57,25 +56,26 @@ func (s *clientControlSession) writeControl(frame controlFrame, payload any) err
 }
 
 func (s *clientControlSession) requestLease(ctx context.Context, busid string) (controlLeaseResponse, error) {
-	s.mu.Lock()
+	s.access.Lock()
 	if s.closed {
-		s.mu.Unlock()
+		s.access.Unlock()
 		return controlLeaseResponse{}, errClientControlSessionClosed
 	}
 	s.nextNonce++
 	nonce := s.nextNonce
 	waiter := make(chan clientLeaseResult, 1)
 	s.pending[nonce] = waiter
-	s.mu.Unlock()
+	s.access.Unlock()
 
 	request := controlLeaseRequest{
 		BusID:       busid,
 		ClientNonce: nonce,
 	}
-	if err := s.writeControl(controlFrame{
+	err := s.writeControl(controlFrame{
 		Type:    controlFrameLeaseRequest,
 		Version: controlProtocolVersion,
-	}, request); err != nil {
+	}, request)
+	if err != nil {
 		s.removeLeaseWaiter(nonce)
 		return controlLeaseResponse{}, err
 	}
@@ -90,12 +90,12 @@ func (s *clientControlSession) requestLease(ctx context.Context, busid string) (
 }
 
 func (s *clientControlSession) deliverLeaseResponse(response controlLeaseResponse) bool {
-	s.mu.Lock()
+	s.access.Lock()
 	waiter, ok := s.pending[response.ClientNonce]
 	if ok {
 		delete(s.pending, response.ClientNonce)
 	}
-	s.mu.Unlock()
+	s.access.Unlock()
 	if !ok {
 		return false
 	}
@@ -105,21 +105,21 @@ func (s *clientControlSession) deliverLeaseResponse(response controlLeaseRespons
 }
 
 func (s *clientControlSession) removeLeaseWaiter(nonce uint64) {
-	s.mu.Lock()
+	s.access.Lock()
 	delete(s.pending, nonce)
-	s.mu.Unlock()
+	s.access.Unlock()
 }
 
 func (s *clientControlSession) closeWithError(err error) {
-	s.mu.Lock()
+	s.access.Lock()
 	if s.closed {
-		s.mu.Unlock()
+		s.access.Unlock()
 		return
 	}
 	s.closed = true
 	pending := s.pending
 	s.pending = make(map[uint64]chan clientLeaseResult)
-	s.mu.Unlock()
+	s.access.Unlock()
 
 	for _, waiter := range pending {
 		waiter <- clientLeaseResult{err: err}
@@ -128,23 +128,23 @@ func (s *clientControlSession) closeWithError(err error) {
 }
 
 func (c *ClientService) setControlSession(session *clientControlSession) {
-	c.controlMu.Lock()
+	c.controlAccess.Lock()
 	c.controlSession = session
-	c.controlMu.Unlock()
+	c.controlAccess.Unlock()
 }
 
 func (c *ClientService) clearControlSession(session *clientControlSession, err error) {
-	c.controlMu.Lock()
+	c.controlAccess.Lock()
 	if c.controlSession == session {
 		c.controlSession = nil
 	}
-	c.controlMu.Unlock()
+	c.controlAccess.Unlock()
 	session.closeWithError(err)
 }
 
 func (c *ClientService) currentControlSession() *clientControlSession {
-	c.controlMu.Lock()
-	defer c.controlMu.Unlock()
+	c.controlAccess.Lock()
+	defer c.controlAccess.Unlock()
 	return c.controlSession
 }
 
@@ -167,13 +167,10 @@ func (c *ClientService) requestImportLease(ctx context.Context, busid string) (c
 	}, nil
 }
 
-func (c *ClientService) runStandardSession() error {
-	return c.runStandardSessionWithInterval(clientReconnectDelay)
-}
-
 func (c *ClientService) runStandardSessionWithInterval(interval time.Duration) error {
 	for {
-		if err := c.syncRemoteState(); err != nil {
+		err := c.syncRemoteStateContext(c.ctx)
+		if err != nil {
 			return E.Cause(err, "devlist sync")
 		}
 		if !sleepCtx(c.ctx, interval) {
@@ -185,14 +182,14 @@ func (c *ClientService) runStandardSessionWithInterval(interval time.Duration) e
 func (c *ClientService) applyControlSnapshot(snapshot controlDeviceSnapshot) {
 	devices := deviceInfoV2Map(snapshot.Devices)
 	values := sortedDeviceInfoV2Values(devices)
-	c.remoteMu.Lock()
+	c.remoteAccess.Lock()
 	c.remoteDevicesV2 = devices
-	c.remoteMu.Unlock()
+	c.remoteAccess.Unlock()
 	c.applyRemoteDeviceState(values)
 }
 
 func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
-	c.remoteMu.Lock()
+	c.remoteAccess.Lock()
 	if c.remoteDevicesV2 == nil {
 		c.remoteDevicesV2 = make(map[string]DeviceInfoV2)
 	}
@@ -212,14 +209,14 @@ func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
 		c.remoteDevicesV2[device.BusID] = device
 	}
 	values := sortedDeviceInfoV2Values(c.remoteDevicesV2)
-	c.remoteMu.Unlock()
+	c.remoteAccess.Unlock()
 	c.applyRemoteDeviceState(values)
 }
 
 func (c *ClientService) clearControlDeviceState() {
-	c.remoteMu.Lock()
+	c.remoteAccess.Lock()
 	c.remoteDevicesV2 = nil
-	c.remoteMu.Unlock()
+	c.remoteAccess.Unlock()
 }
 
 func (c *ClientService) syncRemoteStateAndResetControlState(ctx context.Context) error {
@@ -235,15 +232,15 @@ func (c *ClientService) syncRemoteStateAndResetControlState(ctx context.Context)
 func (c *ClientService) resetControlDeviceStateFromEntries(entries []DeviceEntry) {
 	devices := make(map[string]DeviceInfoV2, len(entries))
 	for _, entry := range entries {
-		device := deviceInfoV2FromEntry(entry, "", "", deviceStateAvailable, 0, "available")
+		device := deviceInfoV2FromEntry(entry, "", "", deviceStateAvailable, 0, deviceStateAvailable)
 		if device.BusID == "" {
 			continue
 		}
 		devices[device.BusID] = device
 	}
-	c.remoteMu.Lock()
+	c.remoteAccess.Lock()
 	c.remoteDevicesV2 = devices
-	c.remoteMu.Unlock()
+	c.remoteAccess.Unlock()
 }
 
 func (c *ClientService) matchedKeysForAssignmentLocked(entries []DeviceEntry, knownKeys map[string]DeviceKey) map[string]DeviceKey {

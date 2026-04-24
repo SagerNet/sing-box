@@ -21,7 +21,8 @@ func newUEventListener() (*ueventListener, error) {
 		Family: unix.AF_NETLINK,
 		Groups: 1,
 	}
-	if err := unix.Bind(fd, addr); err != nil {
+	err = unix.Bind(fd, addr)
+	if err != nil {
 		_ = unix.Close(fd)
 		return nil, err
 	}
@@ -45,12 +46,8 @@ func (l *ueventListener) WaitUSBEvent() error {
 	}
 }
 
+var usbSubsystemMarker = []byte("\x00SUBSYSTEM=usb\x00")
+
 func isUSBUEvent(raw []byte) bool {
-	fields := bytes.Split(bytes.TrimRight(raw, "\x00"), []byte{0})
-	for _, field := range fields {
-		if bytes.Equal(field, []byte("SUBSYSTEM=usb")) {
-			return true
-		}
-	}
-	return false
+	return bytes.Contains(raw, usbSubsystemMarker)
 }

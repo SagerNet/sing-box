@@ -162,14 +162,17 @@ func ReadUnlinkResponseBody(r io.Reader, header DataHeader) (UnlinkResponse, err
 }
 
 func WriteSubmitCommand(w io.Writer, command SubmitCommand) error {
-	if err := validateUSBIPBufferLength(command.TransferBufferLength); err != nil {
+	err := validateUSBIPBufferLength(command.TransferBufferLength)
+	if err != nil {
 		return err
 	}
 	packetCount := normalizeUSBIPIsoPacketCount(command.NumberOfPackets, command.IsoPackets)
-	if err := validateUSBIPIsoPacketCount(packetCount); err != nil {
+	err = validateUSBIPIsoPacketCount(packetCount)
+	if err != nil {
 		return err
 	}
-	if err := writeDataHeader(w, command.Header); err != nil {
+	err = writeDataHeader(w, command.Header)
+	if err != nil {
 		return err
 	}
 	var raw [28]byte
@@ -179,7 +182,8 @@ func WriteSubmitCommand(w io.Writer, command SubmitCommand) error {
 	binary.BigEndian.PutUint32(raw[12:16], uint32(packetCount))
 	binary.BigEndian.PutUint32(raw[16:20], uint32(command.Interval))
 	copy(raw[20:28], command.Setup[:])
-	if _, err := w.Write(raw[:]); err != nil {
+	_, err = w.Write(raw[:])
+	if err != nil {
 		return err
 	}
 	return writeUSBIPPayload(w, command.Header.Direction, command.Buffer, command.IsoPackets, true)
@@ -189,16 +193,19 @@ func WriteSubmitResponse(w io.Writer, response SubmitResponse) error {
 	if response.ActualLength < 0 {
 		response.ActualLength = 0
 	}
-	if err := validateUSBIPBufferLength(response.ActualLength); err != nil {
+	err := validateUSBIPBufferLength(response.ActualLength)
+	if err != nil {
 		return err
 	}
 	packetCount := normalizeUSBIPIsoPacketCount(response.NumberOfPackets, response.IsoPackets)
-	if err := validateUSBIPIsoPacketCount(packetCount); err != nil {
+	err = validateUSBIPIsoPacketCount(packetCount)
+	if err != nil {
 		return err
 	}
 	payloadDirection := response.Header.Direction
 	header := responseDataHeader(response.Header)
-	if err := writeDataHeader(w, header); err != nil {
+	err = writeDataHeader(w, header)
+	if err != nil {
 		return err
 	}
 	var raw [28]byte
@@ -208,29 +215,32 @@ func WriteSubmitResponse(w io.Writer, response SubmitResponse) error {
 	binary.BigEndian.PutUint32(raw[12:16], uint32(packetCount))
 	binary.BigEndian.PutUint32(raw[16:20], uint32(response.ErrorCount))
 	copy(raw[20:28], response.Setup[:])
-	if _, err := w.Write(raw[:]); err != nil {
+	_, err = w.Write(raw[:])
+	if err != nil {
 		return err
 	}
 	return writeUSBIPPayload(w, payloadDirection, response.Buffer, response.IsoPackets, false)
 }
 
 func WriteUnlinkCommand(w io.Writer, command UnlinkCommand) error {
-	if err := writeDataHeader(w, command.Header); err != nil {
+	err := writeDataHeader(w, command.Header)
+	if err != nil {
 		return err
 	}
 	var raw [unlinkBodySize]byte
 	binary.BigEndian.PutUint32(raw[0:4], command.SeqNum)
-	_, err := w.Write(raw[:])
+	_, err = w.Write(raw[:])
 	return err
 }
 
 func WriteUnlinkResponse(w io.Writer, response UnlinkResponse) error {
-	if err := writeDataHeader(w, responseDataHeader(response.Header)); err != nil {
+	err := writeDataHeader(w, responseDataHeader(response.Header))
+	if err != nil {
 		return err
 	}
 	var raw [unlinkBodySize]byte
 	binary.BigEndian.PutUint32(raw[0:4], uint32(response.Status))
-	_, err := w.Write(raw[:])
+	_, err = w.Write(raw[:])
 	return err
 }
 
@@ -246,10 +256,12 @@ func writeDataHeader(w io.Writer, header DataHeader) error {
 }
 
 func readUSBIPPayload(r io.Reader, direction uint32, bufferLength int32, packetCount int32, command bool) ([]byte, []IsoPacketDescriptor, error) {
-	if err := validateUSBIPBufferLength(bufferLength); err != nil {
+	err := validateUSBIPBufferLength(bufferLength)
+	if err != nil {
 		return nil, nil, err
 	}
-	if err := validateUSBIPIsoPacketCount(packetCount); err != nil {
+	err = validateUSBIPIsoPacketCount(packetCount)
+	if err != nil {
 		return nil, nil, err
 	}
 	bufferSize := int(bufferLength)

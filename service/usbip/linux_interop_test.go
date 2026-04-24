@@ -402,7 +402,7 @@ func startRealUSBIPServer(t *testing.T, devices []option.USBIPDeviceMatch) (*Ser
 		_ = server.Close()
 	})
 
-	return server, M.SocksaddrFromNet(server.listenFD.Addr())
+	return server, M.SocksaddrFromNet(server.listen.Addr())
 }
 
 func startRealUSBIPClient(t *testing.T, destination M.Socksaddr, devices []option.USBIPDeviceMatch) *ClientService {

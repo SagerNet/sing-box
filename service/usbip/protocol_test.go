@@ -383,7 +383,7 @@ func TestMatches(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, testCase.expected, Matches(testCase.match, device))
+			require.Equal(t, testCase.expected, matches(testCase.match, device))
 		})
 	}
 }

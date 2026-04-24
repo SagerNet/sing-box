@@ -116,7 +116,7 @@ func TestClientStandardMatchedAssignmentSurvivesHiddenActiveDevice(t *testing.T)
 				activeBusIDs:    map[string]struct{}{"1-1": {}},
 			}
 
-			client.applyMatchedExports([]DeviceEntry{entry})
+			client.applyMatchedExportsWithRetained([]DeviceEntry{entry}, nil)
 			require.Equal(t, []string{"1-1"}, client.assigned)
 			select {
 			case update := <-worker.updates:
@@ -124,7 +124,7 @@ func TestClientStandardMatchedAssignmentSurvivesHiddenActiveDevice(t *testing.T)
 			default:
 			}
 
-			client.applyMatchedExports(nil)
+			client.applyMatchedExportsWithRetained(nil, nil)
 			require.Equal(t, []string{"1-1"}, client.assigned)
 			select {
 			case update := <-worker.updates:
@@ -133,7 +133,7 @@ func TestClientStandardMatchedAssignmentSurvivesHiddenActiveDevice(t *testing.T)
 			}
 
 			client.setBusIDActive("1-1", false)
-			client.applyMatchedExports(nil)
+			client.applyMatchedExportsWithRetained(nil, nil)
 			require.Equal(t, []string{""}, client.assigned)
 			require.Equal(t, "", <-worker.updates)
 		})
@@ -160,7 +160,7 @@ func handleStandardDevListConn(conn net.Conn, entries []DeviceEntry) error {
 		return err
 	}
 	if header.Version != ProtocolVersion || header.Code != OpReqDevList || header.Status != OpStatusOK {
-		return fmt.Errorf("unexpected devlist request: version=0x%s code=0x%s status=%d", hex16(header.Version), hex16(header.Code), header.Status)
+		return fmt.Errorf("unexpected devlist request: version=0x%04x code=0x%04x status=%d", header.Version, header.Code, header.Status)
 	}
 	return WriteOpRepDevList(conn, entries)
 }

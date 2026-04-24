@@ -50,7 +50,7 @@ type darwinFakeUSBIPServer struct {
 	address  M.Socksaddr
 	entry    DeviceEntry
 
-	mu       sync.Mutex
+	access   sync.Mutex
 	conns    map[net.Conn]struct{}
 	wg       sync.WaitGroup
 	closeMux sync.Once
@@ -481,12 +481,12 @@ func (s *darwinFakeUSBIPServer) Close() {
 	s.closeMux.Do(func() {
 		s.cancel()
 		_ = s.listener.Close()
-		s.mu.Lock()
+		s.access.Lock()
 		conns := make([]net.Conn, 0, len(s.conns))
 		for conn := range s.conns {
 			conns = append(conns, conn)
 		}
-		s.mu.Unlock()
+		s.access.Unlock()
 		for _, conn := range conns {
 			_ = conn.Close()
 		}
@@ -516,15 +516,15 @@ func (s *darwinFakeUSBIPServer) acceptLoop() {
 }
 
 func (s *darwinFakeUSBIPServer) trackConn(conn net.Conn) {
-	s.mu.Lock()
+	s.access.Lock()
 	s.conns[conn] = struct{}{}
-	s.mu.Unlock()
+	s.access.Unlock()
 }
 
 func (s *darwinFakeUSBIPServer) untrackConn(conn net.Conn) {
-	s.mu.Lock()
+	s.access.Lock()
 	delete(s.conns, conn)
-	s.mu.Unlock()
+	s.access.Unlock()
 }
 
 func (s *darwinFakeUSBIPServer) handleConn(conn net.Conn) {

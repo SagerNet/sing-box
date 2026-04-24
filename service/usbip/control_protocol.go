@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
-	"reflect"
-	"sort"
+	"slices"
+	"strings"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -41,6 +41,13 @@ const (
 	deviceStateBusy        = "busy"
 	deviceStateUnavailable = "unavailable"
 
+	backendIDLinuxSysfs  = "linux-sysfs"
+	backendIDDarwinIOKit = "darwin-iokit"
+
+	leaseErrorBadRequest  = "bad_request"
+	leaseErrorUnavailable = "unavailable"
+	leaseErrorBusy        = "busy"
+
 	importLeaseTTL = 10 * time.Second
 )
 
@@ -55,11 +62,6 @@ type controlFrame struct {
 }
 
 type controlMessage struct {
-	Frame   controlFrame
-	Payload []byte
-}
-
-type controlOutboundMessage struct {
 	Frame   controlFrame
 	Payload []byte
 }
@@ -199,7 +201,13 @@ func ReadControlFrame(r io.Reader) (controlFrame, error) {
 	return message.Frame, nil
 }
 
-func readControlMessage(r io.Reader) (controlMessage, error) {
+// controlReader reuses its payload scratch across successive reads on a
+// single connection. The returned payload is only valid until the next call.
+type controlReader struct {
+	scratch []byte
+}
+
+func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 	var raw [controlFrameSize]byte
 	if _, err := io.ReadFull(r, raw[:]); err != nil {
 		return controlMessage{}, err
@@ -213,12 +221,20 @@ func readControlMessage(r io.Reader) (controlMessage, error) {
 	}
 	var payload []byte
 	if frame.PayloadLength > 0 {
-		payload = make([]byte, frame.PayloadLength)
+		if cap(cr.scratch) < int(frame.PayloadLength) {
+			cr.scratch = make([]byte, frame.PayloadLength)
+		}
+		payload = cr.scratch[:frame.PayloadLength]
 		if _, err := io.ReadFull(r, payload); err != nil {
 			return controlMessage{}, err
 		}
 	}
 	return controlMessage{Frame: frame, Payload: payload}, nil
+}
+
+func readControlMessage(r io.Reader) (controlMessage, error) {
+	var cr controlReader
+	return cr.read(r)
 }
 
 func writeControlFrame(w io.Writer, frame controlFrame) error {
@@ -365,7 +381,7 @@ func sortedDeviceInfoV2Values(devices map[string]DeviceInfoV2) []DeviceInfoV2 {
 	for busid := range devices {
 		busids = append(busids, busid)
 	}
-	sort.Strings(busids)
+	slices.Sort(busids)
 	out := make([]DeviceInfoV2, 0, len(busids))
 	for _, busid := range busids {
 		out = append(out, devices[busid])
@@ -392,17 +408,54 @@ func buildControlDeviceDelta(sequence uint64, previous map[string]DeviceInfoV2, 
 			delta.Added = append(delta.Added, device)
 			continue
 		}
-		if !reflect.DeepEqual(prev, device) {
+		if !deviceInfoV2Equal(prev, device) {
 			delta.Updated = append(delta.Updated, device)
 		}
 	}
 	for busid := range previous {
-		if _, ok := current[busid]; !ok {
+		_, ok := current[busid]
+		if !ok {
 			delta.Removed = append(delta.Removed, busid)
 		}
 	}
-	sort.Slice(delta.Added, func(i, j int) bool { return delta.Added[i].BusID < delta.Added[j].BusID })
-	sort.Slice(delta.Updated, func(i, j int) bool { return delta.Updated[i].BusID < delta.Updated[j].BusID })
-	sort.Strings(delta.Removed)
+	slices.SortFunc(delta.Added, func(a, b DeviceInfoV2) int { return strings.Compare(a.BusID, b.BusID) })
+	slices.SortFunc(delta.Updated, func(a, b DeviceInfoV2) int { return strings.Compare(a.BusID, b.BusID) })
+	slices.Sort(delta.Removed)
 	return delta
+}
+
+func controlDeviceDeltaEmpty(delta controlDeviceDelta) bool {
+	return len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0
+}
+
+func deviceInfoV2Equal(a, b DeviceInfoV2) bool {
+	if a.BusID != b.BusID ||
+		a.StableID != b.StableID ||
+		a.Backend != b.Backend ||
+		a.Path != b.Path ||
+		a.Serial != b.Serial ||
+		a.VendorID != b.VendorID ||
+		a.ProductID != b.ProductID ||
+		a.BCDDevice != b.BCDDevice ||
+		a.Speed != b.Speed ||
+		a.DeviceClass != b.DeviceClass ||
+		a.DeviceSubClass != b.DeviceSubClass ||
+		a.DeviceProtocol != b.DeviceProtocol ||
+		a.ConfigurationValue != b.ConfigurationValue ||
+		a.NumConfigurations != b.NumConfigurations ||
+		a.NumInterfaces != b.NumInterfaces ||
+		a.State != b.State ||
+		a.StatusCode != b.StatusCode ||
+		a.StatusReason != b.StatusReason {
+		return false
+	}
+	if len(a.Interfaces) != len(b.Interfaces) {
+		return false
+	}
+	for i := range a.Interfaces {
+		if a.Interfaces[i] != b.Interfaces[i] {
+			return false
+		}
+	}
+	return true
 }

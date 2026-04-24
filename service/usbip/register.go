@@ -1,4 +1,4 @@
-//go:build darwin && cgo
+//go:build linux || (darwin && cgo)
 
 package usbip
 

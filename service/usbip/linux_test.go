@@ -69,7 +69,7 @@ func (wrappingDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn
 }
 
 type testDeviceStore struct {
-	mu       sync.Mutex
+	access   sync.Mutex
 	devices  map[string]sysfsDevice
 	statuses map[string]int
 	sockfds  map[string]int
@@ -86,8 +86,8 @@ func newTestDeviceStore(devices ...sysfsDevice) *testDeviceStore {
 }
 
 func (s *testDeviceStore) setDevices(devices ...sysfsDevice) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 
 	s.devices = make(map[string]sysfsDevice, len(devices))
 	for _, device := range devices {
@@ -96,14 +96,14 @@ func (s *testDeviceStore) setDevices(devices ...sysfsDevice) {
 }
 
 func (s *testDeviceStore) setStatus(busid string, status int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.statuses[busid] = status
 }
 
 func (s *testDeviceStore) listUSBDevices() ([]sysfsDevice, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 
 	out := make([]sysfsDevice, 0, len(s.devices))
 	for _, device := range s.devices {
@@ -123,8 +123,8 @@ func (s *testDeviceStore) listUSBDevices() ([]sysfsDevice, error) {
 }
 
 func (s *testDeviceStore) readSysfsDevice(busid, path string) (sysfsDevice, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 
 	device, ok := s.devices[busid]
 	if !ok {
@@ -134,8 +134,8 @@ func (s *testDeviceStore) readSysfsDevice(busid, path string) (sysfsDevice, erro
 }
 
 func (s *testDeviceStore) readUsbipStatus(busid string) (int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 
 	status, ok := s.statuses[busid]
 	if !ok {
@@ -145,15 +145,15 @@ func (s *testDeviceStore) readUsbipStatus(busid string) (int, error) {
 }
 
 func (s *testDeviceStore) writeUsbipSockfd(busid string, fd int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.sockfds[busid] = fd
 	return nil
 }
 
 func (s *testDeviceStore) lastSockfd(busid string) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.access.Lock()
+	defer s.access.Unlock()
 	return s.sockfds[busid]
 }
 
@@ -654,7 +654,7 @@ func TestAssignMatchedBusIDs(t *testing.T) {
 		second.toDeviceEntry(),
 	}
 
-	require.Equal(t, []string{"1-1", "1-3", "1-2"}, assignMatchedBusIDs(
+	require.Equal(t, []string{"1-1", "1-3", "1-2"}, assignMatchedBusIDsWithRetained(
 		[]clientTarget{
 			{fixedBusID: "1-1"},
 			{match: match},
@@ -662,6 +662,8 @@ func TestAssignMatchedBusIDs(t *testing.T) {
 		},
 		[]string{"1-1", "1-3", ""},
 		entries,
+		nil,
+		nil,
 	))
 }
 
@@ -1477,7 +1479,7 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, controlFramePong, pong.Type)
 	require.Equal(t, controlProtocolVersion, pong.Version)
 
-	server.broadcastChanged()
+	server.broadcastControlState(deviceInfoV2Map(server.buildDeviceStateV2()), true)
 	changed, err := readControlMessage(conn)
 	require.NoError(t, err)
 	require.Equal(t, controlFrameDeviceDelta, changed.Frame.Type)
@@ -1680,15 +1682,14 @@ func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	serverOps.writeUsbipSockfd = store.writeUsbipSockfd
 
 	server := &ServerService{
-		ctx:          ctx,
-		cancel:       cancel,
-		logger:       newTestLogger(),
-		exports:      map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		leases:       make(map[uint64]serverImportLease),
-		leaseByBusID: make(map[string]uint64),
-		ops:          serverOps,
+		ctx:           ctx,
+		cancel:        cancel,
+		logger:        newTestLogger(),
+		exports:       map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs:   make(map[uint64]*serverControlConn),
+		controlState:  make(map[string]DeviceInfoV2),
+		leasesByBusID: make(map[string]serverImportLease),
+		ops:           serverOps,
 	}
 	server.refreshControlState()
 	serverAddr, closeServer := startDispatchServer(t, server)
@@ -1902,7 +1903,7 @@ func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
 			return
 		}
 		if header.Code != OpReqImportExt {
-			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		request, readErr := ReadOpReqImportExtBody(conn)
@@ -1978,7 +1979,7 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 		}
 		if header.Code != OpReqImport {
 			_ = conn.Close()
-			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		busid, readErr := ReadOpReqImportBody(conn)
@@ -2086,7 +2087,7 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 			return
 		}
 		if header.Code != OpReqImport {
-			serverErrCh <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		busid, readErr := ReadOpReqImportBody(conn)
@@ -2162,9 +2163,9 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for server side close")
 	}
-	client.portsMu.Lock()
+	client.portsAccess.Lock()
 	_, reserved := client.ports[4]
-	client.portsMu.Unlock()
+	client.portsAccess.Unlock()
 	require.False(t, reserved)
 }
 
@@ -2193,7 +2194,7 @@ func TestClientFetchDevListRejectsUnexpectedReplyVersion(t *testing.T) {
 			return
 		}
 		if header.Code != OpReqDevList {
-			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErr <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		if writeErr := binary.Write(conn, binary.BigEndian, OpHeader{
@@ -2252,7 +2253,7 @@ func TestClientFetchDevListReturnsOnContextCancelWhileServerStalls(t *testing.T)
 			return
 		}
 		if header.Code != OpReqDevList {
-			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErr <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		close(requestReady)
@@ -2323,7 +2324,7 @@ func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
 			return
 		}
 		if header.Code != OpReqDevList {
-			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErr <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		serverErr <- WriteOpRepDevList(conn, []DeviceEntry{entry})
@@ -2343,9 +2344,9 @@ func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
 	require.NoError(t, client.syncRemoteStateAndResetControlState(ctx))
 	require.NoError(t, <-serverErr)
 
-	client.remoteMu.Lock()
+	client.remoteAccess.Lock()
 	devices := client.remoteDevicesV2
-	client.remoteMu.Unlock()
+	client.remoteAccess.Unlock()
 	require.Len(t, devices, 1)
 	require.Contains(t, devices, "1-1")
 	require.Equal(t, deviceStateAvailable, devices["1-1"].State)
@@ -2380,7 +2381,7 @@ func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
 			return
 		}
 		if header.Code != OpReqImport {
-			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			serverErr <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
 			return
 		}
 		busid, readErr := ReadOpReqImportBody(conn)
@@ -2477,19 +2478,19 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		client.stateMu.Lock()
-		defer client.stateMu.Unlock()
+		client.stateAccess.Lock()
+		defer client.stateAccess.Unlock()
 		return client.assigned[0] == "1-1"
 	}, 3*time.Second, 10*time.Millisecond)
 
 	store.setDevices(updatedDevice)
 	server.deleteExport("1-1")
 	server.setExport(serverExport{busid: "1-2"})
-	server.broadcastChanged()
+	server.broadcastControlState(deviceInfoV2Map(server.buildDeviceStateV2()), true)
 
 	require.Eventually(t, func() bool {
-		client.stateMu.Lock()
-		defer client.stateMu.Unlock()
+		client.stateAccess.Lock()
+		defer client.stateAccess.Unlock()
 		return client.assigned[0] == "1-2"
 	}, 3*time.Second, 10*time.Millisecond)
 

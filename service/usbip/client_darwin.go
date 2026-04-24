@@ -5,9 +5,9 @@ package usbip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,28 +26,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	clientReconnectDelay   = 5 * time.Second
-	controlPingInterval    = 10 * time.Second
-	controlReadTimeout     = 30 * time.Second
-	controlWriteTimeout    = 5 * time.Second
-	controlSessionIdleHint = "control session lost"
-)
-
-var (
-	errImmediateReconnect = errors.New("usbip control reconnect")
-	errControlUnsupported = errors.New("usbip control unsupported")
-)
-
-type clientAssignedWorker struct {
-	target  clientTarget
-	updates chan string
-}
-
-type clientBusIDWorker struct {
-	cancel context.CancelFunc
-}
-
 type ClientService struct {
 	boxService.Adapter
 	ctx        context.Context
@@ -57,7 +35,7 @@ type ClientService struct {
 	serverAddr M.Socksaddr
 	matches    []option.USBIPDeviceMatch
 
-	stateMu          sync.Mutex
+	stateAccess      sync.Mutex
 	targets          []clientTarget
 	assigned         []string
 	assignedWorkers  []*clientAssignedWorker
@@ -67,13 +45,13 @@ type ClientService struct {
 
 	wg sync.WaitGroup
 
-	activeMu     sync.Mutex
+	activeAccess sync.Mutex
 	activeBusIDs map[string]struct{}
 
-	controlMu      sync.Mutex
+	controlAccess  sync.Mutex
 	controlSession *clientControlSession
 
-	remoteMu        sync.Mutex
+	remoteAccess    sync.Mutex
 	remoteDevicesV2 map[string]DeviceInfoV2
 }
 
@@ -127,441 +105,19 @@ func (c *ClientService) Close() error {
 		c.wg.Wait()
 		close(done)
 	}()
+	timer := time.NewTimer(clientShutdownTimeout)
+	defer timer.Stop()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-timer.C:
 		c.logger.Warn("shutdown timeout; some macOS USB/IP controllers may remain active")
 	}
 	return nil
 }
 
-func (c *ClientService) initializeWorkers() {
-	targets := c.buildTargets()
-	c.stateMu.Lock()
-	c.targets = targets
-	if len(c.matches) == 0 {
-		c.stateMu.Unlock()
-		return
-	}
-	c.assigned = make([]string, len(targets))
-	c.assignedWorkers = make([]*clientAssignedWorker, len(targets))
-	for i, target := range targets {
-		c.assignedWorkers[i] = &clientAssignedWorker{
-			target:  target,
-			updates: make(chan string, 1),
-		}
-	}
-	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
-	c.stateMu.Unlock()
-
-	for _, worker := range workers {
-		c.wg.Add(1)
-		go c.runAssignedWorker(worker)
-	}
-}
-
-func (c *ClientService) run() {
-	defer c.wg.Done()
-	for immediate := true; immediate || sleepCtx(c.ctx, clientReconnectDelay); {
-		err := c.runSession()
-		if c.ctx.Err() != nil {
-			break
-		}
-		if err != nil {
-			c.logger.Error("control ", c.serverAddr, ": ", err)
-		}
-		immediate = errors.Is(err, errImmediateReconnect)
-	}
-	c.stopAllWorkers()
-}
-
-func (c *ClientService) runSession() error {
-	err := c.runControlSession()
-	if errors.Is(err, errControlUnsupported) {
-		c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
-		return c.runStandardSession()
-	}
-	return err
-}
-
-func (c *ClientService) runControlSession() error {
-	conn, err := c.dialer.DialContext(c.ctx, N.NetworkTCP, c.serverAddr)
-	if err != nil {
-		return E.Cause(err, "dial ", c.serverAddr)
-	}
-	defer conn.Close()
-	stopCloseOnCancel := closeConnOnContextDone(c.ctx, conn)
-	defer stopCloseOnCancel()
-
-	_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
-	_ = conn.SetReadDeadline(time.Now().Add(controlWriteTimeout))
-	if err := WriteControlPreface(conn); err != nil {
-		return E.Cause(errControlUnsupported, "write control preface: ", err)
-	}
-	if err := WriteControlHello(conn); err != nil {
-		return E.Cause(errControlUnsupported, "write control hello: ", err)
-	}
-	ack, err := ReadControlFrame(conn)
-	if err != nil {
-		return E.Cause(errControlUnsupported, "read control ack: ", err)
-	}
-	if ack.Type != controlFrameAck || ack.Version != controlProtocolVersion || ack.Capabilities&controlRequiredCapabilities != controlRequiredCapabilities {
-		return E.Cause(errControlUnsupported, "invalid control ack")
-	}
-	_ = conn.SetWriteDeadline(time.Time{})
-	_ = conn.SetReadDeadline(time.Time{})
-
-	session := newClientControlSession(conn, ack.Capabilities)
-	extended := supportsControlExtensions(ack.Capabilities)
-	if extended {
-		c.setControlSession(session)
-		defer c.clearControlSession(session, errClientControlSessionClosed)
-	} else if err := c.syncRemoteState(); err != nil {
-		return E.Cause(err, "initial devlist sync")
-	}
-
-	pingDone := make(chan struct{})
-	go c.controlPingLoop(session, pingDone)
-	defer close(pingDone)
-
-	lastSeq := ack.Sequence
-	for {
-		if err := conn.SetReadDeadline(time.Now().Add(controlReadTimeout)); err != nil {
-			return err
-		}
-		message, err := readControlMessage(conn)
-		if err != nil {
-			return E.Cause(errImmediateReconnect, controlSessionIdleHint, ": ", err)
-		}
-		frame := message.Frame
-		switch frame.Type {
-		case controlFrameChanged:
-			if frame.Sequence != lastSeq && frame.Sequence != lastSeq+1 {
-				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
-			}
-			lastSeq = frame.Sequence
-			if extended {
-				err = c.syncRemoteStateAndResetControlState(c.ctx)
-			} else {
-				err = c.syncRemoteState()
-			}
-			if err != nil {
-				return E.Cause(errImmediateReconnect, "devlist sync after change ", frame.Sequence, ": ", err)
-			}
-		case controlFrameDeviceSnapshot:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
-			var snapshot controlDeviceSnapshot
-			if err := unmarshalControlPayload(message.Payload, &snapshot); err != nil {
-				return E.Cause(errImmediateReconnect, "read device snapshot: ", err)
-			}
-			lastSeq = frame.Sequence
-			c.applyControlSnapshot(snapshot)
-		case controlFrameDeviceDelta:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
-			if frame.Sequence != lastSeq+1 {
-				if err := c.syncRemoteStateAndResetControlState(c.ctx); err != nil {
-					return E.Cause(errImmediateReconnect, "devlist sync after sequence jump ", frame.Sequence, ": ", err)
-				}
-				lastSeq = frame.Sequence
-				continue
-			}
-			var delta controlDeviceDelta
-			if err := unmarshalControlPayload(message.Payload, &delta); err != nil {
-				return E.Cause(errImmediateReconnect, "read device delta: ", err)
-			}
-			lastSeq = frame.Sequence
-			c.applyControlDelta(delta)
-		case controlFrameLeaseResponse:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
-			var response controlLeaseResponse
-			if err := unmarshalControlPayload(message.Payload, &response); err != nil {
-				return E.Cause(errImmediateReconnect, "read lease response: ", err)
-			}
-			session.deliverLeaseResponse(response)
-		case controlFramePong:
-		default:
-			return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-		}
-	}
-}
-
-func (c *ClientService) controlPingLoop(session *clientControlSession, done <-chan struct{}) {
-	ticker := time.NewTicker(controlPingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case <-done:
-			return
-		case <-ticker.C:
-			if err := session.writeControl(controlFrame{
-				Type:    controlFramePing,
-				Version: controlProtocolVersion,
-			}, nil); err != nil {
-				_ = session.conn.Close()
-				return
-			}
-		}
-	}
-}
-
-func (c *ClientService) syncRemoteState() error {
-	return c.syncRemoteStateContext(c.ctx)
-}
-
-func (c *ClientService) syncRemoteStateContext(ctx context.Context) error {
-	entries, err := c.fetchDevList(ctx)
-	if err != nil {
-		return err
-	}
-	c.applyRemoteEntries(entries)
-	return nil
-}
-
-func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
-	if len(c.matches) == 0 {
-		c.applyRemoteExports(entries)
-		return
-	}
-	c.applyMatchedExports(entries)
-}
-
-func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
-	availableEntries := deviceInfoV2ToEntries(devices, true)
-	if len(c.matches) == 0 {
-		c.applyRemoteExports(availableEntries)
-		return
-	}
-	knownKeys := make(map[string]DeviceKey, len(devices))
-	for _, device := range devices {
-		if device.BusID == "" {
-			continue
-		}
-		knownKeys[device.BusID] = device.key()
-	}
-	c.applyMatchedExportsWithRetained(availableEntries, knownKeys)
-}
-
-func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
-	desired := make(map[string]struct{}, len(entries))
-	for i := range entries {
-		busid := entries[i].Info.BusIDString()
-		if busid != "" {
-			desired[busid] = struct{}{}
-		}
-	}
-	c.stateMu.Lock()
-	c.allDesired = desired
-	stopWorkers := make([]*clientBusIDWorker, 0)
-	for busid, worker := range c.allWorkers {
-		if _, ok := desired[busid]; ok || c.isBusIDActive(busid) {
-			continue
-		}
-		stopWorkers = append(stopWorkers, worker)
-		delete(c.allWorkers, busid)
-	}
-	startBusIDs := make([]string, 0)
-	for busid := range desired {
-		if _, ok := c.allWorkers[busid]; ok {
-			continue
-		}
-		startBusIDs = append(startBusIDs, busid)
-	}
-	c.stateMu.Unlock()
-
-	for _, worker := range stopWorkers {
-		worker.cancel()
-	}
-	slices.Sort(startBusIDs)
-	for _, busid := range startBusIDs {
-		c.startRemoteBusIDWorker(busid, busid)
-	}
-}
-
-func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
-	c.applyMatchedExportsWithRetained(entries, nil)
-}
-
-func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, knownKeys map[string]DeviceKey) {
-	c.stateMu.Lock()
-	if len(c.targets) == 0 {
-		c.stateMu.Unlock()
-		return
-	}
-	assignmentKeys := c.matchedKeysForAssignmentLocked(entries, knownKeys)
-	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, assignmentKeys)
-	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, assignmentKeys, activeCurrent)
-	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
-	previous := append([]string(nil), c.assigned...)
-	c.assigned = nextAssigned
-	c.retainMatchedKnownKeysLocked(assignmentKeys, entries, nextAssigned)
-	c.stateMu.Unlock()
-
-	for i, worker := range workers {
-		if previous[i] != nextAssigned[i] {
-			worker.setDesiredBusID(nextAssigned[i])
-		}
-	}
-}
-
-func (c *ClientService) activeCurrentAssignmentsLocked(current []string, knownKeys map[string]DeviceKey) map[string]struct{} {
-	if len(knownKeys) == 0 {
-		return nil
-	}
-	var activeCurrent map[string]struct{}
-	for _, busid := range current {
-		if busid == "" {
-			continue
-		}
-		if _, ok := knownKeys[busid]; !ok {
-			continue
-		}
-		if !c.isBusIDActive(busid) {
-			continue
-		}
-		if activeCurrent == nil {
-			activeCurrent = make(map[string]struct{})
-		}
-		activeCurrent[busid] = struct{}{}
-	}
-	return activeCurrent
-}
-
-func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
-	defer c.wg.Done()
-	var current string
-	var runnerCancel context.CancelFunc
-	var runnerDone chan struct{}
-	stopRunner := func() {
-		if runnerCancel == nil {
-			return
-		}
-		runnerCancel()
-		<-runnerDone
-		runnerCancel = nil
-		runnerDone = nil
-	}
-	for {
-		select {
-		case <-c.ctx.Done():
-			stopRunner()
-			return
-		case desired := <-worker.updates:
-			if desired == current {
-				continue
-			}
-			stopRunner()
-			current = desired
-			if desired == "" {
-				continue
-			}
-			runCtx, cancel := context.WithCancel(c.ctx)
-			done := make(chan struct{})
-			runnerCancel = cancel
-			runnerDone = done
-			c.wg.Add(1)
-			go func(busid string) {
-				defer c.wg.Done()
-				defer close(done)
-				c.runBusIDLoop(runCtx, busid, worker.target.description())
-			}(desired)
-		}
-	}
-}
-
-func (w *clientAssignedWorker) setDesiredBusID(busid string) {
-	select {
-	case w.updates <- busid:
-		return
-	default:
-	}
-	select {
-	case <-w.updates:
-	default:
-	}
-	w.updates <- busid
-}
-
-func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
-	runCtx, cancel := context.WithCancel(c.ctx)
-	worker := &clientBusIDWorker{cancel: cancel}
-	c.stateMu.Lock()
-	c.allWorkers[busid] = worker
-	c.stateMu.Unlock()
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.runBusIDLoop(runCtx, busid, description)
-	}()
-}
-
-func (c *ClientService) stopAllWorkers() {
-	c.stateMu.Lock()
-	workers := make([]*clientBusIDWorker, 0, len(c.allWorkers))
-	for _, worker := range c.allWorkers {
-		workers = append(workers, worker)
-	}
-	c.allWorkers = make(map[string]*clientBusIDWorker)
-	c.stateMu.Unlock()
-	for _, worker := range workers {
-		worker.cancel()
-	}
-}
-
-func (c *ClientService) buildTargets() []clientTarget {
-	if len(c.matches) == 0 {
-		return nil
-	}
-	seenFixed := make(map[string]struct{})
-	targets := make([]clientTarget, 0, len(c.matches))
-	for _, m := range c.matches {
-		if isBusIDOnlyMatch(m) {
-			if _, seen := seenFixed[m.BusID]; seen {
-				continue
-			}
-			seenFixed[m.BusID] = struct{}{}
-			targets = append(targets, clientTarget{fixedBusID: m.BusID})
-			continue
-		}
-		targets = append(targets, clientTarget{match: m})
-	}
-	return targets
-}
-
-func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error) {
-	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	stopCloseOnCancel := closeConnOnContextDone(ctx, conn)
-	defer stopCloseOnCancel()
-	if err := WriteOpHeader(conn, OpReqDevList, OpStatusOK); err != nil {
-		return nil, E.Cause(err, "send OP_REQ_DEVLIST")
-	}
-	header, err := ReadOpHeader(conn)
-	if err != nil {
-		return nil, E.Cause(err, "read OP_REP_DEVLIST header")
-	}
-	if header.Version != ProtocolVersion {
-		return nil, E.New("unexpected reply version 0x", hex16(header.Version))
-	}
-	if header.Code != OpRepDevList || header.Status != OpStatusOK {
-		return nil, E.New("OP_REP_DEVLIST status=", header.Status, " code=0x", hex16(header.Code))
-	}
-	return ReadOpRepDevListBody(conn)
-}
-
 func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description string) {
 	for {
-		if err := ctx.Err(); err != nil {
+		if ctx.Err() != nil {
 			return
 		}
 		controller, err := c.attemptAttach(ctx, busid)
@@ -576,7 +132,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		c.setBusIDActive(busid, true)
 		waitDarwinController(ctx, controller)
 		c.setBusIDActive(busid, false)
-		if err := ctx.Err(); err != nil {
+		if ctx.Err() != nil {
 			controller.Close()
 			return
 		}
@@ -620,25 +176,29 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (*darwi
 	expectedReply := OpRepImport
 	if lease.Valid {
 		expectedReply = OpRepImportExt
-		if err := WriteOpReqImportExt(conn, ImportExtRequest{
+		err = WriteOpReqImportExt(conn, ImportExtRequest{
 			BusID:       busid,
 			LeaseID:     lease.ID,
 			ClientNonce: lease.ClientNonce,
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, E.Cause(err, "write OP_REQ_IMPORT_EXT")
 		}
-	} else if err := WriteOpReqImport(conn, busid); err != nil {
-		return nil, E.Cause(err, "write OP_REQ_IMPORT")
+	} else {
+		err = WriteOpReqImport(conn, busid)
+		if err != nil {
+			return nil, E.Cause(err, "write OP_REQ_IMPORT")
+		}
 	}
 	header, err := ReadOpHeader(conn)
 	if err != nil {
 		return nil, E.Cause(err, "read OP_REP_IMPORT header")
 	}
 	if header.Version != ProtocolVersion {
-		return nil, E.New("unexpected reply version 0x", hex16(header.Version))
+		return nil, E.New(fmt.Sprintf("unexpected reply version 0x%04x", header.Version))
 	}
 	if header.Code != expectedReply {
-		return nil, E.New("unexpected reply code 0x", hex16(header.Code))
+		return nil, E.New(fmt.Sprintf("unexpected reply code 0x%04x", header.Code))
 	}
 	if header.Status != OpStatusOK {
 		return nil, E.New("remote rejected import (status=", header.Status, ")")
@@ -648,46 +208,13 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (*darwi
 		return nil, E.Cause(err, "read OP_REP_IMPORT body")
 	}
 	controller := newDarwinVirtualController(ctx, c.logger, conn, info)
-	if err := controller.Start(); err != nil {
+	err = controller.Start()
+	if err != nil {
 		controller.Close()
 		return nil, err
 	}
 	closeConn = false
 	return controller, nil
-}
-
-func (c *ClientService) setBusIDActive(busid string, active bool) {
-	c.activeMu.Lock()
-	defer c.activeMu.Unlock()
-	if active {
-		c.activeBusIDs[busid] = struct{}{}
-	} else {
-		delete(c.activeBusIDs, busid)
-	}
-}
-
-func (c *ClientService) isBusIDActive(busid string) bool {
-	c.activeMu.Lock()
-	defer c.activeMu.Unlock()
-	_, exists := c.activeBusIDs[busid]
-	return exists
-}
-
-func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {
-	if len(c.matches) != 0 {
-		return true
-	}
-	if err := c.syncRemoteStateContext(ctx); err != nil {
-		c.logger.Warn("refresh remote exports after releasing ", busid, ": ", err)
-		return true
-	}
-	c.stateMu.Lock()
-	defer c.stateMu.Unlock()
-	if _, registered := c.allWorkers[busid]; !registered {
-		return false
-	}
-	_, desired := c.allDesired[busid]
-	return desired
 }
 
 type darwinControllerEvent struct {
@@ -733,11 +260,11 @@ type darwinVirtualController struct {
 	eventStarted atomic.Bool
 	seq          atomic.Uint32
 
-	writeMu   sync.Mutex
-	pendingMu sync.Mutex
-	pending   map[uint32]darwinPendingSubmit
+	writeAccess   sync.Mutex
+	pendingAccess sync.Mutex
+	pending       map[uint32]darwinPendingSubmit
 
-	stateMu       sync.Mutex
+	stateAccess   sync.Mutex
 	powered       bool
 	connected     bool
 	nextAddress   uint8
@@ -849,7 +376,7 @@ func (c *darwinVirtualController) readLoop() {
 				return
 			}
 		default:
-			c.logger.Debug("unexpected USB/IP response 0x", hex32(header.Command))
+			c.logger.Debug(fmt.Sprintf("unexpected USB/IP response 0x%08x", header.Command))
 			c.failPending()
 			return
 		}
@@ -922,27 +449,27 @@ func (c *darwinVirtualController) handleDeviceCreate(message darwinCIMessage) er
 	if err != nil {
 		return err
 	}
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	address := c.nextAddress
 	c.nextAddress++
 	c.devices[address] = device
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	return device.respondCreate(message, ciStatusSuccess, address)
 }
 
 func (c *darwinVirtualController) handleDeviceCommand(message darwinCIMessage) error {
 	address := message.deviceAddress()
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	device := c.devices[address]
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	if device == nil {
 		return nil
 	}
 	err := device.respond(message, ciStatusSuccess)
 	if message.messageType() == ciMsgDeviceDestroy {
-		c.stateMu.Lock()
+		c.stateAccess.Lock()
 		delete(c.devices, address)
-		c.stateMu.Unlock()
+		c.stateAccess.Unlock()
 		device.Close()
 	}
 	return err
@@ -954,26 +481,26 @@ func (c *darwinVirtualController) handleEndpointCreate(message darwinCIMessage) 
 		return err
 	}
 	key := darwinEndpointKey{device: message.deviceAddress(), endpoint: message.endpointAddress()}
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	c.endpoints[key] = endpoint
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	return endpoint.respond(message, ciStatusSuccess)
 }
 
 func (c *darwinVirtualController) handleEndpointCommand(message darwinCIMessage) error {
 	key := darwinEndpointKey{device: message.deviceAddress(), endpoint: message.endpointAddress()}
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	endpoint := c.endpoints[key]
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	if endpoint == nil {
 		return nil
 	}
 	err := endpoint.respond(message, ciStatusSuccess)
 	if message.messageType() == ciMsgEndpointDestroy {
-		c.stateMu.Lock()
+		c.stateAccess.Lock()
 		delete(c.endpoints, key)
 		delete(c.controlStates, key.device)
-		c.stateMu.Unlock()
+		c.stateAccess.Unlock()
 		endpoint.Close()
 	}
 	return err
@@ -984,13 +511,14 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		device:   uint8(doorbell & 0xff),
 		endpoint: uint8((doorbell >> 8) & 0xff),
 	}
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	endpoint := c.endpoints[key]
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	if endpoint == nil {
 		return
 	}
-	if err := endpoint.processDoorbell(doorbell); err != nil {
+	err := endpoint.processDoorbell(doorbell)
+	if err != nil {
 		c.logger.Debug("process doorbell: ", err)
 		return
 	}
@@ -1010,7 +538,8 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		}
 		previousNoResponse = nil
 		status, length := c.handleTransfer(key, transfer.message)
-		if err := endpoint.complete(transfer, darwinUSBIPStatusToCIStatus(status), length); err != nil {
+		err = endpoint.complete(transfer, darwinUSBIPStatusToCIStatus(status), length)
+		if err != nil {
 			c.logger.Debug("complete transfer: ", err)
 			c.requestClose()
 			return
@@ -1019,7 +548,7 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 }
 
 func (c *darwinVirtualController) teardownIOUSBHostState() {
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	endpoints := make([]darwinEndpointStateMachine, 0, len(c.endpoints))
 	for _, endpoint := range c.endpoints {
 		endpoints = append(endpoints, endpoint)
@@ -1033,7 +562,7 @@ func (c *darwinVirtualController) teardownIOUSBHostState() {
 	c.controlStates = make(map[uint8]darwinControlState)
 	controller := c.controller
 	c.controller = nil
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 
 	for _, endpoint := range endpoints {
 		endpoint.Close()
@@ -1049,9 +578,9 @@ func (c *darwinVirtualController) teardownIOUSBHostState() {
 func (c *darwinVirtualController) handleTransfer(key darwinEndpointKey, message darwinCIMessage) (int32, int) {
 	switch message.messageType() {
 	case ciMsgSetupTransfer:
-		c.stateMu.Lock()
+		c.stateAccess.Lock()
 		c.controlStates[key.device] = darwinControlState{setup: message.setup()}
-		c.stateMu.Unlock()
+		c.stateAccess.Unlock()
 		return 0, 0
 	case ciMsgStatusTransfer:
 		return c.handleControlStatusTransfer(key)
@@ -1068,9 +597,9 @@ func (c *darwinVirtualController) handleTransfer(key darwinEndpointKey, message 
 }
 
 func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKey, message darwinCIMessage) (int32, int) {
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	state, ok := c.controlStates[key.device]
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	if !ok {
 		return -int32(unix.EPROTO), 0
 	}
@@ -1104,10 +633,10 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 }
 
 func (c *darwinVirtualController) handleControlStatusTransfer(key darwinEndpointKey) (int32, int) {
-	c.stateMu.Lock()
+	c.stateAccess.Lock()
 	state, ok := c.controlStates[key.device]
 	delete(c.controlStates, key.device)
-	c.stateMu.Unlock()
+	c.stateAccess.Unlock()
 	if !ok {
 		return 0, 0
 	}
@@ -1229,17 +758,17 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 		command.NumberOfPackets = nonIsoPacketCount
 	}
 	reply := make(chan SubmitResponse, 1)
-	c.pendingMu.Lock()
+	c.pendingAccess.Lock()
 	c.pending[seq] = darwinPendingSubmit{direction: command.Header.Direction, reply: reply}
-	c.pendingMu.Unlock()
+	c.pendingAccess.Unlock()
 	defer func() {
-		c.pendingMu.Lock()
+		c.pendingAccess.Lock()
 		delete(c.pending, seq)
-		c.pendingMu.Unlock()
+		c.pendingAccess.Unlock()
 	}()
-	c.writeMu.Lock()
+	c.writeAccess.Lock()
 	err := WriteSubmitCommand(c.conn, command)
-	c.writeMu.Unlock()
+	c.writeAccess.Unlock()
 	if err != nil {
 		return SubmitResponse{}, err
 	}
@@ -1255,8 +784,8 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 }
 
 func (c *darwinVirtualController) pendingSubmitDirection(seq uint32) (uint32, bool) {
-	c.pendingMu.Lock()
-	defer c.pendingMu.Unlock()
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
 	pending, ok := c.pending[seq]
 	if !ok {
 		return 0, false
@@ -1265,22 +794,21 @@ func (c *darwinVirtualController) pendingSubmitDirection(seq uint32) (uint32, bo
 }
 
 func (c *darwinVirtualController) deliverSubmit(response SubmitResponse) {
-	c.pendingMu.Lock()
-	pending := c.pending[response.Header.SeqNum]
-	c.pendingMu.Unlock()
-	reply := pending.reply
-	if reply == nil {
+	c.pendingAccess.Lock()
+	pending, ok := c.pending[response.Header.SeqNum]
+	if ok {
+		delete(c.pending, response.Header.SeqNum)
+	}
+	c.pendingAccess.Unlock()
+	if !ok || pending.reply == nil {
 		return
 	}
-	select {
-	case reply <- response:
-	default:
-	}
+	pending.reply <- response
 }
 
 func (c *darwinVirtualController) failPending() {
-	c.pendingMu.Lock()
-	defer c.pendingMu.Unlock()
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
 	for seq, pending := range c.pending {
 		delete(c.pending, seq)
 		close(pending.reply)

@@ -86,7 +86,8 @@ func (h *usbipConnHandoff) Close() error {
 
 func (h *usbipConnHandoff) startRelay(ctx context.Context, logger log.ContextLogger, side string, busid string) bool {
 	if !h.relay() {
-		if err := h.conn.Close(); err != nil && !E.IsClosedOrCanceled(err) {
+		err := h.conn.Close()
+		if err != nil && !E.IsClosedOrCanceled(err) {
 			logger.Debug("close usbip ", side, " userspace socket ", busid, ": ", err)
 		}
 		return true
