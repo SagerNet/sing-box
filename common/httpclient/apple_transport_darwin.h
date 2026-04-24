@@ -13,8 +13,7 @@ typedef struct box_apple_http_session_config {
 	uint16_t min_tls_version;
 	uint16_t max_tls_version;
 	bool insecure;
-	const char *anchor_pem;
-	size_t anchor_pem_len;
+	void *anchors_cf;
 	bool anchor_only;
 	const uint8_t *pinned_public_key_sha256;
 	size_t pinned_public_key_sha256_len;
