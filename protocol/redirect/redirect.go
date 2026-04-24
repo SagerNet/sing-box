@@ -53,7 +53,7 @@ func (h *Redirect) Close() error {
 	return h.listener.Close()
 }
 
-func (h *Redirect) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (h *Redirect) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	destination, err := redir.GetOriginalDestination(conn)
 	if err != nil {
 		conn.Close()

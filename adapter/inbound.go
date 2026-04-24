@@ -22,12 +22,12 @@ type Inbound interface {
 
 type TCPInjectableInbound interface {
 	Inbound
-	ConnectionHandlerEx
+	ConnectionHandler
 }
 
 type UDPInjectableInbound interface {
 	Inbound
-	PacketConnectionHandlerEx
+	PacketConnectionHandler
 }
 
 type InboundRegistry interface {
